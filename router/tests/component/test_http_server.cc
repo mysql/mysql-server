@@ -90,8 +90,6 @@ static constexpr bool is_with_ssl_support() {
       ;
 }
 
-Path g_origin_path;
-
 static void ParamPrinter(
     const std::vector<std::pair<std::string, std::string>> &fields,
     std::ostream *os) {
@@ -114,14 +112,7 @@ static void ParamPrinter(
 }
 
 // base-class to init RouterComponentTest before we launch_* anything
-class HttpServerTestBase : public RouterComponentTest {
- public:
-  HttpServerTestBase() {
-    set_origin(g_origin_path);
-
-    RouterComponentTest::init();
-  }
-};
+class HttpServerTestBase : public RouterComponentTest {};
 
 /**
  * parameters of static-files tests.
@@ -178,7 +169,6 @@ struct HttpServerPlainParams {
  */
 class HttpServerPlainTest
     : public HttpServerTestBase,
-      public ::testing::Test,
       public ::testing::WithParamInterface<HttpServerPlainParams> {
  public:
   HttpServerPlainTest()
@@ -266,7 +256,8 @@ TEST_P(HttpServerPlainTest, ensure) {
   std::string conf_file{create_config_file(
       conf_dir_.name(),
       ConfigBuilder::build_section("http_server", http_section))};
-  CommandHandle http_server{launch_router({"-c", conf_file})};
+  ProcessWrapper &http_server{launch_router(
+      {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE)};
 
   if (GetParam().expected_success) {
     std::string rel_uri = GetParam().raw_uri_path;
@@ -852,7 +843,6 @@ struct HttpClientSecureParams {
  */
 class HttpClientSecureTest
     : public HttpServerTestBase,
-      public ::testing::Test,
       public ::testing::WithParamInterface<HttpClientSecureParams> {
  public:
   HttpClientSecureTest()
@@ -879,7 +869,7 @@ class HttpClientSecureTest
   TempDirectory conf_dir_;
   mysql_harness::Path ssl_cert_data_dir_;
   std::string conf_file_;
-  CommandHandle http_server_;
+  ProcessWrapper &http_server_;
 };
 
 /**
@@ -1068,7 +1058,6 @@ struct HttpServerSecureParams {
  */
 class HttpServerSecureTest
     : public HttpServerTestBase,
-      public ::testing::Test,
       public ::testing::WithParamInterface<HttpServerSecureParams> {
  public:
   HttpServerSecureTest()
@@ -1116,7 +1105,9 @@ TEST_P(HttpServerSecureTest, ensure) {
   std::string conf_file{create_config_file(
       conf_dir_.name(),
       ConfigBuilder::build_section("http_server", http_section))};
-  CommandHandle http_server{launch_router({"-c", conf_file})};
+  ProcessWrapper &http_server{
+      launch_router({"-c", conf_file},
+                    GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE)};
 
   if (GetParam().expected_success) {
     HttpUri u;
@@ -1420,7 +1411,6 @@ struct HttpServerAuthParams {
 
 class HttpServerAuthTest
     : public HttpServerTestBase,
-      public ::testing::Test,
       public ::testing::WithParamInterface<HttpServerAuthParams> {
  public:
   HttpServerAuthTest()
@@ -1464,7 +1454,7 @@ class HttpServerAuthTest
   TempDirectory conf_dir_;
   std::string passwd_filename_;
   std::string conf_file_;
-  CommandHandle http_server_;
+  ProcessWrapper &http_server_;
 };
 
 /**
@@ -1527,7 +1517,6 @@ struct HttpServerAuthFailParams {
 
 class HttpServerAuthFailTest
     : public HttpServerTestBase,
-      public ::testing::Test,
       public ::testing::WithParamInterface<HttpServerAuthFailParams> {
  public:
   HttpServerAuthFailTest()
@@ -1573,7 +1562,9 @@ TEST_P(HttpServerAuthFailTest, ensure) {
 
   std::string conf_file = create_config_file(conf_dir_.name(), config_content);
 
-  CommandHandle http_server{launch_router({"-c", conf_file})};
+  ProcessWrapper &http_server{
+      launch_router({"-c", conf_file},
+                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE)};
 
   std::fstream pwf{passwd_filename, std::ios::out};
 
@@ -1708,7 +1699,7 @@ INSTANTIATE_TEST_CASE_P(
 int main(int argc, char *argv[]) {
   TlsLibraryContext tls_lib_ctx;
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

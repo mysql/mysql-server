@@ -48,24 +48,14 @@
 
 #include "mysqlrouter/rest_client.h"
 
-Path g_origin_path;
-
 class RestRoutingApiTest
     : public RestApiComponentTest,
-      public ::testing::Test,
       public ::testing::WithParamInterface<RestApiTestParams> {
  protected:
   RestRoutingApiTest() : mock_port_{port_pool_.get_next_available()} {
     for (size_t i = 0; i < kRoutesQty; ++i) {
       routing_ports_.push_back(port_pool_.get_next_available());
     }
-    set_origin(g_origin_path);
-    RestApiComponentTest::init();
-  }
-
-  void TearDown() {
-    process_manager_.shutdown_all();
-    process_manager_.ensure_clean_exit();
   }
 
   bool wait_route_ready(std::chrono::milliseconds max_wait_time,
@@ -98,8 +88,6 @@ class RestRoutingApiTest
 
   const uint16_t mock_port_;
   std::vector<uint16_t> routing_ports_;
-
-  ProcessManager process_manager_;
 
  public:
   static const size_t kRoutesQty = 5;
@@ -173,14 +161,13 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
                              }));
 
   std::map<std::string, std::string> default_section = get_DEFAULT_defaults();
-  RouterComponentTest::init_keyring(default_section, conf_dir_.name());
+  init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section)};
 
-  CommandHandle &http_server =
-      process_manager_.add(launch_router({"-c", conf_file}));
+  ProcessWrapper &http_server = launch_router({"-c", conf_file});
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
@@ -188,8 +175,8 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
       get_data_dir().join("bootstrap_big_data.js").str();
 
   SCOPED_TRACE("// launch the server mock");
-  auto &server_mock = process_manager_.add(
-      launch_mysql_server_mock(json_stmts, mock_port_, false));
+  auto &server_mock =
+      launch_mysql_server_mock(json_stmts, mock_port_, EXIT_SUCCESS, false);
 
   ASSERT_TRUE(wait_for_port_ready(mock_port_, 5000))
       << server_mock.get_full_output();
@@ -956,10 +943,10 @@ TEST_F(RestRoutingApiTest, routing_api_no_auth) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(router_output.find("plugin 'rest_routing' init failed: option "
@@ -983,10 +970,10 @@ TEST_F(RestRoutingApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(
@@ -1008,10 +995,10 @@ TEST_F(RestRoutingApiTest, routing_api_no_rest_api) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find("Plugin 'rest_routing' needs plugin "
@@ -1039,10 +1026,10 @@ TEST_F(RestRoutingApiTest, rest_routing_section_twice) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find(
@@ -1066,10 +1053,10 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(
@@ -1081,7 +1068,7 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

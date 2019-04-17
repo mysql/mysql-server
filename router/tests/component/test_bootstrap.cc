@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,30 +45,16 @@
  * @brief Component Tests for the bootstrap operation
  */
 
-Path g_origin_path;
-
 // we create a number of classes to logically group tests together. But to avoid
 // code duplication, we derive them from a class which contains the common code
 // they need.
-class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
+class CommonBootstrapTest : public RouterComponentTest {
  protected:
   static void SetUpTestCase() { my_hostname = "dont.query.dns"; }
 
-  void SetUp() override {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-    bootstrap_dir = get_tmp_dir();
-    tmp_dir = get_tmp_dir();
-  }
-
-  virtual void TearDown() override {
-    purge_dir(tmp_dir);
-    purge_dir(bootstrap_dir);
-  }
-
   TcpPortPool port_pool_;
-  std::string bootstrap_dir;
-  std::string tmp_dir;
+  TempDirectory bootstrap_dir;
+  TempDirectory tmp_dir;
   static std::string my_hostname;
 
   struct Config {
@@ -87,16 +73,14 @@ class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
 
   friend std::ostream &operator<<(
       std::ostream &os,
-      const std::vector<
-          std::tuple<RouterComponentTest::CommandHandle, unsigned int>> &T);
+      const std::vector<std::tuple<ProcessWrapper &, unsigned int>> &T);
 };
 
 std::string CommonBootstrapTest::my_hostname;
 
 std::ostream &operator<<(
     std::ostream &os,
-    const std::vector<
-        std::tuple<CommonBootstrapTest::CommandHandle, unsigned int>> &T) {
+    const std::vector<std::tuple<ProcessWrapper &, unsigned int>> &T) {
   for (auto &t : T) {
     auto &proc = std::get<0>(t);
 
@@ -138,7 +122,7 @@ void CommonBootstrapTest::bootstrap_failover(
     ndx++;
   }
 
-  std::vector<std::tuple<CommandHandle, unsigned int>> mock_servers;
+  std::vector<std::tuple<ProcessWrapper &, unsigned int>> mock_servers;
 
   // start the mocks
   for (const auto &mock_server_config : mock_server_configs) {
@@ -152,7 +136,8 @@ void CommonBootstrapTest::bootstrap_failover(
 
     if (out_filename.size()) {
       mock_servers.emplace_back(
-          launch_mysql_server_mock(out_filename, port, false), port);
+          launch_mysql_server_mock(out_filename, port, EXIT_SUCCESS, false),
+          port);
     }
   }
 
@@ -177,11 +162,11 @@ void CommonBootstrapTest::bootstrap_failover(
     router_cmdline.emplace_back("--report-host");
     router_cmdline.emplace_back(my_hostname);
     router_cmdline.emplace_back("-d");
-    router_cmdline.emplace_back(bootstrap_dir);
+    router_cmdline.emplace_back(bootstrap_dir.name());
   }
 
   // launch the router
-  auto router = launch_router(router_cmdline);
+  auto &router = launch_router(router_cmdline, expected_exitcode);
 
   // type in the password
   router.register_response("Please enter MySQL password for root: ",
@@ -208,7 +193,7 @@ void CommonBootstrapTest::bootstrap_failover(
         << mock_servers;
   }
 
-  if (0 == expected_exitcode) {
+  if (EXIT_SUCCESS == expected_exitcode) {
     // fetch all the content for debugging
     for (auto &mock_server : mock_servers) {
       std::get<0>(mock_server).get_full_output();
@@ -223,24 +208,24 @@ void CommonBootstrapTest::bootstrap_failover(
     // check the output configuration file:
     // 1. check if the valid default ttl has been put in the configuraion:
     EXPECT_TRUE(find_in_file(
-        bootstrap_dir + "/mysqlrouter.conf",
+        bootstrap_dir.name() + "/mysqlrouter.conf",
         [](const std::string &line) -> bool { return line == "ttl=0.5"; },
         std::chrono::milliseconds(0)));
     // 2. check that bootstrap server addresses is no longer in cofiguration
     // file (it has been replaced with dynamic_config)
-    const std::string conf_file = bootstrap_dir + "/mysqlrouter.conf";
+    const std::string conf_file = bootstrap_dir.name() + "/mysqlrouter.conf";
     EXPECT_FALSE(find_in_file(
         conf_file,
         [](const std::string &line) -> bool {
           return line.find("bootstrap_server_addresses") != std::string::npos;
         },
         std::chrono::milliseconds(0)))
-        << get_file_output("mysqlrouter.conf", bootstrap_dir);
+        << get_file_output("mysqlrouter.conf", bootstrap_dir.name());
     // 3. check that the config files (static and dynamic) have the proper
     // access rights
     ASSERT_NO_FATAL_FAILURE(
         check_config_file_access_rights(conf_file, /*read_only=*/true));
-    const std::string state_file = bootstrap_dir + "/data/state.json";
+    const std::string state_file = bootstrap_dir.name() + "/data/state.json";
     ASSERT_NO_FATAL_FAILURE(
         check_config_file_access_rights(state_file, /*read_only=*/false));
   }
@@ -297,7 +282,7 @@ TEST_F(RouterBootstrapTest, BootstrapUserIsCurrentUser) {
         "--bootstrap=" + mock_servers.at(0).ip + ":" +
             std::to_string(mock_servers.at(0).port),
         "-d",
-        bootstrap_dir,
+        bootstrap_dir.name(),
         "--report-host",
         my_hostname,
         "--user",
@@ -329,7 +314,7 @@ TEST_F(RouterBootstrapTest, BootstrapOnlySockets) {
       "--bootstrap=" + mock_servers.at(0).ip + ":" +
           std::to_string(mock_servers.at(0).port),
       "-d",
-      bootstrap_dir,
+      bootstrap_dir.name(),
       "--report-host",
       my_hostname,
       "--conf-skip-tcp",
@@ -337,7 +322,7 @@ TEST_F(RouterBootstrapTest, BootstrapOnlySockets) {
 
   bootstrap_failover(mock_servers, router_options,
 #ifndef _WIN32
-                     0,
+                     EXIT_SUCCESS,
                      {
                        "- Read/Write Connections: .*/mysqlx.sock",
                            "- Read/Only Connections: .*/mysqlxro.sock"
@@ -365,7 +350,7 @@ TEST_F(RouterBootstrapTest, BootstrapUnsupportedSchemaVersion) {
   };
 
   // check that it failed as expected
-  bootstrap_failover(mock_servers, {}, 1,
+  bootstrap_failover(mock_servers, {}, EXIT_FAILURE,
                      {"^Error: This version of MySQL Router is not compatible "
                       "with the provided MySQL InnoDB cluster metadata"});
 }
@@ -384,7 +369,9 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonly) {
   std::vector<Config> config{
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_super_read_only_1.js").str(),
-       Path(tmp_dir).join("bootstrap_failover_super_read_only_1.json").str()},
+       Path(tmp_dir.name())
+           .join("bootstrap_failover_super_read_only_1.json")
+           .str()},
       {"127.0.0.1", port_pool_.get_next_available(), "",
        get_data_dir().join("bootstrap_failover_super_read_only_2.js").str()},
       {"127.0.0.1", port_pool_.get_next_available(), "", ""},
@@ -420,7 +407,7 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonly2ndNodeDead) {
       // member-1, PRIMARY, fails at first write
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_super_read_only_1.js").str(),
-       Path(tmp_dir).join("member-1.json").str()},
+       Path(tmp_dir.name()).join("member-1.json").str()},
       // member-2, unreachable
       {"127.0.0.1", 65536,  // 65536 % 0xffff = 0 (port 0), but we bypass
                             // libmysqlclient's default-port assignment
@@ -431,7 +418,7 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonly2ndNodeDead) {
   };
 
   bootstrap_failover(
-      config, {}, 0,
+      config, {}, EXIT_SUCCESS,
       {
           "^Fetching Group Replication Members",
           "^Failed connecting to 127\\.0\\.0\\.1:65536: .*, trying next$",
@@ -455,12 +442,12 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonlyCreateAccountFails) {
        get_data_dir()
            .join("bootstrap_failover_super_read_only_dead_2nd_1.js")
            .str(),
-       Path(tmp_dir).join("member-1.json").str()},
+       Path(tmp_dir.name()).join("member-1.json").str()},
 
       // member-2: PRIMARY, succeeds
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_reconfigure_ok.js").str(),
-       Path(tmp_dir).join("member-2.json").str()},
+       Path(tmp_dir.name()).join("member-2.json").str()},
 
       // member-3: defined, but unused
       {"127.0.0.1", port_pool_.get_next_available(), "", ""},
@@ -488,14 +475,14 @@ TEST_F(RouterBootstrapTest,
        get_data_dir()
            .join("bootstrap_failover_super_read_only_delete_user.js")
            .str(),
-       Path(tmp_dir).join("member-1.json").str()},
+       Path(tmp_dir.name()).join("member-1.json").str()},
 
       // member-2: PRIMARY, succeeds
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir()
            .join("bootstrap_failover_reconfigure_ok_3_old_users.js")
            .str(),
-       Path(tmp_dir).join("member-2.json").str()},
+       Path(tmp_dir.name()).join("member-2.json").str()},
 
       // member-3: defined, but unused
       {"127.0.0.1", port_pool_.get_next_available(), "", ""},
@@ -521,12 +508,12 @@ TEST_F(RouterBootstrapTest,
       // member-1: PRIMARY, fails after GRANT
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_at_grant.js").str(),
-       Path(tmp_dir).join("member-1.json").str()},
+       Path(tmp_dir.name()).join("member-1.json").str()},
 
       // member-2: PRIMARY, succeeds
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_reconfigure_ok.js").str(),
-       Path(tmp_dir).join("member-2.json").str()},
+       Path(tmp_dir.name()).join("member-2.json").str()},
 
       // member-3: defined, but unused
       {"127.0.0.1", port_pool_.get_next_available(), "", ""},
@@ -554,7 +541,9 @@ TEST_F(RouterBootstrapTest, DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_super_read_only_1.js").str(),
-       Path(tmp_dir).join("bootstrap_failover_super_read_only_1.json").str()},
+       Path(tmp_dir.name())
+           .join("bootstrap_failover_super_read_only_1.json")
+           .str()},
       {"127.0.0.1", port_pool_.get_next_available(), "",
        get_data_dir().join("bootstrap_failover_super_read_only_2.js").str()},
       {"127.0.0.1", port_pool_.get_next_available(), "", ""},
@@ -562,7 +551,7 @@ TEST_F(RouterBootstrapTest, DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
 
   std::vector<std::string> router_options = {
       "--bootstrap=localhost", "--bootstrap-socket=" + mock_servers.at(0).ip,
-      "-d", bootstrap_dir};
+      "-d", bootstrap_dir.name()};
 
   bootstrap_failover(mock_servers, router_options);
 }
@@ -584,17 +573,17 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonlyNewPrimaryCrash) {
        get_data_dir()
            .join("bootstrap_failover_super_read_only_dead_2nd_1.js")
            .str(),
-       Path(tmp_dir).join("member-1.json").str()},
+       Path(tmp_dir.name()).join("member-1.json").str()},
 
       // member-2: PRIMARY, but crashing
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_at_crash.js").str(),
-       Path(tmp_dir).join("member-2.json").str()},
+       Path(tmp_dir.name()).join("member-2.json").str()},
 
       // member-3: newly elected PRIMARY, succeeds
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_failover_reconfigure_ok.js").str(),
-       Path(tmp_dir).join("member-3.json").str()},
+       Path(tmp_dir.name()).join("member-3.json").str()},
   };
 
   bootstrap_failover(mock_servers);
@@ -617,11 +606,11 @@ TEST_F(RouterBootstrapTest,
       "--report-host",
       my_hostname,
       "-d",
-      bootstrap_dir,
+      bootstrap_dir.name(),
       "--connect-timeout=3",
       "--read-timeout=3"};
 
-  bootstrap_failover(mock_servers, router_options, 0, {});
+  bootstrap_failover(mock_servers, router_options, EXIT_SUCCESS, {});
 }
 
 TEST_F(RouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
@@ -629,7 +618,7 @@ TEST_F(RouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
       // member-1: PRIMARY, fails after GRANT
       {"127.0.0.1", port_pool_.get_next_available(),
        get_data_dir().join("bootstrap_access_error_at_grant.js").str(),
-       Path(tmp_dir).join("member-1.json").str()},
+       Path(tmp_dir.name()).join("member-1.json").str()},
 
       // member-2: defined, but unused
       {"127.0.0.1", port_pool_.get_next_available(), "", ""},
@@ -638,7 +627,7 @@ TEST_F(RouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
       {"127.0.0.1", port_pool_.get_next_available(), "", ""},
   };
 
-  bootstrap_failover(config, {}, 1,
+  bootstrap_failover(config, {}, EXIT_FAILURE,
                      {"Access denied for user 'native'@'%' to database "
                       "'mysql_innodb_cluster_metadata"});
 }
@@ -659,7 +648,8 @@ TEST_F(RouterBootstrapTest, BootstrapNoGroupReplicationSetup) {
       },
   };
 
-  bootstrap_failover(config, {}, 1, {"to have Group Replication running"});
+  bootstrap_failover(config, {}, EXIT_FAILURE,
+                     {"to have Group Replication running"});
 }
 
 /**
@@ -677,7 +667,7 @@ TEST_F(RouterBootstrapTest, BootstrapNoMetadataSchema) {
       },
   };
 
-  bootstrap_failover(config, {}, 1,
+  bootstrap_failover(config, {}, EXIT_FAILURE,
                      {"to contain the metadata of MySQL InnoDB Cluster"});
 }
 
@@ -694,9 +684,9 @@ TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
   std::vector<std::string> router_options = {
       "--bootstrap=" + mock_servers.at(0).ip + ":" +
           std::to_string(mock_servers.at(0).port),
-      "-d", bootstrap_dir, "--connect-timeout=1", "--read-timeout=1"};
+      "-d", bootstrap_dir.name(), "--connect-timeout=1", "--read-timeout=1"};
 
-  bootstrap_failover(mock_servers, router_options, 1,
+  bootstrap_failover(mock_servers, router_options, EXIT_FAILURE,
                      {"Error: Error executing MySQL query: Lost connection to "
                       "MySQL server during query \\(2013\\)"});
 }
@@ -714,8 +704,6 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   // to avoid duplication of tracefiles, we run the same test twice, with the
   // only difference that 1st time we run --bootstrap before the --account-host,
   // and second time we run it after
-
-  const std::string bootstrap_directory = get_tmp_dir();
   const unsigned server_port = port_pool_.get_next_available();
 
   auto test_it = [&](const std::vector<std::string> &cmdline) -> void {
@@ -725,14 +713,13 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
             .str();
 
     // launch mock server and wait for it to start accepting connections
-    auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+    auto &server_mock =
+        launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
     bool ready = wait_for_port_ready(server_port);
     EXPECT_TRUE(ready) << server_mock.get_full_output();
 
     // launch the router in bootstrap mode
-    std::shared_ptr<void> exit_guard(
-        nullptr, [&](void *) { purge_dir(bootstrap_directory); });
-    auto router = launch_router(cmdline);
+    auto &router = launch_router(cmdline);
 
     // add login hook
     router.register_response("Please enter MySQL password for root: ",
@@ -743,29 +730,37 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
         "MySQL Router configured for the InnoDB cluster 'test'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
-    EXPECT_EQ(router.wait_for_exit(), 0);
+    EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS);
+
+    server_mock.kill();
   };
 
   // NOTE: CREATE USER statements should run in unique(sort(hostname_list))
   // fashion
 
   // --bootstrap before --account-host
-  test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
-           "--report-host", my_hostname, "-d", bootstrap_directory,
-           "--account-host", "host1",     // 2nd CREATE USER
-           "--account-host", "%",         // 1st CREATE USER
-           "--account-host", "host1",     // \_ redundant, ignored
-           "--account-host", "host1",     // /
-           "--account-host", "host3%"});  // 3rd CREATE USER
+  {
+    TempDirectory bootstrap_directory;
+    test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
+             "--report-host", my_hostname, "-d", bootstrap_directory.name(),
+             "--account-host", "host1",     // 2nd CREATE USER
+             "--account-host", "%",         // 1st CREATE USER
+             "--account-host", "host1",     // \_ redundant, ignored
+             "--account-host", "host1",     // /
+             "--account-host", "host3%"});  // 3rd CREATE USER
+  }
 
   // --bootstrap after --account-host
-  test_it({"-d", bootstrap_directory, "--report-host", my_hostname,
-           "--account-host", "host1",   // 2nd CREATE USER
-           "--account-host", "%",       // 1st CREATE USER
-           "--account-host", "host1",   // \_ redundant, ignored
-           "--account-host", "host1",   // /
-           "--account-host", "host3%",  // 3rd CREATE USER
-           "--bootstrap=127.0.0.1:" + std::to_string(server_port)});
+  {
+    TempDirectory bootstrap_directory;
+    test_it({"-d", bootstrap_directory.name(), "--report-host", my_hostname,
+             "--account-host", "host1",   // 2nd CREATE USER
+             "--account-host", "%",       // 1st CREATE USER
+             "--account-host", "host1",   // \_ redundant, ignored
+             "--account-host", "host1",   // /
+             "--account-host", "host3%",  // 3rd CREATE USER
+             "--bootstrap=127.0.0.1:" + std::to_string(server_port)});
+  }
 }
 
 /**
@@ -777,15 +772,16 @@ TEST_F(RouterAccountHostTest, argument_missing) {
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch the router in bootstrap mode
-  auto router =
+  auto &router =
       launch_router({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
-                     "--account-host"});
+                     "--account-host"},
+                    EXIT_FAILURE);
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
       "option '--account-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -795,13 +791,13 @@ TEST_F(RouterAccountHostTest, argument_missing) {
  */
 TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
-  auto router = launch_router({"--account-host", "host1"});
+  auto &router = launch_router({"--account-host", "host1"}, EXIT_FAILURE);
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
       "Option --account-host can only be used together with -B/--bootstrap"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -812,21 +808,21 @@ TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
 TEST_F(RouterAccountHostTest, illegal_hostname) {
   const std::string json_stmts =
       get_data_dir().join("bootstrap_account_host_pattern_too_long.js").str();
-  const std::string bootstrap_directory = get_tmp_dir();
+  TempDirectory bootstrap_directory;
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock =
+      launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
   bool ready = wait_for_port_ready(server_port);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_directory); });
-  auto router = launch_router(
+  auto &router = launch_router(
       {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "--report-host",
-       my_hostname, "-d", bootstrap_directory, "--account-host",
-       "veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost"});
+       my_hostname, "-d", bootstrap_directory.name(), "--account-host",
+       "veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost"},
+      1);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -839,7 +835,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
       << router.get_full_output() << std::endl
       << "server:\n"
       << server_mock.get_full_output();
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 class RouterReportHostTest : public CommonBootstrapTest {};
@@ -849,7 +845,6 @@ class RouterReportHostTest : public CommonBootstrapTest {};
  *        verify that --report-host works for the typical use case
  */
 TEST_F(RouterReportHostTest, typical_usage) {
-  const std::string bootstrap_directory = get_tmp_dir();
   const unsigned server_port = port_pool_.get_next_available();
 
   auto test_it = [&](const std::vector<std::string> &cmdline) -> void {
@@ -857,14 +852,13 @@ TEST_F(RouterReportHostTest, typical_usage) {
         get_data_dir().join("bootstrap_report_host.js").str();
 
     // launch mock server and wait for it to start accepting connections
-    auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+    auto &server_mock =
+        launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
     bool ready = wait_for_port_ready(server_port);
     EXPECT_TRUE(ready) << server_mock.get_full_output();
 
     // launch the router in bootstrap mode
-    std::shared_ptr<void> exit_guard(
-        nullptr, [&](void *) { purge_dir(bootstrap_directory); });
-    auto router = launch_router(cmdline);
+    auto &router = launch_router(cmdline);
 
     // add login hook
     router.register_response("Please enter MySQL password for root: ",
@@ -876,16 +870,24 @@ TEST_F(RouterReportHostTest, typical_usage) {
                              "InnoDB cluster 'mycluster'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
-    EXPECT_EQ(router.wait_for_exit(), 0);
+    EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS);
+
+    server_mock.kill();
   };
 
-  // --bootstrap before --report-host
-  test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
-           bootstrap_directory, "--report-host", "host.foo.bar"});
+  {
+    TempDirectory bootstrap_directory;
+    // --bootstrap before --report-host
+    test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+             bootstrap_directory.name(), "--report-host", "host.foo.bar"});
+  }
 
-  // --bootstrap after --report-host
-  test_it({"-d", bootstrap_directory, "--report-host", "host.foo.bar",
-           "--bootstrap=127.0.0.1:" + std::to_string(server_port)});
+  {
+    TempDirectory bootstrap_directory;
+    // --bootstrap after --report-host
+    test_it({"-d", bootstrap_directory.name(), "--report-host", "host.foo.bar",
+             "--bootstrap=127.0.0.1:" + std::to_string(server_port)});
+  }
 }
 
 /**
@@ -895,14 +897,15 @@ TEST_F(RouterReportHostTest, typical_usage) {
  */
 TEST_F(RouterReportHostTest, multiple_hostnames) {
   // launch the router in bootstrap mode
-  auto router = launch_router({"--bootstrap=1.2.3.4:5678", "--report-host",
-                               "host1", "--report-host", "host2"});
+  auto &router = launch_router({"--bootstrap=1.2.3.4:5678", "--report-host",
+                                "host1", "--report-host", "host2"},
+                               1);
 
   // check if the bootstraping was successful
   EXPECT_TRUE(
       router.expect_output("Option --report-host can only be used once."))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -912,13 +915,14 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
  */
 TEST_F(RouterReportHostTest, argument_missing) {
   // launch the router in bootstrap mode
-  auto router = launch_router({"--bootstrap=1.2.3.4:5678", "--report-host"});
+  auto &router =
+      launch_router({"--bootstrap=1.2.3.4:5678", "--report-host"}, 1);
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
       "option '--report-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -928,13 +932,13 @@ TEST_F(RouterReportHostTest, argument_missing) {
  */
 TEST_F(RouterReportHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
-  auto router = launch_router({"--report-host", "host1"});
+  auto &router = launch_router({"--report-host", "host1"}, 1);
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
       "Option --report-host can only be used together with -B/--bootstrap"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -950,14 +954,14 @@ TEST_F(RouterReportHostTest, without_bootstrap_flag) {
  */
 TEST_F(RouterReportHostTest, invalid_hostname) {
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      {"--bootstrap", "1.2.3.4:5678", "--report-host", "^bad^hostname^"});
+  auto &router = launch_router(
+      {"--bootstrap", "1.2.3.4:5678", "--report-host", "^bad^hostname^"}, 1);
 
   // check if the bootstraping was successful
   EXPECT_TRUE(
       router.expect_output("Error: Option --report-host has an invalid value."))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -972,7 +976,8 @@ TEST_F(RouterBootstrapTest,
        get_data_dir().join("bootstrap.js").str()},
   };
 
-  ScriptGenerator script_generator(g_origin_path, tmp_dir);
+  ScriptGenerator script_generator(ProcessManager::get_origin(),
+                                   tmp_dir.name());
 
   std::vector<std::string> router_options = {
       "--bootstrap=" + config.at(0).ip + ":" +
@@ -980,20 +985,20 @@ TEST_F(RouterBootstrapTest,
       "--report-host",
       my_hostname,
       "-d",
-      bootstrap_dir,
+      bootstrap_dir.name(),
       "--master-key-reader=" + script_generator.get_reader_script(),
       "--master-key-writer=" + script_generator.get_writer_script()};
 
   bootstrap_failover(config, router_options);
 
-  Path tmp(bootstrap_dir);
+  Path tmp(bootstrap_dir.name());
   Path master_key_file(tmp.join("mysqlrouter.key").str());
   ASSERT_FALSE(master_key_file.exists());
 
   Path keyring_file(tmp.join("data").join("keyring").str());
   ASSERT_TRUE(keyring_file.exists());
 
-  Path dir(tmp_dir);
+  Path dir(tmp_dir.name());
   Path data_file(dir.join("master_key").str());
   ASSERT_TRUE(data_file.exists());
 }
@@ -1012,11 +1017,12 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
       },
       [](mysql_harness::RandomGeneratorInterface *) {});
 
-  mysql_harness::mkdir(Path(bootstrap_dir).str(), 0777);
-  std::string master_key_path = Path(bootstrap_dir).join("master_key").str();
-  mysql_harness::mkdir(Path(bootstrap_dir).join("data").str(), 0777);
+  mysql_harness::mkdir(Path(bootstrap_dir.name()).str(), 0777);
+  std::string master_key_path =
+      Path(bootstrap_dir.name()).join("master_key").str();
+  mysql_harness::mkdir(Path(bootstrap_dir.name()).join("data").str(), 0777);
   std::string keyring_path =
-      Path(bootstrap_dir).join("data").join("keyring").str();
+      Path(bootstrap_dir.name()).join("data").join("keyring").str();
 
   mysql_harness::init_keyring(keyring_path, master_key_path, true);
 
@@ -1039,10 +1045,10 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
       "--report-host",
       my_hostname,
       "-d",
-      bootstrap_dir,
+      bootstrap_dir.name(),
       "--force"};
 
-  bootstrap_failover(mock_servers, router_options, 0, {});
+  bootstrap_failover(mock_servers, router_options, EXIT_SUCCESS, {});
   {
     std::ifstream file(master_key_path);
     std::stringstream iss;
@@ -1057,31 +1063,31 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
  * file entry.
  */
 TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
-  const std::string bootstrap_directory = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_directory); });
+  TempDirectory bootstrap_directory;
   const unsigned server_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock =
+      launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
   bool ready = wait_for_port_ready(server_port);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
-                     "-d", bootstrap_directory, "--conf-use-gr-notifications"});
+  auto &router = launch_router(
+      {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+       bootstrap_directory.name(), "--conf-use-gr-notifications"});
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), 0) << "output:" << router.get_full_output();
+  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
+      << "output:" << router.get_full_output();
 
   // check if the valid config option was added to the file
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory + "/mysqlrouter.conf",
+      bootstrap_directory.name() + "/mysqlrouter.conf",
       [](const std::string &line) -> bool {
         return line == "use_gr_notifications=1";
       },
@@ -1090,7 +1096,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
   // check if valid TTL is set (with GR notifications it should be increased to
   // 60s)
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory + "/mysqlrouter.conf",
+      bootstrap_directory.name() + "/mysqlrouter.conf",
       [](const std::string &line) -> bool { return line == "ttl=60"; },
       std::chrono::milliseconds(0)));
 }
@@ -1101,32 +1107,32 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
  *       creates a proper config file entry.
  */
 TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
-  const std::string bootstrap_directory = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_directory); });
+  TempDirectory bootstrap_directory;
   const unsigned server_port = port_pool_.get_next_available();
 
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock =
+      launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
   bool ready = wait_for_port_ready(server_port);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
-  auto router =
+  auto &router =
       launch_router({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
-                     "-d", bootstrap_directory});
+                     "-d", bootstrap_directory.name()});
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), 0) << "output:" << router.get_full_output();
+  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
+      << "output:" << router.get_full_output();
 
   // check if valid config option was added to the file
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory + "/mysqlrouter.conf",
+      bootstrap_directory.name() + "/mysqlrouter.conf",
       [](const std::string &line) -> bool {
         return line == "use_gr_notifications=0";
       },
@@ -1134,7 +1140,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
 
   // check if valid TTL is set (with no GR notifications it should be 0.5s)
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory + "/mysqlrouter.conf",
+      bootstrap_directory.name() + "/mysqlrouter.conf",
       [](const std::string &line) -> bool { return line == "ttl=0.5"; },
       std::chrono::milliseconds(0)));
 }
@@ -1145,13 +1151,13 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
  *        causes proper error report
  */
 TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
-  auto router = launch_router({"--conf-use-gr-notifications"});
+  auto &router = launch_router({"--conf-use-gr-notifications"}, 1);
 
   EXPECT_TRUE(
       router.expect_output("Error: Option --conf-use-gr-notifications can only "
                            "be used together with -B/--bootstrap"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -1160,14 +1166,14 @@ TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
  *        causes proper error report
  */
 TEST_F(RouterReportHostTest, ConfUseGrNotificationsHasValue) {
-  auto router = launch_router(
-      {"-B", "somehost:12345", "--conf-use-gr-notifications=some"});
+  auto &router = launch_router(
+      {"-B", "somehost:12345", "--conf-use-gr-notifications=some"}, 1);
 
   EXPECT_TRUE(
       router.expect_output("Error: option '--conf-use-gr-notifications' does "
                            "not expect a value, but got a value"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 class ErrorReportTest : public CommonBootstrapTest {};
@@ -1184,38 +1190,38 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
   const unsigned server_port = port_pool_.get_next_available();
 
-  const std::string bootstrap_directory = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_directory); });
+  TempDirectory bootstrap_directory;
 
   // populate bootstrap dir with a file, so it's not empty
   EXPECT_NO_THROW({
     mysql_harness::Path path =
-        mysql_harness::Path(bootstrap_directory).join("some_file");
+        mysql_harness::Path(bootstrap_directory.name()).join("some_file");
     std::ofstream of(path.str());
     of << "blablabla";
   });
 
   // launch the router in bootstrap mode
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-      "--connect-timeout=1",
-      "--report-host",
-      my_hostname,
-      "-d",
-      bootstrap_directory,
-  });
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+          "--connect-timeout=1",
+          "--report-host",
+          my_hostname,
+          "-d",
+          bootstrap_directory.name(),
+      },
+      EXIT_FAILURE);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
   // verify that appropriate message was logged (first line) and error message
   // printed (last line)
-  std::string err_msg = "Directory '" + bootstrap_directory +
+  std::string err_msg = "Directory '" + bootstrap_directory.name() +
                         "' already contains files\n"
                         "Error: Directory already exits";
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 // unfortunately it's not (reasonably) possible to make folders read-only on
@@ -1235,26 +1241,27 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
   const unsigned server_port = port_pool_.get_next_available();
 
-  const std::string bootstrap_directory = get_tmp_dir();
+  TempDirectory bootstrap_directory;
   std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
-    chmod(bootstrap_directory.c_str(),
+    chmod(bootstrap_directory.name().c_str(),
           S_IRUSR | S_IWUSR | S_IXUSR);  // restore RWX for owner
-    purge_dir(bootstrap_directory);
   });
 
   // make bootstrap directory inaccessible to trigger the error
-  EXPECT_EQ(chmod(bootstrap_directory.c_str(), 0), 0);
+  EXPECT_EQ(chmod(bootstrap_directory.name().c_str(), 0), 0);
 
   // launch the router in bootstrap mode: -d set to existing but inaccessible
   // dir
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-      "--connect-timeout=1",
-      "--report-host",
-      my_hostname,
-      "-d",
-      bootstrap_directory,
-  });
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+          "--connect-timeout=1",
+          "--report-host",
+          my_hostname,
+          "-d",
+          bootstrap_directory.name(),
+      },
+      EXIT_FAILURE);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1262,12 +1269,12 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
   // verify that appropriate message was logged (all but last) and error message
   // printed (last line)
   std::string err_msg =
-      "Failed to open directory '.*" + bootstrap_directory +
+      "Failed to open directory '.*" + bootstrap_directory.name() +
       "': Permission denied\n"
       "This may be caused by insufficient rights or AppArmor settings.\n.*"
       "Error: Could not check contents of existing deployment directory";
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 
 /**
@@ -1284,28 +1291,29 @@ TEST_F(ErrorReportTest,
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
   const unsigned server_port = port_pool_.get_next_available();
 
-  const std::string bootstrap_superdir = get_tmp_dir();
+  TempDirectory bootstrap_superdir;
   std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
-    chmod(bootstrap_superdir.c_str(),
+    chmod(bootstrap_superdir.name().c_str(),
           S_IRUSR | S_IWUSR | S_IXUSR);  // restore RWX for owner
-    purge_dir(bootstrap_superdir);
   });
 
   // make bootstrap directory inaccessible to trigger the error
-  EXPECT_EQ(chmod(bootstrap_superdir.c_str(), 0), 0);
+  EXPECT_EQ(chmod(bootstrap_superdir.name().c_str(), 0), 0);
 
   // launch the router in bootstrap mode: -d set to non-existent dir and
   // impossible to create
   std::string bootstrap_directory =
-      mysql_harness::Path(bootstrap_superdir).join("subdir").str();
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-      "--connect-timeout=1",
-      "--report-host",
-      my_hostname,
-      "-d",
-      bootstrap_directory,
-  });
+      mysql_harness::Path(bootstrap_superdir.name()).join("subdir").str();
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+          "--connect-timeout=1",
+          "--report-host",
+          my_hostname,
+          "-d",
+          bootstrap_directory,
+      },
+      EXIT_FAILURE);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -1319,13 +1327,13 @@ TEST_F(ErrorReportTest,
       "This may be caused by insufficient rights or AppArmor settings.\n.*"
       "Error: Could not create deployment directory";
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 }
 #endif
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,25 +43,29 @@ Path g_origin_path;
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
 class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
-                                            public RouterSystemLayout,
-                                            public ::testing::Test {
+                                            public RouterSystemLayout {
  protected:
   void SetUp() override {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-    init_system_layout_dir(get_mysqlrouter_exec(), g_origin_path);
+    RouterComponentTest::SetUp();
+    // this test modifies the origin path so we need to restore it
+    ProcessManager::set_origin(g_origin_path);
+    init_system_layout_dir(get_mysqlrouter_exec(),
+                           ProcessManager::get_origin());
 
     set_mysqlrouter_exec(Path(exec_file_));
   }
 
-  void TearDown() override { cleanup_system_layout(); }
+  void TearDown() override {
+    RouterComponentTest::TearDown();
+    cleanup_system_layout();
+  }
 
-  RouterComponentTest::CommandHandle run_server_mock() {
+  auto &run_server_mock() {
     const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
     server_port_ = port_pool_.get_next_available();
 
     // launch mock server and wait for it to start accepting connections
-    auto server_mock = launch_mysql_server_mock(json_stmts, server_port_);
+    auto &server_mock = launch_mysql_server_mock(json_stmts, server_port_);
     EXPECT_TRUE(wait_for_port_ready(server_port_))
         << "Timed out waiting for mock server port ready\n"
         << server_mock.get_full_output();
@@ -78,10 +82,10 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
  * have access (see install_layout.cmake).
  */
 TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
-  auto server_mock = run_server_mock();
+  auto &server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router = launch_router({
+  auto &router = launch_router({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
       "--connect-timeout=1",
       "--report-host",
@@ -93,7 +97,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 0))
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS))
       << router.get_full_output();
 
   EXPECT_TRUE(
@@ -115,21 +119,23 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto server_mock = run_server_mock();
+  auto &server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
-      "--connect-timeout=1",
-      "--report-host",
-      "dont.query.dns",
-  });
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+          "--connect-timeout=1",
+          "--report-host",
+          "dont.query.dns",
+      },
+      EXIT_FAILURE);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
       << router.get_full_output();
 
   EXPECT_TRUE(router.expect_output(
@@ -154,21 +160,23 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto server_mock = run_server_mock();
+  auto &server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
-      "--connect-timeout=1",
-      "--report-host",
-      "dont.query.dns",
-  });
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+          "--connect-timeout=1",
+          "--report-host",
+          "dont.query.dns",
+      },
+      EXIT_FAILURE);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
       << router.get_full_output();
 
   EXPECT_TRUE(router.expect_output(
@@ -204,21 +212,23 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto server_mock = run_server_mock();
+  auto &server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
-      "--connect-timeout=1",
-      "--report-host",
-      "dont.query.dns",
-  });
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+          "--connect-timeout=1",
+          "--report-host",
+          "dont.query.dns",
+      },
+      EXIT_FAILURE);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
       << router.get_full_output();
 
   EXPECT_TRUE(router.expect_output(
@@ -250,21 +260,23 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto server_mock = run_server_mock();
+  auto &server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
-      "--connect-timeout=1",
-      "--report-host",
-      "dont.query.dns",
-  });
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+          "--connect-timeout=1",
+          "--report-host",
+          "dont.query.dns",
+      },
+      EXIT_FAILURE);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
       << router.get_full_output();
 
   EXPECT_TRUE(router.expect_output(

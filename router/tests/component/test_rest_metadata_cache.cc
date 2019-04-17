@@ -49,8 +49,6 @@
 
 #include "mysqlrouter/rest_client.h"
 
-Path g_origin_path;
-
 static const std::string http_auth_realm_name("somerealm");
 static const std::string http_auth_backend_name("somebackend");
 
@@ -59,17 +57,12 @@ static const std::string keyring_username("mysql_router1_user");
 
 static const std::string metadata_cache_section_name("gr_shard_1");
 
-class RestApiTestBase : public RestApiComponentTest, public ::testing::Test {
+class RestApiTestBase : public RestApiComponentTest {
  protected:
-  RestApiTestBase() {
-    set_origin(g_origin_path);
-
-    RestApiComponentTest::init();
-  }
-
   void SetUp() override {
+    RouterComponentTest::SetUp();
     default_section_ = get_DEFAULT_defaults();
-    RouterComponentTest::init_keyring(default_section_, conf_dir_.name());
+    init_keyring(default_section_, conf_dir_.name());
   }
 
   std::string passwd_filename_;
@@ -117,7 +110,7 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, ensure_openapi) {
   std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section_)};
-  CommandHandle http_server{launch_router({"-c", conf_file})};
+  ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
   g_refresh_failed = 0;
   g_time_last_refresh_failed = "";
@@ -296,9 +289,9 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string http_uri = GetParam().uri;
 
-  auto md_server = RouterComponentTest::launch_mysql_server_mock(
+  auto &md_server = RouterComponentTest::launch_mysql_server_mock(
       get_data_dir().join("metadata_1_node_repeat.js").str(),
-      metadata_server_port_, false);
+      metadata_server_port_, EXIT_SUCCESS, false);
 
   const std::string userfile = create_password_file();
 
@@ -329,7 +322,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   // delay the wait until we really need it.
   ASSERT_TRUE(wait_for_port_ready(metadata_server_port_, 5000))
       << md_server.get_full_output();
-  CommandHandle router_proc{launch_router({"-c", conf_file})};
+  auto &router_proc{launch_router({"-c", conf_file})};
 
   g_refresh_succeeded = 0;
   g_time_last_refresh_failed = "";
@@ -838,10 +831,10 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_auth) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(
@@ -866,10 +859,10 @@ TEST_F(RestMetadataCacheApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(router_output.find(
@@ -892,10 +885,10 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_rest_api) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find("Plugin 'rest_metadata_cache' needs plugin "
@@ -952,10 +945,10 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_twice) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(
@@ -981,10 +974,10 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(
@@ -997,7 +990,7 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

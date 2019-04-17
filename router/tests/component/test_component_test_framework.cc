@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,28 +44,20 @@
  *
  */
 
-Path g_origin_path;
 const char *g_this_exec_path;
 
 constexpr int kSleepDurationMs =
     2000;  // you may want to decrease this to speed up tests
 
-class ComponentTestFrameworkTest : public RouterComponentTest,
-                                   public ::testing::Test {
+class ComponentTestFrameworkTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-
-  static std::string show_output(CommandHandle &process,
+  static std::string show_output(ProcessWrapper &process,
                                  const std::string &process_description) {
     return process_description + ":\n" + process.get_full_output() +
            "-(end)-\n";
   }
 
   const std::string arglist_prefix_ =
-      "--gtest_also_run_disabled_tests "
       "--gtest_filter=ComponentTestFrameworkTest.DISABLED_";
 };
 
@@ -128,8 +120,9 @@ TEST_F(ComponentTestFrameworkTest, autoresponder_simple_tester) {
 
   // launch the DISABLED_autoresponder_simple_testee testcase as a separate
   // executable
-  CommandHandle testee = launch_command(
-      g_this_exec_path, arglist_prefix_ + "autoresponder_simple_testee");
+  ProcessWrapper &testee = launch_command(
+      g_this_exec_path, {"--gtest_also_run_disabled_tests",
+                         arglist_prefix_ + "autoresponder_simple_testee"});
   // register autoresponses
   testee.register_response("Syn", "Syn+Ack\n");
   testee.register_response("Fin", "Ack\n");
@@ -141,8 +134,9 @@ TEST_F(ComponentTestFrameworkTest, autoresponder_simple_tester) {
       << show_output(testee, "ROUTER OUTPUT");
 
   // wait for child
-  EXPECT_EQ(testee.wait_for_exit(), 0);
+  EXPECT_EQ(testee.wait_for_exit(), EXIT_SUCCESS);
 }
+
 TEST_F(ComponentTestFrameworkTest, DISABLED_autoresponder_simple_testee) {
   autoresponder_testee();
 }
@@ -195,8 +189,9 @@ TEST_F(ComponentTestFrameworkTest, sleepy_tester) {
    * for a longer period of time
    */
 
-  CommandHandle testee =
-      launch_command(g_this_exec_path, arglist_prefix_ + "sleepy_testee");
+  ProcessWrapper &testee = launch_command(
+      g_this_exec_path,
+      {"--gtest_also_run_disabled_tests", arglist_prefix_ + "sleepy_testee"});
 
   // first and second sentence should arrive kSleepDurationMs ms apart,
   // expect_output() should not give up reading during that time
@@ -205,7 +200,7 @@ TEST_F(ComponentTestFrameworkTest, sleepy_tester) {
       1.5 * kSleepDurationMs))
       << show_output(testee, "TESTED PROCESS");
 
-  EXPECT_EQ(testee.wait_for_exit(), 0);
+  EXPECT_EQ(testee.wait_for_exit(), EXIT_SUCCESS);
 }
 TEST_F(ComponentTestFrameworkTest, DISABLED_sleepy_testee) { sleepy_testee(); }
 
@@ -216,8 +211,8 @@ TEST_F(ComponentTestFrameworkTest, sleepy_blind_tester) {
    * it.
    */
 
-  CommandHandle testee =
-      launch_command(g_this_exec_path, arglist_prefix_ + "sleepy_blind_testee");
+  ProcessWrapper &testee = launch_command(
+      g_this_exec_path, {arglist_prefix_ + "sleepy_blind_testee"});
 
   EXPECT_EQ(testee.wait_for_exit(1.5 * kSleepDurationMs), 0);
 }
@@ -238,8 +233,9 @@ TEST_F(ComponentTestFrameworkTest, sleepy_blind_autoresponder_tester) {
    * out waiting for the process to exit: No child processes"
    */
 
-  CommandHandle testee = launch_command(
-      g_this_exec_path, arglist_prefix_ + "sleepy_blind_autoresponder_testee");
+  ProcessWrapper &testee =
+      launch_command(g_this_exec_path,
+                     {arglist_prefix_ + "sleepy_blind_autoresponder_testee"});
 
   testee.register_response("Syn", "Syn+Ack\n");
   testee.register_response("Fin", "Ack\n");
@@ -256,7 +252,7 @@ int main(int argc, char *argv[]) {
   g_this_exec_path = argv[0];
 
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

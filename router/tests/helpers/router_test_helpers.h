@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@
 #ifndef ROUTER_TESTS_TEST_HELPERS_INCLUDED
 #define ROUTER_TESTS_TEST_HELPERS_INCLUDED
 
+#include <chrono>
+#include <functional>
+#include <map>
 #include <stdexcept>
 #include <typeinfo>
 
@@ -75,6 +78,8 @@
                            ADD_FAILURE)
 
 #include "mysql/harness/filesystem.h"
+
+constexpr unsigned kDefaultPortReadyTimeout{5000};
 
 /** @brief Returns the CMake source root folder
  *
@@ -174,5 +179,75 @@ bool pattern_found(const std::string &s, const std::string &pattern);
  * Exits program with error upon failure.
  */
 void init_windows_sockets();
+
+/** @brief Probes if the selected TCP port is accepting the connections.
+ *
+ * @param port          TCP port number to check
+ * @param timeout_msec  maximum timeout to wait for the port
+ * @param hostname      name/IP address of the network host to check
+ *
+ * @returns true if the selected port accepts connections, false otherwise
+ */
+bool wait_for_port_ready(unsigned port,
+                         unsigned timeout_msec = kDefaultPortReadyTimeout,
+                         const std::string &hostname = "127.0.0.1");
+
+/** @brief Initializes keyring and adds keyring-related config items to
+ * [DEFAULT] section
+ *
+ * @param default_section [DEFAULT] section
+ * @param keyring_dir directory inside of which keyring files will be created
+ * @param user Router user
+ * @param password Router user password
+ */
+void init_keyring(std::map<std::string, std::string> &default_section,
+                  const std::string &keyring_dir,
+                  const std::string &user = "mysql_router1_user",
+                  const std::string &password = "root");
+
+/** @brief replace the 'process.env.{id}' in the input stream
+ *
+ * @pre assumes the input stream is a JS(ON) document with 'process.env.{id}'
+ * references.
+ *
+ * replaces all references of process.env.{id} with the "environment
+ * variables" provided in env_vars, line-by-line
+ */
+void replace_process_env(std::istream &ins, std::ostream &outs,
+                         const std::map<std::string, std::string> &env_vars);
+
+/** @brief returns true if the selected file contains a string
+ *          that is true for a given predicate
+ *
+ * @param file_path path to the file we want to serach
+ * @param predicate predicate to test the file
+ * @param sleep_time max time to wait for the entry in the file
+ */
+bool find_in_file(
+    const std::string &file_path,
+    const std::function<bool(const std::string &)> &predicate,
+    std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000));
+
+/** @brief returns the content of selected file as a string
+ *
+ * @param file_name name of the file
+ * @param file_path path to the file
+ */
+std::string get_file_output(const std::string &file_name,
+                            const std::string &file_path);
+
+/** @brief returns the content of selected file as a string
+ *
+ * @param file_name full path and name of the file
+ */
+std::string get_file_output(const std::string &file_name);
+
+// need to return void to be able to use ASSERT_ macros
+void connect_client_and_query_port(unsigned router_port, std::string &out_port,
+                                   bool should_fail = false);
+
+void rewrite_js_to_tracefile(
+    const std::string &infile_name, const std::string &outfile_name,
+    const std::map<std::string, std::string> &env_vars);
 
 #endif  // ROUTER_TESTS_TEST_HELPERS_INCLUDED

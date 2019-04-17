@@ -32,6 +32,8 @@ SET(helper_sources
   helpers/filesystem_utils.cc
   helpers/gtest_testname.cc
   helpers/mysql_session_replayer.cc
+  helpers/process_manager.cc
+  helpers/process_wrapper.cc
   helpers/router_component_test.cc
   helpers/router_component_system_layout.cc
   helpers/router_test_helpers.cc

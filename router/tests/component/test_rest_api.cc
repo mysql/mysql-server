@@ -48,18 +48,9 @@
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 
-Path g_origin_path;
-
 class RestOpenApiTest
     : public RestApiComponentTest,
-      public ::testing::Test,
-      public ::testing::WithParamInterface<RestApiTestParams> {
- protected:
-  RestOpenApiTest() {
-    set_origin(g_origin_path);
-    RestApiComponentTest::init();
-  }
-};
+      public ::testing::WithParamInterface<RestApiTestParams> {};
 
 /**
  * @test check /router/status
@@ -78,7 +69,7 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  CommandHandle http_server{launch_router({"-c", conf_file})};
+  ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
   IOContext io_ctx;
   RestClient rest_client(io_ctx, http_hostname, http_port_,
@@ -378,10 +369,10 @@ TEST_F(RestOpenApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(router_output.find("Configuration error: unknown authentication "
@@ -401,10 +392,10 @@ TEST_F(RestOpenApiTest, rest_api_no_http_server) {
 
   const std::string conf_file{
       create_config_file(conf_dir_.name(), config_sections)};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(
@@ -426,10 +417,10 @@ TEST_F(RestOpenApiTest, duplicated_rest_api_section) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(
@@ -450,10 +441,10 @@ TEST_F(RestOpenApiTest, rest_api_section_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(router_output.find(" Configuration error: [rest_api] section does "
@@ -464,7 +455,7 @@ TEST_F(RestOpenApiTest, rest_api_section_key) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

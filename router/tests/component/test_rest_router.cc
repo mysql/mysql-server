@@ -51,18 +51,9 @@
 
 #include "mysqlrouter/rest_client.h"
 
-Path g_origin_path;
-
 class RestRouterApiTest
     : public RestApiComponentTest,
-      public ::testing::Test,
-      public ::testing::WithParamInterface<RestApiTestParams> {
- protected:
-  RestRouterApiTest() {
-    set_origin(g_origin_path);
-    RestApiComponentTest::init();
-  }
-};
+      public ::testing::WithParamInterface<RestApiTestParams> {};
 
 static const std::vector<SwaggerPath> kRouterSwaggerPaths{
     {"/router/status", "Get status of the application", "status of application",
@@ -87,7 +78,7 @@ TEST_P(RestRouterApiTest, ensure_openapi) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  CommandHandle http_server{launch_router({"-c", conf_file})};
+  ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
   fetch_and_validate_schema_and_resource(GetParam(), http_server);
 }
@@ -235,10 +226,10 @@ TEST_F(RestRouterApiTest, rest_api_secion_missing) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find("Plugin 'rest_router' needs plugin 'rest_api' "
@@ -265,10 +256,10 @@ TEST_F(RestRouterApiTest, rest_router_section_twice) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find(
@@ -293,10 +284,10 @@ TEST_F(RestRouterApiTest, rest_router_section_has_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(
@@ -321,10 +312,10 @@ TEST_F(RestRouterApiTest, router_api_no_auth) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(router_output.find("plugin 'rest_router' init failed: option "
@@ -347,10 +338,10 @@ TEST_F(RestRouterApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string router_output = get_router_log_output();
   EXPECT_NE(
@@ -363,7 +354,7 @@ TEST_F(RestRouterApiTest, invalid_realm) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

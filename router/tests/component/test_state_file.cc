@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdexcept>
 #include <thread>
 
-Path g_origin_path;
 using mysqlrouter::MySQLSession;
 using ::testing::PrintToString;
+
+Path g_origin_path;
 
 namespace {
 // default allocator for rapidJson (MemoryPoolAllocator) is broken for
@@ -67,9 +68,10 @@ constexpr auto kTTL = std::chrono::milliseconds(100);
 
 class StateFileTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
+  void SetUp() override {
+    RouterComponentTest::SetUp();
+    // this test modifies the origin path so we need to restore it
+    ProcessManager::set_origin(g_origin_path);
   }
 
   std::string get_metadata_cache_section(
@@ -107,10 +109,11 @@ class StateFileTest : public RouterComponentTest {
     return result;
   }
 
-  RouterComponentTest::CommandHandle launch_router(
-      const std::string &temp_test_dir,
-      const std::string &metadata_cache_section,
-      const std::string &routing_section, const std::string &state_file_path) {
+  auto &launch_router(const std::string &temp_test_dir,
+                      const std::string &metadata_cache_section,
+                      const std::string &routing_section,
+                      const std::string &state_file_path,
+                      const int expected_errorcode = EXIT_SUCCESS) {
     const std::string masterkey_file =
         Path(temp_test_dir).join("master.key").str();
     const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
@@ -132,8 +135,9 @@ class StateFileTest : public RouterComponentTest {
         temp_test_dir,
         logger_section + metadata_cache_section + routing_section,
         &default_section);
-    auto router = RouterComponentTest::launch_router(
-        {"-c", conf_file}, /*catch_stderr=*/true, /*with_sudo=*/false);
+    auto &router = RouterComponentTest::launch_router(
+        {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
+        /*with_sudo=*/false);
     return router;
   }
 
@@ -190,10 +194,9 @@ class StateFileTest : public RouterComponentTest {
 
 //////////////////////////////////////////////////////////////////////////
 
-class StateFileDynamicChangesTest : public StateFileTest,
-                                    public ::testing::Test {
+class StateFileDynamicChangesTest : public StateFileTest {
  protected:
-  virtual void SetUp() { StateFileTest::SetUp(); }
+  void SetUp() override { StateFileTest::SetUp(); }
 
   std::string to_string(const JsonValue &json_doc) {
     JsonStringBuffer out_buffer;
@@ -224,8 +227,8 @@ class StateFileDynamicChangesTest : public StateFileTest,
     EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
   }
 
-  void kill_server(RouterComponentTest::CommandHandle &server) {
-    EXPECT_NO_THROW(server.kill()) << server.get_full_output();
+  void kill_server(ProcessWrapper *server) {
+    EXPECT_NO_THROW(server->kill()) << server->get_full_output();
   }
 };
 
@@ -237,12 +240,10 @@ class StateFileDynamicChangesTest : public StateFileTest,
 TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
   const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const unsigned CLUSTER_NODES = 3;
-  std::vector<RouterComponentTest::CommandHandle> cluster_nodes;
+  std::vector<ProcessWrapper *> cluster_nodes;
   std::vector<uint16_t> cluster_nodes_ports;
   std::vector<uint16_t> cluster_http_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
@@ -257,13 +258,14 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
   const auto trace_file =
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   for (unsigned i = 0; i < 2; ++i) {
-    cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i]));
+    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i]))
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
   }
 
   SCOPED_TRACE(
@@ -276,7 +278,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
   SCOPED_TRACE("// Create a router state file with a single metadata server");
   // clang-format off
   const std::string state_file =
-      create_state_file(temp_test_dir,
+      create_state_file(temp_test_dir.name(),
                         "{"
                           "\"version\": \"1.0.0\","
                           "\"metadata-cache\": {"
@@ -300,8 +302,8 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache has the "
@@ -388,9 +390,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
 TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
   const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   uint16_t cluster_node_port = port_pool_.get_next_available();
   uint16_t cluster_http_port = port_pool_.get_next_available();
@@ -399,9 +399,8 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
       "// Launch single server mock that will act as our metadata server");
   const auto trace_file =
       get_data_dir().join("metadata_dynamic_nodes.js").str();
-  RouterComponentTest::CommandHandle cluster_node(
-      RouterComponentTest::launch_mysql_server_mock(
-          trace_file, cluster_node_port, false, cluster_http_port));
+  auto &cluster_node(RouterComponentTest::launch_mysql_server_mock(
+      trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port));
   ASSERT_TRUE(wait_for_port_ready(cluster_node_port))
       << cluster_node.get_full_output();
   ASSERT_TRUE(
@@ -418,7 +417,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
   SCOPED_TRACE("// Create a router state file with a single metadata server");
   // clang-format off
  const std::string state_file =
-     create_state_file(temp_test_dir,
+     create_state_file(temp_test_dir.name(),
                        "{"
                          "\"version\": \"1.0.0\","
                          "\"metadata-cache\": {"
@@ -439,8 +438,8 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
   ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_output();
 
   SCOPED_TRACE(
@@ -449,7 +448,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
   std::this_thread::sleep_for(std::chrono::milliseconds(3 * kTTL));
 
   // kill our single instance server
-  kill_server(cluster_node);
+  kill_server(&cluster_node);
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the refresh has been called at "
@@ -485,9 +484,7 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
   constexpr const char kClusterFileGroupId[] =
       "3a0be5af-0022-11e8-0000-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   auto cluster_node_port = port_pool_.get_next_available();
   auto cluster_http_port = port_pool_.get_next_available();
@@ -495,8 +492,8 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
   SCOPED_TRACE("// Launch  server mock that will act as our metadata server");
   const auto trace_file =
       get_data_dir().join("metadata_dynamic_nodes.js").str();
-  auto cluster_node = RouterComponentTest::launch_mysql_server_mock(
-      trace_file, cluster_node_port, false, cluster_http_port);
+  auto &cluster_node = RouterComponentTest::launch_mysql_server_mock(
+      trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
   ASSERT_TRUE(wait_for_port_ready(cluster_node_port))
       << cluster_node.get_full_output();
   ASSERT_TRUE(
@@ -517,7 +514,7 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
 
   // clang-format off
   const std::string state_file =
-      create_state_file(temp_test_dir,
+      create_state_file(temp_test_dir.name(),
                         "{"
                           "\"version\": \"1.0.0\","
                           "\"metadata-cache\": {"
@@ -541,8 +538,8 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache has the "
@@ -583,11 +580,9 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
   //      cluster_ports_pool;  // currently TcpPortPool supports max 10 ports so
   //                           // we create dedicated one for our cluster
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
-  std::vector<RouterComponentTest::CommandHandle> cluster_nodes;
+  std::vector<ProcessWrapper *> cluster_nodes;
   std::vector<std::pair<uint16_t, uint16_t>>
       cluster_node_ports;  // pair of connection and http port
 
@@ -602,12 +597,12 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
   for (unsigned i = 0; i < kNodesNum; i++) {
     const auto port_connect = cluster_node_ports[i].first;
     const auto port_http = cluster_node_ports[i].second;
-    cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
-        trace_file, port_connect, false, port_http));
+    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+        trace_file, port_connect, EXIT_SUCCESS, false, port_http));
     ASSERT_TRUE(wait_for_port_ready(port_connect))
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
     ASSERT_TRUE(MockServerRestClient(port_http).wait_for_rest_endpoint_ready())
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
   }
 
   SCOPED_TRACE(
@@ -640,7 +635,7 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
 
   // clang-format off
   const std::string state_file =
-      create_state_file(temp_test_dir,
+      create_state_file(temp_test_dir.name(),
                         "{"
                           "\"version\": \"1.0.0\","
                           "\"metadata-cache\": {"
@@ -663,8 +658,8 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache has the "
@@ -702,14 +697,12 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
 TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
   constexpr const char kGroupId[] = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   SCOPED_TRACE("// Create a router state file with empty server list");
   // clang-format off
   const std::string state_file =
-      create_state_file(temp_test_dir,
+      create_state_file(temp_test_dir.name(),
                         "{"
                           "\"version\": \"1.0.0\","
                           "\"metadata-cache\": {"
@@ -730,8 +723,8 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   wait_for_port_ready(router_port);
 
@@ -795,7 +788,7 @@ struct StateFileSchemaTestParams {
 
 class StateFileSchemaTest
     : public StateFileTest,
-      public ::testing::TestWithParam<StateFileSchemaTestParams> {
+      public ::testing::WithParamInterface<StateFileSchemaTestParams> {
  protected:
   virtual void SetUp() { StateFileTest::SetUp(); }
 };
@@ -808,9 +801,7 @@ class StateFileSchemaTest
 TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
   auto test_params = GetParam();
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const uint16_t md_server_port =
       test_params.use_static_server_list ? port_pool_.get_next_available() : 0;
@@ -825,14 +816,15 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
 
   const std::string state_file =
       test_params.create_state_file_from_content
-          ? create_state_file(temp_test_dir, test_params.state_file_content)
+          ? create_state_file(temp_test_dir.name(),
+                              test_params.state_file_content)
           : test_params.state_file_path;
 
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file, EXIT_FAILURE);
 
   // the router should close with non-0 return value
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 
   // proper log should get logged
@@ -1052,7 +1044,7 @@ struct StateFileAccessRightsTestParams {
 
 class StateFileAccessRightsTest
     : public StateFileTest,
-      public ::testing::TestWithParam<StateFileAccessRightsTestParams> {
+      public ::testing::WithParamInterface<StateFileAccessRightsTestParams> {
  protected:
   virtual void SetUp() { StateFileTest::SetUp(); }
 };
@@ -1065,9 +1057,7 @@ class StateFileAccessRightsTest
 TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   auto test_params = GetParam();
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const uint16_t router_port = port_pool_.get_next_available();
 
@@ -1079,7 +1069,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
 
   // clang-format off
   const std::string state_file = create_state_file(
-      temp_test_dir,
+      temp_test_dir.name(),
       "{"
         "\"version\": \"1.0.0\","
         "\"metadata-cache\": {"
@@ -1092,11 +1082,11 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   if (test_params.write_access) file_mode |= S_IWUSR;
   chmod(state_file.c_str(), file_mode);
 
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file, EXIT_FAILURE);
 
   // the router should close with non-0 return value
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 
   // proper error should get logged
@@ -1126,8 +1116,7 @@ INSTANTIATE_TEST_CASE_P(
 // Bootstrap tests
 ////////////////////////////////////////////
 
-class StateFileDirectoryBootstrapTest : public StateFileTest,
-                                        public ::testing::Test {
+class StateFileDirectoryBootstrapTest : public StateFileTest {
   virtual void SetUp() { StateFileTest::SetUp(); }
 };
 
@@ -1137,24 +1126,22 @@ class StateFileDirectoryBootstrapTest : public StateFileTest,
  * in case of directory bootstrap.
  */
 TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   SCOPED_TRACE("// Launch our metadata server we bootsrtap against");
 
   const auto trace_file = get_data_dir().join("bootstrap.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
-  auto md_server = RouterComponentTest::launch_mysql_server_mock(
-      trace_file, metadata_server_port, false);
+  auto &md_server = RouterComponentTest::launch_mysql_server_mock(
+      trace_file, metadata_server_port, EXIT_SUCCESS, false);
   ASSERT_TRUE(wait_for_port_ready(metadata_server_port))
       << md_server.get_full_output();
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{
       "--bootstrap=localhost:" + std::to_string(metadata_server_port), "-d",
-      temp_test_dir};
-  auto router = RouterComponentTest::launch_router(router_cmdline);
+      temp_test_dir.name()};
+  auto &router = RouterComponentTest::launch_router(router_cmdline);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
@@ -1165,13 +1152,13 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
-  const std::string state_file = temp_test_dir + "/data/state.json";
+  const std::string state_file = temp_test_dir.name() + "/data/state.json";
   check_state_file(state_file, "replication-1",
                    {"mysql://localhost:5500", "mysql://localhost:5510",
                     "mysql://localhost:5520"});
 
   // check that static file has a proper reference to the dynamic file
-  const std::string static_conf = temp_test_dir + "/mysqlrouter.conf";
+  const std::string static_conf = temp_test_dir.name() + "/mysqlrouter.conf";
   const std::string expected_entry =
       std::string("dynamic_state=") + Path(state_file).real_path().str();
   const bool found = find_in_file(
@@ -1182,7 +1169,8 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
       std::chrono::milliseconds(1));
 
   EXPECT_TRUE(found) << "Did not found: " << expected_entry << "\n"
-                     << get_file_output("mysqlrouter.conf", temp_test_dir);
+                     << get_file_output("mysqlrouter.conf",
+                                        temp_test_dir.name());
 }
 
 /*
@@ -1193,12 +1181,11 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
 class StateFileSystemBootstrapTest : public StateFileTest,
-                                     public RouterSystemLayout,
-                                     public ::testing::Test {
+                                     public RouterSystemLayout {
   virtual void SetUp() {
     StateFileTest::SetUp();
     RouterSystemLayout::init_system_layout_dir(get_mysqlrouter_exec(),
-                                               g_origin_path);
+                                               ProcessManager::get_origin());
     set_mysqlrouter_exec(Path(exec_file_));
   }
 
@@ -1215,15 +1202,15 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
 
   const auto trace_file = get_data_dir().join("bootstrap.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
-  auto md_server = RouterComponentTest::launch_mysql_server_mock(
-      trace_file, metadata_server_port, false);
+  auto &md_server = RouterComponentTest::launch_mysql_server_mock(
+      trace_file, metadata_server_port, EXIT_SUCCESS, false);
   ASSERT_TRUE(wait_for_port_ready(metadata_server_port))
       << md_server.get_full_output();
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
                                           std::to_string(metadata_server_port)};
-  auto router = RouterComponentTest::launch_router(router_cmdline);
+  auto &router = RouterComponentTest::launch_router(router_cmdline);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 

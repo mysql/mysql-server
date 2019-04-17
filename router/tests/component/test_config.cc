@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,30 +26,24 @@
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
-Path g_origin_path;
 using testing::StartsWith;
 
-class RouterConfigTest : public RouterComponentTest, public ::testing::Test {
+class RouterConfigTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-
   TcpPortPool port_pool_;
 };
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE
 TEST_F(RouterConfigTest, RoutingDirAsMainConfigDirectory) {
-  const std::string config_dir = get_tmp_dir();
+  TempDirectory config_dir;
 
   // launch the router giving directory instead of config_name
-  auto router = launch_router({"-c", config_dir});
+  auto &router = launch_router({"-c", config_dir.name()}, EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
-      "Expected configuration file, got directory name: " + config_dir))
+      "Expected configuration file, got directory name: " + config_dir.name()))
       << "router output: " << router.get_full_output() << std::endl;
 }
 
@@ -67,36 +61,32 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
       "destinations = 127.0.0.1:" +
       std::to_string(server_port) + "\n";
 
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
-  const std::string extra_conf_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(extra_conf_dir); });
+  TempDirectory conf_dir("conf");
+  TempDirectory extra_conf_dir;
 
-  std::string conf_file = create_config_file(conf_dir, routing_section);
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router giving directory instead of an extra config name
-  auto router = launch_router({"-c", conf_file, "-a", extra_conf_dir});
+  auto &router = launch_router({"-c", conf_file, "-a", extra_conf_dir.name()},
+                               EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
-  EXPECT_TRUE(router.expect_output(
-      "Expected configuration file, got directory name: " + extra_conf_dir))
+  EXPECT_TRUE(
+      router.expect_output("Expected configuration file, got directory name: " +
+                           extra_conf_dir.name()))
       << "router output: " << router.get_full_output() << std::endl;
 }
 
 TEST_F(RouterConfigTest,
        IsExceptionThrownWhenAddTwiceTheSameSectionWithoutKey) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[section1]\n[section1]\n");
+      create_config_file(conf_dir.name(), "[section1]\n[section1]\n");
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   EXPECT_THAT(
       router.get_full_output(),
@@ -105,15 +95,13 @@ TEST_F(RouterConfigTest,
 }
 
 TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[section1:key1]\n[section1:key1]\n");
+      create_config_file(conf_dir.name(), "[section1:key1]\n[section1:key1]\n");
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   EXPECT_THAT(router.get_full_output(),
               StartsWith("Error: Configuration error: Section 'section1:key1' "
@@ -122,15 +110,13 @@ TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
 
 TEST_F(RouterConfigTest,
        IsExceptionThrownWhenTheSameOptionsTwiceInASingleSection) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_file = create_config_file(
-      conf_dir, "[section1]\ndynamic_state=a\ndynamic_state=b\n");
+      conf_dir.name(), "[section1]\ndynamic_state=a\ndynamic_state=b\n");
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   EXPECT_THAT(router.get_full_output(),
               StartsWith("Error: Configuration error: Option 'dynamic_state' "
@@ -161,15 +147,13 @@ TEST_F(RouterConfigTest, IsErrorReturnedWhenServiceDoesNotExist) {
   // system that the test is running on. If it is we can't do much about it and
   // we just skip testing.
   if (!isRouterServiceInstalled()) {
-    const std::string conf_dir = get_tmp_dir("conf");
-    std::shared_ptr<void> exit_guard(nullptr,
-                                     [&](void *) { purge_dir(conf_dir); });
+    TempDirectory conf_dir("conf");
     const std::string conf_file =
-        create_config_file(conf_dir, "[keepalive]\ninterval = 60\n");
+        create_config_file(conf_dir.name(), "[keepalive]\ninterval = 60\n");
 
     // run the router and wait for it to exit
-    auto router = launch_router({"-c", conf_file, "--service"});
-    EXPECT_EQ(router.wait_for_exit(), 1);
+    auto &router = launch_router({"-c", conf_file, "--service"}, EXIT_FAILURE);
+    EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
     EXPECT_THAT(router.get_full_output(),
                 StartsWith("ERROR: Could not find service 'MySQLRouter'!\n"
@@ -181,7 +165,7 @@ TEST_F(RouterConfigTest, IsErrorReturnedWhenServiceDoesNotExist) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

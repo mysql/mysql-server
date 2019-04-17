@@ -194,12 +194,36 @@ std::string http_method_to_string(const HttpMethod::type method) {
   return "UNKNOWN";
 }
 
+bool wait_for_rest_endpoint_ready(
+    const std::string &uri, const uint16_t http_port,
+    const std::string &username, const std::string &password,
+    const std::string &http_host, std::chrono::milliseconds max_wait_time,
+    const std::chrono::milliseconds step_time) noexcept {
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_host, http_port, username, password);
+
+  while (max_wait_time.count() > 0) {
+    auto req = rest_client.request_sync(HttpMethod::Get, uri);
+
+    if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
+      return true;
+
+    auto wait_time = std::min(step_time, max_wait_time);
+    std::this_thread::sleep_for(wait_time);
+
+    max_wait_time -= wait_time;
+  }
+
+  return false;
+}
+
 std::string RestApiComponentTest::create_password_file() {
   const std::string userfile =
       mysql_harness::Path(conf_dir_.name()).join("users").str();
   {
-    auto cmd = launch_command(get_origin().join("mysqlrouter_passwd").str(),
-                              {"set", userfile, kRestApiUsername}, true);
+    auto &cmd =
+        launch_command(get_origin().join("mysqlrouter_passwd").str(),
+                       {"set", userfile, kRestApiUsername}, EXIT_SUCCESS, true);
     cmd.register_response("Please enter password",
                           std::string(kRestApiPassword) + "\n");
     EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
@@ -323,8 +347,7 @@ static void verify_swagger_content(
 }
 
 void RestApiComponentTest::fetch_and_validate_schema_and_resource(
-    const RestApiTestParams &test_params,
-    RouterComponentTest::CommandHandle &http_server,
+    const RestApiTestParams &test_params, ProcessWrapper &http_server,
     const std::string &http_hostname) {
 #define STR(s) \
   { s, strlen(s), rapidjson::kPointerInvalidIndex }

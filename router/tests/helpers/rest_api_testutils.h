@@ -95,21 +95,6 @@ JsonValue *openapi_get_or_deref(JsonDocument &json_doc,
                                 const JsonPointer &pointer);
 
 /**
- * wait for a REST endpoint to be ready.
- *
- * Router may take a while to start up and load the rest-endpoints.
- *
- * An endpoint is ready if it returns something else that HTTP Status 404
- *
- * @returns if endpoint is ready
- * @retval true if endpoint returns something else than 404
- * @retval false on timeout
- */
-bool wait_for_rest_endpoint_ready(
-    RestClient &rest_client, const std::string &uri,
-    std::chrono::milliseconds max_wait_time) noexcept;
-
-/**
  * pretty print a JsonValue to a std::ostream.
  */
 namespace rapidjson {
@@ -170,6 +155,32 @@ void mark_object_additional_properties(JsonValue &v,
 
 std::string http_method_to_string(const HttpMethod::type method);
 
+/**
+ * wait until a REST endpoint is ready to handle requests.
+ *
+ * @param uri         REST endpoint URI to check
+ * @param http_port   tcp port of the REST endpoint
+ * @param username    username to authenticate if the endpoint requires
+ * authentication
+ * @param password    password to authenticate if the endpoint requires
+ * authentication
+ * @param http_host   host name of the REST endpoint
+ * @param max_wait_time how long should the function wait to the endpoint to
+ * become ready before returning false
+ * @param step_time   what should be the sleep time beetween the consecutive
+ * checks for the endpoint availability
+ *
+ * @returns true once endpoint is ready to handle requests, false
+ *          if the timeout has expired and the endpoint did not become ready
+ */
+bool wait_for_rest_endpoint_ready(
+    const std::string &uri, const uint16_t http_port,
+    const std::string &username = "", const std::string &password = "",
+    const std::string &http_host = "127.0.0.1",
+    std::chrono::milliseconds max_wait_time = std::chrono::milliseconds(5000),
+    const std::chrono::milliseconds step_time =
+        std::chrono::milliseconds(50)) noexcept;
+
 // YYY-MM-DDThh:mm:ss.milisecZ
 constexpr const char *const kTimestampPattern =
     "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$";
@@ -218,16 +229,8 @@ class RestApiComponentTest : public RouterComponentTest {
       const bool request_authentication,
       const std::string &realm_name = "somerealm");
 
-  using RouterComponentTest::init;
-  void init(const mysql_harness::Path &origin_path) {
-    set_origin(origin_path);
-
-    RouterComponentTest::init();
-  }
-
   void fetch_and_validate_schema_and_resource(
-      const RestApiTestParams &test_params,
-      RouterComponentTest::CommandHandle &http_server,
+      const RestApiTestParams &test_params, ProcessWrapper &http_server,
       const std::string &http_hostname = "127.0.0.1");
 
   void validate_value(const JsonDocument &json_doc,

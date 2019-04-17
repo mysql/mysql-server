@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,6 @@
 #define ASSERT_NO_ERROR(expr) \
   ASSERT_THAT(expr, ::testing::Eq(std::error_code{})) << expr.message()
 
-Path g_origin_path;
 using mysqlrouter::MySQLSession;
 
 static const std::string kRestApiUsername("someuser");
@@ -47,8 +46,7 @@ static const std::string kRestApiPassword("somepass");
 class RouterRoutingStrategyTest : public RouterComponentTest {
  protected:
   virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
+    RouterComponentTest::SetUp();
 
     // Valgrind needs way more time
     if (getenv("WITH_VALGRIND")) {
@@ -140,9 +138,9 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
         mysql_harness::Path(config_dir).join("users").str();
 
     {
-      auto cmd =
-          launch_command(g_origin_path.join("mysqlrouter_passwd").str(),
-                         {"set", passwd_filename, kRestApiUsername}, true);
+      auto &cmd = launch_command(get_origin().join("mysqlrouter_passwd").str(),
+                                 {"set", passwd_filename, kRestApiUsername},
+                                 EXIT_SUCCESS, true);
       cmd.register_response("Please enter password", kRestApiPassword + "\n");
       EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
     }
@@ -188,9 +186,9 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     out_port = std::string((*result)[0]);
   }
 
-  RouterComponentTest::CommandHandle launch_cluster_node(
-      unsigned cluster_port, const std::string &data_dir,
-      const std::string &tmp_dir) {
+  ProcessWrapper &launch_cluster_node(unsigned cluster_port,
+                                      const std::string &data_dir,
+                                      const std::string &tmp_dir) {
     const std::string json_my_port_template =
         Path(data_dir).join("my_port.js").str();
     const std::string json_my_port =
@@ -200,27 +198,27 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     std::map<std::string, std::string> env_vars = {
         {"MY_PORT", std::to_string(cluster_port)},
     };
-    RouterComponentTest::rewrite_js_to_tracefile(json_my_port_template,
-                                                 json_my_port, env_vars);
-    auto cluster_node = RouterComponentTest::launch_mysql_server_mock(
-        json_my_port, cluster_port, false);
+    rewrite_js_to_tracefile(json_my_port_template, json_my_port, env_vars);
+    auto &cluster_node = RouterComponentTest::launch_mysql_server_mock(
+        json_my_port, cluster_port, EXIT_SUCCESS, false);
     bool ready = wait_for_port_ready(cluster_port);
     EXPECT_TRUE(ready) << cluster_node.get_full_output();
 
     return cluster_node;
   }
 
-  RouterComponentTest::CommandHandle launch_standalone_server(
-      unsigned server_port, const std::string &data_dir,
-      const std::string &tmp_dir) {
+  ProcessWrapper &launch_standalone_server(unsigned server_port,
+                                           const std::string &data_dir,
+                                           const std::string &tmp_dir) {
     // it' does the same thing, just an alias  for less confusion
     return launch_cluster_node(server_port, data_dir, tmp_dir);
   }
 
-  RouterComponentTest::CommandHandle launch_router_static(
-      const std::string &conf_dir, unsigned router_port,
-      const std::string &routing_section, bool expect_error = false,
-      bool log_to_console = true) {
+  ProcessWrapper &launch_router_static(const std::string &conf_dir,
+                                       unsigned router_port,
+                                       const std::string &routing_section,
+                                       bool expect_error = false,
+                                       bool log_to_console = true) {
     auto def_section = get_DEFAULT_defaults();
     if (log_to_console) {
       def_section["logging_folder"] = "";
@@ -228,7 +226,9 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     // launch the router with the static routing configuration
     const std::string conf_file =
         create_config_file(conf_dir, routing_section, &def_section);
-    auto router = RouterComponentTest::launch_router({"-c", conf_file});
+    const int expected_exit_code = expect_error ? EXIT_FAILURE : EXIT_SUCCESS;
+    auto &router = RouterComponentTest::launch_router({"-c", conf_file},
+                                                      expected_exit_code);
     if (!expect_error) {
       bool ready = wait_for_port_ready(router_port);
       EXPECT_TRUE(ready) << (log_to_console ? router.get_full_output()
@@ -238,12 +238,13 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     return router;
   }
 
-  RouterComponentTest::CommandHandle launch_router(
-      unsigned router_port, const std::string &temp_test_dir,
-      const std::string &metadata_cache_section,
-      const std::string &routing_section, bool catch_stderr = true,
-      bool with_sudo = false, bool wait_ready = true,
-      bool log_to_stdout = false) {
+  ProcessWrapper &launch_router(unsigned router_port,
+                                const std::string &temp_test_dir,
+                                const std::string &metadata_cache_section,
+                                const std::string &routing_section,
+                                bool catch_stderr = true,
+                                bool with_sudo = false, bool wait_ready = true,
+                                bool log_to_stdout = false) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
@@ -251,14 +252,13 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     if (log_to_stdout) {
       default_section["logging_folder"] = "";
     }
-    const std::string conf_dir = get_tmp_dir("conf");
-    std::shared_ptr<void> exit_guard(nullptr,
-                                     [&](void *) { purge_dir(conf_dir); });
 
+    TempDirectory conf_dir("conf");
     const std::string conf_file = create_config_file(
-        conf_dir, metadata_cache_section + routing_section, &default_section);
-    auto router = RouterComponentTest::launch_router({"-c", conf_file},
-                                                     catch_stderr, with_sudo);
+        conf_dir.name(), metadata_cache_section + routing_section,
+        &default_section);
+    auto &router = RouterComponentTest::launch_router(
+        {"-c", conf_file}, EXIT_SUCCESS, catch_stderr, with_sudo);
     if (wait_ready) {
       bool ready = wait_for_port_ready(router_port);
       EXPECT_TRUE(ready) << get_router_log_output();
@@ -267,8 +267,8 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     return router;
   }
 
-  void kill_server(RouterComponentTest::CommandHandle &server) {
-    EXPECT_NO_THROW(server.kill()) << server.get_full_output();
+  void kill_server(ProcessWrapper *server) {
+    EXPECT_NO_THROW(server->kill()) << server->get_full_output();
   }
 
   TcpPortPool port_pool_;
@@ -307,7 +307,7 @@ struct MetadataCacheTestParams {
 
 class RouterRoutingStrategyMetadataCache
     : public RouterRoutingStrategyTest,
-      public ::testing::TestWithParam<MetadataCacheTestParams> {
+      public ::testing::WithParamInterface<MetadataCacheTestParams> {
  protected:
   virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
 };
@@ -319,16 +319,14 @@ class RouterRoutingStrategyMetadataCache
 TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   auto test_params = GetParam();
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const std::vector<unsigned> cluster_nodes_ports{
       port_pool_.get_next_available(),  // first is PRIMARY
       port_pool_.get_next_available(), port_pool_.get_next_available(),
       port_pool_.get_next_available()};
 
-  std::vector<RouterComponentTest::CommandHandle> cluster_nodes;
+  std::vector<ProcessWrapper *> cluster_nodes;
 
   std::map<std::string, std::string> primary_json_env_vars = {
       {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(cluster_nodes_ports[0])},
@@ -351,14 +349,14 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   const std::string json_primary_node_template =
       get_data_dir().join("metadata_3_secondaries.js").str();
   const std::string json_primary_node =
-      Path(temp_test_dir).join("metadata_3_secondaries.js").str();
+      Path(temp_test_dir.name()).join("metadata_3_secondaries.js").str();
   rewrite_js_to_tracefile(json_primary_node_template, json_primary_node,
                           primary_json_env_vars);
-  auto primary_node = launch_mysql_server_mock(json_primary_node,
-                                               cluster_nodes_ports[0], false);
+  auto &primary_node = launch_mysql_server_mock(
+      json_primary_node, cluster_nodes_ports[0], EXIT_SUCCESS, false);
   bool ready = wait_for_port_ready(cluster_nodes_ports[0]);
   EXPECT_TRUE(ready) << primary_node.get_full_output();
-  cluster_nodes.emplace_back(std::move(primary_node));
+  cluster_nodes.emplace_back(&primary_node);
 
   // launch the router with metadata-cache configuration
   const auto router_port = port_pool_.get_next_available();
@@ -369,17 +367,17 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
       test_params.mode);
   const auto monitoring_port = port_pool_.get_next_available();
   const std::string monitoring_section =
-      get_monitoring_section(monitoring_port, temp_test_dir);
+      get_monitoring_section(monitoring_port, temp_test_dir.name());
 
-  auto router = launch_router(router_port, temp_test_dir,
-                              metadata_cache_section + monitoring_section,
-                              routing_section);
+  auto &router = launch_router(router_port, temp_test_dir.name(),
+                               metadata_cache_section + monitoring_section,
+                               routing_section);
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto secondary_node = launch_cluster_node(
-        cluster_nodes_ports[port], get_data_dir().str(), temp_test_dir);
-    cluster_nodes.emplace_back(std::move(secondary_node));
+    auto &secondary_node = launch_cluster_node(
+        cluster_nodes_ports[port], get_data_dir().str(), temp_test_dir.name());
+    cluster_nodes.emplace_back(&secondary_node);
   }
 
   // give the router a chance to initialise metadata-cache module
@@ -491,30 +489,26 @@ INSTANTIATE_TEST_CASE_P(
 class RouterRoutingStrategyTestRoundRobin
     : public RouterRoutingStrategyTest,
       // r. strategy, mode
-      public ::testing::TestWithParam<std::pair<std::string, std::string>> {
+      public ::testing::WithParamInterface<
+          std::pair<std::string, std::string>> {
  protected:
   virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
 };
 
 TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
-  // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
                                            port_pool_.get_next_available()};
 
   // launch the standalone servers
-  std::vector<RouterComponentTest::CommandHandle> server_instances;
+  std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto secondary_node = launch_standalone_server(
-        server_port, get_data_dir().str(), temp_test_dir);
-    server_instances.emplace_back(std::move(secondary_node));
+    auto &secondary_node = launch_standalone_server(
+        server_port, get_data_dir().str(), temp_test_dir.name());
+    server_instances.emplace_back(&secondary_node);
   }
 
   // launch the router with the static configuration
@@ -524,7 +518,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  auto router = launch_router_static(conf_dir, router_port, routing_section);
+  launch_router_static(conf_dir.name(), router_port, routing_section);
 
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_static_ready_timeout));
@@ -556,31 +550,27 @@ INSTANTIATE_TEST_CASE_P(
 class RouterRoutingStrategyTestFirstAvailable
     : public RouterRoutingStrategyTest,
       // r. strategy, mode
-      public ::testing::TestWithParam<std::pair<std::string, std::string>> {
+      public ::testing::WithParamInterface<
+          std::pair<std::string, std::string>> {
  protected:
   virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
 };
 
 TEST_P(RouterRoutingStrategyTestFirstAvailable,
        StaticRoutingStrategyFirstAvailable) {
-  // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
                                            port_pool_.get_next_available()};
 
   // launch the standalone servers
-  std::vector<RouterComponentTest::CommandHandle> server_instances;
+  std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto secondary_node = launch_standalone_server(
-        server_port, get_data_dir().str(), temp_test_dir);
-    server_instances.emplace_back(std::move(secondary_node));
+    auto &secondary_node = launch_standalone_server(
+        server_port, get_data_dir().str(), temp_test_dir.name());
+    server_instances.emplace_back(&secondary_node);
   }
 
   // launch the router with the static configuration
@@ -590,7 +580,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  auto router = launch_router_static(conf_dir, router_port, routing_section);
+  launch_router_static(conf_dir.name(), router_port, routing_section);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -615,8 +605,8 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   EXPECT_EQ("", node_port);
 
   // bring back 1st server
-  server_instances.emplace_back(launch_standalone_server(
-      server_ports[0], get_data_dir().str(), temp_test_dir));
+  server_instances.emplace_back(&launch_standalone_server(
+      server_ports[0], get_data_dir().str(), temp_test_dir.name()));
   // we should now succesfully connect to this server
   connect_client_and_query_port(router_port, node_port);
   EXPECT_EQ(std::to_string(server_ports[0]), node_port);
@@ -636,38 +626,32 @@ INSTANTIATE_TEST_CASE_P(
         std::make_pair(std::string(""), std::string("read-write"))));
 
 // for non-param tests
-class RouterRoutingStrategyStatic : public RouterRoutingStrategyTest,
-                                    public ::testing::Test {
+class RouterRoutingStrategyStatic : public RouterRoutingStrategyTest {
  protected:
   virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
 };
 
 TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
-  // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
                                            port_pool_.get_next_available()};
 
   // launch the standalone servers
-  std::vector<RouterComponentTest::CommandHandle> server_instances;
+  std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto secondary_node = launch_standalone_server(
-        server_port, get_data_dir().str(), temp_test_dir);
-    server_instances.emplace_back(std::move(secondary_node));
+    auto &secondary_node = launch_standalone_server(
+        server_port, get_data_dir().str(), temp_test_dir.name());
+    server_instances.emplace_back(&secondary_node);
   }
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section(router_port, server_ports, "next-available");
-  auto router = launch_router_static(conf_dir, router_port, routing_section);
+  launch_router_static(conf_dir.name(), router_port, routing_section);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -692,8 +676,8 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   EXPECT_EQ("", node_port);
 
   // bring back 1st server
-  server_instances.emplace_back(launch_standalone_server(
-      server_ports[0], get_data_dir().str(), temp_test_dir));
+  server_instances.emplace_back(&launch_standalone_server(
+      server_ports[0], get_data_dir().str(), temp_test_dir.name()));
   // we should NOT connect to this server (in next-available we NEVER go back)
   connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
   EXPECT_EQ("", node_port);
@@ -702,20 +686,16 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
 // configuration error scenarios
 
 TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
-  // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "round-robin-with-fallback", "read-only");
-  auto router = launch_router_static(conf_dir, router_port, routing_section,
-                                     /*expect_error=*/true);
+  auto &router =
+      launch_router_static(conf_dir.name(), router_port, routing_section,
+                           /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(
@@ -727,19 +707,15 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
 }
 
 TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "invalid", "read-only");
-  auto router = launch_router_static(conf_dir, router_port, routing_section,
-                                     /*expect_error=*/true);
+  auto &router =
+      launch_router_static(conf_dir.name(), router_port, routing_section,
+                           /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(router.expect_output(
@@ -749,20 +725,15 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
 }
 
 TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
-  // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section(router_port, {1, 2}, "");
-  auto router = launch_router_static(conf_dir, router_port, routing_section,
-                                     /*expect_error=*/true);
+  auto &router =
+      launch_router_static(conf_dir.name(), router_port, routing_section,
+                           /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(
@@ -772,22 +743,17 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
 }
 
 TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
-  // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section_error(router_port, {1, 2}, "", "read-only");
-  auto router = launch_router_static(conf_dir, router_port, routing_section,
-                                     /*expect_error=*/true);
+  auto &router =
+      launch_router_static(conf_dir.name(), router_port, routing_section,
+                           /*expect_error=*/true);
 
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
                            "[routing:test_default] needs a value"))
@@ -795,20 +761,15 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
 }
 
 TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
-  // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "first-available", "");
-  auto router = launch_router_static(conf_dir, router_port, routing_section,
-                                     /*expect_error=*/true);
+  auto &router =
+      launch_router_static(conf_dir.name(), router_port, routing_section,
+                           /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(
@@ -819,7 +780,7 @@ TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -28,8 +28,6 @@
 #include "router_component_test.h"
 #include "temp_dir.h"
 
-Path g_origin_path;
-
 struct BrokenConfigParams {
   std::string test_name;
 
@@ -41,22 +39,17 @@ struct BrokenConfigParams {
 
 class RouterTestBrokenConfig
     : public RouterComponentTest,
-      public ::testing::Test,
       public ::testing::WithParamInterface<BrokenConfigParams> {
  protected:
-  RouterTestBrokenConfig() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
   TempDirectory conf_dir_;
 };
 
 TEST_P(RouterTestBrokenConfig, ensure) {
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(GetParam().sections, "\n"))};
-  CommandHandle router{launch_router({"-c", conf_file})};
+  auto &router{launch_router({"-c", conf_file}, EXIT_FAILURE)};
 
-  EXPECT_NO_THROW(EXPECT_EQ(1, router.wait_for_exit()));
+  EXPECT_NO_THROW(EXPECT_EQ(EXIT_FAILURE, router.wait_for_exit()));
 
   EXPECT_THAT(get_router_log_output(),
               ::testing::HasSubstr(GetParam().expected_logfile_substring));
@@ -316,20 +309,15 @@ INSTANTIATE_TEST_CASE_P(
     });
 #endif
 
-class RouterCmdlineTest : public RouterComponentTest, public ::testing::Test {
+class RouterCmdlineTest : public RouterComponentTest {
  protected:
- protected:
-  RouterCmdlineTest() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
   TempDirectory conf_dir_;
 };
 
 TEST_F(RouterCmdlineTest, help_output_is_sane) {
-  CommandHandle router{launch_router(std::vector<std::string>{"--help"})};
+  auto &router{launch_router(std::vector<std::string>{"--help"})};
 
-  EXPECT_NO_THROW(EXPECT_EQ(0, router.wait_for_exit()));
+  EXPECT_NO_THROW(EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit()));
 
   EXPECT_THAT(router.get_full_output(),
               ::testing::StartsWith("MySQL Router  Ver "));
@@ -399,14 +387,14 @@ TEST_F(RouterCmdlineTest, one_plugin_works) {
   };
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(sections, "\n"))};
-  CommandHandle router{launch_router({"-c", conf_file})};
+  auto &router{launch_router({"-c", conf_file})};
 
-  EXPECT_NO_THROW(EXPECT_EQ(0, router.wait_for_exit()));
+  EXPECT_NO_THROW(EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit()));
 }
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

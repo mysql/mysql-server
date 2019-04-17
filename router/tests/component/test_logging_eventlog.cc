@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,13 +47,7 @@
 using testing::HasSubstr;
 Path g_origin_path;
 
-class RouterEventlogTest : public RouterComponentTest, public ::testing::Test {
- protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-};
+class RouterEventlogTest : public RouterComponentTest {};
 
 // throws std::runtime_error
 std::string wchar_to_string(const wchar_t *text) {
@@ -525,8 +519,8 @@ TEST_F(RouterEventlogTest, wrapper_running_as_unknown) {
   });
 
   // run the router and wait for it to exit
-  auto router = launch_router({"--service"});
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  auto &router = launch_router({"--service"}, EXIT_FAILURE);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   // verify the message WAS written to STDERR
   const std::string out = router.get_full_output();
@@ -598,8 +592,9 @@ TEST_F(RouterEventlogTest, wrapper_running_as_process) {
   });
 
   // run the router and wait for it to exit
-  auto router = launch_router({"--install-service"});  // missing -c <config>
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  auto &router = launch_router({"--install-service"},
+                               EXIT_FAILURE);  // missing -c <config>
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);
@@ -669,8 +664,8 @@ TEST_F(RouterEventlogTest, application_running_as_process_preconfig) {
   });
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", "bogus.conf"});
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  auto &router = launch_router({"-c", "bogus.conf"}, EXIT_FAILURE);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);
@@ -707,11 +702,9 @@ TEST_F(RouterEventlogTest, application_running_as_process_postconfig) {
   // create config with bad [routing] section (missing "destinations" key)
   std::map<std::string, std::string> params = get_DEFAULT_defaults();
   params.at("logging_folder") = "";  // log to STDERR
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[routing]", &params);
+      create_config_file(conf_dir.name(), "[routing]", &params);
 
   // expected message
   constexpr char expected_message[] =
@@ -732,8 +725,8 @@ TEST_F(RouterEventlogTest, application_running_as_process_postconfig) {
   });
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
-  EXPECT_EQ(router.wait_for_exit(), 1) << router.get_full_output();
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE) << router.get_full_output();
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);
@@ -750,7 +743,7 @@ TEST_F(RouterEventlogTest, application_running_as_process_postconfig) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
