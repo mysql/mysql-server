@@ -59,6 +59,14 @@ class TestExecutionResources {
     return getPath(std::string(lib), prefix);
   }
 
+  std::string findExecutableFullPath(const char *exe, int prefix = 0) {
+    return find_path(exe, prefix, false);
+  }
+
+  std::string findLibraryDirectory(const char *lib, int prefix = 0) {
+    return find_path(lib, prefix, true);
+  }
+
  private:
   std::array<const char *, 6> m_search_path = {
       "bin", "libexec", "sbin", "scripts", "lib", "lib/mysql"};

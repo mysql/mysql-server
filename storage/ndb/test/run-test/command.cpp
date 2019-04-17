@@ -98,8 +98,18 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
 
   ssize_t pos = proc.m_proc.m_path.lastIndexOf('/') + 1;
   BaseString exename(proc.m_proc.m_path.substr(pos));
+
   proc.m_proc.m_path =
       g_resources.getExecutableFullPath(exename.c_str(), 1).c_str();
+  if (proc.m_proc.m_path == "") {
+    // Atempt to dynamically find executable that was not previously registered
+    proc.m_proc.m_path =
+        g_resources.findExecutableFullPath(exename.c_str(), 1).c_str();
+  }
+  if (proc.m_proc.m_path == "") {
+    g_logger.critical("Could not find full path for exe %s", exename.c_str());
+    return false;
+  }
 
   if (process_args && strlen(process_args)) {
     /* Beware too long args */
