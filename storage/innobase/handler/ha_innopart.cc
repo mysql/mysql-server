@@ -3618,14 +3618,9 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
       dict_index_t *index = innopart_get_index(biggest_partition, i);
 
       if (index == NULL) {
-        ib::error(ER_IB_MSG_596) << "Table " << ib_table->name
-                                 << " contains fewer"
-                                    " indexes inside InnoDB than"
-                                    " are defined in the MySQL"
-                                    " .frm file. Have you mixed up"
-                                    " .frm files from different"
-                                    " installations? "
-                                 << TROUBLESHOOTING_MSG;
+        ib::error(ER_IB_MSG_596)
+            << "Table " << ib_table->name
+            << " contains fewer indexes than expected." << TROUBLESHOOTING_MSG;
         break;
       }
 
@@ -3639,17 +3634,13 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
         }
 
         if ((j + 1) > index->n_uniq) {
-          ib::error(ER_IB_MSG_597) << "Index " << index->name << " of "
-                                   << ib_table->name << " has " << index->n_uniq
-                                   << " columns unique inside"
-                                      " InnoDB, but MySQL is"
-                                      " asking statistics for "
-                                   << j + 1
-                                   << " columns. Have"
-                                      " you mixed up .frm files"
-                                      " from different"
-                                      " installations? "
-                                   << TROUBLESHOOTING_MSG;
+          ib::error(ER_IB_MSG_597)
+              << "Index " << index->name << " of " << ib_table->name << " has "
+              << index->n_uniq
+              << " columns unique inside"
+                 " InnoDB, but MySQL is"
+                 " asking statistics for "
+              << j + 1 << " columns." << TROUBLESHOOTING_MSG;
           break;
         }
 

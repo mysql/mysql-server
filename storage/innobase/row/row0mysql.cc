@@ -4311,9 +4311,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
           << " exists in the InnoDB internal data"
              " dictionary though MySQL is trying to rename"
              " table "
-          << ut_get_name(trx, old_name)
-          << " to it. Have you deleted the .frm file and"
-             " not used DROP TABLE?";
+          << ut_get_name(trx, old_name) << " to it.";
       ib::info(ER_IB_MSG_1001) << TROUBLESHOOTING_MSG;
       ib::error(ER_IB_MSG_1002)
           << "If table " << ut_get_name(trx, new_name)
@@ -4323,8 +4321,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
              " automatically when the queries end. You can"
              " drop the orphaned table inside InnoDB by"
              " creating an InnoDB table with the same name"
-             " in another database and copying the .frm file"
-             " to the current database. Then MySQL thinks"
+             " in another database. Then MySQL thinks"
              " the table exists, and DROP TABLE will"
              " succeed.";
     }
