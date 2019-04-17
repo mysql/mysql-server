@@ -38,7 +38,6 @@
 #include "my_loglevel.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "my_systime.h"
 #include "my_thread.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
@@ -75,6 +74,20 @@ const uint32 Binlog_sender::PACKET_MAX_SIZE = UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD = 100;
 const float Binlog_sender::PACKET_GROW_FACTOR = 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR = 0.5;
+
+/**
+  Simple function to help readability w.r.t. chrono operations.
+
+  This function SHALL return a nanoseconds duration representing
+  the current time. It is just a convenience function to interface
+  with std::chrono::high_resolution_clock::now().
+
+  @return a std::chrono::nanoseconds duration since the epoch.
+ */
+static std::chrono::nanoseconds now_in_nanosecs() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::chrono::high_resolution_clock::now().time_since_epoch());
+}
 
 /**
   Binlog_sender reads events one by one. It uses the preallocated memory
@@ -129,7 +142,7 @@ void Binlog_sender::init() {
 
   thd->push_diagnostics_area(&m_diag_area);
   init_heartbeat_period();
-  m_last_event_sent_ts = time(0);
+  m_last_event_sent_ts = now_in_nanosecs();
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo = &m_linfo;
@@ -491,11 +504,11 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
        */
       DBUG_EXECUTE_IF("inject_2sec_sleep_when_skipping_an_event",
                       { my_sleep(2000000); });
-      time_t now = time(0);
+      auto now = now_in_nanosecs();
       DBUG_ASSERT(now >= m_last_event_sent_ts);
-      bool time_for_hb_event = ((ulonglong)(now - m_last_event_sent_ts) >=
-                                (ulonglong)(m_heartbeat_period / 1000000000UL));
-      if (time_for_hb_event) {
+
+      // if enough time has elapsed so that we should send another heartbeat
+      if ((now - m_last_event_sent_ts) >= m_heartbeat_period) {
         if (unlikely(send_heartbeat_event(log_pos))) return 1;
         exclude_group_end_pos = 0;
       } else {
@@ -637,7 +650,7 @@ int Binlog_sender::wait_new_events(my_off_t log_pos) {
                     mysql_bin_log.get_binlog_end_pos_lock(),
                     &stage_master_has_sent_all_binlog_to_slave, &old_stage);
 
-  if (m_heartbeat_period)
+  if (m_heartbeat_period.count() > 0)
     ret = wait_with_heartbeat(log_pos);
   else
     ret = wait_without_heartbeat();
@@ -655,7 +668,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos) {
   int ret;
 
   do {
-    set_timespec_nsec(&ts, m_heartbeat_period);
+    set_timespec_nsec(&ts, m_heartbeat_period.count());
     ret = mysql_bin_log.wait_for_update(&ts);
     if (!is_timeout(ret)) break;
 
@@ -686,10 +699,8 @@ void Binlog_sender::init_heartbeat_period() {
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
 
   const auto it = m_thd->user_vars.find(to_string(name));
-  if (it == m_thd->user_vars.end())
-    m_heartbeat_period = 0;
-  else
-    m_heartbeat_period = it->second->val_int(&null_value);
+  m_heartbeat_period = std::chrono::nanoseconds(
+      it == m_thd->user_vars.end() ? 0 : it->second->val_int(&null_value));
 
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 }
@@ -1165,7 +1176,7 @@ inline int Binlog_sender::send_packet() {
 
   /* Shrink the packet if needed. */
   int ret = shrink_packet() ? 1 : 0;
-  m_last_event_sent_ts = time(0);
+  m_last_event_sent_ts = now_in_nanosecs();
   return ret;
 }
 
