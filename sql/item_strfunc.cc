@@ -3411,8 +3411,8 @@ String *Item_load_file::val_str(String *str) {
     return error_str();
   }
 
-  if (!(stat_info.st_mode & S_IROTH) || !MY_S_ISREG(stat_info.st_mode)) {
-    /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
+  if (!MY_S_ISREG(stat_info.st_mode)) {
+    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr());
     mysql_file_close(file, MYF(0));
     DBUG_ASSERT(maybe_null);
     return error_str();
