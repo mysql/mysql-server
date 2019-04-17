@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1344,6 +1344,7 @@ bool Query_result_delete::send_eof()
         thd->clear_error();
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+      thd->thread_specific_used= TRUE;
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query().str, thd->query().length,
                             transactional_table_map != 0, FALSE, FALSE,

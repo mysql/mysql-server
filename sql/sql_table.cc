@@ -2605,8 +2605,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 #endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
-  thd->thread_specific_used|= (trans_tmp_table_deleted ||
-                               non_trans_tmp_table_deleted);
+  thd->thread_specific_used= true;
   error= 0;
 err:
   if (wrong_tables.length())

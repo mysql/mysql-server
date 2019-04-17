@@ -189,3 +189,71 @@ XA ROLLBACK 'idle_when_drop_temp';
 # clean up the binary log at in the end of the test
 # case as well.
 RESET MASTER;
+
+--echo #
+--echo # BUG#28642318: POINT IN TIME RECOVERY USING MYSQLBINLOG BROKEN
+--echo #               WITH TEMPORARY TABLE -> ERRORS
+
+--echo # Test case for DELETE query.
+
+RESET MASTER;
+connect (con1,localhost,root,,);
+
+--echo # Set up.
+--connection default
+--disable_warnings
+SET @save_binlog_format= @@session.binlog_format;
+SET @@session.binlog_format=STATEMENT;
+let $MYSQLD_DATADIR= `select @@datadir`;
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+
+--connection con1
+SET @@session.binlog_format=STATEMENT;
+CREATE TEMPORARY TABLE t1 (b BLOB) ENGINE=INNODB;
+
+--connection default
+DELETE d1, d2 FROM t1 AS d1, t1 AS d2 WHERE d1.a<>d2.a;
+
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/bug28642318.sql
+
+--connection default
+DROP TABLE t1;
+
+--echo # DELETE query fails with table re-open error without patch.
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug28642318.sql
+
+--echo # Clean up.
+--connection con1
+DROP TABLE IF EXISTS t1;
+
+--connection default
+DROP TABLE IF EXISTS t1;
+RESET MASTER;
+
+--echo # Test case for DROP query.
+
+--connection default
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+
+--connection con1
+CREATE TEMPORARY TABLE t1 (b BLOB) ENGINE=INNODB;
+
+--connection default
+DROP TABLE t1;
+
+--connection con1
+DROP TABLE t1;
+
+--connection default
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/bug28642318.sql
+
+--echo # DROP table query fails with unknown table error without patch.
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug28642318.sql
+
+--echo # Clean up
+--connection default
+SET @@session.binlog_format= @save_binlog_format;
+RESET MASTER;
+
+--disconnect con1
+--enable_warnings
