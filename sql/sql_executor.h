@@ -463,16 +463,6 @@ class QEP_TAB : public QEP_shared_owner {
     if (t) t->reginfo.qep_tab = this;
   }
 
-  bool temporary_table_deduplicates() const {
-    return m_temporary_table_deduplicates;
-  }
-  void set_temporary_table_deduplicates(bool arg) {
-    m_temporary_table_deduplicates = arg;
-  }
-
-  bool using_table_scan() const { return m_using_table_scan; }
-  void set_using_table_scan(bool arg) { m_using_table_scan = arg; }
-
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const;
 
@@ -707,22 +697,6 @@ class QEP_TAB : public QEP_shared_owner {
   table_map lateral_derived_tables_depend_on_me;
 
   Mem_root_array<const CacheInvalidatorIterator *> *invalidators = nullptr;
-
-  /**
-    If this table is a temporary table used for whole-JOIN materialization
-    (e.g. before sorting): true iff the table deduplicates, typically by way
-    of an unique index.
-
-    Otherwise, unused.
-   */
-  bool m_temporary_table_deduplicates = false;
-
-  /**
-    True if iterator is a TableScanIterator. Used so that we can know whether
-    to stream directly across derived tables and into sorts (we cannot if there
-    is a ref access).
-   */
-  bool m_using_table_scan = false;
 
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined

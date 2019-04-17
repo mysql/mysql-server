@@ -43,10 +43,7 @@ struct TABLE;
 
 enum class Addon_fields_status {
   unknown_status,
-  using_addon_fields,
-
-  // The remainder are reasons why we are _not_ using addon fields.
-  zero_fields_needed,
+  using_heap_table,
   fulltext_searched,
   keep_rowid,
   row_not_packable,
@@ -61,10 +58,8 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
   switch (afs) {
     default:
       return "unknown";
-    case Addon_fields_status::using_addon_fields:
-      return "using_addon_fields";
-    case Addon_fields_status::zero_fields_needed:
-      return "zero_fields_needed";
+    case Addon_fields_status::using_heap_table:
+      return "using_heap_table";
     case Addon_fields_status::fulltext_searched:
       return "fulltext_searched";
     case Addon_fields_status::keep_rowid:
@@ -303,11 +298,6 @@ class Sort_param {
   bool using_pq{false};
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp_buffer;
 
-  /// Decide whether we are to use addon fields (sort rows instead of sorting
-  /// row IDs or not). See using_addon_fields().
-  void decide_addon_fields(Filesort *file_sort, TABLE *table,
-                           ulong max_length_for_sort_data, bool sort_positions);
-
   /**
     Initialize this struct for filesort() usage.
     @see description of record layout above
@@ -318,13 +308,14 @@ class Sort_param {
     @param table     table to be sorted
     @param max_length_for_sort_data from thd->variables
     @param maxrows   HA_POS_ERROR or possible LIMIT value
+    @param sort_positions see documentation for the filesort() function
     @param remove_duplicates if true, items with duplicate keys will be removed
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
                          uint sortlen, TABLE *table,
                          ulong max_length_for_sort_data, ha_rows maxrows,
-                         bool remove_duplicates);
+                         bool sort_positions, bool remove_duplicates);
 
   /// Enables the packing of addons if possible.
   void try_to_pack_addons(ulong max_length_for_sort_data);
@@ -342,12 +333,8 @@ class Sort_param {
   /// Are we using any JSON key fields?
   bool using_json_keys() const { return m_num_json_keys > 0; }
 
-  /// Are we using "addon fields"? Note that decide_addon_fields() or
-  /// init_for_filesort() must be called before checking this.
-  bool using_addon_fields() const {
-    DBUG_ASSERT(m_addon_fields_status != Addon_fields_status::unknown_status);
-    return addon_fields != NULL;
-  }
+  /// Are we using "addon fields"?
+  bool using_addon_fields() const { return addon_fields != NULL; }
 
   /**
     Stores key fields in *dst.

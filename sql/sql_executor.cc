@@ -358,8 +358,6 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
   if (!(tab->op = new (thd->mem_root) QEP_tmp_table(tab))) goto err;
 
   tab->set_table(table);
-  tab->set_temporary_table_deduplicates(distinct_arg ||
-                                        tmp_table_group != nullptr);
 
   /**
     If this is a window's OUT table, any final DISTINCT, ORDER BY will lead to
@@ -1723,23 +1721,12 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
     }
 
     bool copy_fields_and_items_in_materialize = !subjoin->streaming_aggregation;
-    if (qep_tab->table_ref->common_table_expr() == nullptr && rematerialize &&
-        qep_tab->using_table_scan()) {
-      // We don't actually need the materialization for anything (we would just
-      // reading the rows straight out from the table, never to be used again),
-      // so we can just stream records directly over to the next iterator.
-      // This saves both CPU time and memory (for the temporary table).
-      table_iterator = NewIterator<StreamingIterator>(
-          thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
-          qep_tab->table(), copy_fields_and_items_in_materialize);
-    } else {
-      table_iterator = NewIterator<MaterializeIterator>(
-          thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
-          qep_tab->table(), move(qep_tab->iterator),
-          qep_tab->table_ref->common_table_expr(), subjoin->select_lex, subjoin,
-          /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
-          subjoin->tmp_table_param.end_write_records);
-    }
+    table_iterator = NewIterator<MaterializeIterator>(
+        thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
+        qep_tab->table(), move(qep_tab->iterator),
+        qep_tab->table_ref->common_table_expr(), subjoin->select_lex, subjoin,
+        /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
+        subjoin->tmp_table_param.end_write_records);
 
     if (!rematerialize) {
       MaterializeIterator *materialize =
@@ -2235,7 +2222,7 @@ void JOIN::create_iterators() {
       // sorted results out.
       qep_tab->iterator = NewIterator<SortingIterator>(
           qep_tab->join()->thd, qep_tab->filesort, move(iterator),
-          &qep_tab->join()->examined_rows);
+          qep_tab->keep_current_rowid, &qep_tab->join()->examined_rows);
     }
   }
 
@@ -2461,27 +2448,11 @@ void JOIN::create_iterators() {
       bool copy_fields_and_items =
           (materialize_op.type !=
            MaterializeOperation::AGGREGATE_THEN_MATERIALIZE);
-
-      // If we don't need the row IDs, and don't have some sort of deduplication
-      // (e.g. for GROUP BY), filesort can take in the data directly, without
-      // going through a temporary table.
-      //
-      // TODO: If the sort order is suitable (or extendable), we could take over
-      // the deduplicating responsibilities of the temporary table and activate
-      // this mode even if qep_tab->temporary_table_deduplicates() is set.
-      if (filesort != nullptr && filesort->using_addon_fields() &&
-          !qep_tab->temporary_table_deduplicates()) {
-        iterator = NewIterator<StreamingIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            copy_fields_and_items);
-      } else {
-        iterator = NewIterator<MaterializeIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            move(qep_tab->iterator), /*cte=*/nullptr, select_lex, this,
-            qep_tab->ref_item_slice, copy_fields_and_items,
-            /*rematerialize=*/true,
-            qep_tab->tmp_table_param->end_write_records);
-      }
+      iterator = NewIterator<MaterializeIterator>(
+          thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
+          move(qep_tab->iterator), /*cte=*/nullptr, select_lex, this,
+          qep_tab->ref_item_slice, copy_fields_and_items,
+          /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records);
 
       // NOTE: There's no need to call join->add_materialize_iterator(),
       // as this iterator always rematerializes anyway.
@@ -2516,14 +2487,15 @@ void JOIN::create_iterators() {
           // The ordering for DISTINCT already gave us the right sort order,
           // so no need to sort again.
           filesort = nullptr;
-        } else if (filesort != nullptr && !filesort->using_addon_fields()) {
+        } else if (filesort != nullptr) {
           // We have the rather unusual situation here that we have two sorts
           // directly after each other, with no temporary table in-between,
-          // and filesort expects to be able to refer to rows by their position.
-          // Usually, the sort for DISTINCT would be a superset of the sort for
-          // ORDER BY, but not always (e.g. when sorting by some expression),
-          // so we could end up in a situation where the first sort is by addon
-          // fields and the second one is by positions.
+          // and filesort expects to be able to refer to rows by their position
+          // (unless it's using addon fields). Usually, the sort for DISTINCT
+          // would be a superset of the sort for ORDER BY, but not always
+          // (e.g. when sorting by some expression), so we could end up in a
+          // situation where the first sort is by addon fields and the second
+          // one is by positions.
           //
           // Thus, in this case, we force the first sort to be by positions,
           // so that the result comes from SortFileIndirectIterator or
@@ -2531,19 +2503,24 @@ void JOIN::create_iterators() {
           // on the underlying temporary table correctly before returning it,
           // so that the successive filesort will save the right position
           // for the row.
+          //
+          // TODO: If we knew ahead of time (before calling filesort) whether
+          // we could use addon fields or not, we could be smarter here.
           force_sort_positions = true;
         }
 
-        Filesort *dup_filesort = new (thd->mem_root) Filesort(
-            thd, qep_tab, order, HA_POS_ERROR, /*force_stable_sort=*/false,
-            /*remove_duplicates=*/true, force_sort_positions);
-        iterator = NewIterator<SortingIterator>(thd, dup_filesort,
-                                                move(iterator), &examined_rows);
+        Filesort *dup_filesort = new (thd->mem_root)
+            Filesort(qep_tab, order, HA_POS_ERROR, /*force_stable_sort=*/false,
+                     /*remove_duplicates=*/true);
+        iterator =
+            NewIterator<SortingIterator>(thd, dup_filesort, move(iterator),
+                                         force_sort_positions, &examined_rows);
       }
     }
 
     if (filesort != nullptr) {
       iterator = NewIterator<SortingIterator>(thd, filesort, move(iterator),
+                                              qep_tab->keep_current_rowid,
                                               &examined_rows);
     }
   }
@@ -4346,12 +4323,9 @@ vector<string> DynamicRangeIterator::DebugString() const {
 */
 
 void join_setup_iterator(QEP_TAB *tab) {
-  bool using_table_scan;
-  tab->iterator =
-      create_table_iterator(tab->join()->thd, NULL, tab, false,
-                            /*ignore_not_found_rows=*/false,
-                            /*examined_rows=*/nullptr, &using_table_scan);
-  tab->set_using_table_scan(using_table_scan);
+  tab->iterator = create_table_iterator(tab->join()->thd, NULL, tab, false,
+                                        /*ignore_not_found_rows=*/false,
+                                        /*examined_rows=*/nullptr);
 
   if (tab->filesort) {
     unique_ptr_destroy_only<RowIterator> iterator = move(tab->iterator);
@@ -4363,9 +4337,9 @@ void join_setup_iterator(QEP_TAB *tab) {
 
     // Wrap the chosen RowIterator in a SortingIterator, so that we get
     // sorted results out.
-    tab->iterator = NewIterator<SortingIterator>(tab->join()->thd,
-                                                 tab->filesort, move(iterator),
-                                                 &tab->join()->examined_rows);
+    tab->iterator = NewIterator<SortingIterator>(
+        tab->join()->thd, tab->filesort, move(iterator),
+        tab->keep_current_rowid, &tab->join()->examined_rows);
   }
 }
 
@@ -4735,10 +4709,9 @@ void QEP_TAB::pick_table_access_method() {
         iterator = NewIterator<DynamicRangeIterator>(join()->thd, table(), this,
                                                      &join()->examined_rows);
       } else {
-        iterator =
-            create_table_iterator(join()->thd, NULL, this, false,
-                                  /*ignore_not_found_rows=*/false,
-                                  &join()->examined_rows, &m_using_table_scan);
+        iterator = create_table_iterator(join()->thd, NULL, this, false,
+                                         /*ignore_not_found_rows=*/false,
+                                         &join()->examined_rows);
       }
       break;
     default:

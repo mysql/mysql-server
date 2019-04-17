@@ -2057,10 +2057,12 @@ EXPLAIN
         -> Table scan on t1
     -> Table scan on dt3
         -> Materialize (invalidate on row from t1)
-            -> Stream results
-                -> Limit: 1 row(s)
-                    -> Stream results
-                        -> Table scan on t2
+            -> Table scan on dt2
+                -> Temporary table
+                    -> Limit: 1 row(s)
+                        -> Table scan on dt
+                            -> Temporary table
+                                -> Table scan on t2
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1

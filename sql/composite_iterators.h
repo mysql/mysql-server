@@ -568,7 +568,7 @@ class MaterializeIterator final : public TableRowIterator {
   /// If we are materializing a CTE, points to it. Otherwise nullptr.
   const Common_table_expr *m_cte;
 
-  Temp_table_param *m_temp_table_param;
+  Temp_table_param *m_tmp_table_param;
   SELECT_LEX *m_select_lex;
 
   /// The join we are materializing.
@@ -613,46 +613,6 @@ class MaterializeIterator final : public TableRowIterator {
 };
 
 /**
-  StreamingIterator is a minimal version of MaterializeIterator that does not
-  actually materialize; instead, every Read() just forwards the call to the
-  subquery iterator and does the required copying from one set of fields to
-  another.
-
-  It is used for when the optimizer would normally set up a materialization,
-  but you don't actually need one, ie. you don't want to read the rows multiple
-  times after writing them, and you don't want to access them by index (only
-  a single table scan). If you don't need the copy functionality (ie., you
-  have an AggregateIterator, which does this job already), you still need a
-  StreamingIterator, to set the NULL row flag on the temporary table.
- */
-class StreamingIterator final : public TableRowIterator {
- public:
-  StreamingIterator(THD *thd,
-                    unique_ptr_destroy_only<RowIterator> subquery_iterator,
-                    Temp_table_param *temp_table_param, TABLE *table,
-                    bool copy_fields_and_items);
-
-  bool Init() override { return m_subquery_iterator->Init(); }
-
-  int Read() override;
-
-  std::vector<std::string> DebugString() const override {
-    return {"Stream results"};
-  }
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_subquery_iterator.get(), ""}};
-  }
-
-  void UnlockRow() override { m_subquery_iterator->UnlockRow(); }
-
- private:
-  unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
-  Temp_table_param *m_temp_table_param;
-  const bool m_copy_fields_and_items;
-};
-
-/**
   Aggregates unsorted data into a temporary table, using update operations
   to keep running aggregates. After that, works as a MaterializeIterator
   in that it allows the temporary table to be scanned.
@@ -682,7 +642,7 @@ class TemptableAggregateIterator final : public TableRowIterator {
   /// The iterator used to scan the resulting temporary table.
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
 
-  Temp_table_param *m_temp_table_param;
+  Temp_table_param *m_tmp_table_param;
   SELECT_LEX *m_select_lex;
   JOIN *const m_join;
   const int m_ref_slice;

@@ -458,10 +458,12 @@ vector<string> SortBufferIndirectIterator::DebugString() const {
 
 SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
                                  unique_ptr_destroy_only<RowIterator> source,
+                                 bool force_sort_positions,
                                  ha_rows *examined_rows)
     : RowIterator(thd),
       m_filesort(filesort),
       m_source_iterator(move(source)),
+      m_force_sort_positions(force_sort_positions),
       m_examined_rows(examined_rows) {}
 
 SortingIterator::~SortingIterator() { ReleaseBuffers(); }
@@ -617,8 +619,8 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
   }
 
   ha_rows found_rows;
-  bool error = filesort(thd(), m_filesort, m_source_iterator.get(),
-                        &m_sort_result, &found_rows);
+  bool error = filesort(thd(), m_filesort, m_force_sort_positions,
+                        m_source_iterator.get(), &m_sort_result, &found_rows);
   qep_tab->set_records(found_rows);  // For SQL_CALC_ROWS
   table->set_keyread(false);         // Restore if we used indexes
   if (qep_tab->type() == JT_FT)

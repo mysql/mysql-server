@@ -40,7 +40,7 @@ struct TABLE;
 
 unique_ptr_destroy_only<RowIterator> create_table_iterator(
     THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows, ha_rows *examined_rows, bool *using_table_scan);
+    bool ignore_not_found_rows, ha_rows *examined_rows);
 
 /**
   Calls create_table_iterator(), then calls Init() on the resulting iterator.

@@ -200,23 +200,17 @@ template class IndexScanIterator<false>;
     been deleted by foreign key handling. Only relevant for methods that need
     to look up rows in tables (those marked “Indirect”).
   @param examined_rows
-    If non-nullptr, the iterator will increase this variable by the number of
+    If not-nullptr, the iterator will increase this variable by the number of
     examined rows. If nullptr, will use qep_tab->join()->examined_rows
     if possible.
-  @param using_table_scan
-    If non-nullptr, will be whether a TableScanIterator was chosen.
  */
 unique_ptr_destroy_only<RowIterator> create_table_iterator(
     THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows, ha_rows *examined_rows,
-    bool *using_table_scan) {
+    bool ignore_not_found_rows, ha_rows *examined_rows) {
   // If only 'table' is given, assume no quick, no condition.
   DBUG_ASSERT(!(table && qep_tab));
   if (!table) table = qep_tab->table();
   empty_record(table);
-  if (using_table_scan != nullptr) {
-    *using_table_scan = false;
-  }
 
   if (examined_rows == nullptr && qep_tab != nullptr &&
       qep_tab->join() != nullptr) {
@@ -250,9 +244,6 @@ unique_ptr_destroy_only<RowIterator> create_table_iterator(
         examined_rows);
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
-    if (using_table_scan != nullptr) {
-      *using_table_scan = true;
-    }
     return NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows);
   }
 }
@@ -260,9 +251,9 @@ unique_ptr_destroy_only<RowIterator> create_table_iterator(
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
     THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
     bool ignore_not_found_rows) {
-  unique_ptr_destroy_only<RowIterator> iterator = create_table_iterator(
-      thd, table, qep_tab, disable_rr_cache, ignore_not_found_rows,
-      /*examined_rows=*/nullptr, /*using_table_scan=*/nullptr);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      create_table_iterator(thd, table, qep_tab, disable_rr_cache,
+                            ignore_not_found_rows, /*examined_rows=*/nullptr);
   if (iterator->Init()) {
     return nullptr;
   }

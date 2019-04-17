@@ -694,7 +694,7 @@ vector<string> CacheInvalidatorIterator::DebugString() const {
 
 MaterializeIterator::MaterializeIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
-    Temp_table_param *temp_table_param, TABLE *table,
+    Temp_table_param *tmp_table_param, TABLE *table,
     unique_ptr_destroy_only<RowIterator> table_iterator,
     const Common_table_expr *cte, SELECT_LEX *select_lex, JOIN *join,
     int ref_slice, bool copy_fields_and_items, bool rematerialize,
@@ -703,7 +703,7 @@ MaterializeIterator::MaterializeIterator(
       m_subquery_iterator(move(subquery_iterator)),
       m_table_iterator(move(table_iterator)),
       m_cte(cte),
-      m_temp_table_param(temp_table_param),
+      m_tmp_table_param(tmp_table_param),
       m_select_lex(select_lex),
       m_join(join),
       m_ref_slice(ref_slice),
@@ -827,7 +827,7 @@ bool MaterializeIterator::Init() {
 
       // Materialize items for this row.
       if (m_copy_fields_and_items) {
-        if (copy_fields_and_funcs(m_temp_table_param, thd())) return true;
+        if (copy_fields_and_funcs(m_tmp_table_param, thd())) return true;
       }
 
       if (!check_unique_constraint(table())) continue;
@@ -996,38 +996,15 @@ void MaterializeIterator::AddInvalidator(
   // (create_iterators() always sets rematerialize=true for such cases).
 }
 
-StreamingIterator::StreamingIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
-    Temp_table_param *temp_table_param, TABLE *table,
-    bool copy_fields_and_items)
-    : TableRowIterator(thd, table),
-      m_subquery_iterator(move(subquery_iterator)),
-      m_temp_table_param(temp_table_param),
-      m_copy_fields_and_items(copy_fields_and_items) {
-  DBUG_ASSERT(m_subquery_iterator != nullptr);
-}
-
-int StreamingIterator::Read() {
-  int error = m_subquery_iterator->Read();
-  if (error != 0) return error;
-
-  // Materialize items for this row.
-  if (m_copy_fields_and_items) {
-    if (copy_fields_and_funcs(m_temp_table_param, thd())) return 1;
-  }
-
-  return 0;
-}
-
 TemptableAggregateIterator::TemptableAggregateIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
-    Temp_table_param *temp_table_param, TABLE *table,
+    Temp_table_param *tmp_table_param, TABLE *table,
     unique_ptr_destroy_only<RowIterator> table_iterator, SELECT_LEX *select_lex,
     JOIN *join, int ref_slice)
     : TableRowIterator(thd, table),
       m_subquery_iterator(move(subquery_iterator)),
       m_table_iterator(move(table_iterator)),
-      m_temp_table_param(temp_table_param),
+      m_tmp_table_param(tmp_table_param),
       m_select_lex(select_lex),
       m_join(join),
       m_ref_slice(ref_slice) {}
@@ -1081,12 +1058,12 @@ bool TemptableAggregateIterator::Init() {
     }
 
     // See comment below.
-    DBUG_ASSERT(m_temp_table_param->grouped_expressions.size() == 0);
+    DBUG_ASSERT(m_tmp_table_param->grouped_expressions.size() == 0);
 
     // Materialize items for this row. Note that groups are copied twice.
     // (FIXME: Is this comment really still current? It seems to date back
     // to pre-2000, but I can't see that it's really true.)
-    if (copy_fields(m_temp_table_param, thd()))
+    if (copy_fields(m_tmp_table_param, thd()))
       return 1; /* purecov: inspected */
 
     // See if we have seen this row already; if so, we want to update it,
@@ -1100,7 +1077,7 @@ bool TemptableAggregateIterator::Init() {
         evaluation of functions to be copied when 2nd and further records
         in group are found.
       */
-      if (copy_funcs(m_temp_table_param, thd()))
+      if (copy_funcs(m_tmp_table_param, thd()))
         return 1; /* purecov: inspected */
       group_found = !check_unique_constraint(table());
     } else {
@@ -1111,7 +1088,7 @@ bool TemptableAggregateIterator::Init() {
         if (item->maybe_null)
           group->buff[-1] = (char)group->field_in_tmp_table->is_null();
       }
-      const uchar *key = m_temp_table_param->group_buff;
+      const uchar *key = m_tmp_table_param->group_buff;
       group_found = !table()->file->ha_index_read_map(
           table()->record[1], key, HA_WHOLE_KEY, HA_READ_KEY_EXACT);
     }
@@ -1165,7 +1142,7 @@ bool TemptableAggregateIterator::Init() {
           memcpy(table()->record[0] + key_part->offset - 1, group->buff - 1, 1);
       }
       /* See comment on copy_funcs above. */
-      if (copy_funcs(m_temp_table_param, thd())) return 1;
+      if (copy_funcs(m_tmp_table_param, thd())) return 1;
     }
     init_tmptable_sum_functions(m_join->sum_funcs);
     error = table()->file->ha_write_row(table()->record[0]);
