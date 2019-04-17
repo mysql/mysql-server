@@ -167,9 +167,7 @@ void RestApi::add_path(const std::string &path,
   if (rest_api_handlers_.end() !=
       std::find_if(
           rest_api_handlers_.begin(), rest_api_handlers_.end(),
-          [&path](const decltype(rest_api_handlers_)::value_type &value) {
-            return std::get<0>(value) == path;
-          })) {
+          [&path](const auto &value) { return std::get<0>(value) == path; })) {
     throw std::invalid_argument("path already exists in rest_api: " + path);
   }
 
@@ -179,11 +177,11 @@ void RestApi::add_path(const std::string &path,
 void RestApi::remove_path(const std::string &path) {
   std::unique_lock<std::shared_timed_mutex> mx(rest_api_handler_mutex_);
 
-  std::remove_if(
-      rest_api_handlers_.begin(), rest_api_handlers_.end(),
-      [&path](const decltype(rest_api_handlers_)::value_type &value) {
-        return std::get<0>(value) == path;
-      });
+  rest_api_handlers_.erase(
+      std::remove_if(
+          rest_api_handlers_.begin(), rest_api_handlers_.end(),
+          [&path](const auto &value) { return std::get<0>(value) == path; }),
+      rest_api_handlers_.end());
 }
 
 void RestApi::handle_paths(HttpRequest &req) {

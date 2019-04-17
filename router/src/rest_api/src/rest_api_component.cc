@@ -52,14 +52,11 @@ bool RestApiComponent::try_process_spec(SpecProcessor processor) {
 void RestApiComponent::remove_process_spec(SpecProcessor processor) {
   std::lock_guard<std::mutex> lock(spec_mu_);
 
-  // if srv_ already points to the rest_api forward the
-  // spec directly, otherwise add it to the delayed backlog
-  //
-  std::remove_if(
-      spec_processors_.begin(), spec_processors_.end(),
-      [&processor](const decltype(spec_processors_)::value_type &value) {
-        return value == processor;
-      });
+  spec_processors_.erase(
+      std::remove_if(
+          spec_processors_.begin(), spec_processors_.end(),
+          [&processor](const auto &value) { return value == processor; }),
+      spec_processors_.end());
 }
 
 void RestApiComponent::add_path(const std::string &path,
@@ -78,16 +75,16 @@ void RestApiComponent::add_path(const std::string &path,
 void RestApiComponent::remove_path(const std::string &path) {
   std::lock_guard<std::mutex> lock(spec_mu_);
 
-  // if srv_ already points to the rest_api forward the
-  // route directly, otherwise add it to the delayed backlog
+  // if srv_ already points to the rest_api remove the
+  // route directly, otherwise remove it from the delayed backlog
   if (auto srv = srv_.lock()) {
     srv->remove_path(path);
   } else {
-    std::remove_if(
-        add_path_backlog_.begin(), add_path_backlog_.end(),
-        [&path](const decltype(add_path_backlog_)::value_type &value) {
-          return value.first == path;
-        });
+    add_path_backlog_.erase(
+        std::remove_if(
+            add_path_backlog_.begin(), add_path_backlog_.end(),
+            [&path](const auto &value) { return value.first == path; }),
+        add_path_backlog_.end());
   }
 }
 

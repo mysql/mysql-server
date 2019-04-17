@@ -207,9 +207,10 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   ASSERT_TRUE(wait_for_port_ready(router_port)) << get_router_log_output();
 
   // don't allow router to create any more (client) threads
+  pid_t pid = router_static.get_pid();
+  struct rlimit old_limit;
+  EXPECT_EQ(0, getrlimit(RLIMIT_NPROC, &old_limit));
   {
-    pid_t pid = router_static.get_pid();
-
     // how many threads Router process is allowed to have. If this number is
     // lower than current count, nothing will happen, but new ones will not be
     // allowed to be created until count comes down below this limit. Thus 0 is
@@ -217,7 +218,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
     rlim_t max_threads = 0;
 
     struct rlimit new_limit {
-      .rlim_cur = max_threads, .rlim_max = max_threads
+      .rlim_cur = max_threads, .rlim_max = old_limit.rlim_max
     };
     EXPECT_EQ(0, prlimit(pid, RLIMIT_NPROC, &new_limit, nullptr));
   }
@@ -230,8 +231,12 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
       std::runtime_error,
       "Router couldn't spawn a new thread to service new client connection "
       "(1040)");
+
+  // we need to restore the old limit, otherwise ASAN can't spawn the thread
+  // that it needs on shutdown and crashes
+  EXPECT_EQ(0, prlimit(pid, RLIMIT_NPROC, &old_limit, nullptr));
 }
-#endif  // #ifndef _WIN32
+#endif  // #ifndef HAVE_PRLIMIT
 
 #ifndef _WIN32  // named sockets are not supported on Windows;
                 // on Unix, they're implemented using Unix sockets
