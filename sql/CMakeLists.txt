@@ -846,6 +846,9 @@ TARGET_LINK_LIBRARIES(slave binlog sql_main)
 
 # All these libraries depend on each other.
 TARGET_LINK_LIBRARIES(sql_main rpl master slave binlog)
+IF(WITH_ICU STREQUAL "bundled")
+  TARGET_LINK_LIBRARIES(sql_main ${ICU_LIBRARIES})
+ENDIF()
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
