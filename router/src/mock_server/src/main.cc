@@ -276,7 +276,7 @@ int main(int argc, char *argv[]) {
   result = WSAStartup(MAKEWORD(2, 2), &wsaData);
   if (result != 0) {
     std::cerr << "WSAStartup failed with error: " << result << std::endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 #endif
 
@@ -291,7 +291,7 @@ int main(int argc, char *argv[]) {
     frontend.run();
   } catch (const std::exception &e) {
     std::cout << "ERROR: " << e.what() << std::endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 
   return 0;

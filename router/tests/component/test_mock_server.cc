@@ -32,15 +32,9 @@
 #include "router_config.h"
 #include "tcp_port_pool.h"
 
-Path g_origin_path;
-
-class MockServerCLITest : public RouterComponentTest, public ::testing::Test {
+class MockServerCLITest : public RouterComponentTest {
  protected:
   TcpPortPool port_pool_;
-  void SetUp() override {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
 };
 
 /**
@@ -57,8 +51,9 @@ TEST_F(MockServerCLITest, has_version) {
   ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
 
   SCOPED_TRACE("// start binary");
-  auto cmd = launch_command(mysql_server_mock_path,
-                            std::vector<std::string>{"--version"}, true);
+  auto &cmd =
+      launch_command(mysql_server_mock_path,
+                     std::vector<std::string>{"--version"}, EXIT_SUCCESS, true);
 
   SCOPED_TRACE("// wait for exit");
   EXPECT_EQ(cmd.wait_for_exit(1000), 0);  // should be quick, and return 0
@@ -76,8 +71,9 @@ TEST_F(MockServerCLITest, has_help) {
   ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
 
   SCOPED_TRACE("// start binary with --help");
-  auto cmd = launch_command(mysql_server_mock_path,
-                            std::vector<std::string>{"--help"}, true);
+  auto &cmd =
+      launch_command(mysql_server_mock_path, std::vector<std::string>{"--help"},
+                     EXIT_SUCCESS, true);
 
   SCOPED_TRACE("// wait for exit");
   EXPECT_NO_THROW(
@@ -100,9 +96,9 @@ TEST_F(MockServerCLITest, http_port_too_large) {
   ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
 
   SCOPED_TRACE("// start binary with --http-port=65536");
-  auto cmd =
-      launch_command(mysql_server_mock_path,
-                     std::vector<std::string>{"--http-port=65536"}, true);
+  auto &cmd = launch_command(mysql_server_mock_path,
+                             std::vector<std::string>{"--http-port=65536"},
+                             EXIT_FAILURE, true);
 
   SCOPED_TRACE("// wait for exit");
   EXPECT_NO_THROW(EXPECT_NE(cmd.wait_for_exit(5000),
@@ -125,7 +121,8 @@ TEST_F(MockServerCLITest, fail_on_no_more_stmts) {
       get_data_dir().join("js_test_stmts_is_empty.json").str();
 
   SCOPED_TRACE("// start mock");
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock =
+      launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
   EXPECT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
@@ -169,8 +166,7 @@ static void init_DIM() {
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   init_DIM();
-
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

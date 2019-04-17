@@ -36,6 +36,7 @@
 #include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql_session.h"
+#include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -55,15 +56,9 @@ using JsonDocument =
 using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
-class RestMockServerTest : public RouterComponentTest, public ::testing::Test {
+class RestMockServerTest : public RouterComponentTest {
  protected:
   TcpPortPool port_pool_;
-
-  RestMockServerTest() {
-    set_origin(g_origin_path);
-
-    RouterComponentTest::init();
-  }
 };
 
 /**
@@ -77,8 +72,8 @@ class RestMockServerScriptTest : public RestMockServerTest {
       : server_port_{port_pool_.get_next_available()},
         http_port_{port_pool_.get_next_available()},
         json_stmts_{get_data_dir().join(stmt_file).str()},
-        server_mock_{launch_mysql_server_mock(json_stmts_, server_port_, false,
-                                              http_port_)} {
+        server_mock_{launch_mysql_server_mock(
+            json_stmts_, server_port_, EXIT_SUCCESS, false, http_port_)} {
     SCOPED_TRACE("// start mock-server with http-port");
 
     const std::string http_hostname{"127.0.0.1"};
@@ -91,7 +86,7 @@ class RestMockServerScriptTest : public RestMockServerTest {
   const uint16_t http_port_;
   const std::string json_stmts_;
 
-  RouterComponentTest::CommandHandle server_mock_;
+  ProcessWrapper &server_mock_;
 };
 
 class RestMockServerScriptsWorkTest
@@ -926,8 +921,8 @@ TEST_P(RestMockServerConnectThrowsTest, js_test_stmts_is_string) {
   const unsigned http_port = port_pool_.get_next_available();
   const std::string json_stmts =
       get_data_dir().join(std::get<0>(GetParam())).str();
-  auto server_mock =
-      launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
+                                               EXIT_SUCCESS, false, http_port);
 
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
@@ -977,8 +972,8 @@ TEST_P(RestMockServerScriptsThrowsTest, scripts_throws) {
   const unsigned http_port = port_pool_.get_next_available();
   const std::string json_stmts =
       get_data_dir().join(std::get<0>(GetParam())).str();
-  auto server_mock =
-      launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
+                                               EXIT_SUCCESS, false, http_port);
 
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
@@ -1027,8 +1022,8 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
   const unsigned server_port = port_pool_.get_next_available();
   const unsigned http_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join(GetParam()).str();
-  auto server_mock =
-      launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
+                                               EXIT_SUCCESS, false, http_port);
 
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
@@ -1084,7 +1079,7 @@ static void init_DIM() {
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   init_DIM();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

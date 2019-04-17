@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,19 +41,16 @@
 #include <rapidjson/document.h>
 
 #include "mysqlrouter/rest_client.h"
+#include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
-Path g_origin_path;
 using ::testing::Eq;
 
-class ShutdownTest : public RouterComponentTest, public ::testing::Test {
+class ShutdownTest : public RouterComponentTest {
  protected:
-  using CommandHandle = RouterComponentTest::CommandHandle;
-
   void SetUp() override {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
+    RouterComponentTest::SetUp();
 
     // Valgrind needs way more time
     if (getenv("WITH_VALGRIND")) {
@@ -62,23 +59,19 @@ class ShutdownTest : public RouterComponentTest, public ::testing::Test {
     }
   }
 
-  RouterComponentTest::CommandHandle launch_router(
-      unsigned router_port, const std::string &temp_test_dir,
-      const std::string &other_sections) {
+  auto &launch_router(unsigned router_port, const std::string &temp_test_dir,
+                      const std::string &other_sections) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
     // create tmp conf dir (note that it will be RAII-deleted before router
     // shuts down, but that's ok)
-    const std::string conf_dir = get_tmp_dir("conf");
-    std::shared_ptr<void> exit_guard(nullptr,
-                                     [&](void *) { purge_dir(conf_dir); });
+    TempDirectory conf_dir("conf");
     const std::string conf_file =
-        create_config_file(conf_dir, other_sections, &default_section);
+        create_config_file(conf_dir.name(), other_sections, &default_section);
 
     // launch the router
-    CommandHandle router =
-        RouterComponentTest::launch_router({"-c", conf_file});
+    auto &router = RouterComponentTest::launch_router({"-c", conf_file});
     bool ready = wait_for_port_ready(router_port);
     EXPECT_TRUE(ready) << router.get_full_output() << get_router_log_output();
 
@@ -233,9 +226,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   constexpr int kAcceptableShutdownWait =
       kConnectTimeout * 1.5;  // should be between 1 and 2 * kConnectTimeout
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const std::vector<uint16_t> cluster_node_ports{
       port_pool_.get_next_available(),
@@ -252,24 +243,24 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   const uint16_t router_port = port_pool_.get_next_available();
 
   const std::string json_primary_node =
-      create_JSON_tracefile(temp_test_dir, cluster_node_ports);
+      create_JSON_tracefile(temp_test_dir.name(), cluster_node_ports);
 
   // launch cluster
   // NOTE: We reuse the primary's JSON file for all the secondaries just for
   //       convenience. Only the primary is expected to receive queries,
   //       therefore any arbitrary JSON will do for the secondaries.
-  std::vector<CommandHandle> cluster_nodes;
+  std::vector<ProcessWrapper *> cluster_nodes;
   for (size_t i = 0; i < cluster_node_ports.size(); i++) {
-    CommandHandle node = launch_mysql_server_mock(
-        json_primary_node, cluster_node_ports[i], false /*debug_mode*/,
-        cluster_node_http_ports[i]);
-    cluster_nodes.emplace_back(std::move(node));
+    auto &node = launch_mysql_server_mock(
+        json_primary_node, cluster_node_ports[i], EXIT_SUCCESS,
+        false /*debug_mode*/, cluster_node_http_ports[i]);
+    cluster_nodes.emplace_back(&node);
   }
 
   // wait for the whole cluster to be up
   for (size_t i = 0; i < cluster_nodes.size(); i++)
     EXPECT_THAT(wait_for_port_ready(cluster_node_ports[i]), Eq(true))
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
 
   // write Router config
   std::string servers;
@@ -303,7 +294,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
       "\n";
 
   // launch the Router
-  CommandHandle router = launch_router(router_port, temp_test_dir, config);
+  auto &router = launch_router(router_port, temp_test_dir.name(), config);
 
   // give the Router a chance to initialise metadata-cache module
   // there is currently no easy way to check that
@@ -333,8 +324,8 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
 }
 
 int main(int argc, char *argv[]) {
-  g_origin_path = Path(argv[0]).dirname();
   init_windows_sockets();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

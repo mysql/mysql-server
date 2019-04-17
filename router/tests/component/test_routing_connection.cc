@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,6 @@
 #define ASSERT_NO_ERROR(expr) \
   ASSERT_THAT(expr, ::testing::Eq(std::error_code{}))
 
-Path g_origin_path;
 using mysqlrouter::MySQLSession;
 static constexpr const char kMockServerConnectionsUri[] =
     "/api/v1/mock_server/connections/";
@@ -242,7 +241,7 @@ class ConfigGenerator {
       add_routing_secondary_section();
     }
 
-    RouterComponentTest::init_keyring(defaults_, temp_test_dir);
+    init_keyring(defaults_, temp_test_dir);
 
     return create_config_file(&defaults_, config_dir_);
   }
@@ -250,9 +249,8 @@ class ConfigGenerator {
 
 class RouterRoutingConnectionCommonTest : public RouterComponentTest {
  public:
-  void init() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
+  void SetUp() override {
+    RouterComponentTest::SetUp();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator
@@ -262,15 +260,14 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
           return &rg;
         },
         [](mysql_harness::RandomGeneratorInterface *) {});
-    temp_test_dir_ = get_tmp_dir();
-    temp_conf_dir_ = get_tmp_dir("conf");
 #if 1
     {
-      auto cmd = launch_command(
-          g_origin_path.join("mysqlrouter_passwd").str(),
-          {"set", mysql_harness::Path(temp_test_dir_).join("users").str(),
+      auto &cmd = launch_command(
+          ProcessManager::get_origin().join("mysqlrouter_passwd").str(),
+          {"set",
+           mysql_harness::Path(temp_test_dir_.name()).join("users").str(),
            kRestApiUsername},
-          true);
+          EXIT_SUCCESS, true);
       cmd.register_response("Please enter password", kRestApiPassword + "\n");
       EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
     }
@@ -306,30 +303,24 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     };
 
     config_generator_.reset(new ConfigGenerator(
-        get_DEFAULT_defaults(), temp_conf_dir_, {cluster_nodes_ports_[0]},
-        router_rw_port_, router_ro_port_, monitoring_port_,
-        metadata_refresh_ttl_));
+        get_DEFAULT_defaults(), temp_conf_dir_.name(),
+        {cluster_nodes_ports_[0]}, router_rw_port_, router_ro_port_,
+        monitoring_port_, metadata_refresh_ttl_));
 
     mock_http_port_ = port_pool_.get_next_available();
     mock_http_hostname_ = "127.0.0.1";
     mock_http_uri_ = kMockServerGlobalsRestUri;
   }
 
-  void clean() {
-    purge_dir(temp_test_dir_);
-    purge_dir(temp_conf_dir_);
-  }
-
-  RouterComponentTest::CommandHandle launch_router(
-      unsigned /* router_port */, const std::string &config_file) {
+  auto &launch_router(unsigned /* router_port */,
+                      const std::string &config_file) {
     return RouterComponentTest::launch_router({"-c", config_file});
   }
 
-  RouterComponentTest::CommandHandle launch_server(unsigned cluster_port,
-                                                   const std::string &json_file,
-                                                   unsigned http_port = 0) {
-    auto cluster_node = RouterComponentTest::launch_mysql_server_mock(
-        json_file, cluster_port, false, http_port);
+  auto &launch_server(unsigned cluster_port, const std::string &json_file,
+                      unsigned http_port = 0) {
+    auto &cluster_node = RouterComponentTest::launch_mysql_server_mock(
+        json_file, cluster_port, EXIT_SUCCESS, false, http_port);
     return cluster_node;
   }
 
@@ -346,7 +337,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     const std::string json_primary_node_template =
         get_data_dir().join(js_file_name).str();
     const std::string json_primary_node =
-        Path(temp_test_dir_).join(js_file_name).str();
+        Path(temp_test_dir_.name()).join(js_file_name).str();
     std::map<std::string, std::string> env_vars = primary_json_env_vars;
 
     rewrite_js_to_tracefile(json_primary_node_template, json_primary_node,
@@ -360,20 +351,20 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     const std::string json_for_primary =
         replace_env_variables(js_for_primary, primary_json_env_vars_, my_port);
 
-    cluster_nodes_.push_back(launch_server(cluster_nodes_ports_[0],
-                                           json_for_primary, mock_http_port_));
+    cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_[0],
+                                            json_for_primary, mock_http_port_));
 
     // launch the secondary cluster nodes
     for (unsigned port = 1; port < number_of_servers; ++port) {
       std::string secondary_json_file =
           get_json_for_secondary(cluster_nodes_ports_[port]);
       cluster_nodes_.push_back(
-          launch_server(cluster_nodes_ports_[port], secondary_json_file));
+          &launch_server(cluster_nodes_ports_[port], secondary_json_file));
     }
 
     for (unsigned ndx = 0; ndx < number_of_servers; ++ndx) {
       ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_[ndx]))
-          << cluster_nodes_.at(ndx).get_full_output();
+          << cluster_nodes_.at(ndx)->get_full_output();
     }
     ASSERT_TRUE(
         MockServerRestClient(mock_http_port_).wait_for_rest_endpoint_ready());
@@ -386,11 +377,11 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
   std::chrono::milliseconds wait_for_cache_update_timeout{
       metadata_refresh_ttl_ * 20};
   std::unique_ptr<ConfigGenerator> config_generator_;
-  std::string temp_test_dir_;
-  std::string temp_conf_dir_;
+  TempDirectory temp_test_dir_;
+  TempDirectory temp_conf_dir_;
   std::vector<uint16_t> cluster_nodes_ports_;
   std::map<std::string, std::string> primary_json_env_vars_;
-  std::vector<RouterComponentTest::CommandHandle> cluster_nodes_;
+  std::vector<ProcessWrapper *> cluster_nodes_;
   uint16_t router_rw_port_;
   uint16_t router_ro_port_;
   uint16_t monitoring_port_;
@@ -401,13 +392,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
   std::string mock_http_uri_;
 };
 
-class RouterRoutingConnectionTest : public RouterRoutingConnectionCommonTest,
-                                    public testing::Test {
- public:
-  void SetUp() override { init(); }
-
-  void TearDown() override { clean(); }
-};
+class RouterRoutingConnectionTest : public RouterRoutingConnectionCommonTest {};
 
 static std::vector<std::string> vec_from_lines(const std::string &s) {
   std::vector<std::string> lines;
@@ -429,8 +414,9 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
   // preparation
   //
   SCOPED_TRACE("// [prep] creating router config");
+  TempDirectory tmp_dir;
   config_generator_.reset(new ConfigGenerator(
-      get_DEFAULT_defaults(), get_tmp_dir("conf"), {cluster_nodes_ports_[0]},
+      get_DEFAULT_defaults(), tmp_dir.name(), {cluster_nodes_ports_[0]},
       router_rw_port_, router_ro_port_, monitoring_port_,
       metadata_refresh_ttl_));
 
@@ -442,16 +428,17 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
   const std::string json_for_primary =
       replace_env_variables("metadata_old_schema.js", primary_json_env_vars_,
                             cluster_nodes_ports_[0]);
-  cluster_nodes_.push_back(launch_server(cluster_nodes_ports_.at(0),
-                                         json_for_primary, http_port_primary));
+  cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_.at(0),
+                                          json_for_primary, http_port_primary));
 
   SCOPED_TRACE("// [prep] wait until mock-servers are started");
   ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_.at(0)))
-      << cluster_nodes_.at(0).get_full_output();
+      << cluster_nodes_.at(0)->get_full_output();
 
   SCOPED_TRACE("// [prep] launching router");
-  auto router = launch_router(
-      router_rw_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_rw_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
 
   SCOPED_TRACE("// [prep] waiting " +
@@ -506,8 +493,9 @@ TEST_F(RouterRoutingConnectionTest,
       "metadata_3_secondaries_server_removed_from_cluster.js", 4));
   config_generator_->disconnect_on_promoted_to_primary(
       "&disconnect_on_promoted_to_primary=bogus");
-  auto router = RouterComponentTest::launch_router(
-      {"-c", config_generator_->build_config_file(temp_test_dir_)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", config_generator_->build_config_file(temp_test_dir_.name())},
+      EXIT_FAILURE);
   ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
       << router.get_full_output();
 }
@@ -523,8 +511,9 @@ TEST_F(RouterRoutingConnectionTest,
       "metadata_3_secondaries_server_removed_from_cluster.js", 4));
   config_generator_->disconnect_on_metadata_unavailable(
       "&disconnect_on_metadata_unavailable=bogus");
-  auto router = RouterComponentTest::launch_router(
-      {"-c", config_generator_->build_config_file(temp_test_dir_)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", config_generator_->build_config_file(temp_test_dir_.name())},
+      EXIT_FAILURE);
   ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
       << router.get_full_output();
 }
@@ -536,8 +525,9 @@ TEST_F(RouterRoutingConnectionTest,
  */
 TEST_F(RouterRoutingConnectionTest,
        IsConnectionsClosedWhenPrimaryRemovedFromGR) {
+  TempDirectory tmp_dir("conf");
   config_generator_.reset(new ConfigGenerator(
-      get_DEFAULT_defaults(), get_tmp_dir("conf"),
+      get_DEFAULT_defaults(), tmp_dir.name(),
       {cluster_nodes_ports_[0], cluster_nodes_ports_[1]}, router_rw_port_,
       router_ro_port_, monitoring_port_, metadata_refresh_ttl_));
 
@@ -549,8 +539,8 @@ TEST_F(RouterRoutingConnectionTest,
   const std::string json_for_primary = replace_env_variables(
       "metadata_3_secondaries_server_removed_from_cluster.js",
       primary_json_env_vars_, cluster_nodes_ports_[0]);
-  cluster_nodes_.push_back(launch_server(cluster_nodes_ports_[0],
-                                         json_for_primary, http_port_primary));
+  cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_[0],
+                                          json_for_primary, http_port_primary));
 
   SCOPED_TRACE("// launch the secondary node on port " +
                std::to_string(cluster_nodes_ports_.at(1)) +
@@ -558,28 +548,29 @@ TEST_F(RouterRoutingConnectionTest,
   const std::string json_for_secondary = replace_env_variables(
       "metadata_3_secondaries_server_removed_from_cluster.js",
       primary_json_env_vars_, cluster_nodes_ports_[1]);
-  cluster_nodes_.push_back(launch_server(cluster_nodes_ports_[1],
-                                         json_for_secondary, mock_http_port_));
+  cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_[1],
+                                          json_for_secondary, mock_http_port_));
 
   SCOPED_TRACE("// launch the rest of secondary cluster nodes");
   for (unsigned port = 2; port < 4; ++port) {
     std::string secondary_json_file =
         get_json_for_secondary(cluster_nodes_ports_[port]);
     cluster_nodes_.push_back(
-        launch_server(cluster_nodes_ports_[port], secondary_json_file));
+        &launch_server(cluster_nodes_ports_[port], secondary_json_file));
   }
 
   SCOPED_TRACE("// wait until mock-servers are started");
   for (unsigned ndx = 0; ndx < 4; ndx++) {
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_[ndx]))
-        << cluster_nodes_.at(ndx).get_full_output();
+        << cluster_nodes_.at(ndx)->get_full_output();
   }
   ASSERT_TRUE(
       MockServerRestClient(http_port_primary).wait_for_rest_endpoint_ready());
 
   SCOPED_TRACE("// launching router");
-  auto router = launch_router(
-      router_rw_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_rw_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
 
   SCOPED_TRACE("// waiting " +
@@ -604,10 +595,13 @@ TEST_F(RouterRoutingConnectionTest,
     } catch (const std::exception &e) {
       FAIL() << e.what() << "\n"
              << "router: " << router.get_full_output() << "\n"
-             << "cluster[0]: " << cluster_nodes_.at(0).get_full_output() << "\n"
-             << "cluster[1]: " << cluster_nodes_.at(1).get_full_output() << "\n"
-             << "cluster[2]: " << cluster_nodes_.at(2).get_full_output() << "\n"
-             << "cluster[3]: " << cluster_nodes_.at(3).get_full_output()
+             << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
+             << "\n"
+             << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()
+             << "\n"
+             << "cluster[2]: " << cluster_nodes_.at(2)->get_full_output()
+             << "\n"
+             << "cluster[3]: " << cluster_nodes_.at(3)->get_full_output()
              << "\n";
     }
     std::unique_ptr<MySQLSession::ResultRow> result{
@@ -645,8 +639,9 @@ TEST_F(RouterRoutingConnectionTest,
   ASSERT_NO_FATAL_FAILURE(setup_cluster(
       "metadata_3_secondaries_server_removed_from_cluster.js", 4));
 
-  auto router = launch_router(
-      router_rw_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_rw_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
@@ -704,8 +699,9 @@ TEST_F(RouterRoutingConnectionTest,
 TEST_F(RouterRoutingConnectionTest, IsRWConnectionsClosedWhenPrimaryFailover) {
   ASSERT_NO_FATAL_FAILURE(
       setup_cluster("metadata_3_secondaries_primary_failover.js", 4));
-  auto router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
 
   /*
@@ -757,9 +753,9 @@ TEST_F(RouterRoutingConnectionTest, IsROConnectionsKeptWhenPrimaryFailover) {
 
   config_generator_->disconnect_on_promoted_to_primary("");
 
-  auto router =
-      launch_router(router_ro_port_,
-                    config_generator_->build_config_file(temp_test_dir_, true));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name(), true));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
@@ -803,12 +799,7 @@ TEST_F(RouterRoutingConnectionTest, IsROConnectionsKeptWhenPrimaryFailover) {
 
 class RouterRoutingConnectionPromotedTest
     : public RouterRoutingConnectionCommonTest,
-      public testing::TestWithParam<std::string> {
- public:
-  void SetUp() override { init(); }
-
-  void TearDown() override { clean(); }
-};
+      public testing::WithParamInterface<std::string> {};
 
 /**
  * @test
@@ -823,8 +814,9 @@ TEST_P(RouterRoutingConnectionPromotedTest,
 
   config_generator_->disconnect_on_promoted_to_primary(GetParam());
 
-  auto router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
@@ -891,8 +883,9 @@ TEST_F(RouterRoutingConnectionTest,
   config_generator_->disconnect_on_promoted_to_primary(
       "&disconnect_on_promoted_to_primary=yes");
 
-  auto router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
@@ -952,8 +945,9 @@ TEST_F(RouterRoutingConnectionTest,
   ASSERT_NO_FATAL_FAILURE(
       setup_cluster("metadata_4_secondaries_partitioning.js", 5));
 
-  auto router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
@@ -980,11 +974,15 @@ TEST_F(RouterRoutingConnectionTest,
       FAIL() << e.what() << "\n"
              << "router-stderr: " << router.get_full_output() << "\n"
              << "router-log: " << get_router_log_output() << "\n"
-             << "cluster[0]: " << cluster_nodes_.at(0).get_full_output() << "\n"
-             << "cluster[1]: " << cluster_nodes_.at(1).get_full_output() << "\n"
-             << "cluster[2]: " << cluster_nodes_.at(2).get_full_output() << "\n"
-             << "cluster[3]: " << cluster_nodes_.at(3).get_full_output() << "\n"
-             << "cluster[4]: " << cluster_nodes_.at(4).get_full_output()
+             << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
+             << "\n"
+             << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()
+             << "\n"
+             << "cluster[2]: " << cluster_nodes_.at(2)->get_full_output()
+             << "\n"
+             << "cluster[3]: " << cluster_nodes_.at(3)->get_full_output()
+             << "\n"
+             << "cluster[4]: " << cluster_nodes_.at(4)->get_full_output()
              << "\n";
     }
     std::unique_ptr<MySQLSession::ResultRow> result{
@@ -1030,12 +1028,7 @@ TEST_F(RouterRoutingConnectionTest,
 
 class RouterRoutingConnectionClusterOverloadTest
     : public RouterRoutingConnectionCommonTest,
-      public testing::TestWithParam<std::string> {
- public:
-  void SetUp() override { init(); }
-
-  void TearDown() override { clean(); }
-};
+      public testing::WithParamInterface<std::string> {};
 
 /**
  * @test
@@ -1049,8 +1042,9 @@ TEST_F(RouterRoutingConnectionTest, IsConnectionClosedWhenClusterOverloaded) {
   config_generator_->disconnect_on_metadata_unavailable(
       "&disconnect_on_metadata_unavailable=yes");
 
-  auto router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
@@ -1075,10 +1069,13 @@ TEST_F(RouterRoutingConnectionTest, IsConnectionClosedWhenClusterOverloaded) {
     } catch (const std::exception &e) {
       FAIL() << e.what() << "\n"
              << "router: " << get_router_log_output() << "\n"
-             << "cluster[0]: " << cluster_nodes_.at(0).get_full_output() << "\n"
-             << "cluster[1]: " << cluster_nodes_.at(1).get_full_output() << "\n"
-             << "cluster[2]: " << cluster_nodes_.at(2).get_full_output() << "\n"
-             << "cluster[3]: " << cluster_nodes_.at(3).get_full_output()
+             << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
+             << "\n"
+             << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()
+             << "\n"
+             << "cluster[2]: " << cluster_nodes_.at(2)->get_full_output()
+             << "\n"
+             << "cluster[3]: " << cluster_nodes_.at(3)->get_full_output()
              << "\n";
     }
     std::unique_ptr<MySQLSession::ResultRow> result{
@@ -1091,7 +1088,7 @@ TEST_F(RouterRoutingConnectionTest, IsConnectionClosedWhenClusterOverloaded) {
    * goes away, metadata is unavailable.
    */
   MockServerRestClient(mock_http_port_).send_delete(kMockServerConnectionsUri);
-  cluster_nodes_[0].kill();
+  cluster_nodes_[0]->kill();
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_changed(
       std::chrono::milliseconds(wait_for_cache_update_timeout),
       metadata_status));
@@ -1106,12 +1103,7 @@ TEST_F(RouterRoutingConnectionTest, IsConnectionClosedWhenClusterOverloaded) {
 
 class RouterRoutingConnectionMDUnavailableTest
     : public RouterRoutingConnectionCommonTest,
-      public testing::TestWithParam<std::string> {
- public:
-  void SetUp() override { init(); }
-
-  void TearDown() override { clean(); }
-};
+      public testing::WithParamInterface<std::string> {};
 
 /**
  * @test
@@ -1124,8 +1116,9 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   ASSERT_NO_FATAL_FAILURE(setup_cluster("metadata_3_secondaries_pass.js", 4));
 
   config_generator_->disconnect_on_promoted_to_primary(GetParam());
-  auto router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
@@ -1157,7 +1150,7 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
    * goes away, metadata is unavailable.
    */
   MockServerRestClient(mock_http_port_).send_delete(kMockServerConnectionsUri);
-  cluster_nodes_[0].kill();
+  cluster_nodes_[0]->kill();
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_changed(
       std::chrono::milliseconds(wait_for_cache_update_timeout),
       metadata_status));
@@ -1182,12 +1175,7 @@ INSTANTIATE_TEST_CASE_P(RouterRoutingIsConnectionNotClosedWhenMDUnavailable,
 
 class RouterRoutingConnectionMDRefreshTest
     : public RouterRoutingConnectionCommonTest,
-      public testing::TestWithParam<std::string> {
- public:
-  void SetUp() override { init(); }
-
-  void TearDown() override { clean(); }
-};
+      public testing::WithParamInterface<std::string> {};
 
 /**
  * @test
@@ -1206,8 +1194,9 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   /*
    * Primary and first secondary are metadata-cache servers
    */
+  TempDirectory temp_dir("conf");
   config_generator_.reset(new ConfigGenerator(
-      get_DEFAULT_defaults(), get_tmp_dir("conf"),
+      get_DEFAULT_defaults(), temp_dir.name(),
       {cluster_nodes_ports_[0], cluster_nodes_ports_[1]}, router_rw_port_,
       router_ro_port_, monitoring_port_, metadata_refresh_ttl_));
 
@@ -1217,28 +1206,29 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   const std::string json_for_primary =
       replace_env_variables("metadata_3_secondaries_failed_to_update.js",
                             primary_json_env_vars_, cluster_nodes_ports_[0]);
-  cluster_nodes_.push_back(launch_server(cluster_nodes_ports_[0],
-                                         json_for_primary, http_port_primary));
+  cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_[0],
+                                          json_for_primary, http_port_primary));
 
   // launch the secondary node working also as metadata server
   const std::string json_for_secondary =
       replace_env_variables("metadata_3_secondaries_pass.js",
                             primary_json_env_vars_, cluster_nodes_ports_[1]);
-  cluster_nodes_.push_back(launch_server(cluster_nodes_ports_[1],
-                                         json_for_secondary, mock_http_port_));
+  cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_[1],
+                                          json_for_secondary, mock_http_port_));
 
   // launch the rest of secondary cluster nodes
   for (unsigned port = 2; port < 4; ++port) {
     std::string secondary_json_file =
         get_json_for_secondary(cluster_nodes_ports_[port]);
     cluster_nodes_.push_back(
-        launch_server(cluster_nodes_ports_[port], secondary_json_file));
+        &launch_server(cluster_nodes_ports_[port], secondary_json_file));
   }
 
   config_generator_->disconnect_on_metadata_unavailable(
       "&disconnect_on_metadata_unavailable=yes");
-  auto router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
+  auto &router = launch_router(
+      router_ro_port_,
+      config_generator_->build_config_file(temp_test_dir_.name()));
   ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
   ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
@@ -1299,7 +1289,7 @@ INSTANTIATE_TEST_CASE_P(RouterRoutingIsConnectionNotDisabledWhenMDRefresh,
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

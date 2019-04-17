@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 */
 
 #include "dim.h"
-#include "gmock/gmock.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql_session.h"
 #include "mysqlrouter/utils.h"
@@ -52,15 +51,9 @@ using testing::HasSubstr;
 using testing::Not;
 using testing::StartsWith;
 using namespace std::chrono_literals;
-Path g_origin_path;
 
-class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
+class RouterLoggingTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-
   TcpPortPool port_pool_;
 };
 
@@ -72,14 +65,12 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[invalid]", &conf_params);
+      create_config_file(conf_dir.name(), "[invalid]", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, 1);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -95,21 +86,17 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
  */
 TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   // create tmp dir where we will log
-  const std::string logging_folder = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(logging_folder); });
+  TempDirectory logging_folder;
 
   // create config with logging_folder set to that directory
   std::map<std::string, std::string> params = get_DEFAULT_defaults();
-  params.at("logging_folder") = logging_folder;
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  params.at("logging_folder") = logging_folder.name();
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[routing]", &params);
+      create_config_file(conf_dir.name(), "[routing]", &params);
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, 1);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear in log:
@@ -121,8 +108,9 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
                "required") != line.npos;
   };
 
-  EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher))
-      << "log:" << get_router_log_output("mysqlrouter.log", logging_folder);
+  EXPECT_TRUE(find_in_file(logging_folder.name() + "/mysqlrouter.log", matcher))
+      << "log:"
+      << get_router_log_output("mysqlrouter.log", logging_folder.name());
 }
 
 /** @test This test verifies that invalid logging_folder is properly handled and
@@ -131,9 +119,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
  */
 TEST_F(RouterLoggingTest, bad_logging_folder) {
   // create tmp dir to contain our tests
-  const std::string tmp_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(tmp_dir); });
+  TempDirectory tmp_dir;
 
 // unfortunately it's not (reasonably) possible to make folders read-only on
 // Windows, therefore we can run the following 2 tests only on Unix
@@ -141,23 +127,22 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 #ifndef _WIN32
 
   // make tmp dir read-only
-  chmod(tmp_dir.c_str(), S_IRUSR | S_IXUSR);  // r-x for the user (aka 500)
+  chmod(tmp_dir.name().c_str(),
+        S_IRUSR | S_IXUSR);  // r-x for the user (aka 500)
 
   // logging_folder doesn't exist and can't be created
   {
-    const std::string logging_dir = tmp_dir + "/some_dir";
+    const std::string logging_dir = tmp_dir.name() + "/some_dir";
 
     // create Router config
     std::map<std::string, std::string> params = get_DEFAULT_defaults();
     params.at("logging_folder") = logging_dir;
-    const std::string conf_dir = get_tmp_dir("conf");
-    std::shared_ptr<void> exit_guard2(nullptr,
-                                      [&](void *) { purge_dir(conf_dir); });
+    TempDirectory conf_dir("conf");
     const std::string conf_file =
-        create_config_file(conf_dir, "[keepalive]\n", &params);
+        create_config_file(conf_dir.name(), "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto router = launch_router({"-c", conf_file});
+    auto &router = launch_router({"-c", conf_file}, 1);
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
@@ -171,19 +156,17 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
   // logging_folder exists but is not writeable
   {
-    const std::string logging_dir = tmp_dir;
+    const std::string logging_dir = tmp_dir.name();
 
     // create Router config
     std::map<std::string, std::string> params = get_DEFAULT_defaults();
     params.at("logging_folder") = logging_dir;
-    const std::string conf_dir = get_tmp_dir("conf");
-    std::shared_ptr<void> exit_guard2(nullptr,
-                                      [&](void *) { purge_dir(conf_dir); });
+    TempDirectory conf_dir("conf");
     const std::string conf_file =
-        create_config_file(conf_dir, "[keepalive]\n", &params);
+        create_config_file(conf_dir.name(), "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto router = launch_router({"-c", conf_file});
+    auto &router = launch_router({"-c", conf_file}, 1);
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
@@ -200,14 +183,14 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
   }
 
   // restore writability to tmp dir
-  chmod(tmp_dir.c_str(),
+  chmod(tmp_dir.name().c_str(),
         S_IRUSR | S_IWUSR | S_IXUSR);  // rwx for the user (aka 700)
 
 #endif  // #ifndef _WIN32
 
   // logging_folder is really a file
   {
-    const std::string logging_dir = tmp_dir + "/some_file";
+    const std::string logging_dir = tmp_dir.name() + "/some_file";
 
     // create that file
     {
@@ -218,14 +201,12 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // create Router config
     std::map<std::string, std::string> params = get_DEFAULT_defaults();
     params.at("logging_folder") = logging_dir;
-    const std::string conf_dir = get_tmp_dir("conf");
-    std::shared_ptr<void> exit_guard2(nullptr,
-                                      [&](void *) { purge_dir(conf_dir); });
+    TempDirectory conf_dir("conf");
     const std::string conf_file =
-        create_config_file(conf_dir, "[keepalive]\n", &params);
+        create_config_file(conf_dir.name(), "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto router = launch_router({"-c", conf_file});
+    auto &router = launch_router({"-c", conf_file}, 1);
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
@@ -259,14 +240,12 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[logger]\n[logger]\n", &conf_params);
+      create_config_file(conf_dir.name(), "[logger]\n[logger]\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, 1);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -284,14 +263,12 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[logger:some_key]\n", &conf_params);
+      create_config_file(conf_dir.name(), "[logger:some_key]\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, 1);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -308,14 +285,12 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
-  const std::string conf_file =
-      create_config_file(conf_dir, "[logger]\nlevel = UNKNOWN\n", &conf_params);
+  TempDirectory conf_dir("conf");
+  const std::string conf_file = create_config_file(
+      conf_dir.name(), "[logger]\nlevel = UNKNOWN\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, 1);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -357,13 +332,7 @@ struct LoggingConfigOkParams {
 
 class RouterLoggingTestConfig
     : public RouterComponentTest,
-      public ::testing::TestWithParam<LoggingConfigOkParams> {
- protected:
-  virtual void SetUp() override {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-};
+      public ::testing::WithParamInterface<LoggingConfigOkParams> {};
 
 /** @test This test verifies that a proper loggs are written to selected sinks
  * for various sinks/levels combinations.
@@ -371,12 +340,10 @@ class RouterLoggingTestConfig
 TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
   auto test_params = GetParam();
 
-  const std::string tmp_dir = get_tmp_dir();
+  TempDirectory tmp_dir;
   TcpPortPool port_pool;
   const unsigned router_port = port_pool.get_next_available();
   const unsigned server_port = port_pool.get_next_available();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(tmp_dir); });
 
   // These are different level log entries that are expected to get logged after
   // the logger plugin has been initialized
@@ -398,18 +365,16 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   auto conf_params = get_DEFAULT_defaults();
   conf_params["logging_folder"] =
-      test_params.logging_folder_empty ? "" : tmp_dir;
+      test_params.logging_folder_empty ? "" : tmp_dir.name();
 
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_text =
       test_params.logger_config + "\n" + kRoutingConfig;
 
   const std::string conf_file =
-      create_config_file(conf_dir, conf_text, &conf_params);
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
 
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file});
 
   bool ready = wait_for_port_ready(router_port);
   EXPECT_TRUE(ready) << router.get_full_output();
@@ -463,7 +428,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   // check the file log if it contains what's expected
   const std::string file_log_txt =
-      get_router_log_output("mysqlrouter.log", tmp_dir);
+      get_router_log_output("mysqlrouter.log", tmp_dir.name());
 
   if (test_params.filelog_expected_level >= LogLevel::kDebug &&
       test_params.filelog_expected_level != LogLevel::kNotSet) {
@@ -774,13 +739,7 @@ struct LoggingConfigErrorParams {
 
 class RouterLoggingConfigError
     : public RouterComponentTest,
-      public ::testing::TestWithParam<LoggingConfigErrorParams> {
- protected:
-  virtual void SetUp() override {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-};
+      public ::testing::WithParamInterface<LoggingConfigErrorParams> {};
 
 /** @test This test verifies that a proper error gets printed on the console for
  * a particular logging configuration
@@ -788,23 +747,18 @@ class RouterLoggingConfigError
 TEST_P(RouterLoggingConfigError, LoggingConfigError) {
   auto test_params = GetParam();
 
-  const std::string tmp_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(tmp_dir); });
-
+  TempDirectory tmp_dir;
   auto conf_params = get_DEFAULT_defaults();
   conf_params["logging_folder"] =
-      test_params.logging_folder_empty ? "" : tmp_dir;
+      test_params.logging_folder_empty ? "" : tmp_dir.name();
 
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
   const std::string conf_text = "[keepalive]\n" + test_params.logger_config;
 
   const std::string conf_file =
-      create_config_file(conf_dir, conf_text, &conf_params);
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
 
-  auto router = launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file}, 1);
 
   EXPECT_EQ(1, router.wait_for_exit());
 
@@ -995,13 +949,12 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // Router should report the error on STDERR and exit
 
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
-  const std::string bootstrap_dir = get_tmp_dir();
+  TempDirectory bootstrap_dir;
 
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  RouterComponentTest::CommandHandle server_mock =
-      launch_mysql_server_mock(json_stmts, server_port);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port);
   EXPECT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
 
@@ -1017,15 +970,15 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
                     // guarrantees the limit would be exceeded
 
   // launch the router in bootstrap mode
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(bootstrap_dir); });
-  auto router = launch_router({
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-      "--name",
-      name,
-      "-d",
-      bootstrap_dir,
-  });
+  auto &router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+          "--name",
+          name,
+          "-d",
+          bootstrap_dir.name(),
+      },
+      1);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1051,25 +1004,23 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
 TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
-  const std::string bootstrap_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(bootstrap_dir); });
+  TempDirectory bootstrap_dir;
 
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
   EXPECT_TRUE(wait_for_port_ready(server_port))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
-  auto router = launch_router({
+  auto &router = launch_router({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
       "--report-host",
       "dont.query.dns",
       "-d",
-      bootstrap_dir,
+      bootstrap_dir.name(),
   });
 
   // add login hook
@@ -1077,7 +1028,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), 0);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS) << router.get_full_output();
   EXPECT_THAT(router.get_full_output(),
               testing::Not(testing::HasSubstr("Executing query:")));
 }
@@ -1089,18 +1040,13 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
 TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
-  const std::string bootstrap_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(bootstrap_dir); });
-
-  const std::string bootstrap_conf = get_tmp_dir();
-  std::shared_ptr<void> conf_exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_conf); });
+  TempDirectory bootstrap_dir;
+  TempDirectory bootstrap_conf;
 
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
   EXPECT_TRUE(wait_for_port_ready(server_port))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
@@ -1110,16 +1056,16 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  std::string conf_file = create_config_file(bootstrap_conf, logger_section,
-                                             &conf_params, "bootstrap.conf");
+  std::string conf_file = create_config_file(
+      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf");
 
-  auto router = launch_router({
+  auto &router = launch_router({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
       "--report-host",
       "dont.query.dns",
       "--force",
       "-d",
-      bootstrap_dir,
+      bootstrap_dir.name(),
       "-c",
       conf_file,
   });
@@ -1129,7 +1075,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), 0)
+  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
   EXPECT_THAT(router.get_full_output(), testing::HasSubstr("Executing query:"));
@@ -1142,38 +1088,31 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
 TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
-  const std::string bootstrap_dir = get_tmp_dir();
-  const std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_dir); });
-
-  std::string bootstrap_conf = get_tmp_dir();
-  std::shared_ptr<void> conf_exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_conf); });
+  TempDirectory bootstrap_dir;
+  TempDirectory bootstrap_conf;
 
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
   EXPECT_TRUE(wait_for_port_ready(server_port))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
 
   // create config with logging_folder set to that directory
   std::map<std::string, std::string> params = {{"logging_folder", ""}};
-  params.at("logging_folder") = bootstrap_conf;
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  params.at("logging_folder") = bootstrap_conf.name();
+  TempDirectory conf_dir("conf");
   const std::string conf_file =
-      create_config_file(conf_dir, "[logger]\nlevel = DEBUG\n", &params);
+      create_config_file(conf_dir.name(), "[logger]\nlevel = DEBUG\n", &params);
 
-  auto router = launch_router({
+  auto &router = launch_router({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
       "--report-host",
       "dont.query.dns",
       "--force",
       "-d",
-      bootstrap_dir,
+      bootstrap_dir.name(),
       "-c",
       conf_file,
   });
@@ -1183,7 +1122,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), 0)
+  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -1191,9 +1130,9 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
     return line.find("Executing query:") != line.npos;
   };
 
-  EXPECT_TRUE(find_in_file(bootstrap_conf + "/mysqlrouter.log", matcher,
+  EXPECT_TRUE(find_in_file(bootstrap_conf.name() + "/mysqlrouter.log", matcher,
                            std::chrono::milliseconds(5000)))
-      << get_router_log_output("mysqlrouter.log", bootstrap_conf);
+      << get_router_log_output("mysqlrouter.log", bootstrap_conf.name());
 }
 
 /**
@@ -1205,18 +1144,13 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
 TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
-  const std::string bootstrap_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(bootstrap_dir); });
-
-  const std::string bootstrap_conf = get_tmp_dir();
-  std::shared_ptr<void> conf_exit_guard(
-      nullptr, [&](void *) { purge_dir(bootstrap_conf); });
+  TempDirectory bootstrap_dir;
+  TempDirectory bootstrap_conf;
 
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
   EXPECT_TRUE(wait_for_port_ready(server_port))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
@@ -1226,20 +1160,21 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  std::string conf_file = create_config_file(bootstrap_conf, logger_section,
-                                             &conf_params, "bootstrap.conf");
+  std::string conf_file = create_config_file(
+      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf");
 
-  auto router = launch_router(
+  auto &router = launch_router(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--report-host",
           "dont.query.dns",
           "--force",
           "-d",
-          bootstrap_dir,
+          bootstrap_dir.name(),
           "-c",
           conf_file,
       },
+      0, /* expected error code */
       false /*false = capture only stdout*/);
 
   // add login hook
@@ -1247,7 +1182,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), 0)
+  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -1269,8 +1204,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
 class MetadataCacheLoggingTest : public RouterLoggingTest {
  protected:
   void SetUp() override {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
+    RouterLoggingTest::SetUp();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator
@@ -1280,8 +1214,6 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
           return &rg;
         },
         [](mysql_harness::RandomGeneratorInterface *) {});
-
-    temp_test_dir = get_tmp_dir();
 
     cluster_nodes_ports = {port_pool_.get_next_available(),
                            port_pool_.get_next_available(),
@@ -1293,8 +1225,6 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
 
     write_json_file(get_data_dir());
   }
-
-  void TearDown() override { purge_dir(temp_test_dir); }
 
   void write_json_file(const Path &data_dir) {
     std::map<std::string, std::string> json_vars = {
@@ -1312,7 +1242,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
     // launch the primary node working also as metadata server
     json_primary_node_template_ =
         data_dir.join("metadata_3_nodes_first_not_accessible.js").str();
-    json_primary_node_ = Path(temp_test_dir)
+    json_primary_node_ = Path(temp_test_dir.name())
                              .join("metadata_3_nodes_first_not_accessible.json")
                              .str();
     rewrite_js_to_tracefile(json_primary_node_template_, json_primary_node_,
@@ -1357,7 +1287,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
   std::string init_keyring_and_config_file(const std::string &conf_dir,
                                            bool log_to_console = false) {
     auto default_section = get_DEFAULT_defaults();
-    init_keyring(default_section, temp_test_dir);
+    init_keyring(default_section, temp_test_dir.name());
     default_section["logging_folder"] =
         log_to_console ? "" : get_logging_dir().str();
     return create_config_file(
@@ -1368,7 +1298,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
 
   std::string json_primary_node_template_;
   std::string json_primary_node_;
-  std::string temp_test_dir;
+  TempDirectory temp_test_dir;
   std::vector<uint16_t> cluster_nodes_ports;
   uint16_t router_port;
   std::string metadata_cache_section;
@@ -1381,13 +1311,11 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
  */
 TEST_F(MetadataCacheLoggingTest,
        log_error_when_cannot_connect_to_any_metadata_server) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto router = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1414,19 +1342,17 @@ TEST_F(MetadataCacheLoggingTest,
  */
 TEST_F(MetadataCacheLoggingTest,
        log_warning_when_cannot_connect_to_first_metadata_server) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir("conf");
 
   // launch second metadata server
-  auto server = launch_mysql_server_mock(json_primary_node_,
-                                         cluster_nodes_ports[1], false);
+  auto &server = launch_mysql_server_mock(json_primary_node_,
+                                          cluster_nodes_ports[1], false);
   bool server_ready = wait_for_port_ready(cluster_nodes_ports[1]);
   EXPECT_TRUE(server_ready) << server.get_full_output();
 
   // launch the router with metadata-cache configuration
-  auto router = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1461,13 +1387,11 @@ TEST_F(MetadataCacheLoggingTest,
  * it's log file when it was moved and HUP singnal was sent to the Router).
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto router = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1504,13 +1428,11 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
  * SIGHUP gets sent to it and no file replacement is done.
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto router = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1549,13 +1471,11 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
  * SIGHUP gets sent to it and no file replacement is done.
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto router = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1568,7 +1488,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
 
   // now stop the router
   int res = router.kill();
-  EXPECT_EQ(0, res) << router.get_full_output();
+  EXPECT_EQ(EXIT_SUCCESS, res) << router.get_full_output();
 
   // move the log_file appending '.1' to its name
   auto log_file_1 = get_logging_dir();
@@ -1579,10 +1499,10 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   chmod(log_file_1.c_str(), S_IRUSR);
 
   // start the router again and check that the new log file got created
-  auto router2 = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir)});
+  auto &router2 = RouterComponentTest::launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())});
   router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  EXPECT_TRUE(router_ready) << router2.get_full_output();
   std::this_thread::sleep_for(500ms);
   EXPECT_TRUE(log_file.exists());
 }
@@ -1592,13 +1512,11 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
  * SIGHUP gets sent to it and no file replacement is done.
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto router = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1632,7 +1550,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   // we expect the router to exit,
   // as the logfile is no longer usable it will fallback to logging to the
   // stderr
-  EXPECT_EQ(router.wait_for_exit(), 1) << router.get_full_output();
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE) << router.get_full_output();
   EXPECT_THAT(router.get_full_output(),
               HasSubstr("File exists, but cannot open for writing"));
   EXPECT_THAT(router.get_full_output(), HasSubstr("Unloading all plugins."));
@@ -1643,13 +1561,12 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
  * not logging to the file (logging_foler empty == logging to the std:cerr)
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
+  TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto router = RouterComponentTest::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir, /*log_to_console=*/true)});
+  auto &router = RouterComponentTest::launch_router(
+      {"-c",
+       init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1663,7 +1580,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

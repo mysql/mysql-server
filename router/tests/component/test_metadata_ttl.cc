@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,17 +40,11 @@
 #include <chrono>
 #include <thread>
 
-Path g_origin_path;
 using mysqlrouter::MySQLSession;
 using ::testing::PrintToString;
 
 class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-
   std::string get_metadata_cache_section(unsigned metadata_server_port,
                                          const std::string &ttl = "0.5") {
     return "[metadata_cache:test]\n"
@@ -116,11 +110,12 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return thread_started;
   }
 
-  RouterComponentTest::CommandHandle launch_router(
-      const std::string &temp_test_dir, const std::string &conf_dir,
-      const std::string &metadata_cache_section,
-      const std::string &routing_section,
-      bool wait_for_md_refresh_started = false) {
+  auto &launch_router(const std::string &temp_test_dir,
+                      const std::string &conf_dir,
+                      const std::string &metadata_cache_section,
+                      const std::string &routing_section,
+                      const int expected_exitcode,
+                      bool wait_for_md_refresh_started = false) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
@@ -135,8 +130,8 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     const std::string conf_file = create_config_file(
         conf_dir, logger_section + metadata_cache_section + routing_section,
         &default_section);
-    auto router =
-        RouterComponentTest::launch_router({"-c", conf_file}, true, false);
+    auto &router = RouterComponentTest::launch_router(
+        {"-c", conf_file}, expected_exitcode, true, false);
     if (wait_for_md_refresh_started) {
       bool ready = wait_for_refresh_thread_started(5000);
       EXPECT_TRUE(ready) << get_router_log_output();
@@ -176,7 +171,7 @@ std::ostream &operator<<(std::ostream &os, const MetadataTTLTestParams &param) {
 
 class MetadataChacheTTLTestParam
     : public MetadataChacheTTLTest,
-      public ::testing::TestWithParam<MetadataTTLTestParams> {
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {
  protected:
   virtual void SetUp() { MetadataChacheTTLTest::SetUp(); }
 };
@@ -191,12 +186,8 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   auto test_params = GetParam();
 
   // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   SCOPED_TRACE(
       "// launch the server mock (it's our metadata server and single cluster "
@@ -206,8 +197,8 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   const std::string json_metadata =
       get_data_dir().join("metadata_1_node_repeat.js").str();
 
-  auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
-                                                  false, md_server_http_port);
+  auto &metadata_server = launch_mysql_server_mock(
+      json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
   bool ready = wait_for_port_ready(md_server_port);
   EXPECT_TRUE(ready) << metadata_server.get_full_output();
 
@@ -217,9 +208,10 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       get_metadata_cache_section(md_server_port, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto router =
-      launch_router(temp_test_dir, conf_dir, metadata_cache_section,
-                    routing_section, /*wait_for_md_refresh_started=*/true);
+  auto &router =
+      launch_router(temp_test_dir.name(), conf_dir.name(),
+                    metadata_cache_section, routing_section, EXIT_SUCCESS,
+                    /*wait_for_md_refresh_started=*/true);
 
   // keep the router running to see how many times it queries for metadata
   std::this_thread::sleep_for(test_params.router_uptime);
@@ -259,7 +251,7 @@ INSTANTIATE_TEST_CASE_P(
 
 class MetadataChacheTTLTestParamInvalid
     : public MetadataChacheTTLTest,
-      public ::testing::TestWithParam<MetadataTTLTestParams> {
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {
  protected:
   virtual void SetUp() { MetadataChacheTTLTest::SetUp(); }
 };
@@ -268,12 +260,8 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   auto test_params = GetParam();
 
   // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   // launch the server mock (it's our metadata server and single cluster node)
   auto md_server_port = port_pool_.get_next_available();
@@ -281,8 +269,8 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   const std::string json_metadata =
       get_data_dir().join("metadata_1_node_repeat.js").str();
 
-  auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
-                                                  false, md_server_http_port);
+  auto &metadata_server = launch_mysql_server_mock(
+      json_metadata, md_server_port, false, md_server_http_port);
   bool ready = wait_for_port_ready(md_server_port);
   EXPECT_TRUE(ready) << metadata_server.get_full_output();
 
@@ -292,11 +280,12 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
       get_metadata_cache_section(md_server_port, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto router =
-      launch_router(temp_test_dir, conf_dir, metadata_cache_section,
-                    routing_section, /*wait_for_md_refresh_started=*/false);
+  auto &router =
+      launch_router(temp_test_dir.name(), conf_dir.name(),
+                    metadata_cache_section, routing_section, EXIT_FAILURE,
+                    /*wait_for_md_refresh_started=*/false);
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
   EXPECT_TRUE(router.expect_output(
       "Configuration error: option ttl in [metadata_cache:test] needs value "
@@ -312,7 +301,7 @@ INSTANTIATE_TEST_CASE_P(CheckInvalidTTLRefusesStart,
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

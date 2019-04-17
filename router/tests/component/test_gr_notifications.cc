@@ -50,7 +50,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdexcept>
 #include <thread>
 
-Path g_origin_path;
 using mysqlrouter::MySQLSession;
 using ::testing::PrintToString;
 using namespace std::chrono_literals;
@@ -83,11 +82,6 @@ struct AsyncGRNotice {
 
 class GrNotificationsTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-
   std::string get_metadata_cache_section(
       const std::string &use_gr_notifications,
       const std::chrono::milliseconds ttl = kTTL) {
@@ -117,10 +111,11 @@ class GrNotificationsTest : public RouterComponentTest {
     return result;
   }
 
-  RouterComponentTest::CommandHandle launch_router(
-      const std::string &temp_test_dir,
-      const std::string &metadata_cache_section,
-      const std::string &routing_section, const std::string &state_file_path) {
+  auto &launch_router(const std::string &temp_test_dir,
+                      const std::string &metadata_cache_section,
+                      const std::string &routing_section,
+                      const std::string &state_file_path,
+                      const int expected_exit_code = 0) {
     const std::string masterkey_file =
         Path(temp_test_dir).join("master.key").str();
     const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
@@ -142,8 +137,9 @@ class GrNotificationsTest : public RouterComponentTest {
         temp_test_dir,
         logger_section + metadata_cache_section + routing_section,
         &default_section);
-    auto router = RouterComponentTest::launch_router(
-        {"-c", conf_file}, /*catch_stderr=*/true, /*with_sudo=*/false);
+    auto &router = RouterComponentTest::launch_router(
+        {"-c", conf_file}, expected_exit_code, /*catch_stderr=*/true,
+        /*with_sudo=*/false);
     return router;
   }
 
@@ -289,7 +285,7 @@ struct GrNotificationsTestParams {
 
 class GrNotificationsParamTest
     : public GrNotificationsTest,
-      public ::testing::TestWithParam<GrNotificationsTestParams> {
+      public ::testing::WithParamInterface<GrNotificationsTestParams> {
  protected:
   virtual void SetUp() { GrNotificationsTest::SetUp(); }
 };
@@ -304,12 +300,10 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   const auto async_notices = test_params.notices;
   const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const unsigned kClusterNodesCount = 2;
-  std::vector<RouterComponentTest::CommandHandle> cluster_nodes;
+  std::vector<ProcessWrapper *> cluster_nodes;
   std::vector<uint16_t> cluster_nodes_ports;
   std::vector<uint16_t> cluster_nodes_xports;
   std::vector<uint16_t> cluster_http_ports;
@@ -325,16 +319,16 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < kClusterNodesCount; ++i) {
-    cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i],
-        cluster_nodes_xports[i]));
+    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i], cluster_nodes_xports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_xports[i], 5000))
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
@@ -348,8 +342,9 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   }
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file = create_state_file(
-      temp_test_dir, kGroupId, cluster_nodes_ports[0], cluster_nodes_ports[1]);
+  const std::string state_file =
+      create_state_file(temp_test_dir.name(), kGroupId, cluster_nodes_ports[0],
+                        cluster_nodes_ports[1]);
 
   SCOPED_TRACE(
       "// Create a configuration file sections with high ttl so that "
@@ -361,8 +356,8 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   std::this_thread::sleep_for(test_params.router_uptime);
 
@@ -373,8 +368,8 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   // beginning
   const int ttl_counts = get_ttl_queries_count(server_globals);
   ASSERT_EQ(test_params.expected_md_queries_count + 1, ttl_counts)
-      << "mock[0]: " << cluster_nodes[0].get_full_output() << "\n"
-      << "mock[1]: " << cluster_nodes[1].get_full_output() << "\n"
+      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
+      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
       << "router: " << get_router_log_output() << "\n"
       << "server globals: " << server_globals;
 }
@@ -471,8 +466,7 @@ INSTANTIATE_TEST_CASE_P(
               "hijklmn",
               {0}}})));
 
-class GrNotificationsTestNoParam : public GrNotificationsTest,
-                                   public ::testing::Test {
+class GrNotificationsTestNoParam : public GrNotificationsTest {
  public:
   virtual void SetUp() { GrNotificationsTest::SetUp(); }
 };
@@ -485,12 +479,10 @@ class GrNotificationsTestNoParam : public GrNotificationsTest,
 TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
   const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const unsigned CLUSTER_NODES = 2;
-  std::vector<RouterComponentTest::CommandHandle> cluster_nodes;
+  std::vector<ProcessWrapper *> cluster_nodes;
   std::vector<uint16_t> cluster_nodes_ports;
   std::vector<uint16_t> reserved_nodes_xports;
   std::vector<uint16_t> cluster_http_ports;
@@ -506,13 +498,14 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i]));
+    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
@@ -532,8 +525,9 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
   }
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file = create_state_file(
-      temp_test_dir, kGroupId, cluster_nodes_ports[0], cluster_nodes_ports[1]);
+  const std::string state_file =
+      create_state_file(temp_test_dir.name(), kGroupId, cluster_nodes_ports[0],
+                        cluster_nodes_ports[1]);
 
   SCOPED_TRACE("// Create a configuration file sections with high ttl");
   const std::string metadata_cache_section =
@@ -543,8 +537,8 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   std::this_thread::sleep_for(1s);
 
@@ -554,9 +548,9 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
   const int ttl_counts = get_ttl_queries_count(server_globals);
   // we only expect initial ttl read (hence 1), because x-port is not valid
   // there are not metadata refresh triggered by the notifications
-  ASSERT_EQ(1, ttl_counts) << "mock[0]: " << cluster_nodes[0].get_full_output()
+  ASSERT_EQ(1, ttl_counts) << "mock[0]: " << cluster_nodes[0]->get_full_output()
                            << "\n"
-                           << "mock[1]: " << cluster_nodes[1].get_full_output()
+                           << "mock[1]: " << cluster_nodes[1]->get_full_output()
                            << "\n"
                            << "router: " << get_router_log_output() << "\n"
                            << "server globals: " << server_globals;
@@ -569,12 +563,10 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
 TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
   const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   const unsigned CLUSTER_NODES = 2;
-  std::vector<RouterComponentTest::CommandHandle> cluster_nodes;
+  std::vector<ProcessWrapper *> cluster_nodes;
   std::vector<uint16_t> cluster_nodes_ports, cluster_nodes_xports,
       cluster_http_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
@@ -589,14 +581,14 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i],
-        cluster_nodes_xports[i]));
+    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i], cluster_nodes_xports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i].get_full_output();
+        << cluster_nodes[i]->get_full_output();
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
@@ -606,8 +598,9 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
   }
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file = create_state_file(
-      temp_test_dir, kGroupId, cluster_nodes_ports[0], cluster_nodes_ports[1]);
+  const std::string state_file =
+      create_state_file(temp_test_dir.name(), kGroupId, cluster_nodes_ports[0],
+                        cluster_nodes_ports[1]);
 
   SCOPED_TRACE("// Create a configuration file sections with high ttl");
   const std::string metadata_cache_section =
@@ -617,12 +610,12 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   std::this_thread::sleep_for(1s);
-  EXPECT_TRUE(cluster_nodes[1].kill() == 0)
-      << cluster_nodes[0].get_full_output();
+  EXPECT_TRUE(cluster_nodes[1]->kill() == 0)
+      << cluster_nodes[0]->get_full_output();
   std::this_thread::sleep_for(1s);
 
   const std::string server_globals =
@@ -631,9 +624,9 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
   const int ttl_counts = get_ttl_queries_count(server_globals);
   // we only xpect initial ttl read plus the one caused by the x-protocol
   // notifier connection to the node we killed
-  ASSERT_EQ(2, ttl_counts) << "mock[0]: " << cluster_nodes[0].get_full_output()
+  ASSERT_EQ(2, ttl_counts) << "mock[0]: " << cluster_nodes[0]->get_full_output()
                            << "\n"
-                           << "mock[1]: " << cluster_nodes[1].get_full_output()
+                           << "mock[1]: " << cluster_nodes[1]->get_full_output()
                            << "\n"
                            << "router: " << get_router_log_output() << "\n"
                            << "server globals: " << server_globals;
@@ -646,7 +639,7 @@ struct ConfErrorTestParams {
 
 class GrNotificationsConfErrorTest
     : public GrNotificationsTest,
-      public ::testing::TestWithParam<ConfErrorTestParams> {
+      public ::testing::WithParamInterface<ConfErrorTestParams> {
  protected:
   virtual void SetUp() { GrNotificationsTest::SetUp(); }
 };
@@ -660,9 +653,7 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
   const auto test_params = GetParam();
   const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  TempDirectory temp_test_dir;
 
   SCOPED_TRACE("// Create a router configuration file");
   const std::string metadata_cache_section = get_metadata_cache_section(
@@ -675,7 +666,7 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
   SCOPED_TRACE("// Launch ther router");
   // clang-format off
   const std::string state_file =
-              RouterComponentTest::create_state_file(temp_test_dir,
+              RouterComponentTest::create_state_file(temp_test_dir.name(),
                                 "{"
                                   "\"version\": \"1.0.0\","
                                   "\"metadata-cache\": {"
@@ -684,11 +675,11 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
                                   "}"
                                 "}");
   // clang-format on
-  auto router = launch_router(temp_test_dir, metadata_cache_section,
-                              routing_section, state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file, EXIT_FAILURE);
 
   const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
   const std::string log_content = get_router_log_output();
   EXPECT_NE(log_content.find(test_params.expected_error_message),
@@ -714,7 +705,7 @@ INSTANTIATE_TEST_CASE_P(
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
