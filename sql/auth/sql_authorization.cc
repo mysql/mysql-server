@@ -3287,7 +3287,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool grant_all_current_privileges, LEX_GRANT_AS *grant_as) {
   List_iterator<LEX_USER> str_list(list);
   LEX_USER *user, *target_user, *proxied_user = NULL;
-  char tmp_db[NAME_LEN + 1];
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
   acl_table::Pod_user_what_to_update what_to_set;
@@ -3298,13 +3297,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   bool partial_revokes = false;
   DBUG_TRACE;
   DBUG_ASSERT(initialized);
-
-  if (lower_case_table_names && db) {
-    my_stpnmov(tmp_db, db, NAME_LEN);
-    tmp_db[NAME_LEN] = '\0';
-    my_casedn_str(files_charset_info, tmp_db);
-    db = tmp_db;
-  }
 
   if (is_proxy) {
     DBUG_ASSERT(!db);

@@ -1280,6 +1280,7 @@ void warn_about_deprecated_national(THD *thd)
         opt_describe_column
         opt_datadir_ssl default_encryption
         lvalue_ident
+        schema
 
 %type <lex_cstr>
         key_cache_name
@@ -2407,7 +2408,7 @@ filter_table_list:
         ;
 
 filter_table_ident:
-          ident '.' ident /* qualified table name */
+          schema '.' ident /* qualified table name */
           {
             THD *thd= YYTHD;
             Item_string *table_item= NEW_PTN Item_string($1.str, $1.length,
@@ -13712,6 +13713,8 @@ table_wild:
           }
         | ident '.' ident '.' '*'
           {
+            if (check_and_convert_db_name(&$1, false) != Ident_name_check::OK)
+              MYSQL_YYABORT;
             $$= NEW_PTN PTI_table_wild(@$, $1.str, $3.str);
           }
         ;
@@ -13753,6 +13756,8 @@ simple_ident_q:
           }
         | ident '.' ident '.' ident
           {
+            if (check_and_convert_db_name(&$1, false) != Ident_name_check::OK)
+              MYSQL_YYABORT;
             $$= NEW_PTN PTI_simple_ident_q_3d(@$, $1.str, $3.str, $5.str);
           }
         ;
@@ -14018,6 +14023,15 @@ role:
         | role_ident_or_text '@' ident_or_text
           {
             if (!($$= LEX_USER::alloc(YYTHD, &$1, &$3)))
+              MYSQL_YYABORT;
+          }
+        ;
+
+schema:
+          ident
+          {
+            $$ = $1;
+            if (check_and_convert_db_name(&$$, false) != Ident_name_check::OK)
               MYSQL_YYABORT;
           }
         ;
@@ -15383,7 +15397,7 @@ grant_ident:
               MYSQL_YYABORT;
             }
           }
-        | ident '.' '*'
+        | schema '.' '*'
           {
             LEX *lex= Lex;
             lex->current_select()->db = $1.str;
@@ -15407,10 +15421,30 @@ grant_ident:
               MYSQL_YYABORT;
             }
           }
-        | table_ident
+        | ident
           {
+            auto tmp = NEW_PTN Table_ident(to_lex_cstring($1));
+            if (tmp == NULL)
+              MYSQL_YYABORT;
             LEX *lex=Lex;
-            if (!lex->current_select()->add_table_to_list(lex->thd, $1,NULL,
+            if (!lex->current_select()->add_table_to_list(lex->thd, tmp, NULL,
+                                                        TL_OPTION_UPDATING))
+              MYSQL_YYABORT;
+            if (lex->grant == GLOBAL_ACLS)
+              lex->grant =  TABLE_ACLS & ~GRANT_ACL;
+          }
+        | schema '.' ident
+          {
+            Table_ident *tmp;
+            if (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
+              tmp = NEW_PTN Table_ident(to_lex_cstring($3));
+            else {
+              tmp = NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
+            }
+            if (tmp == NULL)
+              MYSQL_YYABORT;
+            LEX *lex=Lex;
+            if (!lex->current_select()->add_table_to_list(lex->thd, tmp, NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
