@@ -1226,6 +1226,7 @@ bool Query_result_delete::send_eof(THD *thd) {
         thd->clear_error();
       else
         errcode = query_error_code(thd, killed_status == THD::NOT_KILLED);
+      thd->thread_specific_used = true;
       if (thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
                             thd->query().length, transactional_table_map != 0,
                             false, false, errcode) &&

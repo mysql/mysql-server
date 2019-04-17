@@ -3196,6 +3196,8 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.add_array(drop_ctx.base_atomic_tables);
       built_query.add_array(drop_ctx.nonexistent_tables);
 
+      thd->thread_specific_used = true;
+
       if (built_query.write_bin_log()) goto err_with_rollback;
 
       if (drop_ctx.has_no_gtid_single_table_group() ||
