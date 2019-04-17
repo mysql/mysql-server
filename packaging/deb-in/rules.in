@@ -103,3 +103,9 @@ override_dh_install:
 		-Xmysql.info \
 		-XChangeLog \
 		-Xusr/share/man/man1/mysqlman.1
+
+# Since this dynamic library is included in both server and router, stripping
+# it leads to file conflict errors when trying to install dbgsym-deb packages
+# for both.
+override_dh_strip:
+	dh_strip -Xlibprotobuf-lite

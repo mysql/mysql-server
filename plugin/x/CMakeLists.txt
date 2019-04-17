@@ -33,6 +33,10 @@ SET(MYSQLX_PLUGIN_NAME "mysqlx")
 # Protobuf 3 will generate #if PROTOBUF_INLINE_NOT_IN_HEADERS
 # which may fail with -Werror=undef
 ADD_DEFINITIONS(-DPROTOBUF_INLINE_NOT_IN_HEADERS=0)
+IF(WIN32)
+  # Activate necessary dllexport/dllimport declarations.
+  ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
+ENDIF()
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="mysqlx")
 

@@ -20,18 +20,45 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(XTEST_EXE_NAME mysqlxtest)
+SET(XTEST_SRC
+  driver_command_line_options.cc
+  json_to_any_handler.cc
+  mysqlx_charset.cc
+  mysqlxtest.cc
 
-FILE(GLOB XTEST_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/connector/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/formatters/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/parsers/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/processor/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/processor/commands/*.cc"
+  common/command_line_options.cc
+  common/message_matcher.cc
+  common/utils_mysql_parsing.cc
+  common/utils_string_parsing.cc
+
+  connector/connection_manager.cc
+  connector/mysqlx_all_msgs.cc
+  connector/result_fetcher.cc
+  connector/session_holder.cc
+  connector/warning.cc
+
+  formatters/console.cc
+  formatters/message_formatter.cc
+
+  parsers/message_parser.cc
+
+  processor/command_multiline_processor.cc
+  processor/command_processor.cc
+  processor/dump_message_block_processor.cc
+  processor/macro_block_processor.cc
+  processor/send_message_block_processor.cc
+  processor/sql_block_processor.cc
+  processor/sql_stmt_processor.cc
+  processor/stream_processor.cc
+
+  processor/commands/command.cc
+  processor/commands/expected_error.cc
+  processor/commands/expected_warnings.cc
+  processor/commands/macro.cc
+  processor/commands/mysqlxtest_error_names.cc
+
   "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
-)
+  )
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
@@ -45,25 +72,29 @@ INCLUDE_DIRECTORIES(
 MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 
-MYSQL_ADD_EXECUTABLE(${XTEST_EXE_NAME}
+MYSQL_ADD_EXECUTABLE(mysqlxtest
   ${XTEST_SRC} COMPONENT Test
 )
 
-ADD_DEPENDENCIES(${XTEST_EXE_NAME}
+IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+  ADD_INSTALL_RPATH_FOR_PROTOBUF(mysqlxtest)
+ENDIF()
+
+ADD_DEPENDENCIES(mysqlxtest
   GenError GenClientError
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ${MYSQLX_CLIENT_FULL_LIB}
 )
 
-MYSQLX_APPEND_COMPILE_FLAGS(${XTEST_EXE_NAME}
+MYSQLX_APPEND_COMPILE_FLAGS(mysqlxtest
   "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
-MYSQLX_APPEND_COMPILE_DEFINITIONS(${XTEST_EXE_NAME}
+MYSQLX_APPEND_COMPILE_DEFINITIONS(mysqlxtest
   "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO"
 )
 
-TARGET_LINK_LIBRARIES(${XTEST_EXE_NAME}
+TARGET_LINK_LIBRARIES(mysqlxtest
   mysys
   strings
   mysqlclient

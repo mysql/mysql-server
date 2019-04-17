@@ -521,7 +521,8 @@ IF(WIN32)
   OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
 ENDIF()
 IF(NOT WITHOUT_SERVER)
-  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+  OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+  OPTION(WITH_ROUTER "Build MySQL Router" ON)
 ENDIF()
 OPTION(WITH_AUTHENTICATION_LDAP
   "Report error if the LDAP authentication plugin cannot be built." OFF)
@@ -1218,6 +1219,11 @@ IF(LINUX)
   HAVE_PTHREAD_SETNAME_NP)
 ENDIF()
 
+IF(WITH_PROTOBUF STREQUAL "bundled")
+  SET(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR 1)
+  ADD_SUBDIRECTORY(extra/protobuf)
+ENDIF()
+
 #
 # Setup maintainer mode options by the end. Platform checks are
 # not run with the warning options as to not perturb fragile checks
@@ -1312,7 +1318,6 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 
 # depends on mysql_version.h to exist
 IF(NOT WITHOUT_SERVER)
-  OPTION(WITH_ROUTER "Build MySQL Router" ON)
   IF(WITH_ROUTER)
     ADD_SUBDIRECTORY(router)
   ENDIF()

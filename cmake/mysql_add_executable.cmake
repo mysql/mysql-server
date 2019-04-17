@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
       SET(COMP COMPONENT Client)
     ENDIF()
     IF(LINUX_INSTALL_RPATH_ORIGIN)
-      SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
+      ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
     ENDIF()
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${ARG_DESTINATION} ${COMP})
 #   MESSAGE(STATUS "INSTALL ${target} ${ARG_DESTINATION}")

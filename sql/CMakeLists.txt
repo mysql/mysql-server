@@ -854,7 +854,13 @@ ELSE()
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld
-  ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+  ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
+  )
+
+# We depend on protobuf because of the mysqlx plugin.
+IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+  ADD_INSTALL_RPATH_FOR_PROTOBUF(mysqld)
+ENDIF()
 
 OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
 MARK_AS_ADVANCED(DEBUG_EXTNAME)
@@ -880,6 +886,29 @@ IF(NOT DISABLE_SHARED)
   IF(NOT mysqld_link_flags)
     SET(mysqld_link_flags)
   ENDIF()
+
+  IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+    # Because of INSTALL_DEBUG_TARGET which does INSTALL(FILES ...)
+    IF(UNIX AND NOT APPLE AND CMAKE_BUILD_TYPE_UPPER MATCHES "DEBUG")
+      STRING_APPEND(mysqld_link_flags
+        " -Wl,-rpath,'\$ORIGIN/../${INSTALL_PRIV_LIBDIR}'")
+      SET_TARGET_PROPERTIES(mysqld
+        PROPERTIES LINK_FLAGS "${mysqld_link_flags}")
+      MESSAGE(STATUS "LINK_FLAGS for mysqld ${mysqld_link_flags}")
+    ENDIF()
+
+    # Insert absolute INSTALL_RPATH before $ORIGIN values.
+    # This is done in order to support setuid executables, needed by:
+    # https://dev.mysql.com/doc/refman/8.0/en/resource-groups.html
+    IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
+      GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
+      LIST(INSERT CURRENT_RPATH_mysqld 0
+        "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
+      SET_TARGET_PROPERTIES(mysqld
+        PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+    ENDIF()
+  ENDIF()
+
   IF(MSVC)
     # Set module definition file.
     SET_TARGET_PROPERTIES(mysqld

@@ -57,6 +57,7 @@
 # - INSTALL_SBINDIR         (directory with mysqld)
 #
 # - INSTALL_LIBDIR          (directory with client libraries)
+# - INSTALL_PRIV_LIBDIR     (directory with mysql private libraries)
 # - INSTALL_PLUGINDIR       (directory for plugins)
 #
 # - INSTALL_INCLUDEDIR      (directory for MySQL headers)
@@ -142,6 +143,7 @@ SET(INSTALL_BINDIR_STANDALONE           "bin")
 SET(INSTALL_SBINDIR_STANDALONE          "bin")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
+SET(INSTALL_PRIV_LIBDIR_STANDALONE      "lib/private")
 SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_STANDALONE       "include")
@@ -167,6 +169,7 @@ SET(INSTALL_BINDIR_FREEBSD           "bin")
 SET(INSTALL_SBINDIR_FREEBSD          "bin")
 #
 SET(INSTALL_LIBDIR_FREEBSD           "lib")
+SET(INSTALL_PRIV_LIBDIR_FREEBSD      "lib/private")
 SET(INSTALL_PLUGINDIR_FREEBSD        "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_FREEBSD       "include")
@@ -192,6 +195,7 @@ SET(INSTALL_BINDIR_GLIBC           "bin")
 SET(INSTALL_SBINDIR_GLIBC          "bin")
 #
 SET(INSTALL_LIBDIR_GLIBC           "lib")
+SET(INSTALL_PRIV_LIBDIR_GLIBC      "lib/mysql/private")
 SET(INSTALL_PLUGINDIR_GLIBC        "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_GLIBC       "include")
@@ -217,6 +221,7 @@ SET(INSTALL_BINDIR_OSX           "bin")
 SET(INSTALL_SBINDIR_OSX          "bin")
 #
 SET(INSTALL_LIBDIR_OSX           "lib")
+SET(INSTALL_PRIV_LIBDIR_OSX      "lib")
 SET(INSTALL_PLUGINDIR_OSX        "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_OSX       "include")
@@ -242,6 +247,7 @@ SET(INSTALL_BINDIR_TARGZ           "bin")
 SET(INSTALL_SBINDIR_TARGZ          "bin")
 #
 SET(INSTALL_LIBDIR_TARGZ           "lib")
+SET(INSTALL_PRIV_LIBDIR_TARGZ      "lib/mysql/private")
 SET(INSTALL_PLUGINDIR_TARGZ        "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_TARGZ       "include")
@@ -268,6 +274,7 @@ SET(INSTALL_SBINDIR_RPM                 "sbin")
 #
 IF(CMAKE_SYSTEM_PROCESSOR IN_LIST KNOWN_64BIT_ARCHITECTURES)
   SET(INSTALL_LIBDIR_RPM                "lib64/mysql")
+  SET(INSTALL_PRIV_LIBDIR_RPM           "lib64/mysql/private")
   IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     SET(INSTALL_PLUGINDIR_RPM           "lib64/mysql/plugin/debug")
   ELSE()
@@ -275,6 +282,7 @@ IF(CMAKE_SYSTEM_PROCESSOR IN_LIST KNOWN_64BIT_ARCHITECTURES)
   ENDIF()
 ELSE()
   SET(INSTALL_LIBDIR_RPM                "lib/mysql")
+  SET(INSTALL_PRIV_LIBDIR_RPM           "lib/mysql/private")
   IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     SET(INSTALL_PLUGINDIR_RPM           "lib/mysql/plugin/debug")
   ELSE()
@@ -305,6 +313,7 @@ SET(INSTALL_BINDIR_DEB                  "bin")
 SET(INSTALL_SBINDIR_DEB                 "sbin")
 #
 SET(INSTALL_LIBDIR_DEB                  "lib")
+SET(INSTALL_PRIV_LIBDIR_DEB             "lib/mysql/private")
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   SET(INSTALL_PLUGINDIR_DEB             "lib/mysql/plugin/debug")
 ELSE()
@@ -334,6 +343,7 @@ SET(INSTALL_BINDIR_SVR4                 "bin")
 SET(INSTALL_SBINDIR_SVR4                "bin")
 #
 SET(INSTALL_LIBDIR_SVR4                 "lib")
+SET(INSTALL_PRIV_LIBDIR_SVR4            "lib/private")
 SET(INSTALL_PLUGINDIR_SVR4              "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_SVR4             "include")
@@ -378,6 +388,7 @@ FOREACH(var
     MYSQLTEST
     PLUGIN
     PLUGINTEST
+    PRIV_LIB
     SBIN
     SECURE_FILE_PRIV
     SHARE

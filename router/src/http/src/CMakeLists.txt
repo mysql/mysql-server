@@ -190,7 +190,7 @@ TARGET_LINK_LIBRARIES(mysqlrouter_passwd
   harness-library
   router_lib
   http_auth_backend_lib mysys)
-SET_PROPERTY(TARGET mysqlrouter_passwd PROPERTY INSTALL_RPATH "${ROUTER_INSTALL_RPATH}")
+ADD_INSTALL_RPATH(mysqlrouter_passwd "${ROUTER_INSTALL_RPATH}")
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)

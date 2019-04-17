@@ -58,6 +58,9 @@ usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/perror.1
 usr/share/man/man1/zlib_decompress.1
 usr/share/man/man8/mysqld.8
+# private shared libraries
+usr/lib/mysql/private/libprotobuf-lite.so.3.6.1
+usr/lib/mysql/private/libprotobuf.so.3.6.1
 # plugins
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so

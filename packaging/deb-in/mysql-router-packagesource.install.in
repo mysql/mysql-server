@@ -37,6 +37,9 @@ usr/lib/mysqlrouter/plugin/rest_api.so
 usr/lib/mysqlrouter/plugin/rest_router.so
 usr/lib/mysqlrouter/plugin/rest_routing.so
 usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
+# private shared libraries
+usr/lib/mysqlrouter/plugin/libprotobuf-lite.so.3.6.1
+
 usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
 usr/share/man/man1/mysqlrouter.1
 usr/share/man/man1/mysqlrouter_passwd.1

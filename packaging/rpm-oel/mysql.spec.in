@@ -108,8 +108,6 @@ Vendor:         %{mysql_vendor}
 Source7:        %{compatsrc}
 %endif
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
-Source90:       filter-provides.sh
-Source91:       filter-requires.sh
 %if 0%{?rhel} >= 8
 BuildRequires:  cmake >= 3.6.1
 BuildRequires:  gcc
@@ -169,12 +167,16 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
-%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
+%global _privatelibs libprotobuf.*
+%global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
+%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
-%global __perl_provides %{SOURCE90}
-%global __perl_requires %{SOURCE91}
+# Patterns for sed, separated by semicolon. Do not quote it here, filter_setup will do that
+%filter_from_provides /libprotobuf/d;/perl.hostnames/d;/perl.lib::mtr/d;/perl.lib::v1/d;/perl.mtr_/d;/perl.My::/d
+%filter_from_requires /libprotobuf/d;/perl.hostnames/d;/perl.lib::mtr/d;/perl.lib::v1/d;/perl.mtr_/d;/perl.My::/d;/perl.GD/d
+%filter_setup
 %endif
 
 %description
@@ -1069,6 +1071,10 @@ fi
 %endif # systemd
 %attr(755, root, root) %{_sbindir}/mysqld
 
+%dir %{_libdir}/mysql/private
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.6.1
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.6.1
+
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
@@ -1626,7 +1632,7 @@ fi
 %{_libdir}/libmysqlrouter.so.*
 %{_libdir}/libmysqlrouter_http.so.*
 %dir %{_libdir}/mysqlrouter
-%{_libdir}/mysqlrouter/*.so
+%{_libdir}/mysqlrouter/*.so*
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 

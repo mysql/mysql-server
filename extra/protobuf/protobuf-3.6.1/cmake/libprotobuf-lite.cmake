@@ -52,6 +52,7 @@ add_library(libprotobuf-lite ${protobuf_SHARED_OR_STATIC}
   ${libprotobuf_lite_files} ${libprotobuf_lite_includes})
 target_link_libraries(libprotobuf-lite ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(libprotobuf-lite PUBLIC ${protobuf_source_dir}/src)
+
 if(MSVC AND protobuf_BUILD_SHARED_LIBS)
   target_compile_definitions(libprotobuf-lite
     PUBLIC  PROTOBUF_USE_DLLS
@@ -62,3 +63,51 @@ set_target_properties(libprotobuf-lite PROPERTIES
     OUTPUT_NAME ${LIB_PREFIX}protobuf-lite
     DEBUG_POSTFIX "${protobuf_DEBUG_POSTFIX}")
 add_library(protobuf::libprotobuf-lite ALIAS libprotobuf-lite)
+
+IF(protobuf_BUILD_SHARED_LIBS)
+  SET_TARGET_PROPERTIES(libprotobuf-lite PROPERTIES
+    DEBUG_POSTFIX ""
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+    )
+
+  IF(LINUX)
+    SET_TARGET_PROPERTIES(libprotobuf-lite
+      PROPERTIES LINK_FLAGS
+      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver"
+      )
+  ENDIF()
+
+  IF(WIN32)
+    ADD_CUSTOM_COMMAND(TARGET libprotobuf-lite POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      )
+
+    SET_TARGET_PROPERTIES(libprotobuf-lite PROPERTIES
+      DEBUG_POSTFIX "-debug")
+    INSTALL_DEBUG_TARGET(libprotobuf-lite
+      DESTINATION "${INSTALL_BINDIR}"
+      COMPONENT SharedLibraries
+      )
+  ENDIF()
+
+  INSTALL_PRIVATE_LIBRARY(libprotobuf-lite)
+
+  IF(WITH_ROUTER)
+    IF(APPLE OR WIN32)
+      INSTALL(TARGETS libprotobuf-lite
+        DESTINATION "${ROUTER_INSTALL_PLUGINDIR}" COMPONENT Router
+        )
+    ELSEIF(UNIX)
+      INSTALL(TARGETS libprotobuf-lite
+        LIBRARY
+        DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+        COMPONENT Router
+        NAMELINK_SKIP
+        )
+    ENDIF()
+  ENDIF()
+
+ENDIF()
