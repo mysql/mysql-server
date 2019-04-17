@@ -204,7 +204,7 @@ let $MYSQLD_LOG = $MYSQL_TMP_DIR/data_50722/my_err.log;
 --source include/shutdown_mysqld.inc
 
 --echo # Restart the server with the 5.7.22 data directory.
---exec echo "restart: --datadir=$DATADIR_50722 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --datadir=$DATADIR_50722 --log-error=$MYSQLD_LOG --innodb_undo_tablespaces=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
