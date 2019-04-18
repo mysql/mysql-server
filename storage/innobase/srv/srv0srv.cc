@@ -1727,7 +1727,7 @@ loop:
 
   old_lsn = new_lsn;
 
-  if (difftime(time(NULL), srv_last_monitor_time) > 60) {
+  if (ut_difftime(ut_time_monotonic(), srv_last_monitor_time) > 60) {
     /* We referesh InnoDB Monitor values so that averages are
     printed from at most 60 last seconds */
 
