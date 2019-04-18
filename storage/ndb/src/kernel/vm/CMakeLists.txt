@@ -90,6 +90,8 @@ FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel SegmentList Rope)
                LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
 ENDFOREACH(testprog)
 
+NDB_ADD_TEST(ndbd_malloc-t ndbd_malloc_impl.cpp LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
+
 IF(WITH_NDBMTD)
   NDB_ADD_TEST(mt-send-t mt-send-t.cpp LIBS ${ALL_UNIT_TEST_LIBS})
 ENDIF()

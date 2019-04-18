@@ -217,6 +217,7 @@ public:
 
 class Ndbd_mem_manager 
 {
+  friend class Test_mem_manager;
 public:
   Ndbd_mem_manager();
   

@@ -28,6 +28,8 @@
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
 
+#define JAM_FILE_ID 296
+
 #define PAGES_PER_REGION_LOG BPP_2LOG
 
 #ifdef _WIN32
@@ -1617,10 +1619,14 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
     mt_mem_manager_unlock();
 }
 
-#ifdef UNIT_TEST
+template class Vector<InitChunk>;
+
+#if defined(TEST_NDBD_MALLOC)
 
 #include <Vector.hpp>
 #include <NdbHost.h>
+#include "portlib/ndb_stacktrace.h"
+#include "portlib/NdbTick.h"
 
 struct Chunk {
   Uint32 pageId;
@@ -1634,21 +1640,16 @@ struct Timer
 
   Timer() { sum = cnt = 0;}
 
-  struct timeval st;
+  NDB_TICKS st;
 
   void start() {
-    gettimeofday(&st, 0);
+    st = NdbTick_getCurrentTicks();
   }
 
   Uint64 calc_diff() {
-    struct timeval st2;
-    gettimeofday(&st2, 0);
-    Uint64 diff = st2.tv_sec;
-    diff -= st.tv_sec;
-    diff *= 1000000;
-    diff += st2.tv_usec;
-    diff -= st.tv_usec;
-    return diff;
+    const NDB_TICKS st2 = NdbTick_getCurrentTicks();
+    const NdbDuration dur = NdbTick_Elapsed(st, st2);
+    return dur.microSec();
   }
   
   void stop() {
@@ -1664,9 +1665,69 @@ struct Timer
   }
 };
 
+void abort_handler(int signum)
+{
+  ndb_print_stacktrace();
+  signal(SIGABRT, SIG_DFL);
+  abort();
+}
+
+class Test_mem_manager: public Ndbd_mem_manager
+{
+public:
+  Test_mem_manager(Uint32 tot_mem, Uint32 data_mem, Uint32 trans_mem);
+  ~Test_mem_manager();
+};
+
+enum Resource_groups {
+  RG_DM = 1,
+  RG_TM = 2,
+  RG_QM = 3
+};
+
+Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
+                                   Uint32 data_mem,
+                                   Uint32 trans_mem)
+{
+  assert(tot_mem >= data_mem + trans_mem); // Need to adjust, 2 pages per 32K pages is not allocatable
+
+  Resource_limit rl;
+  // Data memory
+  rl.m_min = data_mem;
+  rl.m_max = rl.m_min;
+  rl.m_resource_id = RG_DM;
+  set_resource_limit(rl);
+
+  // Transaction memory
+  rl.m_min = trans_mem;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_TM;
+  set_resource_limit(rl);
+
+  // Query memory
+  rl.m_min = 0;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_QM;
+  set_resource_limit(rl);
+
+  init(NULL, tot_mem);
+  map(NULL);
+}
+
+Test_mem_manager::~Test_mem_manager()
+{
+  require(m_resource_limits.get_in_use() == 0);
+}
+
+static void perf_test(int sz, int run_time);
+
 int 
 main(int argc, char** argv)
 {
+  ndb_init();
+  ndb_init_stacktrace();
+  signal(SIGABRT, abort_handler);
+
   int sz = 1*32768;
   int run_time = 30;
   if (argc > 1)
@@ -1675,125 +1736,154 @@ main(int argc, char** argv)
   if (argc > 2)
     run_time = atoi(argv[2]);
 
-  char buf[255];
-  Timer timer[4];
-  printf("Startar modul test av Page Manager %dMb %ds\n", 
-	 (sz >> 5), run_time);
   g_eventLogger->createConsoleHandler();
   g_eventLogger->setCategory("keso");
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_INFO);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_WARNING);
-  
+
+  perf_test(sz, run_time);
+  ndb_end(0);
+}
+
 #define DEBUG 0
 
-  Ndbd_mem_manager mem;
-  Resource_limit rl;
-  rl.m_min = 0;
-  rl.m_max = sz;
-  rl.m_curr = 0;
-  rl.m_spare = 0;
-  rl.m_resource_id = 0;
-  mem.set_resource_limit(rl);
-  rl.m_min = sz < 16384 ? sz : 16384;
-  rl.m_max = Resource_limit::HIGHEST_LIMIT;
-  rl.m_resource_id = 1;
-  mem.set_resource_limit(rl);
-  
-  mem.init(NULL);
+void perf_test(int sz, int run_time)
+{
+  char buf[255];
+  Timer timer[4];
+  printf("Startar modul test av Page Manager %dMb %ds\n",
+         (sz >> 5), run_time);
+
+  const Uint32 data_sz = sz / 3;
+  const Uint32 trans_sz = sz / 3;
+  Test_mem_manager mem(sz, data_sz, trans_sz);
   mem.dump();
+
   printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
   fgets(buf, sizeof(buf), stdin);
+
   Vector<Chunk> chunks;
+  Ndbd_mem_manager::AllocZone zone = Ndbd_mem_manager::NDB_ZONE_LE_32;
   time_t stop = time(0) + run_time;
-  for(Uint32 i = 0; time(0) < stop; i++){
-    //mem.dump();
-    
-    // Case
-    Uint32 c = (rand() % 100);
-    if (c < 50)
+  for (Uint32 i = 0; time(0) < stop; i++)
+  {
+    mem.dump();
+    printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
+    fgets(buf, sizeof(buf), stdin);
+    time_t stop = time(0) + run_time;
+    for (Uint32 i = 0; time(0) < stop; i++)
     {
-      c = 0;
-    } 
-    else if (c < 93)
-    {
-      c = 1;
-    }
-    else
-    {
-      c = 2;
-    }
-    
-    Uint32 alloc = 1 + rand() % 3200;
-    
-    if(chunks.size() == 0 && c == 0)
-    {
-      c = 1 + rand() % 2;
-    }
-    
-    if(DEBUG)
-      printf("loop=%d ", i);
-    switch(c){ 
-    case 0:{ // Release
-      const int ch = rand() % chunks.size();
-      Chunk chunk = chunks[ch];
-      chunks.erase(ch);
-      timer[0].start();
-      mem.release(chunk.pageId, chunk.pageCount);
-      timer[0].stop();
-      if(DEBUG)
-	printf(" release %d %d\n", chunk.pageId, chunk.pageCount);
-    }
-      break;
-    case 2: { // Seize(n) - fail
-      alloc += sz;
-      // Fall through
-    }
-    case 1: { // Seize(n) (success)
-      Chunk chunk;
-      chunk.pageCount = alloc;
-      if (DEBUG)
+      // Case
+      Uint32 c = (rand() % 100);
+      if (c < 50)
       {
-	printf(" alloc %d -> ", alloc); fflush(stdout);
+        c = 0;
       }
-      timer[0].start();
-      mem.alloc(&chunk.pageId, &chunk.pageCount, 1);
-      Uint64 diff = timer[0].calc_diff();
+      else if (c < 93)
+      {
+        c = 1;
+      }
+      else
+      {
+        c = 2;
+      }
+
+      Uint32 alloc = 1 + rand() % 3200;
+
+      if (chunks.size() == 0 && c == 0)
+      {
+        c = 1 + rand() % 2;
+      }
 
       if (DEBUG)
-	printf("%d %d", chunk.pageId, chunk.pageCount);
-      assert(chunk.pageCount <= alloc);
-      if(chunk.pageCount != 0){
-	chunks.push_back(chunk);
-	if(chunk.pageCount != alloc) {
-	  timer[2].add(diff);
-	  if (DEBUG)
-	    printf(" -  Tried to allocate %d - only allocated %d - free: %d",
-		   alloc, chunk.pageCount, 0);
-	}
-	else
-	{
-	  timer[1].add(diff);
-	}
-      } else {
-	timer[3].add(diff);
-	if (DEBUG)
-	  printf("  Failed to alloc %d pages with %d pages free",
-		 alloc, 0);
+      {
+        printf("loop=%d ", i);
       }
-      if (DEBUG)
-	printf("\n");
-    }
+      switch (c)
+      {
+      case 0:
+      { // Release
+        const int ch = rand() % chunks.size();
+        Chunk chunk = chunks[ch];
+        chunks.erase(ch);
+        timer[0].start();
+        mem.release_pages(RG_DM, chunk.pageId, chunk.pageCount);
+        timer[0].stop();
+        if (DEBUG)
+        {
+          printf(" release %d %d\n", chunk.pageId, chunk.pageCount);
+        }
+      }
       break;
+      case 2:
+      { // Seize(n) - fail
+        alloc += sz;
+      }
+      // Fall through
+      case 1:
+      { // Seize(n) (success)
+        Chunk chunk;
+        chunk.pageCount = alloc;
+        if (DEBUG)
+        {
+          printf(" alloc %d -> ", alloc);
+          fflush(stdout);
+        }
+        timer[0].start();
+        mem.alloc_pages(RG_DM, &chunk.pageId, &chunk.pageCount, 1, zone);
+        Uint64 diff = timer[0].calc_diff();
+
+        if (DEBUG)
+        {
+          printf("%d %d", chunk.pageId, chunk.pageCount);
+        }
+        assert(chunk.pageCount <= alloc);
+        if (chunk.pageCount != 0)
+        {
+          chunks.push_back(chunk);
+          if (chunk.pageCount != alloc)
+          {
+            timer[2].add(diff);
+            if (DEBUG)
+            {
+              printf(" -  Tried to allocate %d - only allocated %d - free: %d",
+                     alloc, chunk.pageCount, 0);
+            }
+          }
+          else
+          {
+            timer[1].add(diff);
+          }
+        }
+        else
+        {
+          timer[3].add(diff);
+          if (DEBUG)
+          {
+            printf("  Failed to alloc %d pages with %d pages free",
+                   alloc, 0);
+          }
+        }
+        if (DEBUG)
+        {
+          printf("\n");
+        }
+      }
+      break;
+      }
     }
   }
   if (!DEBUG)
-    while(chunks.size() > 0){
+  {
+    while (chunks.size() > 0)
+    {
       Chunk chunk = chunks.back();
-      mem.release(chunk.pageId, chunk.pageCount);      
+      mem.release_pages(RG_DM, chunk.pageId, chunk.pageCount);
       chunks.erase(chunks.size() - 1);
     }
+  }
 
   const char *title[] = {
     "release   ",
@@ -1801,17 +1891,13 @@ main(int argc, char** argv)
     "alloc part",
     "alloc fail"
   };
-  for(Uint32 i = 0; i<4; i++)
+  for (Uint32 i = 0; i < 4; i++)
+  {
     timer[i].print(title[i]);
-
+  }
   mem.dump();
 }
 
 template class Vector<Chunk>;
 
 #endif
-
-#define JAM_FILE_ID 296
-
-
-template class Vector<InitChunk>;
