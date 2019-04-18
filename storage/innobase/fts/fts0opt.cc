@@ -2968,7 +2968,7 @@ void fts_optimize_shutdown() {
 
   ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
-  srv_threads.m_fts_optimize.wait();
+  srv_threads.m_fts_optimize.join();
 
   ib_wqueue_free(fts_optimize_wq);
   fts_optimize_wq = NULL;

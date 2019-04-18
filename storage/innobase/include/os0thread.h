@@ -48,6 +48,7 @@ class IB_thread {
 
   void start();
   void wait(State state_to_wait_for = State::STOPPED);
+  void join();
 
  private:
   std::shared_future<void> m_shared_future;

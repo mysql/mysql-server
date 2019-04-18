@@ -398,5 +398,5 @@ void dict_stats_shutdown() {
   dict_stats_start_shutdown = true;
   os_event_set(dict_stats_event);
 
-  srv_threads.m_dict_stats.wait();
+  srv_threads.m_dict_stats.join();
 }

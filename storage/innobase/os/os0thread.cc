@@ -75,6 +75,8 @@ void IB_thread::wait(State state_to_wait_for) {
   }
 }
 
+void IB_thread::join() { wait(State::STOPPED); }
+
 void IB_thread::init(std::promise<void> &promise) {
   m_shared_future = promise.get_future();
   m_state.reset(new std::atomic<State>(State::NOT_STARTED));

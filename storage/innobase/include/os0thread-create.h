@@ -275,7 +275,7 @@ void par_for(mysql_pfs_key_t pfs_key, const Container &c, size_t n, F &&f,
   f(c.begin() + (n * slice), c.end(), n, args...);
 
   for (auto &worker : workers) {
-    worker.wait();
+    worker.join();
   }
 }
 
