@@ -33,6 +33,7 @@
 #include "dim.h"
 #include "exception.h"
 #include "harness_assert.h"
+#include "my_stacktrace.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
@@ -45,6 +46,7 @@ IMPORT_LOG_FUNCTIONS()
 ////////////////////////////////////////
 // Standard include files
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cctype>
 #include <cstring>
@@ -140,15 +142,55 @@ static void request_log_reopen() {
   log_reopen_cond.notify_one();
 }
 
-static void block_all_signals() {
+namespace {
+#ifdef USE_POSIX_SIGNALS
+const std::array<int, 5> g_fatal_signals{SIGSEGV, SIGABRT, SIGBUS, SIGILL,
+                                         SIGFPE};
+#endif
+}  // namespace
+
+static void block_all_nonfatal_signals() {
 #ifdef USE_POSIX_SIGNALS
   sigset_t ss;
   sigfillset(&ss);
+  // we can't block those signals globally and rely on our handler thread, as
+  // these are only received by the offending thread itself.
+  // see "man signal" for more details
+  for (const auto &sig : g_fatal_signals) {
+    sigdelset(&ss, sig);
+  }
   if (0 != pthread_sigmask(SIG_SETMASK, &ss, nullptr)) {
     throw std::runtime_error("pthread_sigmask() failed: " +
                              std::string(std::strerror(errno)));
   }
-#endif
+#endif  // USE_POSIX_SIGNALS
+}
+
+static void handle_fatal_signal(int sig) {
+#ifdef USE_POSIX_SIGNALS
+  my_safe_printf_stderr("Application got fatal signal: %d\n", sig);
+#ifdef HAVE_STACKTRACE
+  my_print_stacktrace(nullptr, 0);
+#endif  // HAVE_STACKTRACE
+#else
+  (void)sig;
+#endif  // USE_POSIX_SIGNALS
+}
+
+static void register_fatal_signal_handler() {
+#ifdef USE_POSIX_SIGNALS
+#ifdef HAVE_STACKTRACE
+  my_init_stacktrace();
+#endif  // HAVE_STACKTRACE
+
+  struct sigaction sa;
+  (void)sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESETHAND;
+  sa.sa_handler = handle_fatal_signal;
+  for (const auto &sig : g_fatal_signals) {
+    (void)sigaction(sig, &sa, NULL);
+  }
+#endif  // USE_POSIX_SIGNALS
 }
 
 static void start_and_detach_signal_handler_thread() {
@@ -729,13 +771,17 @@ std::exception_ptr Loader::init_all() {
 void Loader::start_all() {
   log_debug("Starting all plugins.");
 
-  // block signal handling for all threads
+  // block non-fatal signal handling for all threads
   //
   // - no other thread than the signal-handler thread should receive signals
   // - syscalls should not get interrupted by signals either
   //
   // on windows, this is a no-op
-  block_all_signals();
+  block_all_nonfatal_signals();
+
+  // for the fatal signals we want to have a handler that prints the stack-trace
+  // if possible
+  register_fatal_signal_handler();
 
   // start all the plugins (call plugin's start() function)
   for (const ConfigSection *section : config_.sections()) {
