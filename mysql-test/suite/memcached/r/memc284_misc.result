@@ -16,9 +16,6 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SELECT c1,c2 FROM t1;
 c1	c2
 D	Darmstadt
-SELECT SLEEP(2);
-SLEEP(2)
-0
 Set E|Essen with negative expire time should fail:
 Set B|Berlin with expire time as INT_MAX32 should succeed:
 Berlin

@@ -48,13 +48,11 @@ INSERT INTO t1 VALUES ('C', 3, 'West', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 4, 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11213
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -64,7 +62,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -87,19 +85,19 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","5|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set min border:\n";
+print "Here are the memcached results after set min border:\n";
 $val = $memd->set("E","-2147483648|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set max border:\n";
+print "Here are the memcached results after set max border:\n";
 $val = $memd->set("E","2147483647|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set over max border:\n";
+print "Here are the memcached results after set over max border:\n";
 $val = $memd->set("E","2147483648|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -119,14 +117,14 @@ my $memd = new Cache::Memcached {
   'select_timeout' => 20
 };
 $val = $memd->set("F","6|Sofia");
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after calling incr 10:\n";
+print "Here are the memcached results after calling incr 10:\n";
 $val = $memd->incr("F",10);
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after calling decr 4:\n";
+print "Here are the memcached results after calling decr 4:\n";
 $val = $memd->decr("F",4);
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -147,7 +145,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -156,7 +154,7 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","5|Ost-VARCHAR");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -177,7 +175,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -186,23 +184,23 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","5|Ost-BIGINT");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set min border:\n";
+print "Here are the memcached results after set min border:\n";
 $val = $memd->set("E","-9223372036854775808|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set max border:\n";
+print "Here are the memcached results after set max border:\n";
 $val = $memd->set("E","9223372036854775807|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set over max border:\n";
+print "Here are the memcached results after set over max border:\n";
 $val = $memd->set("E","9223372036854775808|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->set("F","-1|Beijing-Signed-BIGINT");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -224,7 +222,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -233,19 +231,19 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","5|Ost-SMALLINT");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set min border:\n";
+print "Here are the memcached results after set min border:\n";
 $val = $memd->set("E","-32768|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set max border:\n";
+print "Here are the memcached results after set max border:\n";
 $val = $memd->set("E","32767|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set over max border:\n";
+print "Here are the memcached results after set over max border:\n";
 $val = $memd->set("E","32768|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -266,7 +264,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -275,19 +273,19 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","5|Ost-TINYINT");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set min border:\n";
+print "Here are the memcached results after set min border:\n";
 $val = $memd->set("E","-128|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set max border:\n";
+print "Here are the memcached results after set max border:\n";
 $val = $memd->set("E","127|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set over max border:\n";
+print "Here are the memcached results after set over max border:\n";
 $val = $memd->set("E","129|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -308,7 +306,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -317,15 +315,15 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","5|Ost-BIGINT-UNSIGNED");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set max border:\n";
+print "Here are the memcached results after set max border:\n";
 $val = $memd->set("E","18446744073709551615|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set over max border:\n";
+print "Here are the memcached results after set over max border:\n";
 $val = $memd->set("E","18446744073709551616|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -343,7 +341,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -352,19 +350,19 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","5|5");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set max border:\n";
+print "Here are the memcached results after set max border:\n";
 $val = $memd->set("E","18446744073709551615|18446744073709551615");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set over max border:\n";
+print "Here are the memcached results after set over max border:\n";
 $val = $memd->set("E","18446744073709551616|18446744073709551616");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after append:\n";
+print "Here are the memcached results after append:\n";
 $val = $memd->append("E"," abcde");
 if ($val) { print "$val\n"; } else { print "Append to integer value is not supported.\n"; }
 $val = $memd->get("E");
@@ -398,7 +396,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with 1,2,3,4:\n";
+print "Here are the memcached results with 1,2,3,4:\n";
 $val = $memd->get("1");
 if ($val) { print "$val\n"; }
 $val = $memd->get("2");
@@ -407,19 +405,19 @@ $val = $memd->get("3");
 if ($val) { print "$val\n"; }
 $val = $memd->get("4");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("5","5|Ost-INT-KEY");
 $val = $memd->get("5");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add key with min border:\n";
+print "Here are the memcached results after add key with min border:\n";
 $val = $memd->add("-2147483648", "6|Ost");
 $val = $memd->get("-2147483648");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add key with max border:\n";
+print "Here are the memcached results after add key with max border:\n";
 $val = $memd->add("2147483647","7|Ost");
 $val = $memd->get("2147483647");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add key with over max border:\n";
+print "Here are the memcached results after add key with over max border:\n";
 $val = $memd->add("2147483648","8|Ost");
 $val = $memd->get("2147483648");
 if ($val) { print "$val\n"; }
@@ -445,7 +443,7 @@ my $memd = new Cache::Memcached {
 $memd->get('@@int_test');
 $memd->set("E","543");
 
-print "Here the memcached results with E:\n";
+print "Here are the memcached results with E:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;

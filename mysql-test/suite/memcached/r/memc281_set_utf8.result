@@ -33,12 +33,9 @@ c1	c2	c21
 2	Berlin	Mitte
 3	Cottbus	West
 4	München	Süd
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results before set:
+Here are the memcached results before set:
 Darmstadt                                                                                                               |City                                                        
-Here the memcached results after set:
+Here are the memcached results after set:
 Beijing                                                                                                                 |City                                                        
 SELECT c1, c2, c21 FROM t1;
 c1	c2	c21

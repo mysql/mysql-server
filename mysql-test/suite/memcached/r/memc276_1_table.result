@@ -48,45 +48,42 @@ D	Duesseldorf	City	98765	Hafen	1	A	a	Z
 K	Koeln	West	76543	Rhein	3	C	c	X
 O	Oldenburg	Mitte	87654	Deich	2	B	b	Y
 S	Stuttgart	Nord	65432	Fernsehturm	4	D	d	U
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,O,K,S of default:
+Here are the memcached results with D,O,K,S of default:
 Duesseldorf|City|98765|Hafen|1|A|a|Z
 Oldenburg|Mitte|87654|Deich|2|B|b|Y
 Koeln|West|76543|Rhein|3|C|c|X
 Stuttgart|Nord|65432|Fernsehturm|4|D|d|U
-Here the memcached results with c1 of desct11:
+Here are the memcached results with c1 of desct11:
 Duesseldorf|City|98765|Hafen|1|A|a|Z
 Oldenburg|Mitte|87654|Deich|2|B|b|Y
 Koeln|West|76543|Rhein|3|C|c|X
 Stuttgart|Nord|65432|Fernsehturm|4|D|d|U
-Here the memcached results with c2 of desct13:
+Here are the memcached results with c2 of desct13:
 D|City
 O|Mitte
 K|West
 S|Nord
-Here the memcached results with c2 of desct12:
+Here are the memcached results with c2 of desct12:
 D|Duesseldorf
 O|Oldenburg
 K|Koeln
 S|Stuttgart
-Here the memcached results with c2,c21,c22 of desct14:
+Here are the memcached results with c2,c21,c22 of desct14:
 D|Hafen|98765
 O|Deich|87654
 K|Rhein|76543
 S|Fernsehturm|65432
-Here the memcached results with c2,c21,c22,c23 of desct15:
+Here are the memcached results with c2,c21,c22,c23 of desct15:
 D|City|98765|1
 O|Mitte|87654|2
 K|West|76543|3
 S|Nord|65432|4
-Here the memcached results with c23,c24,c25,c26 of desct16:
+Here are the memcached results with c23,c24,c25,c26 of desct16:
 Hafen|1|Z|D
 Rhein|3|X|K
 Fernsehturm|4|U|S
 Deich|2|Y|O
-Here the memcached results with c26 of desct17:
+Here are the memcached results with c26 of desct17:
 Koeln|K
 Oldenburg|O
 Duesseldorf|D
@@ -97,7 +94,7 @@ D	Duesseldorf	City	98765	Hafen	1	A	a	Z
 K	Koeln	West	76543	Rhein	3	C	c	X
 O	Oldenburg	Mitte	87654	Deich	2	B	b	Y
 S	Stuttgart	Nord	65432	Fernsehturm	4	D	d	U
-Here the memcached results after set in desct12:
+Here are the memcached results after set in desct12:
 E|Essen
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27
@@ -106,7 +103,7 @@ E	Essen	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 K	Koeln	West	76543	Rhein	3	C	c	X
 O	Oldenburg	Mitte	87654	Deich	2	B	b	Y
 S	Stuttgart	Nord	65432	Fernsehturm	4	D	d	U
-Here the memcached results after set in desct13:
+Here are the memcached results after set in desct13:
 E|Neustadt
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27
@@ -115,7 +112,7 @@ E	Essen	Neustadt	NULL	NULL	NULL	NULL	NULL	NULL
 K	Koeln	West	76543	Rhein	3	C	c	X
 O	Oldenburg	Mitte	87654	Deich	2	B	b	Y
 S	Stuttgart	Nord	65432	Fernsehturm	4	D	d	U
-Here the memcached results after set in desct14:
+Here are the memcached results after set in desct14:
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27
 D	Duesseldorf	City	98765	Hafen	1	A	a	Z
@@ -123,7 +120,7 @@ E	Essen	Neustadt	NULL	NULL	NULL	NULL	NULL	NULL
 K	Koeln	West	76543	Rhein	3	C	c	X
 O	Oldenburg	Mitte	87654	Deich	2	B	b	Y
 S	Stuttgart	Nord	65432	Fernsehturm	4	D	d	U
-Here the memcached results after set in desct15:
+Here are the memcached results after set in desct15:
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27
 D	Duesseldorf	City	98765	Hafen	1	A	a	Z
@@ -131,7 +128,7 @@ E	Essen	Neustadt	NULL	NULL	NULL	NULL	NULL	NULL
 K	Koeln	West	76543	Rhein	3	C	c	X
 O	Oldenburg	Mitte	87654	Deich	2	B	b	Y
 S	Stuttgart	Nord	65432	Fernsehturm	4	D	d	U
-Here the memcached results after set in desct16:
+Here are the memcached results after set in desct16:
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27
 D	Duesseldorf	City	98765	Hafen	1	A	a	Z
@@ -139,7 +136,7 @@ E	Essen	Neustadt	NULL	NULL	NULL	NULL	NULL	NULL
 K	Koeln	West	76543	Rhein	3	C	c	X
 O	Oldenburg	Mitte	87654	Deich	2	B	b	Y
 S	Stuttgart	Nord	65432	Fernsehturm	4	D	d	U
-Here the memcached results after set in desct17:
+Here are the memcached results after set in desct17:
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27
 D	Duesseldorf	City	98765	Hafen	1	A	a	Z

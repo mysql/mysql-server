@@ -18,9 +18,6 @@ ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SELECT c1,c2 FROM t1;
 c1	c2
-SELECT SLEEP(2);
-SLEEP(2)
-0
 Ok.
 SELECT c1,c2 FROM t1;
 c1	c2

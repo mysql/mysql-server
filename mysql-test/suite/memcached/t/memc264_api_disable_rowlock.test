@@ -3,7 +3,7 @@ source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
 
 --disable_query_log
-CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("daemon-memcached-r-batch-size': value");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
 CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
@@ -24,76 +24,62 @@ INSERT INTO config_options VALUES("separator", "|");
 
 # describe table for memcache
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
-			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
 
 USE test;
-
-connect (con1,localhost,root,,);
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 CREATE TABLE t1        (c1 VARCHAR(32),
 			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
-INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11264
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
+--echo SELECT @@global.daemon_memcached_r_batch_size;
+--disable_query_log
+SELECT @@global.daemon_memcached_r_batch_size;
+--enable_query_log
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.daemon_memcached_r_batch_size=100;
+
 --sorted_result
-SELECT c1,c2 FROM t1;
-
-SELECT SLEEP(1);
-
---sorted_result
-SELECT c1,c2 FROM t1;
-ALTER TABLE test.t1 ADD COLUMN j JSON;
-delimiter //;
-CREATE PROCEDURE alter_column()
-BEGIN
-SELECT SLEEP(10);
-ALTER TABLE test.t1 ADD COLUMN foo varchar(200) AS (j->'$.foo') VIRTUAL;
-END//
-delimiter ;//
-
-
-connection con1;
-set session lock_wait_timeout=1;
---send call alter_column();
-
-connection default;
+SELECT c1,c2,c21 FROM t1;
 
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11296" ],
+  'servers' => [ "127.0.0.1:11264" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
-sleep(20);
-
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-connection con1;
-# Now all Memcached operation will acquire MDL lock on the table.
-# So the alter table will have to wait for MDL lock released by Memcached
-# connection, and then start the alter. If we set shorter timeout interval
-# it should report timeout
---error ER_LOCK_WAIT_TIMEOUT
-reap;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
 
-connection default;
-disconnect con1;
-drop procedure alter_column;
 DROP TABLE t1;
 
 UNINSTALL PLUGIN daemon_memcached;

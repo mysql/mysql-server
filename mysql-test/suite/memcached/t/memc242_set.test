@@ -42,13 +42,11 @@ INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11242
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -76,7 +74,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "Here are the memcached results with E:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -93,7 +91,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E,H:\n";
+print "Here are the memcached results with E,H:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $val = $memd->get("H");

@@ -43,9 +43,6 @@ json.json_ddl_ndb : BUG#26616564 PB2 failures.
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
 
-# Memcached tests
-memcached.memc242_set : BUG#28834121
-
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 Disabled it since it's failing on pb2.
 

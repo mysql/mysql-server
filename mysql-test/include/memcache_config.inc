@@ -54,4 +54,3 @@ CREATE  TABLE IF NOT EXISTS `containers` (
 CREATE  TABLE IF NOT EXISTS `config_options` (
 	`name` varchar(50) not null primary key,
 	`value` varchar(50)) ENGINE = InnoDB;
-	

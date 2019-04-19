@@ -44,10 +44,7 @@ D	Darmstadt	City
 H	Hamburg	Norderstedt
 COMMIT;
 connection default;
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results:
+Here are the memcached results:
 Berlin|Mitte
 Cottbus|West
 SELECT c1,c2,c21 FROM test.t1;
@@ -65,7 +62,7 @@ D	Darmstadt	City
 H	Hamburg	Norderstedt
 ROLLBACK;
 connection default;
-Here the memcached results:
+Here are the memcached results:
 Cottbus|West
 Darmstadt|City
 SELECT c1,c2,c21 FROM test.t1;
@@ -83,7 +80,7 @@ D	Darmstadt	City
 H	Hamburg	Norderstedt
 ROLLBACK;
 connection default;
-Here the memcached results:
+Here are the memcached results:
 Darmstadt|City
 Hamburg|Norderstedt
 Darmstadt|City

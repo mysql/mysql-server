@@ -45,15 +45,15 @@ connection mysqltest1;
 send ALTER TABLE t1 DROP c21
 ALTER TABLE t1 DROP c21;
 reap
-Here the memcached results with D,B,H,C:
-Here the memcached results after set:
-Here the memcached results after add:
-Here the memcached results after replace:
-Here the memcached results after delete:
-Here the memcached results after add Frankfurt|:
-Here the memcached results after add |Airport:
-Here the memcached results after replace Frankfurt a.M.:
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results with D,B,H,C:
+Here are the memcached results after set:
+Here are the memcached results after add:
+Here are the memcached results after replace:
+Here are the memcached results after delete:
+Here are the memcached results after add Frankfurt|:
+Here are the memcached results after add |Airport:
+Here are the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Sachsenhausen:
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

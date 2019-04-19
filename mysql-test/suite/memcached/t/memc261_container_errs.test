@@ -59,13 +59,12 @@ INSERT INTO t2 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t2 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -75,7 +74,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -84,27 +83,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -135,10 +134,10 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t9",
 			       "c1", "c11,c2,c21", "c3", "c4", "c5", "PRIMARY");
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 USE test;
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
@@ -150,7 +149,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -159,27 +158,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -210,10 +209,10 @@ INSERT INTO containers VALUES ("desc_t1", "unknown", "t1",
 			       "c1", "c11,c2,c21", "c3", "c4", "c5", "PRIMARY");
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 USE test;
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
@@ -225,7 +224,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -234,27 +233,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -285,10 +284,10 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 			       "unknown", "c11,c2,c21", "c3", "c4", "c5", "PRIMARY");
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 USE test;
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
@@ -300,7 +299,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -309,27 +308,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -360,10 +359,10 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 			       "c1", "unknown", "c3", "c4", "c5", "PRIMARY");
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 USE test;
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
@@ -375,7 +374,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -384,27 +383,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -435,10 +434,10 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 			       "c1", NULL, "c3", "c4", "c5", "PRIMARY");
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 USE test;
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
@@ -450,7 +449,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -459,27 +458,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -490,7 +489,7 @@ EOF
 SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
-echo # Test case with not existing mandatory column in container;
+echo # Test case with not existing non-mandatory column in container;
 # Stop plugin befor innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
@@ -510,11 +509,11 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 			       "c1", "c11,c2,c21", "unknown", "unknown", "unknown", "PRIMARY");
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 USE test;
 DELETE FROM t1 WHERE c1 IN ('E','F');
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
@@ -526,7 +525,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -535,27 +534,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -594,16 +593,16 @@ CREATE TABLE t1        (c1  VARCHAR(32),
                         c11 VARCHAR(32),
 			c2  VARCHAR(1024),
 			c21 VARCHAR(1024),
-			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1)) 
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB
 PARTITION BY KEY (c1);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11261
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 USE test;
 DELETE FROM t1 WHERE c1 IN ('E','F');
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
 
@@ -615,7 +614,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -624,27 +623,27 @@ $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -660,5 +659,5 @@ DROP TABLE t2;
 
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

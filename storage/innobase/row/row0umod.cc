@@ -1176,8 +1176,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Parses the row reference and other info in a modify undo log record.
 @param[in]	node	row undo node
+@param[in]      thd     THD associated with the node
 @param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
-static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
+static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
+                                        MDL_ticket **mdl) {
   dict_index_t *clust_index;
   byte *ptr;
   undo_no_t undo_no;
@@ -1199,7 +1201,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
   took here. Notably, there cannot be a race between ROLLBACK and
   DROP TEMPORARY TABLE, because temporary tables are
   private to a single connection. */
-  node->table = dd_table_open_on_id(table_id, current_thd, mdl, false, true);
+  node->table = dd_table_open_on_id(table_id, thd, mdl, false, true);
 
   if (node->table == NULL) {
     /* Table was dropped */
@@ -1207,7 +1209,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
   }
 
   if (node->table->ibd_file_missing) {
-    dd_table_close(node->table, current_thd, mdl, false);
+    dd_table_close(node->table, thd, mdl, false);
 
     /* We skip undo operations to missing .ibd files */
     node->table = NULL;
@@ -1231,7 +1233,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
   node->cmpl_info = cmpl_info;
 
   if (!row_undo_search_clust_to_pcur(node)) {
-    dd_table_close(node->table, current_thd, mdl, false);
+    dd_table_close(node->table, thd, mdl, false);
 
     node->table = NULL;
   }
@@ -1260,7 +1262,9 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
 
   ut_ad(thr_get_trx(thr) == node->trx);
 
-  row_undo_mod_parse_undo_rec(node,
+  THD *thd = dd_thd_for_undo(node->trx);
+
+  row_undo_mod_parse_undo_rec(node, thd,
                               dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
   if (node->table == NULL) {
@@ -1298,7 +1302,7 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
     err = row_undo_mod_clust(node, thr);
   }
 
-  dd_table_close(node->table, current_thd, &mdl, false);
+  dd_table_close(node->table, thd, &mdl, false);
 
   node->table = NULL;
 

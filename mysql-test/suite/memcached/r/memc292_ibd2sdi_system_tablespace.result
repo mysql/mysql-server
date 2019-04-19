@@ -688,6 +688,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
@@ -887,6 +888,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
@@ -1032,6 +1034,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with

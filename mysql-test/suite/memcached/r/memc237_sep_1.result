@@ -27,10 +27,7 @@ B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt0City010dddddddddddddd0123402012
 Berlin0Mitte020bbbbbbbbbbbbbb0234502012
 Hamburg0Norderstedt040hhhhhhhhhh0456702012
@@ -41,7 +38,7 @@ B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
-Here the memcached results after set:
+Here are the memcached results after set:
 Essen|Ost|5|eeeeeeeeeee|5678|20120000
 Essen0Ost050eeeeeeeeeee0567802
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;

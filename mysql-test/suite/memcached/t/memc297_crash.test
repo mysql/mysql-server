@@ -1,9 +1,10 @@
-source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
+source include/not_valgrind.inc;
+source include/have_log_bin.inc;
 source include/not_windows.inc;
 
 --disable_query_log
-CALL mtr.add_suppression("daemon-memcached-r-batch-size': value");
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
 CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
@@ -43,44 +44,42 @@ INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11297
+--source ../include/load_daemon_memcached_expecting_success.inc
 
---echo SELECT @@global.daemon_memcached_r_batch_size;
---disable_query_log
-SELECT @@global.daemon_memcached_r_batch_size;
---enable_query_log
-
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@global.daemon_memcached_r_batch_size=100;
-
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
-SELECT SLEEP(2);
+--echo Bug 25909540 UNINSTALL PLUGIN DAEMON_MEMCACHED MAKE MYSQLD CRASHED
 
+# Though the issue is not observed on trunk, the test case is
+# retained since it is a basic scenario.
+
+#Note:- innodb_api_enable_binlog=1 should be enabled
 perl;
-use DBI;
 use Cache::Memcached;
+
+my $port = $ENV{'MASTER_MYPORT'};
+my $client = $ENV{'MYSQL'};
+
+print "\n Connect to the memcached server and do a get";
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11234" ],
-  'connect_timeout' => 20,
-  'select_timeout' => 20
+  'servers' => [ "127.0.0.1:11297" ]
 };
-print "Here the memcached results with D,B,H,C:\n";
+
 $val = $memd->get("D");
-if ($val) { print "$val\n"; }
-$val = $memd->get("B");
-if ($val) { print "$val\n"; }
-$val = $memd->get("H");
-if ($val) { print "$val\n"; }
-$val = $memd->get("C");
-if ($val) { print "$val\n"; }
+
+print "\n Uninstall the memcached plugin,with a memcached connection present";
+print "\n and load the plugin again.\n";
+
+my $test_sql = "UNINSTALL PLUGIN daemon_memcached;".
+               "INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';";
+
+$cmd="$client --host=127.0.0.1 -P $port -uroot -e\"$test_sql\"";
+system($cmd);
+
 $memd->disconnect_all;
 EOF
-
---sorted_result
-SELECT c1,c2,c21 FROM t1;
 
 DROP TABLE t1;
 
@@ -88,3 +87,4 @@ UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 
 SET @@global.transaction_isolation= @transaction_isolation;
+

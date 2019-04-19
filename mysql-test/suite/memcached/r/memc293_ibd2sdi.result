@@ -683,6 +683,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
@@ -958,16 +959,15 @@ SET DEBUG = '-d, skip_sdi';
 		Test50
 }
 ]
-[ERROR] ibd2sdi: Unable to create temporary file. err: Success.
+[ERROR] ibd2sdi: Unable to create temporary file. err: Permission denied.
 [ERROR] ibd2sdi: Invalid Dumpfile passed.
-
-
+IBD2SDI Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
 owners.
 
-
+Usage: IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
 See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
@@ -1830,6 +1830,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
@@ -1970,6 +1971,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
@@ -2110,6 +2112,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
@@ -2255,6 +2258,7 @@ pretty                            TRUE
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] IBD2SDI: option '-t' requires an argument.
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with

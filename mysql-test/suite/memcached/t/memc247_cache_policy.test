@@ -38,7 +38,8 @@ INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 # ----------------------------------------------------------------
 # Test the "cache_only" get
@@ -48,11 +49,8 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 # delete - innodb_only
 # ----------------------------------------------------------------
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t1;
-
-SELECT SLEEP(2);
 
 # Since "get" are cache_only, it is not going to fetch any rows
 perl;
@@ -64,7 +62,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -87,7 +85,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with B:\n";
+print "Here are the memcached results with B:\n";
 $val = $memd->get("B");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -104,7 +102,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,H:\n";
+print "Here are the memcached results with D,H:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("H");
@@ -131,7 +129,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 				  "innodb_only", "innodb_only", "innodb_only");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 # Since "get" is now "caching", it will fetch data from disk if not in cache
 perl;
@@ -144,7 +143,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -175,7 +174,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
 				  "cache_only", "innodb_only", "innodb_only");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -209,7 +209,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "Here are the memcached results with E:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -230,7 +230,7 @@ if ($memd->set("P","Paris", 60)) {
 else {
   print "Error: fail to set.\n";
 }
-print "Here the memcached results with P:\n";
+print "Here are the memcached results with P:\n";
 $val = $memd->get("P");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -253,9 +253,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 				  "caching", "innodb_only", "innodb_only");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -289,7 +288,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -325,7 +324,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -349,9 +348,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 				  "caching", "cache_only", "innodb_only");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -385,7 +383,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -421,7 +419,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "Here are the memcached results with E:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -446,9 +444,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 				  "caching", "caching", "innodb_only");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -482,7 +479,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -518,7 +515,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -544,9 +541,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
 				  "caching", "cache_only", "cache_only");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -580,7 +576,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -597,7 +593,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after flush_all:\n";
+print "Here are the memcached results after flush_all:\n";
 $memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
@@ -616,7 +612,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -642,9 +638,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 				  "caching", "caching", "caching");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -678,7 +673,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -695,7 +690,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after flush_all:\n";
+print "Here are the memcached results after flush_all:\n";
 $memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
@@ -714,7 +709,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -740,7 +735,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 				  "disabled", "disabled", "disabled");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 # Add some rows
 --sorted_result
@@ -752,8 +748,6 @@ INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -787,7 +781,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -804,7 +798,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after flush_all:\n";
+print "Here are the memcached results after flush_all:\n";
 $memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
@@ -823,7 +817,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -844,9 +838,8 @@ DELETE FROM cache_policies;
 INSERT IGNORE INTO cache_policies VALUES("junk", "junk",
 				  "caching", "cache_only", "disabled");
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11247
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -880,7 +873,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -897,7 +890,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after flush_all (flush disabled):\n";
+print "Here are the memcached results after flush_all (flush disabled):\n";
 $memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
@@ -916,7 +909,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with G:\n";
+print "Here are the memcached results with G:\n";
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -927,5 +920,5 @@ DROP TABLE t1;
 
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

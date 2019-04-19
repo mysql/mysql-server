@@ -53,23 +53,21 @@ INSERT INTO innodb_memcache.containers VALUES ("desc_t1", "test", "t1",
     "c1", "c2,c21,c22,c23,c24,c25,c26,c27,c28", "c3", "c4", "c5", "PRIMARY");
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11262
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11232" ],
+  'servers' => [ "127.0.0.1:11262" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -88,11 +86,11 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11232" ],
+  'servers' => [ "127.0.0.1:11262" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen||||5678|2012|'germany'|'western'|'city'|100|200|'Hello world'");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -106,11 +104,11 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11232" ],
+  'servers' => [ "127.0.0.1:11262" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Airport||||2012");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -124,11 +122,11 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11232" ],
+  'servers' => [ "127.0.0.1:11262" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a.M.|Sachsenhausen|61|fffff|6789|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -142,11 +140,11 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11232" ],
+  'servers' => [ "127.0.0.1:11262" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -162,5 +160,5 @@ DROP TABLE t1;
 
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

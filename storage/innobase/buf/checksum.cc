@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -312,7 +312,7 @@ bool BlockReporter::is_corrupted() const {
 
   /* declare empty pages non-corrupted */
   if (checksum_field1 == 0 && checksum_field2 == 0 &&
-      *reinterpret_cast<const ib_uint64_t *>(m_read_buf + FIL_PAGE_LSN) == 0) {
+      mach_read_from_8(m_read_buf + FIL_PAGE_LSN) == 0) {
     /* make sure that the page is really empty */
 
     bool empty = true;
@@ -561,8 +561,7 @@ bool BlockReporter::verify_zip_checksum() const {
 #endif
 
   /* Check if page is empty */
-  if (stored == 0 &&
-      *reinterpret_cast<const ib_uint64_t *>(m_read_buf + FIL_PAGE_LSN) == 0) {
+  if (stored == 0 && mach_read_from_8(m_read_buf + FIL_PAGE_LSN) == 0) {
     /* make sure that the page is really empty */
 
     ulint i;

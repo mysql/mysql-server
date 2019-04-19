@@ -51,8 +51,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "trx0undo.h"
 
-#include "current_thd.h"
-
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
@@ -295,8 +293,10 @@ retry:
 
 /** Parses the row reference and other info in a fresh insert undo record.
 @param[in,out]	node	row undo node
+@param[in]      thd     THD associated with the node
 @param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
-static void row_undo_ins_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
+static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
+                                        MDL_ticket **mdl) {
   dict_index_t *clust_index;
   byte *ptr;
   undo_no_t undo_no;
@@ -315,13 +315,13 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
 
   node->update = NULL;
 
-  node->table = dd_table_open_on_id(table_id, current_thd, mdl, false, true);
+  node->table = dd_table_open_on_id(table_id, thd, mdl, false, true);
 
   /* Skip the UNDO if we can't find the table or the .ibd file. */
   if (node->table == NULL) {
   } else if (node->table->ibd_file_missing) {
   close_table:
-    dd_table_close(node->table, current_thd, mdl, false);
+    dd_table_close(node->table, thd, mdl, false);
 
     node->table = NULL;
   } else {
@@ -458,7 +458,9 @@ dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
   ut_ad(node->trx->in_rollback);
   ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
-  row_undo_ins_parse_undo_rec(node,
+  THD *thd = dd_thd_for_undo(node->trx);
+
+  row_undo_ins_parse_undo_rec(node, thd,
                               dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
   if (node->table == NULL) {
@@ -484,7 +486,7 @@ dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
     err = row_undo_ins_remove_clust_rec(node);
   }
 
-  dd_table_close(node->table, current_thd, &mdl, false);
+  dd_table_close(node->table, thd, &mdl, false);
 
   node->table = NULL;
 

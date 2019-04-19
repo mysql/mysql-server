@@ -114,7 +114,8 @@ if (!$SKIP_LARGE_DATA_FILE) {
 --exec $IBD2SDI --type=@ $IBD_FILE 2>&1
 --replace_result $IBD2SDI IBD2SDI
 --error 1
---exec $IBD2SDI -t # $IBD_FILE 2>&1
+#with $IBD_FILE argument to -t missing:
+--exec $IBD2SDI -t 2>&1
 --replace_result $IBD2SDI IBD2SDI
 --error 1
 --exec $IBD2SDI -t = $IBD_FILE 2>&1

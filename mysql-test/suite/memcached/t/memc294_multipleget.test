@@ -58,13 +58,11 @@ INSERT INTO t2 VALUES ('CC','CALICUTT','CHENNAI', 0, 0 ,0);
 INSERT INTO t2 VALUES ('HH','HYDERABAD','HOSPET', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11294
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
-
-SELECT SLEEP(2);
 
 --echo # case 1: Fetch results for all Keys
 perl;
@@ -77,7 +75,7 @@ my $memd = new Cache::Memcached {
   'select_timeout' => 20
 };
 @keys = qw( D B C H D B C H N );
-print "Here the memcached results with @keys:\n";
+print "Here are the memcached results with @keys:\n";
 my $val =  $memd->get_multi(@keys);
 foreach my $item (sort keys %$val) {
  if (defined $item && exists $val->{$item} ) {
@@ -104,7 +102,7 @@ my $memd = new Cache::Memcached {
   'select_timeout' => 20
 };
 @keys = qw( D B C H I J K L M N O P NULL Q R S T U V X Y Z A D B C H );
-print "Here the memcached results with @keys:\n";
+print "Here are the memcached results with @keys:\n";
 my $val =  $memd->get_multi(@keys);
 foreach my $item (sort keys %$val) {
  if (defined $item && exists $val->{$item} ) {
@@ -133,7 +131,7 @@ my $memd = new Cache::Memcached {
   'select_timeout' => 20
 };
 @keys = qw( @@desc_t2.DD @@desc_t2.BB @@desc_t2.CC @@desc_t1.c @@desc_t2.HH @@desc_t1.H );
-print "Here the memcached results with @keys:\n";
+print "Here are the memcached results with @keys:\n";
 my $val =  $memd->get_multi(@keys);
 foreach my $item (sort keys %$val) {
  if (defined $item && exists $val->{$item} ) {

@@ -244,6 +244,15 @@ void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
   abort();
 }
 
+/** Tries to delete temporary file.
+@param[in]	temp_filename	The name of file to delete*/
+static void try_delete_temporary_filename(const char *temp_filename) {
+  if (my_delete(temp_filename, MYF(0)) != 0) {
+    ib::warn() << "Removal of temporary file " << temp_filename
+               << " failed because of system error: " << strerror(errno);
+  }
+}
+
 /** Create a file in a system's temporary directory.
 @param[in,out]	temp_file_buf	Buffer to hold the temporary file
                                 name generated
@@ -263,12 +272,13 @@ static FILE *create_tmp_file(char *temp_file_buf, const char *dir,
     file = my_fdopen(fd, temp_file_buf, O_RDWR, MYF(0));
   }
 
-  DBUG_EXECUTE_IF("ib_tmp_file_fail", file = NULL;);
+  DBUG_EXECUTE_IF("ib_tmp_file_fail", file = NULL; errno = EACCES;);
 
   if (file == NULL) {
     ib::error() << "Unable to create temporary file. err: " << strerror(errno);
 
     if (fd >= 0) {
+      try_delete_temporary_filename(temp_file_buf);
       my_close(fd, MYF(0));
     }
   }
@@ -2287,20 +2297,11 @@ int main(int argc, char **argv) {
                     << " and delete it manually";
         return 1;
       } else {
-        if (my_delete(tmp_filename_buf, MYF(0)) != 0) {
-          ib::warn() << "Removal of temporary"
-                     << " file " << tmp_filename_buf
-                     << " failed because of system"
-                     << " error: " << strerror(errno);
-        }
+        try_delete_temporary_filename(tmp_filename_buf);
       }
     }
   } else if (opts.is_dump_file) {
-    if (my_delete(tmp_filename_buf, MYF(0)) != 0) {
-      ib::warn() << "Removal of temporary"
-                 << " file " << tmp_filename_buf
-                 << " failed because of system error: " << strerror(errno);
-    }
+    try_delete_temporary_filename(tmp_filename_buf);
   }
 
   return ret ? 1 : 0;

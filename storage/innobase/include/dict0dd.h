@@ -633,6 +633,11 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
 @param[in,out]	mdl	metadata lock */
 void dd_mdl_release(THD *thd, MDL_ticket **mdl);
 
+/** Returns thd associated with the trx or current_thd
+@param[in]	trx	transaction
+@return	trx->mysql_thd or current_thd */
+THD *dd_thd_for_undo(const trx_t *trx);
+
 /** Check if current undo needs a MDL or not
 @param[in]	trx	transaction
 @return	true if MDL is necessary, otherwise false */

@@ -23,9 +23,6 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
 Bug 25909540 UNINSTALL PLUGIN DAEMON_MEMCACHED MAKE MYSQLD CRASHED
 
  Connect to the memcached server and do a get

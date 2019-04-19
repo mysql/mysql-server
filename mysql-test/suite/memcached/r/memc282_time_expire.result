@@ -32,9 +32,6 @@ D	Darmstadt
 SELECT c1,c21 FROM demo;
 c1	c21
 b	aa
-SELECT SLEEP(2);
-SLEEP(2)
-0
 DROP TABLE t1;
 DROP TABLE demo;
 UNINSTALL PLUGIN daemon_memcached;
