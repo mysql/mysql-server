@@ -180,6 +180,8 @@ class Item_func : public Item_result_field {
     ABS_FUNC,
     FLOOR_FUNC,
     LOG_FUNC,
+    LN_FUNC,
+    LOG10_FUNC,
     SIN_FUNC,
     TAN_FUNC,
     COS_FUNC,
@@ -1140,6 +1142,7 @@ class Item_func_ln final : public Item_dec_func {
   Item_func_ln(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "ln"; }
+  enum Functype functype() const override { return LN_FUNC; }
 };
 
 class Item_func_log final : public Item_dec_func {
@@ -1163,6 +1166,7 @@ class Item_func_log10 final : public Item_dec_func {
   Item_func_log10(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "log10"; }
+  enum Functype functype() const override { return LOG10_FUNC; }
 };
 
 class Item_func_sqrt final : public Item_dec_func {
