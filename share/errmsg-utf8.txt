@@ -13475,7 +13475,7 @@ ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR
   eng "Error when activating super_read_only mode on start. The member will now exit the group."
 
 ER_GRP_RPL_EXCEEDS_AUTO_INC_VALUE
-  eng "Group contains %lu members which is greater than group_replication_auto_increment_increment value of %lu. This can lead to an higher rate of transactional aborts."
+  eng "Group contains %lu members which is greater than auto_increment_increment value of %lu. This can lead to an higher rate of transactional aborts."
 
 ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM
   eng "Member with address '%s:%u' didn't provide any data during the last group change. Group information can be outdated and lead to errors on recovery."
