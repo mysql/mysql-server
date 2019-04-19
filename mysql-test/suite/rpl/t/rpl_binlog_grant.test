@@ -51,7 +51,13 @@ CREATE USER bar@localhost IDENTIFIED WITH 'mysql_native_password';
 --let $query= GRANT PROXY ON foo@localhost TO bar@localhost IDENTIFIED BY '123';
 --let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
 --eval $query
---let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, 1)
+--let $row_number = 1
+--let $gtid_mode=`select @@global.gtid_mode`
+if ($gtid_mode == 'ON')
+{
+  --let $row_number = 2
+}
+--let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $row_number)
 --let $assert_cond= `SELECT "$logged_query" LIKE "%GRANT PROXY%"`
 --let $assert_text= Assert that the query logged is indeed the GRANT PROXY one
 --source include/assert.inc
