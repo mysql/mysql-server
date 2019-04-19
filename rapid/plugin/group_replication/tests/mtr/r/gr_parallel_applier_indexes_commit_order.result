@@ -18,11 +18,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 [connection server1]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Plugin group_replication reported: 'Group contains 3 members which is greater than group_replication_auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
+call mtr.add_suppression("Plugin group_replication reported: 'Group contains 3 members which is greater than auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Plugin group_replication reported: 'Group contains 2 members which is greater than group_replication_auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
+call mtr.add_suppression("Plugin group_replication reported: 'Group contains 2 members which is greater than auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
 SET SESSION sql_log_bin= 1;
 
 # Create a table on all members.
