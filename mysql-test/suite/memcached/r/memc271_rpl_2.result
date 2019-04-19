@@ -1,5 +1,3 @@
-include/master-slave.inc
-[connection master]
 SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
@@ -7,6 +5,24 @@ INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 INSERT INTO config_options VALUES("separator", "|");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+include/master-slave.inc
+connection default;
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection master;
+connection server_1;
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection master1;
+connection server_1;
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection slave;
+connection server_1;
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection slave1;
+connection server_1;
+connection server_1;
+connection default;
+[connection master]
+connection master;
 USE test;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1        (c1 VARCHAR(32),
@@ -25,10 +41,7 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
@@ -42,6 +55,17 @@ H	Hamburg	Norderstedt
 sync_slave_with_master;
 connection slave;
 connection slave;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(32) NOT NULL,
+  `c2` varchar(1024) DEFAULT NULL,
+  `c21` varchar(1024) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` bigint(20) unsigned DEFAULT NULL,
+  `c5` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -49,7 +73,7 @@ C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
 connection master;
-Here the memcached results after set:
+Here are the memcached results after set:
 Essen|Ost
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -69,7 +93,7 @@ D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
 connection master;
-Here the memcached results after add:
+Here are the memcached results after add:
 Frankfurt|Sachsenhause
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -91,7 +115,7 @@ E	Essen	Ost
 F	Frankfurt	Sachsenhause
 H	Hamburg	Norderstedt
 connection master;
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -113,7 +137,7 @@ E	Essen	Ost
 F	Frankfurt a. M.	Sachsenhausen
 H	Hamburg	Norderstedt
 connection master;
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -132,9 +156,9 @@ D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
 connection master;
-Here the memcached results after add Frankfurt|:
+Here are the memcached results after add Frankfurt|:
 Frankfurt|
-Here the memcached results after add |Airport:
+Here are the memcached results after add |Airport:
 Frankfurt|
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -156,9 +180,9 @@ E	Essen	Ost
 F	Frankfurt	NULL
 H	Hamburg	Norderstedt
 connection master;
-Here the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Frankfurt a.M.:
 Frankfurt a. M.|
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results after replace Sachsenhausen:
 |Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -181,9 +205,6 @@ F	NULL	Sachsenhausen
 H	Hamburg	Norderstedt
 connection master;
 DROP TABLE t1;
-UNINSTALL PLUGIN daemon_memcached;
-DROP DATABASE innodb_memcache;
-SET @@global.transaction_isolation= @transaction_isolation;
 connection slave;
 include/rpl_end.inc
 connection server_2;
@@ -214,3 +235,7 @@ connection server_1;
 connection default;
 disconnect server_1;
 disconnect server_1_1;
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.transaction_isolation= @transaction_isolation;

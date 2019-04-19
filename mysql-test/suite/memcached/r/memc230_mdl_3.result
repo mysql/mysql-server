@@ -41,24 +41,21 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
 connection mysqltest1;
 send DROP TABLE IF EXISTS t1
 DROP TABLE IF EXISTS t1;
 connection mysqltest2;
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 SELECT c1,c2,c21 FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-Here the memcached results after set:
-Here the memcached results after add:
-Here the memcached results after replace:
-Here the memcached results after delete:
-Here the memcached results after add Frankfurt|:
-Here the memcached results after add |Airport:
-Here the memcached results after replace Frankfurt a.M.:
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results after set:
+Here are the memcached results after add:
+Here are the memcached results after replace:
+Here are the memcached results after delete:
+Here are the memcached results after add Frankfurt|:
+Here are the memcached results after add |Airport:
+Here are the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Sachsenhausen:
 SELECT c1,c2,c21 FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 connection mysqltest1;

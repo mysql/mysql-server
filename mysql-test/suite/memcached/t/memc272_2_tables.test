@@ -56,15 +56,13 @@ INSERT INTO t2 VALUES ('C', 'Celle', 0, 0 ,0);
 INSERT INTO t2 VALUES ('H', 'Hannover', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11272
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following selects are writing all to  memcache otherwise memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 --sorted_result
 SELECT c1,c2 FROM t2;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -74,7 +72,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C of default:\n";
+print "Here are the memcached results with D,B,H,C of default:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -94,7 +92,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C of t2:\n";
+print "Here are the memcached results with D,B,H,C of t2:\n";
 $val = $memd->get("\@\@desct2.D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("\@\@desct2.B");
@@ -118,11 +116,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in default:\n";
+print "Here are the memcached results after set in default:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set in t2:\n";
+print "Here are the memcached results after set in t2:\n";
 $val = $memd->set("\@\@desct2.E","Essen");
 $val = $memd->get("\@\@desct2.E");
 if ($val) { print "$val\n"; }
@@ -142,11 +140,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add in t2:\n";
+print "Here are the memcached results after add in t2:\n";
 $val = $memd->add("\@\@desc2.F","Frankfurt");
 $val = $memd->get("\@\@desc2.F");
 if ($val) { print "$val\n"; }
@@ -166,11 +164,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace in t2:\n";
+print "Here are the memcached results after replace in t2:\n";
 $val = $memd->replace("\@\@desc2.F","Frankfurt a. M.");
 $val = $memd->get("\@\@desc2.F");
 if ($val) { print "$val\n"; }
@@ -190,11 +188,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after delete in t2:\n";
+print "Here are the memcached results after delete in t2:\n";
 $val = $memd->delete("\@\@desc2.F");
 $val = $memd->get("\@\@desc2.F");
 if ($val) { print "$val\n"; }
@@ -214,11 +212,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add Frankfurt|:\n";
+print "Here are the memcached results after add Frankfurt|:\n";
 $val = $memd->add("F","Frankfurt|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add |Airport:\n";
+print "Here are the memcached results after add |Airport:\n";
 $val = $memd->add("F","|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -238,11 +236,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace Frankfurt a.M.:\n";
+print "Here are the memcached results after replace Frankfurt a.M.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Sachsenhausen:\n";
+print "Here are the memcached results after replace Sachsenhausen:\n";
 $val = $memd->replace("F","|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -269,11 +267,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add Frankfurt|:\n";
+print "Here are the memcached results after add Frankfurt|:\n";
 $val = $memd->add("F","Frankfurt|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add |Airport:\n";
+print "Here are the memcached results after add |Airport:\n";
 $val = $memd->add("F","|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -291,7 +289,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after flush_all:\n";
+print "Here are the memcached results after flush_all:\n";
 $memd->flush_all;
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }

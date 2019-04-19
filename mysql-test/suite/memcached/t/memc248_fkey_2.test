@@ -39,7 +39,7 @@ DROP TABLE IF EXISTS t2;
 CREATE TABLE t1        (c1  VARCHAR(32),
 			c2  VARCHAR(1024),
 			c21 VARCHAR(1024),
-			c3 INT, c4 BIGINT UNSIGNED, c5 INT) 
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT)
 ENGINE = INNODB;
 
 CREATE UNIQUE INDEX it1 ON t1 (c1);
@@ -63,9 +63,9 @@ INSERT INTO t2 VALUES ('C','Cc', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t2 VALUES ('H','Hh', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11248
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
@@ -77,7 +77,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("Dd");
 if ($val) { print "$val\n"; }
 $val = $memd->get("Bb");
@@ -100,7 +100,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("Ee","Hessen|O");
 $val = $memd->get("Ee");
 if ($val) { print "$val\n"; }
@@ -120,7 +120,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("Ff","Mecklenburg|V");
 $val = $memd->get("Ff");
 if ($val) { print "$val\n"; }
@@ -138,7 +138,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("Ff","Mecklenburg-Vorpommern|V");
 $val = $memd->get("Ff");
 if ($val) { print "$val\n"; }
@@ -156,7 +156,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("Ff");
 $val = $memd->get("Ff");
 if ($val) { print "$val\n"; }
@@ -176,7 +176,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("Ff","Mecklenburg-Vorpommern|A");
 $val = $memd->get("Ff");
 if ($val) { print "$val\n"; }

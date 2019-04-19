@@ -34,7 +34,8 @@ CREATE TABLE t1(c1 VARCHAR(32),
 ENGINE = INNODB;
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11291
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 # Case 1: Purge before restart of server
 
@@ -50,6 +51,9 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SET GLOBAL innodb_fast_shutdown=0;
 --source include/restart_mysqld.inc
 
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 # Case 2: Purge after kill & restart
 
 # Insert and Delete in DD_INFO table via memcached
@@ -58,12 +62,19 @@ SET GLOBAL innodb_fast_shutdown=0;
 # Kill and restart
 --source include/kill_and_restart_mysqld.inc
 
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
+
 # Finish the purge
 SET GLOBAL innodb_fast_shutdown=0;
 --source include/restart_mysqld.inc
 
-DROP TABLE t1;
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 
 # Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
+DROP TABLE t1;
 DROP DATABASE innodb_memcache;

@@ -31,10 +31,7 @@ B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012	20	100	hello
 C	Cottbus	West	3	NULL	3456	2012	20	100	hello
 D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL	20	50	hello
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL	20	50	hello
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt||1|dddddddddddddd|1234||20|50|hello
 Berlin|Mitte||bbbbbbbbbbbbbb|2345|2012|20|100|hello
 |||hhhhhhhhhh|||20|50|hello
@@ -45,7 +42,7 @@ B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012	20	100	hello
 C	Cottbus	West	3	NULL	3456	2012	20	100	hello
 D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL	20	50	hello
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL	20	50	hello
-Here the memcached results after set:
+Here are the memcached results after set:
 Essen|5678|2012|'germany'|'western'|'city'|100|200|'Hello world'
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27	c28
@@ -54,7 +51,7 @@ C	Cottbus	West	3	NULL	3456	2012	20	100	hello
 D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL	20	50	hello
 E	Essen	5678	2012	'germany'	'western'	'city'	100	200	'Hello world'
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL	20	50	hello
-Here the memcached results after add:
+Here are the memcached results after add:
 Frankfurt|Airport|2012||||||
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27	c28
@@ -64,7 +61,7 @@ D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL	20	50	hello
 E	Essen	5678	2012	'germany'	'western'	'city'	100	200	'Hello world'
 F	Frankfurt	Airport	2012	NULL	NULL	NULL	NULL	NULL	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL	20	50	hello
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Frankfurt a.M.|Sachsenhausen|61|fffff|6789||||
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27	c28
@@ -74,7 +71,7 @@ D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL	20	50	hello
 E	Essen	5678	2012	'germany'	'western'	'city'	100	200	'Hello world'
 F	Frankfurt a.M.	Sachsenhausen	61	fffff	6789	NULL	NULL	NULL	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL	20	50	hello
-Here the memcached results after delete:
+Here are the memcached results after delete:
 Essen|5678|2012|'germany'|'western'|'city'|100|200|'Hello world'
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
 c1	c2	c21	c22	c23	c24	c25	c26	c27	c28

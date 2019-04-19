@@ -44,7 +44,8 @@ ENGINE = INNODB;
 SET DEBUG = '-d, skip_sdi';
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11293
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 # Create SDI Indexes in the tablespace
  let MEMCACHED_TABLE_MAPPING = desc_t1;
@@ -71,6 +72,9 @@ SET GLOBAL innodb_buf_flush_list_now = ON;
 
 --let restart_parameters=restart: --innodb_checksum_algorithm=innodb
 --source include/start_mysqld.inc
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 
 INSERT INTO innodb_memcache.containers VALUES ('desc_t2', 'test', 't2',
 			       'c1', 'c2',  '0', '0', '0', 'PRIMARY');
@@ -99,6 +103,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t2;
 
 --let restart_parameters=restart: --innodb_checksum_algorithm=none
 --source include/start_mysqld.inc
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 --let restart_parameters=
 SET DEBUG = '+d, skip_sdi';
 DROP TABLE t2;
@@ -136,7 +143,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --remove_files_wildcard $MYSQL_TMP_DIR/ ib_sdi*
 
 ## header contains version/platform information
---replace_regex /.*ibd2sdi.*Ver.*// /^Copyright.*// /^Usage:.*//
+--replace_result $IBD2SDI IBD2SDI
+# see: Bug #29525890 REPLACE_REGEX DOLAR DOES NOT MATCH END OF LINE WITH EXEC
+--replace_regex / Ver [0-9].*\n?$// /(Copyright \(c\)) [0-9]+, [0-9]+(.*)/\1 YEAR, YEAR\2/
 --error 1
 --exec $IBD2SDI 2>&1
 --replace_regex /descriptor [0-9]*/descriptor X/
@@ -245,8 +254,6 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --let IBD_CHAR_LEN= 2
 --source include/corrupt_ibd2sdi.inc
 
---copy_file $IBD_FILE $MYSQLD_DATADIR/test/t1.ibd.infimum
-
 --replace_regex /into file.*\./into file: FILENAME/
 --error 1
 --exec $IBD2SDI  --skip-pretty $IBD_FILE -n -d $DUMP_FILE 2>&1
@@ -316,6 +323,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $IBD_FILE
 
 --source include/start_mysqld.inc
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 
 # Clean up
 SET DEBUG = '+d, skip_sdi';
@@ -349,6 +359,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t1;
 
 # Start server
 --source include/start_mysqld.inc
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 
 SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
@@ -379,6 +392,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t1;
 
 # Start server
 --source include/start_mysqld.inc
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 
 SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
@@ -416,6 +432,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t1;
 
 # Start server
 --source include/start_mysqld.inc
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 
 SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
@@ -448,6 +467,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t1;
 
 # Start server
 --source include/start_mysqld.inc
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
 
 SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;

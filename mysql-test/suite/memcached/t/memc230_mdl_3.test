@@ -63,15 +63,13 @@ INSERT INTO t2 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
 connection default;
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11230
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 connection mysqltest2;
 USE test;
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
-
-SELECT SLEEP(2);
 
 connection mysqltest1;
 echo send DROP TABLE IF EXISTS t1;
@@ -87,7 +85,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -110,7 +108,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -125,7 +123,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -140,7 +138,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -155,7 +153,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -170,11 +168,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add Frankfurt|:\n";
+print "Here are the memcached results after add Frankfurt|:\n";
 $val = $memd->add("F","Frankfurt|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after add |Airport:\n";
+print "Here are the memcached results after add |Airport:\n";
 $val = $memd->add("F","|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -189,11 +187,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace Frankfurt a.M.:\n";
+print "Here are the memcached results after replace Frankfurt a.M.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after replace Sachsenhausen:\n";
+print "Here are the memcached results after replace Sachsenhausen:\n";
 $val = $memd->replace("F","|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -215,5 +213,5 @@ UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
 DROP USER mysqltest2@localhost;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

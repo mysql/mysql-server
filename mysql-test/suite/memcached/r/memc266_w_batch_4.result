@@ -34,9 +34,6 @@ connection mysqltest1;
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 COMMIT;
-SELECT SLEEP(2);
-SLEEP(2)
-0
 connection default;
 1
 1
@@ -57,7 +54,7 @@ D	Darmstadt	City
 H	Hamburg	Altona
 ROLLBACK;
 connection default;
-Here the memcached results:
+Here are the memcached results:
 1
 1
 1
@@ -97,7 +94,7 @@ P	Paderborn	City
 S	Stuttgart	Schwaben
 COMMIT;
 connection default;
-Here the memcached results:
+Here are the memcached results:
 1
 1
 1

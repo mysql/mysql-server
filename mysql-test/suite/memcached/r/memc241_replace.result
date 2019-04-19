@@ -22,9 +22,6 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hamburg
-SELECT SLEEP(2);
-SLEEP(2)
-0
 Replace H|Hamburg by Hannover:
 Ok.
 Replace H|Hamburg by Hannover:
@@ -35,7 +32,7 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hannover
-Here the memcached results with H:
+Here are the memcached results with H:
 Hannover
 SELECT c1,c2 FROM t1;
 c1	c2
@@ -43,7 +40,7 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hannover
-Here the memcached results with D,H:
+Here are the memcached results with D,H:
 Darmstadt
 Hannover
 DROP TABLE t1;

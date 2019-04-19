@@ -236,13 +236,17 @@ void dd_mdl_release(THD *thd, MDL_ticket **mdl) {
   *mdl = nullptr;
 }
 
+THD *dd_thd_for_undo(const trx_t *trx) {
+  return trx->mysql_thd == nullptr ? current_thd : trx->mysql_thd;
+}
+
 /** Check if current undo needs a MDL or not
 @param[in]	trx	transaction
 @return true if MDL is necessary, otherwise false */
 bool dd_mdl_for_undo(const trx_t *trx) {
   /* Try best to find a valid THD for checking, in case in background
   rollback thread, trx doens't hold a mysql_thd */
-  THD *thd = trx->mysql_thd == nullptr ? current_thd : trx->mysql_thd;
+  THD *thd = dd_thd_for_undo(trx);
 
   /* There are four cases for the undo to check here:
   1. In recovery phase, binlog recover, there is no concurrent

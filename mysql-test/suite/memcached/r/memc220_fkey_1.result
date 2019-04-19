@@ -17,7 +17,7 @@ CREATE TABLE t1        (c1  VARCHAR(32),
 c11 VARCHAR(32),
 c2  VARCHAR(1024),
 c21 VARCHAR(1024),
-c3 INT, c4 BIGINT UNSIGNED, c5 INT, 
+c3 INT, c4 BIGINT UNSIGNED, c5 INT,
 FOREIGN KEY ft1(c11) REFERENCES t2(c1))
 ENGINE = INNODB;
 CREATE UNIQUE INDEX it1 ON t1 (c1);
@@ -36,10 +36,7 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Dd|Darmstadt|City
 Bb|Berlin|Mitte
 Hh|Hamburg|Norderstedt
@@ -50,7 +47,7 @@ B	Berlin	Mitte	Brandenburg	M
 C	Cottbus	West	Lausitz	S
 D	Darmstadt	City	Hessen	M
 H	Hamburg	Norderstedt	Schleswig-Holstein	S
-Here the memcached results after set:
+Here are the memcached results after set:
 Dd|Essen|Ost
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t1.c11=t2.c1;
 c1	c2	c21	c2	c21
@@ -59,7 +56,7 @@ C	Cottbus	West	Lausitz	S
 D	Darmstadt	City	Hessen	M
 E	Essen	Ost	Hessen	M
 H	Hamburg	Norderstedt	Schleswig-Holstein	S
-Here the memcached results after add:
+Here are the memcached results after add:
 Dd|Frankfurt|Sachsenhause
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t1.c11=t2.c1;
 c1	c2	c21	c2	c21
@@ -69,7 +66,7 @@ D	Darmstadt	City	Hessen	M
 E	Essen	Ost	Hessen	M
 F	Frankfurt	Sachsenhause	Hessen	M
 H	Hamburg	Norderstedt	Schleswig-Holstein	S
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Dd|Frankfurt|Sachsenhause
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t1.c11=t2.c1;
 c1	c2	c21	c2	c21
@@ -79,7 +76,7 @@ D	Darmstadt	City	Hessen	M
 E	Essen	Ost	Hessen	M
 F	Frankfurt	Sachsenhause	Hessen	M
 H	Hamburg	Norderstedt	Schleswig-Holstein	S
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t1.c11=t2.c1;
 c1	c2	c21	c2	c21
 B	Berlin	Mitte	Brandenburg	M
@@ -87,7 +84,7 @@ C	Cottbus	West	Lausitz	S
 D	Darmstadt	City	Hessen	M
 E	Essen	Ost	Hessen	M
 H	Hamburg	Norderstedt	Schleswig-Holstein	S
-Here the memcached results after add Frankfurt|Airport:
+Here are the memcached results after add Frankfurt|Airport:
 Bb|Frankfurt|Airport
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t1.c11=t2.c1;
 c1	c2	c21	c2	c21
@@ -97,7 +94,7 @@ D	Darmstadt	City	Hessen	M
 E	Essen	Ost	Hessen	M
 F	Frankfurt	Airport	Brandenburg	M
 H	Hamburg	Norderstedt	Schleswig-Holstein	S
-Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:
+Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:
 Bb|Frankfurt|Airport
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t1.c11=t2.c1;
 c1	c2	c21	c2	c21

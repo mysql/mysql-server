@@ -754,62 +754,15 @@ static PSI_file_info all_innodb_files[] = {
 #endif /* HAVE_PSI_INTERFACE */
 
 /** Set up InnoDB API callback function array */
-static ib_cb_t innodb_api_cb[] = {(ib_cb_t)ib_cursor_open_table,
-                                  (ib_cb_t)ib_cursor_read_row,
-                                  (ib_cb_t)ib_cursor_insert_row,
-                                  (ib_cb_t)ib_cursor_delete_row,
-                                  (ib_cb_t)ib_cursor_update_row,
-                                  (ib_cb_t)ib_cursor_moveto,
-                                  (ib_cb_t)ib_cursor_first,
-                                  (ib_cb_t)ib_cursor_next,
-                                  (ib_cb_t)ib_cursor_set_match_mode,
-                                  (ib_cb_t)ib_sec_search_tuple_create,
-                                  (ib_cb_t)ib_clust_read_tuple_create,
-                                  (ib_cb_t)ib_tuple_delete,
-                                  (ib_cb_t)ib_tuple_read_u8,
-                                  (ib_cb_t)ib_tuple_read_u16,
-                                  (ib_cb_t)ib_tuple_read_u32,
-                                  (ib_cb_t)ib_tuple_read_u64,
-                                  (ib_cb_t)ib_tuple_read_i8,
-                                  (ib_cb_t)ib_tuple_read_i16,
-                                  (ib_cb_t)ib_tuple_read_i32,
-                                  (ib_cb_t)ib_tuple_read_i64,
-                                  (ib_cb_t)ib_tuple_get_n_cols,
-                                  (ib_cb_t)ib_col_set_value,
-                                  (ib_cb_t)ib_col_get_value,
-                                  (ib_cb_t)ib_col_get_meta,
-                                  (ib_cb_t)ib_trx_begin,
-                                  (ib_cb_t)ib_trx_commit,
-                                  (ib_cb_t)ib_trx_rollback,
-                                  (ib_cb_t)ib_trx_start,
-                                  (ib_cb_t)ib_trx_release,
-                                  (ib_cb_t)ib_cursor_lock,
-                                  (ib_cb_t)ib_cursor_close,
-                                  (ib_cb_t)ib_cursor_new_trx,
-                                  (ib_cb_t)ib_cursor_reset,
-                                  (ib_cb_t)ib_col_get_name,
-                                  (ib_cb_t)ib_cursor_open_index_using_name,
-                                  (ib_cb_t)ib_cfg_get_cfg,
-                                  (ib_cb_t)ib_cursor_set_cluster_access,
-                                  (ib_cb_t)ib_cursor_commit_trx,
-                                  (ib_cb_t)ib_cfg_trx_level,
-                                  (ib_cb_t)ib_tuple_get_n_user_cols,
-                                  (ib_cb_t)ib_cursor_set_lock_mode,
-                                  (ib_cb_t)ib_get_idx_field_name,
-                                  (ib_cb_t)ib_trx_get_start_time,
-                                  (ib_cb_t)ib_cfg_bk_commit_interval,
-                                  (ib_cb_t)ib_ut_strerr,
-                                  (ib_cb_t)ib_cursor_stmt_begin,
-#ifdef UNIV_MEMCACHED_SDI
-                                  (ib_cb_t)ib_memc_sdi_get,
-                                  (ib_cb_t)ib_memc_sdi_delete,
-                                  (ib_cb_t)ib_memc_sdi_set,
-                                  (ib_cb_t)ib_memc_sdi_create,
-                                  (ib_cb_t)ib_memc_sdi_drop,
-                                  (ib_cb_t)ib_memc_sdi_get_keys,
-#endif /* UNIV_MEMCACHED_SDI */
-                                  (ib_cb_t)ib_trx_read_only,
-                                  (ib_cb_t)ib_is_virtual_table};
+/*
+Generates array elements which look like:
+    (ib_cb_t)ib_cursor_open_table,
+for each api function.
+*/
+#define INNODB_API_CB_ARRAY_ELEMENT_TRANSFORM(stem) (ib_cb_t) ib_##stem,
+
+static ib_cb_t innodb_api_cb[] = {
+    FOR_EACH_API_METHOD_NAME_STEM(INNODB_API_CB_ARRAY_ELEMENT_TRANSFORM)};
 
 /** Check whether valid argument given to innodb_ft_*_stopword_table.
  This function is registered as a callback with MySQL.

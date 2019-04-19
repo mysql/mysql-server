@@ -22,9 +22,6 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hamburg
-SELECT SLEEP(2);
-SLEEP(2)
-0
 Set E|Essen:
 SELECT c1,c2 FROM t1;
 c1	c2
@@ -33,7 +30,7 @@ C	Cottbus
 D	Darmstadt
 E	Essen
 H	Hamburg
-Here the memcached results with E:
+Here are the memcached results with E:
 Essen
 SELECT c1,c2 FROM t1;
 c1	c2
@@ -42,7 +39,7 @@ C	Cottbus
 D	Darmstadt
 E	Essen
 H	Hamburg
-Here the memcached results with E,H:
+Here are the memcached results with E,H:
 Essen
 Hamburg
 DROP TABLE t1;

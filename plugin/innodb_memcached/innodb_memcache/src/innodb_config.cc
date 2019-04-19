@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ static bool innodb_read_cache_policy(
     goto func_exit;
   }
 
-  err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
+  err = ib_cb_cursor_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
 
   n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -314,7 +314,7 @@ static bool innodb_read_config_option(
   }
 
   do {
-    err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
+    err = ib_cb_cursor_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
 
     if (err != DB_SUCCESS) {
       fprintf(stderr,
@@ -525,7 +525,7 @@ meta_cfg_info_t *innodb_config_meta_hash_init(
   while (err == DB_SUCCESS) {
     meta_cfg_info_t *item;
 
-    err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
+    err = ib_cb_cursor_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
 
     if (err != DB_SUCCESS) {
       fprintf(stderr,
@@ -639,12 +639,12 @@ static meta_cfg_info_t *innodb_config_container(
     err = innodb_cb_cursor_first(crsr);
   } else {
     /* User supplied a config option name, find it */
-    tpl = ib_cb_search_tuple_create(crsr);
+    tpl = ib_cb_sec_search_tuple_create(crsr);
 
     err = ib_cb_col_set_value(tpl, 0, name, name_len, true);
 
     ib_cb_cursor_set_match_mode(crsr, IB_EXACT_MATCH);
-    err = ib_cb_moveto(crsr, tpl, IB_CUR_GE, 0);
+    err = ib_cb_cursor_moveto(crsr, tpl, IB_CUR_GE, 0);
   }
 
   if (err != DB_SUCCESS) {
@@ -658,11 +658,11 @@ static meta_cfg_info_t *innodb_config_container(
 
   if (!name) {
     read_tpl = tpl;
-    err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
+    err = ib_cb_cursor_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
   } else {
-    read_tpl = ib_cb_read_tuple_create(crsr);
+    read_tpl = ib_cb_clust_read_tuple_create(crsr);
 
-    err = ib_cb_read_row(crsr, read_tpl, NULL, 0, NULL, NULL, NULL);
+    err = ib_cb_cursor_read_row(crsr, read_tpl, NULL, 0, NULL, NULL, NULL);
   }
 
   if (err != DB_SUCCESS) {
@@ -768,7 +768,7 @@ func_exit:
  @return DB_SUCCESS if everything is verified */
 static ib_err_t innodb_config_value_col_verify(
     /*===========================*/
-    char *name,                 /*!< in: column name */
+    const char *name,           /*!< in: column name */
     meta_cfg_info_t *meta_info, /*!< in: meta info structure */
     ib_col_meta_t *col_meta,    /*!< in: column metadata */
     int col_id,                 /*!< in: column ID */
@@ -869,7 +869,7 @@ ib_err_t innodb_verify_low(
   int index_type;
   ib_id_u64_t index_id;
   ib_err_t err = DB_SUCCESS;
-  char *name;
+  const char *name;
   meta_column_t *cinfo = info->col_info;
   meta_column_t *col_verify = NULL;
   char table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
@@ -1059,28 +1059,30 @@ ib_err_t innodb_verify_low(
   }
 
   if (idx_crsr) {
-    ib_tpl_t idx_tpl = NULL;
-    if (index_type & IB_CLUSTERED) {
-      idx_tpl = innodb_cb_read_tuple_create(idx_crsr);
-    } else {
-      idx_tpl = ib_cb_search_tuple_create(idx_crsr);
-    }
+    /* We use the same function even if index_type & IB_CLUSTERED,
+    because the variant for _clust_ is not exposed via API, and it turns
+    out that we don't really need it, as long as the clustered index
+    has one column. */
+    ib_tpl_t idx_tpl = ib_cb_sec_search_tuple_create(idx_crsr);
 
-    n_cols = ib_cb_get_n_user_cols(idx_tpl);
+    n_cols = ib_cb_tuple_get_n_user_cols(idx_tpl);
 
     name = ib_cb_get_idx_field_name(idx_crsr, 0);
 
-    if (strcmp(name, cinfo[CONTAINER_KEY].col_name)) {
+    if (n_cols > 1) {
       fprintf(stderr,
-              " InnoDB_Memcached: Index used"
-              " must be on key column only\n");
+              " InnoDB_Memcached: The unique_idx_name_on_key (%s)"
+              " must be on key column (%s) only but it is on %d columns\n",
+              info->index_info.idx_name, cinfo[CONTAINER_KEY].col_name, n_cols);
+      info->index_info.srch_use_idx = META_USE_NO_INDEX;
       err = DB_ERROR;
     }
-
-    if (!(index_type & IB_CLUSTERED) && n_cols > 1) {
+    if (strcmp(name, cinfo[CONTAINER_KEY].col_name)) {
       fprintf(stderr,
-              " InnoDB_Memcached: Index used"
-              " must be on key column only\n");
+              " InnoDB_Memcached: The unique_idx_name_on_key (%s)"
+              " must be on key column (%s) but it is on (%s)\n",
+              info->index_info.idx_name, cinfo[CONTAINER_KEY].col_name, name);
+      info->index_info.srch_use_idx = META_USE_NO_INDEX;
       err = DB_ERROR;
     }
 

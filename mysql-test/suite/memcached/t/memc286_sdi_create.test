@@ -37,6 +37,8 @@ INSERT INTO containers VALUES ('desc_t7', 'test', 't7',
 USE test;
 let MEMCACHED_PORT=11286;
 
+--let $memcached_address=127.0.0.1:11286
+
 SET GLOBAL innodb_file_per_table=OFF;
 --source ../include/sdi_create_alter.inc
 
@@ -52,7 +54,7 @@ CREATE TABLE t6 (c1 INT PRIMARY KEY,
 ENGINE = INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 let TABLE_NAME = t6;
 let MEMCACHED_TABLE_MAPPING = desc_t6;

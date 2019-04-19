@@ -69,13 +69,11 @@ CREATE UNIQUE INDEX i16 ON t1(c25);
 CREATE UNIQUE INDEX i17 ON t1(c26);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11276
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following selects are writing all to  memcache otherwise memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -85,7 +83,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,O,K,S of default:\n";
+print "Here are the memcached results with D,O,K,S of default:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("O");
@@ -105,7 +103,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with c1 of desct11:\n";
+print "Here are the memcached results with c1 of desct11:\n";
 $val = $memd->get('@@desct11.D');
 if ($val) { print "$val\n"; }
 $val = $memd->get("\@\@desct11.O");
@@ -114,7 +112,7 @@ $val = $memd->get('@@desct11.'.'K');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct11.S');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with c2 of desct13:\n";
+print "Here are the memcached results with c2 of desct13:\n";
 $val = $memd->get('@@desct13');
 $val = $memd->get('Duesseldorf');
 if ($val) { print "$val\n"; }
@@ -124,7 +122,7 @@ $val = $memd->get('Koeln');
 if ($val) { print "$val\n"; }
 $val = $memd->get('Stuttgart');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with c2 of desct12:\n";
+print "Here are the memcached results with c2 of desct12:\n";
 $val = $memd->get('@@desct12');
 $val = $memd->get('Duesseldorf');
 if ($val) { print "$val\n"; }
@@ -134,7 +132,7 @@ $val = $memd->get('@@desct12.Koeln');
 if ($val) { print "$val\n"; }
 $val = $memd->get('Stuttgart');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with c2,c21,c22 of desct14:\n";
+print "Here are the memcached results with c2,c21,c22 of desct14:\n";
 $val = $memd->get('@@desct14.City');
 if ($val) { print "$val\n"; }
 $val = $memd->get("\@\@desct14.Mitte");
@@ -143,7 +141,7 @@ $val = $memd->get('@@desct14.West');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct14.Nord');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with c2,c21,c22,c23 of desct15:\n";
+print "Here are the memcached results with c2,c21,c22,c23 of desct15:\n";
 $val = $memd->get('@@desct15.Hafen');
 if ($val) { print "$val\n"; }
 $val = $memd->get("\@\@desct15.Deich");
@@ -152,7 +150,7 @@ $val = $memd->get('@@desct15.Rhein');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct15.Fernsehturm');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with c23,c24,c25,c26 of desct16:\n";
+print "Here are the memcached results with c23,c24,c25,c26 of desct16:\n";
 $val = $memd->get('@@desct16.A');
 if ($val) { print "$val\n"; }
 $val = $memd->get("\@\@desct16.C");
@@ -161,7 +159,7 @@ $val = $memd->get('@@desct16.D');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct16.B');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with c26 of desct17:\n";
+print "Here are the memcached results with c26 of desct17:\n";
 $val = $memd->get('@@desct17.c');
 if ($val) { print "$val\n"; }
 $val = $memd->get("\@\@desct17.b");
@@ -184,7 +182,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in desct12:\n";
+print "Here are the memcached results after set in desct12:\n";
 $val = $memd->get("\@\@desct12");
 $val = $memd->set("Essen","E|Essen");
 $val= $memd->get("Essen");
@@ -203,7 +201,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in desct13:\n";
+print "Here are the memcached results after set in desct13:\n";
 $val = $memd->set("\@\@desct13.Essen","E|Neustadt");
 $val = $memd->get("\@\@desct13.Essen");
 if ($val) { print "$val\n"; }
@@ -221,7 +219,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in desct14:\n";
+print "Here are the memcached results after set in desct14:\n";
 $val = $memd->set("\@\@desct14.Altstadt","E|Hafen|111111");
 $val = $memd->get("\@\@desct14.Altstadt");
 if ($val) { print "$val\n"; }
@@ -239,7 +237,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in desct15:\n";
+print "Here are the memcached results after set in desct15:\n";
 $val = $memd->set('@@desct15.Mahl',"E|Mitte|111111|E");
 $val = $memd->get("\@\@desct15.Mahl");
 if ($val) { print "$val\n"; }
@@ -257,7 +255,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in desct16:\n";
+print "Here are the memcached results after set in desct16:\n";
 $val = $memd->set('@@desct16.E',"Mahlzeit|111111|T|E");
 $val = $memd->get("\@\@desct16.E");
 if ($val) { print "$val\n"; }
@@ -275,7 +273,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in desct17:\n";
+print "Here are the memcached results after set in desct17:\n";
 $val = $memd->set("\@\@desct17.e","Essen|E");
 $val = $memd->get("\@\@desct17.e");
 if ($val) { print "$val\n"; }
@@ -289,5 +287,5 @@ DROP TABLE t1;
 
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

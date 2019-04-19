@@ -36,9 +36,9 @@ ENGINE = INNODB;
 
 INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11249
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-SELECT SLEEP(2);
 begin;
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 
@@ -46,11 +46,11 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11242" ],
+  'servers' => [ "127.0.0.1:11249" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with H:\n";
+print "Here are the memcached results with H:\n";
 $val = $memd->get("H");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
