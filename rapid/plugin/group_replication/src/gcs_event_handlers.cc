@@ -979,7 +979,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     {
       log_message(MY_ERROR_LEVEL,
                   "Group contains %lu members which is greater than"
-                  " group_replication_auto_increment_increment value of %lu."
+                  " auto_increment_increment value of %lu."
                   " This can lead to an higher rate of transactional aborts.",
                   new_view.get_members().size(), auto_increment_increment);
     }
