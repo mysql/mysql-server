@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
   {
     PSI_THREAD_CALL(set_thread_os_id)(psi);
   }
+  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
   thd->set_psi(psi);
 #endif
 
