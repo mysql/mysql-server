@@ -5203,8 +5203,33 @@ bool Format_description_log_event::write(Basic_ostream *ostream) {
   if (!dont_set_created) created = get_time();
   int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   buff[ST_COMMON_HEADER_LEN_OFFSET] = LOG_EVENT_HEADER_LEN;
-  memcpy((char *)buff + ST_COMMON_HEADER_LEN_OFFSET + 1, &post_header_len[0],
-         Binary_log_event::LOG_EVENT_TYPES);
+
+  size_t number_of_events = 0;
+  if (post_header_len.size() == Binary_log_event::LOG_EVENT_TYPES)
+    // Replicating between master and slave with same version.
+    // number_of_events will be same as Binary_log_event::LOG_EVENT_TYPES
+    number_of_events = Binary_log_event::LOG_EVENT_TYPES;
+  else if (post_header_len.size() > Binary_log_event::LOG_EVENT_TYPES)
+    /*
+      Replicating between new master and old slave.
+      In that case there won't be any memory issues, as there won't be
+      any out of memory read.
+    */
+    number_of_events = Binary_log_event::LOG_EVENT_TYPES;
+  else
+    /*
+      Replicating between old master and new slave.
+      In that case it might lead to different number_of_events on master and
+      slave. When the relay log is rotated, the FDE from master is used to
+      create the FDE event on slave, which is being written here. In that case
+      we might end up reading more bytes as
+      post_header_len.size() < Binary_log_event::LOG_EVENT_TYPES;
+      casuing memory issues.
+    */
+    number_of_events = post_header_len.size();
+
+  memcpy((char *)buff + ST_COMMON_HEADER_LEN_OFFSET + 1,
+         &post_header_len.front(), number_of_events);
   /*
     if checksum is requested
     record the checksum-algorithm descriptor next to
