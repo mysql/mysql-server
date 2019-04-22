@@ -9352,7 +9352,7 @@ static void convert_space_name_to_filesystem_charset(
     return;
   }
 
-  /* The tablespace name could be of the form dbname/filename#part#subpart.
+  /* The tablespace name could be of the form dbname/filename#P#part#SP#subpart.
   Parse the path to find out these different components and recreate the space
   name in the tablespace charset for comparing with the new_space_name which
   is also in the tablespace charset. */
@@ -9383,13 +9383,6 @@ static void convert_space_name_to_filesystem_charset(
 
     /* Strip the filename to remove the partition information. */
     filename.resize(pos);
-
-    /* Find and extract the sub partition, if any. */
-    pos = part.find("#");
-    if (pos != std::string::npos) {
-      sub = part.substr(pos + 1, part.length());
-      part.resize(pos);
-    }
   }
 
   /* Recreate the space name in the tablespace charset from the path using
@@ -9411,23 +9404,40 @@ static void convert_space_name_to_filesystem_charset(
   temp_space.append(tbl_buf);
 
   if (!part.empty()) {
-    char part_buf[MAX_TABLE_NAME_LEN + 1];
-    len =
-        filename_to_tablename(part.c_str(), part_buf, (MAX_TABLE_NAME_LEN + 1));
-    part_buf[len] = '\0';
+    /* Extract all the partition and subpartition information */
 
-    temp_space.append("#");
-    temp_space.append(part_buf);
+    std::string temp_part = part;
 
-    if (!sub.empty()) {
+    pos = temp_part.find("#");
+
+    /* Parse the partition and subpartition information until no
+    more partition separators are found */
+    while (pos != std::string::npos) {
+      temp_space.append("#");
+
+      /* Extract the subpart and convert it to the tablespace charset */
+      sub = temp_part.substr(0, pos);
+
       char sub_buf[MAX_TABLE_NAME_LEN + 1];
       len =
           filename_to_tablename(sub.c_str(), sub_buf, (MAX_TABLE_NAME_LEN + 1));
       sub_buf[len] = '\0';
 
-      temp_space.append("#");
       temp_space.append(sub_buf);
+
+      temp_part = temp_part.substr(pos + 1, temp_part.length());
+
+      pos = temp_part.find("#");
     }
+
+    /* Append the last remaining partition information */
+    temp_space.append("#");
+
+    char tmp_buf[MAX_TABLE_NAME_LEN + 1];
+    len = filename_to_tablename(temp_part.c_str(), tmp_buf,
+                                (MAX_TABLE_NAME_LEN + 1));
+    tmp_buf[len] = '\0';
+    temp_space.append(tmp_buf);
   }
 
   /* Compare the recreated space name in the tablespace charset with the space
@@ -9441,11 +9451,6 @@ static void convert_space_name_to_filesystem_charset(
     if (!part.empty()) {
       tablespace_name->append("#");
       tablespace_name->append(part);
-
-      if (!sub.empty()) {
-        tablespace_name->append("#");
-        tablespace_name->append(sub);
-      }
     }
   } else {
     tablespace_name->append(name);

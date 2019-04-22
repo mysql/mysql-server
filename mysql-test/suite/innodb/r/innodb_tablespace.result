@@ -647,24 +647,45 @@ DROP TABLE t1;
 # MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123.ibd
 #
 CREATE DATABASE `abc/def`;
-CREATE TABLE `abc/def`.`xyz/123` (c1 INT) DATA DIRECTORY 'MYSQL_TMP_DIR/my_dir1';
+CREATE TABLE `abc/def`.`xyz/123` (
+c1 INT AUTO_INCREMENT KEY, c2 CHAR(10))
+PARTITION BY RANGE(c1) SUBPARTITION BY HASH(c1) (
+PARTITION `p0/part` VALUES LESS THAN (10) (
+SUBPARTITION s0 DATA DIRECTORY='MYSQL_TMP_DIR/my_dir1',
+SUBPARTITION `s1/subpart` DATA DIRECTORY='MYSQL_TMP_DIR/my_dir1'),
+PARTITION p1 VALUES LESS THAN MAXVALUE (
+SUBPARTITION s2 DATA DIRECTORY='MYSQL_TMP_DIR/my_dir1',
+SUBPARTITION s3 DATA DIRECTORY='MYSQL_TMP_DIR/my_dir1'));
 SHOW WARNINGS;
 Level	Code	Message
 #
 # Validate the directory structure
 #
 abc@002fdef
-xyz@002f123.ibd
-INSERT INTO `abc/def`.`xyz/123` VALUES (1), (2), (3);
+xyz@002f123#P#p0@002fpart#SP#s0.ibd
+xyz@002f123#P#p0@002fpart#SP#s1@002fsubpart.ibd
+xyz@002f123#P#p1#SP#s2.ibd
+xyz@002f123#P#p1#SP#s3.ibd
+INSERT INTO `abc/def`.`xyz/123` VALUES (0, 'MySQL');
+INSERT INTO `abc/def`.`xyz/123` (SELECT 0, c2 FROM `abc/def`.`xyz/123`);
+INSERT INTO `abc/def`.`xyz/123` (SELECT 0, c2 FROM `abc/def`.`xyz/123`);
+INSERT INTO `abc/def`.`xyz/123` (SELECT 0, c2 FROM `abc/def`.`xyz/123`);
+INSERT INTO `abc/def`.`xyz/123` (SELECT 0, c2 FROM `abc/def`.`xyz/123`);
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 COUNT(*)
-3
+16
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
 FILE_NAME	TABLESPACE_NAME
-MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123.ibd	abc/def/xyz/123
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p0@002fpart#SP#s0.ibd	abc/def/xyz/123#P#p0/part#SP#s0
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p0@002fpart#SP#s1@002fsubpart.ibd	abc/def/xyz/123#P#p0/part#SP#s1/subpart
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p1#SP#s2.ibd	abc/def/xyz/123#P#p1#SP#s2
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p1#SP#s3.ibd	abc/def/xyz/123#P#p1#SP#s3
 SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
 name	space_type
-abc/def/xyz/123	Single
+abc/def/xyz/123#P#p0/part#SP#s0	Single
+abc/def/xyz/123#P#p0/part#SP#s1/subpart	Single
+abc/def/xyz/123#P#p1#SP#s2	Single
+abc/def/xyz/123#P#p1#SP#s3	Single
 #
 # Shutdown the server
 #
@@ -684,20 +705,26 @@ abc/def/xyz/123	Single
 # restart: --innodb_directories=MYSQL_TMP_DIR/my_dir2
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 COUNT(*)
-3
+16
 #
 # Restart server without --innodb_directories option
 #
 # restart:
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 COUNT(*)
-3
+16
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
 FILE_NAME	TABLESPACE_NAME
-MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123.ibd	abc/def/xyz/123
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#P#p0@002fpart#SP#s0.ibd	abc/def/xyz/123#P#p0/part#SP#s0
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#P#p0@002fpart#SP#s1@002fsubpart.ibd	abc/def/xyz/123#P#p0/part#SP#s1/subpart
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#P#p1#SP#s2.ibd	abc/def/xyz/123#P#p1#SP#s2
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#P#p1#SP#s3.ibd	abc/def/xyz/123#P#p1#SP#s3
 SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
 name	space_type
-abc/def/xyz/123	Single
+abc/def/xyz/123#P#p0/part#SP#s0	Single
+abc/def/xyz/123#P#p0/part#SP#s1/subpart	Single
+abc/def/xyz/123#P#p1#SP#s2	Single
+abc/def/xyz/123#P#p1#SP#s3	Single
 #
 # Shutdown server
 #
@@ -715,13 +742,19 @@ abc/def/xyz/123	Single
 # restart: --innodb_directories=MYSQL_TMP_DIR/my_dir1
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 COUNT(*)
-3
+16
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
 FILE_NAME	TABLESPACE_NAME
-MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123.ibd	abc/def/xyz/123
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p0@002fpart#SP#s0.ibd	abc/def/xyz/123#P#p0/part#SP#s0
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p0@002fpart#SP#s1@002fsubpart.ibd	abc/def/xyz/123#P#p0/part#SP#s1/subpart
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p1#SP#s2.ibd	abc/def/xyz/123#P#p1#SP#s2
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123#P#p1#SP#s3.ibd	abc/def/xyz/123#P#p1#SP#s3
 SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
 name	space_type
-abc/def/xyz/123	Single
+abc/def/xyz/123#P#p0/part#SP#s0	Single
+abc/def/xyz/123#P#p0/part#SP#s1/subpart	Single
+abc/def/xyz/123#P#p1#SP#s2	Single
+abc/def/xyz/123#P#p1#SP#s3	Single
 #
 # Cleanup
 #
