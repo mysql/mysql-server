@@ -79,6 +79,7 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
   if (bound) {
     PSI_THREAD_CALL(set_thread_os_id)(psi);
   }
+  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
   thd->set_psi(psi);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
