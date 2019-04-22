@@ -1433,6 +1433,8 @@ net_async_status cli_advanced_command_nonblocking(
         goto end;
       }
       end_server(mysql);
+      /* reset net_async to null as its reference has been freed */
+      net_async = nullptr;
       if (stmt_skip) goto end;
       set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
       goto end;
