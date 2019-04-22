@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* The hash functions used for saveing keys */
+/* The hash functions used for saving keys */
 
 #include <math.h>
 #include <sys/types.h>
