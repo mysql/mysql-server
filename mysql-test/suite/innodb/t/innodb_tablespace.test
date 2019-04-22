@@ -469,6 +469,7 @@ SHOW WARNINGS;
 --echo # Validate the directory structure
 --echo #
 --list_files $MYSQL_TMP_DIR/my_dir1 *
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/my_dir1/abc@002fdef *
 
 INSERT INTO `abc/def`.`xyz/123` VALUES (0, 'MySQL');
@@ -479,7 +480,9 @@ INSERT INTO `abc/def`.`xyz/123` (SELECT 0, c2 FROM `abc/def`.`xyz/123`);
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
 
 --echo #
@@ -522,7 +525,9 @@ SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
 
 --echo #
@@ -552,7 +557,9 @@ SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LI
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
 
 --echo #
