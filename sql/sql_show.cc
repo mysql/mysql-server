@@ -598,8 +598,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (lower_case_table_names && dbname != any_db)
     my_casedn_str(files_charset_info, dbname);
 
-  if (sctx->check_access(DB_ACLS, orig_dbname))
-    db_access = DB_ACLS;
+  if (sctx->check_access(DB_OP_ACLS, orig_dbname))
+    db_access = DB_OP_ACLS;
   else {
     if (sctx->get_active_roles()->size() > 0 && dbname != 0) {
       db_access = sctx->db_acl({dbname, strlen(dbname)});
@@ -609,7 +609,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                    sctx->master_access(dbname ? dbname : ""));
     }
   }
-  if (!(db_access & DB_ACLS) && check_grant_db(thd, dbname)) {
+  if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->host_or_ip().str, dbname);
     query_logger.general_log_print(

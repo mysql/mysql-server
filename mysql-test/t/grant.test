@@ -1916,7 +1916,7 @@ CREATE TABLE mysqltest_db1.t1(a INT);
 
 --echo
 --echo # --
---echo # -- Check that global privileges don't allow SHOW CREATE TABLE.
+--echo # -- Check that following privileges don't allow SHOW CREATE TABLE.
 --echo # --
 CREATE USER mysqltest_u1@localhost;
 GRANT EVENT                   ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1925,6 +1925,8 @@ GRANT LOCK TABLES             ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT ALTER ROUTINE           ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT CREATE ROUTINE          ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT EXECUTE                 ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT GRANT OPTION            ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT GRANT OPTION            ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
 
 GRANT FILE                    ON *.* TO mysqltest_u1@localhost;
 GRANT CREATE USER             ON *.* TO mysqltest_u1@localhost;
@@ -1960,7 +1962,7 @@ SHOW GRANTS FOR mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global SELECT allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level SELECT allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -1970,7 +1972,7 @@ GRANT SELECT ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global INSERT allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level INSERT allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -1980,7 +1982,7 @@ GRANT INSERT ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global UPDATE allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level UPDATE allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -1990,7 +1992,7 @@ GRANT UPDATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global DELETE allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level DELETE allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2000,7 +2002,7 @@ GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global CREATE allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level CREATE allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2010,7 +2012,7 @@ GRANT CREATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global DROP allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level DROP allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2020,7 +2022,7 @@ GRANT DROP ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global ALTER allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level ALTER allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2030,7 +2032,7 @@ GRANT ALTER ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global INDEX allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level INDEX allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2040,7 +2042,7 @@ GRANT INDEX ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global REFERENCES allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level REFERENCES allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2050,17 +2052,7 @@ GRANT REFERENCES ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global GRANT OPTION allows SHOW CREATE TABLE.
---echo # -- 
-
---echo
-GRANT GRANT OPTION ON mysqltest_db1.* TO mysqltest_u1@localhost;
-
---source include/bug38347.inc
-
---echo
---echo # -- 
---echo # -- Check that global CREATE VIEW allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level CREATE VIEW allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2070,7 +2062,7 @@ GRANT CREATE VIEW ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global SHOW VIEW allows SHOW CREATE TABLE.
+--echo # -- Check that DB-level SHOW VIEW allows SHOW CREATE TABLE.
 --echo # -- 
 
 --echo
@@ -2165,16 +2157,6 @@ GRANT INDEX ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
 
 --echo
 GRANT REFERENCES ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
-
---source include/bug38347.inc
-
---echo
---echo # -- 
---echo # -- Check that table-level GRANT OPTION allows SHOW CREATE TABLE.
---echo # -- 
-
---echo
-GRANT GRANT OPTION ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
 
 --source include/bug38347.inc
 

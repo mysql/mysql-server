@@ -1265,8 +1265,8 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 
   if (sctx->get_active_roles()->size() == 0) {
     db_access =
-        sctx->check_access(DB_ACLS, new_db_file_name.str)
-            ? DB_ACLS
+        sctx->check_access(DB_OP_ACLS, new_db_file_name.str)
+            ? DB_OP_ACLS
             : acl_get(thd, sctx->host().str, sctx->ip().str,
                       sctx->priv_user().str, new_db_file_name.str, false) |
                   sctx->master_access(new_db_file_name.str);
@@ -1275,7 +1275,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                 sctx->master_access(new_db_file_name.str);
   }
 
-  if (!force_switch && !(db_access & DB_ACLS) &&
+  if (!force_switch && !(db_access & DB_OP_ACLS) &&
       check_grant_db(thd, new_db_file_name.str)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str, new_db_file_name.str);

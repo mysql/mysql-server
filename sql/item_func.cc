@@ -7794,7 +7794,8 @@ longlong Item_func_can_access_database::val_int() {
 
   // Check access
   Security_context *sctx = thd->security_context();
-  if (!(sctx->master_access(schema_name_ptr->ptr()) & (DB_ACLS | SHOW_DB_ACL) ||
+  if (!(sctx->master_access(schema_name_ptr->ptr()) &
+            (DB_OP_ACLS | SHOW_DB_ACL) ||
         acl_get(thd, sctx->host().str, sctx->ip().str, sctx->priv_user().str,
                 schema_name_ptr->ptr(), 0) ||
         !check_grant_db(thd, schema_name_ptr->ptr()))) {
@@ -7844,10 +7845,10 @@ static bool check_table_and_trigger_access(Item **args, bool check_trigger_acl,
   table_list.grant.privilege = db_access;
 
   if (check_trigger_acl == false) {
-    if (db_access & TABLE_ACLS) DBUG_RETURN(true);
+    if (db_access & TABLE_OP_ACLS) DBUG_RETURN(true);
 
     // Check table access
-    if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true))
+    if (check_grant(thd, TABLE_OP_ACLS, &table_list, true, 1, true))
       DBUG_RETURN(false);
   } else  // Trigger check.
   {

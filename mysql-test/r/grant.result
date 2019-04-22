@@ -1775,7 +1775,7 @@ CREATE DATABASE mysqltest_db1;
 CREATE TABLE mysqltest_db1.t1(a INT);
 
 # --
-# -- Check that global privileges don't allow SHOW CREATE TABLE.
+# -- Check that following privileges don't allow SHOW CREATE TABLE.
 # --
 CREATE USER mysqltest_u1@localhost;
 GRANT EVENT                   ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1784,6 +1784,8 @@ GRANT LOCK TABLES             ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT ALTER ROUTINE           ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT CREATE ROUTINE          ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT EXECUTE                 ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT GRANT OPTION            ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT GRANT OPTION            ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
 GRANT FILE                    ON *.* TO mysqltest_u1@localhost;
 GRANT CREATE USER             ON *.* TO mysqltest_u1@localhost;
 GRANT PROCESS                 ON *.* TO mysqltest_u1@localhost;
@@ -1797,7 +1799,8 @@ GRANT USAGE                   ON *.* TO mysqltest_u1@localhost;
 SHOW GRANTS FOR mysqltest_u1@localhost;
 Grants for mysqltest_u1@localhost
 GRANT RELOAD, SHUTDOWN, PROCESS, FILE, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, CREATE USER ON *.* TO `mysqltest_u1`@`localhost`
-GRANT CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE ROUTINE, ALTER ROUTINE, EVENT ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
+GRANT CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE ROUTINE, ALTER ROUTINE, EVENT ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost` WITH GRANT OPTION
 
 # connection: con1 (mysqltest_u1@mysqltest_db1)
 
@@ -1812,7 +1815,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global SELECT allows SHOW CREATE TABLE.
+# -- Check that DB-level SELECT allows SHOW CREATE TABLE.
 # -- 
 
 GRANT SELECT ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1838,7 +1841,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global INSERT allows SHOW CREATE TABLE.
+# -- Check that DB-level INSERT allows SHOW CREATE TABLE.
 # -- 
 
 GRANT INSERT ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1864,7 +1867,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global UPDATE allows SHOW CREATE TABLE.
+# -- Check that DB-level UPDATE allows SHOW CREATE TABLE.
 # -- 
 
 GRANT UPDATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1890,7 +1893,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global DELETE allows SHOW CREATE TABLE.
+# -- Check that DB-level DELETE allows SHOW CREATE TABLE.
 # -- 
 
 GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1916,7 +1919,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global CREATE allows SHOW CREATE TABLE.
+# -- Check that DB-level CREATE allows SHOW CREATE TABLE.
 # -- 
 
 GRANT CREATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1942,7 +1945,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global DROP allows SHOW CREATE TABLE.
+# -- Check that DB-level DROP allows SHOW CREATE TABLE.
 # -- 
 
 GRANT DROP ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1968,7 +1971,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global ALTER allows SHOW CREATE TABLE.
+# -- Check that DB-level ALTER allows SHOW CREATE TABLE.
 # -- 
 
 GRANT ALTER ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -1994,7 +1997,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global INDEX allows SHOW CREATE TABLE.
+# -- Check that DB-level INDEX allows SHOW CREATE TABLE.
 # -- 
 
 GRANT INDEX ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -2020,7 +2023,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global REFERENCES allows SHOW CREATE TABLE.
+# -- Check that DB-level REFERENCES allows SHOW CREATE TABLE.
 # -- 
 
 GRANT REFERENCES ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -2046,33 +2049,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global GRANT OPTION allows SHOW CREATE TABLE.
-# -- 
-
-GRANT GRANT OPTION ON mysqltest_db1.* TO mysqltest_u1@localhost;
-
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
-GRANT USAGE ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost` WITH GRANT OPTION
-
-# connection: con1 (mysqltest_u1@mysqltest_db1)
-
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-
-# connection: default
-
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
-
-# -- 
-# -- Check that global CREATE VIEW allows SHOW CREATE TABLE.
+# -- Check that DB-level CREATE VIEW allows SHOW CREATE TABLE.
 # -- 
 
 GRANT CREATE VIEW ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -2098,7 +2075,7 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 
 # -- 
-# -- Check that global SHOW VIEW allows SHOW CREATE TABLE.
+# -- Check that DB-level SHOW VIEW allows SHOW CREATE TABLE.
 # -- 
 
 GRANT SHOW VIEW ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -2341,32 +2318,6 @@ SHOW GRANTS FOR mysqltest_u1@localhost;
 Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
 GRANT REFERENCES ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
-
-# connection: con1 (mysqltest_u1@mysqltest_db1)
-
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-
-# connection: default
-
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
-
-# -- 
-# -- Check that table-level GRANT OPTION allows SHOW CREATE TABLE.
-# -- 
-
-GRANT GRANT OPTION ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
-
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
-GRANT USAGE ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost` WITH GRANT OPTION
 
 # connection: con1 (mysqltest_u1@mysqltest_db1)
 
