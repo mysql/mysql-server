@@ -1553,6 +1553,11 @@ void Session_tracker::store(THD *thd, String &buf) {
 static void store_lenenc_string(String &to, const char *from, size_t length) {
   char *ptr;
   ptr = to.prep_append(net_length_size(length), EXTRA_ALLOC);
+  DBUG_EXECUTE_IF("session_tracker_store_lenenc_string_add1M",
+                  length += 1000000L;);
+  net_store_length((uchar *)ptr, length);
+  DBUG_EXECUTE_IF("session_tracker_store_lenenc_string_add1M",
+                  length -= 1000000L;);
   net_store_length((uchar *)ptr, length);
   to.append(from, length);
 }
