@@ -5139,8 +5139,13 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   /* Get tablespace state. */
   dd_tablespace_get_state(p, state, *space_id);
 
-  /* Get Encryption. */
-  if (FSP_FLAGS_GET_ENCRYPTION(*flags)) {
+  /* For UNDO tablespaces, encryption is governed by srv_undo_log_encrypt
+  variable and DD flags are not updated for encryption changes. Following
+  is a workaround until UNDO tablespace encryption change is done by a DDL. */
+  if (fsp_is_undo_tablespace(*space_id)) {
+    *is_encrypted = srv_undo_log_encrypt;
+  } else if (FSP_FLAGS_GET_ENCRYPTION(*flags)) {
+    /* Get Encryption. */
     *is_encrypted = true;
   }
 
