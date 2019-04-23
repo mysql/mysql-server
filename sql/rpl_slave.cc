@@ -750,7 +750,7 @@ err:
    @retval       true             not ok.
 */
 bool stop_slave_cmd(THD *thd) {
-  DBUG_ENTER("stop_slave_cmd");
+  DBUG_TRACE;
 
   Master_info *mi;
   bool push_temp_table_warning = true;
@@ -762,7 +762,16 @@ bool stop_slave_cmd(THD *thd) {
   if (!is_slave_configured()) {
     my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     channel_map.unlock();
-    DBUG_RETURN(res = true);
+    return true;
+  }
+
+  MDL_lock_guard backup_sentry{thd};
+  if (!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_SQL)) {
+    if (backup_sentry.lock(MDL_key::BACKUP_LOCK, MDL_INTENTION_EXCLUSIVE)) {
+      my_error(ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP, MYF(0));
+      channel_map.unlock();
+      return true;
+    }
   }
 
   if (!lex->mi.for_channel)
@@ -797,7 +806,7 @@ bool stop_slave_cmd(THD *thd) {
                mi->get_channel(), command);
 
       channel_map.unlock();
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (mi)
@@ -809,7 +818,13 @@ bool stop_slave_cmd(THD *thd) {
 
   channel_map.unlock();
 
-  DBUG_RETURN(res);
+  DBUG_EXECUTE_IF("stop_slave_dont_release_backup_lock", {
+    const char signal[] = "now SIGNAL slave_acquired_backup_lock";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(signal)));
+    const char wait_for[] = "now WAIT_FOR tried_to_lock_instance_for_backup";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(wait_for)));
+  });
+  return res;
 }
 
 /**
