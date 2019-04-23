@@ -306,9 +306,11 @@ void Acl_user_attributes::update_restrictions(
 bool parse_user_attributes(THD *thd, TABLE *table,
                            User_table_schema *table_schema,
                            Acl_user_attributes &user_attributes) {
-  const Json_object *json_object;
-  Json_wrapper json_wrapper;
-  if (!table->field[table_schema->user_attributes_idx()]->is_null()) {
+  // Read only if the column of type JSON and it is not null.
+  if (table->field[table_schema->user_attributes_idx()]->type() ==
+          MYSQL_TYPE_JSON &&
+      !table->field[table_schema->user_attributes_idx()]->is_null()) {
+    Json_wrapper json_wrapper;
     if ((down_cast<Field_json *>(
              table->field[table_schema->user_attributes_idx()])
              ->val_json(&json_wrapper)))
@@ -318,7 +320,7 @@ bool parse_user_attributes(THD *thd, TABLE *table,
     if (!json_dom || json_dom->json_type() != enum_json_type::J_OBJECT)
       return true;
 
-    json_object = down_cast<const Json_object *>(json_dom);
+    const Json_object *json_object = down_cast<const Json_object *>(json_dom);
     if (user_attributes.deserialize(*json_object)) return true;
   }
   return false;
