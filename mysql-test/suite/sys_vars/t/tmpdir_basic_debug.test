@@ -1,6 +1,8 @@
 # *********************************************
 # Bug#28598943 TEMPTABLE STORAGE ENGINE DOES NOT HONOUR THE TMPDIR OPTION
 # *********************************************
+# Different "enter" trace on Solaris, so skip it.
+--source include/not_solaris.inc
 --source include/not_windows.inc
 --source include/have_debug.inc
 
