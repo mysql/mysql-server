@@ -1,10 +1,11 @@
+call mtr.add_suppression("Plugin validate_password reported: .Dictionary file not specified.");
 # Save the count of columns in mysql
 # shut server down
 # Server is down
 #
-# Try --initialize with validate_password
+# Try --initialize
 #
-# Run the server with --initialize --validate_password
+# Run the server with --initialize
 extract the root password
 password found
 # Restart the server against DDIR
@@ -12,8 +13,7 @@ password found
 # must fail due to password expiration
 SELECT 1;
 ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
-# reset the password
-SET PASSWORD='';
+# reset the password to the one set: should be strong enough so it wont fail
 # Check the count of columns in mysql
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
@@ -22,7 +22,7 @@ user	host	plugin	LENGTH(authentication_string)
 mysql.infoschema	localhost	caching_sha2_password	70
 mysql.session	localhost	caching_sha2_password	70
 mysql.sys	localhost	caching_sha2_password	70
-root	localhost	caching_sha2_password	0
+root	localhost	caching_sha2_password	70
 # shut server down
 # Server is down
 # close the test connection

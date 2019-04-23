@@ -1,6 +1,7 @@
 --source include/big_test.inc
 --source include/have_validate_password_plugin.inc
 
+call mtr.add_suppression("Plugin validate_password reported: .Dictionary file not specified.");
 
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
@@ -17,13 +18,12 @@ let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
 --source include/wait_until_disconnected.inc
 --echo # Server is down
 
-
 --echo #
---echo # Try --initialize with validate_password
+--echo # Try --initialize
 --echo #
 
---echo # Run the server with --initialize --validate_password
---exec $MYSQLD $extra_args --initialize $VALIDATE_PASSWORD_OPT $VALIDATE_PASSWORD_LOAD --validate_password_policy="STRONG" --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--echo # Run the server with --initialize
+--exec $MYSQLD $extra_args --initialize --datadir=$DDIR > $MYSQLD_LOG 2>&1
 
 --echo extract the root password
 --perl
@@ -53,7 +53,7 @@ EOF
 source $passwd_file;
 
 --echo # Restart the server against DDIR
---exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--datadir=$DDIR $VALIDATE_PASSWORD_OPT $VALIDATE_PASSWORD_LOAD --validate_password_policy=STRONG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -64,8 +64,10 @@ connect(root_con,localhost,root,$new_pwd,mysql);
 --error ER_MUST_CHANGE_PASSWORD
 SELECT 1;
 
---echo # reset the password
-SET PASSWORD='';
+--echo # reset the password to the one set: should be strong enough so it wont fail
+--disable_query_log
+eval SET PASSWORD='$new_pwd';
+--enable_query_log
 
 --echo # Check the count of columns in mysql
 --let $cnt=`SELECT COUNT(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='mysql';`
@@ -76,6 +78,7 @@ if ($cnt != $mysql_cnt)
 SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
   WHERE TABLE_SCHEMA='mysql' ORDER BY TABLE_NAME,ORDINAL_POSITION;
 }
+
 
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)

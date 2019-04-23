@@ -5529,19 +5529,29 @@ static int init_server_components() {
   }
 
   /*
-    Skip reading the plugin table when starting with --help in order
-    to also skip initializing InnoDB. This provides a simpler and more
-    uniform handling of various startup use cases, e.g. when the data
-    directory does not exist, exists but is empty, exists with InnoDB
-    system tablespaces present etc.
+   During plugin initialization, a plugin may expect (depending on what the
+   plugin actually does) to find a functional server, including:
+   - mysql system tables
+   - information schema tables
+   - performance schema tables
+   - data dictionary
+   - components / services, including the registry service
+   During the server installation, all these parts are not available yet, as
+   they are created during the installation process with mysqld --initialize.
+
+   As a result, plugins are not loaded during mysqld --initialize, so that
+   the server install can proceed and complete before any plugin is loaded
+   through any config file or pre-programmed command line.
   */
-  if (plugin_register_dynamic_and_init_all(
-          &remaining_argc, remaining_argv,
-          (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
-              ((is_help_or_validate_option())
-                   ? (PLUGIN_INIT_SKIP_INITIALIZATION |
-                      PLUGIN_INIT_SKIP_PLUGIN_TABLE)
-                   : 0))) {
+  int flags = 0;
+
+  if (opt_noacl) flags |= PLUGIN_INIT_SKIP_PLUGIN_TABLE;
+  if (is_help_or_validate_option())
+    flags |= PLUGIN_INIT_SKIP_INITIALIZATION | PLUGIN_INIT_SKIP_PLUGIN_TABLE;
+  if (opt_initialize) flags |= PLUGIN_INIT_SKIP_DYNAMIC_LOADING;
+
+  if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
+                                           flags)) {
     // Delete all DD tables in case of error in initializing plugins.
     if (dd::upgrade_57::in_progress())
       (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
