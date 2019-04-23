@@ -69,6 +69,7 @@
 #include "sql/dd/types/view.h"                      // View
 #include "sql/dd/upgrade_57/upgrade.h"              // allow_sdi_creation
 #include "sql/debug_sync.h"                         // DEBUG_SYNC
+#include "sql/error_handler.h"                      // Internal_error_handler
 #include "sql/log.h"
 #include "sql/sql_class.h"  // THD
 
@@ -291,6 +292,20 @@ void Storage_adapter::core_store(THD *thd, T *object) {
   m_core_registry.put(element);
 }
 
+// Re-map error messages emitted during DDL with innodb-read-only == 1.
+class Open_dictionary_tables_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
+    if (sql_errno == ER_OPEN_AS_READONLY) {
+      my_error(ER_READ_ONLY_MODE, MYF(0));
+      return true;
+    }
+    return false;
+  }
+};
+
 // Store a dictionary object to persistent storage.
 template <typename T>
 bool Storage_adapter::store(THD *thd, T *object) {
@@ -312,10 +327,14 @@ bool Storage_adapter::store(THD *thd, T *object) {
   ctx.otx.register_tables<T>();
   DEBUG_SYNC(thd, "before_storing_dd_object");
 
+  Open_dictionary_tables_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
   if (ctx.otx.open_tables() || object->impl()->store(&ctx.otx)) {
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    thd->pop_internal_handler();
     return true;
   }
+  thd->pop_internal_handler();
 
   // Do not create SDIs for tablespaces and tables while creating
   // dictionary entry during upgrade.
