@@ -352,9 +352,6 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
   @param      thd            Current thread
   @param      filesort       How to sort the table
-  @param      sort_positions Set to true if we want to force sorting by position
-                             (Needed by UPDATE/INSERT or ALTER TABLE or
-                              when rowids are required by executor)
   @param      source_iterator Where to read the rows to be sorted from.
   @param      sort_result    Where to store the sort result.
   @param[out] found_rows     Store the number of found rows here.
@@ -1777,10 +1774,8 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
   @param trace            Current trace context.
   @param param            Sort parameters.
   @param filesort_info    Filesort information.
-  @param table            Table to sort.
   @param num_rows         Estimate of number of rows in source record set.
   @param memory_available Memory available for sorting.
-  @param keep_addon_fields Do not try to strip off addon fields.
 
   DESCRIPTION
     Given a query like this:

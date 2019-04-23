@@ -315,7 +315,6 @@ class Sort_param {
     @param table     table to be sorted
     @param max_length_for_sort_data from thd->variables
     @param maxrows   HA_POS_ERROR or possible LIMIT value
-    @param sort_positions see documentation for the filesort() function
     @param remove_duplicates if true, items with duplicate keys will be removed
   */
   void init_for_filesort(Filesort *file_sort,

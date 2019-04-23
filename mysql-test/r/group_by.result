@@ -3824,8 +3824,9 @@ INSERT INTO t1 VALUES ( 3, 5 );
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 EXPLAIN
 -> Sort: <temporary>.x
-    -> Group aggregate: count(distinct t1.f2)
-        -> Index scan on t1 using k1
+    -> Stream results
+        -> Group aggregate: count(distinct t1.f2)
+            -> Index scan on t1 using k1
 
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 f1	f1 + 1	x
