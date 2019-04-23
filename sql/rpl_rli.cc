@@ -2569,3 +2569,41 @@ bool Relay_log_info::is_time_for_mts_checkpoint() {
   }
   return false;
 }
+
+MDL_lock_guard::MDL_lock_guard(THD *target) : m_target{target} { DBUG_TRACE; }
+
+MDL_lock_guard::MDL_lock_guard(THD *target,
+                               MDL_key::enum_mdl_namespace namespace_arg,
+                               enum_mdl_type mdl_type_arg, bool blocking)
+    : m_target{target} {
+  DBUG_TRACE;
+  this->lock(namespace_arg, mdl_type_arg, blocking);
+}
+
+bool MDL_lock_guard::lock(MDL_key::enum_mdl_namespace namespace_arg,
+                          enum_mdl_type mdl_type_arg, bool blocking) {
+  DBUG_TRACE;
+  if (this->m_target != nullptr &&
+      !this->m_target->mdl_context.has_locks(namespace_arg)) {
+    MDL_REQUEST_INIT(&this->m_request, namespace_arg, "", "", mdl_type_arg,
+                     MDL_EXPLICIT);
+
+    if (blocking)
+      this->m_target->mdl_context.acquire_lock(
+          &this->m_request, this->m_target->variables.lock_wait_timeout);
+    else
+      this->m_target->mdl_context.try_acquire_lock(&this->m_request);
+
+    return !this->is_locked();
+  }
+  return true;
+}
+
+MDL_lock_guard::~MDL_lock_guard() {
+  DBUG_TRACE;
+  if (this->m_request.ticket != nullptr) {
+    this->m_target->mdl_context.release_lock(this->m_request.ticket);
+  }
+}
+
+bool MDL_lock_guard::is_locked() { return this->m_request.ticket != nullptr; }

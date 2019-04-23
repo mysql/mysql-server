@@ -1,0 +1,80 @@
+# ==== Purpose ====
+#
+# This script aims at testing that `LOCK INSTANCE FOR BACKUP` prevents stopping
+# the slave SQL thread - either by means of `STOP SLAVE` or `STOP SLAVE
+# SQL_THREAD`.
+#
+# ==== Implementation ====
+#
+# TC1. Lock instance for backup and execute `STOP SLAVE`
+# ------------------------------------------------------
+# 1) Execute `LOCK INSTANCE FOR BACKUP`.
+# 2) Execute `STOP SLAVE` and expect a
+#    `ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP` error.
+# 3) Check that the slave hasn't stop.
+# 4) Unlock the instance.
+#
+# TC2. Lock instance for backup and execute `STOP SLAVE SQL_THREAD`
+# -----------------------------------------------------------------
+# 1) Execute `LOCK INSTANCE FOR BACKUP`.
+# 2) Execute `STOP SLAVE SQL_THREAD` and expect a
+#    `ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP` error.
+# 3) Check that the slave hasn't stop.
+# 4) Unlock the instance.
+#
+# ==== References ====
+#
+# BUG#29386503 STOP SLAVE SQL_THREAD DEADLOCKS IF DONE WHILE HOLDING LOCK
+#              INSTANCE FOR BACKUP
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Procedure that executes `LOCK INSTANCE FOR BACKUP` and then executes another
+# statement.
+#
+--write_file $MYSQLTEST_VARDIR/tmp/lock_instance_and_execute.inc PROCEDURE
+  if ($statement == '') {
+    --die !!!ERROR IN TEST: you must set $statement
+  }
+
+  --source include/rpl_connection_slave.inc
+  CALL mtr.add_suppression("Cannot stop the slave SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.");
+
+  # 1) Execute `LOCK INSTANCE FOR BACKUP`.
+  LOCK INSTANCE FOR BACKUP;
+
+  # 2) Execute `STOP SLAVE` and expect a
+  #    `ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP` error.
+  --error ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP
+  --eval $statement
+
+  # 3) Check that the slave hasn't stop.
+  --let $slave_param = Slave_SQL_Running
+  --let $slave_param_value = Yes
+  --source include/wait_for_slave_param.inc
+
+  # 4) Unlock the instance.
+  UNLOCK INSTANCE;
+
+#END OF
+PROCEDURE
+
+--echo #
+--echo # TC1. Lock instance for backup and execute `STOP SLAVE`
+--echo #
+--let $statement = STOP SLAVE
+--source $MYSQLTEST_VARDIR/tmp/lock_instance_and_execute.inc
+
+--echo #
+--echo # TC2. Lock instance for backup and execute `STOP SLAVE SQL_THREAD`
+--echo #
+--let $statement = STOP SLAVE SQL_THREAD
+--source $MYSQLTEST_VARDIR/tmp/lock_instance_and_execute.inc
+
+# Clean up
+--remove_file $MYSQLTEST_VARDIR/tmp/lock_instance_and_execute.inc
+--source include/rpl_end.inc
