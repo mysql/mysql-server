@@ -219,11 +219,8 @@ struct CODE_STATE {
   const char *file;    /* Name of current user file                */
   struct _db_stack_frame_ *framep; /* Pointer to current frame              */
   struct settings *stack; /* debugging settings                       */
-  const char *jmpfunc;    /* Remember current function for setjmp     */
-  const char *jmpfile;    /* Remember current file for setjmp         */
   int lineno;             /* Current debugger output line number      */
   uint level;             /* Current function nesting level           */
-  int jmplevel;           /* Remember nesting level at setjmp()       */
 
   /*
    *      The following variables are used to hold the state information
@@ -2178,23 +2175,5 @@ void _db_unlock_file_() {
   cs->locked = 0;
   native_mutex_unlock(&THR_LOCK_dbug);
 }
-
-const char *_db_get_func_(void) {
-  CODE_STATE *cs;
-  get_code_state_or_return NULL;
-  return cs->func;
-}
-
-#else
-
-/*
- * Dummy function, workaround for MySQL bug#14420 related
- * build failure on a platform where linking with an empty
- * archive fails.
- *
- * This block can be removed as soon as a fix for bug#14420
- * is implemented.
- */
-int i_am_a_dummy_function() { return 0; }
 
 #endif

@@ -265,9 +265,9 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys dbug strings  ${GTEST_LIBRARIES} libmysql_errmsg)
+  mysys strings  ${GTEST_LIBRARIES} libmysql_errmsg)
 TARGET_LINK_LIBRARIES(gunit_large
-  mysys dbug strings ${GTEST_LIBRARIES})
+  mysys strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 IF(WIN32)
@@ -489,7 +489,7 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
-    gunit_large strings dbug mysys ${ICU_LIBRARIES})
+    gunit_large strings mysys ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
@@ -520,7 +520,7 @@ FOREACH(test ${TESTS})
   SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   ADD_COMPILE_DEFINITIONS(${test}-t.cc
     COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS})
-  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
   IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
@@ -547,7 +547,7 @@ FOREACH(test ${SERVER_TESTS})
   SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave)
   TARGET_LINK_LIBRARIES(${test}-t sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)

@@ -40,7 +40,6 @@ TARGET_LINK_LIBRARIES(ndb_mgm
                ndbtrace
                ndbportlib
                ndbgeneral
-               dbug
                mysys
                strings)
 IF(UNIX)

@@ -47,7 +47,7 @@ IF (MERGE_UNITTESTS)
 
   TARGET_LINK_LIBRARIES(merge_temptable_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(merge_temptable_tests-t gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(merge_temptable_tests-t gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(merge_temptable_tests-t ${ICU_LIBRARIES})
 
   # Download TBB from https://www.threadingbuildingblocks.org
@@ -85,7 +85,7 @@ FOREACH(test ${TESTS})
 
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)

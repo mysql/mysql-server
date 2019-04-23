@@ -38,6 +38,7 @@ SET(MYSYS_SOURCES
   charset.cc
   charset-def.cc
   checksum.cc
+  dbug.cc
   errors.cc
   lf_alloc-pin.cc
   lf_dynarray.cc
@@ -170,7 +171,6 @@ ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   LINK_LIBRARIES
-  dbug
   mytime
   strings
   ${ZLIB_LIBRARY}

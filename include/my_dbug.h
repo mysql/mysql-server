@@ -77,7 +77,6 @@ extern void _db_lock_file_(void);
 extern void _db_unlock_file_(void);
 extern FILE *_db_fp_(void);
 extern void _db_flush_();
-extern const char *_db_get_func_(void);
 
 #ifdef __cplusplus
 
@@ -149,16 +148,16 @@ class AutoDebugTrace {
 #define DBUG_ENTER(a)                       \
   struct _db_stack_frame_ _db_stack_frame_; \
   _db_enter_(a, ::strlen(a), __FILE__, __LINE__, &_db_stack_frame_)
-#define DBUG_LEAVE _db_return_(__LINE__, &_db_stack_frame_)
-#define DBUG_RETURN(a1) \
-  do {                  \
-    DBUG_LEAVE;         \
-    return (a1);        \
+
+#define DBUG_RETURN(a1)                       \
+  do {                                        \
+    _db_return_(__LINE__, &_db_stack_frame_); \
+    return (a1);                              \
   } while (0)
-#define DBUG_VOID_RETURN \
-  do {                   \
-    DBUG_LEAVE;          \
-    return;              \
+#define DBUG_VOID_RETURN                      \
+  do {                                        \
+    _db_return_(__LINE__, &_db_stack_frame_); \
+    return;                                   \
   } while (0)
 #define DBUG_EXECUTE(keyword, a1)        \
   do {                                   \
@@ -235,7 +234,6 @@ extern void _db_flush_gcov_();
   } while (false)
 #endif
 #define DBUG_ENTER(a1)
-#define DBUG_LEAVE
 #define DBUG_RETURN(a1) \
   do {                  \
     return (a1);        \
@@ -315,14 +313,14 @@ extern void _db_flush_gcov_();
   print out.  So, this limitation is there for DBUG_LOG macro also.
 */
 
-#define DBUG_LOG(keyword, v)                         \
-  do {                                               \
-    std::ostringstream sout;                         \
-    sout << v;                                       \
-    DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
+#define DBUG_LOG(keyword, v)                           \
+  do {                                                 \
+    if (_db_enabled_()) {                              \
+      std::ostringstream sout;                         \
+      sout << v;                                       \
+      DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
+    }                                                  \
   } while (0)
-
-void dump_trace();
 
 #else /* DBUG_OFF */
 #define DBUG_LOG(keyword, v) \

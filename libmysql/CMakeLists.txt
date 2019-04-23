@@ -214,7 +214,7 @@ ENDIF (WITH_CLIENT_PROTOCOL_TRACING)
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES} DEPENDENCIES GenError)
 
 SET(LIBS_TO_MERGE
-  clientlib dbug mytime strings vio mysys
+  clientlib mytime strings vio mysys
   )
 SET(LIBS_TO_LINK ${LIBDL})
 

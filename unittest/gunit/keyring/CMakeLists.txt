@@ -83,7 +83,7 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
-    gunit_large strings dbug mysys)
+    gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
@@ -113,7 +113,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large strings dbug mysys)
+    gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)

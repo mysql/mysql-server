@@ -749,7 +749,7 @@ ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys dbug strings vio
+  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys strings vio
   binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
@@ -894,7 +894,6 @@ IF(NOT DISABLE_SHARED)
       ${_PLATFORM}
       "$<TARGET_FILE:binlog>"
       "$<TARGET_FILE:binlogevents_static>"
-      "$<TARGET_FILE:dbug>"
       "$<TARGET_FILE:mysys>"
       "$<TARGET_FILE:mytime>"
       "$<TARGET_FILE:slave>"

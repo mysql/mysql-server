@@ -37,7 +37,7 @@ ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
 IF(STANDALONE_BINLOG)
   TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES})
 ELSE()
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES} mysys dbug)
+  TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES} mysys)
   ADD_DEPENDENCIES(binlogevents_static GenError)
 ENDIF()
 

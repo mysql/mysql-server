@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -82,10 +82,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
       "forcing-innodb-recovery.html\n"
       "InnoDB: about forcing recovery.\n",
       stderr);
-
-#ifndef DBUG_OFF
-  dump_trace();
-#endif /* DBUG_OFF */
 
   fflush(stderr);
   fflush(stdout);
