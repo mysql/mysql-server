@@ -1823,13 +1823,16 @@ class Item_aggregate_ref : public Item_ref {
 };
 
 /**
-  Move SUM items out from item tree and replace with reference.
+  1. Move SUM items out from item tree and replace with reference.
 
   The general goal of this is to get a list of group aggregates, and window
   functions, and their arguments, so that the code which manages internal tmp
   tables (creation, row copying) has a list of all aggregates (which require
   special management) and a list of their arguments (which must be carried
   from tmp table to tmp table until the aggregate can be computed).
+
+  2. Move scalar subqueries out of the item tree and replace with reference
+  when used in arguments to window functions for similar reasons (tmp tables).
 
   @param thd             Current session
   @param ref_item_array  Pointer to array of reference fields
@@ -1880,7 +1883,7 @@ class Item_aggregate_ref : public Item_ref {
         (Bug#11762); and rename ref_by too, as it's set only for
         outer-aggregated items.
 
-  Examples:
+  Examples of 1):
 
       (1) SELECT a+FIRST_VALUE(b*SUM(c/d)) OVER (...)
 
@@ -1914,6 +1917,11 @@ class Item_aggregate_ref : public Item_ref {
   Each time we add a hidden item we re-point its parent to the hidden item
   using an Item_aggregate_ref. For example, the args[0] of '+' is made to point
   to an Item_aggregate_ref which points to the hidden 'a'.
+
+  Examples of 2):
+
+       SELECT LAST_VALUE((SELECT upper.j FROM t1 LIMIT 1)) OVER (ORDER BY i)
+       FROM t1 AS upper;
 */
 
 void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
@@ -1935,28 +1943,37 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       type() == ROW_ITEM) {
     // Do not add item to hidden list; possibly split it
     split_sum_func(thd, ref_item_array, fields);
-  } else if ((type() == SUM_FUNC_ITEM || !const_for_execution()) &&
-             (type() != SUBSELECT_ITEM ||
-              (down_cast<Item_subselect *>(this))->substype() ==
-                  Item_subselect::SINGLEROW_SUBS) &&
-             (type() != REF_ITEM ||
+  } else if ((type() == SUM_FUNC_ITEM || !const_for_execution()) &&  // (1)
+             (type() != SUBSELECT_ITEM ||                            // (2)
+              (down_cast<Item_subselect *>(this)->substype() ==
+                   Item_subselect::SINGLEROW_SUBS &&
+               down_cast<Item_subselect *>(this)
+                       ->unit->first_select()
+                       ->fields_list.elements == 1)) &&
+             (type() != REF_ITEM ||  // (3)
               ((Item_ref *)this)->ref_type() == Item_ref::VIEW_REF)) {
     /*
-      Replace item with a reference so that we can easily calculate
+      (1) Replace item with a reference so that we can easily calculate
       it (in case of sum functions) or copy it (in case of fields)
 
       The test above is to ensure we don't do a reference for things
       that are constants (INNER_TABLE_BIT is in effect a constant)
       or already referenced (for example an item in HAVING)
-      Exception is Item_view_ref which we need to wrap in
-      Item_ref to allow fields from view being stored in tmp table.
-      Item_subselect can be added to "fields" only if it's a scalar subquery;
-      indeed a subquery of another type is wrapped in Item_in_optimizer at this
+
+      (2) In order to handle queries like:
+        SELECT FIRST_VALUE((SELECT .. FROM .. LIMIT 1)) OVER (..) FROM ...;
+      we need to move subselects to hidden fields too. But since window
+      functions accept only single-row and single-column subqueries other
+      types are excluded.
+      Indeed, a subquery of another type is wrapped in Item_in_optimizer at this
       stage, so when splitting Item_in_optimizer, if we added the underlying
       Item_subselect to "fields" below it would be later evaluated by
       copy_fields() (in tmp table processing), which would be incorrect as the
       Item_subselect cannot be evaluated - as it must always be evaluated
       through its parent Item_in_optimizer.
+
+      (3) Exception from (1) is Item_view_ref which we need to wrap in
+      Item_ref to allow fields from view being stored in tmp table.
     */
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
     uint el = fields.elements;
