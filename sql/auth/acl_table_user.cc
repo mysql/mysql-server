@@ -233,7 +233,7 @@ bool Acl_user_attributes::deserialize(const Json_object &json_object) {
     if (db_restrictions.add(json_object)) return true;
     /* Filtering & warnings */
     report_and_remove_invalid_db_restrictions(
-        db_restrictions, DB_ACLS, WARNING_LEVEL,
+        db_restrictions, DB_OP_ACLS, WARNING_LEVEL,
         ER_WARN_INCORRECT_PRIVILEGE_FOR_DB_RESTRICTIONS);
     report_and_remove_invalid_db_restrictions(db_restrictions, m_global_privs,
                                               WARNING_LEVEL,

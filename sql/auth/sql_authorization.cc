@@ -1012,14 +1012,14 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       db.length(0);
       db.append(STRING_WITH_LEN("GRANT "));
 
-      if (test_all_bits(want_access, (DB_ACLS & ~GRANT_ACL)))
+      if (test_all_bits(want_access, (DB_OP_ACLS)))
         db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
       else if (!(want_access & ~GRANT_ACL))
         db.append(STRING_WITH_LEN("USAGE"));
       else {
         int found = 0, cnt;
         ulong j, test_access = want_access & ~GRANT_ACL;
-        for (cnt = 0, j = SELECT_ACL; j <= DB_ACLS; cnt++, j <<= 1) {
+        for (cnt = 0, j = SELECT_ACL; j <= DB_OP_ACLS; cnt++, j <<= 1) {
           if (test_access & j) {
             if (found) db.append(STRING_WITH_LEN(", "));
             found = 1;
@@ -1147,14 +1147,14 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
     db.length(0);
     db.append(STRING_WITH_LEN("GRANT "));
 
-    if (test_all_bits(want_access, (DB_ACLS & ~GRANT_ACL)))
+    if (test_all_bits(want_access, (DB_OP_ACLS)))
       db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
     else if (!(want_access & ~GRANT_ACL))
       db.append(STRING_WITH_LEN("USAGE"));
     else {
       int found = 0, cnt;
       ulong j, test_access = want_access & ~GRANT_ACL;
-      for (cnt = 0, j = SELECT_ACL; j <= DB_ACLS; cnt++, j <<= 1) {
+      for (cnt = 0, j = SELECT_ACL; j <= DB_OP_ACLS; cnt++, j <<= 1) {
         if (test_access & j) {
           if (found) db.append(STRING_WITH_LEN(", "));
           found = 1;
@@ -1353,7 +1353,7 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
     global.length(0);
     global.append(STRING_WITH_LEN("GRANT "));
 
-    if (test_all_bits(agg.table_access, (TABLE_ACLS & ~GRANT_ACL)))
+    if (test_all_bits(agg.table_access, (TABLE_OP_ACLS)))
       global.append(STRING_WITH_LEN("ALL PRIVILEGES"));
     else if (!test_access)
       global.append(STRING_WITH_LEN("USAGE"));
@@ -1362,7 +1362,8 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
       int found = 0;
       ulong j;
       ulong counter;
-      for (counter = 0, j = SELECT_ACL; j <= TABLE_ACLS; counter++, j <<= 1) {
+      for (counter = 0, j = SELECT_ACL; j <= TABLE_OP_ACLS;
+           counter++, j <<= 1) {
         if (test_access & j) {
           if (found) global.append(STRING_WITH_LEN(", "));
           found = 1;
@@ -4064,13 +4065,18 @@ bool has_any_routine_acl(Security_context *sctx, const LEX_CSTRING &db) {
 }
 
 /**
-  Check if a user has the right to access a database
-  Access is accepted if he has a grant for any table/routine in the database
-  Return 1 if access is denied
+  Check if a user has the right to access a database.
+  Access is accepted if the user has a database operations related grant
+  (i.e. not including the GRANT_ACL) for any table/column/routine in the
+  database.
+
   @param thd The thread handler
   @param db The name of the database
-*/
 
+  @return
+    @retval 1 Access is denied
+    @retval 0 Otherwise
+*/
 bool check_grant_db(THD *thd, const char *db) {
   DBUG_TRACE;
   Security_context *sctx = thd->security_context();
@@ -4080,7 +4086,7 @@ bool check_grant_db(THD *thd, const char *db) {
   if (sctx->get_active_roles()->size() > 0) {
     size_t db_len = strlen(db);
     ulong db_access = sctx->db_acl({db, db_len});
-    if (db_access != 0) return 0;
+    if ((db_access & DB_OP_ACLS) != 0) return 0;
     return !has_any_table_acl(sctx, {db, db_len}) &&
            !has_any_routine_acl(sctx, {db, db_len});
   }
@@ -4096,7 +4102,8 @@ bool check_grant_db(THD *thd, const char *db) {
   for (const auto &key_and_value : *column_priv_hash) {
     GRANT_TABLE *grant_table = key_and_value.second.get();
     if (grant_table->hash_key.compare(0, key.size(), key) == 0 &&
-        grant_table->host.compare_hostname(sctx->host().str, sctx->ip().str)) {
+        grant_table->host.compare_hostname(sctx->host().str, sctx->ip().str) &&
+        ((grant_table->privs | grant_table->cols) & TABLE_OP_ACLS)) {
       error = false; /* Found match. */
       DBUG_PRINT("info", ("Detected table level acl in column_priv_hash"));
       break;
@@ -5705,11 +5712,13 @@ bool check_show_access(THD *thd, TABLE_LIST *table) {
       DBUG_ASSERT(dst_db_name != NULL);
       if (!dst_db_name) break;
 
+      // Check if the user has global access
       if (check_access(thd, SELECT_ACL, dst_db_name, &thd->col_access, NULL,
                        false, false))
         return true;
 
-      if (!thd->col_access && check_grant_db(thd, dst_db_name)) {
+      // Now check, if user has access to any of database/table/column/routine
+      if (!(thd->col_access & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str, dst_db_name);

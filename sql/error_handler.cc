@@ -498,7 +498,7 @@ bool Foreign_key_error_handler::handle_condition(
           fk->referenced_table_db.str, fk->referenced_table_db.length,
           fk->referenced_table_name.str, fk->referenced_table_name.length,
           fk->referenced_table_name.str, TL_READ);
-      if (check_table_access(m_thd, TABLE_ACLS, &table, true, 1, true)) {
+      if (check_table_access(m_thd, TABLE_OP_ACLS, &table, true, 1, true)) {
         my_error(ER_NO_REFERENCED_ROW, MYF(0));
         return true;
       }
@@ -511,7 +511,7 @@ bool Foreign_key_error_handler::handle_condition(
           fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
           fk_p->referencing_table_name.str, fk_p->referencing_table_name.length,
           fk_p->referencing_table_name.str, TL_READ);
-      if (check_table_access(m_thd, TABLE_ACLS, &table, true, 1, true)) {
+      if (check_table_access(m_thd, TABLE_OP_ACLS, &table, true, 1, true)) {
         my_error(ER_ROW_IS_REFERENCED, MYF(0));
         return true;
       }

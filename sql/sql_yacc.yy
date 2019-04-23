@@ -15390,7 +15390,7 @@ grant_ident:
             if (lex->copy_db_to(&lex->current_select()->db, &dummy))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
-              lex->grant = DB_ACLS & ~GRANT_ACL;
+              lex->grant = DB_OP_ACLS;
             else if (lex->columns.elements)
             {
               my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
@@ -15402,7 +15402,7 @@ grant_ident:
             LEX *lex= Lex;
             lex->current_select()->db = $1.str;
             if (lex->grant == GLOBAL_ACLS)
-              lex->grant = DB_ACLS & ~GRANT_ACL;
+              lex->grant = DB_OP_ACLS;
             else if (lex->columns.elements)
             {
               my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
@@ -15431,7 +15431,7 @@ grant_ident:
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
-              lex->grant =  TABLE_ACLS & ~GRANT_ACL;
+              lex->grant =  TABLE_OP_ACLS;
           }
         | schema '.' ident
           {
@@ -15448,7 +15448,7 @@ grant_ident:
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
-              lex->grant =  TABLE_ACLS & ~GRANT_ACL;
+              lex->grant =  TABLE_OP_ACLS;
           }
         ;
 
