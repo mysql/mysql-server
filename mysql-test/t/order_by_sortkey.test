@@ -65,6 +65,8 @@ SHOW SESSION STATUS LIKE 'Sort%';
 
 SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100;
 
+# 32-bit has smaller pointers and thus can do with one less merge pass.
+--replace_result 98 99
 SHOW SESSION STATUS LIKE 'Sort%';
 
 FLUSH STATUS;
