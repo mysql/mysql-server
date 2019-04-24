@@ -604,10 +604,8 @@ void JOIN_CACHE::restore_virtual_gcol_base_cols() {
     if (table->vfield == NULL) continue;
 
     auto saved = save_read_set_for_gcol.find(tab);
-    if (saved != save_read_set_for_gcol.end()) {
-      DBUG_ASSERT(!bitmap_is_clear_all(saved->second));
+    if (saved != save_read_set_for_gcol.end())
       bitmap_copy(table->read_set, saved->second);
-    }
   }
 }
 
