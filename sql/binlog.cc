@@ -5613,7 +5613,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
                                thd->lex->next_binlog_file_nr)))
         goto err;
   }
-  my_free((void *)save_name);
+  my_free(const_cast<char *>(save_name));
 
 err:
   if (error == 1) name = const_cast<char *>(save_name);

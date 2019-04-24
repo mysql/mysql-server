@@ -834,7 +834,7 @@ void update_mandatory_roles(void);
 bool check_authorization_id_string(THD *thd, const char *buffer, size_t length);
 void func_current_role(const THD *thd, String *active_role);
 
-extern volatile uint32 global_password_history, global_password_reuse_interval;
+extern uint32 global_password_history, global_password_reuse_interval;
 
 struct Security_context_policy {
   enum Operation { Precheck, Execute };

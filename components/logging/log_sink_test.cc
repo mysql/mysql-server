@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -83,15 +83,16 @@ static bool rule_delete(log_filter_ruleset *rs, log_item_type t,
       size_t rt;
 
       if (r->match.alloc & LOG_ITEM_FREE_KEY)
-        log_bs->free((void *)r->match.key);
+        log_bs->free(const_cast<char *>(r->match.key));
       if ((r->match.alloc & LOG_ITEM_FREE_VALUE) &&
           (r->match.item_class == LOG_LEX_STRING))
-        log_bs->free((void *)r->match.data.data_string.str);
+        log_bs->free(const_cast<char *>(r->match.data.data_string.str));
 
-      if (r->aux.alloc & LOG_ITEM_FREE_KEY) log_bs->free((void *)r->aux.key);
+      if (r->aux.alloc & LOG_ITEM_FREE_KEY)
+        log_bs->free(const_cast<char *>(r->aux.key));
       if ((r->aux.alloc & LOG_ITEM_FREE_VALUE) &&
           (r->aux.item_class == LOG_LEX_STRING))
-        log_bs->free((void *)r->aux.data.data_string.str);
+        log_bs->free(const_cast<char *>(r->aux.data.data_string.str));
 
       rs->count--;
       for (rt = rn; rt < rs->count; rt++) {

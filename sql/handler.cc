@@ -5674,7 +5674,7 @@ void ha_binlog_wait(THD *thd) {
 }
 
 int ha_binlog_index_purge_file(THD *thd, const char *file) {
-  binlog_func_st bfn = {BFN_BINLOG_PURGE_FILE, (void *)file};
+  binlog_func_st bfn = {BFN_BINLOG_PURGE_FILE, const_cast<char *>(file)};
   binlog_func_foreach(thd, &bfn);
   return 0;
 }

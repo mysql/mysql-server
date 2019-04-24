@@ -302,7 +302,7 @@ class TCP_socket {
       } else {
         LogErr(INFORMATION_LEVEL, ER_CONN_TCP_CREATED, (const char *)ip_addr);
 
-        *use_addrinfo = (struct addrinfo *)cur_ai;
+        *use_addrinfo = const_cast<addrinfo *>(cur_ai);
         return sock;
       }
     }

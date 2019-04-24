@@ -507,7 +507,7 @@ TEST_F(ItemTest, ItemFuncSetUserVar) {
   Item_decimal *item_dec = new Item_decimal(val1, false);
   Item_string *item_str = new Item_string("1", 1, &my_charset_latin1);
 
-  LEX_STRING var_name = {C_STRING_WITH_LEN("a")};
+  LEX_CSTRING var_name = {STRING_WITH_LEN("a")};
   Item_func_set_user_var *user_var =
       new Item_func_set_user_var(var_name, item_str, false);
   EXPECT_FALSE(user_var->set_entry(thd(), true));

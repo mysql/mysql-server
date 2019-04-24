@@ -254,7 +254,7 @@ extern char *opt_general_logname, *opt_slow_logname, *opt_bin_logname,
 extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
 extern uint default_password_lifetime;
-extern volatile bool password_require_current;
+extern bool password_require_current;
 /*
   @warning : The real value is in @ref partial_revokes. The @ref
   opt_partial_revokes is just a tool to trick the Sys_var class into

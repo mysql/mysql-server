@@ -22,7 +22,7 @@
 
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 
-#include "m_string.h"  // C_STRING_WITH_LEN
+#include "m_string.h"  // STRING_WITH_LEN
 #include "my_dbug.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like

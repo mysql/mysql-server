@@ -779,7 +779,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
   // sanity check
   DBUG_ASSERT(!(li->alloc & LOG_ITEM_FREE_VALUE));
   if (li->alloc & LOG_ITEM_FREE_VALUE) {
-    log_bs->free((void *)li->data.data_string.str);
+    log_bs->free(const_cast<char *>(li->data.data_string.str));
     li->data.data_string.str = nullptr;
     li->alloc &= ~LOG_ITEM_FREE_VALUE;
   }

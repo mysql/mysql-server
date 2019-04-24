@@ -439,9 +439,11 @@ class List : public base_list {
     constant T parameter (like List<const char>), since the untyped storage
     is "void *", and assignment of const pointer to "void *" is a syntax error.
   */
-  inline bool push_back(T *a) { return base_list::push_back((void *)a); }
+  inline bool push_back(T *a) {
+    return base_list::push_back(const_cast<void *>(((const void *)a)));
+  }
   inline bool push_back(T *a, MEM_ROOT *mem_root) {
-    return base_list::push_back((void *)a, mem_root);
+    return base_list::push_back(const_cast<void *>((const void *)a), mem_root);
   }
   inline bool push_front(T *a) { return base_list::push_front((void *)a); }
   inline bool push_front(T *a, MEM_ROOT *mem_root) {

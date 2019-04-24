@@ -1809,7 +1809,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
           mysql_rwlock_wrlock(&LOCK_system_variables_hash);
           if ((plugin_dl = plugin_dl_add(&dl, REPORT_TO_LOG, load_early))) {
             for (plugin = plugin_dl->plugins; plugin->info; plugin++) {
-              name.str = (char *)plugin->name;
+              name.str = const_cast<char *>(plugin->name);
               name.length = strlen(name.str);
 
               free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
@@ -3442,7 +3442,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   error = 1;
   for (opt = tmp->plugin->system_vars; opt && *opt; opt++) {
     SYS_VAR *o;
-    const my_option **optp = (const my_option **)&opts;
     if (((o = *opt)->flags & PLUGIN_VAR_NOSYSVAR)) continue;
     if ((var = find_bookmark(plugin_name.str, o->name, o->flags)))
       v = new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
@@ -3456,8 +3455,9 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     }
     DBUG_ASSERT(v); /* check that an object was actually constructed */
 
-    if (findopt(o->name, strlen(o->name), optp))
-      v->set_arg_source((*optp)->arg_source);
+    const my_option *optp = opts;
+    if (findopt(o->name, strlen(o->name), &optp))
+      v->set_arg_source(optp->arg_source);
   } /* end for */
   if (chain.first) {
     chain.last->next = NULL;

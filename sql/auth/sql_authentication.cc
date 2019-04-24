@@ -1678,7 +1678,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
 
   @retval A dummy ACL USER
 */
-ACL_USER *decoy_user(const LEX_STRING &username, const LEX_CSTRING &hostname,
+ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
                      MEM_ROOT *mem, struct rand_struct *rand,
                      bool is_initialized) {
   ACL_USER *user = (ACL_USER *)mem->Alloc(sizeof(ACL_USER));
@@ -1793,8 +1793,8 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
       Pretend the user exists; let the plugin decide how to handle
       bad credentials.
     */
-    LEX_STRING usr = {mpvio->auth_info.user_name,
-                      mpvio->auth_info.user_name_length};
+    LEX_CSTRING usr = {mpvio->auth_info.user_name,
+                       mpvio->auth_info.user_name_length};
     LEX_CSTRING hst = {mpvio->host ? mpvio->host : mpvio->ip,
                        mpvio->host ? strlen(mpvio->host) : strlen(mpvio->ip)};
     mpvio->acl_user =
@@ -4537,7 +4537,7 @@ static Sql_string_t rsa_priv_key_write(RSA *rsa) {
   if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL, 0, NULL, NULL)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }
@@ -4559,7 +4559,7 @@ static Sql_string_t rsa_pub_key_write(RSA *rsa) {
   if (PEM_write_bio_RSA_PUBKEY(buf, rsa)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }
@@ -4676,7 +4676,7 @@ static Sql_string_t x509_cert_write(X509 *cert) {
   if (PEM_write_bio_X509(buf, cert)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }
@@ -4722,7 +4722,7 @@ static Sql_string_t x509_key_write(EVP_PKEY *pkey) {
   if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL, 10, NULL, NULL)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }

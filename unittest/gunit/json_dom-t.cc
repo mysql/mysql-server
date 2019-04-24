@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -512,7 +512,8 @@ TEST_F(JsonDomTest, WrapperTest) {
   vet_wrapper_length(thd, "[ 100, [ 200, 300 ] ]", 2);
 }
 
-void vet_merge(char *left_text, char *right_text, std::string expected) {
+void vet_merge(const char *left_text, const char *right_text,
+               std::string expected) {
   Json_dom_ptr result_dom =
       merge_doms(parse_json(left_text), parse_json(right_text));
   EXPECT_EQ(expected, format(*result_dom));
@@ -522,128 +523,125 @@ TEST_F(JsonDomTest, MergeTest) {
   // merge 2 scalars
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"1", (char *)"true", "[1, true]");
+    vet_merge("1", "true", "[1, true]");
   }
 
   // merge a scalar with an array
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"1", (char *)"[true, false]", "[1, true, false]");
+    vet_merge("1", "[true, false]", "[1, true, false]");
   }
 
   // merge an array with a scalar
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"[true, false]", (char *)"1", "[true, false, 1]");
+    vet_merge("[true, false]", "1", "[true, false, 1]");
   }
 
   // merge a scalar with an object
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"1", (char *)"{\"a\": 2}", "[1, {\"a\": 2}]");
+    vet_merge("1", "{\"a\": 2}", "[1, {\"a\": 2}]");
   }
 
   // merge an object with a scalar
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 2}", (char *)"1", "[{\"a\": 2}, 1]");
+    vet_merge("{\"a\": 2}", "1", "[{\"a\": 2}, 1]");
   }
 
   // merge 2 arrays
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"[1, 2]", (char *)"[3, 4]", "[1, 2, 3, 4]");
+    vet_merge("[1, 2]", "[3, 4]", "[1, 2, 3, 4]");
   }
 
   // merge 2 objects
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 1, \"b\": 2 }", (char *)"{\"c\": 3, \"d\": 4 }",
+    vet_merge("{\"a\": 1, \"b\": 2 }", "{\"c\": 3, \"d\": 4 }",
               "{\"a\": 1, \"b\": 2, \"c\": 3, \"d\": 4}");
   }
 
   // merge an array with an object
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"[1, 2]", (char *)"{\"c\": 3, \"d\": 4 }",
+    vet_merge("[1, 2]", "{\"c\": 3, \"d\": 4 }",
               "[1, 2, {\"c\": 3, \"d\": 4}]");
   }
 
   // merge an object with an array
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"c\": 3, \"d\": 4 }", (char *)"[1, 2]",
+    vet_merge("{\"c\": 3, \"d\": 4 }", "[1, 2]",
               "[{\"c\": 3, \"d\": 4}, 1, 2]");
   }
 
   // merge two objects which share a key. scalar + scalar
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 1, \"b\": 2 }", (char *)"{\"b\": 3, \"d\": 4 }",
+    vet_merge("{\"a\": 1, \"b\": 2 }", "{\"b\": 3, \"d\": 4 }",
               "{\"a\": 1, \"b\": [2, 3], \"d\": 4}");
   }
 
   // merge two objects which share a key. scalar + array
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 1, \"b\": 2 }",
-              (char *)"{\"b\": [3, 4], \"d\": 4 }",
+    vet_merge("{\"a\": 1, \"b\": 2 }", "{\"b\": [3, 4], \"d\": 4 }",
               "{\"a\": 1, \"b\": [2, 3, 4], \"d\": 4}");
   }
 
   // merge two objects which share a key. array + scalar
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 1, \"b\": [2, 3] }",
-              (char *)"{\"b\": 4, \"d\": 4 }",
+    vet_merge("{\"a\": 1, \"b\": [2, 3] }", "{\"b\": 4, \"d\": 4 }",
               "{\"a\": 1, \"b\": [2, 3, 4], \"d\": 4}");
   }
 
   // merge two objects which share a key. scalar + object
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 1, \"b\": 2 }",
-              (char *)"{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
+    vet_merge("{\"a\": 1, \"b\": 2 }",
+              "{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
               "{\"a\": 1, \"b\": [2, {\"e\": 7, \"f\": 8}], \"d\": 4}");
   }
 
   // merge two objects which share a key. object + scalar
   {
     SCOPED_TRACE("");
-    vet_merge((char *)(char *)"{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
-              (char *)"{\"a\": 1, \"b\": 2 }",
+    vet_merge("{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
+              "{\"a\": 1, \"b\": 2 }",
               "{\"a\": 1, \"b\": [{\"e\": 7, \"f\": 8}, 2], \"d\": 4}");
   }
 
   // merge two objects which share a key. array + array
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 1, \"b\": [2, 9] }",
-              (char *)"{\"b\": [10, 11], \"d\": 4 }",
+    vet_merge("{\"a\": 1, \"b\": [2, 9] }", "{\"b\": [10, 11], \"d\": 4 }",
               "{\"a\": 1, \"b\": [2, 9, 10, 11], \"d\": 4}");
   }
 
   // merge two objects which share a key. array + object
   {
     SCOPED_TRACE("");
-    vet_merge((char *)"{\"a\": 1, \"b\": [2, 9] }",
-              (char *)"{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
+    vet_merge("{\"a\": 1, \"b\": [2, 9] }",
+              "{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
               "{\"a\": 1, \"b\": [2, 9, {\"e\": 7, \"f\": 8}], \"d\": 4}");
   }
 
   // merge two objects which share a key. object + array
   {
     SCOPED_TRACE("");
-    vet_merge((char *)(char *)"{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
-              (char *)"{\"a\": 1, \"b\": [2, 9] }",
+    vet_merge("{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
+              "{\"a\": 1, \"b\": [2, 9] }",
               "{\"a\": 1, \"b\": [{\"e\": 7, \"f\": 8}, 2, 9], \"d\": 4}");
   }
 
   // merge two objects which share a key. object + object
   {
     SCOPED_TRACE("");
-    vet_merge((char *)(char *)"{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
-              (char *)"{\"a\": 1, \"b\": {\"e\": 20, \"g\": 21 } }",
+    vet_merge("{\"b\": {\"e\": 7, \"f\": 8}, \"d\": 4 }",
+              "{\"a\": 1, \"b\": {\"e\": 20, \"g\": 21 } }",
               "{\"a\": 1, \"b\": {\"e\": [7, 20], \"f\": 8, \"g\": 21}, "
               "\"d\": 4}");
   }

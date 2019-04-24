@@ -51,7 +51,7 @@ static int FT_STOPWORD_cmp(const void *, const void *a, const void *b) {
 
 static void FT_STOPWORD_free(void *v_w, TREE_FREE action, const void *) {
   FT_STOPWORD *w = static_cast<FT_STOPWORD *>(v_w);
-  if (action == free_free) my_free((void *)w->pos);
+  if (action == free_free) my_free(const_cast<char *>(w->pos));
 }
 
 static int ft_add_stopword(const char *w) {

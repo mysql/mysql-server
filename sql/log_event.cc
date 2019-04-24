@@ -5523,7 +5523,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
                         rli->get_group_master_log_name(),
                         (ulong)rli->get_group_master_log_pos()));
 
-    memcpy((void *)rli->get_group_master_log_name(), new_log_ident,
+    memcpy(const_cast<char *>(rli->get_group_master_log_name()), new_log_ident,
            ident_len + 1);
     rli->notify_group_master_log_name_update();
     /*
@@ -12976,9 +12976,10 @@ Transaction_context_log_event::Transaction_context_log_event(
 
 Transaction_context_log_event::~Transaction_context_log_event() {
   DBUG_TRACE;
-  if (server_uuid) my_free((void *)server_uuid);
+  if (server_uuid) my_free(const_cast<char *>(server_uuid));
   server_uuid = nullptr;
-  if (encoded_snapshot_version) my_free((void *)encoded_snapshot_version);
+  if (encoded_snapshot_version)
+    my_free(const_cast<uchar *>(encoded_snapshot_version));
   encoded_snapshot_version = nullptr;
   delete snapshot_version;
   delete sid_map;

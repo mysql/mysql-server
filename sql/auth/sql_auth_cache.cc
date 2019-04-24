@@ -3369,9 +3369,9 @@ bool assert_acl_cache_write_lock(THD *thd) {
 }
 
 /** Global sysvar: the number of old passwords to check in the history. */
-volatile uint32 global_password_history = 0;
+uint32 global_password_history = 0;
 /** Global sysvar: the number of days before a password can be reused. */
-volatile uint32 global_password_reuse_interval = 0;
+uint32 global_password_reuse_interval = 0;
 
 /**
   Reload all ACL caches

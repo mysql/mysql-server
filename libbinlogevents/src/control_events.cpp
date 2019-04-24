@@ -575,7 +575,7 @@ Transaction_context_event::Transaction_context_event(
 void Transaction_context_event::clear_set(std::list<const char *> *set) {
   for (std::list<const char *>::iterator it = set->begin(); it != set->end();
        ++it)
-    bapi_free((void *)*it);
+    bapi_free(const_cast<char *>(*it));
   set->clear();
 }
 
@@ -583,9 +583,10 @@ void Transaction_context_event::clear_set(std::list<const char *> *set) {
   Destructor of the Transaction_context_event class.
 */
 Transaction_context_event::~Transaction_context_event() {
-  if (server_uuid) bapi_free((void *)server_uuid);
+  if (server_uuid) bapi_free(const_cast<char *>(server_uuid));
   server_uuid = nullptr;
-  if (encoded_snapshot_version) bapi_free((void *)encoded_snapshot_version);
+  if (encoded_snapshot_version)
+    bapi_free(const_cast<unsigned char *>(encoded_snapshot_version));
   encoded_snapshot_version = nullptr;
   clear_set(&write_set);
   clear_set(&read_set);

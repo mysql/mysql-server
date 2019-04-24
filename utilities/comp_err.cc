@@ -471,7 +471,7 @@ static void clean_up(struct languages *lang_head, struct errors *error_head) {
   struct languages *tmp_lang, *next_language;
   struct errors *tmp_error, *next_error;
 
-  my_free((void *)default_language);
+  my_free(const_cast<char *>(default_language));
 
   for (tmp_lang = lang_head; tmp_lang; tmp_lang = next_language) {
     next_language = tmp_lang->next_lang;
@@ -491,9 +491,11 @@ static void clean_up(struct languages *lang_head, struct errors *error_head) {
       my_free(tmp->text);
     }
 
-    if (tmp_error->sql_code1[0]) my_free((void *)tmp_error->sql_code1);
-    if (tmp_error->sql_code2[0]) my_free((void *)tmp_error->sql_code2);
-    my_free((void *)tmp_error->er_name);
+    if (tmp_error->sql_code1[0])
+      my_free(const_cast<char *>(tmp_error->sql_code1));
+    if (tmp_error->sql_code2[0])
+      my_free(const_cast<char *>(tmp_error->sql_code2));
+    my_free(const_cast<char *>(tmp_error->er_name));
     tmp_error->~errors();
     my_free(tmp_error);
   }

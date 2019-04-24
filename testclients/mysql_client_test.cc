@@ -8240,7 +8240,7 @@ static void test_bug1500() {
 
   data = "Dogs";
   my_bind[0].buffer_type = MYSQL_TYPE_STRING;
-  my_bind[0].buffer = (void *)data;
+  my_bind[0].buffer = const_cast<char *>(data);
   my_bind[0].buffer_length = (ulong)strlen(data);
   my_bind[0].is_null = 0;
   my_bind[0].length = 0;
@@ -8266,7 +8266,7 @@ static void test_bug1500() {
 
   data = "Grave";
   my_bind[0].buffer_type = MYSQL_TYPE_STRING;
-  my_bind[0].buffer = (void *)data;
+  my_bind[0].buffer = const_cast<char *>(data);
   my_bind[0].buffer_length = (ulong)strlen(data);
 
   rc = mysql_stmt_bind_param(stmt, my_bind);
@@ -9488,7 +9488,7 @@ static void test_bug1664() {
   memset(my_bind, 0, sizeof(my_bind));
 
   my_bind[0].buffer_type = MYSQL_TYPE_STRING;
-  my_bind[0].buffer = (void *)str_data;
+  my_bind[0].buffer = const_cast<char *>(str_data);
   my_bind[0].buffer_length = (ulong)strlen(str_data);
 
   my_bind[1].buffer = (void *)&int_data;
@@ -9723,11 +9723,11 @@ static void test_ps_i18n() {
   memset(bind_array, 0, sizeof(bind_array));
 
   bind_array[0].buffer_type = MYSQL_TYPE_STRING;
-  bind_array[0].buffer = (void *)koi8;
+  bind_array[0].buffer = const_cast<char *>(koi8);
   bind_array[0].buffer_length = (ulong)strlen(koi8);
 
   bind_array[1].buffer_type = MYSQL_TYPE_STRING;
-  bind_array[1].buffer = (void *)koi8;
+  bind_array[1].buffer = const_cast<char *>(koi8);
   bind_array[1].buffer_length = (ulong)strlen(koi8);
 
   stmt = mysql_stmt_init(mysql);
@@ -9800,11 +9800,11 @@ static void test_ps_i18n() {
 
   /* this data must be converted */
   bind_array[0].buffer_type = MYSQL_TYPE_STRING;
-  bind_array[0].buffer = (void *)koi8;
+  bind_array[0].buffer = const_cast<char *>(koi8);
   bind_array[0].buffer_length = (ulong)strlen(koi8);
 
   bind_array[1].buffer_type = MYSQL_TYPE_STRING;
-  bind_array[1].buffer = (void *)koi8;
+  bind_array[1].buffer = const_cast<char *>(koi8);
   bind_array[1].buffer_length = (ulong)strlen(koi8);
 
   mysql_stmt_bind_param(stmt, bind_array);
@@ -9816,11 +9816,11 @@ static void test_ps_i18n() {
 
   /* this data must not be converted */
   bind_array[0].buffer_type = MYSQL_TYPE_BLOB;
-  bind_array[0].buffer = (void *)cp1251;
+  bind_array[0].buffer = const_cast<char *>(cp1251);
   bind_array[0].buffer_length = (ulong)strlen(cp1251);
 
   bind_array[1].buffer_type = MYSQL_TYPE_BLOB;
-  bind_array[1].buffer = (void *)cp1251;
+  bind_array[1].buffer = const_cast<char *>(cp1251);
   bind_array[1].buffer_length = (ulong)strlen(cp1251);
 
   mysql_stmt_bind_param(stmt, bind_array);
@@ -9905,7 +9905,7 @@ static void test_bug3796() {
   memset(my_bind, 0, sizeof(my_bind));
 
   my_bind[0].buffer_type = MYSQL_TYPE_STRING;
-  my_bind[0].buffer = (void *)concat_arg0;
+  my_bind[0].buffer = const_cast<char *>(concat_arg0);
   my_bind[0].buffer_length = (ulong)strlen(concat_arg0);
 
   mysql_stmt_bind_param(stmt, my_bind);
@@ -12269,7 +12269,7 @@ static MYSQL_STMT *open_cursor(const char *query) {
   rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
-  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&type);
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
   return stmt;
 }
 
@@ -16195,7 +16195,7 @@ static void test_bug28386() {
   memset(&bind, 0, sizeof(bind));
 
   bind.buffer_type = MYSQL_TYPE_STRING;
-  bind.buffer = (void *)hello;
+  bind.buffer = const_cast<char *>(hello);
   bind.buffer_length = (ulong)sizeof(hello);
 
   mysql_stmt_bind_param(stmt, &bind);
@@ -16540,7 +16540,7 @@ static void test_wl4166_4() {
   bind_array[0].buffer_type = MYSQL_TYPE_STRING;
 
   bind_array[1].buffer_type = MYSQL_TYPE_STRING;
-  bind_array[1].buffer = (void *)koi8;
+  bind_array[1].buffer = const_cast<char *>(koi8);
   bind_array[1].buffer_length = (ulong)strlen(koi8);
 
   stmt = mysql_stmt_init(mysql);
@@ -16996,7 +16996,7 @@ static void test_bug41078(void) {
 
   memset(&param, 0, sizeof(param));
   param.buffer_type = MYSQL_TYPE_STRING;
-  param.buffer = (void *)param_str;
+  param.buffer = const_cast<char *>(param_str);
   len = sizeof(param_str) - 1;
   param.length = &len;
 

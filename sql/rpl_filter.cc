@@ -1006,11 +1006,11 @@ void Rpl_filter::free_string_array(Table_rule_array *a) {
 }
 
 void Rpl_filter::free_string_list(I_List<i_string> *l) {
-  void *ptr;
+  char *ptr;
   i_string *tmp;
 
   while ((tmp = l->get())) {
-    ptr = (void *)tmp->ptr;
+    ptr = const_cast<char *>(tmp->ptr);
     my_free(ptr);
     delete tmp;
   }
@@ -1021,8 +1021,8 @@ void Rpl_filter::free_string_list(I_List<i_string> *l) {
 void Rpl_filter::free_string_pair_list(I_List<i_string_pair> *pl) {
   i_string_pair *tmp;
   while ((tmp = pl->get())) {
-    my_free((void *)tmp->key);
-    my_free((void *)tmp->val);
+    my_free(const_cast<char *>(tmp->key));
+    my_free(const_cast<char *>(tmp->val));
     delete tmp;
   }
 

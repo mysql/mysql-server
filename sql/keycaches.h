@@ -57,7 +57,7 @@ class NAMED_ILINK : public ilink<NAMED_ILINK> {
     return length == name_length && !memcmp(name, name_cmp, length);
   }
 
-  ~NAMED_ILINK() { my_free((void *)name); }
+  ~NAMED_ILINK() { my_free(const_cast<char *>(name)); }
 };
 
 class NAMED_ILIST : public I_List<NAMED_ILINK> {

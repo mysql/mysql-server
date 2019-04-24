@@ -818,7 +818,7 @@ ErrConvString::ErrConvString(double nr) {
 
 ErrConvString::ErrConvString(const my_decimal *nr) {
   int len = sizeof(err_buffer);
-  (void)decimal2string((decimal_t *)nr, err_buffer, &len, 0, 0, 0);
+  (void)decimal2string(nr, err_buffer, &len, 0, 0, 0);
   buf_length = (uint)len;
 }
 

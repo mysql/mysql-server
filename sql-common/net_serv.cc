@@ -558,7 +558,7 @@ static int begin_packet_write_state(NET *net, uchar command,
 
     /* Second packet, our optional prefix (if any). */
     if (packet_num == 0 && optional_prefix != NULL) {
-      (*vec).iov_base = (void *)optional_prefix;
+      (*vec).iov_base = const_cast<uchar *>(optional_prefix);
       (*vec).iov_len = prefix_len;
       ++vec;
       bytes_queued += prefix_len;
@@ -568,7 +568,7 @@ static int begin_packet_write_state(NET *net, uchar command,
       packet we have left, and advance our packet pointer.
     */
     size_t remaining_bytes = packet_size - bytes_queued;
-    (*vec).iov_base = (void *)packet;
+    (*vec).iov_base = const_cast<uchar *>(packet);
     (*vec).iov_len = remaining_bytes;
 
     bytes_queued += remaining_bytes;
@@ -1166,7 +1166,7 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
 
   res = net_write_raw_loop(net, packet, length);
 
-  if (do_compress) my_free((void *)packet);
+  if (do_compress) my_free(const_cast<uchar *>(packet));
 
   net->reading_or_writing = 0;
 

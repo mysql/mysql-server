@@ -622,11 +622,11 @@ int log_item_inconsistent(log_item *li) {
   @param  li  log-item to release the payload of
 */
 void log_item_free(log_item *li) {
-  if (li->alloc & LOG_ITEM_FREE_KEY) my_free((void *)li->key);
+  if (li->alloc & LOG_ITEM_FREE_KEY) my_free(const_cast<char *>(li->key));
 
   if (li->alloc & LOG_ITEM_FREE_VALUE) {
     if (li->item_class == LOG_LEX_STRING)
-      my_free((void *)li->data.data_string.str);
+      my_free(const_cast<char *>(li->data.data_string.str));
     else
       DBUG_ASSERT(false);
   }
@@ -1598,7 +1598,8 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
         if (index_time >= 0) {
           // release old timestamp value
           if (llp->ll.item[index_time].alloc & LOG_ITEM_FREE_VALUE) {
-            my_free((void *)llp->ll.item[index_time].data.data_string.str);
+            my_free(const_cast<char *>(
+                llp->ll.item[index_time].data.data_string.str));
           }
           // set new timestamp value
           llp->ll.item[index_time].data.data_string.str = date;
@@ -3195,7 +3196,7 @@ DEFINE_METHOD(int, log_builtins_imp::sanitize, (log_item * li)) {
   out_start[out_len - 1] = '\0';
 
   if (li->alloc & LOG_ITEM_FREE_VALUE) {
-    my_free((void *)in_start);
+    my_free(const_cast<char *>(in_start));
   }
 
   li->data.data_string.str = out_start;

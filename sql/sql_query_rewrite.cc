@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ void invoke_pre_parse_rewrite_plugins(THD *thd) {
     raise_query_rewritten_note(thd, thd->query().str, rewritten_query.str);
     alloc_query(thd, rewritten_query.str, rewritten_query.length);
     thd->m_parser_state->init(thd, thd->query().str, thd->query().length);
-    my_free((void *)rewritten_query.str);
+    my_free(const_cast<char *>(rewritten_query.str));
   }
 
   da->copy_non_errors_from_da(thd, plugin_da);

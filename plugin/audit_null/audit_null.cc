@@ -339,7 +339,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     if (buffer && (buffer == g_record_buffer)) {
       new_buffer = add_event(buffer, event_name, data, data_length);
       g_record_buffer = new_buffer;
-      my_free((void *)(buffer));
+      my_free(const_cast<char *>(buffer));
     }
 
     mysql_mutex_unlock(&g_record_buffer_mutex);
@@ -370,7 +370,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     mysql_mutex_lock(&g_record_buffer_mutex);
 
     if (buffer == g_record_buffer) {
-      my_free((void *)(buffer));
+      my_free(const_cast<char *>(buffer));
 
       g_record_buffer = add_event("", event_name, data, data_length);
 
@@ -384,7 +384,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     record_str = THDVAR(thd, event_record_def);
 
     /* Remove starting event. */
-    memmove(record_str, (void *)record_end.str, record_end.length + 1);
+    memmove(record_str, record_end.str, record_end.length + 1);
   }
 }
 
@@ -404,7 +404,7 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
 
     /* Do not replace order string yet. */
     if (consume_event) {
-      memmove(order_str, (void *)status.str, status.length + 1);
+      memmove(order_str, status.str, status.length + 1);
 
       THDVAR(thd, abort_value) = 1;
       THDVAR(thd, abort_message) = 0;

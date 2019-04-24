@@ -666,7 +666,7 @@ static void write_header(FILE *sql_file, char *db_name) {
     char const *text = fix_identifier_with_newline(db_name, &freemem);
     print_comment(sql_file, 0, "-- Host: %s    Database: %s\n",
                   current_host ? current_host : "localhost", text);
-    if (freemem) my_free((void *)text);
+    if (freemem) my_free(const_cast<char *>(text));
 
     print_comment(
         sql_file, 0,
@@ -2102,7 +2102,7 @@ static uint dump_events_for_db(char *db) {
   char const *text = fix_identifier_with_newline(db, &freemem);
   print_comment(sql_file, 0, "\n--\n-- Dumping events for database '%s'\n--\n",
                 text);
-  if (freemem) my_free((void *)text);
+  if (freemem) my_free(const_cast<char *>(text));
 
   if (mysql_query_with_error_report(mysql, &event_list_res, "show events"))
     return 0;
@@ -2287,7 +2287,7 @@ static uint dump_routines_for_db(char *db) {
   char const *text = fix_identifier_with_newline(db, &freemem);
   print_comment(sql_file, 0,
                 "\n--\n-- Dumping routines for database '%s'\n--\n", text);
-  if (freemem) my_free((void *)text);
+  if (freemem) my_free(const_cast<char *>(text));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2341,7 +2341,7 @@ static uint dump_routines_for_db(char *db) {
             print_comment(sql_file, 1,
                           "-- does %s have permissions on mysql.proc?\n\n",
                           text);
-            if (freemem) my_free((void *)text);
+            if (freemem) my_free(const_cast<char *>(text));
 
             maybe_die(EX_MYSQLERR, "%s has insufficient privileges to %s!",
                       current_user, query_buff);
@@ -2597,7 +2597,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
       else
         print_comment(sql_file, 0,
                       "\n--\n-- Table structure for table %s\n--\n\n", text);
-      if (freemem) my_free((void *)text);
+      if (freemem) my_free(const_cast<char *>(text));
 
       if (opt_drop) {
         /*
@@ -2852,7 +2852,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
       char const *text = fix_identifier_with_newline(result_table, &freemem);
       print_comment(sql_file, 0,
                     "\n--\n-- Table structure for table %s\n--\n\n", text);
-      if (freemem) my_free((void *)text);
+      if (freemem) my_free(const_cast<char *>(text));
 
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
@@ -3573,7 +3573,7 @@ static void dump_table(char *table, char *db) {
     char const *text = fix_identifier_with_newline(result_table, &freemem);
     print_comment(md_result_file, 0, "\n--\n-- Dumping data for table %s\n--\n",
                   text);
-    if (freemem) my_free((void *)text);
+    if (freemem) my_free(const_cast<char *>(text));
 
     dynstr_append_checked(&query_string,
                           "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
@@ -3583,7 +3583,7 @@ static void dump_table(char *table, char *db) {
       freemem = false;
       char const *text = fix_identifier_with_newline(where, &freemem);
       print_comment(md_result_file, 0, "-- WHERE:  %s\n", text);
-      if (freemem) my_free((void *)text);
+      if (freemem) my_free(const_cast<char *>(text));
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
@@ -3592,7 +3592,7 @@ static void dump_table(char *table, char *db) {
       freemem = false;
       char const *text = fix_identifier_with_newline(order_by, &freemem);
       print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", text);
-      if (freemem) my_free((void *)text);
+      if (freemem) my_free(const_cast<char *>(text));
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
@@ -4309,7 +4309,7 @@ static int init_dumping(char *database, int init_func(char *)) {
       char const *text = fix_identifier_with_newline(qdatabase, &freemem);
       print_comment(md_result_file, 0, "\n--\n-- Current Database: %s\n--\n",
                     text);
-      if (freemem) my_free((void *)text);
+      if (freemem) my_free(const_cast<char *>(text));
 
       /* Call the view or table specific function */
       init_func(qdatabase);
@@ -5408,7 +5408,7 @@ static bool get_view_structure(char *table, char *db) {
   char const *text = fix_identifier_with_newline(result_table, &freemem);
   print_comment(sql_file, 0,
                 "\n--\n-- Final view structure for view %s\n--\n\n", text);
-  if (freemem) my_free((void *)text);
+  if (freemem) my_free(const_cast<char *>(text));
 
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);

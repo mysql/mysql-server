@@ -676,8 +676,8 @@ TEST_F(Keys_container_test_dont_close,
   keys_container = new Keys_container(logger);
 
   // this key will not be in backup file thus we do not care about it
-  Key *sample_key3 = new Key("Roberts_key3", "ZZZZ", "MaybeRobert",
-                             (void *)("DATA"), strlen("DATA"));
+  Key *sample_key3 =
+      new Key("Roberts_key3", "ZZZZ", "MaybeRobert", "DATA", strlen("DATA"));
 
   EXPECT_EQ(keys_container->init(keyring_io_dont_remove_backup, file_name), 0);
   EXPECT_EQ(keys_container->store_key(sample_key3), 0);

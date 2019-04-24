@@ -25,7 +25,7 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "m_string.h"  // C_STRING_WITH_LEN
+#include "m_string.h"  // STRING_WITH_LEN
 #include "my_sqlcommand.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/mem_root_array.h"

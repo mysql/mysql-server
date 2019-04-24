@@ -215,7 +215,8 @@ size_t vio_write(Vio *vio, const uchar *buf, size_t size) {
   /* If timeout is enabled, do not block. */
   if (vio->write_timeout >= 0) flags = VIO_DONTWAIT;
 
-  while ((ret = mysql_socket_send(vio->mysql_socket, (SOCKBUF_T *)buf, size,
+  while ((ret = mysql_socket_send(vio->mysql_socket,
+                                  pointer_cast<const SOCKBUF_T *>(buf), size,
                                   flags)) == -1) {
     int error = socket_errno;
 

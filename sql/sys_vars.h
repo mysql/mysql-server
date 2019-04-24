@@ -101,8 +101,8 @@ class Sys_var_integer;
 #define VALID_RANGE(X, Y) X, Y
 #define DEFAULT(X) X
 #define BLOCK_SIZE(X) X
-#define GLOBAL_VAR(X)                                                   \
-  sys_var::GLOBAL, (((char *)&(X)) - (char *)&global_system_variables), \
+#define GLOBAL_VAR(X)                                                         \
+  sys_var::GLOBAL, (((const char *)&(X)) - (char *)&global_system_variables), \
       sizeof(X)
 #define SESSION_VAR(X)                             \
   sys_var::SESSION, offsetof(System_variables, X), \

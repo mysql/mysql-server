@@ -1070,7 +1070,7 @@ bool opt_myisam_use_mmap = 0;
 std::atomic<bool> offline_mode;
 uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
-volatile bool password_require_current = false;
+bool password_require_current = false;
 std::atomic<bool> partial_revokes;
 bool opt_partial_revokes;
 

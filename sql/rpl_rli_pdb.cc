@@ -699,7 +699,7 @@ static void free_entry(db_worker_hash_entry *entry) {
   mts_move_temp_tables_to_thd(c_thd, entry->temporary_tables);
   entry->temporary_tables = nullptr;
 
-  my_free((void *)entry->db);
+  my_free(const_cast<char *>(entry->db));
   my_free(entry);
 }
 

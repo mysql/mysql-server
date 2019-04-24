@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ Ndb_plugin_reference::Ndb_plugin_reference() :
 
 bool Ndb_plugin_reference::lock()
 {
-  const LEX_CSTRING plugin_name = { C_STRING_WITH_LEN("ndbcluster") };
+  const LEX_CSTRING plugin_name = { STRING_WITH_LEN("ndbcluster") };
 
   // Resolve reference to "ndbcluster plugin"
   plugin = plugin_lock_by_name(NULL,

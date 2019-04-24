@@ -376,8 +376,8 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
   event.general_sql_command = sql_statement_names[thd->lex->sql_command];
 
-  thd_get_audit_query(thd, &event.general_query,
-                      (const CHARSET_INFO **)&event.general_charset);
+  const CHARSET_INFO *charset = event.general_charset;
+  thd_get_audit_query(thd, &event.general_query, &charset);
 
   event.general_time = thd->query_start_in_secs();
 
@@ -1307,7 +1307,8 @@ int finalize_audit_plugin(st_plugin_int *plugin) {
 static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg) {
   const struct st_mysql_event_generic *event_generic =
       (const struct st_mysql_event_generic *)arg;
-  unsigned long subclass = (unsigned long)*(int *)event_generic->event;
+  unsigned long subclass = static_cast<unsigned long>(
+      *static_cast<const int *>(event_generic->event));
   st_mysql_audit *data = plugin_data<st_mysql_audit *>(plugin);
 
   /* Check to see if the plugin is interested in this event */

@@ -63,10 +63,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 
-#define FREE_RECORD(sysvar)                                           \
-  my_free((void *)(reinterpret_cast<sys_var_pluginvar *>(sysvar)      \
-                       ->plugin_var->name));                          \
-  my_free(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var); \
+#define FREE_RECORD(sysvar)                                              \
+  my_free(const_cast<char *>(                                            \
+      reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var->name)); \
+  my_free(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var);    \
   delete reinterpret_cast<sys_var_pluginvar *>(sysvar);
 
 PSI_memory_key key_memory_comp_sys_var;

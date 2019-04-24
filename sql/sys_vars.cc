@@ -1678,9 +1678,8 @@ static bool check_cs_client(sys_var *self, THD *thd, set_var *var) {
   if (check_charset_not_null(self, thd, var)) return true;
 
   // Currently, UCS-2 cannot be used as a client character set
-  if (((CHARSET_INFO *)(var->save_result.ptr))->mbminlen > 1) return true;
-
-  return false;
+  return (static_cast<const CHARSET_INFO *>(var->save_result.ptr))->mbminlen >
+         1;
 }
 static bool fix_thd_charset(sys_var *, THD *thd, enum_var_type type) {
   if (type == OPT_SESSION) thd->update_charset();

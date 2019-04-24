@@ -199,10 +199,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @param service A Service name for which the Service Implementation will be
     added.
 */
-#define PROVIDES_SERVICE(component, service)                \
-  {                                                         \
-#service "." #component,                                \
-        (void *)&SERVICE_IMPLEMENTATION(component, service) \
+#define PROVIDES_SERVICE(component, service)                            \
+  {                                                                     \
+#service "." #component,                                            \
+        const_cast < void *>                                            \
+            ((const void *)&SERVICE_IMPLEMENTATION(component, service)) \
   }
 
 /**

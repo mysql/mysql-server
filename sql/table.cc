@@ -3259,7 +3259,7 @@ err:
   outparam->file = 0;  // For easier error checking
   outparam->db_stat = 0;
   if (!internal_tmp) free_root(root, MYF(0));
-  my_free((void *)outparam->alias);
+  my_free(const_cast<char *>(outparam->alias));
   return error;
 }
 
@@ -3276,7 +3276,7 @@ int closefrm(TABLE *table, bool free_share) {
   DBUG_PRINT("enter", ("table: %p", table));
 
   if (table->db_stat) error = table->file->ha_close();
-  my_free((void *)table->alias);
+  my_free(const_cast<char *>(table->alias));
   table->alias = 0;
   if (table->field) {
     for (Field **ptr = table->field; *ptr; ptr++) {

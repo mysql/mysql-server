@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ class Mock_share : public TABLE_SHARE {
       Both table_cache_key and cache_element array are used by
       Table_cache code.
     */
-    table_cache_key.str = (char *)key;
+    table_cache_key.str = key;
     table_cache_key.length = strlen(key);
     memset(cache_element_arr, 0, sizeof(cache_element_arr));
     cache_element = cache_element_arr;

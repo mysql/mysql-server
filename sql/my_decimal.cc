@@ -368,7 +368,7 @@ void print_decimal_buff(const my_decimal *dec, const uchar *ptr, int length) {
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val) {
   int length = DECIMAL_MAX_STR_LENGTH + 1; /* minimum size for buff */
   if (!val) return "NULL";
-  (void)decimal2string((decimal_t *)val, buff, &length, 0, 0, 0);
+  (void)decimal2string(val, buff, &length, 0, 0, 0);
   return buff;
 }
 
