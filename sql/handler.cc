@@ -4871,8 +4871,9 @@ int handler::ha_load_table(const TABLE &table) { return load_table(table); }
  *
  * @sa handler::unload_table()
  */
-int handler::ha_unload_table(const char *db_name, const char *table_name) {
-  return unload_table(db_name, table_name);
+int handler::ha_unload_table(const char *db_name, const char *table_name,
+                             bool error_if_not_loaded) {
+  return unload_table(db_name, table_name, error_if_not_loaded);
 }
 
 /**

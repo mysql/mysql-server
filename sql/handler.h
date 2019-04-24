@@ -4336,7 +4336,8 @@ class handler {
 
   int ha_load_table(const TABLE &table);
 
-  int ha_unload_table(const char *db_name, const char *table_name);
+  int ha_unload_table(const char *db_name, const char *table_name,
+                      bool error_if_not_loaded);
 
   /**
         Initializes a parallel scan. It creates a parallel_scan_ctx that has to
@@ -6125,13 +6126,18 @@ class handler {
   /**
    * Unloads a table from its defined secondary storage engine.
    *
-   * @param db_name    Database name.
-   * @param table_name Table name.
-   *
+   * @param db_name             Database name.
+   * @param table_name          Table name.
+   * @param error_if_not_loaded If true, then errors will be reported by this
+   *                            function. If false, no errors will be reported
+   *                            (silently fail). This case of false is useful
+   *                            during DROP TABLE where a failure to unload
+   *                            should not prevent dropping the whole table.
    * @return 0 if success, error code otherwise.
    */
   virtual int unload_table(const char *db_name MY_ATTRIBUTE((unused)),
-                           const char *table_name MY_ATTRIBUTE((unused))) {
+                           const char *table_name MY_ATTRIBUTE((unused)),
+                           bool error_if_not_loaded MY_ATTRIBUTE((unused))) {
     /* purecov: begin inspected */
     DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
