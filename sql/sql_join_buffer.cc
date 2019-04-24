@@ -640,7 +640,6 @@ void JOIN_CACHE::restore_virtual_gcol_base_cols()
 
     if (!(cov_index || tab->dynamic_range())) continue;
 
-    DBUG_ASSERT(!bitmap_is_clear_all(*save_read_set));
     bitmap_copy(table->read_set, *save_read_set);
     save_read_set++;
   }
