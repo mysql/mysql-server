@@ -22,7 +22,7 @@
 --echo # Bug #29343073: MYSQLPUMP DUMPS GRANT TABLES THAT IT SHOULD NOT
 --echo #
 
---exec $MYSQL_PUMP --skip-dump-rows mysql > $MYSQLTEST_VARDIR/tmp/bug29343073.sql
+--exec $MYSQL_PUMP --skip-dump-rows --exclude-tables=ndb_binlog_index mysql > $MYSQLTEST_VARDIR/tmp/bug29343073.sql
 
 --let $assert_text=Should not contain mysql.role_edges
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/bug29343073.sql
