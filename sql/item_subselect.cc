@@ -1541,7 +1541,6 @@ longlong Item_exists_subselect::val_int() { return val_bool(); }
 String *Item_exists_subselect::val_str(String *str) {
   longlong val = val_bool();
   if (null_value) return nullptr;
-  if (current_thd->is_error()) return nullptr;
   str->set(val, &my_charset_bin);
   return str;
 }
@@ -1559,7 +1558,6 @@ String *Item_exists_subselect::val_str(String *str) {
 my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value) {
   longlong val = val_bool();
   if (null_value) return nullptr;
-  if (current_thd->is_error()) return nullptr;
   int2my_decimal(E_DEC_FATAL_ERROR, val, 0, decimal_value);
   return decimal_value;
 }
