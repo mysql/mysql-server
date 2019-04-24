@@ -610,11 +610,20 @@ static inline Instant_Type innobase_support_instant(
     return (Instant_Type::INSTANT_IMPOSSIBLE);
   }
 
-  /* If it's an ADD COLUMN without changing existing column orders,
-  or including ADD VIRTUAL COLUMN */
+  /* If it's an ADD COLUMN without changing existing stored column orders
+  (change trailing virtual column orders is fine, especially for supporting
+  adding stored columns to a table with functional indexes), or including
+  ADD VIRTUAL COLUMN */
   if ((alter_inplace_flags == Alter_inplace_info::ADD_STORED_BASE_COLUMN) ||
       (alter_inplace_flags == (Alter_inplace_info::ADD_STORED_BASE_COLUMN |
-                               Alter_inplace_info::ADD_VIRTUAL_COLUMN))) {
+                               Alter_inplace_info::ADD_VIRTUAL_COLUMN)) ||
+      (alter_inplace_flags ==
+       (Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+        Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) ||
+      (alter_inplace_flags ==
+       ((Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+         Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+         Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)))) {
     return (Instant_Type::INSTANT_ADD_COLUMN);
   } else {
     return (Instant_Type::INSTANT_IMPOSSIBLE);
