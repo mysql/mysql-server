@@ -756,7 +756,7 @@ int STDCALL mysql_shutdown(MYSQL *mysql,
                            enum mysql_enum_shutdown_level shutdown_level
                                MY_ATTRIBUTE((unused))) {
   if (mysql_get_server_version(mysql) < 50709)
-    return simple_command(mysql, COM_DEPRECATED_1, 0, 1, 0);
+    return simple_command(mysql, COM_DEPRECATED_1, 0, 0, 0);
   else
     return mysql_real_query(mysql, STRING_WITH_LEN("shutdown"));
 }
