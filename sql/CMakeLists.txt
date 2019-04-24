@@ -932,38 +932,60 @@ INSTALL_DEBUG_TARGET(mysqld
   RENAME mysqld-debug${CMAKE_EXECUTABLE_SUFFIX}
 )
 
-# Handle out-of-source build from source package with possibly broken 
-# bison. Copy bison output to from source to build directory, if not already 
-# there
+# Check BISON_VERSION and set BISON_FLAGS_WARNINGS
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 
-COPY_BISON_OUTPUT(
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
-)
+IF(BISON_FOUND)
+  SET(USE_BISON_RESULTS_FROM_MAKE_DIST_DEFAULT OFF)
+ELSE()
+  SET(USE_BISON_RESULTS_FROM_MAKE_DIST_DEFAULT ON)
+ENDIF()
 
-COPY_BISON_OUTPUT(
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy.h
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
-)
+# bison should be REQUIRED, but we have to support source tarball build.
+# https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
+OPTION(USE_BISON_RESULTS_FROM_MAKE_DIST
+  "Use bison results from source distribution tarball"
+  ${USE_BISON_RESULTS_FROM_MAKE_DIST_DEFAULT}
+  )
 
-RUN_BISON(
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
-  MYSQL
-)
+IF(USE_BISON_RESULTS_FROM_MAKE_DIST)
+  # No bison found, see if generated files are available as sources.
+  FOREACH(genfile sql_yacc.h sql_yacc.cc sql_hints.yy.h sql_hints.yy.cc)
+    IF(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${genfile}")
+      MESSAGE(FATAL_ERROR "Cannot find ${CMAKE_CURRENT_SOURCE_DIR}/${genfile}")
+    ENDIF()
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${genfile}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/${genfile}
+        ${CMAKE_CURRENT_BINARY_DIR}/${genfile}
+      COMMENT "Copying file ${genfile}"
+      VERBATIM
+      )
+  ENDFOREACH()
+ELSE()
+  BISON_TARGET(mysql_parser
+    sql_yacc.yy
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    COMPILE_FLAGS "--name-prefix=MYSQL --yacc ${BISON_FLAGS_WARNINGS}"
+    DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+    )
 
-RUN_BISON(
-  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy 
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
-  HINT_PARSER_
-)
+  BISON_TARGET(hints_parser
+    sql_hints.yy
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "--name-prefix=HINT_PARSER_ --yacc ${BISON_FLAGS_WARNINGS}"
+    DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+    )
+
+  MESSAGE(STATUS "BISON outputs ${BISON_mysql_parser_OUTPUTS}")
+  MESSAGE(STATUS "BISON outputs ${BISON_hints_parser_OUTPUTS}")
+
+  # Some targets, for easier debugging.
+  ADD_CUSTOM_TARGET(GenBison_mysql DEPENDS ${BISON_mysql_parser_OUTPUTS})
+  ADD_CUSTOM_TARGET(GenBison_hints DEPENDS ${BISON_hints_parser_OUTPUTS})
+
+ENDIF()
 
 SET_SOURCE_FILES_PROPERTIES(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
@@ -1032,10 +1054,7 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(dist 
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/make_dist.cmake
-  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-          ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
-          ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
-          ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
+  DEPENDS GenBison_mysql GenBison_hints
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 

@@ -42,7 +42,10 @@ FOREACH(warning
 ENDFOREACH()
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
+# Check BISON_VERSION and set BISON_FLAGS_WARNINGS
+FIND_PACKAGE(BISON REQUIRED)
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
@@ -62,19 +65,15 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
                     COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
-COPY_BISON_OUTPUT(
-  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.hpp
+BISON_TARGET(ndb_import
+  NdbImportCsvGram.ypp
   ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
-)
+  COMPILE_FLAGS "--name-prefix=NdbImportCsv_yy --yacc ${BISON_FLAGS_WARNINGS}"
+  DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
+  )
 
-RUN_BISON(
-  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.ypp
-  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
-  NdbImportCsv_yy
-)
+# Add target, for easier debugging.
+ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp

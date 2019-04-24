@@ -115,6 +115,7 @@ Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 BuildRequires:  cmake >= 2.8.2
+BuildRequires:  bison >= 2.1
 BuildRequires:  perl
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)

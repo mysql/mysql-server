@@ -72,6 +72,7 @@ URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 BuildRequires:  cmake
+BuildRequires:  bison >= 2.1
 BuildRequires:  perl
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
