@@ -849,7 +849,6 @@ WARN_LOGFILE           =
 
 INPUT                  = ./client \
                          ./components \
-                         ./dbug \
                          ./include \
                          ./libbinlogevents \
                          ./libbinlogstandalone \
