@@ -198,7 +198,7 @@ ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict)
 }
 
 
-bool ndb_get_logfile_group_names(NdbDictionary::Dictionary* dict,
+bool ndb_get_logfile_group_names(const NdbDictionary::Dictionary* dict,
                                  std::unordered_set<std::string>& lfg_names)
 {
   NdbDictionary::Dictionary::List lfg_list;
@@ -216,7 +216,7 @@ bool ndb_get_logfile_group_names(NdbDictionary::Dictionary* dict,
 }
 
 
-bool ndb_get_tablespace_names(NdbDictionary::Dictionary* dict,
+bool ndb_get_tablespace_names(const NdbDictionary::Dictionary* dict,
                               std::unordered_set<std::string>& tablespace_names)
 {
   NdbDictionary::Dictionary::List tablespace_list;

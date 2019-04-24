@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,10 @@
 #ifndef NDB_TABLE_GUARD_H
 #define NDB_TABLE_GUARD_H
 
+#include <string>
+
 #include "my_dbug.h"
+#include "storage/ndb/include/ndbapi/Ndb.hpp"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
 class Ndb_table_guard
@@ -43,6 +46,18 @@ public:
     DBUG_ENTER("Ndb_table_guard");
     init(tabname);
     DBUG_VOID_RETURN;
+  }
+  Ndb_table_guard(Ndb* ndb, const char* dbname, const char *tabname)
+    : m_dict(ndb->getDictionary())
+  {
+    const std::string save_dbname(ndb->getDatabaseName());
+    if (ndb->setDatabaseName(dbname) != 0){
+      // Failed to set databasname, indicate error by returning
+      // without initializing the table pointer
+      return;
+    }
+    init(tabname);
+    (void)ndb->setDatabaseName(save_dbname.c_str());
   }
   ~Ndb_table_guard()
   {

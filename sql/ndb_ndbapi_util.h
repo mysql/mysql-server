@@ -133,7 +133,7 @@ bool ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict);
  * @param lfg_names [out] List of logfile group names
  * @return true on success, false on failure
  */
-bool ndb_get_logfile_group_names(NdbDictionary::Dictionary* dict,
+bool ndb_get_logfile_group_names(const NdbDictionary::Dictionary* dict,
                                  std::unordered_set<std::string>& lfg_names);
 
 
@@ -144,7 +144,7 @@ bool ndb_get_logfile_group_names(NdbDictionary::Dictionary* dict,
  * @return true on success, false on failure
  */
 bool
-ndb_get_tablespace_names(NdbDictionary::Dictionary* dict,
+ndb_get_tablespace_names(const NdbDictionary::Dictionary* dict,
                          std::unordered_set<std::string>& tablespace_names);
 
 
@@ -182,7 +182,7 @@ bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
  * @param datafile_names [out] Datafile names
  * @return true on success, false on failure
  */
-bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
+bool ndb_get_datafile_names(NdbDictionary::Dictionary* dict,
                             const std::string &tablespace_name,
                             std::vector<std::string> &datafile_names);
 

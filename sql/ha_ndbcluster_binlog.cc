@@ -75,7 +75,6 @@ typedef NdbDictionary::Event NDBEVENT;
 typedef NdbDictionary::Object NDBOBJ;
 typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Table NDBTAB;
-typedef NdbDictionary::Dictionary NDBDICT;
 
 extern bool opt_ndb_log_orig;
 extern bool opt_ndb_log_bin;
@@ -1314,10 +1313,9 @@ class Ndb_binlog_setup {
       // Fetch list of NDB tables in NDB
       std::unordered_set<std::string> ndb_tables_in_NDB;
       Ndb *ndb = get_thd_ndb(m_thd)->ndb;
-      NDBDICT *dict = ndb->getDictionary();
-      if (!ndb_get_table_names_in_schema(dict, schema_name, ndb_tables_in_NDB))
-      {
-        log_NDB_error(dict->getNdbError());
+      if (!ndb_get_table_names_in_schema(ndb->getDictionary(), schema_name,
+                                         ndb_tables_in_NDB)) {
+        log_NDB_error(ndb->getDictionary()->getNdbError());
         ndb_log_error("Failed to get list of NDB tables in schema '%s' from "
                       "NDB", schema_name);
         return false;
@@ -1484,22 +1482,18 @@ class Ndb_binlog_setup {
   synchronize_table(const char* schema_name,
                     const char* table_name)
   {
-
-
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict= ndb->getDictionary();
+    Ndb *ndb = get_thd_ndb(m_thd)->ndb;
 
     ndb_log_verbose(1,
                     "Synchronizing table '%s.%s'",
                     schema_name, table_name);
 
-    ndb->setDatabaseName(schema_name);
-    Ndb_table_guard ndbtab_g(dict, table_name);
+    Ndb_table_guard ndbtab_g(ndb, schema_name, table_name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
     if (!ndbtab)
     {
       // Failed to open the table from NDB
-      log_NDB_error(dict->getNdbError());
+      log_NDB_error(ndb->getDictionary()->getNdbError());
       ndb_log_error("Failed to setup table '%s.%s'",
                     schema_name, table_name);
 
@@ -1648,7 +1642,7 @@ class Ndb_binlog_setup {
     // Fetch list of NDB tables in NDB
     std::unordered_set<std::string> ndb_tables_in_NDB;
     Ndb *ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT *dict = ndb->getDictionary();
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
     if (!ndb_get_table_names_in_schema(dict, schema_name, ndb_tables_in_NDB))
     {
       log_NDB_error(dict->getNdbError());
@@ -1731,7 +1725,7 @@ class Ndb_binlog_setup {
     ndb_log_verbose(1, "Synchronizing logfile group '%s'", logfile_group_name);
 
     Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict = ndb->getDictionary();
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
     NdbDictionary::LogfileGroup ndb_lfg =
         dict->getLogfileGroup(logfile_group_name);
     if (ndb_dict_check_NDB_error(dict))
@@ -1856,7 +1850,7 @@ class Ndb_binlog_setup {
     // Retrieve list of logfile groups from NDB
     std::unordered_set<std::string> lfg_in_NDB;
     Ndb *ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT *dict = ndb->getDictionary();
+    const NdbDictionary::Dictionary *dict = ndb->getDictionary();
     if (!ndb_get_logfile_group_names(dict, lfg_in_NDB))
     {
       log_NDB_error(dict->getNdbError());
@@ -1949,7 +1943,7 @@ class Ndb_binlog_setup {
     ndb_log_verbose(1, "Synchronizing tablespace '%s'", tablespace_name);
 
     Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict = ndb->getDictionary();
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
     const auto tablespace_position = tablespaces_in_DD.find(tablespace_name);
     NdbDictionary::Tablespace ndb_tablespace =
         dict->getTablespace(tablespace_name);
@@ -2071,7 +2065,7 @@ class Ndb_binlog_setup {
     // Retrieve list of tablespaces from NDB
     std::unordered_set<std::string> tablespaces_in_NDB;
     Ndb *ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT *dict = ndb->getDictionary();
+    const NdbDictionary::Dictionary *dict = ndb->getDictionary();
     if (!ndb_get_tablespace_names(dict, tablespaces_in_NDB))
     {
       log_NDB_error(dict->getNdbError());
@@ -2712,9 +2706,7 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
   {
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     Ndb *ndb= thd_ndb->ndb;
-    NDBDICT *dict= ndb->getDictionary();
-    ndb->setDatabaseName(share->db);
-    Ndb_table_guard ndbtab_g(dict, share->table_name);
+    Ndb_table_guard ndbtab_g(ndb, share->db, share->table_name);
     const NDBTAB *ev_tab= pOp->getTable();
     const NDBTAB *cache_tab= ndbtab_g.get_table();
     if (cache_tab &&
@@ -3844,19 +3836,13 @@ class Ndb_schema_event_handler {
     return m_own_nodeid;
   }
 
-
-  void
-  ndbapi_invalidate_table(const char* db_name, const char* table_name) const
-  {
+  void ndbapi_invalidate_table(const char *db_name,
+                               const char *table_name) const {
     DBUG_ENTER("ndbapi_invalidate_table");
-    Ndb *ndb = m_thd_ndb->ndb;
-
-    ndb->setDatabaseName(db_name);
-    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+    Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, db_name, table_name);
     ndbtab_g.invalidate();
     DBUG_VOID_RETURN;
   }
-
 
   NDB_SHARE* acquire_reference(const char* db, const char* name,
                                const char* reference) const
@@ -3881,18 +3867,11 @@ class Ndb_schema_event_handler {
                ("schema_name: %s, table_name: %s", schema_name, table_name));
 
     Ndb *ndb = m_thd_ndb->ndb;
-    NDBDICT *dict = ndb->getDictionary();
-
-    if (ndb->setDatabaseName(schema_name)) {
-      DBUG_PRINT("error", ("Failed to set database name of Ndb object"));
-      DBUG_RETURN(1);
-    }
-
-    Ndb_table_guard ndbtab_g(dict, table_name);
+    Ndb_table_guard ndbtab_g(ndb, schema_name, table_name);
     const NDBTAB *ndbtab = ndbtab_g.get_table();
     if (!ndbtab) {
       // Could not open the table from NDB
-      const NdbError ndberr = dict->getNdbError();
+      const NdbError ndberr = ndb->getDictionary()->getNdbError();
       if (ndberr.code == 709 || ndberr.code == 723) {
         // Got the normal 'No such table existed'
         DBUG_PRINT("info", ("No such table, error: %u", ndberr.code));
@@ -3949,7 +3928,8 @@ class Ndb_schema_event_handler {
       DBUG_RETURN(12);
     }
 
-    const std::string tablespace_name = ndb_table_tablespace_name(dict, ndbtab);
+    const std::string tablespace_name =
+        ndb_table_tablespace_name(ndb->getDictionary(), ndbtab);
     if (!tablespace_name.empty()) {
       // Acquire IX MDL on tablespace
       if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
@@ -4336,9 +4316,7 @@ class Ndb_schema_event_handler {
         NDB_SHARE::release_reference(share, "binlog");
 
         // Get table from NDB
-        Ndb *ndb = m_thd_ndb->ndb;
-        ndb->setDatabaseName(schema->db);
-        Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
+        Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, schema->db, schema->name);
         const NDBTAB *ndbtab= ndbtab_g.get_table();
 
         // Create new NdbEventOperation
@@ -4517,9 +4495,7 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("enter", ("db_name: %s, table_name: %s",
                          db_name, table_name));
 
-    Ndb *ndb = m_thd_ndb->ndb;
-    ndb->setDatabaseName(db_name);
-    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+    Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, db_name, table_name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
     if (!ndbtab)
     {
@@ -4956,12 +4932,11 @@ class Ndb_schema_event_handler {
                          tablespace_name, id, version));
 
     Ndb *ndb = m_thd_ndb->ndb;
-    NDBDICT* dict = ndb->getDictionary();
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
     std::vector<std::string> datafile_names;
     if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names))
     {
-      ndb_log_error("NDB error: %d, %s", dict->getNdbError().code,
-                    dict->getNdbError().message);
+      log_NDB_error(dict->getNdbError());
       ndb_log_error("Failed to get data files assigned to tablespace '%s'",
                     tablespace_name);
       DBUG_RETURN(false);
@@ -5184,12 +5159,11 @@ class Ndb_schema_event_handler {
                          logfile_group_name, id, version));
 
     Ndb *ndb = m_thd_ndb->ndb;
-    NDBDICT* dict = ndb->getDictionary();
+    NdbDictionary::Dictionary* dict = ndb->getDictionary();
     std::vector<std::string> undofile_names;
     if (!ndb_get_undofile_names(dict, logfile_group_name, undofile_names))
     {
-      ndb_log_error("NDB error: %d, %s", dict->getNdbError().code,
-                    dict->getNdbError().message);
+      log_NDB_error(dict->getNdbError());
       ndb_log_error("Failed to get undo files assigned to logfile group '%s'",
                     logfile_group_name);
       DBUG_RETURN(false);
@@ -6622,12 +6596,11 @@ int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
 
   Ndb_binlog_client binlog_client(thd, share->db, share->table_name);
 
-  ndb->setDatabaseName(share->db);
-  NDBDICT *dict= ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, share->table_name);
+  Ndb_table_guard ndbtab_g(ndb, share->db, share->table_name);
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   if (ndbtab == 0)
   {
+    const NdbDictionary::Dictionary *dict = ndb->getDictionary();
     ndb_log_verbose(1,
                     "NDB Binlog: Failed to open table '%s' from NDB, "
                     "error %s, %d",
@@ -6750,7 +6723,7 @@ Ndb_binlog_client::create_event(Ndb *ndb, const NdbDictionary::Table*ndbtab,
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
 
   ndb->setDatabaseName(share->db);
-  NDBDICT *dict= ndb->getDictionary();
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
   NDBEVENT my_event(event_name.c_str());
   my_event.setTable(*ndbtab);
   my_event.addTableEvent(NDBEVENT::TE_ALL);
@@ -7134,8 +7107,8 @@ Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   {
     std::string event_name =
         event_name_for_table(db, table_name, i);
-    
-    NDBDICT *dict= ndb->getDictionary();
+
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
     if (dict->dropEvent(event_name.c_str()) == 0)
     {
       // Event dropped successfully
