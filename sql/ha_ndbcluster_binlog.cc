@@ -3359,12 +3359,10 @@ class Ndb_schema_event_handler {
   */
   int ack_schema_op(const Ndb_schema_op* schema) const {
     DBUG_ENTER("ack_schema_op");
-
-    // NOTE! check_ndb_in_thd() might create a new Ndb object
-    Ndb *ndb= check_ndb_in_thd(m_thd);
+    Ndb *ndb = m_thd_ndb->ndb;
 
     // Open ndb_schema table
-    Ndb_schema_dist_table schema_dist_table(get_thd_ndb(m_thd));
+    Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
     if (!schema_dist_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
@@ -3520,12 +3518,10 @@ class Ndb_schema_event_handler {
   */
   int ack_schema_op_final(const char *db, const char *table_name) const {
     DBUG_ENTER("ack_schema_op_final");
-
-    Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
-    Ndb *ndb = thd_ndb->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
 
     // Open ndb_schema table
-    Ndb_schema_dist_table schema_dist_table(thd_ndb);
+    Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
     if (!schema_dist_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
@@ -3605,11 +3601,10 @@ class Ndb_schema_event_handler {
     // column which enabled the client to send schema->schema_op_id != 0
     ndbcluster::ndbrequire(schema->schema_op_id);
 
-    Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
-    Ndb *ndb = thd_ndb->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
 
     // Open ndb_schema_result table
-    Ndb_schema_result_table schema_result_table(thd_ndb);
+    Ndb_schema_result_table schema_result_table(m_thd_ndb);
     if (!schema_result_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
@@ -3672,11 +3667,10 @@ class Ndb_schema_event_handler {
   }
 
   void remove_schema_result_rows(uint32 schema_op_id) {
-    Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
-    Ndb *ndb = thd_ndb->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
 
     // Open ndb_schema_result table
-    Ndb_schema_result_table schema_result_table(thd_ndb);
+    Ndb_schema_result_table schema_result_table(m_thd_ndb);
     if (!schema_result_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
@@ -3855,8 +3849,7 @@ class Ndb_schema_event_handler {
   ndbapi_invalidate_table(const char* db_name, const char* table_name) const
   {
     DBUG_ENTER("ndbapi_invalidate_table");
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Ndb *ndb= thd_ndb->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
 
     ndb->setDatabaseName(db_name);
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
@@ -3887,8 +3880,7 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("enter",
                ("schema_name: %s, table_name: %s", schema_name, table_name));
 
-    Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
-    Ndb *ndb = thd_ndb->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
     NDBDICT *dict = ndb->getDictionary();
 
     if (ndb->setDatabaseName(schema_name)) {
@@ -4344,8 +4336,7 @@ class Ndb_schema_event_handler {
         NDB_SHARE::release_reference(share, "binlog");
 
         // Get table from NDB
-        Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-        Ndb *ndb= thd_ndb->ndb;
+        Ndb *ndb = m_thd_ndb->ndb;
         ndb->setDatabaseName(schema->db);
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
         const NDBTAB *ndbtab= ndbtab_g.get_table();
@@ -4421,7 +4412,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     bool exists_in_DD;
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
@@ -4526,8 +4517,7 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("enter", ("db_name: %s, table_name: %s",
                          db_name, table_name));
 
-    Thd_ndb* thd_ndb = get_thd_ndb(m_thd);
-    Ndb* ndb = thd_ndb->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
     ndb->setDatabaseName(db_name);
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
@@ -4559,7 +4549,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     bool exists_in_DD;
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
@@ -4656,7 +4646,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     Ndb_dd_client dd_client(m_thd);
 
@@ -4887,7 +4877,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -4915,7 +4905,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -4947,7 +4937,7 @@ class Ndb_schema_event_handler {
                         static_cast<SCHEMA_OP_TYPE>(schema->type)));
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     const int no_print_error[1]= {0};
     char *cmd= const_cast<char *>("flush privileges");
@@ -4965,7 +4955,7 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("enter", ("tablespace_name: %s, id: %u, version: %u",
                          tablespace_name, id, version));
 
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
     NDBDICT* dict = ndb->getDictionary();
     std::vector<std::string> datafile_names;
     if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names))
@@ -5193,7 +5183,7 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("enter", ("logfile_group_name: %s, id: %u, version: %u",
                          logfile_group_name, id, version));
 
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
+    Ndb *ndb = m_thd_ndb->ndb;
     NDBDICT* dict = ndb->getDictionary();
     std::vector<std::string> undofile_names;
     if (!ndb_get_undofile_names(dict, logfile_group_name, undofile_names))
@@ -5548,7 +5538,8 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
-  THD* m_thd;
+  THD *const m_thd;
+  Thd_ndb *const m_thd_ndb;
   MEM_ROOT* m_mem_root;
   uint m_own_nodeid;
   Ndb_schema_dist_data& m_schema_dist_data;
@@ -5564,7 +5555,7 @@ class Ndb_schema_event_handler {
 
   Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid,
                            Ndb_schema_dist_data& schema_dist_data):
-    m_thd(thd), m_mem_root(mem_root), m_own_nodeid(own_nodeid),
+    m_thd(thd), m_thd_ndb(get_thd_ndb(thd)), m_mem_root(mem_root), m_own_nodeid(own_nodeid),
     m_schema_dist_data(schema_dist_data),
     m_post_epoch(false)
   {
