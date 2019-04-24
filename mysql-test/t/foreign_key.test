@@ -3967,8 +3967,8 @@ DROP TABLES child, parent;
 # We cannot verify these scenarios with 'test' database since MTR garants DB level
 # privileges to anonymous user. That will interfere the testing
 --let current_DB = `SELECT DATABASE()`
-CREATE DATABASE WL8910DB;
-USE WL8910DB;
+CREATE DATABASE wl8910db;
+USE wl8910db;
 --echo #Set up tables.
 CREATE TABLE t1(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=INNODB;
 CREATE TABLE t2(fld1 INT PRIMARY KEY, fld2 INT, CONSTRAINT fk2
@@ -4013,7 +4013,7 @@ GRANT EXECUTE ON FUNCTION f2 TO user2@localhost;
 
 --enable_connect_log
 
-connect (con1, localhost, user1,,WL8910DB);
+connect (con1, localhost, user1,,wl8910db);
 --echo # Without patch, reveals parent table's information.
 --error ER_NO_REFERENCED_ROW
 INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
@@ -4050,11 +4050,11 @@ INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
 
 connection default;
 GRANT INSERT (fld1, fld2) ON t2 TO user2@localhost;
-GRANT CREATE ROUTINE ON WL8910DB.* TO user2@localhost;
-GRANT CREATE VIEW ON WL8910DB.* TO user2@localhost;
+GRANT CREATE ROUTINE ON wl8910db.* TO user2@localhost;
+GRANT CREATE VIEW ON wl8910db.* TO user2@localhost;
 
 --echo # Tests where DML reports FK constraint failure within Stored Routines.
-connect (con2, localhost, user2,,WL8910DB);
+connect (con2, localhost, user2,,wl8910db);
 
 --echo # The SQL security for p1 is invoker where invoker lacks permission
 --echo # to parent table, hence parent table information is not displayed.
@@ -4129,7 +4129,7 @@ GRANT INSERT ON v3 TO user3@localhost;
 GRANT SELECT ON t1 TO user3@localhost;
 GRANT SELECT ON t3 TO user3@localhost;
 
-connect (con3, localhost, user3,,WL8910DB);
+connect (con3, localhost, user3,,wl8910db);
 
 --echo # Since the execution happens in the definer 'root' user
 --echo # context, the parent table informaton is exposed.
@@ -4158,7 +4158,7 @@ DROP PROCEDURE p3;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
-DROP DATABASE WL8910DB;
+DROP DATABASE wl8910db;
 # Restore the current DB
 --eval USE $current_DB
 
