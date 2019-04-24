@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,11 +202,15 @@ private:
   static UintR getUtilFlag (const UintR & requestInfo);
   static void setUtilFlag(UintR & requestInfo, UintR val);
 
+  static UintR getNoWaitFlag(const UintR & requestInfo);
+  static void setNoWaitFlag(UintR & requestInfo, UintR val);
+
   enum RequestInfo {
     RI_KEYLEN_SHIFT      =  0, RI_KEYLEN_MASK      = 1023, /* legacy for short LQHKEYREQ */
     RI_DISABLE_FK        =  0,
     RI_NO_TRIGGERS       = 1,
     RI_UTIL_SHIFT        = 2,
+    RI_NOWAIT_SHIFT      = 3,
     RI_LAST_REPL_SHIFT   = 10, RI_LAST_REPL_MASK   =    3,
     RI_LOCK_TYPE_SHIFT   = 12, RI_LOCK_TYPE_MASK   =    7, /* legacy before ROWID_VERSION */
     RI_GCI_SHIFT         = 12,
@@ -269,6 +273,7 @@ private:
  * F = Disable FK constraints - 1  Bit (0)
  * T = no triggers            - 1  Bit (1)
  * U = Operation came from UTIL - 1 Bit (2)
+ * w = NoWait flag            = 1 Bit (3)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -279,7 +284,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *   FTU       llgnqpdisooorrAPDcumxz
+ *   FTUw      llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -719,6 +724,19 @@ inline
 UintR
 LqhKeyReq::getUtilFlag(const UintR & requestInfo){
   return (requestInfo >> RI_UTIL_SHIFT) & 1;
+}
+
+inline
+void
+LqhKeyReq::setNoWaitFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNoWaitFlag");
+  requestInfo |= (val << RI_NOWAIT_SHIFT);
+}
+
+inline
+UintR
+LqhKeyReq::getNoWaitFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NOWAIT_SHIFT) & 1;
 }
 
 inline

@@ -165,6 +165,8 @@ NdbOperation::setRequestInfoTCKEYREQ(bool lastFlag,
   TcKeyReq::setScanIndFlag(requestInfo, theScanInfo & 1);
   TcKeyReq::setReadCommittedBaseFlag(requestInfo,
                                  theReadCommittedBaseIndicator & longSignal);
+  TcKeyReq::setNoWaitFlag(requestInfo,
+                          (m_flags & OF_NOWAIT) != 0);
   req->requestInfo = requestInfo;
 }
 

@@ -3549,6 +3549,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }
     regCachePtr->m_read_committed_base =
                               TcKeyReq::getReadCommittedBaseFlag(Treqinfo);
+
+    regCachePtr->m_noWait = TcKeyReq::getNoWaitFlag(Treqinfo);
   }
   else
   {
@@ -3556,6 +3558,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     TattrLen= TcKeyReq::getAttrinfoLen(tcKeyReq->attrLen);
     titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
     regCachePtr->m_read_committed_base = 0;
+    regCachePtr->m_noWait = 0;
   }
   if (unlikely(refToMain(sendersBlockRef) == DBUTIL))
   {
@@ -4685,6 +4688,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setQueueOnRedoProblemFlag(Tdata10, regCachePtr->m_op_queue);
   LqhKeyReq::setDeferredConstraints(Tdata10, (Tdeferred & m_deferred_enabled));
   LqhKeyReq::setDisableFkConstraints(Tdata10, Tdisable_fk);
+  LqhKeyReq::setNoWaitFlag(Tdata10, regCachePtr->m_noWait);
 
   /* ----------------------------------------------------------------------- 
    * If we are sending a short LQHKEYREQ, then there will be some AttrInfo

@@ -992,6 +992,7 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
   const bool readOp = AccKeyReq::getLockType(Treqinfo) == ZREAD;
   const bool dirtyOp = AccKeyReq::getDirtyOp(Treqinfo);
   const bool dirtyReadOp = readOp & dirtyOp;
+  const bool noWait = AccKeyReq::getNoWait(Treqinfo);
   Uint32 operation = AccKeyReq::getOperation(Treqinfo);
   if (operation == ZREFRESH)
     operation = ZWRITE; /* Insert if !exist, otherwise lock */
@@ -1001,6 +1002,7 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
   opbits |= readOp ? 0 : (Uint32) Operationrec::OP_LOCK_MODE;
   opbits |= readOp ? 0 : (Uint32) Operationrec::OP_ACC_LOCK_MODE;
   opbits |= dirtyReadOp ? (Uint32) Operationrec::OP_DIRTY_READ : 0;
+  opbits |= noWait ? (Uint32) Operationrec::OP_NOWAIT : 0;
   if (AccKeyReq::getLockReq(Treqinfo))
   {
     opbits |= Operationrec::OP_LOCK_REQ;            // TUX LOCK_REQ
@@ -2174,6 +2176,11 @@ Dbacc::placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const
   
 serial:
   jam();
+  if (operationRecPtr.p->m_op_bits & Operationrec::OP_NOWAIT)
+  {
+    jam();
+    return ZNOWAIT_ERROR;
+  }
   placeSerialQueue(lockOwnerPtr, operationRecPtr);
 
   validate_lock_queue(lockOwnerPtr);
@@ -2295,6 +2302,11 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
   } while (loopPtr.i != RNIL);
 
 serial:
+  if (operationRecPtr.p->m_op_bits & Operationrec::OP_NOWAIT)
+  {
+    jam();
+    return ZNOWAIT_ERROR;
+  }
   placeSerialQueue(lockOwnerPtr, operationRecPtr);
   
   validate_lock_queue(lockOwnerPtr);

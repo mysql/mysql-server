@@ -339,6 +339,7 @@ ErrorBundle ErrorCodes[] = {
   { 237,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Transaction had timed out when trying to commit it" },
   { 5024, DMEC, TO, "Time-out due to node shutdown not starting in time" },
   { 5025, DMEC, TO, "Time-out due to node shutdown not completing in time" },
+  { 635,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Lock already taken, not waiting" }, // HA_ERR_NO_WAIT_LOCK
   
   /**
    * OverloadError

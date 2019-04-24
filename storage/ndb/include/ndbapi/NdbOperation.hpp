@@ -1065,7 +1065,8 @@ public:
                  OO_QUEUABLE     = 0x100,
                  OO_NOT_QUEUABLE = 0x200,
                  OO_DEFERRED_CONSTAINTS = 0x400,
-                 OO_DISABLE_FK   = 0x800
+                 OO_DISABLE_FK   = 0x800,
+                 OO_NOWAIT       = 0x1000
     };
 
     /* An operation-specific abort option.
@@ -1111,6 +1112,9 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   // XXX until NdbRecord is used in ndb_restore
   void set_disable_fk() { m_flags |= OF_DISABLE_FK; }
+
+  /* Set nowait option on locking read */
+  int setNoWait();
 #endif
 
 protected:
@@ -1483,7 +1487,8 @@ protected:
     OF_USE_ANY_VALUE = 0x2,
     OF_QUEUEABLE = 0x4,
     OF_DEFERRED_CONSTRAINTS = 0x8,
-    OF_DISABLE_FK = 0x10
+    OF_DISABLE_FK = 0x10,
+    OF_NOWAIT = 0x20
   };
   Uint8  m_flags;
 

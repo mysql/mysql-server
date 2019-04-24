@@ -1434,6 +1434,7 @@ public:
        */
       Uint8  opExec;
       Uint8  m_read_committed_base;
+      Uint8  m_noWait;
     
       /* Use of Long signals */
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */

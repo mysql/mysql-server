@@ -2408,7 +2408,8 @@ public:
       OP_DEFERRED_CONSTRAINTS   = 0x8,
       OP_NORMAL_PROTOCOL        = 0x10,
       OP_DISABLE_FK             = 0x20,
-      OP_NO_TRIGGERS            = 0x40
+      OP_NO_TRIGGERS            = 0x40,
+      OP_NOWAIT                 = 0x80
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;

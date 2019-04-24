@@ -5601,6 +5601,12 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       (Operation_t) op == ZUNLOCK ? ZREAD : // lockType not relevant for unlock req
       (Operation_t) op;
   }
+  if (LqhKeyReq::getNoWaitFlag(Treqinfo))
+  {
+    ndbassert(!regTcPtr->dirtyOp);
+    ndbrequire((op == ZREAD) || (op == ZREAD_EX)); // For now
+    regTcPtr->m_flags |= TcConnectionrec::OP_NOWAIT;
+  }
 
   if (regTcPtr->dirtyOp)
   {
@@ -6342,6 +6348,8 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
     taccreq = AccKeyReq::setDirtyOp(taccreq, regTcPtr.p->dirtyOp);
     taccreq = AccKeyReq::setReplicaType(taccreq, regTcPtr.p->replicaType);
     taccreq = AccKeyReq::setTakeOver(taccreq, regTcPtr.p->indTakeOver);
+    taccreq = AccKeyReq::setNoWait(taccreq,
+                                   ((regTcPtr.p->m_flags & TcConnectionrec::OP_NOWAIT) != 0));
     taccreq = AccKeyReq::setLockReq(taccreq, false);
 
     AccKeyReq * const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
