@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ struct Ndb_statistics {
 
 struct NDB_SHARE {
   THR_LOCK lock;
-  mysql_mutex_t mutex;
+  mutable mysql_mutex_t mutex;
   struct NDB_SHARE_KEY* key;
   char *db;
   char *table_name;
@@ -166,7 +166,17 @@ public:
 
   struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
 
+  // The event operation used for listening to changes in NDB for this
+  // table, protected by mutex
   class NdbEventOperation *op;
+
+  // Check if an event operation has been setup for this share
+  bool have_event_operation() const {
+    mysql_mutex_lock(&mutex);
+    const bool have_op = (op != nullptr);
+    mysql_mutex_unlock(&mutex);
+    return have_op;
+  }
 
   // Raw pointer for passing table definition from schema dist client to
   // participant in the same node to avoid that participant have to access

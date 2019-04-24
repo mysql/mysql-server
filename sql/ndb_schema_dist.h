@@ -31,14 +31,6 @@
 #include "my_inttypes.h"
 
 /**
-  Check if schema distribution has been initialized and is
-  ready. Will return true when the component is properly setup
-  to receive schema operation events from the cluster.
-*/
-bool ndb_schema_dist_is_ready(void);
-
-
-/**
   The numbers below must not change as they are passed
   between MySQL servers as part of the schema distribution
   protocol. Changes would break compatibility between versions.
@@ -80,8 +72,21 @@ namespace Ndb_schema_dist {
 enum Schema_op_result_code {
   NODE_UNSUBSCRIBE = 9001,  // Node unsubscribe during
   NODE_FAILURE = 9002,      // Node failed during
-  NODE_TIMEOUT = 9003       // Node timeout during
+  NODE_TIMEOUT = 9003,      // Node timeout during
+  COORD_ABORT = 9004,       // Coordinator aborted
+  CLIENT_ABORT = 9005,      // Client aborted
+  CLIENT_KILLED = 9007      // Client killed
 };
+
+/**
+  Check if schema distribution has been initialized and is
+  ready to communicate with the other MySQL Server(s) in the cluster.
+
+  @param requestor Pointer value identifying caller
+
+  @return true schema distribution is ready
+*/
+bool is_ready(void* requestor);
 
 }  // namespace Ndb_schema_dist
 
@@ -163,13 +168,6 @@ class Ndb_schema_dist_client {
                      const char *table_name, uint32 id, uint32 version,
                      SCHEMA_OP_TYPE type,
                      bool log_query_on_participant = true);
-
-  /**
-   * @brief Convert SCHEMA_OP_TYPE to human readable string representation
-   * @param type
-   * @return string describing the type
-   */
-  const char* type_str(SCHEMA_OP_TYPE type) const;
 
   /**
      @brief Calculate the anyvalue to use for this schema change. The anyvalue

@@ -1,0 +1,50 @@
+--source include/have_debug.inc
+# This test crashes MySQL Server on purpose.
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+# Connect to all
+--source connect.inc
+
+--echo #
+--echo # Test coordinator abort of active schema operation
+--echo #
+
+
+--echo # Setup coordinator to restart when first schema op result is
+--echo # received, this will trigger test of "abort active"
+set GLOBAL debug="+d,ndb_schema_dist_coord_abort_active";
+
+--echo # Do schema operation which will cause the coordinator to abort the
+--echo # active schema operation
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+CREATE TABLE t1(
+  a int primary key
+) engine = NDB;
+
+# Remove debug setup
+set GLOBAL debug="-d,ndb_schema_dist_coord_abort_active";
+
+# Wait until ready again
+--source include/ndb_not_readonly.inc
+
+DROP TABLE t1;
+
+--echo # Setup coordinator to restart when schema operation is received, this
+--echo # will trigger test of "fail all schema ops"
+set GLOBAL debug="+d,ndb_schema_dist_coord_fail_all";
+
+--echo # Do schema operation which will cause the coordinator to abort the
+--echo # schema operation(s)
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+CREATE TABLE t1(
+  a int primary key
+) engine = NDB;
+
+# Remove debug setup
+set GLOBAL debug="-d,ndb_schema_dist_coord_fail_all";
+
+# Wait until ready again
+--source include/ndb_not_readonly.inc
+
+DROP TABLE t1;

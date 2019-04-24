@@ -227,6 +227,11 @@ NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object)
   DBUG_VOID_RETURN;
 }
 
+size_t NDB_SCHEMA_OBJECT::count_active_schema_ops() {
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
+  return active_schema_clients.m_hash.size();
+}
+
 std::string NDB_SCHEMA_OBJECT::waiting_participants_to_string() const {
   std::lock_guard<std::mutex> lock_participants(state.m_lock);
   const char* separator = "";
@@ -401,6 +406,44 @@ bool NDB_SCHEMA_OBJECT::check_timeout(int timeout_seconds, uint32 result,
   ndbcluster::ndbrequire(state.m_participants.size() ==
                          count_completed_participants());
   return true;
+}
+
+void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result, const char* message) const
+{
+  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+
+  if (state.m_participants.size() == 0) {
+    // Participants hasn't been registered yet since the coordinator
+    // hasn't heard about schema operation, add own node as participant
+    state.m_participants[active_schema_clients.m_own_nodeid];
+  }
+
+  // Mark all participants who hasn't already completed as failed
+  for (auto& it : state.m_participants) {
+    State::Participant& participant = it.second;
+    if (participant.m_completed) continue;
+
+    participant.m_completed = true;
+    participant.m_result = result;
+    participant.m_message = message;
+  }
+
+  // All participant should now have been marked as completed
+  ndbcluster::ndbrequire(state.m_participants.size() ==
+                         count_completed_participants());
+  // Mark als coordinator as completed
+  state.m_coordinator_completed = true;
+  // Signal the Client to wakeup
+  state.m_cond.notify_one();
+}
+
+void NDB_SCHEMA_OBJECT::fail_all_schema_ops(uint32 result, const char* message)
+{
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
+  for (const auto entry : active_schema_clients.m_hash){
+    const NDB_SCHEMA_OBJECT* schema_object = entry.second;
+    schema_object->fail_schema_op(result, message);
+  }
 }
 
 bool NDB_SCHEMA_OBJECT::check_coordinator_completed() const {

@@ -501,7 +501,8 @@ NDB_SHARE::debug_print(std::string& out, const char* line_separator) const
      << "  table_name: '" << table_name << "', " << line_separator
      << "  key: '" << key_string() << "', " << line_separator
      << "  use_count: " << use_count() << ", " << line_separator
-     << "  state: " << share_state_string() << ", " << line_separator;
+     << "  state: " << share_state_string() << ", " << line_separator
+     << "  op: " << op << ", " << line_separator;
 
 #ifndef DBUG_OFF
   std::string refs_string;
@@ -850,6 +851,10 @@ NDB_SHARE::mark_share_dropped(NDB_SHARE** share_ptr)
       // Insert the share into the dropped tables list to keep track of
       // it until all handler references has been released
       ndbcluster_dropped_tables->emplace(share->key_string(), share);
+
+      std::string s;
+      share->debug_print(s, "\n");
+      std::cerr << "dropped_share: " << s << std::endl;
 
       // Share is referenced by 'ndbcluster_dropped_tables'
       share->refs_insert("ndbcluster_dropped_tables");

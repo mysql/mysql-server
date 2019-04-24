@@ -1,0 +1,32 @@
+#
+# Test client abort of schema operation
+#
+# Setup to trigger the client to detect that schema
+# distribution is no longer ready
+set GLOBAL debug="+d,ndb_schema_dist_client_not_ready";
+# Do schema operation which will cause the client to abort its
+# schema operation
+CREATE TABLE t1(
+a int primary key
+) engine = NDB;
+Warnings:
+Warning	1296	Node <nodeid> '9005 Schema distribution is not ready'
+set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
+DROP TABLE t1;
+# Setup to trigger the client to detect that it was killed while
+# waiting for schema distribuiton to complete
+set GLOBAL debug="+d,ndb_schema_dist_client_killed";
+# Do schema operation which will cause the client to detect it
+# has been killed
+CREATE TABLE t1(
+a int primary key
+) engine = NDB;
+Warnings:
+Warning	1296	Node <nodeid> '9007 Client was killed'
+Warning	1296	Node <nodeid> '9007 Client was killed'
+Warning	1296	Node <nodeid> '9007 Client was killed'
+Warning	1296	Node <nodeid> '9007 Client was killed'
+Warning	1296	Node <nodeid> '9007 Client was killed'
+Warning	1296	Node <nodeid> '9007 Client was killed'
+set GLOBAL debug="-d,ndb_schema_dist_client_killed";
+DROP TABLE t1;

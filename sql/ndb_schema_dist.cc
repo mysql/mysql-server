@@ -32,6 +32,7 @@
 #include "sql/ha_ndbcluster_tables.h"
 #include "sql/ndb_anyvalue.h"
 #include "sql/ndb_name_util.h"
+#include "sql/ndb_require.h"
 #include "sql/ndb_schema_dist_table.h"
 #include "sql/ndb_schema_result_table.h"
 #include "sql/ndb_share.h"
@@ -59,6 +60,29 @@ static const char* NDB_SCHEMA_TABLE_KEY =
     "." DIR_SEP NDB_REP_DB DIR_SEP NDB_SCHEMA_TABLE;
 
 #undef DIR_SEP
+
+bool Ndb_schema_dist::is_ready(void* requestor) {
+  DBUG_TRACE;
+
+  std::stringstream ss;
+  ss << "is_ready_" << std::hex << requestor;
+  const std::string reference = ss.str();
+
+  NDB_SHARE* schema_share =
+      NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
+                                          reference.c_str());
+  if (schema_share == nullptr)
+    return false; // Not ready
+
+  if (!schema_share->have_event_operation()) {
+    NDB_SHARE::release_reference(schema_share, reference.c_str());
+    return false; // Not ready
+  }
+
+  NDB_SHARE::release_reference(schema_share, reference.c_str());
+  return true;
+}
+
 
 bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
                                                   const char* table_name)
@@ -94,10 +118,12 @@ bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
   m_share =
       NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
                                           "ndb_schema_dist_client");
-  if (!m_share)
+  if (m_share == nullptr ||
+      m_share->have_event_operation() == false ||
+      DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false))
   {
-    // Failed to acquire reference to mysql.ndb_schema-> schema distribution
-    // is not ready
+    // The NDB_SHARE for mysql.ndb_schema hasn't been created or not setup
+    // yet -> schema distribution is not ready
     m_thd_ndb->push_warning("Schema distribution is not ready");
     DBUG_RETURN(false);
   }
@@ -259,13 +285,9 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
     DBUG_RETURN(false);
   }
 
-  // Check that m_share has been initialized to reference the
+  // Require that m_share has been initialized to reference the
   // schema distribution table
-  if (m_share == nullptr)
-  {
-    DBUG_ASSERT(m_share);
-    DBUG_RETURN(false);
-  }
+  ndbcluster::ndbrequire(m_share);
 
   // Check that prepared keys match
   if (!m_prepared_keys.check_key(db, table_name))
@@ -571,64 +593,6 @@ Ndb_schema_dist_client::drop_logfile_group(const char* logfile_group_name,
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             "", logfile_group_name, id, version,
                             SOT_DROP_LOGFILE_GROUP));
-}
-
-const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {
-  switch (type) {
-    case SOT_DROP_TABLE:
-      return "drop table";
-    case SOT_RENAME_TABLE_PREPARE:
-      return "rename table prepare";
-    case SOT_RENAME_TABLE:
-      return "rename table";
-    case SOT_CREATE_TABLE:
-      return "create table";
-    case SOT_ALTER_TABLE_COMMIT:
-      return "alter table";
-    case SOT_ONLINE_ALTER_TABLE_PREPARE:
-      return "online alter table prepare";
-    case SOT_ONLINE_ALTER_TABLE_COMMIT:
-      return "online alter table commit";
-    case SOT_DROP_DB:
-      return "drop db";
-    case SOT_CREATE_DB:
-      return "create db";
-    case SOT_ALTER_DB:
-      return "alter db";
-    case SOT_TABLESPACE:
-      return "tablespace";
-    case SOT_LOGFILE_GROUP:
-      return "logfile group";
-    case SOT_TRUNCATE_TABLE:
-      return "truncate table";
-    case SOT_CREATE_USER:
-      return "create user";
-    case SOT_DROP_USER:
-      return "drop user";
-    case SOT_RENAME_USER:
-      return "rename user";
-    case SOT_GRANT:
-      return "grant/revoke";
-    case SOT_REVOKE:
-      return "revoke all";
-    case SOT_CREATE_TABLESPACE:
-      return "create tablespace";
-    case SOT_ALTER_TABLESPACE:
-      return "alter tablespace";
-    case SOT_DROP_TABLESPACE:
-      return "drop tablespace";
-    case SOT_CREATE_LOGFILE_GROUP:
-      return "create logfile group";
-    case SOT_ALTER_LOGFILE_GROUP:
-      return "alter logfile group";
-    case SOT_DROP_LOGFILE_GROUP:
-      return "drop logfile group";
-    default:
-      break;
-  }
-  // String representation for SCHEMA_OP_TYPE missing
-  DBUG_ASSERT(false);  // Catch in debug
-  return "<unknown>";
 }
 
 const char*
