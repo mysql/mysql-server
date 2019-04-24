@@ -6,3 +6,4 @@ Verify that SNAPSHOTSTART backup is restored to startGCP
 Check that restored data and epochs match
 Running command
 Result of command: 0
+DROP DATABASE TEST_DB;
