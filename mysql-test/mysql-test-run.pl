@@ -942,6 +942,13 @@ sub run_test_server ($$$) {
               return undef;
             }
           }
+          else {
+            # Remove testcase .log file produce in var/log/ to save space, if
+            # test has passed, since relevant part of logfile has already been
+            # appended to master log
+            my $logfile = "$opt_vardir/log/$result->{shortname}" . ".log";
+            unlink($logfile);
+          }
 
           resfile_print_test();
 
@@ -2838,7 +2845,8 @@ sub environment_setup {
   if ($secondary_engine_support) {
     secondary_engine_environment_setup(\&find_plugin, $bindir);
     initialize_function_pointers(\&gdb_arguments, \&mark_log, \&mysqlds,
-                                 \&run_query, \&valgrind_arguments);
+                                 \&run_query, \&valgrind_arguments,
+                                 \&report_failure_and_restart);
   }
 
   # mysql_fix_privilege_tables.sql
@@ -4840,16 +4848,6 @@ sub run_testcase ($) {
         }
         mtr_appendfile_to_file($path_current_testlog, $path_testlog);
         unlink($path_current_testlog);
-      }
-
-      # Remove testcase .log file produce in var/log/ to save space since
-      # relevant part of logfile has already been appended to master log
-      {
-        my $log_file_name =
-          $opt_vardir . "/log/" . $tinfo->{shortname} . ".log";
-        if (-e $log_file_name && ($tinfo->{'result'} ne 'MTR_RES_FAILED')) {
-          unlink($log_file_name);
-        }
       }
 
       return ($res == 62) ? 0 : $res;
