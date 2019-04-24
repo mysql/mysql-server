@@ -5186,7 +5186,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
         int error MY_ATTRIBUTE((unused));
         if (unlikely(thd->security_context()->password_expired() &&
                      lex->sql_command != SQLCOM_SET_PASSWORD &&
-                     lex->sql_command != SQLCOM_SET_OPTION &&
                      lex->sql_command != SQLCOM_ALTER_USER)) {
           my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
           error = 1;
