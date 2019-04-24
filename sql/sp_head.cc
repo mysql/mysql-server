@@ -3193,7 +3193,7 @@ bool sp_head::merge_table_list(THD *thd, TABLE_LIST *table,
   }
 
   for (; table; table = table->next_global)
-    if (!table->is_derived() && !table->schema_table) {
+    if (!table->is_internal() && !table->schema_table) {
       /* Fail if this is an inaccessible DD table. */
       const dd::Dictionary *dictionary = dd::get_dictionary();
       if (dictionary &&
