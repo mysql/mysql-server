@@ -4,7 +4,7 @@
 # Purpose: Test CDD backup and restore
 ########################################
 
--- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
 --disable_query_log
@@ -251,6 +251,20 @@ DROP TABLE test.t3;
 DROP TABLE test.t4;
 ###################### Adding partition #################################
 -- echo **** Test 3 Adding  partition Test backup and restore ****
+
+--connection server2
+# Supress warnings and errors on second mysqld which occurs because
+# table_space1 does not exist in DD
+--disable_query_log
+call mtr.add_suppression("3510: Tablespace table_space1 doesn't exist.");
+call mtr.add_suppression("Failed to install table 'test.t3'");
+call mtr.add_suppression("Distribution of CREATE TABLE 'test.t3' failed");
+call mtr.add_suppression("3510: Tablespace table_space1 doesn't exist.");
+call mtr.add_suppression("Failed to install table 'test.t1'");
+call mtr.add_suppression("Distribution of CREATE TABLE 'test.t1' failed");
+--enable_query_log
+
+--connection server1
 
 CREATE TABLESPACE table_space2
 ADD DATAFILE './table_space2/datafile.dat'

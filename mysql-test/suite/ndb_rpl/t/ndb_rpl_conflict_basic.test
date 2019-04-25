@@ -361,6 +361,8 @@ show variables like 'server_id';
 --connection server2
 --disable_query_log
 call mtr.add_suppression("NDB Slave: .* No extra row author bits in table.*");
+call mtr.add_suppression("Failed to setup binlogging for table 'test.t3oneex'");
+call mtr.add_suppression("Distribution of CREATE TABLE 'test.t3oneex' failed");
 --enable_query_log
 
 show variables like 'server_id';

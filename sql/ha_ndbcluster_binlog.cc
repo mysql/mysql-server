@@ -3224,25 +3224,26 @@ class Ndb_schema_event_handler {
     uint32 result() const { return m_result; }
   };
 
-  // NOTE! This function has misleading name
-  void print_could_not_discover_error(const Ndb_schema_op *schema) {
-    ndb_log_error("NDB Binlog: Could not discover table '%s.%s' from "
-                  "binlog schema event '%s' from node %d.",
-                  schema->db, schema->name, schema->query,
-                  schema->node_id);
+  /**
+     @brief Log conditions accumulated in THD and then clear conditions.
 
-    // Print thd's list of warnings to error log
-    {
-      Diagnostics_area::Sql_condition_iterator
-          it(m_thd->get_stmt_da()->sql_conditions());
+     @note This function should be used after calling functions
+     that report detailed failure information as warnings when
+     they fail.
+  */
+  void log_and_clear_THD_conditions() const {
+    // Print THD's list of warnings to error log
+    Diagnostics_area::Sql_condition_iterator it(
+        m_thd->get_stmt_da()->sql_conditions());
 
-      const Sql_condition *err;
-      while ((err= it++))
-      {
-        ndb_log_warning("NDB Binlog: (%d) %s",
-                        err->mysql_errno(), err->message_text());
-      }
+    const Sql_condition *err;
+    while ((err = it++)) {
+      ndb_log_warning("Got error '%d: %s'", err->mysql_errno(),
+                      err->message_text());
     }
+    // Remove the logged conditions
+    m_thd->get_stmt_da()->reset_diagnostics_area();
+    m_thd->get_stmt_da()->reset_condition_info(m_thd);
   }
 
   // Log error code and message returned from NDB
@@ -3859,10 +3860,10 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(share);
   }
 
-  int create_table_from_engine(const char *schema_name, const char *table_name,
+  bool create_table_from_engine(const char *schema_name, const char *table_name,
                                bool force_overwrite,
                                bool invalidate_referenced_tables = false) {
-    DBUG_ENTER("create_table_from_engine");
+    DBUG_TRACE;
     DBUG_PRINT("enter",
                ("schema_name: %s, table_name: %s", schema_name, table_name));
 
@@ -3870,62 +3871,30 @@ class Ndb_schema_event_handler {
     Ndb_table_guard ndbtab_g(ndb, schema_name, table_name);
     const NDBTAB *ndbtab = ndbtab_g.get_table();
     if (!ndbtab) {
-      // Could not open the table from NDB
-      const NdbError ndberr = ndb->getDictionary()->getNdbError();
-      if (ndberr.code == 709 || ndberr.code == 723) {
-        // Got the normal 'No such table existed'
-        DBUG_PRINT("info", ("No such table, error: %u", ndberr.code));
-        DBUG_RETURN(709);
-      }
-
-      // Got an unexpected error
-      DBUG_PRINT("error", ("Got unexpected error when trying to open table "
-                           "from NDB, error %u",
-                           ndberr.code));
-      DBUG_ASSERT(false);  // Catch in debug
-      DBUG_RETURN(1);
+      // Could not open the table from NDB, very unusual
+      log_NDB_error(ndb->getDictionary()->getNdbError());
+      ndb_log_error("Failed to open table '%s.%s' from NDB", schema_name,
+                    table_name);
+      return false;
     }
 
-    DBUG_PRINT("info", ("Found table '%s'", table_name));
-
-    dd::sdi_t sdi;
-    {
-      Uint32 version;
-      void *unpacked_data;
-      Uint32 unpacked_len;
-      const int get_result =
-          ndbtab->getExtraMetadata(version, &unpacked_data, &unpacked_len);
-      if (get_result != 0) {
-        DBUG_PRINT("error",
-                   ("Could not get extra metadata, error: %d", get_result));
-        DBUG_RETURN(10);
-      }
-
-      if (version == 1) {
-        const bool migrate_result = migrate_table_with_old_extra_metadata(
-            m_thd, ndb, schema_name, table_name, unpacked_data, unpacked_len,
-            force_overwrite);
-        free(unpacked_data);
-
-        if (!migrate_result) {
-          DBUG_PRINT("error",
-                     ("Failed to create entry in DD for table '%s.%s' ",
-                      schema_name, table_name));
-          DBUG_RETURN(11);
-        }
-        DBUG_RETURN(0);
-      }
-
-      sdi.assign(static_cast<const char *>(unpacked_data), unpacked_len);
-      free(unpacked_data);
+    std::string serialized_metadata;
+    if (!ndb_table_get_serialized_metadata(ndbtab, serialized_metadata)) {
+      ndb_log_error("Failed to get serialized metadata for table '%s.%s'",
+                    schema_name, table_name);
+      return false;
     }
+
 
     // Found table, now install it in DD
     Ndb_dd_client dd_client(m_thd);
 
     // First acquire exclusive MDL lock on schema and table
     if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
-      DBUG_RETURN(12);
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to acquire locks for table '%s.%s'",
+                    schema_name, table_name);
+      return false;
     }
 
     const std::string tablespace_name =
@@ -3933,38 +3902,52 @@ class Ndb_schema_event_handler {
     if (!tablespace_name.empty()) {
       // Acquire IX MDL on tablespace
       if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
-        DBUG_RETURN(12);
+        log_and_clear_THD_conditions();
+        ndb_log_error("Failed to acquire lock on tablespace '%s' for '%s.%s'",
+                      tablespace_name.c_str(), schema_name, table_name);
+        return false;
       }
     }
 
+    const dd::sdi_t sdi = serialized_metadata.c_str();
     Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
     if (!dd_client.install_table(
             schema_name, table_name, sdi, ndbtab->getObjectId(),
             ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
             tablespace_name, force_overwrite,
             (invalidate_referenced_tables ? &invalidator : nullptr))) {
-      DBUG_RETURN(13);
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to install table '%s.%s' in DD", schema_name,
+                    table_name);
+      return false;
     }
 
     if (invalidate_referenced_tables && !invalidator.invalidate()) {
-      DBUG_ASSERT(false);
-      DBUG_RETURN(13);
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
+                    schema_name, table_name);
+      return false;
     }
 
     const dd::Table *table_def;
     if (!dd_client.get_table(schema_name, table_name, &table_def)) {
-      DBUG_RETURN(14);
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to open table '%s.%s' from DD", schema_name,
+                    table_name);
+      return false;
     }
 
     // Check if binlogging should be setup for this table
     if (ndbcluster_binlog_setup_table(m_thd, ndb, schema_name, table_name,
                                       table_def)) {
-      DBUG_RETURN(37);
+      ndb_log_error("Failed to setup binlogging for table '%s.%s'", schema_name,
+                    table_name);
+      return false;
     }
 
     dd_client.commit();
 
-    DBUG_RETURN(0);
+    return true;
   }
 
   void handle_clear_slock(const Ndb_schema_op* schema)
@@ -4116,12 +4099,11 @@ class Ndb_schema_event_handler {
     }
 
     // Install table from NDB, overwrite the existing table
-    if (create_table_from_engine(schema->db, schema->name,
-                                 true /* force_overwrite */,
-                                 true /* invalidate_referenced_tables */)) {
-      // NOTE! The below function has a rather misleading name of
-      // actual functionality which failed
-      print_could_not_discover_error(schema);
+    if (!create_table_from_engine(schema->db, schema->name,
+                                  true /* force_overwrite */,
+                                  true /* invalidate_referenced_tables */)) {
+      ndb_log_error("Distribution of ALTER TABLE '%s.%s' failed",
+                    schema->db, schema->name);
     }
     DBUG_VOID_RETURN;
   }
@@ -4195,12 +4177,11 @@ class Ndb_schema_event_handler {
         // Install table from NDB, overwrite the altered table.
         // NOTE! it will also try to setup binlogging but since the share
         // has a op assigned, that part will be skipped
-        if (create_table_from_engine(schema->db, schema->name,
-                                     true /* force_overwrite */,
-                                     true /* invalidate_referenced_tables */)) {
-          // NOTE! The below function has a rather misleading name of
-          // actual functionality which failed
-          print_could_not_discover_error(schema);
+        if (!create_table_from_engine(
+                schema->db, schema->name, true /* force_overwrite */,
+                true /* invalidate_referenced_tables */)) {
+          ndb_log_error("Distribution of ALTER TABLE '%s.%s' failed",
+                        schema->db, schema->name);
         }
       }
 
@@ -4794,11 +4775,10 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    if (create_table_from_engine(schema->db, schema->name,
-                                 true /* force_overwrite */)) {
-      // NOTE! The below function has a rather misleading name of
-      // actual functionality which failed
-      print_could_not_discover_error(schema);
+    if (!create_table_from_engine(schema->db, schema->name,
+                                  true /* force_overwrite */)) {
+      ndb_log_error("Distribution of TRUNCATE TABLE '%s.%s' failed",
+                    schema->db, schema->name);
     }
 
     DBUG_VOID_RETURN;
@@ -4828,12 +4808,11 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    if (create_table_from_engine(schema->db, schema->name,
-                                 false, /* force_overwrite */
-                                 true /* invalidate_referenced_tables */)) {
-      // NOTE! The below function has a rather misleading name of
-      // actual functionality which failed
-      print_could_not_discover_error(schema);
+    if (!create_table_from_engine(schema->db, schema->name,
+                                  false, /* force_overwrite */
+                                  true /* invalidate_referenced_tables */)) {
+      ndb_log_error("Distribution of CREATE TABLE '%s.%s' failed",
+                    schema->db, schema->name);
     }
 
     DBUG_VOID_RETURN;
@@ -4944,6 +4923,7 @@ class Ndb_schema_event_handler {
 
     if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
                     tablespace_name);
       DBUG_RETURN(false);
@@ -4955,6 +4935,7 @@ class Ndb_schema_event_handler {
                                       version,
                                       true /* force_overwrite */))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("Failed to install tablespace '%s' in DD", tablespace_name);
       DBUG_RETURN(false);
     }
@@ -5172,6 +5153,7 @@ class Ndb_schema_event_handler {
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_logfile_group_exclusive(logfile_group_name))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     logfile_group_name);
       DBUG_RETURN(false);
@@ -5183,6 +5165,7 @@ class Ndb_schema_event_handler {
                                          version,
                                          true /* force_overwrite */))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("Failed to install logfile group '%s' in DD",
                     logfile_group_name);
       DBUG_RETURN(false);

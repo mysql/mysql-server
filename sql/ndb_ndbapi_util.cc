@@ -80,6 +80,25 @@ ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab)
 
 }
 
+bool ndb_table_get_serialized_metadata(const NdbDictionary::Table *ndbtab,
+                                       std::string &serialized_metadata) {
+  Uint32 version;
+  void *unpacked_data;
+  Uint32 unpacked_len;
+  const int get_result =
+      ndbtab->getExtraMetadata(version, &unpacked_data, &unpacked_len);
+  if (get_result != 0) return false;
+
+  if (version != 2) {
+    free(unpacked_data);
+    return false;
+  }
+
+  serialized_metadata.assign(static_cast<const char *>(unpacked_data),
+                             unpacked_len);
+  free(unpacked_data);
+  return true;
+}
 
 bool
 ndb_table_has_blobs(const NdbDictionary::Table *ndbtab)

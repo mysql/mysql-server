@@ -1207,12 +1207,13 @@ bool Ndb_dd_client::lookup_tablespace_id(const char* tablespace_name,
   const dd::Tablespace* ts_obj= NULL;
   if (m_thd->dd_client()->acquire(tablespace_name, &ts_obj))
   {
-    // acquire() always fails with a error being reported.
+    // acquire() always fails with an error being reported.
     DBUG_RETURN(false);
   }
 
   if (!ts_obj)
   {
+    my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), tablespace_name);
     DBUG_RETURN(false);
   }
 

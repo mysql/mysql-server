@@ -64,6 +64,17 @@ void ndb_pack_varchar(const NdbDictionary::Table* ndbtab, unsigned column_index,
  */
 Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table* ndbtab);
 
+/**
+   @brief returns serialized metadata attached to the
+   table in NDB.
+
+   @param ndbtab The NDB table
+   @param serialized_metadata[out] variabel to receive the serialized metadata
+
+   @return true if table has extra metadata version 2
+*/
+bool ndb_table_get_serialized_metadata(const NdbDictionary::Table *ndbtab,
+                                       std::string &serialized_metadata);
 
 /**
  * @brief ndb_table_has_blobs, check if the NDB table has blobs
