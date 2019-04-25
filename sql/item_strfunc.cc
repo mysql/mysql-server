@@ -1229,7 +1229,8 @@ String *Item_func_insert::val_str(String *str) {
 bool Item_func_insert::resolve_type(THD *thd) {
   // Handle character set for args[0] and args[3].
   if (agg_arg_charsets_for_string_result(collation, args, 2, 3)) return true;
-  ulonglong length = args[0]->max_char_length() + args[3]->max_char_length();
+  ulonglong length = ulonglong{args[0]->max_char_length()} +
+                     ulonglong{args[3]->max_char_length()};
   set_data_type_string(length);
   maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
