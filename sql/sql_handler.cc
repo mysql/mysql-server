@@ -327,6 +327,15 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
   */
   hash_tables->table->open_by_handler = 1;
 
+  /*
+    Generated column expressions have been resolved using the MEM_ROOT of the
+    current HANDLER statement, which is cleared when the statement has finished.
+    Clean up the expressions so that subsequent HANDLER ... READ calls don't
+    access data allocated on a cleared MEM_ROOT. The generated column
+    expressions have to be re-resolved on each HANDLER ... READ call.
+  */
+  hash_tables->table->cleanup_value_generator_items();
+
   DBUG_PRINT("exit", ("OK"));
   DBUG_RETURN(false);
 }
@@ -610,6 +619,14 @@ retry:
 
   table->file->init_table_handle_for_HANDLER();
 
+  /*
+    Resolve the generated column expressions. They have to be cleaned up before
+    returning, since the resolved expressions may point to memory allocated on
+    the MEM_ROOT of the current HANDLER ... READ statement, which will be
+    cleared when the statement has completed.
+  */
+  if (table->refix_value_generator_items(thd)) goto err;
+
   for (num_rows = 0; num_rows < select_limit_cnt;) {
     switch (mode) {
       case enum_ha_read_modes::RNEXT:
@@ -760,6 +777,7 @@ ok:
   trans_commit_stmt(thd);
   mysql_unlock_tables(thd, lock);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+  table->cleanup_value_generator_items();
   my_eof(thd);
   DBUG_PRINT("exit", ("OK"));
   DBUG_RETURN(false);
@@ -767,6 +785,7 @@ ok:
 err:
   trans_rollback_stmt(thd);
   mysql_unlock_tables(thd, lock);
+  table->cleanup_value_generator_items();
 err1:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 err0:
