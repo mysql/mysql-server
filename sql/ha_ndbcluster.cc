@@ -12486,6 +12486,8 @@ drop_table_impl(THD *thd, Ndb *ndb,
   NDBDICT *dict = ndb->getDictionary();
   int ndb_table_id = 0;
   int ndb_table_version = 0;
+  uint retries = NDB_AUTO_INCREMENT_RETRIES;
+  const int retry_sleep = 30;
   ndb->setDatabaseName(db);
   while (true)
   {
@@ -12507,10 +12509,11 @@ drop_table_impl(THD *thd, Ndb *ndb,
     }
 
     // An error has occurred. Examine the failure and retry if possible
-    if (dict->getNdbError().status == NdbError::TemporaryError &&
+    if (--retries && dict->getNdbError().status == NdbError::TemporaryError &&
         !thd_killed(thd))
     {
       // Temporary error, retry
+      ndb_retry_sleep(retry_sleep);
       continue;
     }
 
