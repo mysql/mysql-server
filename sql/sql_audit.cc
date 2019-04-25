@@ -376,8 +376,8 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
   event.general_sql_command = sql_statement_names[thd->lex->sql_command];
 
-  const CHARSET_INFO *charset = event.general_charset;
-  thd_get_audit_query(thd, &event.general_query, &charset);
+  thd_get_audit_query(thd, &event.general_query,
+                      (const CHARSET_INFO **)&event.general_charset);
 
   event.general_time = thd->query_start_in_secs();
 
