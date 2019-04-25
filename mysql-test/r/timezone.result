@@ -45,3 +45,20 @@ unix_timestamp('2038-01-19 04:14:07'),
 unix_timestamp('2038-01-19 04:14:08');
 unix_timestamp('1970-01-01 01:00:00')	unix_timestamp('1970-01-01 01:00:01')	unix_timestamp('2038-01-19 04:14:07')	unix_timestamp('2038-01-19 04:14:08')
 0	1	2147483647	0
+CREATE TABLE t1 (c1 TIMESTAMP);
+SET TIME_ZONE = '+00:00';
+INSERT INTO t1 VALUES('2019-10-27 00:47:42'), ('2019-10-27 00:47:42');
+INSERT INTO t1 VALUES('2019-10-27 01:47:42'), ('2019-10-27 01:47:42');
+SET TIME_ZONE = 'SYSTEM';
+SELECT DISTINCT c1 FROM t1;
+c1
+2019-10-27 02:47:42
+SELECT COUNT(*) FROM t1 GROUP BY c1;
+ERROR HY000: Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query.
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT COUNT(*) FROM t1 GROUP BY c1;
+ERROR HY000: Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query.
+SET sql_mode=DEFAULT;
+DROP TABLE t1;

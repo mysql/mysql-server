@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3506,6 +3506,26 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   init_tmptable_sum_functions(join->sum_funcs);
   if ((error=table->file->ha_write_row(table->record[0])))
   {
+    /*
+      If the error is HA_ERR_FOUND_DUPP_KEY and the grouping involves a
+      TIMESTAMP field, throw a meaningfull error to user with the actual
+      reason and the workaround. I.e, "Grouping on temporal is
+      non-deterministic for timezones having DST. Please consider switching
+      to UTC for this query". This is a temporary measure until we implement
+      WL#13148 (Do all internal handling TIMESTAMP in UTC timezone), which
+      will make such problem impossible.
+    */
+    if (error == HA_ERR_FOUND_DUPP_KEY)
+    {
+      for (group=table->group ; group ; group=group->next)
+      {
+        if (group->field->type() == MYSQL_TYPE_TIMESTAMP)
+        {
+          my_error(ER_GROUPING_ON_TIMESTAMP_IN_DST, MYF(0));
+          DBUG_RETURN(NESTED_LOOP_ERROR);
+        }
+      }
+    }
     if (create_ondisk_from_heap(join->thd, table,
                                 tmp_tbl->start_recinfo,
                                 &tmp_tbl->recinfo,

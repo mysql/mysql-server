@@ -7774,6 +7774,9 @@ ER_XA_REPLICATION_FILTERS
 ER_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
 
+ER_GROUPING_ON_TIMESTAMP_IN_DST
+  eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
+
 #
 #  End of 5.7 error messages.
 #
