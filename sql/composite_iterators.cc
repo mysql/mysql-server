@@ -1170,6 +1170,23 @@ bool TemptableAggregateIterator::Init() {
     init_tmptable_sum_functions(m_join->sum_funcs);
     error = table()->file->ha_write_row(table()->record[0]);
     if (error != 0) {
+      /*
+         If the error is HA_ERR_FOUND_DUPP_KEY and the grouping involves a
+         TIMESTAMP field, throw a meaningfull error to user with the actual
+         reason and the workaround. I.e, "Grouping on temporal is
+         non-deterministic for timezones having DST. Please consider switching
+         to UTC for this query". This is a temporary measure until we implement
+         WL#13148 (Do all internal handling TIMESTAMP in UTC timezone), which
+         will make such problem impossible.
+     */
+      if (error == HA_ERR_FOUND_DUPP_KEY) {
+        for (ORDER *group = table()->group; group; group = group->next) {
+          if (group->field_in_tmp_table->type() == MYSQL_TYPE_TIMESTAMP) {
+            my_error(ER_GROUPING_ON_TIMESTAMP_IN_DST, MYF(0));
+            return 1;
+          }
+        }
+      }
       if (create_ondisk_from_heap(thd(), table(), error, false, NULL)) {
         end_unique_index.commit();
         return 1;  // Not a table_is_full error.
