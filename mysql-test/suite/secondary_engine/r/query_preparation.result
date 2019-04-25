@@ -53,7 +53,6 @@ id	x	y
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
-ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps;
 id	x	y
 1	2	3
