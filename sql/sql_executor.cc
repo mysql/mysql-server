@@ -1482,6 +1482,14 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
       SJ_TMP_TABLE::TAB sj_tab;
       sj_tab.qep_tab = &qep_tabs[i];
       sj_tabs.push_back(sj_tab);
+
+      // See JOIN::add_sorting_to_table() for rationale.
+      Filesort *filesort = qep_tabs[i].filesort;
+      if (filesort != nullptr) {
+        DBUG_ASSERT(filesort->m_sort_param.m_addon_fields_status ==
+                    Addon_fields_status::unknown_status);
+        filesort->m_force_sort_positions = true;
+      }
     }
   }
 

@@ -624,3 +624,16 @@ eval $query;
 DROP TABLE t1, t2, t3, t4;
 
 set optimizer_switch=default;
+
+
+--echo #
+--echo # Bug #29693294: ASSERTION FAILURE M_INDEX_CURSOR.IS_POSITIONED() | SRC/HANDLER.CC
+--echo #
+
+# Sorts inside weedouts need to be by row ID (see JOIN::add_sorting_to_table()).
+# The EXPLAIN demonstrates it, and running the query verifies that it doesn't crash.
+CREATE TABLE t1 ( pk integer, f1 varchar(1) );
+INSERT INTO t1 VALUES (1,'D'), (20,'G');
+EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+DROP TABLE t1;

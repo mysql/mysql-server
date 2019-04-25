@@ -4751,11 +4751,35 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   if (jt == JT_CONST || jt == JT_EQ_REF)
     return false;  // 1 single row: is already sorted
 
+  // Weedout needs an underlying table to store refs from (it deduplicates
+  // by row ID), so if this table is part of a weedout operation, we need
+  // to force sorting by row IDs -- sorting rows with addon fields returns
+  // rows that have no reference to the underlying table object.
+  bool force_sort_position = false;
+  for (plan_idx i = 0; i <= static_cast<plan_idx>(idx); ++i) {
+    if (!qep_tab[i].starts_weedout()) {
+      continue;
+    }
+
+    plan_idx weedout_end = NO_PLAN_IDX;  // Exclusive.
+    for (uint j = i; j < primary_tables; ++j) {
+      if (qep_tab[j].check_weed_out_table == qep_tab[i].flush_weedout_table) {
+        weedout_end = j + 1;
+        break;
+      }
+    }
+    if (weedout_end != NO_PLAN_IDX &&
+        weedout_end > static_cast<plan_idx>(idx)) {
+      force_sort_position = true;
+      break;
+    }
+  }
+
   explain_flags.set(sort_order->src, ESP_USING_FILESORT);
   QEP_TAB *const tab = &qep_tab[idx];
   tab->filesort = new (thd->mem_root)
       Filesort(thd, tab, *sort_order, HA_POS_ERROR, force_stable_sort,
-               /*remove_duplicates=*/false, /*force_sort_position=*/false);
+               /*remove_duplicates=*/false, force_sort_position);
   if (!tab->filesort) return true;
   Opt_trace_object trace_tmp(&thd->opt_trace, "filesort");
   trace_tmp.add("adding_sort_to_table_in_plan_at_position", idx);

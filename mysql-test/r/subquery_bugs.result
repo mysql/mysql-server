@@ -768,3 +768,29 @@ pk
 1
 DROP TABLE t1, t2, t3, t4;
 set optimizer_switch=default;
+#
+# Bug #29693294: ASSERTION FAILURE M_INDEX_CURSOR.IS_POSITIONED() | SRC/HANDLER.CC
+#
+CREATE TABLE t1 ( pk integer, f1 varchar(1) );
+INSERT INTO t1 VALUES (1,'D'), (20,'G');
+EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+EXPLAIN
+-> Remove duplicate (d0, t1) rows using temporary table (weedout)
+    -> Nested loop left join
+        -> Sort row IDs: d0.f1
+            -> Table scan on d0
+                -> Materialize
+                    -> Table scan on <temporary>
+                        -> Temporary table with deduplication
+                            -> Table scan on t1
+        -> Nested loop inner join
+            -> Filter: (d0.pk = 1)
+                -> Table scan on t1
+            -> Table scan on t1
+
+SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+pk	f1	pk	f1
+1	D	1	D
+1	D	20	G
+20	G	NULL	NULL
+DROP TABLE t1;
