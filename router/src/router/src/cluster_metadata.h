@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,17 +40,21 @@ class MySQLInnoDBClusterMetadata {
                                  mysql_harness::SocketOperations::instance())
       : mysql_(mysql), socket_operations_(sockops) {}
 
-  /** @brief Checks if Router with id is already registered in metadata database
+  /** @brief Checks if Router with given id is already registered in metadata
+   *         database, and belongs to our machine
    *
    * @param router_id Router id
    * @param hostname_override If non-empty, this hostname will be used instead
    *        of getting queried from OS
    *
    * @throws LocalHostnameResolutionError(std::runtime_error) on hostname query
-   *         failure, std::runtime_error on other failure
+   *         failure
+   * @throws std::runtime_error if router_id doesn't exist, or is associated
+   *         with a different host
+   * @throws MySQLSession::Error(std::runtime_error) on database error
    */
-  void check_router_id(uint32_t router_id,
-                       const std::string &hostname_override = "");
+  void verify_router_id_is_ours(uint32_t router_id,
+                                const std::string &hostname_override = "");
 
   /** @brief Registers Router in metadata database
    *
@@ -59,6 +63,8 @@ class MySQLInnoDBClusterMetadata {
    * registration to be "hijacked" instead of throwing
    * @param hostname_override If non-empty, this hostname will be used instead
    *        of getting queried from OS
+   *
+   * @returns newly-assigned router_id
    *
    * @throws LocalHostnameResolutionError(std::runtime_error) on hostname query
    *         failure, std::runtime_error on other failure

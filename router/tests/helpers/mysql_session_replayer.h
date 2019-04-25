@@ -43,11 +43,29 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   virtual bool is_connected() noexcept override { return connected_; }
 
   virtual void execute(const std::string &sql) override;
-  virtual void query(const std::string &sql,
-                     const RowProcessor &processor) override;
-  virtual std::unique_ptr<ResultRow> query_one(const std::string &sql) override;
+
+  /**
+   * @note validator is ignored (not implemented) - if you're running a test
+   * that relies on proper emulation of validator, it may not work properly.
+   */
+  virtual void query(
+      const std::string &sql, const RowProcessor &processor,
+      const FieldValidator &validator =
+          null_field_validator  // validator not implemented so far
+      ) override;
+
+  /**
+   * @note validator is ignored (not implemented) - if you're running a test
+   * that relies on proper emulation of validator, it may not work properly.
+   */
+  virtual std::unique_ptr<ResultRow> query_one(
+      const std::string &sql,
+      const FieldValidator &validator =
+          null_field_validator  // validator not implemented so far
+      ) override;
 
   virtual uint64_t last_insert_id() noexcept override;
+  virtual unsigned warning_count() noexcept override;
 
   virtual std::string quote(const std::string &s,
                             char qchar = '\'') noexcept override;
@@ -79,7 +97,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   MySQLSessionReplayer &expect_execute(const std::string &q);
   MySQLSessionReplayer &expect_query(const std::string &q);
   MySQLSessionReplayer &expect_query_one(const std::string &q);
-  void then_ok(uint64_t the_last_insert_id = 0);
+  void then_ok(uint64_t the_last_insert_id = 0, unsigned warning_count = 0);
   void then_error(const std::string &error, unsigned int code);
   void then_return(unsigned int num_fields,
                    std::vector<std::vector<optional_string>> rows);
@@ -104,6 +122,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
     // SQL fields
     std::string sql;
     uint64_t last_insert_id = 0;
+    unsigned warning_count = 0;
     unsigned int num_fields = 0;
     std::vector<std::vector<optional_string>> rows;
 
@@ -116,6 +135,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   };
   std::deque<CallInfo> call_info_;
   uint64_t last_insert_id_;
+  unsigned warning_count_;
   std::string last_error_msg;
   unsigned int last_error_code;
   bool trace_ = false;

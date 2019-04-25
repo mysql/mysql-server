@@ -27,6 +27,25 @@
 
 #include "config_generator.h"
 
+#ifdef _WIN32
+#include <Windows.h>
+#define strcasecmp _stricmp
+#else
+#include <sys/stat.h>
+#endif
+
+#include <algorithm>
+#include <array>
+#include <cstring>
+#include <fstream>
+#include <functional>
+#include <iomanip>
+#include <iostream>
+#include <random>
+#include <regex>
+#include <sstream>
+#include <stdexcept>
+
 #include <rapidjson/rapidjson.h>
 #include "common.h"
 #include "dim.h"
@@ -37,6 +56,7 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/vt100.h"
+#include "mysqld_error.h"
 #include "mysqlrouter/sha1.h"
 #include "mysqlrouter/uri.h"
 #include "random_generator.h"
@@ -44,23 +64,6 @@
 #include "tcp_address.h"
 #include "utils.h"
 IMPORT_LOG_FUNCTIONS()
-
-#ifdef _WIN32
-#include <Windows.h>
-#define strcasecmp _stricmp
-#else
-#include <sys/stat.h>
-#endif
-
-#include <algorithm>
-#include <cstring>
-#include <fstream>
-#include <functional>
-#include <iomanip>
-#include <iostream>
-#include <random>
-#include <sstream>
-#include <stdexcept>
 
 #include "cluster_metadata.h"
 #include "cluster_metadata_dynamic_state.h"
@@ -105,6 +108,7 @@ using mysql_harness::TCPAddress;
 using mysql_harness::truncate_string;
 using mysql_harness::UniquePtr;
 using namespace mysqlrouter;
+using namespace std::string_literals;
 
 namespace {
 struct password_too_weak : public std::runtime_error {
@@ -112,6 +116,9 @@ struct password_too_weak : public std::runtime_error {
 };
 
 struct plugin_not_loaded : public std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
+struct account_exists : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 }  // namespace
@@ -286,6 +293,7 @@ ConfigGenerator::ConfigGenerator(std::ostream &out_stream,
 {
 }
 
+// throws std::logic_error, std::runtime_error, Error(runtime_error)
 /*static*/
 void ConfigGenerator::set_ssl_options(
     MySQLSession *sess, const std::map<std::string, std::string> &options) {
@@ -302,15 +310,17 @@ void ConfigGenerator::set_ssl_options(
   std::string ssl_key = get_opt(options, "ssl_key", "");
 
   // parse ssl_mode option (already validated in cmdline option handling)
-  mysql_ssl_mode ssl_enum = MySQLSession::parse_ssl_mode(ssl_mode);
+  mysql_ssl_mode ssl_enum =
+      MySQLSession::parse_ssl_mode(ssl_mode);  // throws std::logic_error
 
   // set ssl mode + server authentication options
-  sess->set_ssl_options(ssl_enum, tls_version, ssl_cipher, ssl_ca, ssl_capath,
-                        ssl_crl, ssl_crlpath);
+  sess->set_ssl_options(
+      ssl_enum, tls_version, ssl_cipher, ssl_ca, ssl_capath, ssl_crl,
+      ssl_crlpath);  // throws Error, std::invalid_argument(logic_error)
 
   // set client authentication options
   if (!ssl_cert.empty() || !ssl_key.empty()) {
-    sess->set_ssl_cert(ssl_cert, ssl_key);
+    sess->set_ssl_cert(ssl_cert, ssl_key);  // throws Error(runtime_error)
   }
 }
 
@@ -357,21 +367,9 @@ bool ConfigGenerator::warn_on_no_ssl(
   }
 }
 
-// throws MySQLSession::Error, std::runtime_error, std::out_of_range,
-// std::logic_error
-void ConfigGenerator::init(
-    const std::string &server_url,
+// throws std::runtime_error on invalid option value
+void ConfigGenerator::parse_bootstrap_options(
     const std::map<std::string, std::string> &bootstrap_options) {
-  // TODO: This function is quite lengthy and seems to be doing several things.
-  //       It should probably be broken up into smaller parts.
-
-  // ensure defaults are in place in case ::init() gets called again
-  // and they aren't overwritten by bootstrap_options
-  connect_timeout_ = MySQLSession::kDefaultConnectTimeout;
-  read_timeout_ = MySQLSession::kDefaultReadTimeout;
-  std::string uri;
-
-  // check options
   if (bootstrap_options.find("base-port") != bootstrap_options.end()) {
     char *end = NULL;
     const char *tmp = bootstrap_options.at("base-port").c_str();
@@ -421,13 +419,18 @@ void ConfigGenerator::init(
 
     read_timeout_ = read_timeout;
   }
+}
 
+// throws std::runtime_error on invalid data
+URI ConfigGenerator::parse_server_uri(const std::string &server_uri,
+                                      const std::string &bootstrap_socket) {
+  // Extract connection information from the bootstrap server URI.
+  std::string uri;
   const std::string default_schema = "mysql://";
-  // Extract connection information from the bootstrap server URL.
-  if (server_url.compare(0, default_schema.size(), default_schema) != 0) {
-    uri = default_schema + server_url;
+  if (server_uri.compare(0, default_schema.size(), default_schema) != 0) {
+    uri = default_schema + server_uri;
   } else {
-    uri = server_url;
+    uri = server_uri;
   }
 
   URI u;
@@ -462,10 +465,7 @@ void ConfigGenerator::init(
         prompt_password("Please enter MySQL password for " + u.username);
   }
 
-  const auto &it = bootstrap_options.find("bootstrap_socket");
-  std::string socket_name = (it != bootstrap_options.end()) ? it->second : "";
-
-  if (socket_name.size() > 0) {
+  if (bootstrap_socket.size() > 0) {
     // enforce host == "localhost" if a socket is used to avoid ambiguity with
     // the possible hostname
     if (u.host != "localhost") {
@@ -479,32 +479,64 @@ void ConfigGenerator::init(
     u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
   }
 
+  return u;
+}
+
+// throws std::runtime_error, std::logic_error
+void ConfigGenerator::connect_to_metadata_server(
+    const URI &u, const std::string &bootstrap_socket,
+    const std::map<std::string, std::string> &bootstrap_options) {
+  // connect to (what should be a) metadata server
   mysql_ = DIM::instance().new_MySQLSession();
   try {
+    // throws std::logic_error, std::runtime_error, Error(runtime_error)
     set_ssl_options(mysql_.get(), bootstrap_options);
-    mysql_->connect(u.host, u.port, u.username, u.password, socket_name, "",
-                    connect_timeout_, read_timeout_);
+    mysql_->connect(u.host, u.port, u.username, u.password, bootstrap_socket,
+                    "", connect_timeout_, read_timeout_);
   } catch (const MySQLSession::Error &e) {
-    std::stringstream err;
-    err << "Unable to connect to the metadata server: " << e.what();
-    throw std::runtime_error(err.str());
+    throw std::runtime_error("Unable to connect to the metadata server: "s +
+                             e.what());
   }
+}
 
-  // check if the current server is meta-data server
-  require_innodb_metadata_is_ok(
-      mysql_.get());  // throws MySQLSession::Error, std::runtime_error,
-                      // std::out_of_range, std::logic_error
-  require_innodb_group_replication_is_ok(
-      mysql_.get());  // throws MySQLSession::Error, std::runtime_error,
-                      // std::out_of_range, std::logic_error
-
+// throws ?
+void ConfigGenerator::init_gr_data(const URI &u,
+                                   const std::string &bootstrap_socket) {
   gr_id_ = get_group_replication_id(mysql_.get());
 
   gr_initial_username_ = u.username;
   gr_initial_password_ = u.password;
   gr_initial_hostname_ = u.host;
   gr_initial_port_ = u.port;
-  gr_initial_socket_ = socket_name;
+  gr_initial_socket_ = bootstrap_socket;
+}
+
+// throws std::runtime_error, std::logic_error
+void ConfigGenerator::init(
+    const std::string &server_url,
+    const std::map<std::string, std::string> &bootstrap_options) {
+  // ensure defaults are in place in case ::init() gets called again
+  // and they aren't overwritten by bootstrap_options
+  connect_timeout_ = MySQLSession::kDefaultConnectTimeout;
+  read_timeout_ = MySQLSession::kDefaultReadTimeout;
+
+  parse_bootstrap_options(bootstrap_options);  // throws std::runtime_error
+
+  const auto &it = bootstrap_options.find("bootstrap_socket");
+  std::string bootstrap_socket =
+      (it != bootstrap_options.end()) ? it->second : "";
+  URI u = parse_server_uri(server_url,
+                           bootstrap_socket);  // throws std::runtime_error
+
+  // throws std::runtime_error, std::logic_error,
+  connect_to_metadata_server(u, bootstrap_socket, bootstrap_options);
+
+  // check if the current server is a suitable metadata server
+  // Both of the below throw: std::runtime_error, std::logic_error
+  require_innodb_metadata_is_ok(mysql_.get());
+  require_innodb_group_replication_is_ok(mysql_.get());
+
+  init_gr_data(u, bootstrap_socket);  // throws ?
 }
 
 void ConfigGenerator::bootstrap_system_deployment(
@@ -549,6 +581,10 @@ void ConfigGenerator::bootstrap_system_deployment(
     auto_clean.add_file_delete(config_file_name + ".tmp");
   }
 
+  // on bootstrap failure, DROP USER for all created accounts
+  std::unique_ptr<void, std::function<void(void *)>> create_user_undo(
+      (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
+
   bootstrap_deployment(*config_files[0], *config_files[1], config_file_path,
                        state_file_path, router_name, options,
                        multivalue_options, default_paths, false, auto_clean);
@@ -590,6 +626,7 @@ void ConfigGenerator::bootstrap_system_deployment(
     set_file_owner(options, path);
   }
   auto_clean.clear();
+  create_user_undo.release();
 }
 
 // throws std::system_error
@@ -599,19 +636,6 @@ static bool is_directory_empty(mysql_harness::Directory dir) {
     if (name != "." && name != "..") return false;
   }
   return true;
-}
-
-void ConfigGenerator::set_keyring_info_real_paths(
-    std::map<std::string, std::string> &options,
-    const mysql_harness::Path &path) {
-  keyring_info_.set_keyring_file(mysql_harness::Path(options["datadir"])
-                                     .real_path()
-                                     .join(keyring_info_.get_keyring_file())
-                                     .str());
-  keyring_info_.set_master_key_file(
-      keyring_info_.get_master_key_file().empty()
-          ? ""
-          : path.real_path().join(keyring_info_.get_master_key_file()).str());
 }
 
 /**
@@ -747,6 +771,10 @@ void ConfigGenerator::bootstrap_directory_deployment(
 
   set_keyring_info_real_paths(options, path);
 
+  // on bootstrap failure, DROP USER for all created accounts
+  std::unique_ptr<void, std::function<void(void *)>> create_user_undo(
+      (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
+
   bootstrap_deployment(*config_files[0], *config_files[1],
                        config_files_names[0], config_files_names[1],
                        router_name, options, multivalue_options, default_paths,
@@ -829,6 +857,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
 #endif
 
   auto_clean.clear();
+  create_user_undo.release();
 }
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
@@ -969,9 +998,9 @@ inline std::string str(
  *       and move into a place where other can access it too
  */
 enum class MySQLErrorc {
-  kSyntaxError = 1064,
-  kSuperReadOnly = 1290,
-  kLostConnection = 2013,
+  kSyntaxError = ER_PARSE_ERROR,                  // 1064
+  kSuperReadOnly = ER_OPTION_PREVENTS_STATEMENT,  // 1290
+  kLostConnection = CR_SERVER_LOST,               // 2013
 };
 
 /**
@@ -1003,11 +1032,11 @@ class GrAwareDecorator {
   fetch_group_replication_hosts();
 
   MySQLSession &mysql_;
-  const std::string &gr_initial_username_;
-  const std::string &gr_initial_password_;
-  const std::string &gr_initial_hostname_;
+  const std::string gr_initial_username_;
+  const std::string gr_initial_password_;
+  const std::string gr_initial_hostname_;
   unsigned long gr_initial_port_;
-  const std::string &gr_initial_socket_;
+  const std::string gr_initial_socket_;
   unsigned long connection_timeout_;
   std::set<MySQLErrorc> failure_codes_;
 };
@@ -1025,11 +1054,75 @@ class GrAwareDecorator {
  */
 template <class R>
 R GrAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
+  // failover_to_next_node() expects an established connection, through which
+  // it can query GR for cluster nodes.  If it runs, it will then close this
+  // connection and in its place open another one to a cluster node (more than
+  // once if neccessary).
+  harness_assert(mysql_.is_connected());
+
   bool fetched_gr_servers = false;
   std::vector<std::tuple<std::string, unsigned long>> gr_servers;
 
   // init it once, even though we'll never use it
   auto gr_servers_it = gr_servers.begin();
+
+  auto failover_to_next_node = [&]() {
+    do {
+      if (!fetched_gr_servers) {
+        // lazy fetch the GR members
+        //
+        fetched_gr_servers = true;
+
+        log_info("Fetching Group Replication Members");
+
+        for (const auto &gr_node : fetch_group_replication_hosts()) {
+          auto const &gr_host = std::get<0>(gr_node);
+          auto gr_port = std::get<1>(gr_node);
+
+          // if we connected through TCP/IP, ignore the initial host
+          if (gr_initial_socket_.size() == 0 &&
+              (gr_host == gr_initial_hostname_ &&
+               gr_port == gr_initial_port_)) {
+            continue;
+          }
+
+          log_debug("Added GR node: %s:%ld", gr_host.c_str(), gr_port);
+          gr_servers.emplace_back(gr_host, gr_port);
+        }
+
+        // get a new iterator as the old one is now invalid
+        gr_servers_it = gr_servers.begin();
+      } else {
+        std::advance(gr_servers_it, 1);
+      }
+
+      if (gr_servers_it == gr_servers.end()) {
+        throw std::runtime_error("No more nodes to fail-over too, giving up.");
+      }
+
+      if (mysql_.is_connected()) {
+        log_info("%s", "Disconnecting from mysql-server");
+        mysql_.disconnect();
+      }
+
+      auto const &tp = *gr_servers_it;
+
+      auto const &gr_host = std::get<0>(tp);
+      auto gr_port = std::get<1>(tp);
+
+      log_info("Trying to connecting to mysql-server at %s:%ld",
+               gr_host.c_str(), gr_port);
+
+      try {
+        mysql_.connect(gr_host, gr_port, gr_initial_username_,
+                       gr_initial_password_, "", "", connection_timeout_);
+      } catch (const std::exception &inner_e) {
+        log_info("Failed connecting to %s:%ld: %s, trying next",
+                 gr_host.c_str(), gr_port, inner_e.what());
+      }
+      // if this fails, we should just skip it and go to the next
+    } while (!mysql_.is_connected());
+  };
 
   do {
     try {
@@ -1037,72 +1130,19 @@ R GrAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
     } catch (const MySQLSession::Error &e) {
       MySQLErrorc ec = static_cast<MySQLErrorc>(e.code());
 
-      log_info(
-          "Executing statements failed with: '%s' (%d), trying to connect to "
-          "another node",
-          e.what(), e.code());
+      // failover only on authorised error codes
+      bool do_failover = failure_codes_.find(ec) != failure_codes_.end();
+
+      log_info("Executing statements failed with: '%s' (%d)%s", e.what(),
+               e.code(),
+               do_failover ? ", trying to connect to another node" : "");
 
       // code not in failure-set
-      if (failure_codes_.find(ec) == failure_codes_.end()) {
+      if (!do_failover) {
         throw;
       }
 
-      do {
-        if (!fetched_gr_servers) {
-          // lazy fetch the GR members
-          //
-          fetched_gr_servers = true;
-
-          log_info("Fetching Group Replication Members");
-
-          for (auto &gr_node : fetch_group_replication_hosts()) {
-            auto const &gr_host = std::get<0>(gr_node);
-            auto gr_port = std::get<1>(gr_node);
-
-            // if we connected through TCP/IP, ignore the initial host
-            if (gr_initial_socket_.size() == 0 &&
-                (gr_host == gr_initial_hostname_ &&
-                 gr_port == gr_initial_port_)) {
-              continue;
-            }
-
-            log_debug("added GR node: %s:%ld", gr_host.c_str(), gr_port);
-            gr_servers.emplace_back(gr_host, gr_port);
-          }
-
-          // get a new iterator as the old one is now invalid
-          gr_servers_it = gr_servers.begin();
-        } else {
-          std::advance(gr_servers_it, 1);
-        }
-
-        if (gr_servers_it == gr_servers.end()) {
-          throw std::runtime_error(
-              "no more nodes to fail-over too, giving up.");
-        }
-
-        if (mysql_.is_connected()) {
-          log_info("%s", "disconnecting from mysql-server");
-          mysql_.disconnect();
-        }
-
-        auto const &tp = *gr_servers_it;
-
-        auto const &gr_host = std::get<0>(tp);
-        auto gr_port = std::get<1>(tp);
-
-        log_info("trying to connecting to mysql-server at %s:%ld",
-                 gr_host.c_str(), gr_port);
-
-        try {
-          mysql_.connect(gr_host, gr_port, gr_initial_username_,
-                         gr_initial_password_, "", "", connection_timeout_);
-        } catch (const std::exception &inner_e) {
-          log_info("Failed connecting to %s:%ld: %s, trying next",
-                   gr_host.c_str(), gr_port, inner_e.what());
-        }
-        // if this fails, we should just skip it and go to the next
-      } while (!mysql_.is_connected());
+      failover_to_next_node();
     }
   } while (true);
 }
@@ -1138,6 +1178,468 @@ GrAwareDecorator::fetch_group_replication_hosts() {
   }
 }
 
+void ConfigGenerator::set_log_file_permissions(
+    const std::map<std::string, std::string> &default_paths,
+    const std::map<std::string, std::string> &user_options,
+    const Options &options) {
+#ifndef _WIN32
+  /* Currently at this point the logger is not yet initialized but while
+   * bootstraping with the --user=<user> option we need to create a log file and
+   * chown it to the <user>. Otherwise when the router gets launched later (not
+   * bootstrap) with the same --user=<user> option, the user might not have
+   * right to the logging directory.
+   */
+  out_stream_ << "- Adjusting permissions of generated files" << std::endl;
+  // assert(default_paths.find("logging_folder") != default_paths.end());
+  std::string logdir = (!options.override_logdir.empty())
+                           ? options.override_logdir
+                           : default_paths.at("logging_folder");
+  if (!logdir.empty()) {
+    auto log_path =
+        mysql_harness::Path::make_path(logdir, "mysqlrouter", "log");
+    auto log_file = log_path.str();
+    std::fstream f;
+    f.open(log_file, std::ios::out);
+    set_file_owner(user_options, log_file);
+  }
+#endif
+}
+
+// get a value from the map if it exists, default-value otherwise
+static std::string map_get(
+    const std::map<std::string, std::string> &user_options,
+    const std::string &key, const std::string &def_value) {
+  const auto &it = user_options.find(key);
+  return (it != user_options.end()) ? it->second : def_value;
+}
+
+void ConfigGenerator::bootstrap_deployment(
+    std::ostream &config_file, std::ostream &state_file,
+    const mysql_harness::Path &config_file_path,
+    const mysql_harness::Path &state_file_path, const std::string &router_name,
+    const std::map<std::string, std::string> &user_options,
+    const std::map<std::string, std::vector<std::string>> &multivalue_options,
+    const std::map<std::string, std::string> &default_paths,
+    bool directory_deployment, AutoCleaner &auto_clean) {
+  std::string primary_cluster_name;
+  std::vector<std::string> primary_replicaset_servers;
+  std::string primary_replicaset_name;
+  bool force = user_options.find("force") != user_options.end();
+  bool quiet = user_options.find("quiet") != user_options.end();
+
+  // query the connected MD server and populate vars with results
+  harness_assert(mysql_->is_connected());
+  fetch_metadata_servers(primary_replicaset_servers, primary_cluster_name,
+                         primary_replicaset_name);
+
+  // get router_id and username from config and/or command-line
+  uint32_t router_id;
+  std::string username;
+  {
+    // throws std::runtime_error on invalid router_id or metadata_cluster
+    std::tie(router_id, username) =
+        get_router_id_and_username_from_config_if_it_exists(
+            config_file_path.str(), primary_cluster_name, force);
+
+    // if user provided --account, override username with it
+    username = map_get(user_options, "account", username);
+
+    // If username is still empty at this point, it will be autogenerated
+    // inside try_bootstrap_deployment().  It cannot be done here, because the
+    // autogenerated name will contain router_id, and that is still subject to
+    // change inside try_bootstrap_deployment()
+  }
+
+  if (!quiet)
+    print_bootstrap_start_msg(router_id, directory_deployment,
+                              config_file_path);
+
+  Options options(fill_options(user_options));
+
+  // Prompt for the Router's runtime account that's used by metadata_cache and
+  // specified by "--account".
+  // If running in --account mode, the user provides the password (ALWAYS,
+  // regarless of if it's already available from keyring or not.  This hard
+  // rule exists to make automation easier by asking const number of questions).
+  // OTOH, if running without --account, the password is NEVER prompted for
+  // (it's autogenerated or taken from keyring (we throw an error if missing,
+  // but never prompt for it - again, the goal is automation-friendliness)
+  std::string password;
+  if (user_options.count("account"))
+    password = prompt_password("Please enter MySQL password for " + username);
+  else if (!username.empty())
+    password = fetch_password_from_keyring(username, router_id);
+
+  // bootstrap
+  // All SQL writes happen inside here
+  {
+    GrAwareDecorator gr_aware(*mysql_, gr_initial_username_,
+                              gr_initial_password_, gr_initial_hostname_,
+                              gr_initial_port_, gr_initial_socket_,
+                              connect_timeout_);
+
+    // note: try_bootstrap_deployment() can update router_id, username and
+    // password note: failover is performed only on specific errors (subset of
+    // what
+    //       appears in enum class MySQLErrorc)
+    std::tie(password) =
+        gr_aware.failover_on_failure<std::tuple<std::string>>([&]() {
+          return try_bootstrap_deployment(router_id, username, password,
+                                          router_name, user_options,
+                                          multivalue_options, options);
+        });
+  }
+
+  // test out the connection that Router would use
+  {
+    bool strict = user_options.count("strict");
+    verify_router_account(username, password, primary_cluster_name, strict);
+  }
+
+  store_credentials_in_keyring(auto_clean, user_options, router_id, username,
+                               password, options);
+  set_log_file_permissions(default_paths, user_options, options);
+
+  // generate the new config file
+  {
+    out_stream_ << "- Creating configuration " << config_file_path.str()
+                << std::endl;
+    auto system_username = map_get(user_options, "user", "");
+    create_config(config_file, state_file, router_id, router_name,
+                  system_username, primary_replicaset_servers,
+                  primary_cluster_name, primary_replicaset_name, username,
+                  options, state_file_path.str());
+  }
+
+  if (!quiet)
+    print_report(config_file_path.str(), router_name, primary_cluster_name,
+                 map_get(user_options, "report-host", "localhost"),
+                 !directory_deployment, options);
+}
+
+void ConfigGenerator::ensure_router_id_is_ours(
+    uint32_t &router_id, const std::string &hostname_override,
+    MySQLInnoDBClusterMetadata &metadata) {
+  // if router data is valid
+  try {
+    metadata.verify_router_id_is_ours(router_id, hostname_override);
+  } catch (
+      const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError
+          &e) {
+    throw std::runtime_error(
+        std::string("Could not verify if this Router instance is already "
+                    "registered with the "
+                    "cluster because querying this host's hostname from OS "
+                    "failed:\n  ") +
+        e.what() +
+        "\nYou may want to try --report-host option to manually supply this "
+        "hostname.");
+  } catch (const std::exception &e) {
+    log_warning("WARNING: %s", e.what());
+    // TODO: abort here and suggest --force to force reconfiguration?
+    router_id = 0;
+  }
+}
+
+uint32_t ConfigGenerator::register_router(
+    const std::string &router_name, const std::string &hostname_override,
+    bool force, MySQLInnoDBClusterMetadata &metadata) {
+  // register router
+  uint32_t router_id;
+  try {
+    router_id = metadata.register_router(router_name, force, hostname_override);
+  } catch (
+      const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError
+          &e) {
+    throw std::runtime_error(
+        std::string(
+            "Could not register this Router instance with the cluster because "
+            "querying this host's hostname from OS failed:\n  ") +
+        e.what() +
+        "\nYou may want to try --report-host option to manually supply this "
+        "hostname.");
+  } catch (const MySQLSession::Error &e) {
+    if (e.code() == ER_DUP_ENTRY) {  // duplicate key
+      throw std::runtime_error(
+          "It appears that a router instance named '" + router_name +
+          "' has been previously configured in this host. If that instance"
+          " no longer exists, use the --force option to overwrite it.");
+    }
+
+    throw;
+  }
+
+  if (router_id > kMaxRouterId) {
+    throw std::runtime_error("router_id (" + std::to_string(router_id) +
+                             ") exceeded max allowable value (" +
+                             std::to_string(kMaxRouterId) + ")");
+  }
+
+  return router_id;
+}
+
+static std::string generate_username(
+    uint32_t router_id, mysql_harness::RandomGeneratorInterface &rg) {
+  using RandomGen = mysql_harness::RandomGeneratorInterface;
+  return "mysql_router" + std::to_string(router_id) + "_" +
+         rg.generate_identifier(
+             kNumRandomChars,
+             RandomGen::AlphabetDigits | RandomGen::AlphabetLowercase);
+}
+
+/*static*/
+std::set<std::string> ConfigGenerator::get_account_host_args(
+    const std::map<std::string, std::vector<std::string>>
+        &multivalue_options) noexcept {
+  // We need to eliminate any non-unique --account-host entries (to ensure
+  // CREATE USER does not get called twice for the same user@host).
+  // Repackaging into std::set elegantly takes care of this need.
+  std::set<std::string> account_hosts;
+  constexpr const char kAccountHost[] = "account-host";
+  if (multivalue_options.count(kAccountHost))
+    for (const std::string &h : multivalue_options.at(kAccountHost))
+      account_hosts.emplace(h);
+
+  // if no --account-host was given, default to just one: '%'
+  if (account_hosts.empty()) account_hosts.emplace("%");
+
+  return account_hosts;
+}
+
+void ConfigGenerator::verify_router_account(
+    const std::string &username, const std::string &password,
+    const std::string &primary_cluster_name, bool strict) {
+  out_stream_ << "- Verifying account (using it to run SQL queries that would "
+                 "be run by Router)"
+              << std::endl;
+
+  auto failed_verification_handler = [this,
+                                      strict](const std::runtime_error &e) {
+    const std::string msg = R"(Account verification failed with error:
+  )"s + e.what() +
+                            R"(
+
+This means that we were unable to log in using the accounts that were created
+and run SQL queries that Router needs to run during its operation.
+It means this Router instance may be inoperable and user intervention is
+required to correct the issue and/or bootstrap again.
+
+See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.)";
+
+    if (strict) {
+      throw std::runtime_error(msg);
+    } else {
+      err_stream_ << "\n"
+                  << Vt100::foreground(Vt100::Color::Red)
+                  << "***** WARNING *****\n"
+                  << Vt100::render(Vt100::Render::ForegroundDefault) << msg
+                  << std::endl;
+    }
+  };
+
+  auto run_sql_queries = [&primary_cluster_name,
+                          this](MySQLSession &rtr_acct_sess) {
+    // no need to differentiate between SQL queries and statements, as both can
+    // be called with mysql_real_query() (called inside MySQLSession::execute())
+    const std::array<std::string, 4> stmts = {
+        // MDC startup
+        // source: mysqlrouter::get_group_replication_id(MySQLSession *mysql)
+        "select @@group_replication_group_name",
+
+        /* next 3 are called during MDC Refresh; they access all tables that are
+         * GRANTed by bootstrap
+         */
+
+        // source: ClusterMetadata::fetch_instances_from_metadata_server()
+        "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
+        "I.version_token, I.addresses->>'$.mysqlClassic', "
+        "I.addresses->>'$.mysqlX' FROM mysql_innodb_cluster_metadata.clusters "
+        "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
+        "F.cluster_id = R.cluster_id JOIN "
+        "mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id = "
+        "I.replicaset_id"
+        " WHERE F.cluster_name = " +
+            mysql_->quote(primary_cluster_name) + ";",
+
+        // source: find_group_replication_primary_member()
+        "show status like 'group_replication_primary_member'",
+
+        // source: fetch_group_replication_members()
+        "SELECT member_id, member_host, member_port, member_state, "
+        "@@group_replication_single_primary_mode FROM "
+        "performance_schema.replication_group_members WHERE channel_name = "
+        "'group_replication_applier'",
+
+    };
+
+    // we just call them (ignore the resultset) - all we care about is whether
+    // they execute without error
+    for (const std::string &s : stmts) {
+      // throws MySQLSession::Error (std::runtime_error)
+      rtr_acct_sess.execute(s);
+    }
+  };
+
+  // Create a new connection that's just like the one we currently have, but
+  // using Router's credentials, i.e. using the new account we just set up.
+  // More precisely, we use new account's username - we have no control over
+  // which hostname is used.  Therefore it may well be that the account with
+  // appropriate hostname may not exist and we will not be able to log in.
+  // That's ok, that's the main reason why we do this verification - to alert
+  // the user when such condition exists.
+  MySQLSession rtr_acct_sess;
+  {
+    MySQLSession::ConnectionParameters p = mysql_->get_connection_parameters();
+    p.conn_opts.username = username;
+    p.conn_opts.password = password;
+
+    try {
+      // will throw if logging in using Router's credentials fails
+      rtr_acct_sess.connect_and_set_opts(p);
+    } catch (const MySQLSession::Error &e) {
+      failed_verification_handler(e);
+      return;
+    }
+  }
+
+  // run through all the queries Router could run
+  try {
+    run_sql_queries(rtr_acct_sess);
+  } catch (const MySQLSession::Error &e) {
+    failed_verification_handler(e);
+  }
+}
+
+std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
+    uint32_t &router_id, std::string &username, std::string &password,
+    const std::string &router_name,
+    const std::map<std::string, std::string> &user_options,
+    const std::map<std::string, std::vector<std::string>> &multivalue_options,
+    const Options &options) {
+  MySQLSession::Transaction transaction(mysql_.get());
+  MySQLInnoDBClusterMetadata metadata(mysql_.get());
+
+  // set hostname override if provided
+  const auto &it = user_options.find("report-host");
+  const std::string &hostname_override =
+      (it != user_options.end()) ? it->second : "";
+
+  // if reconfiguration
+  if (router_id > 0) {
+    // throws std::runtime if our hostname couldn't be queried,
+    // resets router_id to 0 if router_id doesn't exist or
+    // belongs to a different host.
+    // NOTE that these were passed by reference to us, thus they are stored
+    //      outside of this function and will be persisted to the next call.
+    ensure_router_id_is_ours(router_id, hostname_override, metadata);
+  }
+
+  // if router not registered yet (or router_id was invalid)
+  if (router_id == 0) {
+    bool force = user_options.find("force") != user_options.end();
+
+    // throws std::runtime on failure
+    router_id =
+        register_router(router_name, hostname_override, force, metadata);
+  }
+  harness_assert(router_id > 0);
+
+  // now that we got our router_id, we can finally autogenerate the username
+  if (username.empty()) {
+    // --account sets username
+    harness_assert(!user_options.count("account"));
+
+    using RandomGen = mysql_harness::RandomGeneratorInterface;
+    RandomGen &rg = mysql_harness::DIM::instance().get_RandomGenerator();
+    username = generate_username(router_id, rg);
+  }
+
+  const std::set<std::string> hostnames_cmd =
+      get_account_host_args(multivalue_options);
+
+  // create_router_accounts() throws many things, see its description
+  // If password is empty and running without --account, it will be
+  // autogenerated and returned
+  bool password_change_ok = !user_options.count("account");
+  password = create_router_accounts(user_options, hostnames_cmd, username,
+                                    password, password_change_ok);
+
+  const std::string rw_endpoint = str(options.rw_endpoint);
+  const std::string ro_endpoint = str(options.ro_endpoint);
+  const std::string rw_x_endpoint = str(options.rw_x_endpoint);
+  const std::string ro_x_endpoint = str(options.ro_x_endpoint);
+  metadata.update_router_info(router_id, rw_endpoint, ro_endpoint,
+                              rw_x_endpoint, ro_x_endpoint);
+
+  transaction.commit();
+
+  return std::make_tuple(password);
+}
+
+void ConfigGenerator::set_keyring_info_real_paths(
+    std::map<std::string, std::string> &options,
+    const mysql_harness::Path &path) {
+  keyring_info_.set_keyring_file(mysql_harness::Path(options["datadir"])
+                                     .real_path()
+                                     .join(keyring_info_.get_keyring_file())
+                                     .str());
+  keyring_info_.set_master_key_file(
+      keyring_info_.get_master_key_file().empty()
+          ? ""
+          : path.real_path().join(keyring_info_.get_master_key_file()).str());
+}
+
+std::string ConfigGenerator::fetch_password_from_keyring(
+    const std::string &username, uint32_t router_id) {
+  out_stream_ << "- Fetching password for current account (" + username +
+                     ") from keyring"
+              << std::endl;
+
+  try {
+    init_keyring_file(router_id, false);
+  } catch (const std::runtime_error &e) {
+    throw std::runtime_error("Failed retrieving password for user '" +
+                             username + "' from keyring: " + e.what());
+  }
+
+  try {
+    return mysql_harness::get_keyring()->fetch(username,
+                                               kKeyringAttributePassword);
+  } catch (const std::out_of_range &e) {
+    throw std::runtime_error(R"(Failed retrieving password for user ')"s +
+                             username + R"(' from keyring:
+
+  Keyring was opened successfully, but it doesn't contain the password for
+  user ')"s + username + R"('
+
+See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.
+)"s);
+  }
+}
+
+void ConfigGenerator::store_credentials_in_keyring(
+    AutoCleaner &auto_clean,
+    const std::map<std::string, std::string> &user_options, uint32_t router_id,
+    const std::string &username, const std::string &password,
+    Options &options) {
+  out_stream_ << "- Storing account in keyring" << std::endl;
+  init_keyring_and_master_key(auto_clean, user_options, router_id);
+
+  mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+
+  keyring->store(username, kKeyringAttributePassword, password);
+  try {
+    mysql_harness::flush_keyring();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(
+        std::string("Error storing encrypted password to disk: ") + e.what());
+  }
+
+  options.keyring_file_path = keyring_info_.get_keyring_file();
+  if (keyring_info_.use_master_key_file())
+    options.keyring_master_key_file_path = keyring_info_.get_master_key_file();
+}
+
 void ConfigGenerator::init_keyring_and_master_key(
     AutoCleaner &auto_clean,
     const std::map<std::string, std::string> &user_options,
@@ -1167,262 +1669,10 @@ void ConfigGenerator::init_keyring_and_master_key(
   set_file_owner(user_options, keyring_info_.get_master_key_file());
 }
 
-void ConfigGenerator::bootstrap_deployment(
-    std::ostream &config_file, std::ostream &state_file,
-    const mysql_harness::Path &config_file_path,
-    const mysql_harness::Path &state_file_path, const std::string &router_name,
-    const std::map<std::string, std::string> &user_options,
-    const std::map<std::string, std::vector<std::string>> &multivalue_options,
-    const std::map<std::string, std::string> &default_paths,
-    bool directory_deployment, AutoCleaner &auto_clean) {
-  std::string primary_cluster_name;
-  std::vector<std::string> primary_replicaset_servers;
-  std::string primary_replicaset_name;
-  bool force = user_options.find("force") != user_options.end();
-  bool quiet = user_options.find("quiet") != user_options.end();
-  uint32_t router_id = 0;
-  std::string username;
+void ConfigGenerator::init_keyring_file(uint32_t router_id,
+                                        bool create_if_needed /*= true*/) {
+  if (keyring_initialized_) return;
 
-  using RandomGen = mysql_harness::RandomGeneratorInterface;
-  RandomGen &rg = mysql_harness::DIM::instance().get_RandomGenerator();
-
-  fetch_metadata_servers(primary_replicaset_servers, primary_cluster_name,
-                         primary_replicaset_name);
-
-  if (config_file_path.exists()) {
-    std::tie(router_id, username) = get_router_id_and_name_from_config(
-        config_file_path.str(), primary_cluster_name, force);
-  }
-
-  if (!quiet) {
-    std::string prefix;
-    if (router_id > 0) {
-      prefix = "# Reconfiguring";
-    } else {
-      prefix = "# Bootstrapping";
-    }
-    out_stream_ << Vt100::foreground(Vt100::Color::Yellow) << prefix;
-    if (directory_deployment) {
-      out_stream_ << " MySQL Router instance at '" << config_file_path.dirname()
-                  << "'...";
-    } else {
-      out_stream_ << " system MySQL Router instance...";
-    }
-    out_stream_ << Vt100::render(Vt100::Render::ForegroundDefault) << "\n"
-                << std::endl;
-  }
-
-  std::string password;
-
-  Options options(fill_options(user_options));
-
-  GrAwareDecorator gr_aware(*mysql_, gr_initial_username_, gr_initial_password_,
-                            gr_initial_hostname_, gr_initial_port_,
-                            gr_initial_socket_, connect_timeout_);
-
-  {
-    const std::string rw_endpoint = str(options.rw_endpoint);
-    const std::string ro_endpoint = str(options.ro_endpoint);
-    const std::string rw_x_endpoint = str(options.rw_x_endpoint);
-    const std::string ro_x_endpoint = str(options.ro_x_endpoint);
-
-    std::tie(password) =
-        gr_aware.failover_on_failure<std::tuple<std::string>>([&]() {
-          return try_bootstrap_deployment(router_id, username, router_name, rg,
-                                          user_options, multivalue_options,
-                                          rw_endpoint, ro_endpoint,
-                                          rw_x_endpoint, ro_x_endpoint);
-        });
-  }
-  out_stream_ << "- Storing account in keyring"
-              << "\n";
-  init_keyring_and_master_key(auto_clean, user_options, router_id);
-
-  {
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-
-    keyring->store(username, kKeyringAttributePassword, password);
-    try {
-      mysql_harness::flush_keyring();
-    } catch (const std::exception &e) {
-      throw std::runtime_error(
-          std::string("Error storing encrypted password to disk: ") + e.what());
-    }
-  }
-
-  options.keyring_file_path = keyring_info_.get_keyring_file();
-  if (keyring_info_.use_master_key_file())
-    options.keyring_master_key_file_path = keyring_info_.get_master_key_file();
-
-#ifndef _WIN32
-  /* Currently at this point the logger is not yet initialized but while
-   * bootstraping with the --user=<user> option we need to create a log file and
-   * chown it to the <user>. Otherwise when the router gets launched later (not
-   * bootstrap) with the same --user=<user> option, the user might not have
-   * right to the logging directory.
-   */
-  out_stream_ << "- Adjusting permissions of generated files"
-              << "\n";
-  assert(default_paths.find("logging_folder") != default_paths.end());
-  std::string logdir = (!options.override_logdir.empty())
-                           ? options.override_logdir
-                           : default_paths.at("logging_folder");
-  if (!logdir.empty()) {
-    auto log_path =
-        mysql_harness::Path::make_path(logdir, "mysqlrouter", "log");
-    auto log_file = log_path.str();
-    std::fstream f;
-    f.open(log_file, std::ios::out);
-    set_file_owner(user_options, log_file);
-  }
-#endif
-
-  // get a value from the map if it exists, default-value otherwise
-  auto map_get = [](const std::map<std::string, std::string> &user_options,
-                    const std::string &key, const std::string &def_value) {
-    const auto &it = user_options.find(key);
-    return (it != user_options.end()) ? it->second : def_value;
-  };
-
-  auto system_username = (user_options.find("user") != user_options.end())
-                             ? user_options.at("user")
-                             : "";
-
-  out_stream_ << "- Creating configuration " << config_file_path.str() << "\n";
-  // generate the new config file
-  create_config(config_file, state_file, router_id, router_name,
-                system_username, primary_replicaset_servers,
-                primary_cluster_name, primary_replicaset_name, username,
-                options, state_file_path.str());
-
-  if (!quiet) {
-    create_report(config_file_path.str(), router_name, primary_cluster_name,
-                  map_get(user_options, "report-host", "localhost"),
-                  !directory_deployment, options);
-  }
-}
-
-void ConfigGenerator::ensure_router_id_is_ours(
-    uint32_t &router_id, std::string &username,
-    const std::string &hostname_override,
-    MySQLInnoDBClusterMetadata &metadata) {
-  // if router data is valid
-  try {
-    metadata.check_router_id(router_id, hostname_override);
-  } catch (
-      const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError
-          &e) {
-    throw std::runtime_error(
-        std::string("Could not verify if this Router instance is already "
-                    "registered with the "
-                    "cluster because querying this host's hostname from OS "
-                    "failed:\n  ") +
-        e.what() +
-        "\nYou may want to try --report-host option to manually supply this "
-        "hostname.");
-  } catch (const std::exception &e) {
-    log_warning("WARNING: %s", e.what());
-    // TODO: abort here and suggest --force to force reconfiguration?
-    router_id = 0;
-    username.clear();
-  }
-}
-
-void ConfigGenerator::register_router_and_set_username(
-    uint32_t &router_id, const std::string &router_name, std::string &username,
-    const std::string &hostname_override, bool force,
-    MySQLInnoDBClusterMetadata &metadata,
-    mysql_harness::RandomGeneratorInterface &rg) {
-  try {
-    router_id = metadata.register_router(router_name, force, hostname_override);
-  } catch (
-      const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError
-          &e) {
-    throw std::runtime_error(
-        std::string(
-            "Could not register this Router instance with the cluster because "
-            "querying this host's hostname from OS failed:\n  ") +
-        e.what() +
-        "\nYou may want to try --report-host option to manually supply this "
-        "hostname.");
-  } catch (const MySQLSession::Error &e) {
-    if (e.code() == 1062) {  // duplicate key
-      throw std::runtime_error(
-          "It appears that a router instance named '" + router_name +
-          "' has been previously configured in this host. If that instance"
-          " no longer exists, use the --force option to overwrite it.");
-    }
-
-    throw;
-  }
-
-  if (router_id > kMaxRouterId) {
-    throw std::runtime_error("router_id (" + std::to_string(router_id) +
-                             ") exceeded max allowable value (" +
-                             std::to_string(kMaxRouterId) + ")");
-  }
-
-  using RandomGen = mysql_harness::RandomGeneratorInterface;
-  username =
-      "mysql_router" + std::to_string(router_id) + "_" +
-      rg.generate_identifier(kNumRandomChars, RandomGen::AlphabetDigits |
-                                                  RandomGen::AlphabetLowercase);
-}
-
-std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
-    uint32_t &router_id, std::string &username, const std::string &router_name,
-    mysql_harness::RandomGeneratorInterface &rg,
-    const std::map<std::string, std::string> &user_options,
-    const std::map<std::string, std::vector<std::string>> &multivalue_options,
-    const std::string &rw_endpoint, const std::string &ro_endpoint,
-    const std::string &rw_x_endpoint, const std::string &ro_x_endpoint) {
-  MySQLSession::Transaction transaction(mysql_.get());
-  MySQLInnoDBClusterMetadata metadata(mysql_.get());
-
-  // set hostname override if provided
-  const auto &it = user_options.find("report-host");
-  const std::string &hostname_override =
-      (it != user_options.end()) ? it->second : "";
-  // if reconfiguration;
-  if (router_id > 0) {
-    // throws std::runtime if our hostname couldn't be queried,
-    // resets router_id to 0 and clears username if router_id doesn't exist or
-    // belongs to a different host.
-    // NOTE that these were passed by reference to us, thus they are stored
-    //      outside of this function and will be persisted to the next call.
-    ensure_router_id_is_ours(router_id, username, hostname_override, metadata);
-  }
-
-  // if router not registered yet (or router_id was invalid)
-  if (router_id == 0) {
-    assert(username.empty());
-    bool force = user_options.find("force") != user_options.end();
-
-    // throws std::runtime on failure
-    register_router_and_set_username(router_id, router_name, username,
-                                     hostname_override, force, metadata, rg);
-  }
-
-  assert(router_id);
-  assert(!username.empty());
-
-  // we erase any old accounts with the same name, if they exist
-  delete_account_for_all_hosts(
-      username);  // throws MySQLSession::Error, std::logic_error
-
-  // create_router_accounts() throws many things, see its description
-  std::string password =
-      create_router_accounts(user_options, multivalue_options, username);
-
-  metadata.update_router_info(router_id, rw_endpoint, ro_endpoint,
-                              rw_x_endpoint, ro_x_endpoint);
-
-  transaction.commit();
-
-  return std::make_tuple(password);
-}
-
-void ConfigGenerator::init_keyring_file(uint32_t router_id) {
   if (keyring_info_.use_master_key_external_facility()) {
     if (!keyring_info_.read_master_key()) {
       throw MasterKeyWriteError(
@@ -1440,11 +1690,13 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id) {
       }
     }
     mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(),
-                                         keyring_info_.get_master_key(), true);
+                                         keyring_info_.get_master_key(),
+                                         create_if_needed);
   } else if (keyring_info_.use_master_key_file()) {
     try {
       mysql_harness::init_keyring(keyring_info_.get_keyring_file(),
-                                  keyring_info_.get_master_key_file(), true);
+                                  keyring_info_.get_master_key_file(),
+                                  create_if_needed);
     } catch (const mysql_harness::invalid_master_keyfile &) {
       throw mysql_harness::invalid_master_keyfile(
           "Invalid master key file " + keyring_info_.get_master_key_file());
@@ -1492,8 +1744,10 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id) {
       }
     }
     mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(),
-                                         master_key, true);
+                                         master_key, create_if_needed);
   }
+
+  keyring_initialized_ = true;
 }
 
 void ConfigGenerator::fetch_metadata_servers(
@@ -1521,9 +1775,22 @@ void ConfigGenerator::fetch_metadata_servers(
            "AND "
            "R.cluster_id = F.cluster_id";
 
-  metadata_cluster = "";
-  metadata_replicaset = "";
-  metadata_servers.clear();
+  // clang-format off
+  // EXAMPLE RESPONSE:
+  //
+  //   row[0]         row[1]            row[2]          row[3]
+  // +--------------+-----------------+---------------+-----------------------------------------------------------+
+  // | cluster_name | replicaset_name | topology_type | JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) |
+  // +--------------+-----------------+---------------+-----------------------------------------------------------+
+  // | mycluster    | default         | pm            | c18:3310                                                  |
+  // | mycluster    | default         | pm            | c18:3320                                                  |
+  // | mycluster    | default         | pm            | c18:3330                                                  |
+  // +--------------+-----------------+---------------+-----------------------------------------------------------+
+  // clang-format on
+
+  metadata_cluster = "";     // populated from row[0]
+  metadata_replicaset = "";  // populated from row[1]
+  metadata_servers.clear();  // populated from row[3]
   try {
     mysql_->query(
         query.str(),
@@ -1758,12 +2025,32 @@ void ConfigGenerator::create_config(
   config_file.flush();
 }
 
-void ConfigGenerator::create_report(const std::string &config_file_name,
-                                    const std::string &router_name,
-                                    const std::string &metadata_cluster,
-                                    const std::string &hostname,
-                                    bool is_system_deployment,
-                                    const Options &options) {
+void ConfigGenerator::print_bootstrap_start_msg(
+    uint32_t router_id, bool directory_deployment,
+    const mysql_harness::Path &config_file_path) {
+  std::string prefix;
+  if (router_id > 0) {
+    prefix = "# Reconfiguring";
+  } else {
+    prefix = "# Bootstrapping";
+  }
+  out_stream_ << Vt100::foreground(Vt100::Color::Yellow) << prefix;
+  if (directory_deployment) {
+    out_stream_ << " MySQL Router instance at '" << config_file_path.dirname()
+                << "'...";
+  } else {
+    out_stream_ << " system MySQL Router instance...";
+  }
+  out_stream_ << Vt100::render(Vt100::Render::ForegroundDefault) << "\n"
+              << std::endl;
+}
+
+void ConfigGenerator::print_report(const std::string &config_file_name,
+                                   const std::string &router_name,
+                                   const std::string &metadata_cluster,
+                                   const std::string &hostname,
+                                   bool is_system_deployment,
+                                   const Options &options) {
   constexpr const char kPromptPrefix[]{
 #ifdef _WIN32
       "> "
@@ -1784,25 +2071,23 @@ void ConfigGenerator::create_report(const std::string &config_file_name,
 
   out_stream_ << "After this MySQL Router has been started with the generated "
                  "configuration"
-              << "\n\n";
+              << "\n"
+              << std::endl;
 #ifdef _WIN32
   if (is_system_deployment) {
     out_stream_ << "    " << kPromptPrefix << "net start mysqlrouter"
                 << "\n"
-                << "or"
-                << "\n";
+                << "or" << std::endl;
   }
 #else
   if (is_system_deployment) {
     out_stream_ << "    " << kPromptPrefix << "/etc/init.d/mysqlrouter restart"
                 << "\n"
-                << "or"
-                << "\n";
+                << "or" << std::endl;
     if (Path("/bin/systemctl").exists()) {
       out_stream_ << "    " << kPromptPrefix << "systemctl start mysqlrouter"
                   << "\n"
-                  << "or"
-                  << "\n";
+                  << "or" << std::endl;
     }
   }
 #endif
@@ -1864,8 +2149,8 @@ void ConfigGenerator::create_report(const std::string &config_file_name,
  */
 std::string ConfigGenerator::create_router_accounts(
     const std::map<std::string, std::string> &user_options,
-    const std::map<std::string, std::vector<std::string>> &multivalue_options,
-    const std::string &username) {
+    const std::set<std::string> &hostnames, const std::string &username,
+    const std::string &password, bool password_change_ok) {
   /*
   Ideally, we create a single account for the specific host that the router is
   running on. But that has several problems in real world, including:
@@ -1884,81 +2169,60 @@ std::string ConfigGenerator::create_router_accounts(
   ultimately belongs to the user.
   */
 
-  // extract --account-host args; if none were given, default to just one: "%"
-  // NOTE: By the time we call this function, all --account-host entries
-  // should
-  //       be sorted and any non-unique entries eliminated (to ensure CREATE
-  //       USER does not get called twice for the same user@host). This
-  //       happens at the commandline parsing level during --account-host
-  //       processing.
-  constexpr const char kAccountHost[] = "account-host";
-  const std::vector<std::string> &hostnames =
-      multivalue_options.count(kAccountHost)
-          ? multivalue_options.at(kAccountHost)
-          : std::vector<std::string>{"%"};
-
-  // NOTE ON EXCEPTIONS:
-  // create_account*() functions throw many things (see their descriptions)
-  // - we let the higher-level logic deal with them when that happens.
-
-  // create first account and save password info that got generated in the
-  // process
-  std::pair<std::string, bool> password_and_is_hashed =
-      create_account_with_compliant_password(user_options, username,
-                                             hostnames.front());
-
-  // and now we use that password info for creation of remaining accounts
-  for (auto it = hostnames.begin() + 1; it != hostnames.end(); ++it) {
-    try {
-      create_account(username, *it, password_and_is_hashed.first /*password*/,
-                     password_and_is_hashed.second /*hash password*/);
-    }
-
-    // create_account_with_compliant_password() should have caught these (and
-    // dealt with them accordingly), since these occur either always or never.
-    // The only way these could occur here is if the Server's responses
-    // changed for some reason (reconfigured in the meantime?). Anyhow,
-    // probably an unlikely event.
-    catch (const plugin_not_loaded &) {
-      throw std::runtime_error(
-          "Error creating user account: unexpected error: "
-          "plugin not loaded (it seems Server changed its password policy, "
-          "has it been reconfigured in the meantime?)");
-    } catch (const password_too_weak &) {
-      throw std::runtime_error(
-          "Error creating user account: unexpected error: "
-          "password too weak (it seems Server changed its password policy, "
-          "has it been reconfigured in the meantime?)");
-    } catch (...) {
-      throw;  // all others we pass
-    }
+  bool if_not_exists;
+  {
+    const std::string ac =
+        map_get(user_options, "account-create", "if-not-exists");
+    if (ac == "never")
+      return password;
+    else if (ac == "if-not-exists" || !user_options.count("account"))
+      if_not_exists = true;
+    else if (ac == "always")
+      if_not_exists = false;
+    else
+      harness_assert_this_should_not_execute();
   }
 
-  return password_and_is_hashed.first;
+  // NOTE ON EXCEPTIONS:
+  // create_accounts*() functions throw many things (see their descriptions)
+  // - we let the higher-level logic deal with them when that happens.
+
+  if (hostnames.size()) {
+    // NOTE: it may update the password
+    return create_accounts_with_compliant_password(
+        user_options, username, hostnames, password, password_change_ok,
+        if_not_exists);
+  }
+
+  return password;
 }
 
-std::pair<std::string, bool>
-ConfigGenerator::create_account_with_compliant_password(
+std::string ConfigGenerator::create_accounts_with_compliant_password(
     const std::map<std::string, std::string> &user_options,
-    const std::string &username, const std::string &hostname) {
+    const std::string &username, const std::set<std::string> &hostnames,
+    const std::string &password, bool password_change_ok,
+    const bool if_not_exists) {
   using RandomGen = mysql_harness::RandomGeneratorInterface;
   RandomGen &rg = mysql_harness::DIM::instance().get_RandomGenerator();
 
   const bool force_password_validation =
       user_options.find("force-password-validation") != user_options.end();
-  std::string password;
+  std::string password_candidate;
   unsigned retries =
       get_password_retries(user_options);  // throws std::runtime_error
   if (!force_password_validation) {
     // 1) Try to create an account using mysql_native_password with the hashed
-    // password
-    //    to avoid validate_password verification (hashing is done inside
-    //    create_account())
-    password = rg.generate_strong_password(kMetadataServerPasswordLength);
+    // password to avoid validate_password verification (hashing is done inside
+    // create_accounts())
+    password_candidate =
+        password.empty() && password_change_ok
+            ? rg.generate_strong_password(kMetadataServerPasswordLength)
+            : password;
     try {
-      // create_account() throws many things, see its description
-      create_account(username, hostname, password, true /*hash password*/);
-      return std::make_pair(password, true);
+      // create_accounts() throws many things, see its description
+      create_accounts(username, hostnames, password_candidate,
+                      true /*hash password*/, if_not_exists);
+      return password_candidate;
     } catch (const plugin_not_loaded &) {
       // fallback to 2)
     }
@@ -1968,14 +2232,21 @@ ConfigGenerator::create_account_with_compliant_password(
   //    or "-force-password-validation" parameter has being used
   //    try to create an account using the password directly
   while (true) {
-    password = rg.generate_strong_password(kMetadataServerPasswordLength);
+    password_candidate =
+        password.empty() && password_change_ok
+            ? rg.generate_strong_password(kMetadataServerPasswordLength)
+            : password;
 
     try {
-      // create_account() throws many things, see its description
-      create_account(username, hostname, password, false /*hash password*/);
-      return std::make_pair(password, false);
+      // create_accounts() throws many things, see its description
+      create_accounts(username, hostnames, password_candidate,
+                      false /*hash password*/, if_not_exists);
+      return password_candidate;
     } catch (const password_too_weak &e) {
-      if (--retries == 0) {
+      if (--retries == 0          // retries used up
+          || !password.empty()    // \_ retrying is pointless b/c the password
+          || !password_change_ok  // /  will be the same every time
+      ) {
         // 3) If 2) failed issue an error suggesting the change to
         // validate_password rules
         std::stringstream err_msg;
@@ -1997,6 +2268,277 @@ ConfigGenerator::create_account_with_compliant_password(
   harness_assert_this_should_not_execute();
 }
 
+/*static*/
+void ConfigGenerator::throw_account_exists(const MySQLSession::Error &e,
+                                           const std::string &username) {
+  // clang-format off
+  // Extract a list of accounts that are reported to already exist.
+  //
+  // We do this by parsing error message we got back from the Server.  In
+  // English form, it looks like this:
+  //
+  //   ERROR 1396 (HY000): Operation CREATE USER failed for 'foo'@'host1','foo'@'host2'
+  //
+  // The message contains only the accounts that already exist, so it could
+  // have been a result of:
+  //
+  //   CREATE USER 'foo'@'host1', 'foo'@'host2', 'foo'@'host3', 'foo'@'host4'
+  //
+  // if host3 and host4 did not exist yet.
+  //
+  // Note that on such failure, CREATE USER will not create host3 and host4.
+  // clang-format on
+  std::set<std::string> accounts;
+  {
+    std::string text = e.message();
+    const std::regex re{mysql_->quote(username) + "@'.*?'"};
+    std::smatch m;
+
+    while (std::regex_search(text, m, re)) {
+      accounts.insert(m[0]);
+      text = m.suffix().str();
+    }
+  }
+  if (accounts.empty())
+    throw std::runtime_error(
+        "Failed to parse error message returned by CREATE USER command: "s +
+        e.what());
+
+  // Build error message informing of existing accounts
+  std::string msg = "Account(s) ";
+
+  bool is_first{true};
+  for (const std::string a : accounts) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      msg += ",";
+    }
+    msg += a;
+  }
+  msg +=
+      " already exist(s). If this is expected, please rerun without "
+      "`--account-create always`.";
+
+  throw account_exists(msg);
+}
+
+void ConfigGenerator::create_users(const std::string &username,
+                                   const std::set<std::string> &hostnames,
+                                   const std::string &password,
+                                   bool hash_password /*=false*/,
+                                   bool if_not_exists /*=false*/) {
+  harness_assert(hostnames.size());
+
+  // build string containing account/auth list
+  std::string accounts_with_auth;
+  {
+    const std::string auth_part =
+        " IDENTIFIED "s +
+        (hash_password ? "WITH mysql_native_password AS " : "BY ") +
+        mysql_->quote(hash_password ? compute_password_hash(password)
+                                    : password);
+
+    const std::string quoted_username = mysql_->quote(username);
+    bool is_first{true};
+    for (const std::string &h : hostnames) {
+      if (is_first) {
+        is_first = false;
+      } else {
+        accounts_with_auth += ",";
+      }
+      accounts_with_auth +=
+          quoted_username + "@" + mysql_->quote(h) + auth_part;
+    }
+  }
+
+  try {
+    mysql_->execute(
+        "CREATE USER "s + (if_not_exists ? "IF NOT EXISTS " : "") +
+        accounts_with_auth);  // throws MySQLSession::Error, std::logic_error
+  } catch (const MySQLSession::Error &e) {
+    // log_error("%s: executing query: %s", e.what(), s.c_str());
+    try {
+      mysql_->execute("ROLLBACK");
+    } catch (...) {
+      // log_error("Could not rollback transaction explicitly.");
+    }
+    std::string err_msg =
+        std::string(
+            "Error creating MySQL account for router (CREATE USER stage): ") +
+        e.what();
+    if (e.code() == ER_NOT_VALID_PASSWORD) {  // password does not satisfy the
+                                              // current policy requirements
+      throw password_too_weak(err_msg);
+    }
+    if (e.code() == ER_PLUGIN_IS_NOT_LOADED) {  // auth plugin not loaded
+      throw plugin_not_loaded(err_msg);
+    }
+    if (e.code() == ER_CANNOT_USER) {  // user already exists
+      // // this should only happen when running with --account-create always,
+      // // which sets if_not_exists to false
+      // harness_assert(!if_not_exists);
+
+      throw_account_exists(e, username);
+    }
+
+    // it shouldn't have failed, let the upper layers try to handle it
+    throw MySQLSession::Error(err_msg, e.code());
+  }
+}
+
+std::set<std::string> ConfigGenerator::get_hostnames_of_created_accounts(
+    const std::string &username, const std::set<std::string> &hostnames,
+    bool if_not_exists) {
+  harness_assert(hostnames.size());
+
+  // when running with IF NOT EXISTS, a warning will be produced for every
+  // account that already exists.  We want to continue setup only for those
+  // that don't.  Also, we need to save this list in case we need to revert
+  // setup due to some errors later on.
+  std::set<std::string> new_hostnames;  // if/else blocks will populate it
+  if (if_not_exists && mysql_->warning_count() > 0) {
+    // example response
+    // clang-format off
+    // +-------+------+---------------------------------------------+
+    // | Level | Code | Message                                     |
+    // +-------+------+---------------------------------------------+
+    // | Note  | 3163 | Authorization ID 'bla'@'h1' already exists. |
+    // | Note  | 3163 | Authorization ID 'bla'@'h3' already exists. |
+    // +-------+------+---------------------------------------------+
+    // clang-format on
+
+    auto validator = [](unsigned num_fields, MYSQL_FIELD *fields) {
+      if (num_fields != 3) {
+        throw std::runtime_error(
+            "SHOW WARNINGS: Unexpected number of fields in the resultset. "
+            "Expected = 3, got = " +
+            std::to_string(num_fields));
+      }
+
+      auto verify_column_name = [fields](unsigned idx,
+                                         const std::string &expected) {
+        if (fields[idx].name != expected)
+          throw std::runtime_error(
+              "SHOW WARNINGS: Unexpected column " + std::to_string(idx + 1) +
+              " name '" + fields[idx].name + "', expected '" + expected + "'");
+      };
+      verify_column_name(0, "Level");
+      verify_column_name(1, "Code");
+      verify_column_name(2, "Message");
+    };
+
+    // start off with a full list, and we'll subtract existing hostnames from it
+    new_hostnames = hostnames;
+
+    const std::regex re{" '" + username + "'@'(.*?)' "};
+    auto processor = [&](const MySQLSession::Row &row) -> bool {
+      // we ignore warnings we're not expecting
+      unsigned code;
+      try {
+        code = std::stoul(row[1]);
+      } catch (const std::exception &e) {
+        throw std::runtime_error(
+            "SHOW WARNINGS: Failed to parse error code from error code column (column content = '"s +
+            row[1] + "'): " + e.what());
+      }
+      if (code != ER_USER_ALREADY_EXISTS) {
+        return true;  // true = give me another row
+      }
+
+      // extract the hostname from the warning message, and erase it from
+      // new_hostnames
+      const char *msg = row[2];
+      std::cmatch m;
+      if (std::regex_search(msg, m, re)) {
+        if (!new_hostnames.erase(m[1].str())) {
+          throw std::runtime_error("SHOW WARNINGS: Unexpected account name '" +
+                                   username + "'@'" + m[1].str() +
+                                   "' in message \""s + msg + "\"");
+        }
+      } else {
+        throw std::runtime_error(
+            "SHOW WARNINGS: Failed to extract account name ('" + username +
+            "'@'<anything>') from message \""s + msg + "\"");
+      }
+
+      return true;  // true = give me another row
+    };
+
+    try {
+      mysql_->query("SHOW WARNINGS", processor, validator);
+    } catch (const MySQLSession::Error &e) {
+      // log_error("%s: executing query: %s", e.what(), s.c_str());
+      try {
+        mysql_->execute("ROLLBACK");
+      } catch (...) {
+        // log_error("Could not rollback transaction explicitly.");
+      }
+
+      // it shouldn't have failed, let the upper layers try to handle it
+      std::string err_msg = std::string(
+                                "Error creating MySQL account for router (SHOW "
+                                "WARNINGS stage): ") +
+                            e.what();
+      throw std::runtime_error(err_msg);
+    }
+  } else {
+    // nothing special here - accounts for all hostnames were created
+    // successfully, therefore all are new
+    new_hostnames = hostnames;
+  }
+
+  return new_hostnames;
+}
+
+void ConfigGenerator::give_grants_to_users(const std::string &new_accounts) {
+  // give GRANTs to new accounts
+  if (!new_accounts.empty()) {
+    // run GRANT stantements
+    const std::vector<std::string> statements{
+        "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " + new_accounts,
+        "GRANT SELECT ON performance_schema.replication_group_members TO " +
+            new_accounts,
+        "GRANT SELECT ON performance_schema.replication_group_member_stats "
+        "TO " +
+            new_accounts};
+    for (const auto &s : statements) {
+      try {
+        mysql_->execute(s);  // throws MySQLSession::Error, std::logic_error
+      } catch (const MySQLSession::Error &e) {
+        // log_error("%s: executing query: %s", e.what(), s.c_str());
+        try {
+          mysql_->execute("ROLLBACK");
+        } catch (...) {
+          // log_error("Could not rollback transaction explicitly.");
+        }
+
+        // we throw such that fail-over WILL NOT work.  Since CREATE USER
+        // already succeeded, we can't simply go over to next node and start
+        // over because the state of the next node is uncertain due to
+        // replication syncing the effect of CREATE USER that already succeeded.
+        std::string err_msg =
+            std::string(
+                "Error creating MySQL account for router (GRANTs stage): ") +
+            e.what();
+        throw std::runtime_error(err_msg);
+      }
+    }
+  }
+}
+
+std::string ConfigGenerator::make_account_list(
+    const std::string username, const std::set<std::string> &hostnames) {
+  std::string account_list;
+  for (const std::string &h : hostnames) {
+    if (!account_list.empty()) {
+      account_list += ",";
+    }
+    account_list += mysql_->quote(username) + "@" + mysql_->quote(h);
+  }
+  return account_list;
+}
+
 /*
   Create MySQL account for this instance of the router in the target cluster.
 
@@ -2005,153 +2547,261 @@ ConfigGenerator::create_account_with_compliant_password(
   Note that this assumes that the metadata schema is stored in the
   destinations cluster and that there is only one replicaset in it.
  */
-void ConfigGenerator::create_account(const std::string &username,
-                                     const std::string &hostname,
-                                     const std::string &password,
-                                     bool hash_password) {
-  const std::string account =
-      mysql_->quote(username) + "@" + mysql_->quote(hostname);
-  out_stream_ << "- Creating mysql account " << account
-              << " for cluster management\n";
+void ConfigGenerator::create_accounts(const std::string &username,
+                                      const std::set<std::string> &hostnames,
+                                      const std::string &password,
+                                      bool hash_password /*=false*/,
+                                      bool if_not_exists /*=false*/) {
+  harness_assert(hostnames.size());
+  harness_assert(undo_create_account_list_.type ==
+                 UndoCreateAccountList::kNotSet);
 
-  const std::string create_user =
-      "CREATE USER " + account + " IDENTIFIED " +
-      (hash_password ? "WITH mysql_native_password AS " : "BY ") +
-      mysql_->quote(hash_password ? compute_password_hash(password) : password);
-  //    + mysql_->quote(password) + " REQUIRE X509";
+  out_stream_ << "- Creating account(s) "
+              << (if_not_exists ? "(only those that are needed, if any)" : "")
+              << std::endl;
 
-  const std::vector<std::string> queries{
-      create_user,
-      "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " + account,
-      "GRANT SELECT ON performance_schema.replication_group_members TO " +
-          account,
-      "GRANT SELECT ON performance_schema.replication_group_member_stats "
-      "TO " +
-          account};
+  // when this throws, it may trigger failover (depends on what exception it
+  // throws)
+  create_users(username, hostnames, password, hash_password, if_not_exists);
 
-  for (auto &q : queries) {
-    try {
-      mysql_->execute(q);  // throws MySQLSession::Error, std::logic_error
-    } catch (const MySQLSession::Error &e) {
-      // log_error("%s: executing query: %s", e.what(), q.c_str());
+  // Now that we created users, we can no longer fail-over on subsequent
+  // errors, because that write operation may automatically get propagated to
+  // other nodes.  If we were to fail-over to another node and start over from
+  // scratch, our writes (CREATE USER in this case) would be in conflict with
+  // the writes coming through database replication mechanism.
+  // All subsequent failures bypass fail-over and trigger bootstrap exit for
+  // this reason.
+
+  // save the list of all accounts, so it can be used to clean up the accounts
+  // we just created, in case something later fails.  Saving the list of JUST
+  // NEW accounts would be better (and we do that later), but in the meantime if
+  // determining new accounts fails, at least we'll have a list of all accounts
+  // that went into CREATE USER [IF NOT EXISTS] statement
+  undo_create_account_list_ = {UndoCreateAccountList::kAllAccounts,
+                               make_account_list(username, hostnames)};
+
+  // determine which of the accounts we ran in CREATE USER... statement did not
+  // exist before
+  const std::set<std::string> new_hostnames =
+      get_hostnames_of_created_accounts(username, hostnames, if_not_exists);
+  const std::string new_accounts =
+      new_hostnames.empty() ? "" : make_account_list(username, new_hostnames);
+
+  // if we made it here, we managed to get a list of JUST NEW accounts that got
+  // created.  This is more useful than the previous list of ALL accounts, so
+  // let's replace it with this new better list.
+  undo_create_account_list_ = {UndoCreateAccountList::kNewAccounts,
+                               new_accounts};
+
+  // proceed to giving grants
+  give_grants_to_users(new_accounts);
+}
+
+void ConfigGenerator::undo_create_user_for_new_accounts() noexcept {
+  try {  // need to guarrantee noexcept
+
+    switch (undo_create_account_list_.type) {
+      case UndoCreateAccountList::kNotSet:
+        // we didn't get around to creating accounts yet -> nothing to do
+        return;
+      case UndoCreateAccountList::kAllAccounts:
+        // fallthrough
+      case UndoCreateAccountList::kNewAccounts:
+        if (undo_create_account_list_.accounts.empty()) {
+          // even if we created some accounts, none of them were new -> nothing
+          // to do
+          return;
+        }
+    };
+
+    err_stream_ << "FATAL ERROR ENCOUNTERED, attempting to undo new accounts "
+                   "that were created"
+                << std::endl;
+
+    // shorter name
+    const std::string &account_list = undo_create_account_list_.accounts;
+
+    if (undo_create_account_list_.type == UndoCreateAccountList::kAllAccounts) {
+      // we successfully ran CREATE USER [IF NOT EXISTS] on requested
+      // accounts, but determinining which of them were new (via SHOW WARNINGS)
+      // failed.
+
+      err_stream_
+          << "\n"
+          << Vt100::foreground(Vt100::Color::Red)
+          << "ERROR: " << Vt100::render(Vt100::Render::ForegroundDefault)
+          << R"(We created account(s), of which at least one already existed.
+A fatal error occurred while we tried to determine which account(s) were new,
+therefore to be safe, we did not erase any accounts while cleaning-up before
+exiting.
+You may want to clean those up yourself, if you deem it appropriate.
+Here's a full list of accounts that bootstrap tried to create (some of which
+might have already existed before bootstrapping):
+
+  )"s << account_list
+          << std::endl;
+    } else {
+      harness_assert(undo_create_account_list_.type ==
+                     UndoCreateAccountList::kNewAccounts);
+      // we successfully ran CREATES USER [IF NOT EXISTS] on requested
+      // accounts, and we have the (undo) list of which ones were new
+
+      // build DROP USER statement to erase all existing accounts
+      std::string query = "DROP USER IF EXISTS " + account_list;
+
+      auto handle_error = [this, &account_list](const std::exception &e) {
+        err_stream_ << "\n"
+                    << Vt100::foreground(Vt100::Color::Red) << "ERROR: "
+                    << Vt100::render(Vt100::Render::ForegroundDefault) <<
+            R"(As part of cleanup after bootstrap failure, we tried to erase account(s)
+that we created.  Unfortuantely the cleanup failed with error:
+
+  )"s << e.what() << R"(
+You may want to clean up the accounts yourself, here is the full list of
+accounts that were created:
+  )"s << account_list
+                    << std::endl;
+
+        log_error("Undoing creating new users failed: %s", e.what());
+      };
+
+      // since we're running this code as result of prior errors, we can't
+      // really do anything about new exceptions, except to advise user.
       try {
-        mysql_->execute("ROLLBACK");
-      } catch (...) {
-        // log_error("Could not rollback transaction explicitly.");
+        mysql_->execute(query);
+        err_stream_ << "- New accounts cleaned up successfully" << std::endl;
+      } catch (const MySQLSession::Error &e) {
+        handle_error(e);
+      } catch (const std::logic_error &e) {
+        handle_error(e);
       }
-      std::string err_msg =
-          std::string("Error creating MySQL account for router: ") + e.what();
-      if (e.code() == 1819) {  // password does not satisfy the current policy
-                               // requirements
-        throw password_too_weak(err_msg);
-      }
-      if (e.code() == 1524) {  // plugin not loaded
-        throw plugin_not_loaded(err_msg);
-      }
-
-      // it shouldn't have failed, let the upper layers try to handle it
-      throw MySQLSession::Error(err_msg, e.code());
     }
+  } catch (...) {
   }
 }
 
-void ConfigGenerator::delete_account_for_all_hosts(
-    const std::string &username) {
-  std::vector<std::string> hostnames;
-
-  out_stream_ << "- Checking for old Router accounts"
-              << "\n";
-  {
-    // throws MySQLSession::Error, should be handled by caller
-    mysql_->query("SELECT host FROM mysql.user WHERE user = '" + username + "'",
-                  [&hostnames](const std::vector<const char *> &row) -> bool {
-                    harness_assert(row.size() == 1);  // expect just 1 column
-                    hostnames.push_back(row[0]);
-                    return true;  // don't stop
-                  });
-
-    if (hostnames.size() < 1) {
-      out_stream_ << "  - No prior Router accounts found"
-                  << "\n";
-      return;
-    }
-  }
-
-  out_stream_ << " - Found old Router accounts, removing"
-              << "\n";
-  {
-    // build DROP USER statement to erase all existing accounts
-    std::string query = "DROP USER ";
-    for (std::string &host : hostnames)
-      query += username + "@" + mysql_->quote(host) + ",";
-    query.resize(query.size() - 1);  // erase last ','
-
-    // throws MySQLSession::Error and std::logic_error, both should be handled
-    // by caller
-    mysql_->execute(query);
-  }
-}
-
+// Unfortunately, there's no way to disable clang-format just for the
+// pseudocode inside the Doxygen block, therefore it has to be done on the
+// outside (affecting the entire block)
+// clang-format off
 /**
  * Get router_id name values associated with a metadata_cache configuration
  * for the given cluster_name.
  *
  * The lookup is done through the metadata_cluster option inside the
  * metadata_cache section.
+ *
+ * ---
+ * This function returns Router's id and SQL user for cluster `cluster_name`,
+ * if it finds them in config file and they seem valid.  If they're missing or
+ * incomplete, function will return empty values for them (0 or ""), giving a
+ * green light to generate new ones.  Finally, if it detects that the cluster
+ * name is off or missing, it will throw or return {0, ""}, depending on
+ * `forcing_overwrite`.
+ *
+ * The logic simplifies to this:
+ *   if !exists config
+ *     return {0, ""}
+ *   elif !exists [metadata_cache]
+ *     return {0, ""}
+ *   elif exists >1 [metadata_cache]
+ *     throw ">1 [metadata_cache] not supported"
+ *   elif exists [metadata_cache].metadata_cluster &&
+ *        [metadata_cache].metadata_cluster == {cluster_name reported by MD server}:
+ *     if !exists [metadata_cache].router_id:
+ *       [metadata_cache].router_id = 0
+ *     elif invalid [metadata_cache].router_id:
+ *       throw "invalid router_id"
+ *     if !exits [metadata_cache].user:
+ *       [metadata_cache].user = ""
+ *     return {[metadata_cache].router_id, [metadata_cache].user}
+ *   else
+ *     // config exists, [metadata_cache] exists,
+ *     // [metadata_cache].metadata_cluster does not exist or
+ *     // [metadata_cache].metadata_cluster == some unexpected cluster name
+ *     if !force
+ *       throw "Router already configured for cluster <name from config>, use --force to replace"
+ *     else
+ *       return {0, ""}
+ *
+ * @param config_file_path /path/to/config/file
+ * @param cluster_name Cluster name for which Router id and user should be
+ *                     returned
+ * @param forcing_overwrite Action to take on unexpected cluster in config, see
+ *                          function description
+ *
+ * @throws std::runtime_error on invalid router_id or metadata_cluster
+ *
+ * @returns Router's id and (SQL) user if they're both valid, otherwise null
+ *          values for both
  */
+// clang-format on
 std::pair<uint32_t, std::string>
-ConfigGenerator::get_router_id_and_name_from_config(
+ConfigGenerator::get_router_id_and_username_from_config_if_it_exists(
     const std::string &config_file_path, const std::string &cluster_name,
     bool forcing_overwrite) {
+  const auto kFoundNoUsableAccount = std::make_pair(0, "");
+
+  // no config -> return {0, ""}
   mysql_harness::Path path(config_file_path);
+  if (!path.exists()) return kFoundNoUsableAccount;
+
+  // no [metadata_cache] -> return {0, ""}
+  mysql_harness::Config config(mysql_harness::Config::allow_keys);
+  config.read(path);
+  if (!config.has_any("metadata_cache")) return kFoundNoUsableAccount;
+
+  // grab [metadata_cache], we only allow 1 for now
+  mysql_harness::Config::SectionList sections = config.get("metadata_cache");
+  if (sections.size() > 1) {
+    throw std::runtime_error(
+        "Bootstrapping of Router with multiple metadata_cache sections not "
+        "supported");
+  }
+
+  // Thanks to the above limitation, this for() loop runs exactly once and
+  // section == sections.front() always.  If section != `<cluster_name>`, the
+  // code will fall back to if (!forcing_overwrite) {..} below
   std::string existing_cluster;
-  if (path.exists()) {
-    mysql_harness::Config config(mysql_harness::Config::allow_keys);
-    config.read(path);
-    mysql_harness::Config::SectionList sections;
-    if (config.has_any("metadata_cache")) {
-      sections = config.get("metadata_cache");
-    } else {
-      return std::make_pair(0, "");
-    }
-    if (sections.size() > 1) {
-      throw std::runtime_error(
-          "Bootstrapping of Router with multiple metadata_cache sections not "
-          "supported");
-    }
-    for (auto const &section : sections) {
-      if (section->has("metadata_cluster")) {
-        existing_cluster = section->get("metadata_cluster");
-        if (existing_cluster == cluster_name) {
-          // get router_id
-          if (!section->has("router_id")) {
-            log_warning("WARNING: router_id not set for cluster '%s'",
-                        cluster_name.c_str());
-            return std::make_pair(0, "");
-          }
+  for (auto const &section : sections) {
+    if (section->has("metadata_cluster")) {
+      existing_cluster = section->get("metadata_cluster");
+      if (existing_cluster == cluster_name) {
+        uint32_t router_id;
+        std::string username;
+
+        // get router_id
+        if (section->has("router_id")) {
           std::string tmp = section->get("router_id");
           char *end;
-          unsigned long r = std::strtoul(tmp.c_str(), &end, 10);
+          router_id = std::strtoul(tmp.c_str(), &end, 10);
           if (end == tmp.c_str() || errno == ERANGE) {
             throw std::runtime_error("Invalid router_id '" + tmp +
                                      "' for cluster '" + cluster_name +
                                      "' in " + config_file_path);
           }
-
-          // get username, example: user=mysql_router4_kot8tcepf3kn
-          if (!section->has("user")) {
-            log_warning("WARNING: user not set for cluster '%s'",
-                        cluster_name.c_str());
-            return std::make_pair(0, "");
-          }
-          std::string user = section->get("user");
-
-          // return results
-          return std::make_pair(static_cast<uint32_t>(r), user);
+        } else {
+          router_id = 0;
+          log_warning("WARNING: router_id not set for cluster '%s'",
+                      cluster_name.c_str());
         }
+
+        // get username, example: user=mysql_router4_kot8tcepf3kn
+        if (section->has("user"))
+          username = section->get("user");
+        else
+          log_warning("WARNING: user not set for cluster '%s'",
+                      cluster_name.c_str());
+
+        // return results
+        return std::make_pair(router_id, username);
       }
     }
   }
+
+  // If we made it here, it means that config exists, [metadata_cache] exists,
+  // but [metadata_cache].metadata_cluster does not exist or it's different
+  // from `cluster_name`.
   if (!forcing_overwrite) {
     std::string msg;
     msg +=
@@ -2163,8 +2813,9 @@ ConfigGenerator::get_router_id_and_name_from_config(
         "option.";
     // XXX when multiple-clusters is supported, also suggest --add
     throw std::runtime_error(msg);
+  } else {
+    return kFoundNoUsableAccount;
   }
-  return std::make_pair(0, "");
 }
 
 /* virtual */

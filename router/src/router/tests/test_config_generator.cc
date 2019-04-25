@@ -25,23 +25,6 @@
 // must be the first header, don't move it
 #include <gtest/gtest_prod.h>
 
-#include "cluster_metadata.h"
-#include "common.h"
-#include "config_generator.h"
-#include "dim.h"
-#include "gtest_consoleoutput.h"
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/utility/string.h"
-#include "mysql_session_replayer.h"
-#include "mysqlrouter/mysql_session.h"
-#include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
-#include "random_generator.h"
-#include "router_app.h"
-#include "router_test_helpers.h"
-#include "test/helpers.h"
-
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -60,13 +43,31 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 
 #include <mysql.h>
+
+#include "cluster_metadata.h"
+#include "common.h"
+#include "config_generator.h"
+#include "dim.h"
+#include "gtest_consoleoutput.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/utility/string.h"
+#include "mysql_session_replayer.h"
+#include "mysqld_error.h"
+#include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
+#include "random_generator.h"
+#include "router_app.h"
+#include "router_test_helpers.h"
+#include "test/helpers.h"
 
 std::string g_cwd;
 mysql_harness::Path g_origin;
@@ -426,150 +427,709 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
   }
 }
 
-TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
-  auto gen_check_users_SQL =
-      [this](const std::vector<const char *> &hostnames_to_return) {
-        std::vector<std::vector<MySQLSessionReplayer::optional_string>> results;
-        for (const char *h : hostnames_to_return)
-          results.push_back({mock_mysql->string_or_null(h)});
+/**
+ * @test
+ * verify that ConfigGenerator::create_accounts() will generate an expected
+ * sequence of SQL requests (CREATE USER [IF NOT EXISTS] and GRANTs)
+ */
+TEST_F(ConfigGeneratorTest, create_accounts_using_password_directly) {
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute("CREATE USER 'cluster_user'@'%' IDENTIFIED BY 'secret'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats "
+          "TO 'cluster_user'@'%'")
+      .then_ok();
 
-        mock_mysql
-            ->expect_query(
-                "SELECT host FROM mysql.user WHERE user = 'cluster_user'")
-            .then_return(1, results);
-      };
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  config_gen.create_accounts("cluster_user", {"%"}, "secret",
+                             /*hash password*/ false,
+                             /*if not exists*/ false);
+}
 
-  auto test_common = [this]() {
-    ConfigGenerator config_gen;
-    config_gen.init(kServerUrl, {});
-    config_gen.delete_account_for_all_hosts("cluster_user");
+TEST_F(ConfigGeneratorTest, create_accounts_using_hashed_password) {
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER 'cluster_user'@'%' IDENTIFIED WITH "
+          "mysql_native_password "
+          "AS '*14E65567ABDB5135D0CFD9A70B3032C179A49EE7'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats "
+          "TO 'cluster_user'@'%'")
+      .then_ok();
 
-    EXPECT_TRUE(mock_mysql->empty());
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  config_gen.create_accounts("cluster_user", {"%"}, "secret",
+                             /*hash password*/ true, /*if not exists*/ false);
+}
+
+// expectation: "IF NOT EXISTS " added to "CREATE USER " statement
+TEST_F(ConfigGeneratorTest,
+       create_accounts_using_hashed_password_if_not_exists) {
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER IF NOT EXISTS 'cluster_user'@'%' IDENTIFIED WITH "
+          "mysql_native_password "
+          "AS '*14E65567ABDB5135D0CFD9A70B3032C179A49EE7'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats "
+          "TO 'cluster_user'@'%'")
+      .then_ok();
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  config_gen.create_accounts("cluster_user", {"%"}, "secret",
+                             /*hash password*/ true, /*if not exists*/ true);
+}
+
+// expectation: CREATE USER and GRANT handle all accounts at once
+TEST_F(ConfigGeneratorTest, create_accounts_multiple_accounts) {
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER "
+          "'cluster_user'@'host1' IDENTIFIED BY "
+          "'secret','cluster_user'@'host2' IDENTIFIED BY "
+          "'secret','cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats "
+          "TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                             "secret", /*hash password*/ false,
+                             /*if not exists*/ false);
+}
+
+// multiple accounts if not exists
+// expectation: CREATE USER and GRANT handle all accounts at once
+TEST_F(ConfigGeneratorTest, create_accounts_multiple_accounts_if_not_exists) {
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER IF NOT EXISTS "
+          "'cluster_user'@'host1' IDENTIFIED BY "
+          "'secret','cluster_user'@'host2' IDENTIFIED BY "
+          "'secret','cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats "
+          "TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                             "secret", /*hash password*/ false,
+                             /*if not exists*/ true);
+  mock_mysql->execute("END_MARKER");
+}
+
+/**
+ * @test
+ * verify that:
+ * - ConfigGenerator::create_accounts() will generate an expected sequence of
+ *   SQL requests (CREATE USER IF NOT EXISTS and GRANTs) when some accounts
+ *   already exist
+ * - SHOW WARNINGS parsing code handles well
+ */
+TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_1) {
+  // SHOW WARNIGNS example output
+  // +-------+------+---------------------------------------------+
+  // | Level | Code | Message                                     |
+  // +-------+------+---------------------------------------------+
+  // | Note  | 3163 | Authorization ID 'bla'@'h1' already exists. |
+  // | Note  | 3163 | Authorization ID 'bla'@'h3' already exists. |
+  // +-------+------+---------------------------------------------+
+
+  auto sn = [this](const char *text) -> MySQLSessionReplayer::optional_string {
+    return mock_mysql->string_or_null(text);
   };
 
-  // Router account does not exist
+  // multiple accounts if not exists, warnings with code other than 3163
+  // expectation: warnings should be ignored
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER IF NOT EXISTS "
+          "'cluster_user'@'host1' IDENTIFIED BY "
+          "'secret','cluster_user'@'host2' IDENTIFIED BY "
+          "'secret','cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_ok(0, 2);
+  mock_mysql->expect_query("SHOW WARNINGS")
+      .then_return(3, {
+                          {sn("Note"), sn("123"),
+                           sn("Bla bla bla 'cluster_user'@'host1' blablabla.")},
+                          {sn("Note"), sn("123"),
+                           sn("Bla bla bla 'cluster_user'@'host3' blablabla.")},
+                      });
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats "
+          "TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                             "secret", /*hash password*/ false,
+                             /*if not exists*/ true);
+  mock_mysql->execute("END_MARKER");
+}
+
+TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_2) {
+  auto sn = [this](const char *text) -> MySQLSessionReplayer::optional_string {
+    return mock_mysql->string_or_null(text);
+  };
+
+  const char *kUserExistsCode = "3163";  // ER_USER_ALREADY_EXISTS
+
+  // multiple accounts if not exists, warnings with message missing proper
+  // 'username'@'hostname' expectation: should throw
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER IF NOT EXISTS "
+          "'cluster_user'@'host1' IDENTIFIED BY "
+          "'secret','cluster_user'@'host2' IDENTIFIED BY "
+          "'secret','cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_ok(0, 2);
+  mock_mysql->expect_query("SHOW WARNINGS")
+      .then_return(
+          3, {
+                 // NOTE: there's no single-quotes around username and hostname,
+                 // which
+                 //       is already enough to make it illegal
+                 {sn("Note"), sn(kUserExistsCode),
+                  sn("Authorization ID 'cluster_user'@host1 already exists.")},
+             });
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  EXPECT_THROW_LIKE(
+      config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                 "secret", /*hash password*/ false,
+                                 /*if not exists*/ true),
+      std::runtime_error,
+      "SHOW WARNINGS: Failed to extract account name "
+      "('cluster_user'@'<anything>') from message \"Authorization ID "
+      "'cluster_user'@host1 already exists.\"");
+}
+
+TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_3) {
+  auto sn = [this](const char *text) -> MySQLSessionReplayer::optional_string {
+    return mock_mysql->string_or_null(text);
+  };
+
+  const char *kUserExistsCode = "3163";  // ER_USER_ALREADY_EXISTS
+
+  // multiple accounts if not exists, some exist already
+  // expectation: GRANTS assigned only to new accounts
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER IF NOT EXISTS "
+          "'cluster_user'@'host1' IDENTIFIED BY "
+          "'secret','cluster_user'@'host2' IDENTIFIED BY "
+          "'secret','cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_ok(0, 2);
+  mock_mysql->expect_query("SHOW WARNINGS")
+      .then_return(
+          3,
+          {
+              {sn("Note"), sn(kUserExistsCode),
+               sn("Authorization ID 'cluster_user'@'host1' already exists.")},
+              {sn("Note"), sn(kUserExistsCode),
+               sn("Authorization ID 'cluster_user'@'host3' already exists.")},
+          });
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "'cluster_user'@'host2'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO "
+          "'cluster_user'@'host2'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats "
+          "TO "
+          "'cluster_user'@'host2'")
+      .then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                             "secret", /*hash password*/ false,
+                             /*if not exists*/ true);
+  mock_mysql->execute("END_MARKER");
+}
+
+TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_4) {
+  auto sn = [this](const char *text) -> MySQLSessionReplayer::optional_string {
+    return mock_mysql->string_or_null(text);
+  };
+
+  const char *kUserExistsCode = "3163";  // ER_USER_ALREADY_EXISTS
+
+  // multiple accounts if not exists, all exist
+  // expectation: no GRANTs are assigned
   {
+    ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL({});
-
-    test_common();
-  }
-
-  // Router account exists for 1 host
-  {
-    common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL({"foo"});
-    mock_mysql->expect_execute("DROP USER cluster_user@'foo'");
-
-    test_common();
-  }
-
-  // Router account exists for many hosts
-  {
-    common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL({"foo", "bar", "baz"});
-    mock_mysql->expect_execute(
-        "DROP USER cluster_user@'foo',cluster_user@'bar',cluster_user@'baz'");
-
-    test_common();
-  }
-
-  // SELECT fails
-  {
-    common_pass_metadata_checks(mock_mysql.get());
-    mock_mysql
-        ->expect_query(
-            "SELECT host FROM mysql.user WHERE user = 'cluster_user'")
-        .then_error("some error", 1234);
-
-    ConfigGenerator config_gen;
-    config_gen.init(kServerUrl, {});
-    EXPECT_THROW_LIKE(config_gen.delete_account_for_all_hosts("cluster_user"),
-                      std::runtime_error, "some error");
-
-    EXPECT_TRUE(mock_mysql->empty());
-  }
-
-  // DROP USER fails
-  {
-    common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL({"foo", "bar", "baz"});
     mock_mysql
         ->expect_execute(
-            "DROP USER "
-            "cluster_user@'foo',cluster_user@'bar',cluster_user@'baz'")
-        .then_error("some error", 1234);
+            "CREATE USER IF NOT EXISTS "
+            "'cluster_user'@'host1' IDENTIFIED BY "
+            "'secret','cluster_user'@'host2' IDENTIFIED BY "
+            "'secret','cluster_user'@'host3' IDENTIFIED BY 'secret'")
+        .then_ok(0, 3);
+    mock_mysql->expect_query("SHOW WARNINGS")
+        .then_return(
+            3,
+            {
+                {sn("Note"), sn(kUserExistsCode),
+                 sn("Authorization ID 'cluster_user'@'host3' already exists.")},
+                {sn("Note"), sn(kUserExistsCode),
+                 sn("Authorization ID 'cluster_user'@'host1' already exists.")},
+                {sn("Note"), sn(kUserExistsCode),
+                 sn("Authorization ID 'cluster_user'@'host2' already exists.")},
+            });
+    mock_mysql->expect_execute("END_MARKER");
 
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
-    EXPECT_THROW_LIKE(config_gen.delete_account_for_all_hosts("cluster_user"),
-                      std::runtime_error, "some error");
-
-    EXPECT_TRUE(mock_mysql->empty());
+    config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                               "secret", /*hash password*/ false,
+                               /*if not exists*/ true);
+    mock_mysql->execute("END_MARKER");
   }
 }
 
-TEST_F(ConfigGeneratorTest, create_acount) {
-  // using password directly
+TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_5) {
+  auto sn = [this](const char *text) -> MySQLSessionReplayer::optional_string {
+    return mock_mysql->string_or_null(text);
+  };
+
+  const char *kUserExistsCode = "3163";  // ER_USER_ALREADY_EXISTS
+
+  // multiple accounts if not exists, SHOW WARNINGS returns some account we
+  // didn't want to create expectation: throw
   {
     ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
     mock_mysql
         ->expect_execute(
-            "CREATE USER 'cluster_user'@'%' IDENTIFIED BY 'secret'")
-        .then_ok();
-    mock_mysql
-        ->expect_execute(
-            "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-            "'cluster_user'@'%'")
-        .then_ok();
-    mock_mysql
-        ->expect_execute(
-            "GRANT SELECT ON performance_schema.replication_group_members TO "
-            "'cluster_user'@'%'")
-        .then_ok();
-    mock_mysql
-        ->expect_execute(
-            "GRANT SELECT ON performance_schema.replication_group_member_stats "
-            "TO 'cluster_user'@'%'")
-        .then_ok();
+            "CREATE USER IF NOT EXISTS "
+            "'cluster_user'@'host1' IDENTIFIED BY "
+            "'secret','cluster_user'@'host2' IDENTIFIED BY "
+            "'secret','cluster_user'@'host3' IDENTIFIED BY 'secret'")
+        .then_ok(0, 1);
+    mock_mysql->expect_query("SHOW WARNINGS")
+        .then_return(
+            1,
+            {
+                {sn("Note"), sn(kUserExistsCode),
+                 sn("Authorization ID 'cluster_user'@'foo' already exists.")},
+            });
 
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
-    config_gen.create_account("cluster_user", "%", "secret");
+    EXPECT_THROW_LIKE(
+        config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                   "secret", /*hash password*/ false,
+                                   /*if not exists*/ true),
+        std::runtime_error,
+        "SHOW WARNINGS: Unexpected account name 'cluster_user'@'foo' in "
+        "message \"Authorization ID 'cluster_user'@'foo' already exists.\"");
   }
+}
 
-  // using hashed password
+/**
+ * @test
+ * verify that:
+ * - ConfigGenerator::create_accounts() will generate an expected sequence of
+ *   SQL requests (CREATE USER which fails, no GRANTs) when some accounts
+ *   already exist
+ * - CREATE USER parsing code handles well
+ */
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_1) {
+  // clang-format off
+  // Example error message from failed CREATE USER on existing accounts:
+  //   ERROR 1396 (HY000): Operation CREATE USER failed for 'foo'@'host1','foo'@'host2'
+  // clang-format on
+  const std::string kErrCode = std::to_string(ER_CANNOT_USER);  // 1396
+  constexpr bool kNoHashPassword = false;
+  constexpr bool kNoIfNotExists = false;
+
+  // sunny day scenario, create one account, it doesn't exist
+  // expectation: everything ok
   {
     ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
     mock_mysql
         ->expect_execute(
-            "CREATE USER 'cluster_user'@'%' IDENTIFIED WITH "
-            "mysql_native_password "
-            "AS '*14E65567ABDB5135D0CFD9A70B3032C179A49EE7'")
+            "CREATE USER "
+            "'cluster_user'@'host1' IDENTIFIED BY 'secret'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-            "'cluster_user'@'%'")
+            "'cluster_user'@'host1'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_members TO "
-            "'cluster_user'@'%'")
+            "'cluster_user'@'host1'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_member_stats "
-            "TO 'cluster_user'@'%'")
+            "TO "
+            "'cluster_user'@'host1'")
         .then_ok();
+    mock_mysql->expect_execute("END_MARKER");
 
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
-    config_gen.create_account("cluster_user", "%", "secret",
-                              true);  // true = hash the password
+    EXPECT_NO_THROW(config_gen.create_accounts(
+        "cluster_user", {"host1"}, "secret", kNoHashPassword, kNoIfNotExists));
   }
+}
+
+// single account, it exists
+// expectation: throws, message tells which ones (this one) doesn't exist
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_2) {
+  const std::string kErrCode = std::to_string(ER_CANNOT_USER);  // 1396
+  constexpr bool kNoHashPassword = false;
+  constexpr bool kNoIfNotExists = false;
+  {
+    ::testing::InSequence s;
+    common_pass_metadata_checks(mock_mysql.get());
+    mock_mysql
+        ->expect_execute(
+            "CREATE USER "
+            "'cluster_user'@'host1' IDENTIFIED BY 'secret'")
+        .then_error(
+            "Operation CREATE USER failed for "
+            "'cluster_user'@'host1'",
+            ER_CANNOT_USER);
+    mock_mysql->expect_execute("ROLLBACK").then_ok();
+    mock_mysql->expect_execute("END_MARKER");
+
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    EXPECT_THROW_LIKE(
+        config_gen.create_accounts("cluster_user", {"host1"}, "secret",
+                                   kNoHashPassword, kNoIfNotExists),
+        std::runtime_error,
+        "Account(s) 'cluster_user'@'host1' already exist(s). If this is "
+        "expected, please rerun without `--account-create always`.");
+  }
+}
+
+// multiple accounts, some exist
+// expectation: throws, message tells which ones exist already
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_3) {
+  constexpr bool kNoHashPassword = false;
+  constexpr bool kNoIfNotExists = false;
+
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER "
+          "'cluster_user'@'host1' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host2' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_error(
+          "Operation CREATE USER failed for "
+          "'cluster_user'@'host1','cluster_user'@'host2'",
+          ER_CANNOT_USER);
+  mock_mysql->expect_execute("ROLLBACK").then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  EXPECT_THROW_LIKE(
+      config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                 "secret", kNoHashPassword, kNoIfNotExists),
+      std::runtime_error,
+      "Account(s) 'cluster_user'@'host1','cluster_user'@'host2' already "
+      "exist(s). If this is expected, please rerun without `--account-create "
+      "always`.");
+}
+
+// multiple accounts, all exist
+// expectation: throws, message tells which ones (all) exist already
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_4) {
+  constexpr bool kNoHashPassword = false;
+  constexpr bool kNoIfNotExists = false;
+
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER "
+          "'cluster_user'@'host1' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host2' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_error(
+          "Operation CREATE USER failed for "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'",
+          ER_CANNOT_USER);
+  mock_mysql->expect_execute("ROLLBACK").then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  EXPECT_THROW_LIKE(
+      config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                 "secret", kNoHashPassword, kNoIfNotExists),
+      std::runtime_error,
+      "Account(s) "
+      "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'host3' "
+      "already exist(s). If this is expected, please rerun without "
+      "`--account-create always`.");
+}
+
+// multiple accounts, error message contains only unrecognised accounts
+// (different username) (this is defensive programming scenario, as something
+// like that should
+//  never happen - it would be a bug on the Server side)
+// expectation: throws, message informs of parsing failure
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_5) {
+  constexpr bool kNoHashPassword = false;
+  constexpr bool kNoIfNotExists = false;
+
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER "
+          "'cluster_user'@'host1' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host2' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_error(
+          "Operation CREATE USER failed for "
+          "'differet_user'@'host1','differet_user'@'host2','differet_user'@'"
+          "host3'",
+          ER_CANNOT_USER);
+  mock_mysql->expect_execute("ROLLBACK").then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  EXPECT_THROW_LIKE(
+      config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                 "secret", kNoHashPassword, kNoIfNotExists),
+      std::runtime_error,
+      "Failed to parse error message returned by CREATE USER command: "
+      "Operation CREATE USER failed for "
+      "'differet_user'@'host1','differet_user'@'host2','differet_user'@'"
+      "host3'");
+}
+
+// multiple accounts, error message contains 1 unrecognised account (different
+// username) (this is defensive programming scenario, as something like that
+// should
+//  never happen - it would be a bug on the Server side)
+// expectation: throws, unrecognised account will be ignored
+//              (unfortunately, it would require complicating implementation
+//              logic to correctly detect this situation.  Given that this is
+//              just defensive programming handling a hypothetical Server
+//              bug, it's not worth it)
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_6) {
+  {
+    constexpr bool kNoHashPassword = false;
+    constexpr bool kNoIfNotExists = false;
+    ::testing::InSequence s;
+    common_pass_metadata_checks(mock_mysql.get());
+    mock_mysql
+        ->expect_execute(
+            "CREATE USER "
+            "'cluster_user'@'host1' IDENTIFIED BY 'secret',"
+            "'cluster_user'@'host2' IDENTIFIED BY 'secret',"
+            "'cluster_user'@'host3' IDENTIFIED BY 'secret'")
+        .then_error(
+            "Operation CREATE USER failed for "
+            "'cluster_user'@'host1','different_user'@'host2'",
+            ER_CANNOT_USER);
+    mock_mysql->expect_execute("ROLLBACK").then_ok();
+    mock_mysql->expect_execute("END_MARKER");
+
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    EXPECT_THROW_LIKE(
+        config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                   "secret", kNoHashPassword, kNoIfNotExists),
+        std::runtime_error,
+        "Account(s) 'cluster_user'@'host1' already exist(s). If this is "
+        "expected, please rerun without `--account-create always`.");
+  }
+}
+
+// multiple accounts, error message doesn't contain any accounts
+// (this is defensive programming scenario, as something like that should
+//  never happen - it would be a bug on the Server side)
+// expectation: throws, message informs of parsing failure
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_7) {
+  constexpr bool kNoHashPassword = false;
+  constexpr bool kNoIfNotExists = false;
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER "
+          "'cluster_user'@'host1' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host2' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_error("Operation CREATE USER failed for ",  // no accounts given
+                  ER_CANNOT_USER);
+  mock_mysql->expect_execute("ROLLBACK").then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  EXPECT_THROW_LIKE(
+      config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                 "secret", kNoHashPassword, kNoIfNotExists),
+      std::runtime_error,
+      "Failed to parse error message returned by CREATE USER command: "
+      "Operation CREATE USER failed for");
+}
+
+// multiple accounts, error message is not code ER_CANNOT_USER
+// expectation: no special handling, act like for any general failure (throw
+//              with error message received from the Server)
+TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_8) {
+  constexpr bool kNoHashPassword = false;
+  constexpr bool kNoIfNotExists = false;
+  ::testing::InSequence s;
+  common_pass_metadata_checks(mock_mysql.get());
+  mock_mysql
+      ->expect_execute(
+          "CREATE USER "
+          "'cluster_user'@'host1' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host2' IDENTIFIED BY 'secret',"
+          "'cluster_user'@'host3' IDENTIFIED BY 'secret'")
+      .then_error(
+          "Operation CREATE USER failed for "
+          "'cluster_user'@'host1','cluster_user'@'host2'",
+          42);  // not ER_CANNOT_USER nor something failover-friendly
+  mock_mysql->expect_execute("ROLLBACK").then_ok();
+  mock_mysql->expect_execute("END_MARKER");
+
+  ConfigGenerator config_gen;
+  config_gen.init(kServerUrl, {});
+  EXPECT_THROW_LIKE(
+      config_gen.create_accounts("cluster_user", {"host1", "host2", "host3"},
+                                 "secret", kNoHashPassword, kNoIfNotExists),
+      std::runtime_error,
+      "Error creating MySQL account for router (CREATE USER stage): "
+      "Operation CREATE USER failed for "
+      "'cluster_user'@'host1','cluster_user'@'host2'");
 }
 
 TEST_F(ConfigGeneratorTest, create_router_accounts) {
@@ -580,8 +1140,34 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
 
   for (TestType tt : {NATIVE, FALLBACK}) {
     constexpr unsigned kDontFail = 99;
-    auto generate_expected_SQL = [&](const std::string &host,
-                                     bool first_create_user, unsigned fail_on) {
+
+    auto account_native = [](const std::string &host) {
+      return "'cluster_user'@'" + host + "'" +
+             " IDENTIFIED WITH mysql_native_password"
+             " AS '*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'";
+    };
+    auto account_fallback = [](const std::string &host) {
+      return "'cluster_user'@'" + host + "'" +
+             " IDENTIFIED BY '0123456789012345'";
+    };
+    auto account = [](const std::string &host) {
+      return "'cluster_user'@'" + host + "'";
+    };
+    auto make_list =
+        [](const std::set<std::string> &items,
+           std::function<std::string(const std::string &)> generator) {
+          if (items.empty())
+            throw std::logic_error(
+                "make_list() called with an empty set of items");
+
+          std::string res;
+          for (const std::string &i : items) res += generator(i) + ",";
+          res.resize(res.size() - 1);  // trim last ,
+          return res;
+        };
+
+    auto generate_expected_SQL = [&](const std::set<std::string> &hosts,
+                                     unsigned fail_on) {
       // kDontFail => don't fail, 1..4 => fail on 1..4
       assert((1 <= fail_on && fail_on <= 4) || fail_on == kDontFail);
 
@@ -589,49 +1175,43 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         // CREATE USER using mysql_native_password and hashed password
         if (fail_on > 0)
           mock_mysql
-              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
-                               "' IDENTIFIED WITH mysql_native_password AS "
-                               "'*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'")
+              ->expect_execute("CREATE USER IF NOT EXISTS " +
+                               make_list(hosts, account_native))
               .then_ok();
       } else {
         // fail mysql_native_password method to induce fallback to plaintext
-        // method. Should be called only as the first CREATE USER, after this
-        // fallback should be used on all subsequent CREATE USER calls
-        if (first_create_user)
-          mock_mysql
-              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
-                               "' IDENTIFIED WITH mysql_native_password AS "
-                               "'*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'")
-              .then_error("no such plugin", 1524);
+        // method.
+        mock_mysql
+            ->expect_execute("CREATE USER IF NOT EXISTS " +
+                             make_list(hosts, account_native))
+            .then_error("no such plugin", 1524);
 
         // CREATE USER using fallback method with plaintext password
         if (fail_on > 0)
           mock_mysql
-              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
-                               "' IDENTIFIED BY '0123456789012345'")
+              ->expect_execute("CREATE USER IF NOT EXISTS " +
+                               make_list(hosts, account_fallback))
               .then_ok();
       }
       if (fail_on > 1)
         mock_mysql
             ->expect_execute(
-                "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-                "'cluster_user'@'" +
-                host + "'")
+                "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " +
+                make_list(hosts, account))
             .then_ok();
       if (fail_on > 2)
         mock_mysql
             ->expect_execute(
                 "GRANT SELECT ON performance_schema.replication_group_members "
-                "TO 'cluster_user'@'" +
-                host + "'")
+                "TO " +
+                make_list(hosts, account))
             .then_ok();
       if (fail_on > 3)
         mock_mysql
             ->expect_execute(
                 "GRANT SELECT ON "
-                "performance_schema.replication_group_member_stats TO "
-                "'cluster_user'@'" +
-                host + "'")
+                "performance_schema.replication_group_member_stats TO " +
+                make_list(hosts, account))
             .then_ok();
 
       if (fail_on != kDontFail)
@@ -639,92 +1219,89 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
                                1234);  // i-th statement will return this error
     };
 
+    auto h = [](const std::vector<std::string> &hostnames) {
+      return ConfigGenerator::get_account_host_args(
+          {{"account-host", hostnames}});
+    };
+
     // default hostname
     {
       ::testing::InSequence s;
       common_pass_metadata_checks(mock_mysql.get());
-      generate_expected_SQL("%", true, kDontFail);
+      generate_expected_SQL({"%"}, kDontFail);
 
       ConfigGenerator config_gen;
+      std::string password;
       config_gen.init(kServerUrl, {});
-      config_gen.create_router_accounts({}, {}, "cluster_user");
+      config_gen.create_router_accounts({}, h({}), "cluster_user", password,
+                                        true);
     }
 
     // 1 hostname
     {
       ::testing::InSequence s;
       common_pass_metadata_checks(mock_mysql.get());
-      generate_expected_SQL("host1", true, kDontFail);
+      generate_expected_SQL({"host1"}, kDontFail);
 
       ConfigGenerator config_gen;
+      std::string password;
       config_gen.init(kServerUrl, {});
-      config_gen.create_router_accounts({}, {{"account-host", {"host1"}}},
-                                        "cluster_user");
+      config_gen.create_router_accounts({}, h({"host1"}), "cluster_user",
+                                        password, true);
     }
 
     // many hostnames
     {
-      // NOTE: When we run bootstrap in real life, all --account-host entries
-      // should
-      //       get sorted and any non-unique entries eliminated (to ensure
-      //       CREATE USER does not get called twice for the same user@host).
-      //       However, this happens at the commandline parsing level, so by the
-      //       time ConfigGenerator runs, the list of hostnames is already
-      //       unique and sorted. Here we just give an arbitrary list to ensure
-      //       it will work irrespective of input.
+      // NOTE:
+      // When we run bootstrap in real life, all --account-host entries should
+      // get sorted and any non-unique entries eliminated (to ensure CREATE
+      // USER does not get called twice for the same user@host).  However, this
+      // happens at the commandline parsing level, so by the time
+      // ConfigGenerator runs, the list of hostnames is already unique and
+      // sorted. Here we just give an arbitrary list to ensure it will work
+      // irrespective of input.
 
       ::testing::InSequence s;
       common_pass_metadata_checks(mock_mysql.get());
 
-      generate_expected_SQL("host1", true, kDontFail);
-      generate_expected_SQL("%", false, kDontFail);
-      generate_expected_SQL("host3%", false, kDontFail);
+      // note: hostnames will be processed in sorted order (this is not a
+      //       functional requirement, just how our code works)
+      generate_expected_SQL({"%", "host1", "host3%"}, kDontFail);
 
       ConfigGenerator config_gen;
+      std::string password;
       config_gen.init(kServerUrl, {});
-      config_gen.create_router_accounts(
-          {}, {{"account-host", {"host1", "%", "host3%"}}}, "cluster_user");
+      config_gen.create_router_accounts({}, h({"host1", "%", "host3%"}),
+                                        "cluster_user", password, true);
     }
 
     // one of user-creating statements fails
-    for (unsigned fail_host = 1; fail_host < 3; fail_host++) {
-      for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++) {
-        ::testing::InSequence s;
-        common_pass_metadata_checks(mock_mysql.get());
-        switch (fail_host) {
-          case 1:
-            generate_expected_SQL("host1", true, fail_sql);
-            break;
-          case 2:
-            generate_expected_SQL("host1", true, kDontFail);
-            generate_expected_SQL("host2", false, fail_sql);
-            break;
-          case 3:
-            generate_expected_SQL("host1", true, kDontFail);
-            generate_expected_SQL("host2", false, kDontFail);
-            generate_expected_SQL("host3", false, fail_sql);
-            break;
-        }
+    for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++) {
+      ::testing::InSequence s;
+      common_pass_metadata_checks(mock_mysql.get());
+      generate_expected_SQL({"host1", "host2", "host3"}, fail_sql);
 
-        // fail_sql-th SQL statement of fail_host will return this error
-        mock_mysql->then_error("some error", 1234);
+      // fail_sql-th SQL statement of fail_host will return this error
+      mock_mysql->then_error("some error", 1234);
 
-        mock_mysql->expect_execute("ROLLBACK");
+      mock_mysql->expect_execute("ROLLBACK");
 
-        ConfigGenerator config_gen;
-        config_gen.init(kServerUrl, {});
-        EXPECT_THROW_LIKE(
-            config_gen.create_router_accounts(
-                {}, {{"account-host", {"host1", "host2", "host3"}}},
-                "cluster_user"),
-            std::runtime_error,
-            "Error creating MySQL account for router: some error");
+      ConfigGenerator config_gen;
+      std::string password;
+      config_gen.init(kServerUrl, {});
+      EXPECT_THROW_LIKE(
+          config_gen.create_router_accounts({}, h({"host1", "host2", "host3"}),
+                                            "cluster_user", password, true),
+          std::runtime_error,
+          (fail_sql == 1 ? "Error creating MySQL account for router (CREATE "
+                           "USER stage): some error"
+                         : "Error creating MySQL account for router (GRANTs "
+                           "stage): some error"));
 
-        EXPECT_TRUE(mock_mysql->empty());
+      EXPECT_TRUE(mock_mysql->empty());
 
-      }  // for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
-    }    // for (unsigned fail_host = 1; fail_host < 3; fail_host++)
-  }      // for (TestType tt : {NATIVE, FALLBACK})
+    }  // for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
+  }    // for (TestType tt : {NATIVE, FALLBACK})
 }
 
 TEST_F(ConfigGeneratorTest, create_config) {
@@ -1414,15 +1991,9 @@ std::vector<query_entry_t> expected_bootstrap_queries = {
     {"INSERT INTO mysql_innodb_cluster_metadata.hosts", ACTION_EXECUTE},
     {"INSERT INTO mysql_innodb_cluster_metadata.routers", ACTION_EXECUTE, 4},
 
-    // ConfigGenerator::delete_account_for_all_hosts() called before
-    // ConfigGenerator::create_router_accounts()
-    {"SELECT host FROM mysql.user WHERE user = 'mysql_router4_012345678901'",
-     ACTION_QUERY,
-     1,
-     {}},
-
-    // ConfigGenerator::create_account()
-    {"CREATE USER 'mysql_router4_012345678901'@'%'", ACTION_EXECUTE},
+    // ConfigGenerator::create_accounts()
+    {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'",
+     ACTION_EXECUTE},
     {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
      "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
@@ -1945,7 +2516,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
       FAIL() << "Was expecting exception but got none\n";
     } catch (const std::runtime_error &e) {
       ASSERT_THAT(e.what(), ::testing::Not(::testing::HasSubstr(".tmp")));
-      ASSERT_THAT(e.what(), ::testing::StartsWith("Invalid master key file "));
+      ASSERT_THAT(e.what(), ::testing::HasSubstr("Invalid master key file "));
     }
   }
   delete_dir_recursive("./delme");
@@ -2022,7 +2593,8 @@ TEST_F(ConfigGeneratorTest, empty_config_file) {
 
   EXPECT_NO_THROW(
       std::tie(router_id, std::ignore) =
-          config.get_router_id_and_name_from_config(conf_path, "dummy", false));
+          config.get_router_id_and_username_from_config_if_it_exists(
+              conf_path, "dummy", false));
   EXPECT_EQ(router_id, uint32_t(0));
 
   delete_dir_recursive(test_dir);
@@ -2633,7 +3205,7 @@ static void bootstrap_password_test(
   config_gen.bootstrap_directory_deployment(dir, options, {}, default_paths);
 }
 
-static constexpr unsigned kCreateUserQuery = 5;   // measured from front
+static constexpr unsigned kCreateUserQuery = 4;   // measured from front
 static constexpr unsigned kCreateUserQuery2 = 6;  // measured backwards from end
 
 TEST_F(ConfigGeneratorTest,
@@ -2649,7 +3221,7 @@ TEST_F(ConfigGeneratorTest,
   // we expect the user to be created without using HASHed password
   // and mysql_native_password plugin as we are forcing password validation
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2661,7 +3233,8 @@ TEST_F(ConfigGeneratorTest,
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
+      "CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%' IDENTIFIED "
+      "BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2680,7 +3253,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2688,7 +3261,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2700,7 +3273,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
+      "CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%' IDENTIFIED "
+      "BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2718,7 +3292,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_EXECUTE});
 
@@ -2730,7 +3304,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED WITH "
+      "CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%' IDENTIFIED "
+      "WITH "
       "mysql_native_password AS",
       ACTION_EXECUTE};
 
@@ -2749,7 +3324,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2759,7 +3334,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
   // emulate error 1819) (password does not satisfy the current policy
   // requirements) after the call to second CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_ERROR, 0, 1819});
 
@@ -2767,7 +3342,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2779,7 +3354,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
+      "CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%' IDENTIFIED "
+      "BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2798,7 +3374,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2810,7 +3386,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
     // each time emulate error 1819) (password does not satisfy the current
     // policy requirements) after the call to second CREATE USER
     bootstrap_queries.push_back(
-        {"CREATE USER 'mysql_router4_012345678901'@'%'"
+        {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
          " IDENTIFIED BY",
          ACTION_ERROR, 0, 1819});
   }
@@ -2837,7 +3413,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   }
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER 'mysql_router4_012345678901'@'%'"
+      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
@@ -3067,8 +3643,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
 /**
  * @test verify that exception thrown by
  * (Mock)SocketOperations::get_local_hostname() when local hostname lookup fails
- * in ConfigGenerator::register_router_and_set_username() will be caught and
- * rethrown with a user-friendly message
+ * in ConfigGenerator::register_router() will be caught
+ * and rethrown with a user-friendly message
  */
 TEST_F(ConfigGeneratorTest, register_router_error_message) {
   MockSocketOperations
@@ -3076,17 +3652,15 @@ TEST_F(ConfigGeneratorTest, register_router_error_message) {
 
   mysqlrouter::MySQLInnoDBClusterMetadata metadata(nullptr, &sock_ops);
   mysql_harness::RandomGenerator rg;
-  uint32_t router_id = 1u;
-  std::string username;
 
-  EXPECT_THROW_LIKE(ConfigGenerator().register_router_and_set_username(
-                        router_id, "foo", username, "", false, metadata, rg),
-                    std::runtime_error,
-                    "Could not register this Router instance with the cluster "
-                    "because querying this host's hostname from OS failed:\n"
-                    "  some error message from get_local_hostname()\n"
-                    "You may want to try --report-host option to manually "
-                    "supply this hostname.");
+  EXPECT_THROW_LIKE(
+      ConfigGenerator().register_router("foo", "", false, metadata),
+      std::runtime_error,
+      "Could not register this Router instance with the cluster "
+      "because querying this host's hostname from OS failed:\n"
+      "  some error message from get_local_hostname()\n"
+      "You may want to try --report-host option to manually "
+      "supply this hostname.");
 }
 
 /**
@@ -3112,11 +3686,9 @@ TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
                    {{mysql.string_or_null("1"), mysql.string_or_null("foo")}});
   mysql_harness::RandomGenerator rg;
   uint32_t router_id = 1u;
-  std::string username;
 
   EXPECT_THROW_LIKE(
-      ConfigGenerator().ensure_router_id_is_ours(router_id, username, "",
-                                                 metadata),
+      ConfigGenerator().ensure_router_id_is_ours(router_id, "", metadata),
       std::runtime_error,
       "Could not verify if this Router instance is already registered with the "
       "cluster because querying this host's hostname from OS failed:\n"

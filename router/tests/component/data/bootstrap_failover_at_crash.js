@@ -17,11 +17,10 @@ var common_responses = common_stmts.prepare_statement_responses([
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex([
   "router_select_hosts_join_routers",
-  "router_delete_old_accounts",
 ], options);
 
-var router_create_user =
-  common_stmts.get("router_create_user", options);
+var router_create_user_if_not_exists =
+  common_stmts.get("router_create_user_if_not_exists", options);
 
 ({
   stmts: function (stmt) {
@@ -31,7 +30,7 @@ var router_create_user =
     else if ((res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !== undefined) {
       return res;
     }
-    else if (stmt.match(router_create_user.stmt_regex)) {
+    else if (stmt.match(router_create_user_if_not_exists.stmt_regex)) {
       return {
         error: {
           code: 2013,

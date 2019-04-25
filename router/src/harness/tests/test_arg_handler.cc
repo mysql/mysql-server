@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -565,7 +565,9 @@ TEST_P(EntangledOptionsTest, ensure) {
         {"--option-a"}, "Testing --option-a", CmdOptionValueReq::none,
         "option-a_value",
         [&](const std::string & /* value */) { action_a_called = true; },
-        [&] { both_called = action_a_called && action_b_called; });
+        [&](const std::string & /* value */) {
+          both_called = action_a_called && action_b_called;
+        });
 
     c.add_option(option_a);
   }
@@ -575,7 +577,9 @@ TEST_P(EntangledOptionsTest, ensure) {
         {"--option-b"}, "Testing --option-b", CmdOptionValueReq::none,
         "option-b_value",
         [&](const std::string & /* value */) { action_b_called = true; },
-        [&] { both_called = action_a_called && action_b_called; });
+        [&](const std::string & /* value */) {
+          both_called = action_a_called && action_b_called;
+        });
 
     c.add_option(option_b);
   }

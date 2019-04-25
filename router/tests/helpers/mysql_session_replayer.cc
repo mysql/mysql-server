@@ -121,16 +121,24 @@ void MySQLSessionReplayer::execute(const std::string &sql) {
                            ")\nExpected: " + info.sql);
   }
   last_insert_id_ = info.last_insert_id;
+  warning_count_ = info.warning_count;
   if (trace_) std::cout << "execute: " << sql << "\n";
   if (info.error_code != 0) {
     call_info_.pop_front();
-    throw MySQLSession::Error(info.error.c_str(), info.error_code);
+
+    // NOTE: in real implementation, 1st and 3rd args differ, but for testing
+    //       this approximation is good enough atm; make it 1:1 if needed
+    throw MySQLSession::Error(info.error.c_str(), info.error_code,
+                              info.error.c_str());
   }
   call_info_.pop_front();
 }
 
-void MySQLSessionReplayer::query(const std::string &sql,
-                                 const RowProcessor &processor) {
+void MySQLSessionReplayer::query(
+    const std::string &sql, const RowProcessor &processor,
+    const FieldValidator & /*=null_field_validator*/) {
+  // TODO FieldValidator is ignored for now, implement when needed
+
   if (call_info_.empty()) {
     if (trace_) std::cout << "unexpected query: " << sql << "\n";
     throw std::logic_error("Unexpected call to query(" + sql + ")");
@@ -150,7 +158,11 @@ void MySQLSessionReplayer::query(const std::string &sql,
     last_error_code = info.error_code;
 
     call_info_.pop_front();
-    throw MySQLSession::Error(info.error.c_str(), info.error_code);
+
+    // NOTE: in real implementation, 1st and 3rd args differ, but for testing
+    //       this approximation is good enough atm; make it 1:1 if needed
+    throw MySQLSession::Error(info.error.c_str(), info.error_code,
+                              info.error.c_str());
   }
   for (auto &row : info.rows) {
     Row r;
@@ -165,12 +177,14 @@ void MySQLSessionReplayer::query(const std::string &sql,
       if (!processor(r)) break;
     } catch (...) {
       last_insert_id_ = 0;
+      warning_count_ = info.warning_count;
       call_info_.pop_front();
       throw;
     }
   }
 
   last_insert_id_ = 0;
+  warning_count_ = info.warning_count;
   call_info_.pop_front();
 }
 
@@ -211,7 +225,9 @@ class MyResultRow : public MySQLSession::ResultRow {
 };
 
 std::unique_ptr<MySQLSession::ResultRow> MySQLSessionReplayer::query_one(
-    const std::string &sql) {
+    const std::string &sql, const FieldValidator & /*=null_field_validator*/) {
+  // TODO FieldValidator is ignored for now, implement when needed
+
   if (call_info_.empty()) {
     if (trace_) std::cout << "unexpected query_one: " << sql << "\n";
     throw std::logic_error("Unexpected call to query_one(" + sql + ")");
@@ -231,13 +247,17 @@ std::unique_ptr<MySQLSession::ResultRow> MySQLSessionReplayer::query_one(
 
     call_info_.pop_front();
 
-    throw MySQLSession::Error(info.error.c_str(), info.error_code);
+    // NOTE: in real implementation, 1st and 3rd args differ, but for testing
+    //       this approximation is good enough atm; make it 1:1 if needed
+    throw MySQLSession::Error(info.error.c_str(), info.error_code,
+                              info.error.c_str());
   }
   std::unique_ptr<ResultRow> result;
   if (!info.rows.empty()) {
     result = std::make_unique<MyResultRow>(info.rows.front());
   }
   last_insert_id_ = 0;
+  warning_count_ = info.warning_count;
   call_info_.pop_front();
 
   return result;
@@ -245,6 +265,10 @@ std::unique_ptr<MySQLSession::ResultRow> MySQLSessionReplayer::query_one(
 
 uint64_t MySQLSessionReplayer::last_insert_id() noexcept {
   return last_insert_id_;
+}
+
+unsigned MySQLSessionReplayer::warning_count() noexcept {
+  return warning_count_;
 }
 
 const char *MySQLSessionReplayer::last_error() {
@@ -302,8 +326,10 @@ MySQLSessionReplayer &MySQLSessionReplayer::expect_query_one(
   return *this;
 }
 
-void MySQLSessionReplayer::then_ok(uint64_t the_last_insert_id) {
+void MySQLSessionReplayer::then_ok(uint64_t the_last_insert_id /*=0*/,
+                                   unsigned warning_count /*=0*/) {
   call_info_.back().last_insert_id = the_last_insert_id;
+  call_info_.back().warning_count = warning_count;
 }
 
 void MySQLSessionReplayer::then_error(const std::string &error,
@@ -350,6 +376,7 @@ MySQLSessionReplayer::CallInfo::CallInfo(const CallInfo &ci)
       error_code(ci.error_code),
       sql(ci.sql),
       last_insert_id(ci.last_insert_id),
+      warning_count(ci.warning_count),
       num_fields(ci.num_fields),
       rows(ci.rows),
       host(ci.host),

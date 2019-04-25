@@ -24,8 +24,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex([
   "router_select_hosts",
   "router_insert_into_hosts",
   "router_insert_into_routers",
-  "router_delete_old_accounts",
-  "router_create_user",
+  "router_create_user_if_not_exists",
 ], options);
 
 var router_grant_on_metadata_db =

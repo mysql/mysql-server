@@ -16,11 +16,19 @@ var defaults = {
   innodb_cluster_replicaset_name: "default",
   use_bootstrap_big_data: false,
   replication_group_members: [],
-  innodb_cluster_instances: [],
+  innodb_cluster_instances: [
+    ["localhost", "5500"],
+    ["localhost", "5510"],
+    ["localhost", "5520"],
+  ],
   innodb_cluster_hosts: [],
   innodb_cluster_user_hosts: [],
   bootstrap_report_host_pattern: ".*",
-  user_host_pattern: ".*",
+  account_host_pattern: ".*",
+  account_user_pattern: "mysql_router1_[0-9a-z]{12}",
+  account_pass_pattern: "\\*[0-9A-Z]{40}",
+  create_user_warning_count: 0,
+  create_user_show_warnings_results: [],
 };
 
 function ensure_type(options, field, expected_type) {
@@ -423,40 +431,62 @@ exports.get = function get(stmt_key, options) {
       }
     },
 
-    // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
-    router_delete_old_accounts:
+    // CREATE USER IF NOT EXISTS is the default way of creating users
+    router_create_user_if_not_exists:
     {
-      "stmt_regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "COUNT..."
-          }
-        ],
-        "rows": options["innodb_cluster_user_hosts"],
-      }
+      "stmt_regex": "^CREATE USER IF NOT EXISTS '" + options.account_user_pattern + "'@'" + options.account_host_pattern + "' IDENTIFIED WITH mysql_native_password AS '" + options.account_pass_pattern + "'",
+      "ok": {
+         warning_count : options.create_user_warning_count
+       }
     },
-
+    // CREATE USER (without IF NOT EXISTS) is triggered by --account-create always
     router_create_user:
     {
-      "stmt_regex": "^CREATE USER 'mysql_router1_[0-9a-z]{12}'@"
-                    + options.user_host_pattern
-                    + " IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
+      "stmt_regex": "^CREATE USER '" + options.account_user_pattern + "'@'" + options.account_host_pattern + "' IDENTIFIED WITH mysql_native_password AS '" + options.account_pass_pattern + "'",
       "ok": {}
     },
 
+    // GRANTs
     router_grant_on_metadata_db:
     {
       "stmt_regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*"
-                    + options.user_host_pattern,
+                    + options.account_host_pattern,
       "ok": {}
     },
     router_grant_on_pfs_db:
     {
-      "stmt_regex": "^GRANT SELECT ON performance_schema.*"
-                    + options.user_host_pattern,
+      "stmt_regex": "^GRANT SELECT ON performance_schema.*" // this regex covers 2 separate GRANT statements
+                    + options.account_host_pattern,
       "ok": {}
+    },
+
+    // this query will only be issued if CREATE USER [IF NOT EXISTS] returned warning_count > 0
+    router_create_user_show_warnings: {
+      stmt: "SHOW WARNINGS",
+      // SHOW WARNINGS example output
+      // +-------+------+---------------------------------------------+
+      // | Level | Code | Message                                     |
+      // +-------+------+---------------------------------------------+
+      // | Note  | 3163 | Authorization ID 'bla'@'h1' already exists. |
+      // | Note  | 3163 | Authorization ID 'bla'@'h3' already exists. |
+      // +-------+------+---------------------------------------------+
+      result: {
+        columns: [
+          {
+            type: "STRING",
+            name: "Level"
+          },
+          {
+            type: "LONG",
+            name: "Code"
+          },
+          {
+            type: "STRING",
+            name: "Message"
+          }
+        ],
+        rows: options.create_user_show_warnings_results
+      }
     },
 
     router_update_routers_in_metadata:

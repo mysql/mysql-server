@@ -28,12 +28,14 @@
 #include <functional>
 #include <map>
 #include <ostream>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "tcp_address.h"
@@ -53,8 +55,27 @@ DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
 DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
 DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
 DECLARE_TEST(ConfigGeneratorTest, create_config);
-DECLARE_TEST(ConfigGeneratorTest, delete_account_for_all_hosts);
-DECLARE_TEST(ConfigGeneratorTest, create_acount);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_password_directly);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_hashed_password);
+DECLARE_TEST(ConfigGeneratorTest,
+             create_accounts_using_hashed_password_if_not_exists);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_hashed_password);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts_multiple_accounts);
+DECLARE_TEST(ConfigGeneratorTest,
+             create_accounts_multiple_accounts_if_not_exists);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_1);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_2);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_3);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_4);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_5);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_1);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_2);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_3);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_4);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_5);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_6);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_7);
+DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_8);
 DECLARE_TEST(ConfigGeneratorTest, create_router_accounts);
 DECLARE_TEST(ConfigGeneratorTest, fill_options);
 DECLARE_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
@@ -69,6 +90,7 @@ DECLARE_TEST(ConfigGeneratorTest, start_sh);
 DECLARE_TEST(ConfigGeneratorTest, stop_sh);
 DECLARE_TEST(ConfigGeneratorTest, register_router_error_message);
 DECLARE_TEST(ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
+DECLARE_TEST(ConfigGeneratorTest, get_account_host_args);
 #endif
 
 class AutoCleaner;
@@ -173,6 +195,61 @@ class ConfigGenerator {
  private:
   friend class MySQLInnoDBClusterMetadata;
 
+  /**
+   * init() calls this to read and validate several command-line options;
+   * results are stored in member fields.
+   *
+   * @param bootstrap_options options map to process
+   *
+   * @throws std::runtime_error on an invalid option
+   */
+  void parse_bootstrap_options(
+      const std::map<std::string, std::string> &bootstrap_options);
+
+  /**
+   * init() calls this to validate and extract metadata server info from server
+   * URI, including user credentials.  It will also:
+   * - set user name to "root" if not provided in the URI
+   * - prompt for user password if not provided in the URI
+   *
+   * @param server_uri server URI (--bootstrap|-B argument)
+   * @param bootstrap_socket bootstrap (unix) socket (--bootstrap-socket
+   * argumenent)
+   *
+   * @returns URI with required information
+   *
+   * @throws std::runtime_error on an invalid data
+   */
+  URI parse_server_uri(const std::string &server_uri,
+                       const std::string &bootstrap_socket);
+
+  /**
+   * init() calls this to connect to metadata server; sets mysql_ (conection)
+   * object.
+   *
+   * @param u parsed server URL (--bootstrap|-B argument)
+   * @param bootstrap_socket bootstrap (unix) socket (--bootstrap-socket
+   * argumenent)
+   * @param bootstrap_options bootstrap command-line options
+   *
+   * @throws std::runtime_error
+   * @throws std::logic_error
+   */
+  void connect_to_metadata_server(
+      const URI &u, const std::string &bootstrap_socket,
+      const std::map<std::string, std::string> &bootstrap_options);
+
+  /**
+   * init() calls this to set GR-related member fields.
+   *
+   * @param u parsed server URL (--bootstrap|-B argument)
+   * @param bootstrap_socket bootstrap (unix) socket (--bootstrap-socket
+   * argumenent)
+   *
+   * @throws TODO
+   */
+  void init_gr_data(const URI &u, const std::string &bootstrap_socket);
+
   Options fill_options(const std::map<std::string, std::string> &user_options);
 
   void create_start_script(const std::string &directory,
@@ -197,15 +274,11 @@ class ConfigGenerator {
       bool directory_deployment, AutoCleaner &auto_clean);
 
   std::tuple<std::string> try_bootstrap_deployment(
-      uint32_t &router_id, std::string &username,
+      uint32_t &router_id, std::string &username, std::string &password,
       const std::string &router_name,
-      mysql_harness::RandomGeneratorInterface &rg,
       const std::map<std::string, std::string> &user_options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
-      const std::string &rw_endpoint, const std::string &ro_endpoint,
-      const std::string &rw_x_endpoint, const std::string &ro_x_endpoint);
-
-  void init_keyring_file(uint32_t router_id);
+      const Options &options);
 
   void fetch_metadata_servers(std::vector<std::string> &metadata_servers,
                               std::string &metadata_cluster,
@@ -220,11 +293,19 @@ class ConfigGenerator {
                      const std::string &username, const Options &options,
                      const std::string &state_file_name = "");
 
-  void create_report(const std::string &config_file_name,
-                     const std::string &router_name,
-                     const std::string &metadata_cluster,
-                     const std::string &hostname, bool is_system_deployment,
-                     const Options &options);
+  void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
+                                 const mysql_harness::Path &config_file_path);
+
+  void print_report(const std::string &config_file_name,
+                    const std::string &router_name,
+                    const std::string &metadata_cluster,
+                    const std::string &hostname, bool is_system_deployment,
+                    const Options &options);
+
+  void set_log_file_permissions(
+      const std::map<std::string, std::string> &default_paths,
+      const std::map<std::string, std::string> &user_options,
+      const Options &options);
 
   static std::string gen_metadata_cache_routing_section(
       bool is_classic, bool is_writable, const Options::Endpoint endpoint,
@@ -232,32 +313,45 @@ class ConfigGenerator {
       const std::string &metadata_replicaset,
       const std::string &fast_router_key);
 
-  /** @brief Deletes (old) Router accounts
+  /** @brief Deletes Router accounts just created
    *
-   * Deletes all accounts (for all hosts) for a particular username (ie. for
-   * user "someuser" it will delete `someuser@host1`, `someuser@host2`,
-   * `someuser@%`, etc)
-   *
-   * @param username Router account to be deleted (without the hostname part)
-   *
-   * @throws std::logic_error on not connected
-   *         MySQLSession::Error on SQL error
+   * This method runs as a cleanup after something goes wrong.  Its purpose is
+   * to undo CREATE USER [IF NOT EXISTS] for accounts that got created during
+   * bootstrap.  Note that it will drop only those accounts which did not exist
+   * prior to bootstrap (it may be a subset of account names passed to
+   * CREATE USER [IF NOT EXISTS]).  If it is not able to determine what this
+   * (sub)set is, it will not drop anything - instead it will advise user on
+   * how to clean those up manually.
    */
-  void delete_account_for_all_hosts(const std::string &username);
+  void undo_create_user_for_new_accounts() noexcept;
+
+  /** @brief Finds all hostnames given on command-line
+   *
+   * MySQL accounts are of form `<username>@<hostname>`.  This function returns
+   * all `<hostname>` parts that were provided via --account-host switches
+   *
+   * @param multivalue_options key/list-of-values map of bootstrap config;
+   *        carries --account-host inside
+   */
+  static std::set<std::string> get_account_host_args(
+      const std::map<std::string, std::vector<std::string>>
+          &multivalue_options) noexcept;
 
   /** @brief Creates Router accounts
    *
-   * Creates Router account for all needed hostnames (ie. `someuser@host1`,
-   * `someuser@host2`, `someuser@%`, etc).
+   * Creates Router accounts for all hostnames (ie. `someuser@host1`,
+   * `someuser@host2`, `someuser@%`, etc).  It will create such accounts for
+   * all hosts that appear in hostnames_cmdline, but not in hostnames_db.
    *
    * @note This is the higher-level method, which drives calls to lower-level
    *       methods like create_account_with_compliant_password() and
-   *       create_account().
+   *       create_accounts().
    *
    * @param user_options key/value map of bootstrap config options
-   * @param multivalue_options key/list-of-values map of bootstrap config
-   * options, including list of hostnames
+   * @param hostnames hostnames provided as --account-host arguments
    * @param username Router account to be created (without the hostname part)
+   * @param password_change_ok password is allowed to be changed if needed
+   * @param password Router account password, will be overwritten if empty
    *
    * @returns auto-generated password
    *
@@ -268,8 +362,8 @@ class ConfigGenerator {
    */
   std::string create_router_accounts(
       const std::map<std::string, std::string> &user_options,
-      const std::map<std::string, std::vector<std::string>> &multivalue_options,
-      const std::string &username);
+      const std::set<std::string> &hostnames, const std::string &username,
+      const std::string &password, bool password_change_ok);
 
   /** @brief Creates Router account with compliant password
    *
@@ -282,46 +376,71 @@ class ConfigGenerator {
    * it will give up.
    *
    * @note This is a higher-level method, with smart logic that drives calls to
-   *       lower-level create_account() method.
+   *       lower-level create_accounts() method.
    *
    * @param user_options key/value map of bootstrap config options
    * @param username Router account to be created - the username part
-   * @param hostname Router account to be created - the hostname part
+   * @param hostnames Router accounts to be created - the hostname part
+   * @param password Password for the account
+   * @param password_change_ok password is allowed to be changed if needed
+   * @param if_not_exists if true, CREATE USER IF NOT EXISTS will be used
+   *        instead of CREATE USER
    *
-   * @returns std::pair, where:
-   *   - std::string contains the auto-generated password
-   *   - bool states if account was created with hashed password
-   *     (with mysql_native_password)
+   * @returns password
    *
    * @throws std::logic_error on not connected
    *         std::runtime_error on bad password
    *         MySQLSession::Error on other (unexpected) SQL error
    */
-  std::pair<std::string, bool> create_account_with_compliant_password(
+  std::string create_accounts_with_compliant_password(
       const std::map<std::string, std::string> &user_options,
-      const std::string &username, const std::string &hostname);
+      const std::string &username, const std::set<std::string> &hostnames,
+      const std::string &password, bool password_change_ok, bool if_not_exists);
 
   /** @brief Creates Router account (low-level function)
    *
-   * Creates Router accout using CREATE USER ang give it GRANTs.
+   * Creates Router accout using CREATE USER [IF NOT EXISTS] ang give it GRANTs.
    *
    * @param username Router account to be created - the username part
-   * @param hostname Router account to be created - the hostname part
+   * @param hostnames Router accounts to be created - the hostnames part
    * @param password Password for the account
    * @param hash_password CREATE USER method:
    *   true: password should be hashed, CREATE USER using mysql_native_password
    *   false: password should remain plaintext, CREATE USER without
-   * mysql_native_password
+   *          mysql_native_password
+   * @param if_not_exists if true, CREATE USER IF NOT EXISTS will be used
+   *        instead of CREATE USER
    *
    * @throws std::logic_error on not connected
    *         password_too_weak on Server not liking the password
    *         plugin_not_loaded on Server not supporting mysql_native_password
-   *         MySQLSession::Error on other (unexpected) SQL error
+   *         account_exists if running without IF NOT EXISTS and account exists
+   * already MySQLSession::Error on other (unexpected) SQL error
    */
-  void create_account(const std::string &username, const std::string &hostname,
-                      const std::string &password, bool hash_password = false);
+  void create_accounts(const std::string &username,
+                       const std::set<std::string> &hostnames,
+                       const std::string &password, bool hash_password = false,
+                       bool if_not_exists = false);
 
-  std::pair<uint32_t, std::string> get_router_id_and_name_from_config(
+  void create_users(const std::string &username,
+                    const std::set<std::string> &hostnames,
+                    const std::string &password, bool hash_password,
+                    bool if_not_exists);
+
+  void throw_account_exists(const MySQLSession::Error &e,
+                            const std::string &username);
+
+  std::set<std::string> get_hostnames_of_created_accounts(
+      const std::string &username, const std::set<std::string> &hostnames,
+      bool if_not_exists);
+
+  void give_grants_to_users(const std::string &new_accounts);
+
+  std::string make_account_list(const std::string username,
+                                const std::set<std::string> &hostnames);
+
+  std::pair<uint32_t, std::string>
+  get_router_id_and_username_from_config_if_it_exists(
       const std::string &config_file_path, const std::string &cluster_name,
       bool forcing_overwrite);
 
@@ -338,23 +457,37 @@ class ConfigGenerator {
   void set_keyring_info_real_paths(std::map<std::string, std::string> &options,
                                    const mysql_harness::Path &path);
 
+  void store_credentials_in_keyring(
+      AutoCleaner &auto_clean,
+      const std::map<std::string, std::string> &user_options,
+      uint32_t router_id, const std::string &username,
+      const std::string &password, Options &options);
+
+  std::string fetch_password_from_keyring(const std::string &username,
+                                          uint32_t router_id);
+
   void init_keyring_and_master_key(
       AutoCleaner &auto_clean,
       const std::map<std::string, std::string> &user_options,
       uint32_t router_id);
 
+  void init_keyring_file(uint32_t router_id, bool create_if_needed = true);
+
   static void set_ssl_options(
       MySQLSession *sess, const std::map<std::string, std::string> &options);
 
-  void ensure_router_id_is_ours(uint32_t &router_id, std::string &username,
+  void ensure_router_id_is_ours(uint32_t &router_id,
                                 const std::string &hostname_override,
                                 MySQLInnoDBClusterMetadata &metadata);
 
-  void register_router_and_set_username(
-      uint32_t &router_id, const std::string &router_name,
-      std::string &username, const std::string &hostname_override, bool force,
-      MySQLInnoDBClusterMetadata &metadata,
-      mysql_harness::RandomGeneratorInterface &rg);
+  uint32_t register_router(const std::string &router_name,
+                           const std::string &hostname_override, bool force,
+                           MySQLInnoDBClusterMetadata &metadata);
+
+  void verify_router_account(const std::string &username,
+                             const std::string &password,
+                             const std::string &primary_cluster_name,
+                             bool strict);
 
  private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
@@ -369,9 +502,19 @@ class ConfigGenerator {
   std::string gr_initial_socket_;
 
   KeyringInfo keyring_info_;
+  bool keyring_initialized_ = false;
 
   std::ostream &out_stream_;
   std::ostream &err_stream_;
+
+  struct UndoCreateAccountList {
+    enum {
+      kNotSet = 1,  // =1 is not a requirement, just defensive programming
+      kAllAccounts,
+      kNewAccounts
+    } type = kNotSet;
+    std::string accounts;
+  } undo_create_account_list_;
 
 #ifndef _WIN32
   SysUserOperationsBase *sys_user_operations_;
@@ -384,8 +527,27 @@ class ConfigGenerator {
               fetch_bootstrap_servers_multiple_replicasets);
   FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
   FRIEND_TEST(::ConfigGeneratorTest, create_config);
-  FRIEND_TEST(::ConfigGeneratorTest, delete_account_for_all_hosts);
-  FRIEND_TEST(::ConfigGeneratorTest, create_acount);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_password_directly);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_hashed_password);
+  FRIEND_TEST(::ConfigGeneratorTest,
+              create_accounts_using_hashed_password_if_not_exists);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_multiple_accounts);
+  FRIEND_TEST(::ConfigGeneratorTest,
+              create_accounts_multiple_accounts_if_not_exists);
+
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_1);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_2);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_3);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_4);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_5);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_1);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_2);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_3);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_4);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_5);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_6);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_7);
+  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_8);
   FRIEND_TEST(::ConfigGeneratorTest, create_router_accounts);
   FRIEND_TEST(::ConfigGeneratorTest, fill_options);
   FRIEND_TEST(::ConfigGeneratorTest, bootstrap_invalid_name);
@@ -400,6 +562,7 @@ class ConfigGenerator {
   FRIEND_TEST(::ConfigGeneratorTest, stop_sh);
   FRIEND_TEST(::ConfigGeneratorTest, register_router_error_message);
   FRIEND_TEST(::ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
+  FRIEND_TEST(::ConfigGeneratorTest, get_account_host_args);
 #endif
 };
 }  // namespace mysqlrouter

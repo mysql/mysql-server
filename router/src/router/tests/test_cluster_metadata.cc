@@ -116,7 +116,7 @@ TEST_F(ClusterMetadataTest, check_router_id_ok) {
       .Times(1)
       .WillOnce(Return(kHostname));
 
-  EXPECT_NO_THROW(cluster_metadata.check_router_id(1));
+  EXPECT_NO_THROW(cluster_metadata.verify_router_id_is_ours(1));
 }
 
 ACTION_P(ThrowLocalHostnameResolutionError, msg) {
@@ -124,7 +124,8 @@ ACTION_P(ThrowLocalHostnameResolutionError, msg) {
 }
 
 /**
- * @test verify that check_router_id() will throw if get_local_hostname() fails
+ * @test verify that verify_router_id_is_ours() will throw if
+ * get_local_hostname() fails
  */
 TEST_F(ClusterMetadataTest, check_router_id_get_hostname_throws) {
   const std::string kHostId = "2";
@@ -140,7 +141,7 @@ TEST_F(ClusterMetadataTest, check_router_id_get_hostname_throws) {
           "some error from get_local_hostname()"));
 
   EXPECT_THROW_LIKE(
-      cluster_metadata.check_router_id(1),
+      cluster_metadata.verify_router_id_is_ours(1),
       mysql_harness::SocketOperationsBase::LocalHostnameResolutionError,
       "some error from get_local_hostname()");
 }
@@ -152,7 +153,7 @@ TEST_F(ClusterMetadataTest, check_router_id_router_not_found) {
   session_replayer.expect_query_one(kQueryGetHostname).then_return(2, {});
 
   try {
-    cluster_metadata.check_router_id(1);
+    cluster_metadata.verify_router_id_is_ours(1);
     FAIL() << "Expected exception";
   } catch (std::runtime_error &e) {
     ASSERT_STREQ("router_id 1 not found in metadata", e.what());
@@ -173,7 +174,7 @@ TEST_F(ClusterMetadataTest, check_router_id_different_hostname) {
       .WillOnce(Return(kHostname2));
 
   try {
-    cluster_metadata.check_router_id(1);
+    cluster_metadata.verify_router_id_is_ours(1);
     FAIL() << "Expected exception";
   } catch (std::runtime_error &e) {
     ASSERT_STREQ(

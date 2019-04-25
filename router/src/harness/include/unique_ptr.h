@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 namespace mysql_harness {
 
+// clang-format off
 /* @brief: improved std::unique_ptr super-class
  *
  * std::unique_ptr has one problem: it's tedious to use with custom deleters.
@@ -45,30 +46,30 @@ namespace mysql_harness {
  *
  *      instead of:
  *
- *        std::unique_ptr<Foo, decltype(foo_deleter)> foo(new_foo(),
- * foo_deleter); std::unique_ptr<Foo, decltype(foo_deleter)> bar =
- * std::move(foo);
+ *        std::unique_ptr<Foo, decltype(foo_deleter)> foo(new_foo(), foo_deleter);
+ *        std::unique_ptr<Foo, decltype(foo_deleter)> bar = std::move(foo);
  *
  *
  *
  *   2. UniquePtr constructor ALWAYS defines a custom deleter, which is a must
- * if we're passing unique_ptr accross DLL boundaries (the idea is to release
- * the memory within the same DLL in which it was allocated). However, if all we
- * need is a default deleter, it will implicitly define it for us:
+ *      if we're passing unique_ptr accross DLL boundaries (the idea is to
+ *      release the memory within the same DLL in which it was allocated).
+ *      However, if all we need is a default deleter, it will implicitly define
+ *      it for us:
  *
- *        UniquePtr<Foo> foo(new_foo()); // std::default_delete is default 2nd
- * parameter
+ *        UniquePtr<Foo> foo(new_foo()); // std::default_delete is default 2nd parameter
  *
  *      instead of:
  *
- *        std::unique_ptr<Foo, std::default_delete> foo(new_foo(),
- * std::default_delete());
+ *        std::unique_ptr<Foo, std::default_delete> foo(new_foo(), std::default_delete());
  *
  *
  *
  *   3. In debug builds, it offers a safety feature to warn the developer, if
- * (s)he forgets about the custom deleter. See comments above release() method
+ *      (s)he forgets about the custom deleter. See comments above release()
+ *      method
  */
+// clang-format on
 template <typename T>
 class UniquePtr : public std::unique_ptr<T, std::function<void(T *)>> {
  public:
@@ -107,7 +108,7 @@ class UniquePtr : public std::unique_ptr<T, std::function<void(T *)>> {
 //
 //   // some_place_2
 //   A* raw_ptr = u_ptr.release();  // dev forgot that u_ptr also stores the
-//   deleter to erase this object
+//                                  // deleter to erase this object
 //   ...
 //   ...
 //   delete raw_ptr;  // KABOOOM!!!
