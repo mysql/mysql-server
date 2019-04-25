@@ -42,7 +42,6 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps;
