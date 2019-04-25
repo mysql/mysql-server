@@ -5816,8 +5816,15 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
 
   // Pure table aliases do not need to be locked:
   if (!(table_options & TL_OPTION_ALIAS)) {
+    enum_mdl_duration mdl_duration;
+    /* Shorten SLOW_LOG/GENERAL_LOG table MDL to STATEMENT */
+    if (query_logger.check_if_log_table(ptr, false) == QUERY_LOG_NONE)
+      mdl_duration = MDL_TRANSACTION;
+    else
+      mdl_duration = MDL_STATEMENT;
+
     MDL_REQUEST_INIT(&ptr->mdl_request, MDL_key::TABLE, ptr->db,
-                     ptr->table_name, mdl_type, MDL_TRANSACTION);
+                     ptr->table_name, mdl_type, mdl_duration);
   }
   if (table_name->is_derived_table()) {
     ptr->derived_key_list.empty();

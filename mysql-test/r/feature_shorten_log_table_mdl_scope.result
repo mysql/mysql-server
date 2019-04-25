@@ -1,0 +1,8 @@
+create user 'u0'@'%';
+grant all privileges on *.* to 'u0'@'%';
+begin;
+select * from mysql.slow_log;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	thread_id
+truncate table mysql.slow_log;
+commit;
+drop user 'u0'@'%';

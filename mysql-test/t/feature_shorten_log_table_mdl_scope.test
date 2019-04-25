@@ -1,0 +1,28 @@
+--source include/count_sessions.inc
+
+connection default;
+
+create user 'u0'@'%';
+grant all privileges on *.* to 'u0'@'%';
+
+connect(con_u0, localhost, u0,,);
+connect(con_root,localhost, root,,);
+
+connection con_root;
+begin;
+select * from mysql.slow_log;
+
+
+connection con_u0;
+truncate table mysql.slow_log;
+
+
+connection con_root;
+commit;
+
+
+connection default;
+drop user 'u0'@'%';
+
+disconnect con_u0;
+disconnect con_root;
