@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -87,9 +87,9 @@ case "$1" in
 
 	server_stop
 
-	db_input high mysql-server/remove-data-dir || true
+	db_input high mysql-@DEB_PRODUCTNAME@-server/remove-data-dir || true
 	db_go
-	db_get mysql-server/remove-data-dir && RMDATADIR=${RET}
+	db_get mysql-@DEB_PRODUCTNAME@-server/remove-data-dir && RMDATADIR=${RET}
 	if [ "${RMDATADIR}" = "true" ];
 	then
 		if [ -d ${MYSQLRUN} ] || [ -L ${MYSQLRUN} ];
