@@ -238,7 +238,12 @@ insert into t1 (c1,c500) values (1,@v10000), (2,@v10000), (3,@v10000);
 alter table t1 algorithm=copy, modify c1 int auto_increment;
 alter table t1 algorithm=inplace, add column c501 bit(1) column_format DYNAMIC;
 alter table t1 algorithm=inplace, add column c502 varchar(18001);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 30000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR HY000: Got error 140 'Record too big' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1478	Converted FIXED field 'c502' to DYNAMIC to enable online ADD COLUMN
+Warning	1296	Got error 738 'Record too big' from NDB
+Error	1296	Got error 140 'Record too big' from NDBCLUSTER
 select length(c500) from t1 order by 1;
 length(c500)
 10000

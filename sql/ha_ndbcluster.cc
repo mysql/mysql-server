@@ -14577,10 +14577,6 @@ const char * ha_ndbcluster::table_type() const
 {
   return("NDBCLUSTER");
 }
-uint ha_ndbcluster::max_supported_record_length() const
-{ 
-  return NDB_MAX_TUPLE_SIZE;
-}
 uint ha_ndbcluster::max_supported_keys() const
 {
   return MAX_KEY;

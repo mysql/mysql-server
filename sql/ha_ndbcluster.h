@@ -248,7 +248,6 @@ public:
   ulonglong table_flags(void) const override;
   ulong index_flags(uint idx, uint part, bool all_parts) const override;
   bool primary_key_is_clustered() const override;
-  uint max_supported_record_length() const override;
   uint max_supported_keys() const override;
   uint max_supported_key_parts() const override;
   uint max_supported_key_length() const override;
