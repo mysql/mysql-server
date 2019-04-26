@@ -3860,6 +3860,57 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(share);
   }
 
+  bool install_table_in_dd(const char *schema_name, const char *table_name,
+                           dd::sdi_t sdi, int table_id, int table_version,
+                           size_t num_partitions,
+                           const std::string &tablespace_name,
+                           bool force_overwrite,
+                           bool invalidate_referenced_tables) {
+    DBUG_TRACE;
+
+    // Found table, now install it in DD
+    Ndb_dd_client dd_client(m_thd);
+
+    // First acquire exclusive MDL lock on schema and table
+    if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to acquire locks for table '%s.%s'",
+                    schema_name, table_name);
+      return false;
+    }
+
+    if (!tablespace_name.empty()) {
+      // Acquire IX MDL on tablespace
+      if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
+        log_and_clear_THD_conditions();
+        ndb_log_error("Failed to acquire lock on tablespace '%s' for '%s.%s'",
+                      tablespace_name.c_str(), schema_name, table_name);
+        return false;
+      }
+    }
+
+    Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
+    if (!dd_client.install_table(
+          schema_name, table_name, sdi, table_id,
+          table_version, num_partitions,
+          tablespace_name, force_overwrite,
+          (invalidate_referenced_tables ? &invalidator : nullptr))) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to install table '%s.%s' in DD", schema_name,
+                    table_name);
+      return false;
+    }
+
+    if (invalidate_referenced_tables && !invalidator.invalidate()) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
+                    schema_name, table_name);
+      return false;
+    }
+    dd_client.commit();
+    return true;
+  }
+
   bool create_table_from_engine(const char *schema_name, const char *table_name,
                                bool force_overwrite,
                                bool invalidate_referenced_tables = false) {
@@ -3878,6 +3929,9 @@ class Ndb_schema_event_handler {
       return false;
     }
 
+    const std::string tablespace_name =
+        ndb_table_tablespace_name(ndb->getDictionary(), ndbtab);
+
     std::string serialized_metadata;
     if (!ndb_table_get_serialized_metadata(ndbtab, serialized_metadata)) {
       ndb_log_error("Failed to get serialized metadata for table '%s.%s'",
@@ -3885,50 +3939,14 @@ class Ndb_schema_event_handler {
       return false;
     }
 
-
-    // Found table, now install it in DD
-    Ndb_dd_client dd_client(m_thd);
-
-    // First acquire exclusive MDL lock on schema and table
-    if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
-      log_and_clear_THD_conditions();
-      ndb_log_error("Failed to acquire locks for table '%s.%s'",
-                    schema_name, table_name);
-      return false;
-    }
-
-    const std::string tablespace_name =
-        ndb_table_tablespace_name(ndb->getDictionary(), ndbtab);
-    if (!tablespace_name.empty()) {
-      // Acquire IX MDL on tablespace
-      if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
-        log_and_clear_THD_conditions();
-        ndb_log_error("Failed to acquire lock on tablespace '%s' for '%s.%s'",
-                      tablespace_name.c_str(), schema_name, table_name);
-        return false;
-      }
-    }
-
     const dd::sdi_t sdi = serialized_metadata.c_str();
-    Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
-    if (!dd_client.install_table(
+    if (!install_table_in_dd(
             schema_name, table_name, sdi, ndbtab->getObjectId(),
             ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
-            tablespace_name, force_overwrite,
-            (invalidate_referenced_tables ? &invalidator : nullptr))) {
-      log_and_clear_THD_conditions();
-      ndb_log_error("Failed to install table '%s.%s' in DD", schema_name,
-                    table_name);
-      return false;
+            tablespace_name, force_overwrite, invalidate_referenced_tables)) {
+      ndb_log_warning(
+          "Failed to update table definition in DD, continue anyway...");
     }
-
-    if (invalidate_referenced_tables && !invalidator.invalidate()) {
-      log_and_clear_THD_conditions();
-      ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
-                    schema_name, table_name);
-      return false;
-    }
-    dd_client.commit();
 
     // Setup binlogging for this table. In many cases the NDB_SHARE, the
     // event and event subscriptions are already created/setup, but this

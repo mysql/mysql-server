@@ -262,6 +262,7 @@ call mtr.add_suppression("Distribution of CREATE TABLE 'test.t3' failed");
 call mtr.add_suppression("3510: Tablespace table_space1 doesn't exist.");
 call mtr.add_suppression("Failed to install table 'test.t1'");
 call mtr.add_suppression("Distribution of CREATE TABLE 'test.t1' failed");
+call mtr.add_suppression("Failed to update table definition in DD, continue");
 --enable_query_log
 
 --connection server1
