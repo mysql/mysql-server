@@ -12,6 +12,7 @@ SET sql_log_bin = 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 SET sql_log_bin = 1;
 include/gr_autorejoin_monitoring.inc
 SET @debug_saved = @@GLOBAL.DEBUG;

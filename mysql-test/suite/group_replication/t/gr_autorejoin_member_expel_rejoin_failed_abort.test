@@ -43,6 +43,10 @@ call mtr.add_suppression("Member was expelled from the group due to network fail
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Could not rejoin the member to the group after");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 SET sql_log_bin = 1;
 
 --source include/gr_autorejoin_monitoring.inc
@@ -148,7 +152,7 @@ while ($tries <= 3)
 
 # Verify in the log file that the server aborted
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_autorejoin_member_expel
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_autorejoin_member_expel_rejoin_failed_abort
 --let $assert_text = GR reported expected abort
 --let $assert_select = The plugin encountered a critical error and will abort
 --let $assert_count = 1
