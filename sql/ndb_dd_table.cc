@@ -27,11 +27,13 @@
 
 #include <string>
 
+#include "sql/dd/dd.h"
 #include "sql/dd/impl/types/partition_impl.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/types/column.h"
 #include "sql/dd/types/partition.h"
 #include "sql/dd/types/table.h"
+#include "sql/ndb_dd_sdi.h"
 
 // The key used to store the NDB tables object version in the
 // se_private_data field of DD
@@ -244,4 +246,19 @@ void ndb_dd_table_set_tablespace_id(dd::Table *table_def,
 
   table_def->set_tablespace_id(tablespace_id);
   DBUG_VOID_RETURN;
+}
+
+
+Ndb_dd_table::Ndb_dd_table(THD* thd)
+    : m_thd(thd), m_table_def{dd::create_object<dd::Table>()} {}
+
+Ndb_dd_table::~Ndb_dd_table() { delete m_table_def; }
+
+bool Ndb_dd_table::deserialize(const dd::sdi_t &sdi)
+{
+  if (ndb_dd_sdi_deserialize(m_thd, sdi, m_table_def))
+  {
+    return false;
+  }
+  return true;
 }

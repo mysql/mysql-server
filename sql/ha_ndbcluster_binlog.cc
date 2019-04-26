@@ -3928,24 +3928,28 @@ class Ndb_schema_event_handler {
                     schema_name, table_name);
       return false;
     }
+    dd_client.commit();
 
-    const dd::Table *table_def;
-    if (!dd_client.get_table(schema_name, table_name, &table_def)) {
+    // Setup binlogging for this table. In many cases the NDB_SHARE, the
+    // event and event subscriptions are already created/setup, but this
+    // function is called anyway in order to create/setup any missing parts.
+
+    // Deserialize the metadata from NDB
+    Ndb_dd_table dd_table(m_thd);
+    if (!dd_table.deserialize(sdi)) {
       log_and_clear_THD_conditions();
-      ndb_log_error("Failed to open table '%s.%s' from DD", schema_name,
-                    table_name);
+      ndb_log_error("Failed to deserialize metadata for table '%s.%s'",
+                    schema_name, table_name);
       return false;
     }
 
     // Check if binlogging should be setup for this table
     if (ndbcluster_binlog_setup_table(m_thd, ndb, schema_name, table_name,
-                                      table_def)) {
+                                      dd_table.get_table_def())) {
       ndb_log_error("Failed to setup binlogging for table '%s.%s'", schema_name,
                     table_name);
       return false;
     }
-
-    dd_client.commit();
 
     return true;
   }
