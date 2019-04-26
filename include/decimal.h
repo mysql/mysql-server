@@ -59,14 +59,14 @@ void widen_fraction(int new_frac, decimal_t *d);
 int string2decimal(const char *from, decimal_t *to, const char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals, char filler);
-int decimal2ulonglong(decimal_t *from, ulonglong *to);
+int decimal2ulonglong(const decimal_t *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal_t *to);
-int decimal2longlong(decimal_t *from, longlong *to);
+int decimal2longlong(const decimal_t *from, longlong *to);
 int longlong2decimal(longlong from, decimal_t *to);
 int decimal2double(const decimal_t *from, double *to);
 int double2decimal(double from, decimal_t *to);
 int decimal_actual_fraction(const decimal_t *from);
-int decimal2bin(decimal_t *from, uchar *to, int precision, int scale);
+int decimal2bin(const decimal_t *from, uchar *to, int precision, int scale);
 int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale,
                 bool keep_prec = false);
 
@@ -94,7 +94,8 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to);
 int double2lldiv_t(double nr, lldiv_t *lld);
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
-int decimal_result_size(decimal_t *from1, decimal_t *from2, char op, int param);
+int decimal_result_size(const decimal_t *from1, const decimal_t *from2, char op,
+                        int param);
 
 int decimal_intg(const decimal_t *from);
 int decimal_add(const decimal_t *from1, const decimal_t *from2, decimal_t *to);

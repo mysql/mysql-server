@@ -584,7 +584,8 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
                      be written by this address
 */
 
-static void digits_bounds(decimal_t *from, int *start_result, int *end_result) {
+static void digits_bounds(const decimal_t *from, int *start_result,
+                          int *end_result) {
   int start, stop, i;
   dec1 *buf_beg = from->buf;
   dec1 *end = from->buf + ROUND_UP(from->intg) + ROUND_UP(from->frac);
@@ -1095,7 +1096,7 @@ int longlong2decimal(longlong from, decimal_t *to) {
   return ull2dec(from, to);
 }
 
-int decimal2ulonglong(decimal_t *from, ulonglong *to) {
+int decimal2ulonglong(const decimal_t *from, ulonglong *to) {
   dec1 *buf = from->buf;
   ulonglong x = 0;
   int intg, frac;
@@ -1119,7 +1120,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to) {
   return E_DEC_OK;
 }
 
-int decimal2longlong(decimal_t *from, longlong *to) {
+int decimal2longlong(const decimal_t *from, longlong *to) {
   dec1 *buf = from->buf;
   longlong x = 0;
   int intg, frac;
@@ -1312,7 +1313,7 @@ int double2lldiv_t(double nr, lldiv_t *lld) {
 
                 7E F2 04 C7 2D FB 2D
 */
-int decimal2bin(decimal_t *from, uchar *to, int precision, int frac) {
+int decimal2bin(const decimal_t *from, uchar *to, int precision, int frac) {
   dec1 mask = from->sign ? -1 : 0, *buf1 = from->buf, *stop1;
   int error = E_DEC_OK, intg = precision - frac, isize1, intg1, intg1x,
       from_intg, intg0 = intg / DIG_PER_DEC1, frac0 = frac / DIG_PER_DEC1,
@@ -1821,7 +1822,7 @@ done:
     multiply by sizeof(dec1)
 */
 
-int decimal_result_size(decimal_t *from1, decimal_t *from2, char op,
+int decimal_result_size(const decimal_t *from1, const decimal_t *from2, char op,
                         int param) {
   switch (op) {
     case '-':
