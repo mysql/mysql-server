@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -193,6 +193,7 @@ INCLUDE_DIRECTORIES(SYSTEM
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+MY_CHECK_CXX_COMPILER_FLAG("-Wformat-overflow" HAVE_FORMAT_OVERFLOW)
 
 ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
@@ -374,6 +375,13 @@ IF (MERGE_UNITTESTS)
       COMPILE_FLAGS "/bigobj")
   ENDIF()
 
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_LARGE_TESTS}
+      COMPILE_FLAGS "-Wno-format-overflow")
+  ENDIF()
+
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")
@@ -444,6 +452,13 @@ ENDIF(MERGE_UNITTESTS)
       bounded_queue-t.cc
       COMPILE_FLAGS "-Wno-empty-body"
   )
+  ENDIF()
+
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      segfault-t.cc
+      COMPILE_FLAGS "-Wno-format-overflow")
   ENDIF()
 
   FOREACH(test ${SERVER_TESTS})
