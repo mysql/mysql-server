@@ -1159,7 +1159,7 @@ total_rows	min_value	max_value	sum	avg
 7	-100000.00000	100000.00000	-99.15000	-16.525000509
 SELECT count(*) as total_rows, min(c3) as min_value, max(c3) as max_value, sum(c3) as sum, avg(c3) as avg FROM t1;
 total_rows	min_value	max_value	sum	avg
-7	-0.10000000149011612	111111112	111211212.95000306	18535202.15833384
+7	-0.1	111111000	111211212.95000306	18535202.15833384
 SELECT count(*) as total_rows, min(c1) as min_value, max(c1) as max_value, sum(c1) as sum, avg(c1) as avg FROM t2;
 total_rows	min_value	max_value	sum	avg
 30	-10000000000	10000000000	31322222339	1044074077.9667
@@ -1168,7 +1168,7 @@ total_rows	min_value	max_value	sum	avg
 30	0	10000000000	43444444564	1448148152.1333
 SELECT count(*) as total_rows, min(c3) as min_value, max(c3) as max_value, sum(c3) as sum, avg(c3) as avg FROM t2;
 total_rows	min_value	max_value	sum	avg
-30	-3.4028234663852886e38	3.4028234663852886e38	1.0208470399155866e39	3.4028234663852886e37
+30	-3.40282e38	3.40282e38	1.0208470399155866e39	3.4028234663852886e37
 SELECT * FROM t1;
 c1	c2	c3	c4
 0.00000	-0.10000	-0.1	13
