@@ -5214,11 +5214,13 @@ bool Format_description_log_event::write(Basic_ostream *ostream) {
   buff[ST_COMMON_HEADER_LEN_OFFSET] = LOG_EVENT_HEADER_LEN;
 
   size_t number_of_events = 0;
-  if (post_header_len.size() == Binary_log_event::LOG_EVENT_TYPES)
+  int post_header_len_size = static_cast<int>(post_header_len.size());
+
+  if (post_header_len_size == Binary_log_event::LOG_EVENT_TYPES)
     // Replicating between master and slave with same version.
     // number_of_events will be same as Binary_log_event::LOG_EVENT_TYPES
     number_of_events = Binary_log_event::LOG_EVENT_TYPES;
-  else if (post_header_len.size() > Binary_log_event::LOG_EVENT_TYPES)
+  else if (post_header_len_size > Binary_log_event::LOG_EVENT_TYPES)
     /*
       Replicating between new master and old slave.
       In that case there won't be any memory issues, as there won't be
@@ -5235,7 +5237,7 @@ bool Format_description_log_event::write(Basic_ostream *ostream) {
       post_header_len.size() < Binary_log_event::LOG_EVENT_TYPES;
       casuing memory issues.
     */
-    number_of_events = post_header_len.size();
+    number_of_events = post_header_len_size;
 
   memcpy((char *)buff + ST_COMMON_HEADER_LEN_OFFSET + 1,
          &post_header_len.front(), number_of_events);
