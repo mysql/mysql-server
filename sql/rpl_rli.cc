@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -743,7 +743,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
 
   DEBUG_SYNC(thd, "begin_master_pos_wait");
 
-  set_timespec_nsec(&abstime, (ulonglong)timeout * 1000000000ULL);
+  set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -964,7 +964,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
 
   DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
-  set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
+  set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
 
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
