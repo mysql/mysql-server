@@ -257,6 +257,11 @@ mysql	view_table_usage	0	0
 test	t1	0	0
 drop table t1;
 create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	decimal(9,2)	YES		NULL	
@@ -289,6 +294,9 @@ f	float	YES		NULL
 r	double	YES		NULL	
 drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 c	decimal(3,3)	YES		NULL	

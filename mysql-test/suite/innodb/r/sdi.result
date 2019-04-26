@@ -7,6 +7,8 @@ CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB);
 CREATE TABLE t3 (a INT PRIMARY KEY, b SMALLINT, c TEXT, d JSON, UNIQUE KEY k1(b), KEY k2(b, c(20)));
 CREATE TABLE t4 (a INT PRIMARY KEY, b TINYINT, c MEDIUMINT, d BIGINT);
 CREATE TABLE t5 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a,b), c DECIMAL(5,2), d FLOAT(7,4), e DOUBLE);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create table `t6` (
 `c0291` char(140) not null,
 `c0292` int(10) unsigned zerofill not null,

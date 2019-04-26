@@ -28,6 +28,8 @@ INDEX idx11 ((dbl_with_length * 2.0)),
 INDEX idx12 ((ABS(unsigned_int))),
 INDEX idx13 ((ST_X(geometry_col)))
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SET SESSION debug="+d,show_hidden_columns";
 SHOW CREATE TABLE t1;
 Table	Create Table

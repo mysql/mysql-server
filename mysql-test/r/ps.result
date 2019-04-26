@@ -2994,6 +2994,10 @@ SET v1 = 12.34;
 SET v2 = 98.67;
 SET v3 = 56.78;
 END|
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 CREATE PROCEDURE p_int(
 IN v0 CHAR(10),
@@ -3021,6 +3025,10 @@ END|
 
 PREPARE stmt_str FROM 'CALL p_string(?, ?, ?, ?)';
 PREPARE stmt_dbl FROM 'CALL p_double(?, ?, ?, ?)';
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt_int FROM 'CALL p_int(?, ?, ?, ?)';
 PREPARE stmt_dec FROM 'CALL p_decimal(?, ?, ?, ?)';
 
@@ -3320,7 +3328,11 @@ FLOAT(7, 4)
 
 CREATE PROCEDURE p1(OUT v FLOAT(7, 4))
 SET v = 123.4567;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt1 FROM 'CALL p1(?)';
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 EXECUTE stmt1 USING @a;
 CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
@@ -3338,7 +3350,11 @@ DOUBLE(8, 5)
 
 CREATE PROCEDURE p1(OUT v DOUBLE(8, 5))
 SET v = 123.45678;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt1 FROM 'CALL p1(?)';
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 EXECUTE stmt1 USING @a;
 CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;

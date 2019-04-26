@@ -15500,6 +15500,8 @@ SELECT @@timestamp;
 @@timestamp
 1308300674.000000
 CREATE TABLE t1 AS SELECT @@timestamp;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 @@timestamp	double(22,6)	YES		NULL	

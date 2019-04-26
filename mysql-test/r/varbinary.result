@@ -650,6 +650,9 @@ DROP TABLE t1;
 # Test conversions
 #
 CREATE TABLE t1(vb varbinary(10), i INT, d DECIMAL(5,2), f FLOAT(5,2), dd DOUBLE(5,2), gid INT);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (_binary "-98765.23", 98765, 0.0, 0.0, 0.0, 1);
 INSERT INTO t1 VALUES (_binary "-98765.23", 98765, 1.0, 1.0, 1.0, 2);
 SELECT

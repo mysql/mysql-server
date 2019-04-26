@@ -79,18 +79,18 @@ json_table(
 jpath_i int path '$.a'
                 default '33' on empty
 default '66' on error,
-jpath_r real(10,2) path '$.a'
+jpath_r real path '$.a'
                 default '33.3' on empty
 default '77.7' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,
 jexst int exists path '$.b')
 ) as tt;
 id	jpath_i	jpath_r	jsn_path	jexst
-1	3	3.00	"3"	0
-2	2	2.00	2	0
-3	33	33.30	{"x": 33}	1
+1	3	3	"3"	0
+2	2	2	2	0
+3	33	33.3	{"x": 33}	1
 4	0	0.33	0.33	0
-5	66	77.70	"asd"	0
+5	66	77.7	"asd"	0
 Warnings:
 Warning	3156	Invalid JSON value for CAST to INTEGER from column jpath_i at row 1
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column jpath_r at row 1
@@ -101,7 +101,7 @@ json_table(
 jpath_i int path '$.a'
                 default '33' on empty
 default '66' on error,
-jpath_r real(10,2) path '$.a'
+jpath_r real path '$.a'
                 default '33.3' on empty
 default '77.7' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,

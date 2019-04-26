@@ -1534,6 +1534,9 @@ c7 BIGINT CHECK(c7 > 10),
 c8 DECIMAL(6,2) CHECK(c8 > 10.1),
 c9 FLOAT(6,2) CHECK(c9 > 10.1),
 c10 DOUBLE(6,2) CHECK(c10 > 10.1));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2301,6 +2304,9 @@ c8 DECIMAL(6,2) CHECK(c8 > 10.1),
 c9 FLOAT(6,2) CHECK(c9 > 10.1),
 c10 DOUBLE(6,2) CHECK(c10 > 10.1),
 c11 CHAR(6) CHECK (c11 IS NULL));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2381,6 +2387,9 @@ c7 BIGINT CHECK(c7 > 10) NOT ENFORCED,
 c8 DECIMAL(6,2) CHECK(c8 > 10.1) NOT ENFORCED,
 c9 FLOAT(6,2) CHECK(c9 > 10.1) NOT ENFORCED,
 c10 DOUBLE(6,2) CHECK(c10 > 10.1) NOT ENFORCED);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (

@@ -7441,6 +7441,8 @@ PRIMARY KEY  (Code),
 UNIQUE INDEX (Name),
 INDEX (Population)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
@@ -7448,6 +7450,8 @@ Percentage float(3,1) NOT NULL default '0.0',
 PRIMARY KEY  (Country, Language),
 INDEX (Percentage)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 EXPLAIN SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
@@ -7600,6 +7604,11 @@ Capital int(11) DEFAULT NULL,
 Code2 char(2) NOT NULL DEFAULT '',
 PRIMARY KEY (Code)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 ID int(11) NOT NULL AUTO_INCREMENT,
 Name char(35) NOT NULL DEFAULT '',

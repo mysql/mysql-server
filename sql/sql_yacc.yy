@@ -6302,10 +6302,20 @@ type:
         | real_type opt_precision field_options
           {
             $$= NEW_PTN PT_numeric_type($1, $2.length, $2.dec, $3);
+	    if ($2.dec != nullptr) {
+              push_warning(YYTHD, Sql_condition::SL_WARNING,
+                           ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                           ER_THD(YYTHD, ER_WARN_DEPRECATED_FLOAT_DIGITS));
+            }
           }
         | numeric_type float_options field_options
           {
             $$= NEW_PTN PT_numeric_type($1, $2.length, $2.dec, $3);
+	    if ($1 == Numeric_type::FLOAT && $2.dec != nullptr) {
+              push_warning(YYTHD, Sql_condition::SL_WARNING,
+                           ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                           ER_THD(YYTHD, ER_WARN_DEPRECATED_FLOAT_DIGITS));
+            }
           }
         | BIT_SYM
           {
