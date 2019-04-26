@@ -24,6 +24,13 @@
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 
+# BUG#28196680 Suppress warnings thrown when trying to purge logs which
+# are still being read by a thread
+--disable_query_log
+CALL mtr.add_suppression("\\[Warning\\] .* was not purged because it was being "
+"read by thread");
+--enable_query_log
+
 CREATE TABLE t1 (c1 INT);
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_connection_master.inc
