@@ -11462,13 +11462,16 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Apply the mysql.ndb_replication settings
-  // NOTE! Should check error and fail the create
-  (void)binlog_client.apply_replication_info(ndb, share,
-                                             ndbtab,
-                                             conflict_fn,
-                                             args,
-                                             num_args,
-                                             binlog_flags);
+  if (binlog_client.apply_replication_info(ndb, share, ndbtab, conflict_fn,
+                                           args, num_args, binlog_flags) != 0) {
+    // Failed to apply replication settings
+    // Try to drop the table from NDB before returning
+    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
+                                 0,                 // drop_flags
+                                 false);            // skip_related
+    NDB_SHARE::release_reference(share, "create");  // temporary ref.
+    DBUG_RETURN(create.failed_warning_already_pushed());
+  }
 
   if (binlog_client.table_should_have_event(share, ndbtab))
   {

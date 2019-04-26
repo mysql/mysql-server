@@ -11,13 +11,11 @@
 --connection server1
 call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
 call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
-call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 call mtr.add_suppression("NDB Slave: .* missing function argument .*");
 call mtr.add_suppression("NDB Slave: .* missing \'\\)\' .*");
 --connection server2
 call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
 call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
-call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 call mtr.add_suppression("NDB Slave: .* missing function argument .*");
 call mtr.add_suppression("NDB Slave: .* missing \'\\)\' .*");
 --connection default
@@ -181,12 +179,12 @@ show warnings;
 delete from mysql.ndb_replication;
 
 # Column type cannot be used for this function
-# gives warning when creating table
-#call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
+call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
+--error ER_CANT_CREATE_TABLE
 create table t1 (a int key, X int) engine ndb;
-drop table t1;
+show warnings;
 delete from mysql.ndb_replication;
 
 # Too few arguments
