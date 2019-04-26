@@ -1501,8 +1501,15 @@ WHERE table_name = 'events_statements_history' AND column_name = 'digest';
 ERROR HY000: Could not parse argument to digest function.
 SELECT statement_digest( point(1, 2) ) IS NULL;
 ERROR HY000: Could not parse argument to digest function.
-SELECT statement_digest( _utf8 x'e298ba' ) IS NULL;
+# Make sure that UTF-8 content is not printed in the error message
+# without being converted.
+SET NAMES latin1;
+SELECT statement_digest( _utf8mb4 x'e298ba' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\263A' at line 1".
+SET NAMES utf8mb4;
+SELECT statement_digest( _utf8mb4 x'e298ba' ) IS NULL;
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '☺' at line 1".
+SET NAMES DEFAULT;
 SELECT statement_digest( 'a\0bc' ) IS NULL;
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a' at line 1".
 SELECT statement_digest( '\0abc' ) IS NULL;
@@ -1533,9 +1540,9 @@ ERROR HY000: Could not parse argument to digest function.
 SET sql_mode = DEFAULT;
 DROP TABLE t1;
 # Let's check that warnings in the parser are silenced.
-SELECT statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" );
-statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" )
-e8055293a3d5e4859175a0b1f34f15aa68491c502afc95477b90ce9c19465ce5
+SELECT statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" ) IS NULL;
+statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" ) IS NULL
+0
 #
 # Test queries.
 #
@@ -1628,7 +1635,7 @@ CREATE TABLE t1 AS SELECT statement_digest( 'select 1, 2, 3' ) AS digest;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `digest` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+  `digest` varchar(64) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
@@ -1662,17 +1669,24 @@ SELECT statement_digest_text( '@@' ) IS NULL;
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@' at line 1".
 SELECT statement_digest_text( "SELECT 1; SELECT 2" );
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 2' at line 1".
-SELECT statement_digest_text( "SELECT 1;" );
-statement_digest_text( "SELECT 1;" )
-SELECT ? ;
+SELECT statement_digest_text( "SELECT 1;" ) IS NULL;
+statement_digest_text( "SELECT 1;" ) IS NULL
+0
 SELECT statement_digest_text( repeat( 'a', character_maximum_length ) ) IS NULL
 FROM information_schema.columns
 WHERE table_name = 'events_statements_history' AND column_name = 'digest';
 ERROR HY000: Could not parse argument to digest function.
 SELECT statement_digest_text( point(1, 2) ) IS NULL;
 ERROR HY000: Could not parse argument to digest function.
-SELECT statement_digest_text( _utf8 x'e298ba' ) IS NULL;
+# Make sure that UTF-8 content is not printed in the error message
+# without being converted.
+SET NAMES latin1;
+SELECT statement_digest_text( _utf8mb4 x'e298ba' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\263A' at line 1".
+SET NAMES utf8mb4;
+SELECT statement_digest_text( _utf8mb4 x'e298ba' ) IS NULL;
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '☺' at line 1".
+SET NAMES DEFAULT;
 SELECT statement_digest_text( 'a\0bc' ) IS NULL;
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a' at line 1".
 SELECT statement_digest_text( '\0abc' ) IS NULL;
@@ -1703,9 +1717,9 @@ ERROR HY000: Could not parse argument to digest function.
 SET sql_mode = DEFAULT;
 DROP TABLE t1;
 # Let's check that warnings in the parser are silenced.
-SELECT statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" );
-statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" )
-INSERT DELAYED INTO `t1` VALUES (?)
+SELECT statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" ) IS NULL;
+statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" ) IS NULL
+0
 #
 # Test queries.
 #
@@ -1960,3 +1974,37 @@ SELECT DIGEST_TEXT
 FROM performance_schema.events_statements_summary_by_digest
 WHERE DIGEST_TEXT LIKE 'SELECT ?%';
 DIGEST_TEXT
+#
+# Bug#29526571: STATEMENT_DIGEST() AND STATEMENT_DIGEST_TEXT() CAN USE
+# WRONG QUERY CHARSET
+#
+SET @v = CONCAT('SELECT 1 AS ', _latin1 0xC5);
+SET NAMES utf8mb4;
+SELECT statement_digest_text(CONVERT(@v USING latin1));
+statement_digest_text(CONVERT(@v USING latin1))
+SELECT ? AS `Å`
+SELECT statement_digest(CONVERT(@v USING latin1));
+statement_digest(CONVERT(@v USING latin1))
+0ccda2949946c24efb22d29e2daf034b2835b25ad2689011f810ab515fa36ca9
+# Angstrom sign is 0xC385 in UTF-8.
+SELECT substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4);
+substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4)
+C385
+SHOW variables LIKE 'character_set_client';
+Variable_name	Value
+character_set_client	utf8mb4
+SET NAMES latin1;
+SELECT statement_digest_text(CONVERT(@v USING latin1));
+statement_digest_text(CONVERT(@v USING latin1))
+SELECT ? AS `�`
+SELECT statement_digest(CONVERT(@v USING latin1));
+statement_digest(CONVERT(@v USING latin1))
+0ccda2949946c24efb22d29e2daf034b2835b25ad2689011f810ab515fa36ca9
+# Angstrom sign is 0xC385 in UTF-8.
+SELECT substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4);
+substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4)
+C385
+SHOW variables LIKE 'character_set_client';
+Variable_name	Value
+character_set_client	latin1
+SET NAMES DEFAULT;

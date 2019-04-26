@@ -723,7 +723,8 @@ class Thd_parse_modifier {
         m_arena(&m_mem_root, Query_arena::STMT_REGULAR_EXECUTION),
         m_backed_up_lex(thd->lex),
         m_saved_parser_state(thd->m_parser_state),
-        m_saved_digest(thd->m_digest) {
+        m_saved_digest(thd->m_digest),
+        m_cs(thd->variables.character_set_client) {
     thd->m_digest = &m_digest_state;
     m_digest_state.reset(token_buffer, get_max_digest_length());
     m_arena.set_query_arena(*thd);
@@ -737,6 +738,8 @@ class Thd_parse_modifier {
     m_thd->set_query_arena(m_arena);
     m_thd->m_parser_state = m_saved_parser_state;
     m_thd->m_digest = m_saved_digest;
+    m_thd->variables.character_set_client = m_cs;
+    m_thd->update_charset();
   }
 
  private:
@@ -748,6 +751,7 @@ class Thd_parse_modifier {
   sql_digest_state m_digest_state;
   Parser_state *m_saved_parser_state;
   sql_digest_state *m_saved_digest;
+  const CHARSET_INFO *m_cs;
 };
 
 /**
@@ -843,6 +847,10 @@ bool parse(THD *thd, Item *statement_expr, String *statement_string) {
   if (statement_string->length() > 0 && (*statement_string)[0] == '\0')
     statement_string->length(0);
 
+  const CHARSET_INFO *cs = statement_string->charset();
+  thd->variables.character_set_client = cs;
+  thd->update_charset();
+
   Parser_state ps;
 
   // The lexer needs null-terminated strings, despite boasting the below
@@ -850,9 +858,9 @@ bool parse(THD *thd, Item *statement_expr, String *statement_string) {
   if (ps.init(thd, statement_string->c_ptr_safe(), statement_string->length()))
     return true;
 
-  ps.m_lip.m_digest = thd->m_digest;
-  ps.m_lip.m_digest->m_digest_storage.m_charset_number = thd->charset()->number;
   ps.m_lip.multi_statements = false;
+  ps.m_lip.m_digest = thd->m_digest;
+  ps.m_lip.m_digest->m_digest_storage.m_charset_number = cs->number;
 
   thd->m_parser_state = &ps;
 
