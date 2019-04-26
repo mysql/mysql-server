@@ -22,31 +22,38 @@
 --source include/master-slave.inc
 
 --let $MYSQLD_MASTER_DATADIR= `select @@datadir`
+RESET MASTER;
+--let $is_windows = `SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`
+
+# Stop the master
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
 
 # clear master datadir
-RESET MASTER;
 --remove_file $MYSQLD_MASTER_DATADIR/master-bin.000001
 --remove_file $MYSQLD_MASTER_DATADIR/master-bin.index
 
 # on Win* platforms path separator is backslash
-if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+if ($is_windows)
 {
     --copy_file std_data/slave-relay-bin-win.index $MYSQLD_MASTER_DATADIR/master-bin.index
 }
-if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
+if (!$is_windows)
 {
     --copy_file std_data/slave-relay-bin.index $MYSQLD_MASTER_DATADIR/master-bin.index
 }
 
 --copy_file std_data/slave-relay-bin.000001 $MYSQLD_MASTER_DATADIR/master-bin.000001
 
+# Start the master
+--source include/rpl_start_server.inc
+
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 CALL mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log:");
 START SLAVE;
---let $slave_param= Slave_IO_State
---let $slave_param_value = Waiting for master to send event
---source include/wait_for_slave_param.inc
+let $wait_binlog_event= DROP;
+--source include/wait_for_binlog_event.inc
 
 FLUSH LOGS;
 STOP SLAVE;
