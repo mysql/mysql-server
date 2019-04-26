@@ -34,6 +34,8 @@ r TEXT,
 s MEDIUMTEXT,
 t LONGTEXT
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 *** Create same table on master but with narrow columns ***
 CREATE TABLE t1 (
 a float     (44),
@@ -56,6 +58,8 @@ r TEXT,
 s MEDIUMTEXT,
 t LONGTEXT
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 RESET MASTER;
 *** Start replication ***
 START SLAVE;

@@ -14,6 +14,8 @@ SurfaceArea float(10,2) NOT NULL default '0.00',
 Population int(11) NOT NULL default '0',
 Capital int(11) default NULL
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE city (
 ID int(11) NOT NULL,
 Name char(35) NOT NULL default '',
@@ -25,6 +27,8 @@ Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
 Percentage float(3,1) NOT NULL default '0.0'
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SELECT COUNT(*) FROM country;
 COUNT(*)
 239
@@ -433,6 +437,8 @@ Capital int(11) default NULL,
 PRIMARY KEY  (Code),
 UNIQUE INDEX (Name)
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE city (
 ID int(11) NOT NULL auto_increment,
 Name char(35) NOT NULL default '',
@@ -449,6 +455,8 @@ Percentage float(3,1) NOT NULL default '0.0',
 PRIMARY KEY  (Country, Language),
 INDEX (Percentage)
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	262144

@@ -55,7 +55,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -68,7 +68,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -81,7 +81,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -2901,7 +2901,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -2914,7 +2914,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -2953,7 +2953,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  2
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -3039,7 +3039,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3308,7 +3308,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3667,7 +3667,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4133,7 +4133,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4754,7 +4754,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -4812,7 +4812,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -5066,7 +5066,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -5079,7 +5079,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -5092,7 +5092,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -7912,7 +7912,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -7925,7 +7925,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -7964,7 +7964,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  2
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -8050,7 +8050,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8319,7 +8319,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8678,7 +8678,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -9144,7 +9144,7 @@ handle_ok
 	[meta] current col: 2
 		[data][.param_no][  2][10]
 	[meta] current col: 3
-		[data][.warning_no][  1][0]
+		[data][.warning_no][  1][2]
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -9765,7 +9765,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 
@@ -9823,7 +9823,7 @@ handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
-	[end] warning count:  0
+	[end] warning count:  1
 	[end] affected rows:  0
 	[end] last insert id: 0
 	[end] message: 

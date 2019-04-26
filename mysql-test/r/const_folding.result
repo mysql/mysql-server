@@ -26744,6 +26744,8 @@ DROP TABLE t;
 # Tests with  type FLOAT(5,2)  against real constants
 #
 CREATE TABLE float_5_2_tbl (colA FLOAT(5,2)  );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO float_5_2_tbl VALUES (-999.99), (-999.985),
 (-999.984),
 ( 3.3), (0.0), (3.3),
@@ -27475,6 +27477,8 @@ DROP TABLE f;
 # Tests with  type FLOAT(5,2)  against real constants
 #
 CREATE TABLE float_5_2_tbl (colA FLOAT(5,2)  );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO float_5_2_tbl VALUES ('-999.99'), ('-999.985'),
 ('-999.984'),
 ( 3.3), (0.0), (3.3),
@@ -28206,6 +28210,8 @@ DROP TABLE f;
 # Tests with UNSIGNED type FLOAT(5,2)  against real constants
 #
 CREATE TABLE float_5_2_tbl (colA FLOAT(5,2) UNSIGNED );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO float_5_2_tbl VALUES (0.0), (0.005),
 (0.004),
 ( 3.3), (0.0), (3.3),
@@ -29668,6 +29674,8 @@ DROP TABLE f;
 # Tests with  type DOUBLE(5,2)  against real constants
 #
 CREATE TABLE double_5_2_tbl (colA DOUBLE(5,2)  );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO double_5_2_tbl VALUES (-999.99), (-999.985),
 (-999.984),
 ( 3.3), (0.0), (3.3),
@@ -31859,8 +31867,12 @@ Warning	1292	Truncated incorrect DOUBLE value: '2 garbage'
 DROP TABLE f;
 CREATE TABLE f(f FLOAT);
 CREATE TABLE f_fix(f FLOAT(5,2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE d(d DOUBLE);
 CREATE TABLE d_fix(d DOUBLE(5,2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO f VALUES (-3.4028234663852886e+38), (0), (3.4028234663852886e+38);
 INSERT INTO f_fix VALUES (-999.00), (0), (999.99);
 INSERT INTO d VALUES (-1.7976931348623157E+308), (0), (1.7976931348623157E+308);

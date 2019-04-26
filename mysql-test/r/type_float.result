@@ -85,6 +85,8 @@ select c1 + c1 * (c2 / 100) as col from t1;
 col
 140.36
 create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select * from t2;
 col1	col2	col3	col4
 140.36	121.00000	121	0.00000034785054261852176
@@ -104,6 +106,9 @@ max(a)	min(a)	avg(a)
 1	1	1
 drop table t1;
 create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(7,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 f	float	NULL	YES		NULL		select,insert,update,references	
@@ -155,6 +160,8 @@ d1	d2
 -1	0
 drop table t1;
 create table t1 (f float(4,3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
 Warnings:
 Warning	1264	Out of range value for column 'f' at row 1
@@ -173,6 +180,8 @@ f
 9.999
 drop table if exists t1;
 create table t1 (f double(4,3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
 Warnings:
 Warning	1264	Out of range value for column 'f' at row 1
@@ -206,10 +215,16 @@ c
 2e-5
 drop table t1;
 create table t1 (d double(10,1));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create table t2 (d double(10,9));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values ("100000000.0");
 insert into t2 values ("1.23456780");
 create table t3 select * from t2 union select * from t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select * from t3;
 d
 1.234567800
@@ -249,6 +264,8 @@ select 10e307;
 10e307
 1e308
 create table t1(a int, b double(8, 2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values
 (1, 28.50), (1, 121.85), (1, 157.23), (1, 1351.00), (1, -1965.35), (1, 81.75), 
 (1, 217.08), (1, 7.94), (4, 96.07), (4, 6404.65), (4, -6500.72), (2, 100.00),
@@ -345,6 +362,8 @@ f1	f2	f3
 0000000000000003.14152	0000000000000003.14152	000003.14152
 DROP TABLE t1;
 create table t1 (f1 double(200, 0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (1e199), (-1e199);
 insert into t1 values (1e200), (-1e200);
 insert into t1 values (2e200), (-2e200);
@@ -361,6 +380,8 @@ f1 + 0e0
 -1e200
 drop table t1;
 create table t1 (f1 float(30, 0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (1e29), (-1e29);
 insert into t1 values (1e30), (-1e30);
 insert into t1 values (2e30), (-2e30);
@@ -455,7 +476,11 @@ SET sql_mode = default;
 #              REPRESENTABLE VALUES OF TYPE FLOAT
 #
 CREATE TABLE t5u(c1 FLOAT(58,0) UNSIGNED NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t5s(c1 FLOAT(58,0) SIGNED NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t5u VALUES('1e+52');
 ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5s VALUES('-1e+52');
@@ -500,3 +525,97 @@ ALTER TABLE t4 DROP PRIMARY KEY, ADD COLUMN b DOUBLE PRIMARY KEY AUTO_INCREMENT;
 Warnings:
 Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'b'.
 DROP TABLE t4, t3, t2, t1;
+#
+# WL#12595: Deprecate the ability to specify number of digits
+#           for floating point types
+#
+CREATE TABLE t1(a FLOAT(255,0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t4(a FLOAT);
+ALTER TABLE t4 MODIFY COLUMN a FLOAT(255,0);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b FLOAT(255,0);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t6(a FLOAT(12));
+DROP TABLE t6, t5, t4, t3, t2, t1;
+CREATE TABLE t1(a DOUBLE(42,12));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t4(a DOUBLE);
+ALTER TABLE t4 MODIFY COLUMN a DOUBLE(42,12);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DOUBLE(42,12);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+DROP TABLE t5, t4, t3, t2, t1;
+CREATE TABLE t1(a DOUBLE PRECISION(42,12));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t4(a DOUBLE);
+ALTER TABLE t4 MODIFY COLUMN a DOUBLE PRECISION(42,12);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DOUBLE PRECISION(42,12);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+DROP TABLE t5, t4, t3, t2, t1;
+CREATE TABLE t1(a REAL(42,12));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t4(a REAL);
+ALTER TABLE t4 MODIFY COLUMN a REAL(42,12);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b REAL(42,12);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+DROP TABLE t5, t4, t3, t2, t1;
+CREATE FUNCTION f1(a FLOAT(255,0)) RETURNS DOUBLE(12,3) RETURN 1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+CREATE PROCEDURE p1(IN a FLOAT(255,0), OUT b DOUBLE(12,3))
+BEGIN
+SELECT 1 INTO b;
+END||
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+DROP PROCEDURE p1;

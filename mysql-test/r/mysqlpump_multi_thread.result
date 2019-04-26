@@ -193,6 +193,8 @@ CREATE TABLE `db1_1gb`.`customer` (
 `C_ISACTIVE` tinyint(1) DEFAULT NULL,
 PRIMARY KEY (`C_CUSTKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 ALTER TABLE `db1_1gb`.`customer` ADD FULLTEXT (`C_COMMENT`);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID

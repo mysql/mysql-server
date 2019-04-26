@@ -504,7 +504,13 @@ price2     double(11,0),
 key (period),
 key (name)
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create temporary table tmp select * from t3;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
 insert into t3 select * from tmp;

@@ -393,6 +393,9 @@ c1	c2	c3
 99999.99999	9999999999	9
 DROP TABLES IF EXISTS t1,t2,t3,t4;
 CREATE TABLE t1(c1 FLOAT(10,5) UNSIGNED NOT NULL, c2 FLOAT(10,5) SIGNED NULL, c3 FLOAT, c4 INT, UNIQUE INDEX idx(c1,c4));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('00100.05000','-00100.05000','00100119',1),('11111.00009','-9999.99999','9999999',2);
 INSERT INTO t1 VALUES('1000000','10000000','1000000000.0001',3);
 Warnings:
@@ -639,8 +642,14 @@ c1	c2	c3	c4
 77777.78125	-77777.78125	7777780000	7
 88888.89062	-88888.89062	8888890000	8
 CREATE TABLE t2(c1 FLOAT(10,5) NOT NULL, c2 FLOAT, c3 INT, UNIQUE INDEX idx2(c1,c3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t3(c1 FLOAT(10,5) NOT NULL, c2 FLOAT, c3 INT, UNIQUE INDEX idx3(c1,c3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t4(c1 FLOAT(10,5) NOT NULL, c2 FLOAT, c3 INT, UNIQUE INDEX idx4(c1,c3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('11111.11111','1111111111',1),('22222.22222','2222222222',2),('33333.33333','3333333333',3);
 INSERT INTO t3 VALUES ('44444.44444','4444444444',4),('55555.55555','5555555555',5),('66666.66666','6666666666',6);
 INSERT INTO t4 VALUES ('77777.77777','7777777777',7),('88888.88888','8888888888',8),('99999.99999','9999999999',9);
@@ -719,7 +728,11 @@ c1	c2	c3
 44444.44531	2222220000	4
 DROP TABLE t2,t3;
 CREATE TABLE t2(c1 FLOAT(10,5) NOT NULL, c2 FLOAT, c3 INT);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t3(c1 FLOAT(10,5) NOT NULL, c2 FLOAT, c3 INT, UNIQUE INDEX idx3(c1));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('11111.11111','1111111111',1),('22222.22222','2222222222',2),('33333.33333','3333333333',3);
 INSERT INTO t3 VALUES ('11111.11111','4444444444',1),('55555.55555','5555555555',2),('66666.66666','6666666666',3);
 UPDATE t2,t3 SET t3.c1='22222.22222' WHERE t2.c1=t3.c1 AND t2.c3=t3.c3;
@@ -781,6 +794,9 @@ c1	c2	c3
 88888.89062	8888890000	8
 DROP TABLES IF EXISTS t1,t2,t3,t4;
 CREATE TABLE t1(c1 DOUBLE(10,5) UNSIGNED NOT NULL, c2 DOUBLE(10,5) SIGNED NULL, c3 DOUBLE, c4 INT, UNIQUE INDEX idx(c1,c4));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('00100.05000','-00100.05000','00100119',1),('11111.00009','-9999.99999','9999999',2);
 INSERT INTO t1 VALUES('1000000','10000000','1000000000.0001',3);
 Warnings:
@@ -1026,8 +1042,14 @@ c1	c2	c3	c4
 88888.88888	-88888.88888	8888888888	8
 99999.99999	-99999.99999	9999999999	9
 CREATE TABLE t2(c1 DOUBLE(10,5) NOT NULL, c2 DOUBLE, c3 INT, UNIQUE INDEX idx2(c1,c3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t3(c1 DOUBLE(10,5) NOT NULL, c2 DOUBLE, c3 INT, UNIQUE INDEX idx3(c1,c3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t4(c1 DOUBLE(10,5) NOT NULL, c2 DOUBLE, c3 INT, UNIQUE INDEX idx4(c1,c3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('11111.11111','1111111111',1),('22222.22222','2222222222',2),('33333.33333','3333333333',3);
 INSERT INTO t3 VALUES ('44444.44444','4444444444',4),('55555.55555','5555555555',5),('66666.66666','6666666666',6);
 INSERT INTO t4 VALUES ('77777.77777','7777777777',7),('88888.88888','8888888888',8),('99999.99999','9999999999',9);
@@ -1106,7 +1128,11 @@ c1	c2	c3
 99998.99999	3333333332	3
 DROP TABLE t2,t3;
 CREATE TABLE t2(c1 DOUBLE(10,5) NOT NULL, c2 DOUBLE, c3 INT);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t3(c1 DOUBLE(10,5) NOT NULL, c2 DOUBLE, c3 INT, UNIQUE INDEX idx3(c1));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('11111.11111','1111111111',1),('22222.22222','2222222222',2),('33333.33333','3333333333',3);
 INSERT INTO t3 VALUES ('11111.11111','4444444444',1),('55555.55555','5555555555',2),('66666.66666','6666666666',3);
 UPDATE t2,t3 SET t3.c1='22222.22222' WHERE t2.c1=t3.c1 AND t2.c3=t3.c3;

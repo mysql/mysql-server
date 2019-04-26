@@ -77,6 +77,8 @@ DROP TABLE t1;
 #
 CREATE TEMPORARY TABLE t1(c1 DOUBLE(1,0)ZEROFILL,c2 BLOB,c3 YEAR)
 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 ALTER TABLE t1 MODIFY c2 VARCHAR(1024)BINARY CHARACTER SET 'Binary' COLLATE
 'Binary';
 ALTER TABLE t1 ADD INDEX(c2),ADD UNIQUE (c2);
@@ -86,6 +88,8 @@ DROP TABLE t1;
 SET @@GLOBAL.innodb_default_row_format=default;
 CREATE  TABLE t1(c1 DOUBLE(1,0)ZEROFILL,c2 BLOB,c3 YEAR)
 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 ALTER TABLE t1 MODIFY c2 VARCHAR(1024)BINARY CHARACTER SET 'Binary' COLLATE
 'Binary';
 ALTER TABLE t1 ADD INDEX(c2),ADD UNIQUE (c2);

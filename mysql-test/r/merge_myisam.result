@@ -725,16 +725,22 @@ a double(14,4),
 b varchar(10),
 index (a,b)
 ) engine=merge union=(t2,t3);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create table t2 (
 a double(14,4),
 b varchar(10),
 index (a,b)
 ) engine=myisam;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create table t3 (
 a double(14,4),
 b varchar(10),
 index (a,b)
 ) engine=myisam;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t2 values ( null, '');
 insert into t2 values ( 9999999999.999, '');
 insert into t3 select * from t2;

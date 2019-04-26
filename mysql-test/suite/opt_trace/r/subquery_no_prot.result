@@ -384,7 +384,12 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
 DROP TABLE t1,t2;
 SET @@optimizer_trace_features="default";
 CREATE TABLE t1 (a FLOAT(5,4) zerofill);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 (a FLOAT(5,4),b FLOAT(2,0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SELECT t1.a
 FROM t1
 WHERE t1.a= (SELECT b FROM t2 LIMIT 1) AND NOT

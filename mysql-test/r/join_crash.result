@@ -58,6 +58,9 @@ adjustment float(10,2) default NULL,
 PRIMARY KEY  (budget_id),
 UNIQUE KEY po (project_ptr,po_number)
 ) PACK_KEYS=1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t4 (
 client_id int(11) NOT NULL auto_increment,
 client_row_lock int(11) NOT NULL default '0',

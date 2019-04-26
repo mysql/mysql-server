@@ -151,9 +151,13 @@ SET v1= 100;
 SET @s = CONCAT('########################################', 40 , v1);
 SELECT @s;
 END;//
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CALL p1();
 @s
 ########################################40100.000
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CALL p1();
 @s
 ########################################40100.000

@@ -576,6 +576,9 @@ drop view v1;
 create table t1(a NUMERIC(5,3), b NUMERIC(5,1), c float(5,2),
 d NUMERIC(6,4), e float, f DECIMAL(6,3), g int(11), h DOUBLE(10,3),
 i DOUBLE);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
 CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
@@ -1671,6 +1674,8 @@ End of 5.1 tests.
 create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
 returns char(10) return null;
 create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
 select * from information_schema.parameters where specific_schema='test';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE

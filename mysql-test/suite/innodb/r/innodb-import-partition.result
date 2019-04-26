@@ -72,6 +72,9 @@ PARTITION BY RANGE (col18)
 SUBPARTITION BY HASH (col18) SUBPARTITIONS 3
 (PARTITION `First_partition` VALUES LESS THAN (10),
 PARTITION `Last_partition` VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));
 INSERT INTO t1 VALUES
@@ -130,6 +133,9 @@ PARTITION BY RANGE (col18)
 SUBPARTITION BY HASH (col18) SUBPARTITIONS 3
 (PARTITION `First_partition` VALUES LESS THAN (10),
 PARTITION `Last_partition` VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));
 ALTER TABLE t1 DISCARD TABLESPACE;
@@ -766,6 +772,8 @@ col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 PARTITION BY HASH (col18) PARTITIONS 3;
 Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # table for trigger action
 CREATE TABLE trigger_table (i int) ENGINE = InnoDB;
@@ -824,6 +832,8 @@ col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 PARTITION BY HASH (col18) PARTITIONS 3;
 Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));

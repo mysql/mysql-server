@@ -43,7 +43,7 @@ let $query= select * from
              jpath_i int path '$.a'
                 default '33' on empty
                 default '66' on error,
-             jpath_r real(10,2) path '$.a'
+             jpath_r real path '$.a'
                 default '33.3' on empty
                 default '77.7' on error,
              jsn_path json path '$.a' default '{"x":33}' on empty,

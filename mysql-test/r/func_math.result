@@ -1135,6 +1135,9 @@ c5 BIGINT,
 c6 DECIMAL(7,5),
 c7 FLOAT(7,5),
 c8 DOUBLE(7,5));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (B'10101', 127, 8388607, 2147483647,
 9223372036854775807, 10.5, 11.5, 12.5);
 SELECT CRC32(c1) FROM t1;

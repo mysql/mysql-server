@@ -1081,6 +1081,8 @@ a
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
 PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
@@ -1650,13 +1652,21 @@ Field	Type	Null	Key	Default	Extra
 NULL	int(11)	YES		NULL	
 DROP TABLE t1, t2, t3, t4, t5, t6;
 CREATE TABLE t1 (f FLOAT(9,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 AS SELECT f FROM t1 UNION SELECT f FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW FIELDS FROM t2;
 Field	Type	Null	Key	Default	Extra
 f	float(9,6)	YES		NULL	
 DROP TABLE t1, t2;
 CREATE TABLE t1(d DOUBLE(9,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 AS SELECT d FROM t1 UNION SELECT d FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW FIELDS FROM t2;
 Field	Type	Null	Key	Default	Extra
 d	double(9,6)	YES		NULL	
