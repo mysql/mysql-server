@@ -91,6 +91,15 @@ class SortingIterator final : public RowIterator {
 
   std::vector<std::string> DebugString() const override;
 
+  /// Optional (when JOIN::destroy() runs, the iterator and its buffers
+  /// will be cleaned up anyway); used to clean up the buffers a little
+  /// bit earlier.
+  ///
+  /// When we get cached JOIN objects (prepare/optimize once) that can
+  /// live for a long time between queries, calling this will become more
+  /// important.
+  void CleanupAfterQuery();
+
  private:
   int DoSort(QEP_TAB *qep_tab);
   void ReleaseBuffers();
@@ -108,6 +117,9 @@ class SortingIterator final : public RowIterator {
   // e.g. whether the sort result fit into memory or not, whether we are
   // using packed addons, etc..
   unique_ptr_destroy_only<RowIterator> m_result_iterator;
+
+  // Holds the buffers for m_sort_result.
+  Filesort_info m_fs_info;
 
   Sort_result m_sort_result;
 

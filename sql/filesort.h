@@ -93,7 +93,8 @@ class Filesort {
 };
 
 bool filesort(THD *thd, Filesort *fsort, RowIterator *source_iterator,
-              Sort_result *sort_result, ha_rows *found_rows);
+              Filesort_info *fs_info, Sort_result *sort_result,
+              ha_rows *found_rows);
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr, uchar *to);
 

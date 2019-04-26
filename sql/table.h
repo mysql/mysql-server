@@ -54,7 +54,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_plist.h"
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_sort.h"  // Filesort_info
+#include "sql/sql_sort.h"  // Sort_result
 #include "table_id.h"      // Table_id
 #include "thr_lock.h"
 #include "typelib.h"
@@ -88,6 +88,7 @@ class Query_result_union;
 class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class Security_context;
+class SortingIterator;
 class String;
 class THD;
 class Table_cache_element;
@@ -1596,7 +1597,14 @@ struct TABLE {
      and BLOB field count > 0.
    */
   Blob_mem_storage *blob_storage{nullptr};
-  Filesort_info sort;
+
+  /**
+    Not owned by the TABLE; used only from filesort_free_buffers().
+    See comments on SortingIterator::CleanupAfterQuery().
+   */
+  SortingIterator *sorting_iterator{nullptr};
+  SortingIterator *duplicate_removal_iterator{nullptr};
+
   /**
     The result of applying a unique opertion (by row ID) to the table, if done.
     In particular, this is done in some forms of index merge.

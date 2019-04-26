@@ -1678,7 +1678,17 @@ bool JOIN::destroy() {
 
   if (qep_tab) {
     DBUG_ASSERT(!join_tab);
-    for (uint i = 0; i < tables; i++) qep_tab[i].cleanup();
+    for (uint i = 0; i < tables; i++) {
+      TABLE *table = qep_tab[i].table();
+      if (table != nullptr) {
+        // These were owned by the root iterator, which we just destroyed.
+        // Keep filesort_free_buffers() from trying to call CleanupAfterQuery()
+        // on them.
+        table->sorting_iterator = nullptr;
+        table->duplicate_removal_iterator = nullptr;
+      }
+      qep_tab[i].cleanup();
+    }
   }
   if (join_tab || best_ref) {
     for (uint i = 0; i < tables; i++) {

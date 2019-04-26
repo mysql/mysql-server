@@ -2244,6 +2244,8 @@ void JOIN::create_iterators() {
       qep_tab->iterator = NewIterator<SortingIterator>(
           qep_tab->join()->thd, qep_tab->filesort, move(iterator),
           &qep_tab->join()->examined_rows);
+      qep_tab->table()->sorting_iterator =
+          down_cast<SortingIterator *>(qep_tab->iterator.get());
     }
   }
 
@@ -2547,12 +2549,16 @@ void JOIN::create_iterators() {
             /*remove_duplicates=*/true, force_sort_positions);
         iterator = NewIterator<SortingIterator>(thd, dup_filesort,
                                                 move(iterator), &examined_rows);
+        qep_tab->table()->duplicate_removal_iterator =
+            down_cast<SortingIterator *>(iterator.get());
       }
     }
 
     if (filesort != nullptr) {
       iterator = NewIterator<SortingIterator>(thd, filesort, move(iterator),
                                               &examined_rows);
+      qep_tab->table()->sorting_iterator =
+          down_cast<SortingIterator *>(iterator.get());
     }
   }
 
@@ -4374,6 +4380,8 @@ void join_setup_iterator(QEP_TAB *tab) {
     tab->iterator = NewIterator<SortingIterator>(tab->join()->thd,
                                                  tab->filesort, move(iterator),
                                                  &tab->join()->examined_rows);
+    tab->table()->sorting_iterator =
+        down_cast<SortingIterator *>(tab->iterator.get());
   }
 }
 

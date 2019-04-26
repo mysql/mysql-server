@@ -94,6 +94,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/row_iterator.h"
 #include "sql/sort_param.h"
+#include "sql/sorting_iterator.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
 #include "sql/sql_bitmap.h"
@@ -347,12 +348,13 @@ static void trace_filesort_information(Opt_trace_context *trace,
   in sorted order. This should be done with the functions
   in records.cc.
 
-  The result set is stored in table->sort.io_cache or
-  table->sort.sorted_result, or left in the main filesort buffer.
+  The result set is stored in fs_info->io_cache or
+  fs_info->sorted_result, or left in the main filesort buffer.
 
   @param      thd            Current thread
   @param      filesort       How to sort the table
   @param      source_iterator Where to read the rows to be sorted from.
+  @param      fs_info        Owns the buffers for sort_result.
   @param      sort_result    Where to store the sort result.
   @param[out] found_rows     Store the number of found rows here.
                              This is the number of found rows after
@@ -366,7 +368,8 @@ static void trace_filesort_information(Opt_trace_context *trace,
 */
 
 bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
-              Sort_result *sort_result, ha_rows *found_rows) {
+              Filesort_info *fs_info, Sort_result *sort_result,
+              ha_rows *found_rows) {
   int error;
   ulong memory_available = thd->variables.sortbuff_size;
   ha_rows num_rows_found = HA_POS_ERROR;
@@ -424,7 +427,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
                            table, thd->variables.max_length_for_sort_data,
                            max_rows, filesort->m_remove_duplicates);
 
-  table->sort.addon_fields = param->addon_fields;
+  fs_info->addon_fields = param->addon_fields;
 
   /*
     TODO: Now that we read from RowIterators, the situation is a lot more
@@ -457,7 +460,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   // However, do note this cannot change the addon fields status,
   // so that we at least know that when checking whether we can skip
   // in-between temporary tables (StreamingIterator).
-  if (check_if_pq_applicable(trace, param, &table->sort, num_rows_estimate,
+  if (check_if_pq_applicable(trace, param, fs_info, num_rows_estimate,
                              memory_available)) {
     DBUG_PRINT("info", ("filesort PQ is applicable"));
     /*
@@ -466,19 +469,19 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
       all pointers here. (We cannot pack fields anyways, so there is no
       point in doing incremental allocation).
      */
-    if (table->sort.preallocate_records(param->max_rows_per_buffer)) {
+    if (fs_info->preallocate_records(param->max_rows_per_buffer)) {
       my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
       LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
       goto err;
     }
 
-    if (pq.init(param->max_rows, param, table->sort.get_sort_keys())) {
+    if (pq.init(param->max_rows, param, fs_info->get_sort_keys())) {
       /*
        If we fail to init pq, we have to give up:
        out of memory means my_malloc() will call my_error().
       */
       DBUG_PRINT("info", ("failed to allocate PQ"));
-      table->sort.free_sort_buffer();
+      fs_info->free_sort_buffer();
       DBUG_ASSERT(thd->is_error());
       goto err;
     }
@@ -506,7 +509,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
     param->max_rows_per_buffer =
         min(num_rows_estimate > 0 ? num_rows_estimate : 1, keys);
 
-    table->sort.set_max_size(memory_available, param->max_record_length());
+    fs_info->set_max_size(memory_available, param->max_record_length());
   }
 
   param->sort_form = table;
@@ -515,10 +518,9 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows_found =
-        read_all_rows(thd, param, qep_tab, &table->sort, &chunk_file, &tempfile,
-                      param->using_pq ? &pq : nullptr, source_iterator,
-                      found_rows, &longest_key);
+    num_rows_found = read_all_rows(thd, param, qep_tab, fs_info, &chunk_file,
+                                   &tempfile, param->using_pq ? &pq : nullptr,
+                                   source_iterator, found_rows, &longest_key);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
@@ -536,7 +538,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   {
     ha_rows rows_in_chunk =
         param->using_pq ? pq.num_elements() : num_rows_found;
-    if (save_index(param, rows_in_chunk, &table->sort, sort_result)) goto err;
+    if (save_index(param, rows_in_chunk, fs_info, sort_result)) goto err;
   } else {
     // If deduplicating, we'll need to remember the previous key somehow.
     if (filesort->m_remove_duplicates) {
@@ -545,12 +547,12 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
     }
 
     // We will need an extra buffer in SortFileIndirectIterator
-    if (table->sort.addon_fields != nullptr &&
-        !(table->sort.addon_fields->allocate_addon_buf(param->m_addon_length)))
+    if (fs_info->addon_fields != nullptr &&
+        !(fs_info->addon_fields->allocate_addon_buf(param->m_addon_length)))
       goto err; /* purecov: inspected */
 
-    table->sort.read_chunk_descriptors(&chunk_file, num_chunks);
-    if (table->sort.merge_chunks.is_null()) goto err; /* purecov: inspected */
+    fs_info->read_chunk_descriptors(&chunk_file, num_chunks);
+    if (fs_info->merge_chunks.is_null()) goto err; /* purecov: inspected */
 
     close_cached_file(&chunk_file);
 
@@ -562,15 +564,15 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
     if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0)) goto err;
 
     param->max_rows_per_buffer = static_cast<uint>(
-        table->sort.max_size_in_bytes() / param->max_record_length());
+        fs_info->max_size_in_bytes() / param->max_record_length());
 
-    Bounds_checked_array<uchar> merge_buf = table->sort.get_contiguous_buffer();
+    Bounds_checked_array<uchar> merge_buf = fs_info->get_contiguous_buffer();
     if (merge_buf.array() == nullptr) {
       my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
       LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
       goto err;
     }
-    if (merge_many_buff(thd, param, merge_buf, table->sort.merge_chunks,
+    if (merge_many_buff(thd, param, merge_buf, fs_info->merge_chunks,
                         &num_chunks, &tempfile))
       goto err;
     if (flush_io_cache(&tempfile) ||
@@ -578,7 +580,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
       goto err;
     if (merge_index(
             thd, param, merge_buf,
-            Merge_chunk_array(table->sort.merge_chunks.begin(), num_chunks),
+            Merge_chunk_array(fs_info->merge_chunks.begin(), num_chunks),
             &tempfile, outfile))
       goto err;
 
@@ -611,7 +613,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
         .add("num_rows_estimate", num_rows_estimate)
         .add("num_rows_found", num_rows_found)
         .add("num_initial_chunks_spilled_to_disk", num_initial_chunks)
-        .add("peak_memory_used", table->sort.peak_memory_used())
+        .add("peak_memory_used", fs_info->peak_memory_used())
         .add_alnum("sort_algorithm", algo_text[param->m_sort_algorithm]);
     if (!param->using_packed_addons())
       filesort_summary.add_alnum(
@@ -628,9 +630,9 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
 err:
   if (!subselect || !subselect->is_uncacheable()) {
-    if (!sort_result->sorted_result_in_fsbuf) table->sort.free_sort_buffer();
-    my_free(table->sort.merge_chunks.array());
-    table->sort.merge_chunks = Merge_chunk_array(NULL, 0);
+    if (!sort_result->sorted_result_in_fsbuf) fs_info->free_sort_buffer();
+    my_free(fs_info->merge_chunks.array());
+    fs_info->merge_chunks = Merge_chunk_array(NULL, 0);
   }
   close_cached_file(&tempfile);
   close_cached_file(&chunk_file);
@@ -689,10 +691,12 @@ void filesort_free_buffers(TABLE *table, bool full) {
   table->unique_result.sorted_result_in_fsbuf = false;
 
   if (full) {
-    table->sort.free_sort_buffer();
-    my_free(table->sort.merge_chunks.array());
-    table->sort.merge_chunks = Merge_chunk_array(NULL, 0);
-    table->sort.addon_fields = NULL;
+    if (table->sorting_iterator != nullptr) {
+      table->sorting_iterator->CleanupAfterQuery();
+    }
+    if (table->duplicate_removal_iterator != nullptr) {
+      table->duplicate_removal_iterator->CleanupAfterQuery();
+    }
   }
 }
 

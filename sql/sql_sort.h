@@ -131,6 +131,12 @@ typedef Bounds_checked_array<Merge_chunk> Merge_chunk_array;
   The result of Unique or filesort; can either be stored on disk
   (in which case io_cache points to the file) or in memory in one
   of two ways. See sorted_result_in_fsbuf.
+
+  Note if sort_result points into memory, it does _not_ own the sort buffer;
+  Filesort_info does.
+
+  TODO: Clean up so that Filesort / Filesort_info / Filesort_buffer /
+  Sort_result have less confusing overlap.
 */
 class Sort_result {
  public:
