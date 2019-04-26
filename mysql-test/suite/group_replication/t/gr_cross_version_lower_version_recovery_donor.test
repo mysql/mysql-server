@@ -103,7 +103,6 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 --source include/gr_wait_for_member_state.inc
 
 --let $assert_file= $error_file_master
---let $assert_only_after = CURRENT_TEST: gr_cross_version_lower_version_recovery_donor.test
 --let $assert_count = $test_case_recovery_retry_count
 --let $assert_select = No valid donors exist in the group, retrying
 --let $assert_text = No valid donor exist in the group.

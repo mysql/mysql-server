@@ -18,7 +18,7 @@ include/assert.inc ['INSTALL PLUGIN cleanup successful using clean_group_replica
 include/rpl_reconnect.inc
 
 # 3. Verify no ERROR is logged.
-include/assert_grep.inc [Found the expected error in group_replication_applier channel.]
+include/assert_grep.inc [Did not find the text Function 'group_replication' already exists]
 
 # 4. Uninstall and install Group Replication via commands (not inc) log error.
 include/uninstall_group_replication_plugin.inc
@@ -30,7 +30,7 @@ include/assert.inc ['INSTALL PLUGIN leaves entry in mysql.plugin table so cleanu
 include/rpl_reconnect.inc
 
 # 6. Verify ERROR is logged.
-include/assert_grep.inc [Found the expected error in group_replication_applier channel.]
+include/assert_grep.inc [Found the text Function 'group_replication' already exists]
 
 # 7. Cleanup.
 include/group_replication_end.inc
