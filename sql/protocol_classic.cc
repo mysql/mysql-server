@@ -3250,7 +3250,7 @@ bool Protocol_text::store(const char *from, size_t length,
                           const CHARSET_INFO *tocs) {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
+  DBUG_ASSERT(send_metadata || field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
@@ -3586,8 +3586,8 @@ bool Protocol_binary::store_tiny(longlong from, uint32 zerofill) {
   char buff[1];
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TINY ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_TINY);
 #endif
   field_pos++;
   buff[0] = (uchar)from;
@@ -3598,9 +3598,9 @@ bool Protocol_binary::store_short(longlong from, uint32 zerofill) {
   if (send_metadata) return Protocol_text::store_short(from, zerofill);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_YEAR ||
-              field_types[field_pos] == MYSQL_TYPE_SHORT ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_YEAR ||
+              field_types[field_pos] == MYSQL_TYPE_SHORT);
 #endif
   field_pos++;
   char *to = packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
@@ -3613,9 +3613,9 @@ bool Protocol_binary::store_long(longlong from, uint32 zerofill) {
   if (send_metadata) return Protocol_text::store_long(from, zerofill);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_INT24 ||
-              field_types[field_pos] == MYSQL_TYPE_LONG ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_INT24 ||
+              field_types[field_pos] == MYSQL_TYPE_LONG);
 #endif
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
@@ -3630,9 +3630,8 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
     return Protocol_text::store_longlong(from, unsigned_flag, zerofill);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_LONGLONG ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_LONGLONG);
 #endif
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
@@ -3645,9 +3644,8 @@ bool Protocol_binary::store_decimal(const my_decimal *d, uint prec, uint dec) {
   if (send_metadata) return Protocol_text::store_decimal(d, prec, dec);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   // store() will increment the field_pos counter
 #endif
   char buff[DECIMAL_MAX_STR_LENGTH + 1];
@@ -3662,8 +3660,8 @@ bool Protocol_binary::store(float from, uint32 decimals, uint32 zerofill,
     return Protocol_text::store(from, decimals, zerofill, buffer);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_FLOAT ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_FLOAT);
 #endif
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
@@ -3678,8 +3676,8 @@ bool Protocol_binary::store(double from, uint32 decimals, uint32 zerofill,
     return Protocol_text::store(from, decimals, zerofill, buffer);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_DOUBLE ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_DOUBLE);
 #endif
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
@@ -3693,9 +3691,9 @@ bool Protocol_binary::store(MYSQL_TIME *tm, uint precision) {
 
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_DATE ||
-              is_temporal_type_with_date_and_time(field_types[field_pos]) ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_DATE ||
+              is_temporal_type_with_date_and_time(field_types[field_pos]));
 #endif
   char buff[12], *pos;
   size_t length;
@@ -3725,8 +3723,8 @@ bool Protocol_binary::store_date(MYSQL_TIME *tm) {
   if (send_metadata) return Protocol_text::store_date(tm);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_DATE ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_DATE);
 #endif
   tm->hour = tm->minute = tm->second = 0;
   tm->second_part = 0;
@@ -3739,8 +3737,8 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision) {
   size_t length;
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TIME ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_TIME);
 #endif
   field_pos++;
   pos = buff + 1;
