@@ -335,6 +335,7 @@ Format_description_event(const char* buf, unsigned int event_len,
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
+  calc_server_version_split();
   ver_calc = get_product_version();
   if (ver_calc >= checksum_version_product) {
     /* the last bytes are the checksum alg desc and value (or value's room) */
@@ -347,7 +348,6 @@ Format_description_event(const char* buf, unsigned int event_len,
                          ubuf, (ubuf + number_of_event_types));
 
   ubuf += number_of_event_types;
-  calc_server_version_split();
   if (ver_calc >= checksum_version_product)
   {
     /*
