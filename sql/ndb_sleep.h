@@ -55,4 +55,10 @@ void ndb_retry_sleep(unsigned milli_sleep)
   ndb_milli_sleep(milli_sleep + 5*(rand()%(milli_sleep/5)));
 }
 
+/* perform random sleep while processing transaction */
+static inline
+void ndb_trans_retry_sleep() {
+  ndb_retry_sleep(30); // milliseconds
+}
+
 #endif

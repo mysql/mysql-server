@@ -227,8 +227,7 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
       trans= NULL;
     }
 
-    const unsigned retry_sleep= 50; /* 50 milliseconds, transaction */
-    ndb_retry_sleep(retry_sleep);
+    ndb_trans_retry_sleep();
   }
   return trans;
 

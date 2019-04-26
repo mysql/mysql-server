@@ -3523,7 +3523,6 @@ class Ndb_schema_event_handler {
     char tmp_buf[FN_REFLEN];
     NdbTransaction *trans= 0;
     int retries= 100;
-    const int retry_sleep = 30; /* milliseconds, transaction */
     std::string before_slock;
 
     // Bitmap for the slock bits
@@ -3629,7 +3628,7 @@ class Ndb_schema_event_handler {
         {
           if (trans)
             ndb->closeTransaction(trans);
-          ndb_retry_sleep(retry_sleep);
+          ndb_trans_retry_sleep();
           continue; // retry
         }
       }

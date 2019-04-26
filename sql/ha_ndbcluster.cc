@@ -5565,16 +5565,15 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     /* Table has hidden primary key. */
     Ndb *ndb= get_ndb(thd);
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
-    int retry_sleep= 30; /* 30 milliseconds, transaction */
     for (;;)
     {
       NDB_SHARE::Tuple_id_range_guard g(m_share);
       if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1000) == -1)
       {
-	if (--retries && !thd->killed &&
+        if (--retries && !thd_killed(thd) &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
-          ndb_retry_sleep(retry_sleep);
+          ndb_trans_retry_sleep();
 	  continue;
 	}
 	ERR_RETURN(ndb->getNdbError());
@@ -9908,16 +9907,15 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
       {
         ulonglong auto_value;
         uint retries= NDB_AUTO_INCREMENT_RETRIES;
-        int retry_sleep= 30; /* 30 milliseconds, transaction */
         for (;;)
         {
           NDB_SHARE::Tuple_id_range_guard g(m_share);
           if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
           {
-            if (--retries && !thd->killed &&
+            if (--retries && !thd_killed(thd) &&
                 ndb->getNdbError().status == NdbError::TemporaryError)
             {
-              ndb_retry_sleep(retry_sleep);
+              ndb_trans_retry_sleep();
               continue;
             }
             const NdbError err= ndb->getNdbError();
@@ -12489,8 +12487,7 @@ drop_table_impl(THD *thd, Ndb *ndb,
   NDBDICT *dict = ndb->getDictionary();
   int ndb_table_id = 0;
   int ndb_table_version = 0;
-  uint retries = NDB_AUTO_INCREMENT_RETRIES;
-  const int retry_sleep = 30;
+  uint retries = 100;
   ndb->setDatabaseName(db);
   while (true)
   {
@@ -12515,8 +12512,7 @@ drop_table_impl(THD *thd, Ndb *ndb,
     if (--retries && dict->getNdbError().status == NdbError::TemporaryError &&
         !thd_killed(thd))
     {
-      // Temporary error, retry
-      ndb_retry_sleep(retry_sleep);
+      ndb_trans_retry_sleep();
       continue;
     }
 
@@ -12720,7 +12716,6 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   Ndb *ndb= get_ndb(table->in_use);
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
   for (;;)
   {
     NDB_SHARE::Tuple_id_range_guard g(m_share);
@@ -12730,10 +12725,10 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                                    Uint32(m_autoincrement_prefetch), 
                                    increment, offset))
     {
-      if (--retries && !thd->killed &&
+      if (--retries && !thd_killed(thd) &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        ndb_retry_sleep(retry_sleep);
+        ndb_trans_retry_sleep();
         continue;
       }
       const NdbError err= ndb->getNdbError();
@@ -14740,7 +14735,6 @@ ndb_get_table_statistics(THD *thd,
   NdbError error;
   int retries= 100;
   int reterr= 0;
-  int retry_sleep= 30; /* 30 milliseconds */
   const char *dummyRowPtr;
   NdbOperation::GetValueSpec extraGets[7];
   Uint64 rows, fixed_mem, var_mem, ext_space, free_ext_space;
@@ -14903,9 +14897,9 @@ retry:
       pTrans= NULL;
     }
     if (error.status == NdbError::TemporaryError &&
-        retries-- && !thd->killed)
+        retries-- && !thd_killed(thd))
     {
-      ndb_retry_sleep(retry_sleep);
+      ndb_trans_retry_sleep();
       continue;
     }
     break;

@@ -224,7 +224,6 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
                                     Ndb_rep_tab_row& best_match)
 {
   uint retries= 100;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
   int best_match_quality= 0;
   NdbError ok;
   NdbError ndberror;
@@ -242,7 +241,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
       {
         if (retries--)
         {
-          ndb_retry_sleep(retry_sleep);
+          ndb_trans_retry_sleep();
           continue;
         }
       }
@@ -280,7 +279,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
       {
         if (retries--)
         {
-          ndb_retry_sleep(retry_sleep);
+          ndb_trans_retry_sleep();
           continue;
         }
       }
@@ -366,7 +365,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
         if (retries--)
         {
           ndb->closeTransaction(trans);
-          ndb_retry_sleep(retry_sleep);
+          ndb_trans_retry_sleep();
           continue;
         }
       }
