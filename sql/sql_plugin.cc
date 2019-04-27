@@ -3571,6 +3571,5 @@ bool Sql_cmd_install_plugin::execute(THD *thd) {
 bool Sql_cmd_uninstall_plugin::execute(THD *thd) {
   bool st = mysql_uninstall_plugin(thd, &m_comment);
   if (!st) my_ok(thd);
-  mysql_audit_release(thd);
   return st;
 }
