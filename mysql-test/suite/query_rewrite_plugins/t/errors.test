@@ -47,6 +47,7 @@ SELECT search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" );
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+--source include/disconnect_connections.inc
 
 --echo # Create another table with insufficient number of columns.
 CREATE DATABASE query_rewrite;
@@ -65,6 +66,7 @@ SHOW STATUS LIKE 'Rewriter_reload_error';
 SHOW STATUS LIKE 'Rewriter_number_loaded_rules';
 
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+--source include/disconnect_connections.inc
 
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
 
@@ -267,6 +269,8 @@ WHERE NAME = 'statements_digest';
 --echo # script. The library will not be unloaded so we can still call the UDF
 --echo # but it should return an error.
 UNINSTALL PLUGIN rewriter;
+--source include/disconnect_connections.inc
+
 --error ER_CANT_INITIALIZE_UDF
 CALL query_rewrite.flush_rewrite_rules();
 --error ER_CANT_INITIALIZE_UDF

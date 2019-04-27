@@ -4448,8 +4448,5 @@ bool Sql_cmd_uninstall_plugin::execute(THD *thd)
   bool st= mysql_uninstall_plugin(thd, &m_comment);
   if (!st)
     my_ok(thd);
-#ifndef EMBEDDED_LIBRARY
-  mysql_audit_release(thd);
-#endif
   return st;
 }
