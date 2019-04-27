@@ -22530,7 +22530,7 @@ void innobase_rename_vc_templ(dict_table_t *table) {
 given col_no.
 @param[in]	foreign		foreign key information
 @param[in]	update		updated parent vector.
-@param[in]	col_no		column position of the table
+@param[in]	col_no		base column position of the child table to check
 @return updated field from the parent update vector, else NULL */
 static dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
                                                        upd_t *update,
@@ -22539,16 +22539,18 @@ static dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
   dict_index_t *parent_index = foreign->referenced_index;
   ulint parent_field_no;
   ulint parent_col_no;
+  ulint child_col_no;
 
   for (ulint i = 0; i < foreign->n_fields; i++) {
+    child_col_no = foreign->foreign_index->get_col_no(i);
+    if (child_col_no != col_no) {
+      continue;
+    }
     parent_col_no = parent_index->get_col_no(i);
     parent_field_no = dict_table_get_nth_col_pos(parent_table, parent_col_no);
-
     for (ulint j = 0; j < update->n_fields; j++) {
       upd_field_t *parent_ufield = &update->fields[j];
-
-      if (parent_ufield->field_no == parent_field_no &&
-          parent_col_no == col_no) {
+      if (parent_ufield->field_no == parent_field_no) {
         return (&parent_ufield->new_val);
       }
     }
