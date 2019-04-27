@@ -5,17 +5,15 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 ############################################################
-# Create a table on server1.
+# 1. Create a table on server1.
 [connection server1]
-CREATE TABLE t1 (c1 INT PRIMARY KEY);
-CREATE TABLE t2 (c2 INT PRIMARY KEY, FOREIGN KEY (c2) REFERENCES t1(c1));
+CREATE TABLE t1 (c1 INT UNIQUE KEY NOT NULL);
+CREATE TABLE t2 (c2 INT UNIQUE KEY NOT NULL, FOREIGN KEY (c2) REFERENCES t1(c1));
 INSERT INTO t1 VALUES(1);
 include/rpl_sync.inc
 
 ############################################################
-# Checking the negative case in which there is a conflict.
-############################################################
-
+# 2. Checking the negative case in which there is a conflict.
 
 ############################################################
 # 0. Initial setup and checks.
@@ -94,9 +92,7 @@ SET SESSION sql_log_bin= 1;
 [connection server1]
 
 ############################################################
-# Checking the positive case in which there is no conflict.
-############################################################
-
+# 3. Checking the positive case in which there is no conflict.
 INSERT INTO t1 VALUES (5);
 
 ############################################################
@@ -175,7 +171,7 @@ SET SESSION sql_log_bin= 1;
 [connection server1]
 
 ############################################################
-# Check the data sanity
+# 4. Check the data sanity.
 [connection server1]
 include/assert.inc [Table t2 will contain row after the above execution]
 include/assert.inc [Table t1 will contain row after the above execution]
@@ -184,7 +180,7 @@ include/assert.inc [Table t2 will contain 1 rows after the above execution]
 include/assert.inc [Table t1 will contain 2 rows after the above execution]
 
 ############################################################
-# Clean up.
+# 5. Clean up.
 DROP TABLE t2;
 DROP TABLE t1;
 include/group_replication_end.inc
