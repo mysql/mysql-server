@@ -4,17 +4,13 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 
-############################################################
-# Create a table on server1.
+# 1. With both members ONLINE. Create a table on M1.
+
 [connection server1]
-CREATE TABLE t1 (c1 INT PRIMARY KEY);
-CREATE TABLE t2 (c2 INT PRIMARY KEY, FOREIGN KEY (c2) REFERENCES t1(c1));
-INSERT INTO t1 VALUES(1);
+CREATE TABLE t1 (c1 INT UNIQUE KEY NOT NULL);
 include/rpl_sync.inc
 
-############################################################
-# Checking the negative case in which there is a conflict.
-############################################################
+# 2. Checking the negative case in which there is a conflict.
 
 
 ############################################################
@@ -35,7 +31,7 @@ SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 #####################################################################
 # 2. Commit local_transaction that will be blocked before broadcast.
 BEGIN;
-INSERT INTO t2 VALUES (1);
+INSERT INTO t1 VALUES (1);;
 COMMIT;
 
 ############################################################
@@ -49,7 +45,7 @@ COMMIT;
 #    is blocked before broadcast.
 [connection server2]
 BEGIN;
-UPDATE t1 SET c1=2 WHERE c1=1;
+INSERT INTO t1 VALUES (1);;
 COMMIT;
 
 ############################################################
@@ -80,7 +76,7 @@ include/rpl_sync.inc
 ############################################################
 # 9. Assert that number of certified transactions are the
 #    expected ones.
-include/assert.inc [The value of Count_Transactions_Checked should be 5 after starting group replication]
+include/assert.inc [The value of Count_Transactions_Checked should be 3 after starting group replication]
 include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
 ############################################################
 # 10. Assert that GTID is increased as expected
@@ -93,11 +89,8 @@ SET SESSION sql_log_bin= 1;
 # 11. Cleanup (restore the connection back to original)
 [connection server1]
 
-############################################################
-# Checking the positive case in which there is no conflict.
-############################################################
+# 3. Checking the positive case in which there is no conflict.
 
-INSERT INTO t1 VALUES (5);
 
 ############################################################
 # 0. Initial setup and checks.
@@ -117,7 +110,7 @@ SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 #####################################################################
 # 2. Commit local_transaction that will be blocked before broadcast.
 BEGIN;
-INSERT INTO t2 VALUES (5);
+INSERT INTO t1 VALUES (2);;
 COMMIT;
 
 ############################################################
@@ -131,7 +124,7 @@ COMMIT;
 #    is blocked before broadcast.
 [connection server2]
 BEGIN;
-UPDATE t1 SET c1=6 WHERE c1=2;
+INSERT INTO t1 VALUES (3);;
 COMMIT;
 
 ############################################################
@@ -161,7 +154,7 @@ include/rpl_sync.inc
 ############################################################
 # 9. Assert that number of certified transactions are the
 #    expected ones.
-include/assert.inc [The value of Count_Transactions_Checked should be 8 after starting group replication]
+include/assert.inc [The value of Count_Transactions_Checked should be 5 after starting group replication]
 include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
 ############################################################
 # 10. Assert that GTID is increased as expected
@@ -174,17 +167,25 @@ SET SESSION sql_log_bin= 1;
 # 11. Cleanup (restore the connection back to original)
 [connection server1]
 
-############################################################
-# Check the data sanity
-[connection server1]
-include/assert.inc [Table t2 will contain row after the above execution]
-include/assert.inc [Table t1 will contain row after the above execution]
-include/assert.inc [Table t1 will contain row after the above execution]
-include/assert.inc [Table t2 will contain 1 rows after the above execution]
-include/assert.inc [Table t1 will contain 2 rows after the above execution]
+# 4. Assert table consistency.
 
-############################################################
-# Clean up.
-DROP TABLE t2;
+[connection server1]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain 3 rows after the above execution]
+
+# 5. Primary key equivalent i.e. Unique key must be NOT NULL
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Table t1_null does not have any PRIMARY KEY. This is not compatible with Group Replication.");
+set session sql_log_bin=1;
+CREATE TABLE t1_null (c1 INT UNIQUE KEY);
+INSERT INTO t1_null values (5);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+
+# 6. Clean up.
+
 DROP TABLE t1;
+DROP TABLE t1_null;
 include/group_replication_end.inc
