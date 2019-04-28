@@ -563,3 +563,10 @@ SELECT (@x:=a) FROM t1;
 SELECT * FROM t1 WHERE a = (SELECT (@x:=_utf16 0x1023) FROM t1) OR b = @x;
 DROP TABLE t1;
 --enable_ps_protocol
+
+--echo #
+--echo # Bug#29665165: REGRESSION: SOUNDS LIKE CRASHING TO ME
+--echo #
+SET @c := FROM_UNIXTIME(1537002029);
+--error ER_INVALID_CHARACTER_STRING
+DO ((@c := (_utf32' -'))) SOUNDS LIKE(@c);

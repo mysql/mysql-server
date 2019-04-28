@@ -5932,7 +5932,7 @@ type_conversion_status Item_func_set_user_var::save_in_field(
 String *Item_func_get_user_var::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   DBUG_TRACE;
-  if (!var_entry) return (String *)0;  // No such variable
+  if (!var_entry) return error_str();  // No such variable
   String *res = var_entry->val_str(&null_value, str, decimals);
   if (res && !my_charset_same(res->charset(), collation.collation)) {
     String tmpstr;
@@ -5945,9 +5945,9 @@ String *Item_func_get_user_var::val_str(String *str) {
                            res->charset(), 6);
       my_error(ER_INVALID_CHARACTER_STRING, MYF(0), collation.collation->csname,
                tmp);
-      return nullptr;
+      return error_str();
     }
-    if (str->copy(tmpstr)) return nullptr;
+    if (str->copy(tmpstr)) return error_str();
     return str;
   }
   return res;

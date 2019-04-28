@@ -858,3 +858,9 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 SELECT * FROM t1 WHERE a = (SELECT (@x:=_utf16 0x1023) FROM t1) OR b = @x;
 ERROR HY000: Invalid latin1 character string: '\x10\x23'
 DROP TABLE t1;
+#
+# Bug#29665165: REGRESSION: SOUNDS LIKE CRASHING TO ME
+#
+SET @c := FROM_UNIXTIME(1537002029);
+DO ((@c := (_utf32' -'))) SOUNDS LIKE(@c);
+ERROR HY000: Invalid latin1 character string: '\x00\x00\x20\x2D'
