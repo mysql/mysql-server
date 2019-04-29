@@ -50,6 +50,8 @@ drop table t;
 
 SET DEBUG_SYNC = reset;
 
+# The following testcase has never worked properly
+--disable_testcase BUG#29702764
 --echo #
 --echo # Bug #28510599 THE MYSQL.IBD FILE SIZE IS CONSTANTLY GROWING.
 --echo #
@@ -120,3 +122,4 @@ if (`SELECT (@fs <= @fs_limit) > 0`)
    --echo The test/t1.ibd file size is not growing.
 }
 DROP TABLE t1;
+--enable_testcase
