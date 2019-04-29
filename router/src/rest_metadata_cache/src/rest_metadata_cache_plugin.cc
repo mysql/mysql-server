@@ -823,6 +823,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   // have a callback to use
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
 
+  rest_api_srv.remove_path(RestMetadataCacheStatus::path_regex);
   rest_api_srv.remove_path(RestMetadataCacheConfig::path_regex);
   rest_api_srv.remove_path(RestMetadataCacheList::path_regex);
   //  rest_api_srv.remove_path(RestClustersList::path_regex);
