@@ -174,8 +174,17 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 # MDL on the column statistics object, 'con2' will continue and do its work.
 SET DEBUG_SYNC='now SIGNAL continue_store_histogram';
 
+--connection con1
+--reap
 --disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--reap
 --disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
 DROP TABLE t1;
 
 --echo #
