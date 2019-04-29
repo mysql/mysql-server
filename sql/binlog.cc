@@ -3000,6 +3000,18 @@ stmt_has_updated_trans_table(Ha_trx_info* ha_list)
   return (FALSE);
 }
 
+bool
+trans_has_noop_dml(Ha_trx_info* ha_list)
+{
+  const Ha_trx_info *ha_info;
+  for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_noop_read_write())
+      return (TRUE);
+  }
+  return (FALSE);
+}
+
 /**
   This function checks if a transaction, either a multi-statement
   or a single statement transaction is about to commit or not.
