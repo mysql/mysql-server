@@ -11,6 +11,8 @@ set @@session.sql_mode=pipes_as_concat;
 insert into t1 values('My'||'SQL', 1);
 set @@session.sql_mode=default;
 insert into t1 values('1'||'2', 2);
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 select * from t1 where b<3 order by a;
 a	b
 1	2

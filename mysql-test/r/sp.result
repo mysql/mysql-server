@@ -2212,6 +2212,8 @@ set @@sql_mode = ''$
 drop function if exists bug2564_3$
 create function bug2564_3(x int, y int) returns int
 return x || y$
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 set @@sql_mode = 'ANSI'$
 drop function if exists bug2564_4$
 create function bug2564_4(x int, y int) returns int

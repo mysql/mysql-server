@@ -9524,6 +9524,9 @@ or:
 and:
           AND_SYM
        | AND_AND_SYM
+         {
+           push_deprecated_warn(YYTHD, "&&", "AND");
+         }
        ;
 
 not:
@@ -9532,7 +9535,7 @@ not:
         ;
 
 not2:
-          '!'
+          '!' { push_deprecated_warn(YYTHD, "!", "NOT"); }
         | NOT2_SYM
         ;
 

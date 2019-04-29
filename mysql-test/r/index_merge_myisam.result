@@ -708,6 +708,8 @@ SELECT b,a from t1 WHERE (b!='c' AND b!='f' && b!='h') OR
 b	a
 	y
 	z
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 DROP TABLE t1;
 #
 # BUG#40974: Incorrect query results when using clause

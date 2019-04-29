@@ -90,6 +90,8 @@ insert into t1 set a = now();
 select a=b && a=c from t1;
 a=b && a=c
 1
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 SELECT routine_name, definer
 FROM information_schema.routines
 WHERE routine_name = 'bug12480';
@@ -116,6 +118,8 @@ t1_first	root@localhost
 select a=b && a=c from t1;
 a=b && a=c
 1
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 test
 1
 truncate table t1;
@@ -126,6 +130,8 @@ a=b && a=c
 1
 1
 1
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 drop function bug12480;
 drop table t1;
 create table t1 (i int);

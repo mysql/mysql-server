@@ -735,6 +735,8 @@ ERROR HY000: The regular expression pattern exceeds limits on size or complexity
 DO ( (@b) regexp (cot (unhex ( 1 )) ) );
 ERROR 22003: DOUBLE value is out of range in 'cot(unhex(1))'
 DO ( (@c) rlike (cot ( (!( @f )) )) );
+Warnings:
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 DO ( ('') rlike (cot ( ' %' )) );
 ERROR 22003: DOUBLE value is out of range in 'cot(' %')'
 DO ( (-28277) regexp (period_add ( -10966, 1381205734 )) );

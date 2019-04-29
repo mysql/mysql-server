@@ -15632,6 +15632,8 @@ END//
 CALL sp2( 'insert' );
 SELECT * from t3 where f3 <=5 && f3 >= 0;
 f1	f2	f3
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warnings:
 f1	address	1
 f1	address	1
 f1	address	1

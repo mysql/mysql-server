@@ -433,7 +433,11 @@ execute stmt4;
 select '2' || '3' ;
 '2' || '3'
 1
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 prepare stmt5 from ' select ''2'' || ''3'' ' ;
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 execute stmt5;
 '2' || '3'
 1
