@@ -39,6 +39,9 @@ KEY (ulong),
 KEY (ulonglong,ulong),
 KEY (options,flags)
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 set @now = now();
 insert into t1 
 (string,vstring,bin,vbin,tiny,short,medium,long_int,longlong,

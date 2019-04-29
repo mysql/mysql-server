@@ -368,6 +368,9 @@ date_time datetime,
 time_stamp timestamp,
 PRIMARY KEY (auto)
 ) engine=ndb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 ndb_show_tables completed.....
 

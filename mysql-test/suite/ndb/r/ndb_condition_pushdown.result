@@ -28,6 +28,9 @@ time_stamp timestamp,
 PRIMARY KEY (auto)
 ) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values 
 (NULL,"aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
 b'001','one','one',
