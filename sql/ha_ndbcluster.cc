@@ -11470,6 +11470,9 @@ int ha_ndbcluster::create(const char *name,
                                  0,                 // drop_flags
                                  false);            // skip_related
     NDB_SHARE::release_reference(share, "create");  // temporary ref.
+    mysql_mutex_lock(&ndbcluster_mutex);
+    NDB_SHARE::mark_share_dropped(&share);
+    mysql_mutex_unlock(&ndbcluster_mutex);
     DBUG_RETURN(create.failed_warning_already_pushed());
   }
 
