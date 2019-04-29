@@ -1,0 +1,101 @@
+# ==== Purpose ====
+#
+# Verify that in statement based replication, no operation update query
+# should not be logged into binlog if the read_only mode is ON.
+#
+# ==== Implementation ====
+#
+# 1. Create a table 't' and insert a row in it.
+# 2. Begin a transaction and execute noop UPDATE query on table 't'.
+# 3. Start another connection and set super_read_only mode to ON.
+# 4. Commit the transaction started in step #2.
+# 5. Clean up.
+#
+# ==== References ====
+#
+# Bug #29009092  NOOP UPDATE QUERY IS LOGGED TO BINLOG AFTER READ_ONLY FLAG IS SET
+
+--source include/have_binlog_format_statement.inc
+SET @saved_value_super= @@GLOBAL.SUPER_READ_ONLY;
+SET @saved_value= @@GLOBAL.read_only;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+
+# Test-1: Execute only noop UPDATE in the transaction
+connect (con1,localhost,root,,test);
+BEGIN;
+UPDATE t1 SET a = 1 where a =1;
+
+connection default;
+SET GLOBAL SUPER_READ_ONLY=1;
+
+connection con1;
+--error ER_OPTION_PREVENTS_STATEMENT
+COMMIT;
+
+connection default;
+SET GLOBAL SUPER_READ_ONLY=0;
+
+# Test-2: Execute a noop UPDATE and a temporary table INSERT in the transaction
+connection con1;
+CREATE TEMPORARY TABLE t2 (a INT) ENGINE=INNODB;
+
+BEGIN;
+UPDATE t1 SET a = 1 where a = 1;
+INSERT INTO t2 values(10);
+
+connection default;
+SET GLOBAL SUPER_READ_ONLY=1;
+
+connection con1;
+--error ER_OPTION_PREVENTS_STATEMENT
+COMMIT;
+DROP TABLE t2;
+
+connection default;
+SET GLOBAL SUPER_READ_ONLY=0;
+SET GLOBAL READ_ONLY=0;
+
+# READ_ONLY does nothing to SUPER users so we setup a non-SUPER user.
+CREATE USER test@localhost;
+GRANT CREATE TEMPORARY TABLES, UPDATE, DROP ON *.* TO test@localhost;
+connect (con2,localhost,test,,test);
+
+# Test-3: A non-SUPER user execute only noop UPDATE in the transaction.
+connection con2;
+BEGIN;
+UPDATE t1 SET a = 1 where a =1;
+
+connection default;
+SET GLOBAL READ_ONLY=1;
+
+connection con2;
+--error ER_OPTION_PREVENTS_STATEMENT
+COMMIT;
+
+connection default;
+SET GLOBAL READ_ONLY=0;
+
+# Test-4: A non-SUPER user execute a noop UPDATE and a temporary table
+# INSERT in the transaction
+connection con2;
+CREATE TEMPORARY TABLE t2 (a INT) ENGINE=INNODB;
+
+BEGIN;
+UPDATE t1 SET a = 1 where a = 1;
+INSERT INTO t2 values(10);
+
+connection default;
+SET GLOBAL READ_ONLY=1;
+
+connection con2;
+--error ER_OPTION_PREVENTS_STATEMENT
+COMMIT;
+DROP TABLE t2;
+
+# Clean up
+connection default;
+DROP USER test@localhost;
+SET GLOBAL SUPER_READ_ONLY= @saved_value_super;
+SET GLOBAL read_only= @saved_value;
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,25 @@ public:
     return m_flags & (int) TRX_READ_WRITE;
   }
 
+  /**
+    Set the transaction flag to noop_read_write
+    If the transaction has no operation dml statement.
+  */
+  void set_trx_noop_read_write()
+  {
+    DBUG_ASSERT(is_started());
+    m_flags|= (int) TRX_NOOP_READ_WRITE;
+  }
+
+  /**
+    Check if the stmt transaction has noop_read_write flag set.
+  */
+  bool is_trx_noop_read_write() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_flags & (int) TRX_NOOP_READ_WRITE;
+  }
+
   bool is_started() const
   {
     return m_ht != NULL;
@@ -131,6 +150,8 @@ public:
     DBUG_ASSERT(is_started());
     if (stmt_trx->is_trx_read_write())
       set_trx_read_write();
+    if (stmt_trx->is_trx_noop_read_write())
+      set_trx_noop_read_write();
   }
 
   Ha_trx_info *next() const
@@ -146,7 +167,7 @@ public:
   }
 
 private:
-  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
+  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1, TRX_NOOP_READ_WRITE= 2 };
   /**
     Auxiliary, used for ha_list management
   */

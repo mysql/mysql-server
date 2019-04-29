@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -902,6 +902,18 @@ bool mysql_update(THD *thd,
             if (thd->is_error())
               break;
           }
+        }
+        else
+        {
+          /*
+             Some no operation dml statements do not go through SE.
+             In read_only mode, if a no operation dml is not marked as
+             read_write then binlogging cant be restricted for that statement.
+             To make binlogging be consistent in read_only mode,
+             if the no operation dml statement doesn't go through SE then mark
+             that statement as noop_read_write here.
+          */
+          table->file->mark_trx_noop_dml();
         }
 
         if (!error && table->triggers &&
