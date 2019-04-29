@@ -28,6 +28,7 @@
 
 #include <openssl/dh.h>
 #include <openssl/opensslv.h>
+#include <openssl/x509v3.h>
 
 #include <wolfssl_fix_namespace_pollution.h>
 
@@ -621,12 +622,15 @@ void xcom_destroy_ssl() {
 
 int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
   X509 *server_cert = NULL;
-  char *cn = NULL;
+  int ret_validation = 1;
+
+#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL))
   int cn_loc = -1;
+  char *cn = NULL;
   ASN1_STRING *cn_asn1 = NULL;
   X509_NAME_ENTRY *cn_entry = NULL;
   X509_NAME *subject = NULL;
-  int ret_validation = 1;
+#endif
 
   G_DEBUG("Verifying server certificate and expected host name: %s",
           server_hostname);
@@ -653,16 +657,27 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
     are what we expect.
   */
 
-  /*
-   Some notes for future development
-   We should check host name in alternative name first and then if needed check
-   in common name.
-   Currently yssl doesn't support alternative name.
-   openssl 1.0.2 support X509_check_host method for host name validation, we may
-   need to start using
-   X509_check_host in the future.
+  /* Use OpenSSL certificate matching functions instead of our own if we
+     have OpenSSL. The X509_check_* functions return 1 on success.
   */
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
+  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
+                       0) != 1) &&
+      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
+    G_ERROR(
+        "Failed to verify the server certificate via X509 certificate "
+        "matching functions");
+    goto error;
 
+  } else {
+    /* Success */
+    ret_validation = 0;
+  }
+#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+  /*
+     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
+     Use deprecated X509_get_subject_name() instead.
+  */
   subject = X509_get_subject_name((X509 *)server_cert);
   /* Find the CN location in the subject */
   cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
@@ -687,11 +702,7 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
     goto error;
   }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
   cn = (char *)ASN1_STRING_data(cn_asn1);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  cn = (char *)ASN1_STRING_get0_data(cn_asn1);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   /* There should not be any NULL embedded in the CN */
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
@@ -710,6 +721,7 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
         "server certificate",
         cn, server_hostname);
   }
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
 error:
   if (server_cert) X509_free(server_cert);
