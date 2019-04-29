@@ -395,6 +395,9 @@ static ib_mutex_t redo_log_archive_admin_mutex;
            under the redo_log_archive_admin_mutex only.
 */
 
+/** Boolean indicating whether the redo log archiving is active. */
+static bool redo_log_archive_active{false};
+
 /** Session */
 static innodb_session_t *redo_log_archive_session{};
 static THD *redo_log_archive_thd{};
@@ -442,11 +445,6 @@ static void redo_log_archive_consumer();
 static bool terminate_consumer(bool rapid);
 static void unregister_udfs();
 static bool register_udfs();
-
-/** Checks whether the redo log archiving is active. */
-static bool redo_log_archive_is_active() {
-  return srv_thread_is_active(srv_threads.m_backup_log_archiver);
-}
 
 /**
   Register a privilege.
@@ -500,6 +498,7 @@ void redo_log_archive_init() {
   mutex_create(LATCH_ID_REDO_LOG_ARCHIVE_ADMIN_MUTEX,
                &redo_log_archive_admin_mutex);
   mutex_enter(&redo_log_archive_admin_mutex);
+  redo_log_archive_active = false;
   redo_log_archive_session = nullptr;
   redo_log_archive_thd = nullptr;
   redo_log_archive_session_ending = false;
@@ -584,7 +583,7 @@ void redo_log_archive_deinit() {
     /* Unregister the UDFs. */
     unregister_udfs();
     mutex_enter(&redo_log_archive_admin_mutex);
-    if (redo_log_archive_is_active()) {
+    if (redo_log_archive_active) {
       /* purecov: begin inspected */ /* Only needed at shutdown. */
       terminate_consumer(/*rapid*/ true);
       /* purecov: end */
@@ -595,6 +594,7 @@ void redo_log_archive_deinit() {
     redo_log_archive_session_ending = false;
     redo_log_archive_thd = nullptr;
     redo_log_archive_session = nullptr;
+    redo_log_archive_active = false;
     redo_log_archive_queue.drop();
     mutex_exit(&redo_log_archive_admin_mutex);
     mutex_free(&redo_log_archive_admin_mutex);
@@ -1116,6 +1116,8 @@ static bool terminate_consumer(bool rapid) {
     DBUG_RETURN(true);
     /* purecov: end */
   }
+
+  srv_threads.m_backup_log_archiver.join();
   DBUG_RETURN(false);
 }
 
@@ -1141,7 +1143,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     because other error reports in checking the parameters might be
     confusing, if archiving is active already.
   */
-  if (redo_log_archive_is_active()) {
+  if (redo_log_archive_active) {
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_ACTIVE, MYF(0),
              redo_log_archive_file_pathname.c_str());
     mutex_exit(&redo_log_archive_admin_mutex);
@@ -1238,13 +1240,15 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   redo_log_archive_session_ending = false;
   redo_log_archive_thd = thd;
   redo_log_archive_session = session;
+  redo_log_archive_active = true;
+
+  srv_threads.m_backup_log_archiver = os_thread_create(
+      redo_log_archive_consumer_thread_key, redo_log_archive_consumer);
+
   mutex_exit(&redo_log_archive_admin_mutex);
 
   /* Create the consumer thread. */
   DBUG_PRINT("redo_log_archive", ("Creating consumer thread"));
-
-  srv_threads.m_backup_log_archiver = os_thread_create(
-      redo_log_archive_consumer_thread_key, redo_log_archive_consumer);
 
   srv_threads.m_backup_log_archiver.start();
 
@@ -1280,6 +1284,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     redo_log_archive_session_ending = false;
     redo_log_archive_thd = nullptr;
     redo_log_archive_session = nullptr;
+    redo_log_archive_active = false;
     redo_log_archive_queue.deinit();
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_START_TIMEOUT, MYF(0));
     mutex_exit(&redo_log_archive_admin_mutex);
@@ -1325,7 +1330,7 @@ static bool redo_log_archive_stop(THD *thd) {
     If redo log archiving is inactive, the stop request fails.
     If there was an error recorded, return it.
   */
-  if (!redo_log_archive_is_active()) {
+  if (!redo_log_archive_active) {
     DBUG_PRINT("redo_log_archive", ("Not active"));
     if (!redo_log_archive_recorded_error.empty()) {
       DBUG_PRINT("redo_log_archive", ("Recorded error '%s'",
@@ -1400,6 +1405,7 @@ static bool redo_log_archive_stop(THD *thd) {
   /* Keep recorded_error */
   redo_log_archive_thd = nullptr;
   redo_log_archive_session = nullptr;
+  redo_log_archive_active = false;
 
   DBUG_PRINT("redo_log_archive", ("Redo log archiving stopped"));
 
@@ -1436,7 +1442,7 @@ void redo_log_archive_session_end(innodb_session_t *session) {
 
   /* Synchronize with with other threads while using global objects. */
   mutex_enter(&redo_log_archive_admin_mutex);
-  if (redo_log_archive_is_active()) {
+  if (redo_log_archive_active) {
     if (redo_log_archive_session == session) {
       DBUG_PRINT("redo_log_archive",
                  ("Redo log archiving is active by this session. Stopping."));
@@ -1597,8 +1603,7 @@ static void redo_log_archive_consumer() {
       /*
         Write the dequeued block only if redo log archiving is in a good state.
       */
-      if (redo_log_archive_is_active() &&
-          redo_log_archive_recorded_error.empty() &&
+      if (redo_log_archive_active && redo_log_archive_recorded_error.empty() &&
           !redo_log_archive_file_pathname.empty() &&
           (redo_log_archive_file_handle.m_file != OS_FILE_CLOSED)) {
         dberr_t err = os_file_write(
