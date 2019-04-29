@@ -2908,6 +2908,11 @@ class Item_sp_variable : public Item {
 
  public:
   inline void make_field(Send_field *field) override;
+  bool send(Protocol *protocol, String *str) override {
+    // Need to override send() in case this_item() is an Item_field with a
+    // ZEROFILL attribute.
+    return this_item()->send(protocol, str);
+  }
 
  protected:
   inline type_conversion_status save_in_field_inner(
