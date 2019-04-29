@@ -530,6 +530,8 @@ ERROR HY000: Expression of generated column 'c' cannot refer to a row value.
 # Bug#21929967 GCOLS: GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
 #
 CREATE TABLE t1(a CHAR(1), b CHAR(1), c CHAR(2) AS (a || b));
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

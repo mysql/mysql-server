@@ -187,6 +187,8 @@ if !(select i from v1 where i=1) then
 signal sqlstate '45000';
 end if;
 end|
+Warnings:
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 create trigger t5_bi before insert on t5 for each row
 begin
 set new.l= f1()+1;

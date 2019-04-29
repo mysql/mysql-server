@@ -32,6 +32,8 @@ a	b	c	d
 handler t1 read a > (2) where b=-3 && c=-3;
 a	b	c	d
 3	-3	-3	d
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 # HANDLER tbl_name READ gcol_index_name <= (value1,value2,...)
 handler t1 read c <= (-2);
 a	b	c	d

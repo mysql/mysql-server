@@ -1955,11 +1955,15 @@ ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) AND (c2 < 20) );
 INSERT INTO t1 VALUES(1,10);
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) && (c2 < 20) );
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 INSERT INTO t1 VALUES(15,25);
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 ALTER TABLE t1 DROP CHECK `t1_chk_1`;
 ALTER TABLE t1 DROP CHECK `t1_chk_2`;
 ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) || (c2 < 20) );
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) OR (c2 < 20) );
 INSERT INTO t1 VALUES(15,25);
 INSERT INTO t1 VALUES(5,10);

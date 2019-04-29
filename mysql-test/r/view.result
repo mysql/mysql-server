@@ -3131,12 +3131,16 @@ i	j
 DROP VIEW v1, v2;
 DROP TABLE t1;
 CREATE VIEW v AS SELECT !0 * 5 AS x FROM DUAL;
+Warnings:
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
 v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select ((0 = 0) * 5) AS `x`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT !0 * 5 AS x FROM DUAL;
 x
 5
+Warnings:
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 SELECT * FROM v;
 x
 5

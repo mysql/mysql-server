@@ -22,3 +22,24 @@ show table types;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'types' at line 1
 show mutex status;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'mutex status' at line 1
+# WL#13070 Deprecate && as synonym for AND and || as synonym for OR in SQL statements
+set sql_mode=pipes_as_concat;
+select 2 || 3;
+2 || 3
+23
+select 2 or 3;
+2 or 3
+1
+select concat(2,3);
+concat(2,3)
+23
+set sql_mode='';
+select 2 || 3;
+2 || 3
+1
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
+select 2 or 3;
+2 or 3
+1
+set sql_mode=default;

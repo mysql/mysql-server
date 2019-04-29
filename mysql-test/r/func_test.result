@@ -29,6 +29,11 @@ select "aba" regexp concat("^","a");
 select !0,NOT 0=1,!(0=0),1 AND 1,1 && 0,0 OR 1,1 || NULL, 1=1 or 1=1 and 1=0;
 !0	NOT 0=1	!(0=0)	1 AND 1	1 && 0	0 OR 1	1 || NULL	1=1 or 1=1 and 1=0
 1	1	0	1	0	1	1	1
+Warnings:
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 select 2 between 1 and 3, "monty" between "max" and "my",2=2 and "monty" between "max" and "my" and 3=3;
 2 between 1 and 3	"monty" between "max" and "my"	2=2 and "monty" between "max" and "my" and 3=3
 1	1	1

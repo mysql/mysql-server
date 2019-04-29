@@ -23,3 +23,14 @@ show table types;
 --error ER_PARSE_ERROR
 show mutex status;
 
+--echo # WL#13070 Deprecate && as synonym for AND and || as synonym for OR in SQL statements
+# Verify that || sends no warning if PIPES_AS_CONCAT
+
+set sql_mode=pipes_as_concat;
+select 2 || 3;
+select 2 or 3;
+select concat(2,3);
+set sql_mode='';
+select 2 || 3;
+select 2 or 3;
+set sql_mode=default;

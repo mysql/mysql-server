@@ -816,8 +816,10 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function) {
         (lip->m_thd->variables.sql_mode & MODE_HIGH_NOT_PRECEDENCE))
       return NOT2_SYM;
     if ((symbol->tok == OR_OR_SYM) &&
-        !(lip->m_thd->variables.sql_mode & MODE_PIPES_AS_CONCAT))
+        !(lip->m_thd->variables.sql_mode & MODE_PIPES_AS_CONCAT)) {
+      push_deprecated_warn(lip->m_thd, "|| as a synonym for OR", "OR");
       return OR2_SYM;
+    }
 
     lip->yylval->optimizer_hints = NULL;
     if (symbol->group & SG_HINTABLE_KEYWORDS) {

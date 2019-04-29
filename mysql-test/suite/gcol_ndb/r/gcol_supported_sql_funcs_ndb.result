@@ -1562,6 +1562,8 @@ set sql_warnings = 0;
 # AND, && 
 set sql_warnings = 1;
 create table t1 (a int, b bool generated always as (a>0 && a<2) virtual) charset latin1;
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1921,6 +1923,8 @@ set sql_warnings = 0;
 # ||, OR
 set sql_warnings = 1;
 create table t1 (a int, b int generated always as (a>5 || a<3) virtual) charset latin1;
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

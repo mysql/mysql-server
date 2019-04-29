@@ -272,6 +272,8 @@ create table t1 (a int,
 b int generated always as (-a) virtual,
 c int generated always as (-a) stored);
 create view v1 as select * from t1 where b > -2 && c >-2 with check option;
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 insert into v1 (a) values (1);
 insert into v1 (a) values (3);
 ERROR HY000: CHECK OPTION failed 'test.v1'
