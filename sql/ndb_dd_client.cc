@@ -893,6 +893,29 @@ Ndb_dd_client::set_tablespace_id_in_table(const char *schema_name,
   return true;
 }
 
+bool Ndb_dd_client::set_object_id_and_version_in_table(const char *schema_name,
+                                                       const char *table_name,
+                                                       int object_id,
+                                                       int object_version) {
+  DBUG_TRACE;
+
+  /* Acquire the table */
+  dd::Table *table_def = nullptr;
+  if (m_client->acquire_for_modification(schema_name, table_name, &table_def)) {
+    DBUG_PRINT("error", ("Failed to load the table from DD"));
+    return false;
+  }
+
+  /* Update id and version */
+  ndb_dd_table_set_object_id_and_version(table_def, object_id, object_version);
+
+  /* Update it to DD */
+  if (m_client->update(table_def)) {
+    return false;
+  }
+
+  return true;
+}
 
 bool
 Ndb_dd_client::fetch_all_schemas(

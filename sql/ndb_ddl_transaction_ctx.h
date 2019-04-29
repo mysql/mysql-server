@@ -27,7 +27,13 @@
 
 #include <string>
 #include <vector>
+
+#include "dd/string_type.h"
 #include "sql/ndb_thd.h"
+
+namespace dd {
+typedef String_type sdi_t;
+}
 
 /* A class representing a DDL statement. */
 class Ndb_DDL_stmt {
@@ -96,6 +102,9 @@ class Ndb_DDL_transaction_ctx {
      vector until which commit has been requested already by the SQL Layer.  */
   unsigned int m_latest_committed_stmt{0};
 
+  /* Original sdi of the table - to be used during rollback of rename */
+  std::string m_original_sdi_for_rename;
+
   /* Status of the ongoing DDL */
   enum DDL_STATUS {
     DDL_EMPTY,
@@ -137,9 +146,27 @@ class Ndb_DDL_transaction_ctx {
 
   /* Methods to handle rollback of individual DDls */
   bool rollback_create_table(const Ndb_DDL_stmt &);
+  bool rollback_rename_table(const Ndb_DDL_stmt &);
+
+  /* Methods to handle updates during post_ddl phase */
+  /* @brief Update the table object in DD after a rollback of RENAME table.
+            The rollback would have actually changed the version
+            of the NDB table. This method updates that in the DD. */
+  bool post_ddl_hook_rename_table(const Ndb_DDL_stmt &ddl_stmt);
+
+  /* @brief Update the table's id and version in DD. */
+  bool update_table_id_and_version_in_DD(const char *schema_name,
+                                         const char *table_name, int object_id,
+                                         int object_version);
 
  public:
   Ndb_DDL_transaction_ctx(class THD *thd) : m_thd(thd) {}
+
+  void get_original_sdi_for_rename(dd::sdi_t &orig_sdi) const {
+    DBUG_ASSERT(!m_original_sdi_for_rename.empty());
+    orig_sdi.assign(m_original_sdi_for_rename.c_str(),
+                    m_original_sdi_for_rename.length());
+  }
 
   /* @brief Check if the current DDL execution has made any changes
             to the Schema that has not been committed yet.
@@ -155,11 +182,21 @@ class Ndb_DDL_transaction_ctx {
 
      @param path_name       Path name of the table. */
   void log_create_table(const std::string &path_name);
+  /* @brief Log a rename table statement in DDL Context.
+
+     @param old_db_name       Old name of the table's database.
+     @param old_table_name    Old name of the table.
+     @param new_db_name       New name of the table's database.
+     @param new_table_name    New name of the table.
+     @param from              Old path name of the table.
+     @param to                New path name of the table.
+     @param orig_sdi          Original sdi of the table. */
   void log_rename_table(const std::string &old_db_name,
                         const std::string &old_table_name,
                         const std::string &new_db_name,
                         const std::string &new_table_name,
-                        const std::string &from, const std::string &to);
+                        const std::string &from, const std::string &to,
+                        const std::string &orig_sdi);
 
   /* @brief Mark the last DDL stmt as distributed */
   void mark_last_stmt_as_distributed() {
@@ -179,6 +216,9 @@ class Ndb_DDL_transaction_ctx {
   bool rollback_in_progress() const {
     return (m_ddl_status == DDL_ROLLED_BACK);
   }
+
+  /* @brief Updates to be run during the post ddl phase. */
+  bool run_post_ddl_hooks();
 };
 
 #endif /* NDB_DDL_TRANSACTION_CTX_H */

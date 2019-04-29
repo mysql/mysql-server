@@ -9085,6 +9085,10 @@ static void ndbcluster_post_ddl(THD *thd)
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx();
   if (ddl_ctx != nullptr) {
+    /* Run the post_ddl_hooks to wrap up the rollback */
+    if (!ddl_ctx->run_post_ddl_hooks()) {
+      thd_ndb->push_warning("Post DDL hooks failed to update schema.");
+    }
     /* Destroy and clear the ddl_ctx in thd_ndb */
     thd_ndb->clear_ddl_transaction_ctx();
   }
@@ -11815,25 +11819,16 @@ extern void ndb_fk_util_resolve_mock_tables(THD* thd,
                                             const char* new_parent_db,
                                             const char* new_parent_name);
 
-
-int
-ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
-                                 Ndb_schema_dist_client& schema_dist_client,
-                                 const NdbDictionary::Table* orig_tab,
-                                 dd::Table* to_table_def,
-                                 const char* from, const char* to,
-                                 const char* old_dbname,
-                                 const char* old_tabname,
-                                 const char* new_dbname,
-                                 const char* new_tabname,
-                                 bool real_rename,
-                                 const char* real_rename_db,
-                                 const char* real_rename_name,
-                                 bool real_rename_log_on_participant,
-                                 bool drop_events,
-                                 bool create_events,
-                                 bool commit_alter)
-{
+int rename_table_impl(THD *thd, Ndb *ndb,
+                      Ndb_schema_dist_client *schema_dist_client,
+                      const NdbDictionary::Table *orig_tab,
+                      dd::Table *to_table_def, const char *from, const char *to,
+                      const char *old_dbname, const char *old_tabname,
+                      const char *new_dbname, const char *new_tabname,
+                      bool real_rename, const char *real_rename_db,
+                      const char *real_rename_name,
+                      bool real_rename_log_on_participant, bool drop_events,
+                      bool create_events, bool commit_alter) {
   DBUG_ENTER("ha_ndbcluster::rename_table_impl");
   DBUG_PRINT("info", ("real_rename: %d", real_rename));
   DBUG_PRINT("info", ("real_rename_db: '%s'", real_rename_db));
@@ -11887,10 +11882,9 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
       enough placeholders available to transfer all required parameters
       at once.
    */
-    if (!schema_dist_client.rename_table_prepare(real_rename_db,
-                                                 real_rename_name, ndb_table_id,
-                                                 ndb_table_version, to))
-    {
+    if (!schema_dist_client->rename_table_prepare(
+            real_rename_db, real_rename_name, ndb_table_id, ndb_table_version,
+            to)) {
       // Failed to distribute the prepare rename of this table to the
       // other MySQL Servers, just log error and continue
       // NOTE! Actually it's no point in continuing trying to rename since
@@ -11904,17 +11898,47 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   NDB_SHARE_KEY* new_key = NDB_SHARE::create_key(to);
   (void)NDB_SHARE::rename_share(share, new_key);
 
+
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx(false);
+  const bool rollback_in_progress =
+      (ddl_ctx != nullptr && ddl_ctx->rollback_in_progress());
+  std::string orig_sdi;
+  if (!rollback_in_progress){
+    // Backup the original sdi in case if we have to rollback
+    Uint32 version;
+    void *unpacked_data;
+    Uint32 unpacked_len;
+    const int get_result =
+        orig_tab->getExtraMetadata(version, &unpacked_data, &unpacked_len);
+    if (get_result != 0) {
+      my_printf_error(ER_INTERNAL_ERROR,
+                      "Failed to read extra metadata during rename table, "
+                      "error: %d",
+                      MYF(0), get_result);
+      DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+    }
+    orig_sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
+    free(unpacked_data);
+  }
+
   NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(new_tabname);
 
-  // Create a new serialized table definition for the table to be
-  // renamed since it contains the table name
   {
     dd::sdi_t sdi;
-    if (!ndb_sdi_serialize(thd, to_table_def, new_dbname, sdi))
-    {
-      my_error(ER_INTERNAL_ERROR, MYF(0), "Table def. serialization failed");
-      DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+    if (rollback_in_progress) {
+      // This is a rollback. Fetch the original sdi from the DDL context log.
+      ddl_ctx->get_original_sdi_for_rename(sdi);
+    } else {
+      // This is an actual rename and not a rollback of the rename
+      // Create a new serialized table definition for the table to be
+      // renamed since it contains the table name.
+      DBUG_ASSERT(to_table_def != nullptr);
+      if (!ndb_sdi_serialize(thd, to_table_def, new_dbname, sdi)) {
+        my_error(ER_INTERNAL_ERROR, MYF(0), "Table def. serialization failed");
+        DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+      }
     }
 
     const int set_result =
@@ -11923,8 +11947,8 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
     if (set_result != 0)
     {
       my_printf_error(ER_INTERNAL_ERROR,
-                      "Failed to set extra metadata during"
-                      "rename table, error: %d",
+                      "Failed to set extra metadata during rename table, "
+                      "error: %d",
                       MYF(0), set_result);
       DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
     }
@@ -11942,9 +11966,10 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   // Release the unused old_key
   NDB_SHARE::free_key(old_key);
 
-  // Fetch the new table version and write it to the table definition,
-  // the caller will then save it into DD
-  {
+  if (!rollback_in_progress){
+    // This is an actual rename and not a rollback of the rename
+    // Fetch the new table version and write it to the table definition,
+    // the caller will then save it into DD
     Ndb_table_guard ndbtab_g(dict, new_tabname);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
 
@@ -11956,6 +11981,12 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
     ndb_dd_table_set_object_id_and_version(to_table_def,
                                            ndb_table_id,
                                            ndbtab->getObjectVersion());
+
+    // Log the rename in the Ndb_DDL_transaction_ctx object
+    ddl_ctx =
+        (ddl_ctx == nullptr) ? thd_ndb->get_ddl_transaction_ctx(true) : ddl_ctx;
+    ddl_ctx->log_rename_table(old_dbname, old_tabname, new_dbname, new_tabname,
+                              from, to, orig_sdi);
   }
 
   ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
@@ -12026,11 +12057,16 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
       Also note the special flag which control wheter or not this
       query is written to binlog or not on the participants.
     */
-    if (!schema_dist_client.rename_table(real_rename_db, real_rename_name,
-                                         ndb_table_id, ndb_table_version,
-                                         new_dbname, new_tabname,
-                                         real_rename_log_on_participant))
-    {
+    if (schema_dist_client->rename_table(
+            real_rename_db, real_rename_name, ndb_table_id, ndb_table_version,
+            new_dbname, new_tabname, real_rename_log_on_participant)) {
+      if (!ddl_ctx->rollback_in_progress() && !commit_alter) {
+        // Schema Distribution success. Mark the ndb_rename_stmt as distributed
+        // if this is not a rollback and not a copy alter(i.e. proper rename).
+        DBUG_ASSERT(ddl_ctx != nullptr);
+        ddl_ctx->mark_last_stmt_as_distributed();
+      }
+    } else {
       // Failed to distribute the rename of this table to the
       // other MySQL Servers, just log error and continue
       ndb_log_error("Failed to distribute rename for '%s'", real_rename_name);
@@ -12040,9 +12076,8 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   if (commit_alter)
   {
     /* final phase of offline alter table */
-    if (!schema_dist_client.alter_table(new_dbname, new_tabname,
-                                        ndb_table_id, ndb_table_version))
-    {
+    if (!schema_dist_client->alter_table(new_dbname, new_tabname, ndb_table_id,
+                                         ndb_table_version)) {
       // Failed to distribute the alter of this table to the
       // other MySQL Servers, just log error and continue
       ndb_log_error("Failed to distribute 'ALTER TABLE %s'", new_tabname);
@@ -12215,7 +12250,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
        */
       DBUG_PRINT("info", ("simple rename detected"));
       DBUG_RETURN(rename_table_impl(thd, ndb,
-                                    schema_dist_client,
+                                    &schema_dist_client,
                                     orig_tab, to_table_def,
                                     from, to,
                                     old_dbname, m_tabname,
@@ -12278,7 +12313,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
       */
       DBUG_PRINT("info", ("real -> temp"));
       DBUG_RETURN(rename_table_impl(thd, ndb,
-                                    schema_dist_client,
+                                    &schema_dist_client,
                                     orig_tab, to_table_def,
                                     from, to,
                                     old_dbname, m_tabname,
@@ -12334,7 +12369,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
         */
         const bool real_rename_log_on_participant = false;
         DBUG_RETURN(rename_table_impl(thd, ndb,
-                                      schema_dist_client,
+                                      &schema_dist_client,
                                       orig_tab, to_table_def,
                                       from, to,
                                       old_dbname, m_tabname,
@@ -12349,7 +12384,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
       }
 
       DBUG_RETURN(rename_table_impl(thd, ndb,
-                                    schema_dist_client,
+                                    &schema_dist_client,
                                     orig_tab, to_table_def,
                                     from, to,
                                     old_dbname, m_tabname,
@@ -12368,7 +12403,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     DBUG_PRINT("info", ("SQLCOM_RENAME_TABLE"));
 
     DBUG_RETURN(rename_table_impl(thd, ndb,
-                                  schema_dist_client,
+                                  &schema_dist_client,
                                   orig_tab, to_table_def,
                                   from, to,
                                   old_dbname, m_tabname,

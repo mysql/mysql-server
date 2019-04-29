@@ -25,6 +25,23 @@
 #ifndef NDB_DDL_DEFINITIONS_H
 #define NDB_DDL_DEFINITIONS_H
 
+#include "ndbapi/NdbDictionary.hpp" // Required for NdbDictionary::Table
+
+namespace dd {
+  class Table;
+}
+
+int rename_table_impl(class THD *thd, class Ndb *ndb,
+                      class Ndb_schema_dist_client *schema_dist_client,
+                      const NdbDictionary::Table *orig_tab,
+                      dd::Table *to_table_def, const char *from, const char *to,
+                      const char *old_dbname, const char *old_tabname,
+                      const char *new_dbname, const char *new_tabname,
+                      bool real_rename, const char *real_rename_db,
+                      const char *real_rename_name,
+                      bool real_rename_log_on_participant, bool drop_events,
+                      bool create_events, bool commit_alter);
+
 int drop_table_impl(class THD *thd, class Ndb *ndb,
                     class Ndb_schema_dist_client *schema_dist_client,
                     const char *path, const char *db, const char *table_name);

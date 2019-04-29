@@ -156,6 +156,9 @@ public:
   bool set_tablespace_id_in_table(const char *schema_name,
                                   const char *table_name,
                                   dd::Object_id tablespace_id);
+  bool set_object_id_and_version_in_table(const char *schema_name,
+                                          const char *table_name,
+                                          int object_id, int object_version);
 
   bool fetch_all_schemas(std::map<std::string, const dd::Schema*>&);
   bool fetch_schema_names(std::vector<std::string>*);
