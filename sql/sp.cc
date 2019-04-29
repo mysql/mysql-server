@@ -378,22 +378,27 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
   return ret;
 }
 
+namespace {
+
 /**
   Silence DEPRECATED SYNTAX warnings when loading a stored procedure
   into the cache.
 */
-class Silence_deprecated_warning : public Internal_error_handler {
+class Silence_deprecated_warning final : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) {
-    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
+    if ((sql_errno == ER_WARN_DEPRECATED_SYNTAX ||
+         sql_errno == ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT) &&
         (*level) == Sql_condition::SL_WARNING)
       return true;
 
     return false;
   }
 };
+
+}  // namespace
 
 /**
   The function parses input strings and returns SP structure.

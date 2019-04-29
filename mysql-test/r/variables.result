@@ -1552,6 +1552,8 @@ Warning	1292	Truncated incorrect key_cache_block_size value: '0'
 # Bug#11766424  59527: DECIMAL_BIN_SIZE: ASSERTION `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
 #
 CREATE TABLE t1(f1 DECIMAL(1,1) UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t1 VALUES (0.2),(0.1);
 SELECT 1 FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
 1

@@ -209,6 +209,8 @@ a	b	c	d
 18446744073709551615	18446744073709551615	18446744073709551615	18446744073709551615
 drop table t1;
 create table t1 ( quantity decimal(2) unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values (500), (-500), (~0), (-1);
 Warnings:
 Warning	1264	Out of range value for column 'quantity' at row 1

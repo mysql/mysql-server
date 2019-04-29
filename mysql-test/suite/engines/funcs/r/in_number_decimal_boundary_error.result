@@ -1,6 +1,8 @@
 SET SQL_MODE="TRADITIONAL,ANSI";
 DROP TABLE IF EXISTS t5;
 CREATE TABLE t5(c1 DECIMAL(5,4) UNSIGNED NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t5 (c1) VALUES(NULL);
 ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t5 (c1) VALUES(0);
@@ -21,6 +23,8 @@ not_null_rows
 1
 DROP TABLE t5;
 CREATE TABLE t5(c1 DEC(5,4) UNSIGNED NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t5 (c1) VALUES(NULL);
 ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t5 (c1) VALUES(0);
@@ -41,6 +45,8 @@ not_null_rows
 1
 DROP TABLE t5;
 CREATE TABLE t5(c1 FIXED(5,4) UNSIGNED NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t5 (c1) VALUES(NULL);
 ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t5 (c1) VALUES(0);
@@ -61,6 +67,8 @@ not_null_rows
 1
 DROP TABLE t5;
 CREATE TABLE t5(c1 NUMERIC(5,4) UNSIGNED NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t5 (c1) VALUES(NULL);
 ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t5 (c1) VALUES(0);

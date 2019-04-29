@@ -21,6 +21,12 @@ c6 DOUBLE,
 c7 FLOAT,
 c8 DECIMAL,
 c9 NUMERIC);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CREATE TABLE t_date (c1 DATE,
 c2 TIME,
 c3 TIMESTAMP,

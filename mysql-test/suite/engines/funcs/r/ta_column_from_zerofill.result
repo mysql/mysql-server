@@ -588,6 +588,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 REAL UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -597,6 +599,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 REAL UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -609,6 +613,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -618,6 +624,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 DOUBLE UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -630,6 +638,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FLOAT UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -639,6 +649,8 @@ t4	CREATE TABLE `t4` (
   `c1` float unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 FLOAT UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -651,6 +663,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DECIMAL UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -660,6 +674,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 DECIMAL UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -672,6 +688,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 NUMERIC UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -681,6 +699,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 NUMERIC UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -819,6 +839,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 REAL UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -828,6 +850,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 REAL UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -840,6 +864,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -849,6 +875,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 DOUBLE UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -861,6 +889,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FLOAT UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -870,6 +900,8 @@ t4	CREATE TABLE `t4` (
   `c1` float unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 FLOAT UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -882,6 +914,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DECIMAL UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -891,6 +925,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 DECIMAL UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -903,6 +939,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 NUMERIC UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -912,6 +950,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 NUMERIC UNSIGNED NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1512,6 +1552,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 REAL UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1521,6 +1563,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 REAL UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1533,6 +1577,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1542,6 +1588,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 DOUBLE UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1554,6 +1602,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FLOAT UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1563,6 +1613,8 @@ t4	CREATE TABLE `t4` (
   `c1` float unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 FLOAT UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1575,6 +1627,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DECIMAL UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1584,6 +1638,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 DECIMAL UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1596,6 +1652,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 NUMERIC UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1605,6 +1663,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 MODIFY c1 NUMERIC UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1743,6 +1803,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 REAL UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1752,6 +1814,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 REAL UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1764,6 +1828,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1773,6 +1839,8 @@ t4	CREATE TABLE `t4` (
   `c1` double unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 DOUBLE UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1785,6 +1853,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FLOAT UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1794,6 +1864,8 @@ t4	CREATE TABLE `t4` (
   `c1` float unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 FLOAT UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1806,6 +1878,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DECIMAL UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1815,6 +1889,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 DECIMAL UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1827,6 +1903,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 NUMERIC UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -1836,6 +1914,8 @@ t4	CREATE TABLE `t4` (
   `c1` decimal(10,0) unsigned zerofill NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 CHANGE c1 c1 NUMERIC UNSIGNED NOT NULL;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4

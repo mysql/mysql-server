@@ -28212,6 +28212,7 @@ DROP TABLE f;
 CREATE TABLE float_5_2_tbl (colA FLOAT(5,2) UNSIGNED );
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO float_5_2_tbl VALUES (0.0), (0.005),
 (0.004),
 ( 3.3), (0.0), (3.3),

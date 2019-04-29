@@ -3929,6 +3929,8 @@ drop table t3;
 create table t3 (a3 int, b3 float unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t3 values (0x1f, 2.71, 1, 0x1f);
 insert into t3 values (0x2f, 3.00, 2, 0x2f);
 insert into t3 values (0x3f, 0.50, 3, 0x3f);
@@ -3963,6 +3965,8 @@ drop table t3;
 create table t3 (a3 int, b3 double unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t3 values (0x1f, 2.71, 1, 0x1f);
 insert into t3 values (0x2f, 3.14, 2, 0x2f);
 insert into t3 values (0x3f, 0.50, 3, 0x3f);

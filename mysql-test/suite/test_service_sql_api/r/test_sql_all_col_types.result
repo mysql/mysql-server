@@ -14,10 +14,17 @@ c2 DOUBLE UNSIGNED,
 c3 FLOAT UNSIGNED,
 c4 DOUBLE,
 c5 FLOAT);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CREATE TABLE t_dec  (c1 DECIMAL(4,2) UNSIGNED,
 c2 NUMERIC(4,2) UNSIGNED,
 c3 DECIMAL(4,2),
 c4 NUMERIC(4,2));
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CREATE TABLE t_date (c1 DATE,
 c2 TIME,
 c3 TIMESTAMP,

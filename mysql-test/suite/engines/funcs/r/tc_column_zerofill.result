@@ -240,6 +240,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DECIMAL UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -252,6 +254,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DEC UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -264,6 +268,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FIXED UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -276,6 +282,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 NUMERIC UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -288,6 +296,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -300,6 +310,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 REAL UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -312,6 +324,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE PRECISION UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -324,6 +338,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FLOAT UNSIGNED ZEROFILL NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -576,6 +592,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DECIMAL UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -588,6 +606,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DEC UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -600,6 +620,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FIXED UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -612,6 +634,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 NUMERIC UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -624,6 +648,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -636,6 +662,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 REAL UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -648,6 +676,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 DOUBLE PRECISION UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4
@@ -660,6 +690,8 @@ DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t4(c1 FLOAT UNSIGNED ZEROFILL NOT NULL);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SHOW TABLES;
 Tables_in_test
 t4

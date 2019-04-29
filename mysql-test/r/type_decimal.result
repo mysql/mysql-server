@@ -222,6 +222,8 @@ a
 123.00
 drop  table t1;
 create table t1 (a decimal(10,2) unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 6
@@ -408,6 +410,8 @@ a
 9999999999
 drop  table t1;
 create table t1 (a decimal unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
@@ -440,6 +444,8 @@ a
 9999999999
 drop  table t1;
 create table t1 (a decimal unsigned zerofill);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
