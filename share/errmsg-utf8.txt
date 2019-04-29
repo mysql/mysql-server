@@ -19070,13 +19070,13 @@ ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL
   eng "'%s' is an invalid value for group_replication_communication_protocol_join, please use a MySQL version between 5.7.14 and this server's version"
 
 ER_GRP_RPL_STARTED_AUTO_REJOIN
-  eng "Started auto-rejoin procedure attempt %d of %d"
+  eng "Started auto-rejoin procedure attempt %lu of %lu"
 
 ER_GRP_RPL_TIMEOUT_RECEIVED_VC_ON_REJOIN
   eng "Timeout while waiting for a view change event during the auto-rejoin procedure"
 
 ER_GRP_RPL_FINISHED_AUTO_REJOIN
-  eng "Auto-rejoin procedure attempt %d of %d finished. Member was%s able to join the group."
+  eng "Auto-rejoin procedure attempt %lu of %lu finished. Member was%s able to join the group."
 
 ER_GRP_RPL_DEFAULT_TABLE_ENCRYPTION_DIFF_FROM_GRP
   eng "The member is configured with a default_table_encryption option value '%d' different from the group '%d'. The member will now exit the group."

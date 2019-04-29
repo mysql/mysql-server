@@ -216,7 +216,7 @@ void Autorejoin_thread::execute_rejoin_process() {
   */
   if (num_attempts > m_attempts) {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN,
-                 num_attempts - 1ULL, m_attempts, " not");
+                 num_attempts - 1UL, m_attempts, " not");
 
     enable_server_read_mode(PSESSION_USE_THREAD);
     /*
