@@ -1,5 +1,8 @@
 Case 1: single-threaded backup + single-threaded restore
 "Create tables for backup"
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 "Starting backup as nowait"
 Starting backup
@@ -138,6 +141,9 @@ auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	r
 "Drop tables after backup completes"
 Case 2: single-threaded snapshotstart backup + single-threaded restore
 "Create tables for backup"
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 "Starting backup as nowait,snapshotstart"
 Starting backup

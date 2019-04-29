@@ -1,4 +1,7 @@
 "Create tables for backup"
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 "Starting backup as nowait"
 Starting backup
