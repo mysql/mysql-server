@@ -565,6 +565,9 @@ key (t),
 key (u),
 key (v)
 ) engine=ndb;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values
 ( 0, -000000000007, -0000061.00003,  000000000061,  0000965.00042),
 ( 1, -000000000007, -0000061.00042,  000000000061,  0000965.00003),

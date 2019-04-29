@@ -151,6 +151,8 @@ create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;
 create table t1 (d1 double, d2 double unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 set d1 = -1.0;
 update t1 set d2 = d1;
 Warnings:
@@ -478,6 +480,7 @@ SET sql_mode = default;
 CREATE TABLE t5u(c1 FLOAT(58,0) UNSIGNED NOT NULL);
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CREATE TABLE t5s(c1 FLOAT(58,0) SIGNED NOT NULL);
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
@@ -618,4 +621,96 @@ END||
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+DROP PROCEDURE p1;
+#
+# WL#12391: Deprecate unsigned attribute for DECIMAL and FLOAT data types
+#
+CREATE TABLE t1(a FLOAT UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t4(a FLOAT);
+ALTER TABLE t4 MODIFY COLUMN a FLOAT UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b FLOAT UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+DROP TABLE t5, t4, t3, t2, t1;
+CREATE TABLE t1(a DOUBLE UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t4(a DOUBLE);
+ALTER TABLE t4 MODIFY COLUMN a DOUBLE UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DOUBLE UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+DROP TABLE t5, t4, t3, t2, t1;
+CREATE TABLE t1(a REAL UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t4(a REAL);
+ALTER TABLE t4 MODIFY COLUMN a REAL UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b REAL UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+DROP TABLE t5, t4, t3, t2, t1;
+CREATE TABLE t1(a DECIMAL(4,2) UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t4(a DECIMAL(4,2));
+ALTER TABLE t4 MODIFY COLUMN a DECIMAL(4,2) UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DECIMAL(4,2) UNSIGNED;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+DROP TABLE t5, t4, t3, t2, t1;
+CREATE FUNCTION f1(a FLOAT UNSIGNED) RETURNS DOUBLE UNSIGNED RETURN 1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+DROP FUNCTION f1;
+CREATE PROCEDURE p1(IN a FLOAT UNSIGNED, OUT b DOUBLE UNSIGNED)
+BEGIN
+SELECT 1 INTO b;
+END||
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP PROCEDURE p1;

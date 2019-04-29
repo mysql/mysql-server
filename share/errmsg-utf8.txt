@@ -8917,6 +8917,11 @@ ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP
 ER_WARN_DEPRECATED_FLOAT_DIGITS
   eng "Specifying number of digits for floating point data types is deprecated and will be removed in a future release."
 
+# When using this error message, use the
+# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_FLOAT_UNSIGNED
+  eng "UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release."
+
 #
 #  End of 8.0 error messages.
 #

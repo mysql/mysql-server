@@ -8542,16 +8542,26 @@ static void warn_on_deprecated_float_auto_increment(
 }
 
 static void warn_on_deprecated_float_precision(THD *thd,
-                                               const Alter_info &alter_info) {
-  for (const Create_field &sql_field : alter_info.create_list) {
-    if (sql_field.decimals != NOT_FIXED_DEC) {
-      if (sql_field.sql_type == MYSQL_TYPE_FLOAT ||
-          sql_field.sql_type == MYSQL_TYPE_DOUBLE) {
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                     ER_THD(thd, ER_WARN_DEPRECATED_FLOAT_DIGITS));
-      }
+                                               const Create_field &sql_field) {
+  if (sql_field.decimals != NOT_FIXED_DEC) {
+    if (sql_field.sql_type == MYSQL_TYPE_FLOAT ||
+        sql_field.sql_type == MYSQL_TYPE_DOUBLE) {
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                   ER_THD(thd, ER_WARN_DEPRECATED_FLOAT_DIGITS));
     }
+  }
+}
+
+static void warn_on_deprecated_float_unsigned(THD *thd,
+                                              const Create_field &sql_field) {
+  if ((sql_field.flags & UNSIGNED_FLAG) &&
+      (sql_field.sql_type == MYSQL_TYPE_FLOAT ||
+       sql_field.sql_type == MYSQL_TYPE_DOUBLE ||
+       sql_field.sql_type == MYSQL_TYPE_NEWDECIMAL)) {
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                 ER_THD(thd, ER_WARN_DEPRECATED_FLOAT_UNSIGNED));
   }
 }
 
@@ -8659,7 +8669,10 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
   // Only needed for CREATE TABLE LIKE / SELECT, as warnings for
   // pure CREATE TABLE is reported in the parser.
   if (thd->lex->select_lex->item_list.elements) {
-    warn_on_deprecated_float_precision(thd, *alter_info);
+    for (const Create_field &sql_field : alter_info->create_list) {
+      warn_on_deprecated_float_precision(thd, sql_field);
+      warn_on_deprecated_float_unsigned(thd, sql_field);
+    }
   }
 
   if (thd->is_plugin_fake_ddl()) no_ha_table = true;
@@ -10121,7 +10134,10 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
                                                       &local_alter_info))
     DBUG_RETURN(true);
 
-  warn_on_deprecated_float_precision(thd, local_alter_info);
+  for (const Create_field &sql_field : local_alter_info.create_list) {
+    warn_on_deprecated_float_precision(thd, sql_field);
+    warn_on_deprecated_float_unsigned(thd, sql_field);
+  }
 
   /*
     During open_tables(), the target tablespace name(s) for a table being

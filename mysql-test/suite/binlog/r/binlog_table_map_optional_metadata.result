@@ -70,6 +70,8 @@ RESET MASTER;
 CREATE TABLE t1(c_bit BIT(10), c_bool BOOL, c_smallint SMALLINT,
 c_mediumint MEDIUMINT, c_int INT UNSIGNED, c_bigint BIGINT,
 c_float FLOAT UNSIGNED, c_double DOUBLE, c_decimal DECIMAL(10, 2));
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_bool) VALUES(1);
 # UNSIGNED flag should be printed

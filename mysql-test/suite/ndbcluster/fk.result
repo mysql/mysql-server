@@ -200,6 +200,8 @@ CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
 ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
 # Signedness doesn't matter.
 CREATE TABLE child (fk DOUBLE UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP TABLES child, parent;
 # Floating point types are not compatible with other types.
 CREATE TABLE parent (pk FLOAT PRIMARY KEY);

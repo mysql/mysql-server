@@ -499,6 +499,7 @@ Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 *******************************
 ALTER TABLE t1 algorithm=inplace, ADD d DOUBLE UNSIGNED;
 Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
 *******************************
 * Add column e as nullable DECIMAL

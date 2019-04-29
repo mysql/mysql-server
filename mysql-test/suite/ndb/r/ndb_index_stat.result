@@ -287,6 +287,8 @@ index (l),
 index (m),
 index (n)
 ) engine=ndb;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values
 (1,11,11,11,11,11,11,11,11,11,11,11,11,11,11),
 (2,22,22,22,22,22,22,22,22,22,22,22,22,22,22),

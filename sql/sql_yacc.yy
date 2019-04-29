@@ -6301,21 +6301,11 @@ type:
           }
         | real_type opt_precision field_options
           {
-            $$= NEW_PTN PT_numeric_type($1, $2.length, $2.dec, $3);
-	    if ($2.dec != nullptr) {
-              push_warning(YYTHD, Sql_condition::SL_WARNING,
-                           ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                           ER_THD(YYTHD, ER_WARN_DEPRECATED_FLOAT_DIGITS));
-            }
+            $$= NEW_PTN PT_numeric_type(YYTHD, $1, $2.length, $2.dec, $3);
           }
         | numeric_type float_options field_options
           {
-            $$= NEW_PTN PT_numeric_type($1, $2.length, $2.dec, $3);
-	    if ($1 == Numeric_type::FLOAT && $2.dec != nullptr) {
-              push_warning(YYTHD, Sql_condition::SL_WARNING,
-                           ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                           ER_THD(YYTHD, ER_WARN_DEPRECATED_FLOAT_DIGITS));
-            }
+            $$= NEW_PTN PT_numeric_type(YYTHD, $1, $2.length, $2.dec, $3);
           }
         | BIT_SYM
           {
@@ -6607,23 +6597,22 @@ func_datetime_precision:
         ;
 
 field_options:
-          /* empty */ { $$= Field_option::NONE; }
+          /* empty */ { $$ = 0; }
         | field_opt_list
         ;
 
 field_opt_list:
           field_opt_list field_option
           {
-            $$= static_cast<Field_option>(static_cast<ulong>($1) |
-                                          static_cast<ulong>($2));
+            $$ = $1 | $2;
           }
         | field_option
         ;
 
 field_option:
-          SIGNED_SYM   { $$= Field_option::NONE; } // TODO: remove undocumented ignored syntax
-        | UNSIGNED_SYM { $$= Field_option::UNSIGNED; }
-        | ZEROFILL_SYM { $$= Field_option::ZEROFILL_UNSIGNED; }
+          SIGNED_SYM   { $$ = 0; } // TODO: remove undocumented ignored syntax
+        | UNSIGNED_SYM { $$ = UNSIGNED_FLAG; }
+        | ZEROFILL_SYM { $$ = ZEROFILL_FLAG; }
         ;
 
 field_length:

@@ -148,12 +148,6 @@ enum class On_duplicate { ERROR, IGNORE_DUP, REPLACE_DUP };
 
 enum class Virtual_or_stored { VIRTUAL, STORED };
 
-enum class Field_option : ulong {
-  NONE = 0,
-  UNSIGNED = UNSIGNED_FLAG,
-  ZEROFILL_UNSIGNED = UNSIGNED_FLAG | ZEROFILL_FLAG
-};
-
 enum class Int_type : ulong {
   INT = MYSQL_TYPE_LONG,
   TINYINT = MYSQL_TYPE_TINY,
@@ -455,7 +449,7 @@ union YYSTYPE {
   ha_storage_media storage_media;
   Mem_root_array<PT_column_attr_base *> *col_attr_list;
   Virtual_or_stored virtual_or_stored;
-  Field_option field_option;
+  ulong field_option;  // 0 or combinations of UNSIGNED_FLAG and ZEROFILL_FLAG
   Int_type int_type;
   class PT_type *type;
   Numeric_type numeric_type;
