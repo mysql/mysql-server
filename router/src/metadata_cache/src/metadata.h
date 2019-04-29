@@ -52,6 +52,8 @@ class METADATA_API MetaData {
       const std::vector<metadata_cache::ManagedInstance> &instances,
       const std::function<void()> &callback) = 0;
 
+  virtual void shutdown_gr_notifications_listener() = 0;
+
   MetaData() = default;
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.

@@ -615,7 +615,7 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
 
   std::this_thread::sleep_for(1s);
   EXPECT_TRUE(cluster_nodes[1]->kill() == 0)
-      << cluster_nodes[0]->get_full_output();
+      << cluster_nodes[1]->get_full_output();
   std::this_thread::sleep_for(1s);
 
   const std::string server_globals =

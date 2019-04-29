@@ -599,6 +599,10 @@ void ClusterMetadata::setup_gr_notifications_listener(
     gr_notifications_listener_->setup(instances, callback);
 }
 
+void ClusterMetadata::shutdown_gr_notifications_listener() {
+  gr_notifications_listener_.reset();
+}
+
 #if 0  // not used so far
 unsigned int ClusterMetadata::fetch_ttl() {
   return ttl_;
