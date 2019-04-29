@@ -4048,6 +4048,11 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
                     buf_LRU_flush_or_remove_pages(
                         space_id, BUF_REMOVE_FLUSH_WRITE, 0, false););
   }
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  /* Confirm that all pages are covered. */
+  ut_ad(progress_monitor.is_completed());
+#endif
 }
 
 /** Encrypt/Unencrypt a tablespace.
