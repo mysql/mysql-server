@@ -68,25 +68,5 @@ index_name	PRIMARY
 compress_ops	65
 compress_ops_ok	65
 uncompress_ops	0
-SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
-# restart
-SET GLOBAL innodb_cmp_per_index_enabled=ON;
-CREATE TABLE tmp_table SELECT * FROM t;
-SELECT
-database_name,
-table_name,
-index_name,
-compress_ops,
-compress_ops_ok,
-CASE WHEN uncompress_ops=6 and @@innodb_compression_level IN (4,8,9) THEN 9
-ELSE uncompress_ops END as uncompress_ops
-FROM information_schema.innodb_cmp_per_index
-ORDER BY 1, 2, 3;
-database_name	test
-table_name	t
-index_name	PRIMARY
-compress_ops	0
-compress_ops_ok	0
-uncompress_ops	9
-DROP TABLE t,tmp_table;
+DROP TABLE t;
 SET GLOBAL innodb_cmp_per_index_enabled=default;
