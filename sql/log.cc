@@ -1140,8 +1140,8 @@ bool Log_to_csv_event_handler::activate_log(
     THD *thd, enum_log_table_type log_table_type) {
   DBUG_TRACE;
 
-  const char *log_name;
-  size_t log_name_length;
+  const char *log_name = nullptr;
+  size_t log_name_length = 0;
 
   switch (log_table_type) {
     case QUERY_LOG_GENERAL:
