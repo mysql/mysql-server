@@ -985,6 +985,9 @@ drop table t1;
 create table t1 (
 f0 decimal (30,30) zerofill not null DEFAULT 0,
 f1 decimal (0,0) zerofill not null default 0);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2182,6 +2185,7 @@ CREATE TABLE t1
 f1 INT(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1), (2);
 CREATE TABLE t2
@@ -2189,6 +2193,7 @@ CREATE TABLE t2
 f1 SMALLINT(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t2 VALUES (84), (126), (36), (36);
 SELECT DISTINCT q1.f1 / 3 FROM (SELECT SUM(f1) AS f1 FROM t2  ) q1, (SELECT 0 FROM t1) q2;
@@ -2240,6 +2245,7 @@ a YEAR(4) NOT NULL,
 b DECIMAL(29,5) UNSIGNED ZEROFILL NOT NULL
 ) ENGINE=INNODB;
 Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t VALUES (2000,1),(2000,1),(2000,9999);
 SELECT * FROM t ORDER BY (a-b);

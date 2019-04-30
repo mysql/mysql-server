@@ -441,6 +441,12 @@ CREATE TABLE ndb$test (
   counter int(10) unsigned DEFAULT NULL,
   counter2 bigint(20) unsigned DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 select distinct node_id
 from ndbinfo.diskpagebuffer;

@@ -1391,6 +1391,10 @@ CREATE TABLE t1 (
 PRIMARY KEY (`i`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 PARTITION BY KEY() PARTITIONS 8;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE bit1 (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
 `b1` bit(3) DEFAULT b'111',
@@ -1401,6 +1405,8 @@ CREATE TABLE bit1 (
 PRIMARY KEY (`pk`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 PARTITION BY KEY() PARTITIONS 8;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1488,6 +1494,8 @@ CREATE TABLE t1 (
 `newOne` varchar(256) DEFAULT 'Comment field default',
 PRIMARY KEY (`i`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne from t1 order by i;
 i	j	f	d	d2	ch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	newOne
 1	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default
@@ -1511,6 +1519,8 @@ CREATE TABLE t1 (
 `newOne` varchar(256),
 PRIMARY KEY (`i`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne from t1 order by i;
 i	j	f	d	d2	ch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	newOne
 1	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default

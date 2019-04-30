@@ -5,6 +5,10 @@ CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
 ) ENGINE=archive;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (9410,9412);
 select period FROM t1;
 period
@@ -24,6 +28,11 @@ fld4 char(35) DEFAULT '' NOT NULL,
 fld5 char(35) DEFAULT '' NOT NULL,
 fld6 char(4) DEFAULT '' NOT NULL
 ) ENGINE=archive;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select t2.fld3 FROM t2 where companynr = 58 and fld3 like "%imaginable%";
 fld3
 imaginable
@@ -187,6 +196,9 @@ fld1	fld3
 250504	population
 250505	bomb
 CREATE TABLE t3 engine=archive select * FROM t2;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 select * FROM t3 where fld3='bonfire';
 auto	fld1	companynr	fld3	fld4	fld5	fld6
 1191	068504	00	bonfire	corresponds	positively	
@@ -12353,6 +12365,8 @@ CREATE TABLE `t5` (
 b char(12),
 PRIMARY KEY  (`a`)
 )  DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
@@ -12386,6 +12400,8 @@ CREATE TABLE `t5` (
 b char(12),
 KEY  (`a`)
 )  DEFAULT CHARSET=latin1 AUTO_INCREMENT=5;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
@@ -12438,6 +12454,8 @@ CREATE TABLE `t5` (
 b blob(12),
 KEY  (`a`)
 )  DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "We the people");
 INSERT INTO t5 VALUES (NULL, "in order to form a more pefect union");
@@ -12491,6 +12509,8 @@ b blob(12),
 c blob(12),
 KEY  (`a`)
 )  DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
 INSERT INTO t5 VALUES (NULL, "We the people", NULL);
 INSERT INTO t5 VALUES (NULL, "in order to form a more peefect union", "secure the blessing of liberty");
@@ -12576,6 +12596,8 @@ b varchar(250),
 c varchar(800),
 KEY  (`a`)
 )  DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
 INSERT INTO t5 VALUES (NULL, "We the people", NULL);
 INSERT INTO t5 VALUES (NULL, "in order to form a more peefect union", "secure the blessing of liberty");
@@ -12602,6 +12624,8 @@ b blob(12),
 c int,
 KEY  (`a`)
 )  DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT * FROM t6;
 a	b	c
 INSERT INTO t6 VALUES (NULL, "foo", NULL);

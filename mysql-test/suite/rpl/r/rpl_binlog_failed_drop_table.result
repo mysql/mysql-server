@@ -6,9 +6,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE DATABASE `db1`;
 USE `db1`;
 CREATE TABLE `t0` (`ID` bigint(20) primary key) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t1` (`ID` bigint(20) primary key) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (`ID` bigint(20) primary key) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t3` (`ID` bigint(20) primary key) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP TABLE IF EXISTS `db1`.`t1`;
 ERROR HY000: Unknown error

@@ -14,6 +14,8 @@ PRIMARY KEY (word))
 ENGINE=MyISAM
 CHARSET utf16le
 COLLATE utf16le_general_ci ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a");
 INSERT INTO t1 (word) VALUES ("aardvar");
@@ -86,6 +88,8 @@ PRIMARY KEY (bar))
 ENGINE=MyISAM
 CHARSET utf16le
 COLLATE utf16le_general_ci ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a" );
 INSERT INTO t1 (word) VALUES ("aardvar");

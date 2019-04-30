@@ -71,6 +71,9 @@ c char(3) default NULL,
 PRIMARY KEY  (id),
 KEY t2i1 (b)
 ) ENGINE=innodb DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
 CREATE TABLE t2 (
 id int(11) NOT NULL default '0',
@@ -79,6 +82,9 @@ c char(3) default NULL,
 PRIMARY KEY  (id),
 KEY t2i (b)
 ) ENGINE=innodb DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
 select (select max(id) from t2 where b=1 group by b) as x,b from t1 where b=1;
 x	b
@@ -396,11 +402,19 @@ NULL
 drop procedure p1;
 drop tables t1,t2,t3;
 CREATE TABLE t1 (a int(10) , PRIMARY KEY (a)) Engine=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2 (a int(10), PRIMARY KEY (a)) Engine=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1);
 CREATE TABLE t3 (a int(10), b int(10), c int(10),
 PRIMARY KEY (a)) Engine=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,2,1);
 SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a 
 and t2.a='1' AND t1.a=t3.b) > 0;

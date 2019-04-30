@@ -28,6 +28,8 @@ CREATE TABLE t1 (
 a BIGINT(20) NOT NULL DEFAULT 0,
 PRIMARY KEY  (a)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a) ;
 DROP TABLE t1;
 SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
@@ -35,6 +37,8 @@ CREATE TABLE `t1` (
 `id` int(11) PRIMARY KEY auto_increment,
 `f1` varchar(10) NOT NULL UNIQUE
 )engine=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT IGNORE INTO t1 (f1) VALUES ("test1")
 ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id);
 INSERT IGNORE INTO t1 (f1) VALUES ("test1")
@@ -75,6 +79,8 @@ CREATE TABLE `t1` (
 `id` int(11) PRIMARY KEY auto_increment,
 `f1` varchar(10) NOT NULL UNIQUE
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT IGNORE INTO t1 (f1) VALUES ("test1")
 ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id);
 SELECT LAST_INSERT_ID();

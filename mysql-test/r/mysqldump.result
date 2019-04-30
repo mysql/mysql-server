@@ -1451,8 +1451,12 @@ use test;
 # Bug#9657 mysqldump xml ( -x ) does not format NULL fields correctly
 #
 create table t1 (a int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (pk int primary key auto_increment,
 a int(10), b varchar(30), c datetime, d blob, e text);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (NULL), (10), (20);
 insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thirty");
 <?xml version="1.0"?>
@@ -1534,6 +1538,8 @@ t1_id int(10) unsigned not null auto_increment,
 key (t1_name),
 primary key (t1_id)
 ) auto_increment = 1000 default charset=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (t1_name) values('bla');
 insert into t1 (t1_name) values('bla');
 insert into t1 (t1_name) values('bla');
@@ -2412,12 +2418,16 @@ Note	1051	Unknown table 'test.test1'
 CREATE TABLE `test1` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS `test2`;
 Warnings:
 Note	1051	Unknown table 'test.test2'
 CREATE TABLE `test2` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER `testref` BEFORE INSERT ON `test1` FOR EACH ROW BEGIN
 INSERT INTO test2 SET a2 = NEW.a1; END  //
 INSERT INTO `test1` VALUES (1);
@@ -2449,6 +2459,8 @@ DROP PROCEDURE IF EXISTS `a'b`;
 CREATE TABLE t1 (id int);
 INSERT INTO t1 VALUES(1), (2), (3), (4), (5);
 CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11) RETURN a+b //
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
 BEGIN SELECT a+b INTO c; end  //
 create function bug9056_func2(f1 char binary) returns char
@@ -2700,9 +2712,13 @@ DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t1 test` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2 test` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
 INSERT INTO `t2 test` SET a2 = NEW.a1; END  //
 INSERT INTO `t1 test` VALUES (1);
@@ -3146,6 +3162,8 @@ drop table t;
 #
 /*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
 return 42 */|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 /*!50003 CREATE PROCEDURE `p`()
 select 42 */|
 show create function f;
@@ -3390,6 +3408,8 @@ use test;
 #
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (f1 int(10), data MEDIUMBLOB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1, 0xff00fef0);
 <?xml version="1.0"?>
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">

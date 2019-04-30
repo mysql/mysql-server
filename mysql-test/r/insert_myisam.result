@@ -1,4 +1,6 @@
 create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id)) engine=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
 select * from t1;
 sid	id

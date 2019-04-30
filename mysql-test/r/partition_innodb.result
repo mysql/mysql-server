@@ -164,6 +164,8 @@ PARTITION BY RANGE (TO_DAYS(c3))
 (PARTITION p200912 VALUES LESS THAN (to_days('2010-01-01')),
 PARTITION p201103 VALUES LESS THAN (to_days('2011-04-01')),
 PARTITION p201912 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1(c2,c3) values ("Test row",'2010-01-01 00:00:00');
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 PARTITION_NAME	TABLE_ROWS
@@ -751,6 +753,9 @@ f2 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY KEY (f1,f2) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (9585,5);
 ALTER TABLE t1 CHANGE f1 f1 INT AFTER f2, ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
@@ -762,6 +767,11 @@ f4 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY KEY (f2,f3) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (10,9585,5,20);
 ALTER TABLE t2 CHANGE f3 f3 INT AFTER f4, ALGORITHM=INPLACE;
 CHECK TABLE t2;
@@ -802,6 +812,9 @@ f2 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY HASH (MOD(f1,f2)) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (9585,5);
 ALTER TABLE t4 CHANGE f1 f1 INT AFTER f2, ALGORITHM=INPLACE;
 CHECK TABLE t4;
@@ -844,6 +857,12 @@ f5 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY KEY (f1,f5) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t7 VALUES (9585,10,20,10,5);
 ALTER TABLE t7 CHANGE f5 f5 INT AFTER f3, ALGORITHM=INPLACE;
 CHECK TABLE t7;
@@ -981,6 +1000,9 @@ PRIMARY KEY (`f1`,`f4`)
 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
 PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1113,6 +1135,8 @@ Warning	1292	Truncated incorrect DOUBLE value: 'b'
 CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg
 TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE
 COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT * FROM t WHERE dttm > '2017-01-19' ORDER BY id DESC;
 id	dttm	msg
 DROP TABLE t,t1;
@@ -1160,6 +1184,9 @@ BY RANGE (YEAR(fld3))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
 PARTITION p02 VALUES LESS THAN (1986) ENGINE = InnoDB,
 PARTITION p03 VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('11', '11111', '1984-11-16',
 '2008-11-16'), ('12', '11112', '1985-11-16', '2008-11-16'),
 ('13', '11113', '1986-11-16', '2008-11-16');
@@ -1202,6 +1229,8 @@ KEY `idx_dt` (`dt`)
 (PARTITION p20170218 VALUES LESS THAN (736744) ENGINE = InnoDB,
 PARTITION p20170219 VALUES LESS THAN (736745) ENGINE = InnoDB,
 PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, '2018-04-25 10:18:00', '1');
 INSERT INTO t1 VALUES (2, '2018-04-25 10:18:01', '2');
 INSERT INTO t1 VALUES (3, '2018-04-25 10:18:02', '3');

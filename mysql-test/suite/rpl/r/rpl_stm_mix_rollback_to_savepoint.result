@@ -121,6 +121,8 @@ DROP PROCEDURE p1;
 include/rpl_reset.inc
 [connection master]
 CREATE TABLE t (f1 int(10) unsigned NOT NULL, PRIMARY KEY (f1)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER t_insert_trig AFTER INSERT ON t
 FOR EACH ROW
 BEGIN
@@ -159,7 +161,11 @@ DROP TABLE t;
 include/rpl_reset.inc
 [connection master]
 CREATE TABLE t (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t1 (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER t_insert_trig BEFORE INSERT ON t
 FOR EACH ROW
 BEGIN
@@ -210,7 +216,11 @@ DROP TABLE t1;
 include/rpl_reset.inc
 [connection master]
 CREATE TABLE t (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t1 (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER t_insert_trig BEFORE INSERT ON t
 FOR EACH ROW
 BEGIN

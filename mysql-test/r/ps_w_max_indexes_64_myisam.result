@@ -431,6 +431,8 @@ NULL	NULL
 drop table if exists t5 ;
 create table t5 (id1 int(11) not null default '0',
 value2 varchar(100), value1 varchar(100)) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t5 values (1,'hh','hh'),(2,'hh','hh'),
 (1,'ii','ii'),(2,'ii','ii') ;
 prepare stmt1 from ' select id1,value1 from t5 where id1=? or value1=? order by id1,value1 ' ;
@@ -1104,6 +1106,8 @@ a	(select count(distinct t5.b) as sum from t5, t6
 drop table t5, t6, t7 ;
 drop table if exists t2 ;
 create table t2 as select * from t9;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 set @stmt= ' SELECT
    (SELECT SUM(c1 + c12 + 0.0) FROM t2 
     where (t9.c2 - 0e-3) = t2.c2

@@ -190,6 +190,10 @@ KEY i3 (((col_int_key < 9))),
 KEY i5 (((col_int_not_null_key > 1)))
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO table10_innodb_int_autoinc VALUES
 (43,'if','that',1,99)
 , (1,'we','she',2,1203568640)

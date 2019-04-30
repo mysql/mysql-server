@@ -19,6 +19,13 @@ amt_annuity varchar(20),
 key bureau (id,c2),
 key bureau_i2 (c2)
 ) engine=innodb default charset=utf8mb4 collate=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set session sql_mode='';
 load data infile '../../std_data/inconsistent_scan.csv' into table bureau columns terminated by "," ignore 1 lines;
 set big_tables=0;

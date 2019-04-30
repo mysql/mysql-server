@@ -315,6 +315,9 @@ disconnect con2;
 # 6. Change in view IS_UDPATABLE value in I_S.views.
 #
 CREATE TABLE t1 (c1 INT(11) DEFAULT NULL, c2 INT(11) DEFAULT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(5, 5);
 CREATE VIEW v1 AS SELECT A.c1 AS c1 FROM t1 A
 WHERE EXISTS(SELECT B.c2 FROM t1 B WHERE (B.c2 = A.c1));

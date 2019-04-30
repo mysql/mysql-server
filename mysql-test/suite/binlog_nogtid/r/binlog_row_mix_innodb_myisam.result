@@ -501,6 +501,8 @@ begin
 insert into t1 values (null);
 return n;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 reset master;
 insert into t2 values (bug27417(1));
 insert into t2 select bug27417(2);
@@ -745,6 +747,8 @@ begin
 insert into t1 values (null);
 return n;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 reset master;
 insert into t2 values (bug27417(1));
 insert into t2 select bug27417(2);

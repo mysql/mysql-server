@@ -985,10 +985,12 @@ conv(71, 10, 37)	conv('1Z', 37, 10)	conv(0,1,10)	conv(0,0,10)	conv(0,-1,10)
 NULL	NULL	NULL	NULL	NULL
 create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
 create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (1,'cccccccccc'), (2,'dddddddddd');
 select substring(concat(t1.str, t2.str), 1, 15) "name" from t1, t2 
@@ -1082,6 +1084,9 @@ pc int(11) NOT NULL default '0',
 title varchar(20) default NULL,
 PRIMARY KEY (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1, 0, 'Main'),
 (2, 1, 'Toys'),
@@ -1105,16 +1110,23 @@ trackid     int(10) unsigned NOT NULL auto_increment,
 trackname   varchar(100) NOT NULL default '',
 PRIMARY KEY (trackid)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2(
 artistid    int(10) unsigned NOT NULL auto_increment,
 artistname  varchar(100) NOT NULL default '',
 PRIMARY KEY (artistid)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3(
 trackid     int(10) unsigned NOT NULL,
 artistid    int(10) unsigned NOT NULL,
 PRIMARY KEY (trackid,artistid)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, 'April In Paris'), (2, 'Autumn In New York');
 INSERT INTO t2 VALUES (1, 'Vernon Duke');
 INSERT INTO t3 VALUES (1,1);
@@ -2161,6 +2173,8 @@ CREATE TABLE `t1` (
 `tire` tinyint(3) unsigned NOT NULL,
 PRIMARY KEY (`id`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t1` (`id`, `tire`) VALUES ('A', 0), ('B', 1),('C', 2);
 SELECT REPEAT( '#', tire ) AS A,
 REPEAT( '#', tire % 999 ) AS B, tire FROM `t1`;

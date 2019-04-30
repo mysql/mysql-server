@@ -13,7 +13,11 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
 Table	t1
@@ -86,6 +90,10 @@ year year(4) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
@@ -128,12 +136,20 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(4) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
@@ -176,12 +192,20 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(4) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
@@ -224,12 +248,20 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(4) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
@@ -272,12 +304,20 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(4) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
 SHOW CREATE TABLE t1;
@@ -321,12 +361,20 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(4) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
 SHOW CREATE TABLE t1;
@@ -378,6 +426,10 @@ CREATE TABLE t1_1 (
 PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
 PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
 PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # "Clone" table using AS SELECT ...
 CREATE TABLE temp25058 AS SELECT * FROM t1_1 WHERE 1 <> 1;
 SHOW CREATE TABLE temp25058;

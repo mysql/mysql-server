@@ -10,6 +10,8 @@ KEY col_int_key (col_int_key),
 KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (7,'06:17:39','2003-08-21 00:00:00');
 SELECT DISTINCT col_int_key
 FROM t1

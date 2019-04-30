@@ -459,12 +459,19 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`id`),
 KEY `k` (`k`)
 ) ENGINE=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
 `evend_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 `timestamp` int(11) NOT NULL,
 `server_id` int(11) NOT NULL,
 PRIMARY KEY (`evend_id`)
 ) ENGINE=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (null,1,'',''),(null,2,'','');
 CREATE TRIGGER tr1
 AFTER UPDATE ON t1
@@ -528,6 +535,8 @@ data binary(16) NOT NULL,
 PRIMARY KEY (id),
 UNIQUE KEY uk_t1_data (data)
 ) ENGINE = NDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
 Warnings:
 Warning	1062	Duplicate entry '6' for key 'uk_t1_data'

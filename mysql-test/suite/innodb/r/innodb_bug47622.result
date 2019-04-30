@@ -6,6 +6,11 @@ CREATE TABLE bug47622(
 `else_ind` TINYINT NOT NULL,
 KEY IDX_A (`arg_id`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE bug47622 ADD UNIQUE IDX_B (rule_key,else_ind,seq,action,arg_id);
 drop index IDX_B on bug47622;
 create index idx on bug47622(seq, arg_id);
@@ -19,5 +24,8 @@ CREATE TABLE bug47622 (
 PRIMARY KEY (`a`),
 KEY `b` (`b`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 alter table bug47622 add unique index (c), add index (d);
 drop table bug47622;

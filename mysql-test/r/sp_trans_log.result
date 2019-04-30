@@ -11,6 +11,8 @@ insert into t1 values (null);
 select count(*) from t1 into @a;
 return @a;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 reset master;
 insert into t2 values (bug23333(),1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'

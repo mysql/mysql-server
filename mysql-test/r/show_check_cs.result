@@ -366,16 +366,23 @@ CREATE TABLE t1 (
 a int(11) default NULL,
 KEY a USING BTREE (a)
 ) ENGINE=HEAP;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 b int(11) default NULL,
 index(b)
 ) ENGINE=HEAP;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 a int(11) default NULL,
 b int(11) default NULL,
 KEY a USING BTREE (a),
 index(b)
 ) ENGINE=HEAP;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
@@ -1428,6 +1435,9 @@ CREATE TABLE t1 (c1 int(11) NOT NULL,
 c2 int(11) DEFAULT NULL,
 c3 text,
 PRIMARY KEY (c1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE INDEX c2d ON t1(c2);
 # With fix, following statements should not show the hidden columns.
 SHOW COLUMNS FROM t1;

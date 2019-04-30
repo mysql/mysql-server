@@ -161,6 +161,8 @@ ERROR HY000: Default value expression of column 'b' contains a disallowed functi
 # Test func as DEFAULT with different order
 #
 CREATE TABLE t1 (f1 JSON DEFAULT (JSON_OBJECT("key", id)), id int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(id) VALUES(1), (2), (3);
 SELECT * FROM t1;
 f1	id

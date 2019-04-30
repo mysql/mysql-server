@@ -14,6 +14,12 @@ KEY `date` (`date`),
 KEY `pseudo` (`pseudo`),
 KEY `numreponse` (`numreponse`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
 `numeropost` bigint(20) unsigned NOT NULL default '0',
 `icone` tinyint(4) unsigned NOT NULL default '0',
@@ -29,6 +35,12 @@ KEY `date` (`date`),
 KEY `pseudo` (`pseudo`),
 KEY `numreponse` (`numreponse`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2
 (numeropost,icone,numreponse,contenu,pseudo,date,ip,signature) VALUES
 (9,1,56,'test','joce','2001-07-25 13:50:53'
@@ -50,6 +62,10 @@ Field int(10) unsigned NOT NULL,
 Count int(10) unsigned NOT NULL,
 UNIQUE KEY Month (Month,Type,Field)
 )engine=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 Values
 (20030901, 1, 1, 100),
 (20030901, 1, 2, 100),
@@ -83,6 +99,10 @@ SEQ          int(11) NOT NULL default '0',
 PRIMARY KEY  (ID),
 KEY t1$NO    (SEQ,NO)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (SEQ, NO) SELECT "1" AS SEQ, IF(MAX(NO) IS NULL, 0, MAX(NO)) + 1 AS NO FROM t1 WHERE (SEQ = 1);
 select SQL_BUFFER_RESULT * from t1 WHERE (SEQ = 1);
 ID	NO	SEQ

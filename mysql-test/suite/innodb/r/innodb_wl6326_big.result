@@ -15,6 +15,8 @@ SELECT @extra_int , @extra_string;
 1	__1_
 CREATE FUNCTION f_col_int1 (i INT) RETURNS INT(20) DETERMINISTIC
 RETURN i * 1000 + @extra_int ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT f_col_int1(my_col) AS my_result
 FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
 UNION SELECT 1234 UNION SELECT 12345) AS tx;
@@ -26,6 +28,8 @@ my_result
 12345001
 CREATE FUNCTION f_col_int2 (i INT) RETURNS INT(20) DETERMINISTIC
 RETURN @extra_int * 10000000 + i ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT f_col_int2(my_col) AS my_result
 FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
 UNION SELECT 1234 UNION SELECT 12345) AS tx;
@@ -37,6 +41,8 @@ my_result
 10012345
 CREATE FUNCTION f_col_int3 (i INT) RETURNS INT(20) DETERMINISTIC
 RETURN @extra_int ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT f_col_int3(my_col) AS my_result
 FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
 UNION SELECT 1234 UNION SELECT 12345) AS tx;

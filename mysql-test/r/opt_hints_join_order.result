@@ -550,14 +550,20 @@ CREATE TABLE t1
 f1 INT(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (f1)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2
 (
 f1 INT(11) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3
 (
 f1 INT(11) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN DELETE
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
 RIGHT OUTER JOIN t2 ON (ta1.f1 = t2.f1)
@@ -654,6 +660,8 @@ CREATE TABLE t1 (
 f1 int(11) NOT NULL AUTO_INCREMENT,
 f2 varchar(255) DEFAULT NULL,
 PRIMARY KEY (f1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 f1 int(11) NOT NULL AUTO_INCREMENT,
 f2 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
@@ -661,6 +669,7 @@ f3 varchar(10) DEFAULT NULL,
 PRIMARY KEY (f1),
 KEY f3(f3));
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 EXPLAIN SELECT /*+ JOIN_SUFFIX(t1, t2) */ t2.f3 FROM t2 LEFT JOIN t1
 ON t2.f1 = t1.f1 WHERE t1.f2 NOT LIKE ('FMGAU') OR t2.f2 > 't';
@@ -675,6 +684,8 @@ CREATE TABLE t1
 f1 int(11) DEFAULT NULL,
 KEY f1 (f1)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2
 (
 f1 int(11) DEFAULT NULL,
@@ -683,6 +694,7 @@ KEY f2 (f2),
 KEY f1 (f1)
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t3 (
 f1 int(11) DEFAULT NULL,
@@ -690,6 +702,8 @@ f2 varchar(255) CHARACTER SET cp932 DEFAULT NULL,
 KEY f1 (f1),
 KEY f2 (f2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT /*+ JOIN_ORDER(t2, t3) JOIN_ORDER(t1, t2)  */ t3.f1
 FROM ( t2 INNER JOIN t3 ON t3.f2 = t2.f2 LEFT JOIN t1 ON t1.f1 = t3.f1 )
 WHERE NOT (t2.f1 >= 7);
@@ -714,10 +728,15 @@ f1 INT(11) NOT NULL AUTO_INCREMENT,
 f2 INT(11) DEFAULT NULL,
 PRIMARY KEY (f1)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 f1 INT(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (f1)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT /*+ JOIN_PREFIX(t1, t1) */ t2.f1 FROM t1 JOIN t2 ON t1.f2 = t2.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
@@ -805,9 +824,14 @@ f3 VARCHAR(1) DEFAULT NULL,
 f2 INT(11) DEFAULT NULL,
 KEY (f1)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2(
 f1 INT(11) DEFAULT NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 f1 VARCHAR(1) DEFAULT NULL,
 f2 VARCHAR(1) DEFAULT NULL,
@@ -825,18 +849,33 @@ Note	1003	update /*+ JOIN_SUFFIX(@`select#1` `ta1`,`t2`) */ `test`.`t2` left joi
 DROP TABLE t1, t2, t3;
 CREATE TABLE t2(f1 VARCHAR(255) DEFAULT NULL, f2 INT(11) DEFAULT NULL,
 KEY (f1), KEY (f2)) charset latin1 ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t4(f1 INT(11) DEFAULT NULL, f2 INT(11) DEFAULT NULL, KEY (f1))
 charset latin1 ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t5(f1 INT(11) NOT NULL AUTO_INCREMENT, f2 INT(11) DEFAULT NULL, PRIMARY KEY (f1))
 charset latin1 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6(f1 INT(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1))
 charset latin1 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t7 (f1 VARCHAR(255) DEFAULT NULL)
 charset latin1 ENGINE=InnoDB;
 CREATE TABLE t10(f1 INT(11) NOT NULL AUTO_INCREMENT,f2 INT(11) DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL,
 PRIMARY KEY (f1),KEY (f2),KEY (f3)) charset latin1 ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t11(f1 INT(11) DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL,
 KEY (f1),KEY (f2)) charset latin1 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN
 SELECT /*+ JOIN_ORDER(alias11, alias8) */ 1
 FROM t4 AS alias4
@@ -868,14 +907,26 @@ CREATE TABLE t1 (f1 VARCHAR(255) DEFAULT NULL, f2 VARCHAR(255) DEFAULT NULL,
 KEY (f1), KEY (f2)) ENGINE=InnoDB;
 CREATE TABLE t2(f1 VARCHAR(255) DEFAULT NULL, f2 INT(11) DEFAULT NULL,
 KEY (f1), KEY (f2)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3(
 f1 INT(11) NOT NULL AUTO_INCREMENT, f2 VARCHAR(255) DEFAULT NULL,
 PRIMARY KEY (f1), KEY (f2)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t4(f1 INT(11) DEFAULT NULL, f2 INT(11) DEFAULT NULL, KEY (f1)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6(f1 INT(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t7 (f1 VARCHAR(255) DEFAULT NULL) ENGINE=InnoDB;
 CREATE TABLE t10(f1 INT(11) NOT NULL AUTO_INCREMENT,f2 INT(11) DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL,
 PRIMARY KEY (f1),KEY (f2),KEY (f3)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT /*+ JOIN_ORDER(alias8, alias6) */ 1
 FROM t1 AS alias1
 LEFT JOIN t7 alias7
@@ -910,6 +961,10 @@ f3 int(11) DEFAULT NULL,
 PRIMARY KEY (f1),
 KEY f2 (f2))
 ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 f1 int(11) NOT NULL AUTO_INCREMENT,
 f2 int(11) DEFAULT NULL,
@@ -917,6 +972,10 @@ f3 int(11) DEFAULT NULL,
 PRIMARY KEY (f1),
 KEY f2 (f2))
 ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT /*+ JOIN_PREFIX(alias1) */ alias2.f3 AS field1
 FROM ( SELECT * FROM t1 ) AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2
 ON alias1.f2 = alias2.f3
@@ -934,6 +993,9 @@ f1 int(11) NOT NULL AUTO_INCREMENT,
 f2 INT(11) DEFAULT NULL,
 PRIMARY KEY (f1)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2
 (
 f1 int(11) NOT NULL AUTO_INCREMENT,
@@ -941,6 +1003,9 @@ f2 INT(11) DEFAULT NULL,
 PRIMARY KEY (f1),
 KEY (f2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT /*+ JOIN_ORDER(t2, t1) JOIN_FIXED_ORDER() */ t2.f1 FROM t1 JOIN t2 ON t1.f1 = t2.f2
 WHERE (t1.f2 > 5 AND t1.f1 <= 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -982,6 +1047,8 @@ CREATE TABLE t1
 f1 INT(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (f1)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2
 (
 f1 VARCHAR(1) DEFAULT NULL
@@ -1001,6 +1068,8 @@ DROP TABLE t1, t2, t3;
 # Bug23715779 SELECT QUERY WITH JOIN_PREFIX() HINT RETURNS INCORRECT RESULT
 #
 CREATE TABLE t1(f1 INT(11) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10);
 CREATE TABLE t2
 (
@@ -1009,6 +1078,9 @@ f2 INT(11) DEFAULT NULL,
 PRIMARY KEY (f1),
 KEY (f2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1, 7), (2, 1), (4, 7);
 CREATE TABLE t4(f1 INT DEFAULT NULL);
 INSERT INTO t4 VALUES (2);

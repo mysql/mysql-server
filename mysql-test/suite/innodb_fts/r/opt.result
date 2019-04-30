@@ -7,6 +7,8 @@ PRIMARY KEY (FTS_DOC_ID),
 UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
 FULLTEXT KEY idx (title,text) 
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO wp (title, text) VALUES
 ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
 ('How To Use MySQL Well','After you went through a ...'),
@@ -860,6 +862,8 @@ PRIMARY KEY (FTS_DOC_ID),
 UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
 FULLTEXT KEY ft_idx (title,text)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (title, text) VALUES
 ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
 ('How To Use MySQL Well','After you went through a ...'),

@@ -226,6 +226,10 @@ PRIMARY KEY (`pk`),
 KEY `col_int_key` (`col_int_key`),
 KEY `col_datetime_key` (`col_datetime_key`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES
 (1,default,4,'2008-12-05','1900-01-01 00:00:00');
 SELECT
@@ -508,6 +512,10 @@ KEY gc_idx7 (col_date_key,col_datetime_key,col_time_key),
 KEY gc_idx8(col_int_key,col_varchar_key,col_date_key,col_time_key,
 col_datetime_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO cc (
 col_int_nokey,
 col_date_nokey,

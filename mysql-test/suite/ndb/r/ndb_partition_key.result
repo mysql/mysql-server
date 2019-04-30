@@ -255,6 +255,8 @@ b bigint(20) unsigned NOT NULL,
 c char(12),
 PRIMARY KEY (a,b)
 ) ENGINE ndb DEFAULT CHARSET=latin1 PARTITION BY KEY (a);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values(1,1,'1'), (2,2,'2'), (3,3,'3'), (4,4,'4'), (5,5,'5');
 select * from t1 where a = 1;
 a	b	c

@@ -27,6 +27,8 @@ KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key),
 KEY col_time_key (col_time_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2(col_int_key,col_varchar_key,col_varchar,pk,col_int)  VALUES
 (8,'a','w',1,5),
 (9,'y','f',7,0),
@@ -42,6 +44,8 @@ pk int NOT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (8,4,1);
 ANALYZE TABLE t1, t2, t3;
 Table	Op	Msg_type	Msg_text

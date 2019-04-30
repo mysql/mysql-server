@@ -3864,6 +3864,9 @@ c datetime default NULL,
 PRIMARY KEY  (a),
 KEY idx_bc (b,c)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
 (406989,67,'2006-02-23 17:08:46'), (150078,67,'2005-10-26 11:17:45'),
 (406993,67,'2006-02-27 11:20:57'), (245655,67,'2005-12-08 15:59:08'),
@@ -4524,6 +4527,7 @@ col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
 PRIMARY KEY (pk)
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t3 VALUES (22,'come','h'),
@@ -6113,6 +6117,8 @@ CREATE TABLE t1 (
 `pk` int(11),
 `varchar_nokey` varchar(5)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,'qk'),(2,'j'),(3,'aew');
 SELECT *
@@ -6144,6 +6150,9 @@ KEY time_key (time_key),
 KEY datetime_key (datetime_key),
 KEY varchar_key (varchar_key)
 ) ENGINE=MyISaM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
 (1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
 (2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
@@ -6199,6 +6208,9 @@ KEY time_key (time_key),
 KEY datetime_key (datetime_key),
 KEY varchar_key (varchar_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT IGNORE INTO t2 VALUES 
 (10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
 (11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
@@ -6483,6 +6495,8 @@ varchar_nokey varchar(1) DEFAULT NULL,
 KEY int_key (int_key),
 KEY varchar_key (varchar_key,int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t0 VALUES
 (1,'m','m'),
 (40,'h','h'),
@@ -6511,6 +6525,8 @@ varchar_nokey varchar(1) DEFAULT NULL,
 KEY int_key (int_key),
 KEY varchar_key (varchar_key,int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (7,NULL,NULL),(4,'x','x');
 CREATE TABLE t2 (
 int_key int(11) DEFAULT NULL,
@@ -6519,6 +6535,8 @@ varchar_nokey varchar(1) DEFAULT NULL,
 KEY int_key (int_key),
 KEY varchar_key (varchar_key,int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (123,NULL,NULL);
 SELECT int_key  
 FROM t0  
@@ -6809,6 +6827,8 @@ datetime_key datetime NOT NULL,
 KEY int_key (int_key),
 KEY datetime_key (datetime_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO it2 VALUES
 (5,'2002-04-10 14:25:30'), (0,'0000-00-00 00:00:00'),
 (0,'2006-09-14 04:01:02'), (4,'0000-00-00 00:00:00'),
@@ -6837,6 +6857,9 @@ int_nokey int(11) NOT NULL,
 int_key int(11) NOT NULL,
 KEY int_key (int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO ot1 VALUES
 (5,0), (3,0), (0,2), (3,0), (1,3), (0,0), (1,7), (7,0), (1,7), (0,7),
 (0,9), (8,2), (4,4), (9,3), (0,9), (2,5), (0,5), (8,0), (5,8), (1,5);
@@ -6845,6 +6868,9 @@ int_nokey int(11) NOT NULL,
 int_key int(11) NOT NULL,
 KEY int_key (int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO it1 VALUES
 (9,5), (0,4);
 SELECT int_key FROM ot1
@@ -7222,6 +7248,8 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`pk`),
 KEY `varchar_key` (`varchar_key`)
 ) AUTO_INCREMENT=12 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t1` VALUES (10,'00:00:00','i','i'),(11,'00:00:00','','');
 SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
 SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
@@ -7649,6 +7677,9 @@ PRIMARY KEY  (ID),
 INDEX (Population),
 INDEX (Country) 
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 Code char(3) NOT NULL default '',
 Name char(52) NOT NULL default '',
@@ -7661,6 +7692,8 @@ INDEX (Population)
 ) charset utf8mb4;
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
@@ -7831,9 +7864,12 @@ PRIMARY KEY (Code)
 ) charset utf8mb4;
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 ID int(11) NOT NULL AUTO_INCREMENT,
 Name char(35) NOT NULL DEFAULT '',
@@ -7843,6 +7879,9 @@ Population int(11) NOT NULL DEFAULT '0',
 PRIMARY KEY (ID),
 KEY CountryCode (CountryCode)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set names latin1;
 Fill the table with test data
 This must not use LooseScan:
@@ -7897,10 +7936,15 @@ drop table t0, t1, t2, tmp, tmp_as_ref;
 CREATE TABLE t1 (
 id int(11) NOT NULL,
 PRIMARY KEY (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL,
 fid int(11) NOT NULL,
 PRIMARY KEY (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values(1);
 insert into t2 values(1,7503),(2,1);
 explain select count(*) 
@@ -10004,6 +10048,8 @@ col_varchar_nokey varchar(1) DEFAULT NULL,
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4,'v','v');
 INSERT INTO t1 VALUES (62,'v','v');
 INSERT INTO t1 VALUES (7,'c','c');
@@ -10372,6 +10418,9 @@ pk int(11) PRIMARY KEY,
 int_key int(11),
 KEY int_key (int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0),(2,0),(3,2),(4,0),(5,3),(6,0);
 SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 1, 2);
 MIN(int_key)
@@ -10459,6 +10508,8 @@ KEY col_int_key (col_int_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
 INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
 CREATE TABLE t2 (
@@ -10470,6 +10521,8 @@ KEY col_int_key (col_int_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
@@ -10832,6 +10885,8 @@ PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (26,6,NULL,'f','f');
 INSERT INTO t1 VALUES (29,6,8,'c','c');
 CREATE TABLE t2 (
@@ -12249,12 +12304,16 @@ DROP TABLE b,c;
 CREATE TABLE b (
 d INT(11)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE c (
 d BLOB
 ) ;
 CREATE TABLE d (
 b INT(11)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO b VALUES(1),(2),(4);
 INSERT INTO c VALUES(1),(2),(3);
 SELECT  1 FROM b  WHERE (SELECT 1 FROM d ) IN (SELECT d FROM c) ;
@@ -12281,7 +12340,11 @@ KEY id3 (id3),
 KEY id5 (id5)
 ) ENGINE=InnoDB;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (123,1,1,'1',NULL),
 (124,1,1,'2',NULL),
@@ -12295,6 +12358,9 @@ id7 int(11) NOT NULL,
 PRIMARY KEY (id6,id7),
 KEY id7 (id7)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (126,123),(130,123),(135,123);
 SELECT ID
 FROM t1 p0
@@ -12480,6 +12546,8 @@ pk int(11) NOT NULL,
 col_varchar_nokey varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'x');
 CREATE TABLE t2 (
 col_date_key date DEFAULT NULL,
@@ -12490,6 +12558,8 @@ KEY col_int_key (col_int_key),
 KEY col_date_key (col_date_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('2000-12-03', 8, 'x', 'x'),('2008-05-03', 7, 'd', 'd'),
 ('2005-12-06', 1, 'r', 'r'),('2000-04-10', 7, 'f', 'f'),
 ('2002-11-05', 9, 'y', 'y'),('2000-09-06', NULL, 'u', 'u'),
@@ -12505,6 +12575,8 @@ pk int(11) NOT NULL,
 col_varchar_nokey varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1, 'c'),(2, 'c'),(3, 'q'),(4, 'g'),(5, 'e'),(6, 'l'),
 (7, NULL),(8, 'v'),(9, 'c'),(10, 'u'),(11, 'x'),(12, 'x'),(13, 'x'),(14, 'l'),
 (15, 'e'),(16, 's'),(17, 'k'),(18, 'm'),(19, 'x'),(20, 's');

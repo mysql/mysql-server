@@ -10,7 +10,11 @@ lock tables t1 write, t2 write, t3 write, t1 as t4 read;
 alter table t2 add column c2 int;
 drop table t1, t2, t3;
 create table t1 ( a int(11) not null auto_increment, primary key(a));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 ( a int(11) not null auto_increment, primary key(a));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 lock tables t1 write, t2 read;
 delete from t1 using t1,t2 where t1.a=t2.a;
 delete t1 from t1,t2 where t1.a=t2.a;

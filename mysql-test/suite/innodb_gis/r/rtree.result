@@ -202,6 +202,8 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`id`),
 SPATIAL KEY `way` (`way`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 1)');
 INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 2)');
 INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 3)');

@@ -133,6 +133,8 @@ ERROR 22003: Input value is out of range in 'format_pico_time'
 USE test;
 
 CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 INSERT INTO timer_waits VALUES ('1 sec',          1000000000000);
 INSERT INTO timer_waits VALUES ('1 min',         60000000000000);

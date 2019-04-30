@@ -278,6 +278,9 @@ KEY `a` (`a`),
 CONSTRAINT `t6_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
 CONSTRAINT `t6_ibfk_3` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
 CONSTRAINT_NAME

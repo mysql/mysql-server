@@ -282,6 +282,9 @@ CREATE TABLE `t1` (
 `N` int(11) unsigned NOT NULL default '0',
 `M` tinyint(1) default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t1` (N, M) VALUES (1, 0),(1, 0),(1, 0),(2, 0),(2, 0),(3, 0);
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
 select * from t1;
@@ -311,23 +314,33 @@ SORTORDER int(11) NOT NULL auto_increment,
 KEY t1_SortIndex (SORTORDER),
 KEY t1_IdIndex (OBJECTID)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 ID int(11) default NULL,
 PARID int(11) default NULL,
 UNIQUE KEY t2_ID_IDX (ID),
 KEY t2_PARID_IDX (PARID)
 ) engine=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1000,0),(1001,0),(1002,0),(1003,0),(1008,1),(1009,1),(1010,1),(1011,1),(1016,2);
 CREATE TABLE t3 (
 ID int(11) default NULL,
 DATA decimal(10,2) default NULL,
 UNIQUE KEY t3_ID_IDX (ID)
 ) engine=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1000,0.00),(1001,0.25),(1002,0.50),(1003,0.75),(1008,1.00),(1009,1.25),(1010,1.50),(1011,1.75);
 select 497, TMP.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as TMP;
 497	ID	NULL
 drop table t1, t2, t3;
 CREATE TABLE t1 (name char(1) default NULL, val int(5) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('a',1),  ('a',2),  ('a',2),  ('a',2),  ('a',3),  ('a',6), ('a',7), ('a',11), ('a',11), ('a',12), ('a',13), ('a',13), ('a',20), ('b',2), ('b',3), ('b',4), ('b',5);
 SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
 name	median
@@ -356,6 +369,9 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`
 drop table t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (128, 'rozn', 2, curdate(), 10),
 (128, 'rozn', 1, curdate(), 10);
 SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
@@ -452,6 +468,8 @@ CREATE TABLE C (
 `col_varchar_nokey` varchar(1) DEFAULT NULL,
 KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO C VALUES (2,'w','w');
 INSERT INTO C VALUES (2,'d','d');
 SELECT SUM(DISTINCT table2.col_int_key) field1, 
@@ -583,6 +601,9 @@ CREATE TABLE `t1` (
 `col_int_key` int(11) DEFAULT NULL,
 `col_datetime_key` datetime DEFAULT NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
 (8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
 SELECT * FROM ( 
@@ -1390,6 +1411,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 f1 int(11) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT 1
 FROM (
 SELECT 1, 2 FROM DUAL
@@ -1433,6 +1456,9 @@ col_varchar_key varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10,8,'v'), (29,4,'c');
 CREATE TABLE t2 (  
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1440,11 +1466,16 @@ col_int_nokey int(11) DEFAULT NULL,
 col_varchar_key varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (16,1,'c'), (20,4,'d');
 CREATE TABLE t3 (
 `field1` varchar(1) DEFAULT NULL,
 `field2` int(11) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES ('m',6),('c',4);
 SELECT *
 FROM t3
@@ -1518,6 +1549,9 @@ col_varchar_key varchar(1) NOT NULL,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10,1,'v'), (24,18,'h');
 CREATE TABLE t2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1530,6 +1564,8 @@ PRIMARY KEY (pk),
 KEY col_date_key (col_date_key),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'1900-01-01','1900-01-01','00:00:00','k','k');
 SELECT OUTR.col_date_key
 FROM t2 AS OUTR2
@@ -1712,6 +1748,8 @@ CREATE TABLE t1 (
 `col_int_key` int(11) NOT NULL,
 `col_varchar_nokey` varchar(1) NOT NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (8,'m'), (4,'b'), (4,'x'), (7,'g'), (4,'p');
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT col_int_key
@@ -1734,8 +1772,12 @@ SET @@optimizer_switch= @save_switch;
 # Bug#13105833: Crash when using LooseScan sj-strategy for a view.
 #
 CREATE TABLE t1 (pk int(11)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (pk int(11)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1), (2), (3);
 CREATE VIEW v1 AS SELECT DISTINCT pk FROM t1;
 SELECT pk 
@@ -3974,6 +4016,8 @@ DROP TABLE t1, t2;
 # Bug#24364448: Assert m_opr_handle != null in
 #               ha_innobase_inmem::keys_to_use_for_scanning
 CREATE TABLE K (col_int int(11), col_varchar varchar(255)) charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO K VALUES (NULL,'m'), (NULL,'z');
 CREATE TABLE H (col_varchar varchar(255)) charset latin1;
 INSERT INTO H VALUES ('m'), ('z');
@@ -4067,6 +4111,8 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 col_int int(11) ,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -4074,6 +4120,9 @@ col_varchar varchar(1) ,
 col_varchar_key varchar(1) ,
 PRIMARY KEY (pk)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (4,1,'s','r'), (9,19,'p','a');
 CREATE TABLE t3 (
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -4083,6 +4132,9 @@ col_varchar varchar(1) ,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (100,2,'g',NULL);
 EXPLAIN SELECT table1.col_int
 FROM t3 AS table1
@@ -4132,6 +4184,10 @@ col_int_key int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,1,'i','n',125);
 INSERT INTO t1 VALUES (3,20,'b','o',0);
 CREATE TABLE t2 (
@@ -4143,6 +4199,10 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (3,'y','p',4,1);
 CREATE TABLE t3 (
 col_int int(11) DEFAULT NULL,
@@ -4153,6 +4213,10 @@ col_int_key int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t4 (  col_int int(11) DEFAULT NULL,
 col_varchar varchar(1) DEFAULT NULL,
 col_int_key int(11) DEFAULT NULL,
@@ -4162,6 +4226,10 @@ PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM
 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (7,'k',9,'z',20);
 SET optimizer_switch = 'firstmatch=off';
 EXPLAIN SELECT

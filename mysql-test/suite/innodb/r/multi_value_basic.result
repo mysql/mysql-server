@@ -263,6 +263,8 @@ KEY `mv_idx_unsigned` ((cast(json_extract(`j2`,_utf8mb4'$[*]') as unsigned array
 KEY `mv_idx_char` ((cast(json_extract(`j3`,_utf8mb4'$[*]') as char(10) array))),
 KEY `mv_idx_time` ((cast(json_extract(`j7`,_utf8mb4'$[*]') as time array)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 ( j4 ) VALUES( JSON_OBJECT( 'key1' , CAST( '2019-11-27 03:43:53' AS DATETIME)) );
 INSERT INTO t1 VALUES();
 DELETE FROM t1 WHERE ( JSON_OVERLAPS( JSON_OBJECT( 'key1' , CAST(null AS JSON)) , j1 -> '$[*]' ) ) XOR ( JSON_CONTAINS( j5 -> '$[*]' , JSON_OBJECT('key1' , CAST(CONCAT( '[ 1, 2, 3, ' , null, ', 5 ]' ) AS JSON)) ) );
@@ -427,6 +429,8 @@ KEY `mv_idx_char` ((cast(json_extract(`j3`,_utf8mb4'$.key2') as char(10) array))
 KEY `mv_idx_unsigned` ((json_length(`j3`)),(json_valid(`j4`)),(cast(json_extract(`j2`,_utf8mb4'$[*]') as unsigned array))) USING BTREE /*!80000 INVISIBLE */,
 KEY `mv_idx_decimal` ((cast(json_extract(`j8`,_utf8mb4'$[*]') as decimal(10, 4) array))) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=1283 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 ADD UNIQUE INDEX mv_idx_date USING BTREE ( ( JSON_DEPTH( j3 ) ) ,( CAST( j6 -> '$[*]' AS DATE ARRAY) ), ( JSON_LENGTH( j1 ) ) ) VISIBLE;
 UPDATE t1  SET j2 = JSON_OBJECT( 'key1' , 1772955722 ) WHERE ( JSON_OVERLAPS( j7 -> '$[*]' , '[ ]' ) ) XOR ( 1 );
 INSERT INTO t1 SELECT * FROM t1  WHERE JSON_CONTAINS( JSON_ARRAY(-10,100,65,JSON_ARRAY(-101,25,12,0)) , j6 -> '$[*]' )   LIMIT 55;

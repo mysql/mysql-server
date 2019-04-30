@@ -66,6 +66,8 @@ id int(11) not null,
 text text,
 primary key (id)
 ) default charset=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 load xml infile '../../std_data/loadxml2.dat' into table t1;
 select * from t1;
 id	text

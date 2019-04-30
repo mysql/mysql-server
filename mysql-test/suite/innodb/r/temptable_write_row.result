@@ -1,7 +1,12 @@
 SET DEBUG='d';
 CREATE TABLE t1 (a INT(10) UNSIGNED NOT NULL PRIMARY KEY,b INT(10) UNSIGNED);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1),(2,1),(3,1),(4,1);
 CREATE TABLE t2 (a INT(10) UNSIGNED, KEY(A), b text);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'1'),(2,'2');
 INSERT INTO t2 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
 SELECT DISTINCT 1 FROM t1,t2 WHERE t1.a=t2.a;

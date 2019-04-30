@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
 CREATE TABLE t1 ( id int(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 XA START 'xatest';
 DELETE FROM t1 where id=1;
 XA END 'xatest';

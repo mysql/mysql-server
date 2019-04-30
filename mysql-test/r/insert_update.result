@@ -239,6 +239,8 @@ CREATE TABLE `t1` (
 `f1` varchar(10) NOT NULL UNIQUE,
 tim1 timestamp default '2003-01-01 00:00:00' on update current_timestamp
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (f1) VALUES ("test1");
 SELECT id, f1 FROM t1;
 id	f1

@@ -119,6 +119,9 @@ CREATE TABLE t1 (
 PRIMARY KEY (`id`),
 KEY `kid` (`kid`)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id smallint(5) unsigned NOT NULL auto_increment,
 name varchar(50) NOT NULL default '',
@@ -126,6 +129,8 @@ email varchar(50) NOT NULL default '',
 PRIMARY KEY  (id),
 UNIQUE KEY e_n (email,name)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	kid	NULL	NULL	NULL	0	0.00	const row not found
@@ -228,6 +233,9 @@ CREATE TABLE `t1` (
 PRIMARY KEY  (`numeropost`),
 KEY `maxnumrep` (`maxnumrep`)
 ) ENGINE=MyISAM ROW_FORMAT=FIXED;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (titre,maxnumrep) VALUES
 ('test1','1'),('test2','2'),('test3','3');
 SELECT SQL_CALC_FOUND_ROWS titre,numeropost,maxnumrep FROM t1 WHERE numeropost IN (1,2) ORDER BY maxnumrep DESC LIMIT 0, 1;

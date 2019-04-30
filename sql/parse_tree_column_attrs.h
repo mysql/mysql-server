@@ -541,12 +541,19 @@ class PT_numeric_type : public PT_type {
                    ER_THD(thd, ER_WARN_DEPRECATED_FLOAT_UNSIGNED));
     }
   }
-  PT_numeric_type(Int_type type_arg, const char *length, ulong options)
+  PT_numeric_type(THD *thd, Int_type type_arg, const char *length,
+                  ulong options)
       : PT_type(static_cast<enum_field_types>(type_arg)),
         length(length),
         dec(0),
         options(options) {
     DBUG_ASSERT((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
+
+    if (length != nullptr) {
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                   ER_THD(thd, ER_WARN_DEPRECATED_INTEGER_DISPLAY_WIDTH));
+    }
   }
 
   virtual ulong get_type_flags() const {

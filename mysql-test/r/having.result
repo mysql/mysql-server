@@ -25,6 +25,13 @@ raw_start int(10) NOT NULL default '0',
 raw_end int(10) NOT NULL default '0',
 raw_ori int(2) NOT NULL default '0'
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (469713,1,164123,1,164123,1),(317330,164124,317193,101,153170,1),(469434,317194,375620,101,58527,1),(591816,375621,484273,1,108653,1),(591807,484274,534671,91,50488,1),(318885,534672,649362,101,114791,1),(318728,649363,775520,102,126259,1),(336829,775521,813997,101,38577,1),(317740,813998,953227,101,139330,1),(1,813998,953227,101,139330,1);
 CREATE TABLE t2 (
 id int(10) unsigned NOT NULL default '0',
@@ -34,6 +41,12 @@ seq_end int(10) NOT NULL default '0',
 strand tinyint(2) NOT NULL default '0',
 KEY id (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (133195,469713,61327,61384,1),(133196,469713,64113,64387,1),(133197,1,1,1,0),(133197,1,1,1,-2);
 SELECT e.id,
 MIN( IF(sgp.raw_ori=1,
@@ -53,6 +66,9 @@ id	start	end	chr_strand
 133197	813898	813898	-1.0000
 drop table t1,t2;
 CREATE TABLE t1 (Fld1 int(11) default NULL,Fld2 int(11) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
 select Fld1, max(Fld2) as q from t1 group by Fld1 having q is not null;
 Fld1	q
@@ -94,16 +110,23 @@ CREATE TABLE t1 (
 `id` bigint(20) NOT NULL default '0',
 `description` text
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 `id` bigint(20) NOT NULL default '0',
 `description` varchar(20)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1  VALUES (1, 'test');
 INSERT INTO t2 VALUES (1, 'test');
 CREATE TABLE t3 (
 `id`       bigint(20) NOT NULL default '0',
 `order_id` bigint(20) NOT NULL default '0'
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select
 a.id, a.description,
 count(b.id) as c 
@@ -539,8 +562,12 @@ End of 5.0 tests
 # Bug#54416 MAX from JOIN with HAVING returning NULL with 5.1 and Empty set
 #
 CREATE TABLE t1 (f1 INT(11), f2 VARCHAR(1), PRIMARY KEY (f1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'f');
 CREATE TABLE t2 (f1 INT(11), f2 VARCHAR(1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (2,'m');
 INSERT INTO t2 VALUES (3,'m');
 INSERT INTO t2 VALUES (11,NULL);
@@ -690,6 +717,8 @@ SET @@sql_mode = @old_sql_mode;
 CREATE TABLE series (
 val INT(10) UNSIGNED NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO series VALUES(1);
 CREATE TABLE seq_calls (
 c INT
@@ -846,6 +875,8 @@ col_varchar varchar(1) NOT NULL,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO CC VALUES
 (10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
 (23,'z','z'),(28,'y','y');

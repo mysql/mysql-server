@@ -1079,6 +1079,8 @@ id int(10) unsigned NOT NULL AUTO_INCREMENT,
 xml text,
 PRIMARY KEY (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (id, xml) VALUES
 (15, '<?xml version="1.0"?><bla name="blubb"></bla>'),
 (14, '<xml version="kaputt">');

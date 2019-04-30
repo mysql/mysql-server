@@ -70,6 +70,8 @@ c12 double DEFAULT NULL,
 c13 json,
 c14 json
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3a SELECT
 SUM(a) OVER (ROWS UNBOUNDED PRECEDING) c1,
 AVG(b) OVER (ORDER BY pk ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,
@@ -125,6 +127,8 @@ c12  double DEFAULT NULL,
 c13 json,
 c14 json
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3b SELECT
 SUM(a) OVER (ROWS UNBOUNDED PRECEDING) c1,
 AVG(b) OVER (ORDER BY pk ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,

@@ -389,6 +389,12 @@ col4 int(11) DEFAULT NULL,
 col5 int(11) GENERATED ALWAYS AS (col4 / col2) VIRTUAL,
 col6 text
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(col1,col2,col3,col4,col6) VALUES(NULL,1,4,0,REPEAT(2,1000));
 ALTER TABLE t1 DROP PRIMARY KEY , ADD KEY idx ( col5, col2 );
 ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
@@ -496,6 +502,11 @@ DROP TABLE t1;
 CREATE TABLE t (a int(11), b int(11),
 c int(11) GENERATED ALWAYS AS (a+b) VIRTUAL,
 d int(11) GENERATED ALWAYS AS (a+b) VIRTUAL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t(a,b) VALUES(1,2);
 # Mixed drop/add/rename virtual with non-virtual columns,
 # ALGORITHM=INPLACE is not supported for InnoDB
@@ -514,17 +525,25 @@ affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t ADD c int(11) as (a+b), ADD f varchar(10) as ('aaa');
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # Change order should be ALGORITHM=INPLACE on Innodb
 ALTER TABLE t CHANGE c c int(11) as (a) after f;
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE b b int(11) after c;
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method
 ALTER TABLE t CHANGE c c varchar(10) as ('a');
 affected rows: 1

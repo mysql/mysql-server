@@ -203,6 +203,14 @@ CREATE TABLE t1 (
 PRIMARY KEY  (`id`),
 UNIQUE KEY `url` (`url`)
 ) CHARACTER SET tis620;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,'http://www.siamzone.com/download/download/000001-frodo_1024.jpg','The Lord
 of the Rings

@@ -7,6 +7,8 @@ DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @a:= 'exception';
 SET DEBUG_SYNC= 'now SIGNAL in_sync WAIT_FOR kill';
 RETURN 1;
 END|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (bug27563());
 SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
 KILL QUERY @id;

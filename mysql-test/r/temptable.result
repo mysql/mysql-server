@@ -397,6 +397,9 @@ pk int(11) NOT NULL DEFAULT '0',
 col_int_key int(11) DEFAULT NULL,
 col_varchar_key varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (22,0,NULL),
 (17,9,NULL),

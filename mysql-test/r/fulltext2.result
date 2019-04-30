@@ -4,6 +4,8 @@ i int(10) unsigned not null auto_increment primary key,
 a varchar(255) not null,
 FULLTEXT KEY (a)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 repair table t1 quick;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
@@ -118,6 +120,8 @@ i int(10) unsigned not null auto_increment primary key,
 a varchar(255) not null,
 FULLTEXT KEY (a)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select count(*) from t1 where match a against ('aaaxxx');
 count(*)
 260

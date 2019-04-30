@@ -6299,7 +6299,7 @@ opt_stored_attribute:
 type:
           int_type opt_field_length field_options
           {
-            $$= NEW_PTN PT_numeric_type($1, $2, $3);
+            $$= NEW_PTN PT_numeric_type(YYTHD, $1, $2, $3);
           }
         | real_type opt_precision field_options
           {
@@ -6614,7 +6614,12 @@ field_opt_list:
 field_option:
           SIGNED_SYM   { $$ = 0; } // TODO: remove undocumented ignored syntax
         | UNSIGNED_SYM { $$ = UNSIGNED_FLAG; }
-        | ZEROFILL_SYM { $$ = ZEROFILL_FLAG; }
+        | ZEROFILL_SYM {
+            $$ = ZEROFILL_FLAG;
+            push_warning(YYTHD, Sql_condition::SL_WARNING,
+                         ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                         ER_THD(YYTHD, ER_WARN_DEPRECATED_ZEROFILL));
+          }
         ;
 
 field_length:

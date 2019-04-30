@@ -12,8 +12,12 @@ select last_insert_id();
 last_insert_id()
 1
 create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
 create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t3 select * from t2;
 include/sync_slave_sql_with_master.inc
 select * from t1;
@@ -65,6 +69,8 @@ include/check_slave_no_error.inc
 reset master;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;

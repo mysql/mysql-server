@@ -285,6 +285,8 @@ cv varchar(250) NOT NULL default '',
 PRIMARY KEY  (cid),
 UNIQUE KEY cv (cv)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (8,'dummy');
 CREATE TABLE t2 (
 cid bigint(20) unsigned NOT NULL auto_increment,
@@ -292,6 +294,8 @@ cap varchar(255) NOT NULL default '',
 PRIMARY KEY  (cid),
 UNIQUE KEY (cid, cap)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (NULL,'another dummy');
 CREATE TABLE t3 (
 gid bigint(20) unsigned NOT NULL auto_increment,
@@ -299,6 +303,9 @@ gn varchar(255) NOT NULL default '',
 must tinyint(4) default NULL,
 PRIMARY KEY  (gid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,'V1',NULL);
 CREATE TABLE t4 (
 uid bigint(20) unsigned NOT NULL default '0',
@@ -307,6 +314,11 @@ rid bigint(20) unsigned NOT NULL,
 cid bigint(20) unsigned NOT NULL,
 UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (1,1,2,4);
 INSERT INTO t4 VALUES (1,1,2,3);
 INSERT INTO t4 VALUES (1,1,5,7);
@@ -316,6 +328,8 @@ rid bigint(20) unsigned NOT NULL auto_increment,
 rl varchar(255) NOT NULL default '',
 PRIMARY KEY  (rid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6 (
 uid bigint(20) unsigned NOT NULL auto_increment,
 un varchar(250) NOT NULL default '',
@@ -323,6 +337,9 @@ uc smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY  (uid),
 UNIQUE KEY nc (un,uc)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t6 VALUES (1,'test',8);
 INSERT INTO t6 VALUES (2,'test2',9);
 INSERT INTO t6 VALUES (3,'tre',3);
@@ -334,6 +351,12 @@ rid bigint(20) unsigned NOT NULL,
 cid bigint(20) unsigned NOT NULL,
 UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t7 VALUES(1, 1, 1, 1, 1);
 INSERT INTO t7 VALUES(2, 2, 1, 1, 1);
 INSERT INTO t7 VALUES(3, 3, 1, 1, 1);

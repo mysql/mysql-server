@@ -496,7 +496,11 @@ sum(a)
 NULL
 drop table t1;
 create table t1 (id int(10) not null, cur_date datetime not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (id int(10) not null, cur_date date not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
 analyze table t1;
@@ -667,6 +671,9 @@ CREATE TABLE t1 (
 `year` int(4) NOT NULL,
 `month` int(2) NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2010,3),(2010,4),(2009,8),(2008,9);
 SELECT *
 FROM t1

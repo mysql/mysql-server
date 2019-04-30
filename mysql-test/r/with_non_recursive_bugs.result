@@ -31,6 +31,10 @@ KEY col_blob_key (col_blob_key(255)),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE cc (
 col_time time DEFAULT NULL,
 col_blob blob,
@@ -53,6 +57,10 @@ KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_date_key (col_date_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE bb (
 col_varchar varchar(1) DEFAULT NULL,
 col_blob_key blob,
@@ -75,6 +83,10 @@ KEY col_date_key (col_date_key),
 KEY col_time_key (col_time_key),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE OR REPLACE VIEW view_c AS SELECT * FROM c;
 EXPLAIN WITH cte AS (
 SELECT alias1 . col_time_key AS field1
@@ -133,6 +145,10 @@ KEY col_blob_key (col_blob_key(255)),
 KEY col_varchar_key (col_varchar_key),
 KEY col_date_key (col_date_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE dd (
 col_datetime datetime DEFAULT NULL,
 col_varchar varchar(1) DEFAULT NULL,
@@ -155,6 +171,10 @@ KEY col_date_key (col_date_key),
 KEY col_time_key (col_time_key),
 KEY col_int_key (col_int_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 WITH cte AS (
 SELECT alias1 . col_int AS field1
 FROM  dd AS alias1  LEFT  JOIN d AS alias2
@@ -202,6 +222,10 @@ KEY col_blob_key (col_blob_key(255)),
 KEY col_varchar_key (col_varchar_key),
 KEY col_date_key (col_date_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE OR REPLACE VIEW view_d AS SELECT * FROM d;
 CREATE TABLE dd (
 col_datetime datetime DEFAULT NULL,
@@ -225,6 +249,10 @@ KEY col_date_key (col_date_key),
 KEY col_time_key (col_time_key),
 KEY col_int_key (col_int_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE OR REPLACE VIEW view_dd AS SELECT * FROM dd;
 EXPLAIN WITH cte AS (
 SELECT
@@ -620,6 +648,10 @@ KEY col_int_key (col_int_key),
 KEY col_date_key (col_date_key),
 KEY col_datetime_key (col_datetime_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE d (
 col_date date DEFAULT NULL,
 col_date_key date DEFAULT NULL,
@@ -642,6 +674,10 @@ KEY col_blob_key (col_blob_key(255)),
 KEY col_time_key (col_time_key),
 KEY col_int_key (col_int_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE bb (
 col_datetime datetime DEFAULT NULL,
 col_time time DEFAULT NULL,
@@ -664,6 +700,10 @@ KEY col_date_key (col_date_key),
 KEY col_blob_key (col_blob_key(255)),
 KEY col_int_key (col_int_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO bb VALUES ('2000-03-10
 07:59:07','20:09:19',7,'y',1,'00:20:02','byuvlhiviingf','2000-04-06','2002-01-
 18 04:14:45','2009-02-13','yu',6,'v'),('2008-09-04
@@ -712,6 +752,10 @@ KEY col_time_key (col_time_key),
 KEY col_blob_key (col_blob_key(255)),
 KEY col_datetime_key (col_datetime_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO cc VALUES ('r','2009-06-19',9,'00:20:01','uzymmwnorr','2000-07-03
 03:10:16','17:17:32','f',1,'2007-06-20','zym','2001-10-19
 13:28:47',2),('d','2000-12-27',7,'22:21:37','ymmwn','2000-09-05
@@ -754,6 +798,10 @@ KEY col_blob_key (col_blob_key(255)),
 KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ANALYZE TABLE a,d,bb,cc,dd;
 Table	Op	Msg_type	Msg_text
 test.a	analyze	status	OK
@@ -818,6 +866,10 @@ KEY col_blob_key (col_blob_key(255)),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE b (
 col_varchar_key varchar(30) DEFAULT NULL,
 col_blob blob,
@@ -841,6 +893,10 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_int_key (col_int_key),
 KEY test_idx (col_int_key,col_int) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE bb (
 col_varchar_key varchar(30) DEFAULT NULL,
 col_datetime datetime DEFAULT NULL,
@@ -863,6 +919,10 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_date_key (col_date_key),
 KEY col_int_key (col_int_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE c (
 col_varchar varchar(30) DEFAULT NULL,
 col_time time DEFAULT NULL,
@@ -886,6 +946,10 @@ KEY col_int_key (col_int_key),
 KEY col_time_key (col_time_key),
 KEY test_idx (pk,col_int_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE e (
 col_time_key time DEFAULT NULL,
 col_date_key date DEFAULT NULL,
@@ -909,6 +973,10 @@ KEY col_varchar_key (col_varchar_key),
 KEY col_datetime_key (col_datetime_key),
 KEY test_idx (col_int_key,col_int) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE OR REPLACE VIEW view_c AS SELECT * FROM c;
 CREATE OR REPLACE VIEW view_bb AS SELECT * FROM bb;
 # WHERE bogus_string IN (SELECT timestamp_column)

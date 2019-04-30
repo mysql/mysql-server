@@ -36,8 +36,12 @@ def	test	t1	t2	b	c	2	6	0	Y	32768	0	63
 b	c
 drop table t1;
 CREATE TABLE t1 (id tinyint(3) default NULL, data varchar(255) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'male'),(2,'female');
 CREATE TABLE t2 (id tinyint(3) unsigned default NULL, data char(3) default '0');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'yes'),(2,'no');
 select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr

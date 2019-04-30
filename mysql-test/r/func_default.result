@@ -22,6 +22,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`str` AS `str`,`test`.`t1`.`strnull` AS `strnull`,`test`.`t1`.`intg` AS `intg`,`test`.`t1`.`rel` AS `rel` from `test`.`t1` where (`test`.`t1`.`str` <> <cache>(default(`test`.`t1`.`str`)))
 drop table t1;
 CREATE TABLE t1 (id int(11), s varchar(20));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, 'one'), (2, 'two'), (3, 'three');
 SELECT s, 32 AS mi FROM t1 GROUP BY s HAVING DEFAULT(mi) IS NULL;
 ERROR HY000: Field 'mi' doesn't have a default value

@@ -2,6 +2,9 @@
 drop table if exists t1_x_gap;
 use test;
 create table t1_x_gap (id int(10) primary key, x int(10)) engine=INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1_x_gap values (1,10),(2,20),(3,30),(4,40),(5,50);
 start transaction;
 select * from t1_x_gap where id<5 for update;

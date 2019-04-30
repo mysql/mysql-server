@@ -6394,22 +6394,32 @@ col_int_unique int(11),
 PRIMARY KEY (col_int_unique)
 ) ENGINE=ndbcluster
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE table3 (
 col_int int(11) NOT NULL DEFAULT '0',
 KEY (col_int)
 ) ENGINE=ndbcluster
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE table4 (
 col_int int(11) DEFAULT NULL,
 pk int(11) NOT NULL,
 PRIMARY KEY (pk)
 ) ENGINE=ndbcluster
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE table6 (
 col_int int(11) DEFAULT NULL,
 col_int_unique int(11) DEFAULT NULL
 ) ENGINE=ndbcluster
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into table6 values
 (2,NULL), 
 (2,NULL), 
@@ -6900,6 +6910,9 @@ KEY node_id (node_id,sort_number)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE ndb_user_test (
 user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -6908,6 +6921,7 @@ PRIMARY KEY (user_id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO ndb_order_test (node_id, user_id, sort_number) VALUES
 (68, 1, 1398029),

@@ -15531,6 +15531,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1
 (first_usage DATE, last_recharge DATETIME, life_time SMALLINT(4) UNSIGNED);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('2011-04-27', null, 900);
 SELECT
 DATE_ADD(GREATEST(first_usage, IFNULL(last_recharge, first_usage)), INTERVAL life_time DAY ) as dt,

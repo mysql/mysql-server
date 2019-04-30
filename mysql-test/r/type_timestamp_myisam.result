@@ -5,6 +5,8 @@ CREATE TABLE t1 (
 `posted_on` timestamp NOT NULL default '0000-00-00 00:00:00',
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show fields from t1;
 Field	Type	Null	Key	Default	Extra
 id	int(11)	NO	PRI	NULL	auto_increment

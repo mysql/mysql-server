@@ -15,12 +15,17 @@ Capital int(11) default NULL
 );
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE city (
 ID int(11) NOT NULL,
 Name char(35) NOT NULL default '',
 Country char(3) NOT NULL default '',
 Population int(11) NOT NULL default '0'
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE countrylanguage (
 Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
@@ -438,6 +443,8 @@ UNIQUE INDEX (Name)
 );
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE city (
 ID int(11) NOT NULL auto_increment,
 Name char(35) NOT NULL default '',
@@ -447,6 +454,9 @@ PRIMARY KEY  (ID),
 INDEX (Population),
 INDEX (Country) 
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE countrylanguage (
 Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
@@ -1895,28 +1905,46 @@ num1 bigint(20) DEFAULT NULL,
 num2 int(11) DEFAULT NULL,
 num3 bigint(20) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id3 bigint(20) NOT NULL DEFAULT '0',
 id4 bigint(20) DEFAULT NULL,
 enum1 enum('Enabled','Disabled','Paused') DEFAULT NULL,
 PRIMARY KEY (id3)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 id4 bigint(20) NOT NULL DEFAULT '0',
 text1 text,
 PRIMARY KEY (id4)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t4 (
 id2 bigint(20) NOT NULL DEFAULT '0',
 dummy int(11) DEFAULT '0',
 PRIMARY KEY (id2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t5 (
 id1 bigint(20) NOT NULL DEFAULT '0',
 id2 bigint(20) NOT NULL DEFAULT '0',
 enum2 enum('Active','Deleted','Paused') DEFAULT NULL,
 PRIMARY KEY (id1,id2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set join_buffer_size=2048;
 EXPLAIN
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
@@ -1977,12 +2005,16 @@ CREATE TABLE t1 (
 int_key int(11) NOT NULL,
 KEY int_key (int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (0),(2),(2),(2),(3),(4),(5),(5),(6),(6),(8),(8),(9),(9);
 CREATE TABLE t2 (
 int_key int(11) NOT NULL,
 KEY int_key (int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (2),(3);
 
 # The query shall return 1 record with a max value 9 and one of the 
@@ -2030,12 +2062,16 @@ i int(11) NOT NULL,
 v varchar(1) DEFAULT NULL,
 PRIMARY KEY (i)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10,'a'),(11,'b'),(12,'c'),(13,'d');
 CREATE TABLE t2 (
 i int(11) NOT NULL,
 v varchar(1) DEFAULT NULL,
 PRIMARY KEY (i)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'x'),(2,'y');
 
 SELECT MAX(t1.i) 
@@ -2092,8 +2128,12 @@ DROP TABLE t1,t2,t3;
 CREATE TABLE C(a int);
 INSERT INTO C VALUES(1),(2),(3),(4),(5);
 CREATE TABLE D (a int(11), b varchar(1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO D VALUES (6,'r'),(27,'o');
 CREATE TABLE E (a int(11) primary key, b varchar(1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO E VALUES
 (14,'d'),(15,'z'),(16,'e'),(17,'h'),(18,'b'),(19,'s'),(20,'e'),(21,'j'),(22,'e'),(23,'f'),(24,'v'),(25,'x'),(26,'m'),(27,'c');
 SELECT 1 FROM C,D,E WHERE D.a = E.a AND D.b = E.b;
@@ -2107,6 +2147,8 @@ INSERT INTO t1 VALUES (2);
 CREATE TABLE t2 (a varchar(10));
 INSERT INTO t2 VALUES ('f'),('x');
 CREATE TABLE t3 (pk int(11) PRIMARY KEY);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (2);
 CREATE TABLE t4 (a varchar(10));
 EXPLAIN SELECT 1
@@ -2180,9 +2222,13 @@ DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1 (
 `pk` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 `pk` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES
 (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),
 (16),(17),(18),(19),(20);
@@ -2193,6 +2239,9 @@ CREATE TABLE t2 (
 PRIMARY KEY (`pk`),
 KEY `time_key` (`time_key`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (10,9,'22:36:46'),(11,0,'08:46:46');
 SELECT DISTINCT t1.`pk`
 FROM t1 RIGHT JOIN t2 STRAIGHT_JOIN t3 ON t2.`int_nokey`  ON t2.`time_key`
@@ -2256,6 +2305,9 @@ CREATE TABLE t1 (
 `col_varchar_nokey` varchar(1) DEFAULT NULL,
 KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`))
 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4,9,'k','k');
 INSERT INTO t1 VALUES (12,5,'k','k');
 explain SELECT table2 .`col_int_key` FROM t1 table2,
@@ -2573,6 +2625,8 @@ col_varchar_key varchar(1) NOT NULL,
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,'j'),(4,'b'),(4,'d');
 CREATE TABLE t2 (
 col_datetime_key datetime NOT NULL,
@@ -2613,6 +2667,8 @@ col_varchar_nokey varchar(1) NOT NULL,
 KEY col_int_key (col_int_key),
 KEY col_datetime_key (col_datetime_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (7,'2004-06-06 04:22:12','v');
 INSERT INTO t1 VALUES (0,'2005-11-13 01:12:31','s');
 INSERT INTO t1 VALUES (9,'2002-05-04 01:50:00','l');
@@ -2638,6 +2694,8 @@ pk int(11) NOT NULL,
 col_varchar_key varchar(1) NOT NULL,
 PRIMARY KEY (pk)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES
 (1,'j'),(2,'v'),(3,'c'),(4,'m'),(5,'d'),(6,'d'),(7,'y'),
 (8,'t'),(9,'d'),(10,'s'),(11,'r'),(12,'m'),(13,'b'),(14,'x'),
@@ -2690,6 +2748,10 @@ col_int_key int(11) NOT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (5,3,9);
 INSERT INTO t2 VALUES (6,246,24);
 INSERT INTO t2 VALUES (7,2,6);
@@ -2894,14 +2956,21 @@ col_int int(11) NOT NULL,
 col_int_unique int(11) not null,
 col_varchar_10 varchar(10) not null
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES(9, 4, '');
 CREATE TABLE t4 (
 col_int_unique int(11)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES(3);
 CREATE TABLE t2 (
 col_int int(11)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT * FROM t1 AS table1
 WHERE
 table1.col_varchar_10_unique = ALL (

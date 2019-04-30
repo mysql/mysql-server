@@ -1982,12 +1982,21 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11`,`test`.`t2`.`c21` AS `c21`,`test`.`t3`.`c31` AS `c31` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`c31` = `test`.`t1`.`c11`))) on((`test`.`t2`.`c21` = `test`.`t1`.`c11`)) where true
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (goods int(12) NOT NULL, price varchar(128) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (23, 2340), (26, 9900);
 CREATE TABLE t2 (goods int(12), name varchar(50), shop char(2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (23, 'as300', 'fr'), (26, 'as600', 'fr');
 create table t3 (groupid int(12) NOT NULL, goodsid int(12) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (3,23), (6,26);
 CREATE TABLE t4 (groupid int(12));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (1), (2), (3), (4), (5), (6);
 SELECT * FROM
 (SELECT DISTINCT gl.groupid, gp.price
@@ -2065,13 +2074,21 @@ ERROR 42S22: Unknown column 'v2.x' in 'field list'
 DROP VIEW v1, v2;
 DROP TABLE t1, t2, t3, t4, t5, t6;
 create table t1 (id1 int(11) not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1),(2);
 create table t2 (id2 int(11) not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 values (1),(2),(3),(4);
 create table t3 (id3 char(16) not null);
 insert into t3 values ('100');
 create table t4 (id2 int(11) not null, id3 char(16));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t5 (id1 int(11) not null, key (id1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t5 values (1),(2),(1);
 create view v1 as
 select t4.id3 from t4 join t2 on t4.id2 = t2.id2;
@@ -2370,6 +2387,8 @@ carrier char(2) NOT NULL default '' PRIMARY KEY,
 id int(11) default NULL,
 INDEX id(id)
 ) CHARSET utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES
 ('99',6),('SK',456),('UA',486),('AI',1081),('OS',1111),('VS',1510);
 CREATE TABLE t5 (

@@ -61,6 +61,14 @@ uclicks int(10) unsigned DEFAULT '0' NOT NULL,
 ts timestamp,
 PRIMARY KEY (place_id,ts)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (place_id,shows,ishows,ushows,clicks,iclicks,uclicks,ts)
 VALUES (1,0,0,0,0,0,0,20000928174434);
 UPDATE t1 SET shows=shows+1,ishows=ishows+1,ushows=ushows+1,clicks=clicks+1,iclicks=iclicks+1,uclicks=uclicks+1 WHERE place_id=1 AND ts>="2000-09-28 00:00:00";
@@ -130,6 +138,9 @@ CREATE TABLE t1 (
 `colB` int(11) NOT NULL default '0',
 PRIMARY KEY  (`colA`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4433,5424);
 CREATE TABLE t2 (
 `colC` int(10) unsigned NOT NULL default '0',
@@ -139,6 +150,12 @@ CREATE TABLE t2 (
 `colF` int(10) unsigned NOT NULL default '0',
 PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (3,4433,10005,495,500);
 INSERT INTO t2 VALUES (3,4433,10005,496,500);
 INSERT INTO t2 VALUES (3,4433,10009,494,500);
@@ -398,6 +415,8 @@ quux decimal( 31, 30 ),
 UNIQUE KEY bar (a),
 KEY quux (quux)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO
 t1 ( a, quux )
 VALUES

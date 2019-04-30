@@ -136,6 +136,8 @@ Tables_in_test (t1%)
 t1
 drop table t1;
 create temporary table T1(a int(11), b varchar(8));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into T1 values (1, 'abc');
 select * from T1;
 a	b
