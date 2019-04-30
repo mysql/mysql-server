@@ -289,7 +289,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string http_uri = GetParam().uri;
 
-  auto &md_server = RouterComponentTest::launch_mysql_server_mock(
+  auto &md_server = ProcessManager::launch_mysql_server_mock(
       get_data_dir().join("metadata_1_node_repeat.js").str(),
       metadata_server_port_, EXIT_SUCCESS, false);
 
@@ -836,7 +836,7 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_auth) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(
       router_output.find("plugin 'rest_metadata_cache' init failed: option "
                          "require_realm in [rest_metadata_cache] is required"),
@@ -864,7 +864,7 @@ TEST_F(RestMetadataCacheApiTest, invalid_realm) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find(
                 "Configuration error: unknown authentication "
                 "realm for [rest_metadata_cache] '': invalidrealm, known "
@@ -979,7 +979,7 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(
       router_output.find(
           "plugin 'rest_metadata_cache' init failed: [rest_metadata_cache] "

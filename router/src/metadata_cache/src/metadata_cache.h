@@ -77,6 +77,8 @@ class METADATA_API MetadataCache
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_gr_notifications = false);
 
+  ~MetadataCache() override;
+
   /** @brief Starts the Metadata Cache
    *
    * Starts the Metadata Cache and launch thread.

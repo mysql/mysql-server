@@ -137,7 +137,7 @@ class GrNotificationsTest : public RouterComponentTest {
         temp_test_dir,
         logger_section + metadata_cache_section + routing_section,
         &default_section);
-    auto &router = RouterComponentTest::launch_router(
+    auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_exit_code, /*catch_stderr=*/true,
         /*with_sudo=*/false);
     return router;
@@ -319,7 +319,7 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < kClusterNodesCount; ++i) {
-    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
@@ -356,8 +356,8 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
-                state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
 
   std::this_thread::sleep_for(test_params.router_uptime);
 
@@ -370,7 +370,7 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   ASSERT_EQ(test_params.expected_md_queries_count + 1, ttl_counts)
       << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
       << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << get_router_log_output() << "\n"
+      << "router: " << router.get_full_logfile() << "\n"
       << "server globals: " << server_globals;
 }
 
@@ -498,7 +498,7 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
@@ -537,8 +537,8 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
-                state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
 
   std::this_thread::sleep_for(1s);
 
@@ -552,7 +552,7 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
                            << "\n"
                            << "mock[1]: " << cluster_nodes[1]->get_full_output()
                            << "\n"
-                           << "router: " << get_router_log_output() << "\n"
+                           << "router: " << router.get_full_logfile() << "\n"
                            << "server globals: " << server_globals;
 }
 
@@ -581,7 +581,7 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
@@ -610,12 +610,12 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
-                state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
 
   std::this_thread::sleep_for(1s);
   EXPECT_TRUE(cluster_nodes[1]->kill() == 0)
-      << cluster_nodes[0]->get_full_output();
+      << cluster_nodes[1]->get_full_output();
   std::this_thread::sleep_for(1s);
 
   const std::string server_globals =
@@ -628,7 +628,7 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
                            << "\n"
                            << "mock[1]: " << cluster_nodes[1]->get_full_output()
                            << "\n"
-                           << "router: " << get_router_log_output() << "\n"
+                           << "router: " << router.get_full_logfile() << "\n"
                            << "server globals: " << server_globals;
 }
 
@@ -681,7 +681,7 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string log_content = get_router_log_output();
+  const std::string log_content = router.get_full_logfile();
   EXPECT_NE(log_content.find(test_params.expected_error_message),
             log_content.npos)
       << log_content;

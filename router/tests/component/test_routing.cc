@@ -89,13 +89,14 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router with simple static routing configuration
-  launch_router({"-c", conf_file});
+  auto &router_static = launch_router({"-c", conf_file});
 
   // wait for both to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
 
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << get_router_log_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port))
+      << router_static.get_full_logfile();
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
@@ -113,14 +114,14 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   ASSERT_EQ(router_bootstrapping.wait_for_exit(), EXIT_SUCCESS)
       << "bootstrap output: " << router_bootstrapping.get_full_output()
       << std::endl
-      << "routing log: " << get_router_log_output() << std::endl
+      << "routing log: " << router_bootstrapping.get_full_logfile() << std::endl
       << "server output: " << server_mock.get_full_output() << std::endl;
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
       "MySQL Router configured for the InnoDB cluster 'test'"))
       << "bootstrap output: " << router_bootstrapping.get_full_output()
       << std::endl
-      << "routing log: " << get_router_log_output() << std::endl
+      << "routing log: " << router_bootstrapping.get_full_logfile() << std::endl
       << "server output: " << server_mock.get_full_output() << std::endl;
 }
 
@@ -151,12 +152,12 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router with the created configuration
-  launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << get_router_log_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_logfile();
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
@@ -204,7 +205,8 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << get_router_log_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port))
+      << router_static.get_full_logfile();
 
   // don't allow router to create any more (client) threads
   pid_t pid = router_static.get_pid();
@@ -319,7 +321,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router
-  launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file});
 
   // wait for mock server to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
@@ -329,7 +331,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   // NOTE: this should cause connection/disconnection which
   //       should be treated as connection error and increment
   //       connection errors counter.  This test relies on that.
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << get_router_log_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_logfile();
 
   // wait until blocking client host info appears in the log
   bool res =
@@ -441,12 +443,12 @@ TEST_F(RouterRoutingTest, test1) {
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router with the created configuration
-  launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << get_router_log_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_logfile();
 
   // we loop just for good measure, to additionally test that this behaviour is
   // repeatable

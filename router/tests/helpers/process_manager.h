@@ -180,16 +180,6 @@ class ProcessManager {
 
   void set_mysqlrouter_exec(const Path &path) { mysqlrouter_exec_ = path; }
 
-  /** @brief returns the content of the router logfile as a string
-   *
-   * @param file_name name of the logfile
-   * @param file_path path to the logfile, use "" for default path that the
-   * component test is using
-   */
-  std::string get_router_log_output(
-      const std::string &file_name = "mysqlrouter.log",
-      const std::string &file_path = "");
-
  protected:
   /** @brief returns a [DEFAULT] section as string
    *

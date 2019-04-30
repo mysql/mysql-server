@@ -199,7 +199,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
         {"MY_PORT", std::to_string(cluster_port)},
     };
     rewrite_js_to_tracefile(json_my_port_template, json_my_port, env_vars);
-    auto &cluster_node = RouterComponentTest::launch_mysql_server_mock(
+    auto &cluster_node = ProcessManager::launch_mysql_server_mock(
         json_my_port, cluster_port, EXIT_SUCCESS, false);
     bool ready = wait_for_port_ready(cluster_port);
     EXPECT_TRUE(ready) << cluster_node.get_full_output();
@@ -227,12 +227,12 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     const std::string conf_file =
         create_config_file(conf_dir, routing_section, &def_section);
     const int expected_exit_code = expect_error ? EXIT_FAILURE : EXIT_SUCCESS;
-    auto &router = RouterComponentTest::launch_router({"-c", conf_file},
-                                                      expected_exit_code);
+    auto &router =
+        ProcessManager::launch_router({"-c", conf_file}, expected_exit_code);
     if (!expect_error) {
       bool ready = wait_for_port_ready(router_port);
       EXPECT_TRUE(ready) << (log_to_console ? router.get_full_output()
-                                            : get_router_log_output());
+                                            : router.get_full_logfile());
     }
 
     return router;
@@ -257,11 +257,11 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     const std::string conf_file = create_config_file(
         conf_dir.name(), metadata_cache_section + routing_section,
         &default_section);
-    auto &router = RouterComponentTest::launch_router(
+    auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, EXIT_SUCCESS, catch_stderr, with_sudo);
     if (wait_ready) {
       bool ready = wait_for_port_ready(router_port);
-      EXPECT_TRUE(ready) << get_router_log_output();
+      EXPECT_TRUE(ready) << router.get_full_logfile();
     }
 
     return router;
@@ -390,7 +390,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
       std::chrono::milliseconds(wait_for_cache_ready_timeout), metadata_status))
-      << get_router_log_output();
+      << router.get_full_logfile();
 
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order
@@ -703,7 +703,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
                            "[routing:test_default] is invalid; "
                            "valid are first-available, next-available, and "
                            "round-robin (was 'round-robin-with-fallback'"))
-      << get_router_log_output();
+      << router.get_full_logfile();
 }
 
 TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
@@ -721,7 +721,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
   EXPECT_TRUE(router.expect_output(
       "option routing_strategy in [routing:test_default] is invalid; valid are "
       "first-available, next-available, and round-robin (was 'invalid')"))
-      << get_router_log_output();
+      << router.get_full_logfile();
 }
 
 TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
@@ -739,7 +739,7 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
                            "[routing:test_default] is required"))
-      << get_router_log_output();
+      << router.get_full_logfile();
 }
 
 TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
@@ -757,7 +757,7 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
                            "[routing:test_default] needs a value"))
-      << get_router_log_output();
+      << router.get_full_logfile();
 }
 
 TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
@@ -775,7 +775,7 @@ TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
   EXPECT_TRUE(
       router.expect_output("Configuration error: option mode in "
                            "[routing:test_default] needs a value"))
-      << get_router_log_output();
+      << router.get_full_logfile();
 }
 
 int main(int argc, char *argv[]) {

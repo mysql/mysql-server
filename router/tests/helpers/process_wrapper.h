@@ -79,6 +79,23 @@ class ProcessWrapper {
     return execute_output_raw_;
   }
 
+  /** @brief returns the content of the process app logfile as a string
+   *
+   * @param file_name name of the logfile, use "" for default filename that
+   * given process is using
+   * @param file_path path to the logfile, use "" for default path that the
+   * component test is using
+   */
+  std::string get_full_logfile(const std::string &file_name = "",
+                               const std::string &file_path = "") const {
+    const std::string path = file_path.empty() ? logging_dir_ : file_path;
+    const std::string name = file_name.empty() ? logging_file_ : file_name;
+
+    if (name.empty()) return "";
+
+    return get_file_output(name, path);
+  }
+
   /**
    * get the current output of the process.
    *
@@ -199,6 +216,9 @@ class ProcessWrapper {
   std::map<std::string, std::string> output_responses_;
   int exit_code_;
   bool exit_code_set_{false};
+
+  std::string logging_dir_;
+  std::string logging_file_;
 
   friend class ProcessManager;
 };  // class ProcessWrapper

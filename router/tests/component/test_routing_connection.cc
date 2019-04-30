@@ -314,12 +314,12 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
 
   auto &launch_router(unsigned /* router_port */,
                       const std::string &config_file) {
-    return RouterComponentTest::launch_router({"-c", config_file});
+    return ProcessManager::launch_router({"-c", config_file});
   }
 
   auto &launch_server(unsigned cluster_port, const std::string &json_file,
                       unsigned http_port = 0) {
-    auto &cluster_node = RouterComponentTest::launch_mysql_server_mock(
+    auto &cluster_node = ProcessManager::launch_mysql_server_mock(
         json_file, cluster_port, EXIT_SUCCESS, false, http_port);
     return cluster_node;
   }
@@ -478,7 +478,7 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
 #endif
   };
 
-  ASSERT_THAT(vec_from_lines(get_router_log_output()),
+  ASSERT_THAT(vec_from_lines(router.get_full_logfile()),
               ::testing::Contains(::testing::ContainsRegex(log_msg_re)));
 }
 
@@ -493,7 +493,7 @@ TEST_F(RouterRoutingConnectionTest,
       "metadata_3_secondaries_server_removed_from_cluster.js", 4));
   config_generator_->disconnect_on_promoted_to_primary(
       "&disconnect_on_promoted_to_primary=bogus");
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", config_generator_->build_config_file(temp_test_dir_.name())},
       EXIT_FAILURE);
   ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
@@ -511,7 +511,7 @@ TEST_F(RouterRoutingConnectionTest,
       "metadata_3_secondaries_server_removed_from_cluster.js", 4));
   config_generator_->disconnect_on_metadata_unavailable(
       "&disconnect_on_metadata_unavailable=bogus");
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", config_generator_->build_config_file(temp_test_dir_.name())},
       EXIT_FAILURE);
   ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
@@ -973,7 +973,7 @@ TEST_F(RouterRoutingConnectionTest,
     } catch (const std::exception &e) {
       FAIL() << e.what() << "\n"
              << "router-stderr: " << router.get_full_output() << "\n"
-             << "router-log: " << get_router_log_output() << "\n"
+             << "router-log: " << router.get_full_logfile() << "\n"
              << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
              << "\n"
              << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()
@@ -1068,7 +1068,7 @@ TEST_F(RouterRoutingConnectionTest, IsConnectionClosedWhenClusterOverloaded) {
                      "");
     } catch (const std::exception &e) {
       FAIL() << e.what() << "\n"
-             << "router: " << get_router_log_output() << "\n"
+             << "router: " << router.get_full_logfile() << "\n"
              << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
              << "\n"
              << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()

@@ -509,6 +509,10 @@ MetadataCache::MetadataCache(
   ssl_options_ = ssl_options;
 }
 
+MetadataCache::~MetadataCache() {
+  meta_data_->shutdown_gr_notifications_listener();
+}
+
 void *MetadataCache::run_thread(void *context) {
   mysqlrouter::MySQLClientThreadToken api_token;
   MetadataCache *metadata_cache = static_cast<MetadataCache *>(context);

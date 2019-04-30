@@ -84,7 +84,8 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
   ASSERT_TRUE(wait_for_rest_endpoint_ready(
       wait_for_uri, http_port_, GetParam().user_name, GetParam().user_password,
       http_hostname))
-      << http_server.get_full_output() << get_router_log_output();
+      << http_server.get_full_output() << "\n"
+      << http_server.get_full_logfile();
 
   // walk all the bits
   for (HttpMethod::pos_type ndx = 0; ndx < HttpMethod::Pos::_LAST; ++ndx) {
@@ -374,7 +375,7 @@ TEST_F(RestOpenApiTest, invalid_realm) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find("Configuration error: unknown authentication "
                                "realm for [rest_api] '': invalidrealm, known "
                                "realm(s): somerealm"),
@@ -446,7 +447,7 @@ TEST_F(RestOpenApiTest, rest_api_section_key) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find(" Configuration error: [rest_api] section does "
                                "not expect a key, found 'nosectionallowed'"),
             router_output.npos)

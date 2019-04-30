@@ -344,8 +344,11 @@ bool GRNotificationListener::Impl::read_from_session(const NodeId &node_id,
     // handled it
   }
 
-  if (notify && notification_callback) {
-    notification_callback();
+  {
+    std::lock_guard<std::mutex> lock(configuration_data_mtx_);
+    if (notify && notification_callback) {
+      notification_callback();
+    }
   }
 
   return result;

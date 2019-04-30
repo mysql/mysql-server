@@ -584,7 +584,7 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = RouterComponentTest::launch_router({
+  auto &router = ProcessManager::launch_router({
       "-c",
       create_config_file(conf_dir.name(),
                          "[logger]\nlevel = DEBUG\n" + metadata_cache_section +
@@ -633,7 +633,7 @@ TEST_F(MasterKeyReaderWriterTest,
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", create_config_file(conf_dir.name(),
                                 "[logger]\nlevel = DEBUG\n" +
                                     metadata_cache_section + routing_section,
@@ -677,7 +677,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
   auto default_section_map = get_default_section_map(true, true);
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {
           "-c",
           create_config_file(conf_dir.name(),
@@ -715,7 +715,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
       get_incorrect_master_key_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", create_config_file(conf_dir.name(),
                                 "[logger]\nlevel = DEBUG\n" +
                                     metadata_cache_section + routing_section,

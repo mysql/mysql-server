@@ -110,7 +110,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
 
   EXPECT_TRUE(find_in_file(logging_folder.name() + "/mysqlrouter.log", matcher))
       << "log:"
-      << get_router_log_output("mysqlrouter.log", logging_folder.name());
+      << router.get_full_logfile("mysqlrouter.log", logging_folder.name());
 }
 
 /** @test This test verifies that invalid logging_folder is properly handled and
@@ -428,7 +428,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   // check the file log if it contains what's expected
   const std::string file_log_txt =
-      get_router_log_output("mysqlrouter.log", tmp_dir.name());
+      router.get_full_logfile("mysqlrouter.log", tmp_dir.name());
 
   if (test_params.filelog_expected_level >= LogLevel::kDebug &&
       test_params.filelog_expected_level != LogLevel::kNotSet) {
@@ -1132,7 +1132,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
 
   EXPECT_TRUE(find_in_file(bootstrap_conf.name() + "/mysqlrouter.log", matcher,
                            std::chrono::milliseconds(5000)))
-      << get_router_log_output("mysqlrouter.log", bootstrap_conf.name());
+      << router.get_full_logfile("mysqlrouter.log", bootstrap_conf.name());
 }
 
 /**
@@ -1314,7 +1314,7 @@ TEST_F(MetadataCacheLoggingTest,
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
@@ -1333,7 +1333,7 @@ TEST_F(MetadataCacheLoggingTest,
   log_file.append("mysqlrouter.log");
   EXPECT_TRUE(
       find_in_file(log_file.str(), matcher, std::chrono::milliseconds(5000)))
-      << get_router_log_output();
+      << router.get_full_logfile();
 }
 
 /**
@@ -1351,7 +1351,7 @@ TEST_F(MetadataCacheLoggingTest,
   EXPECT_TRUE(server_ready) << server.get_full_output();
 
   // launch the router with metadata-cache configuration
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port);
   EXPECT_TRUE(router_ready) << router.get_full_output();
@@ -1368,7 +1368,7 @@ TEST_F(MetadataCacheLoggingTest,
 
   EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
                            info_matcher, std::chrono::milliseconds(10000)))
-      << get_router_log_output();
+      << router.get_full_logfile();
 
   auto warning_matcher = [](const std::string &line) -> bool {
     return line.find("metadata_cache WARNING") != line.npos &&
@@ -1378,7 +1378,7 @@ TEST_F(MetadataCacheLoggingTest,
   };
   EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
                            warning_matcher, std::chrono::milliseconds(10000)))
-      << get_router_log_output();
+      << router.get_full_logfile();
 }
 
 #ifndef _WIN32
@@ -1390,7 +1390,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
@@ -1419,7 +1419,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
     std::this_thread::sleep_for(kSleep);
   } while ((--retries > 0) && !log_file.exists());
 
-  EXPECT_TRUE(log_file.exists()) << get_router_log_output();
+  EXPECT_TRUE(log_file.exists()) << router.get_full_logfile();
   EXPECT_TRUE(log_file_1.exists());
 }
 
@@ -1431,7 +1431,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
@@ -1444,7 +1444,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   EXPECT_TRUE(log_file.exists());
 
   // grab the current log content
-  const std::string log_content = get_router_log_output();
+  const std::string log_content = router.get_full_logfile();
 
   // send the log-rotate signal
   const auto pid = static_cast<pid_t>(router.get_pid());
@@ -1455,7 +1455,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   unsigned step = 0;
   do {
     std::this_thread::sleep_for(100ms);
-    log_content_2 = get_router_log_output();
+    log_content_2 = router.get_full_logfile();
   } while ((log_content_2 == log_content) && (step++ < 20));
 
   // The logfile should still exist
@@ -1474,7 +1474,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
@@ -1499,7 +1499,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   chmod(log_file_1.c_str(), S_IRUSR);
 
   // start the router again and check that the new log file got created
-  auto &router2 = RouterComponentTest::launch_router(
+  auto &router2 = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
   router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router2.get_full_output();
@@ -1515,7 +1515,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
@@ -1564,7 +1564,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = RouterComponentTest::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c",
        init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)});
   bool router_ready = wait_for_port_ready(router_port, 10000);

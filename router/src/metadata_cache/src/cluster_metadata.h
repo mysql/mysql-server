@@ -113,6 +113,10 @@ class METADATA_API ClusterMetadata : public MetaData {
       const std::vector<metadata_cache::ManagedInstance> &instances,
       const GRNotificationListener::NotificationClb &callback) override;
 
+  /** @brief Deinitializes the GR notifications listener thread
+   */
+  void shutdown_gr_notifications_listener() override;
+
 #if 0  // not used so far
   /** @brief Returns the refresh interval provided by the metadata server.
    *
