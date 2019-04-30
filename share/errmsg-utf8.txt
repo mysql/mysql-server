@@ -19103,7 +19103,7 @@ ER_SERVER_UPGRADE_REPAIR_STATUS
   eng "Table '%s' repair %s."
 
 ER_SERVER_UPGRADE_INFO_FILE
-  eng "Could not create server upgrade info file at '%s'."
+  eng "Could not open server upgrade info file '%s' for writing. Please make sure the file is writable."
 
 ER_SERVER_UPGRADE_SYS_SCHEMA
   eng "Upgrading the sys schema."

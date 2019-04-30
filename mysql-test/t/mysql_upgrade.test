@@ -1,4 +1,5 @@
 -- source include/no_valgrind_without_big.inc
+--let $MYSQLD_DATADIR= `select @@datadir`
 
 #
 # Bug #28547424 - MYSQL_UPGRADE FAILES WITH SYNTAX ERROR ON INPLACE FROM 5.7 TO 8.0
@@ -14,8 +15,14 @@
 
 --echo # There should be no errors
 --let SEARCH_FILE= $MYSQLD_LOG
+
 --let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
+
+--echo # mysql_upgrade_info file should be created successfully.
+--let SEARCH_PATTERN= Could not open server upgrade info file \'.*\' for writing\. Please make sure the file is writable\.
+--source include/search_pattern.inc
+
 --remove_file $MYSQLD_LOG
 
 --echo # Restart server with defaults
@@ -60,6 +67,29 @@ SHOW GRANTS FOR "mysql.session"@localhost;
 --let restart_parameters=restart: --sql_require_primary_key=1 --upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug #29702060: BE MORE ROBUST IF MYSQL_UPGRADE_INFO IS NOT WRITABLE
+--echo #
+
+--file_exists $MYSQLD_DATADIR/mysql_upgrade_info
+--chmod 0000 $MYSQLD_DATADIR/mysql_upgrade_info
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_upgrade_file_test.log
+--replace_result $MYSQLD_LOG MYSQLD_LOG
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$MYSQLD_LOG
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
+--echo
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Could not open server upgrade info file \'.*\' for writing\. Please make sure the file is writable\.
+--source include/search_pattern.inc
+
+--chmod 0777 $MYSQLD_DATADIR/mysql_upgrade_info
+--remove_file $MYSQLD_LOG
+
+--echo # Cleanup
 
 let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc
