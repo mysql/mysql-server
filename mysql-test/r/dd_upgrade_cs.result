@@ -94,3 +94,16 @@ x$schema_flattened_keys	VIEW
 # Remove copied files
 # Restart the server with default options.
 # restart:
+#
+# Bug#29697670: OVERRIDING SERVER DEFAULT CHARSET/COLLATION AFFECTS UPGRADE
+#
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Stop / start DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+# Stop the server and do cleanup.
+# Remove copied files
+# Restart the server with default options.
+# restart:
