@@ -29,6 +29,7 @@ linux_core_pattern.inc
 linux-version.inc
 windows.inc
 not_debian.inc
+not_solaris.inc
 not_windows.inc
 not_ubuntu.inc
 have_open_file_limit_more_than_5000.inc
