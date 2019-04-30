@@ -18,6 +18,9 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key),
 KEY col_int_key_2 (col_int_key,col_date_key,col_time_key,col_datetime_key,col_varchar_key)
 ) AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO D_21104470
 VALUES
 (1,'{"int1": "6"}',3,
@@ -90,6 +93,9 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key),
 KEY col_int_key_2 (col_int_key,col_date_key,col_time_key,col_datetime_key,col_varchar_key)
 ) AUTO_INCREMENT=20 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO DD_21104470
 VALUES
 (10,'{"int1": "6"}',3,

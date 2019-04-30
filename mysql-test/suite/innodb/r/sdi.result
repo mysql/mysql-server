@@ -31,6 +31,12 @@ key `i0003` (`c0296`,`c0291`(26)),
 key `i0006` (`c0297`,`c0296`,`c0293`,`c0294`),
 key `i0009` (`c0299`,`c0292`,`c0300`) using btree
 ) engine=innodb default charset=latin1 row_format=compact;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t7(
 a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 b INT NOT NULL DEFAULT '123',
@@ -65,11 +71,16 @@ PRIMARY KEY (FTS_DOC_ID),
 UNIQUE KEY idx_1 (first_name, last_name),
 FULLTEXT KEY `idx_2` (first_name)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t14 (
 i int(10) unsigned not null auto_increment primary key,
 a varchar(255) not null,
 FULLTEXT KEY (a)
 ) ENGINE = INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t15 (c1 int, c2 geometry not null SRID 0, spatial index (c2)) engine=innodb;
 CREATE TABLE t16 (
 a INT,

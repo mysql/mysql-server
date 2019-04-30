@@ -13,6 +13,8 @@ c='geometry';
 create table t2 (a int(11) not null auto_increment primary key,
 b geometrycollection default null,
 c decimal(10,0));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2(c) values (null);
 include/sync_slave_sql_with_master.inc
 drop table t1, t2;

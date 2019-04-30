@@ -7,6 +7,11 @@ sessions int(10) unsigned DEFAULT '0' NOT NULL,
 ts timestamp,
 PRIMARY KEY (visitor_id,group_id)
 )/*! engine=MyISAM */;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (465931136,7,2,2,20000318160952);
 INSERT INTO t1 VALUES (173865424,2,2,2,20000318233615);
 INSERT INTO t1 VALUES (173865424,8,2,2,20000318233615);

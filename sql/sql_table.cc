@@ -8565,6 +8565,14 @@ static void warn_on_deprecated_float_unsigned(THD *thd,
   }
 }
 
+static void warn_on_deprecated_zerofill(THD *thd,
+                                        const Create_field &sql_field) {
+  if (sql_field.flags & ZEROFILL_FLAG)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                 ER_THD(thd, ER_WARN_DEPRECATED_ZEROFILL));
+}
+
 /**
   Simple wrapper around create_table_impl() to be used
   in various version of CREATE TABLE statement.
@@ -8672,6 +8680,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
     for (const Create_field &sql_field : alter_info->create_list) {
       warn_on_deprecated_float_precision(thd, sql_field);
       warn_on_deprecated_float_unsigned(thd, sql_field);
+      warn_on_deprecated_zerofill(thd, sql_field);
     }
   }
 
@@ -10137,6 +10146,7 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
   for (const Create_field &sql_field : local_alter_info.create_list) {
     warn_on_deprecated_float_precision(thd, sql_field);
     warn_on_deprecated_float_unsigned(thd, sql_field);
+    warn_on_deprecated_zerofill(thd, sql_field);
   }
 
   /*

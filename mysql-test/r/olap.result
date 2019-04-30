@@ -492,6 +492,8 @@ Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 DROP TABLE t1;
 CREATE TABLE t1 (a int(11) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2);
 SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP;
 a	m
@@ -506,6 +508,8 @@ NULL	3
 DROP TABLE t1;
 set div_precision_increment= @sav_dpi;
 CREATE TABLE t1 (a int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2);
 SELECT a, SUM(a), SUM(a)+1 FROM (SELECT a FROM t1 UNION select 2) d
 GROUP BY a;
@@ -539,6 +543,8 @@ a	SUM(a)	SUM(a)+1	CONCAT(SUM(a),'x')	SUM(a)+SUM(a)	SUM(a)
 NULL	8	9	8x	16	8
 DROP TABLE t1;
 CREATE TABLE t1 (a int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2);
 SELECT a, a+1, SUM(a) FROM t1 GROUP BY a WITH ROLLUP;
 a	a+1	SUM(a)
@@ -605,6 +611,9 @@ IFNULL(a, 'TEST')	COALESCE(b, 'TEST')
 TEST	TEST
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (1, 2);
 SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
@@ -617,6 +626,8 @@ NULL	NULL	NULL	2
 NULL	NULL	NULL	2
 DROP TABLE t1;
 CREATE TABLE t1 (a int(11) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2);
 SELECT * FROM (SELECT a, a + 1, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
 a	a + 1	COUNT(*)
@@ -747,6 +758,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`type` AS `type` from `test`.`t1` gr
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (a int(11) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2);
 CREATE VIEW v1 AS
 SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;

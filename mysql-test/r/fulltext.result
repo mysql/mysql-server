@@ -246,6 +246,9 @@ ticket int(11),
 KEY ti (id),
 KEY tit (ticket)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2,3),(1,2);
 CREATE TABLE t2 (
 ticket int(11),
@@ -253,6 +256,8 @@ inhalt text,
 KEY tig (ticket),
 fulltext index tix (inhalt)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 select t1.id FROM t2 as ttxt,t1,t1 as ticket2
 WHERE ticket2.id = ttxt.ticket AND t1.id = ticket2.ticket and
@@ -301,6 +306,8 @@ inhalt text,
 KEY tig (ticket),
 fulltext index tix (inhalt)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
 ERROR HY000: Incorrect arguments to AGAINST
 select * from t2 where MATCH ticket AGAINST ('foobar');
@@ -314,6 +321,8 @@ title varchar(100)  default '',
 PRIMARY KEY  (id),
 KEY ind5 (title)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE FULLTEXT INDEX ft1 ON t1(title);
 insert into t1 (title) values ('this is a test');
 select * from t1 where match title against ('test' in boolean mode);
@@ -330,6 +339,8 @@ id	title
 update t1 set title=NULL where id=1;
 drop table t1;
 CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
 SELECT * from t1 where MATCH (b) AGAINST ('apples');
 a	b
@@ -340,6 +351,8 @@ a	b
 1	I wonder why the fulltext index doesnt work?
 drop table t1;
 CREATE TABLE t1 ( id int(11) NOT NULL auto_increment primary key, mytext text NOT NULL, FULLTEXT KEY mytext (mytext)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'my small mouse'),(2,'la-la-la'),(3,'It is so funny'),(4,'MySQL Tutorial');
 select 8 from t1;
 8
@@ -367,9 +380,14 @@ ref_mag
 test
 drop table t1;
 create table t1 (t1_id int(11) primary key, name varchar(32));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1, 'data1');
 insert into t1 values (2, 'data2');
 create table t2 (t2_id int(11) primary key, t1_id int(11), name varchar(32));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 values (1, 1, 'xxfoo');
 insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');

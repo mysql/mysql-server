@@ -1057,6 +1057,10 @@ KEY (defid,day)
 PARTITION BY RANGE (day) (
 PARTITION p7 VALUES LESS THAN (20070401) , 
 PARTITION p8 VALUES LESS THAN (20070501));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 select 20, 20070311, 1, 'filler' from t1 A, t1 B;
 insert into t2 select 20, 20070411, 1, 'filler' from t1 A, t1 B;
 insert into t2 values(52, 20070321, 123, 'filler') ;

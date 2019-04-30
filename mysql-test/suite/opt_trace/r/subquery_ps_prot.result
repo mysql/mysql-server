@@ -385,6 +385,7 @@ DROP TABLE t1,t2;
 SET @@optimizer_trace_features="default";
 CREATE TABLE t1 (a FLOAT(5,4) zerofill);
 Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 (a FLOAT(5,4),b FLOAT(2,0));
 Warnings:
@@ -2731,6 +2732,9 @@ b varchar(100) DEFAULT NULL,
 c int(11) DEFAULT NULL,
 KEY b_c_a (b,c,a)
 ) ENGINE=InnoDB, CHARSET utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 explain select *
 from t1 left join t1 as t2
 on (t2.a= t1.a and (t2.a,t2.b) in (select a,b from t1 as t3))

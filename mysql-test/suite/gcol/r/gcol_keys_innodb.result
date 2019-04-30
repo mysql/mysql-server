@@ -267,6 +267,15 @@ PRIMARY KEY (`col3`),
 UNIQUE KEY uidx (`col2`),
 KEY idx (`col5`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(col1,col2,col3,col4,col9,col6)
 VALUES(1,1,0,1,REPEAT(col1,1000),0), (3,2,1,1,REPEAT(col1,1000),NULL);
 ALTER TABLE t1 ADD COLUMN extra INT;
@@ -284,6 +293,10 @@ col_date_key date GENERATED ALWAYS AS (col_date_nokey) VIRTUAL NOT NULL,
 PRIMARY KEY (pk),
 UNIQUE KEY col_int_key (col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 DROP COLUMN pk;
 DROP TABLE t1;
 # Remove the impact on PK choose by index on virtual generated column
@@ -293,6 +306,10 @@ col_int_nokey int(11) DEFAULT NULL,
 col_int_key int(11) GENERATED ALWAYS AS (col_int_nokey) VIRTUAL NOT NULL,
 UNIQUE KEY col_int_key (col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 add unique index idx(pk), algorithm=inplace;
 DESC t1;
 Field	Type	Null	Key	Default	Extra
@@ -315,6 +332,9 @@ UNIQUE KEY col_int_key_2 (col_int_key,col_varchar_key),
 UNIQUE KEY col_varchar_key_2 (col_varchar_key,col_varchar_nokey),
 KEY col_int_key_3 (col_int_key,col_int_nokey)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 DROP COLUMN col_varchar_key;
 Warnings:
 Warning	1831	Duplicate index 'col_int_key_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
@@ -1533,10 +1553,16 @@ ALTER TABLE c1 ADD COLUMN vc1 DOUBLE(4, 3) GENERATED
 ALWAYS AS (JSON_EXTRACT(doc, '$.X')) VIRTUAL , ADD INDEX IX1 (vc1);
 ERROR 22003: Out of range value for column 'vc1' at row 1
 ALTER TABLE c1 ADD vc2 INT(11);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE c1 ADD COLUMN vc3 INT(11) GENERATED ALWAYS AS
 (JSON_EXTRACT(doc, '$.X')) VIRTUAL , ADD UNIQUE INDEX IX2 (vc3);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE c1 drop vc2;
 ALTER TABLE c1 ADD vc4 INT(11);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE c1;
 #
 # Bug#22810883: ASSERTION FAILED:

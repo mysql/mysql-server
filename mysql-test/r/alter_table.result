@@ -78,6 +78,9 @@ LANG_ID smallint(5) unsigned DEFAULT '0' NOT NULL,
 NAME varchar(80) DEFAULT '' NOT NULL,
 PRIMARY KEY (GROUP_ID,LANG_ID),
 KEY NAME (NAME));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 CHANGE NAME NAME CHAR(80) not null;
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
@@ -104,9 +107,16 @@ user_id int(11) unsigned NOT NULL default '0',
 status enum('new','old') NOT NULL default 'new',
 PRIMARY KEY (id)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 ORDER BY t1.id, t1.status, t1.type_id, t1.user_id, t1.body;
 DROP TABLE t1;
 CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) engine=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (null,"hello");
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 ADD Column new_col int not null;
@@ -846,12 +856,16 @@ alter table table_24562 order by no_such_col;
 ERROR 42S22: Unknown column 'no_such_col' in 'order clause'
 drop table table_24562;
 create table t1 (mycol int(10) not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 alter table t1 alter column mycol set default 0;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 mycol	int(10)	NO		0	
 drop table t1;
 create table t1(id int(8) primary key auto_increment) engine=heap;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (null);
 insert into t1 values (null);
 select * from t1;
@@ -1365,6 +1379,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
 this should affect no rows as there is no real change

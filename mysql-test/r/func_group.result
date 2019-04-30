@@ -75,9 +75,12 @@ NULL	NULL
 drop table t1,t2;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00);
 CREATE TABLE t2 (id int(11),name char(20));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'Set One'),(2,'Set Two');
 select id, avg(value1), std(value1), variance(value1) from t1 group by id;
 id	avg(value1)	std(value1)	variance(value1)
@@ -119,6 +122,8 @@ id	avg(rating+0.0e0)
 3	2
 drop table t1,t2;
 create table t1 (a smallint(6) primary key, c char(10), b text);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'1','1');
 INSERT INTO t1 VALUES (2,'2','2');
 INSERT INTO t1 VALUES (4,'4','4');
@@ -843,6 +848,7 @@ val enum('one','two','three') NOT NULL default 'one',
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
@@ -858,6 +864,7 @@ val set('one','two','three') NOT NULL default 'one',
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
@@ -1008,6 +1015,7 @@ cast(min(ifl) as decimal(5,2))
 drop table t1, t2, t3;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00), (2,13.00);
 select id, stddev_pop(value1), var_pop(value1), stddev_samp(value1), var_samp(value1) from t1 group by id;
@@ -1533,6 +1541,8 @@ AVG(a)	CAST(AVG(a) AS DECIMAL)
 15	15
 DROP TABLE t1;
 CREATE TABLE derived1 (a bigint(21));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO derived1 VALUES (2);
 CREATE TABLE D (
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1542,6 +1552,10 @@ filler blob,
 PRIMARY KEY (pk),
 KEY int_key (int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO D VALUES 
 (39,40,4,repeat('  X', 42)),
 (43,56,4,repeat('  X', 42)),
@@ -1906,6 +1920,8 @@ DROP TABLE t1;
 # aggregated value was NULL"
 #
 CREATE TABLE t1 (col_int_nokey int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (7),(8),(NULL);
 SELECT AVG(DISTINCT col_int_nokey) FROM t1;
 AVG(DISTINCT col_int_nokey)
@@ -1972,6 +1988,10 @@ col_int int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 col_int_key int(11) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1979,6 +1999,10 @@ col_int int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (4,1,2);
 CREATE TABLE t3 (
 col_int int(11) DEFAULT NULL,
@@ -1987,6 +2011,10 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (3,9,1);
 CREATE TABLE t4 (
 col_int_key int(11) DEFAULT NULL,
@@ -1995,6 +2023,10 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT (
 SELECT MIN(subquery1_t1.col_int_key)
 FROM t3 AS subquery1_t1

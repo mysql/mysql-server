@@ -2134,3 +2134,39 @@ CREATE TABLE IF NOT EXISTS t1(i INT);
 SET SESSION sql_require_primary_key=DEFAULT;
 DROP TABLE t1;
 
+--echo #
+--echo # WL#13127: Deprecate integer display width and ZEROFILL option
+--echo #
+
+CREATE TABLE types(id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(100));
+INSERT INTO types(name) VALUES
+('TINYINT'), ('SMALLINT'), ('MEDIUMINT'), ('INT'), ('BIGINT'),
+('TINYINT(10)'), ('SMALLINT(10)'), ('MEDIUMINT(10)'), ('INT(10)'), ('BIGINT(10)'),
+('DOUBLE'), ('FLOAT'), ('DECIMAL(5, 2)'), ('YEAR');
+--let $count = `SELECT COUNT(*) FROM types`
+--let $i = 0
+while ($i < $count) {
+--inc $i
+--let $type=`SELECT name FROM types WHERE id = $i`
+--eval CREATE TABLE t1(col $type ZEROFILL)
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+# Should not give warnings.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+--eval ALTER TABLE t1 MODIFY COLUMN col2 $type ZEROFILL
+--eval ALTER TABLE t1 ADD COLUMN col3 $type ZEROFILL
+DROP TABLE t1, t2, t3;
+--eval CREATE FUNCTION f1(x $type ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1
+--eval CREATE FUNCTION f2(x INT) RETURNS $type ZEROFILL DETERMINISTIC RETURN 1
+DELIMITER //;
+eval CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+  DECLARE x $type ZEROFILL DEFAULT 1;
+  RETURN x;
+END//
+DELIMITER ;//
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+}
+DROP TABLE types;

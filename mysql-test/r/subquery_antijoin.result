@@ -1003,6 +1003,10 @@ KEY idx_C_col_time_key (col_time_key),
 KEY idx_C_col_datetime_key (col_datetime_key),
 KEY idx_C_col_varchar_key (col_varchar_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1065483706,383929458,'1979-10-05','1976-08-21','22:00:27','23:05:58','1974-07-25 16:05:18','2015-12-02 10:01:50','k','9'),(2,-171723561,486531981,'1980-09-14','2027-01-15','00:57:31','00:12:08','2036-10-28 14:25:40','2010-09-04 08:25:26','M','Z');
 EXPLAIN SELECT alias1.col_int AS field1 , alias2.col_varchar_key AS field2 ,
 alias1.col_datetime_key AS field3

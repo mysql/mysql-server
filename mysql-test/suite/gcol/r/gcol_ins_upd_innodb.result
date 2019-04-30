@@ -437,6 +437,9 @@ c blob GENERATED ALWAYS AS (concat(a,b)) VIRTUAL,
 d blob GENERATED ALWAYS AS (b) VIRTUAL,
 e int(11) GENERATED ALWAYS AS (10) VIRTUAL,
 h int(11) NOT NULL, PRIMARY KEY (h), key(c(20)));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t(a,b,h) VALUES('aaaaaaa','1111111', 11);
 INSERT INTO t(a,b,h) VALUES('bbbbbbb','2222222', 22);
 SELECT c FROM t;

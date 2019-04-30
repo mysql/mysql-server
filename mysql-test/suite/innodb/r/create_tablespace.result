@@ -103,6 +103,8 @@ CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2` (
 `a` int(11) DEFAULT NULL,
 `b` text
 ) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.`;
 Table	Create Table
 t !@#$%^&*()_+-={}[]|\?<>,.	CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (

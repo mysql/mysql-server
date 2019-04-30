@@ -1032,8 +1032,17 @@ drop table if exists t4;
 SET @save_sql_mode=@@sql_mode;
 SET sql_mode='TRADITIONAL'|
 create table t1 (id int(10) not null primary key, v int(10) )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (id int(10) not null primary key, v int(10) )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t3 (id int(10) not null primary key, v int(10) )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t4 (c int)|
 create trigger t4_bi before insert on t4 for each row set @t4_bi_called:=1|
 create trigger t4_bu before update on t4 for each row set @t4_bu_called:=1|
@@ -1183,7 +1192,11 @@ SET sql_mode = default;
 DROP TABLE IF EXISTS bug21825_A;
 DROP TABLE IF EXISTS bug21825_B;
 CREATE TABLE bug21825_A (id int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE bug21825_B (id int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER trgA AFTER INSERT ON bug21825_A
 FOR EACH ROW
 BEGIN
@@ -1224,6 +1237,8 @@ CREATE TABLE t1 (
 `val` varchar(10) NOT NULL,
 PRIMARY KEY  (`id`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 like t1;
 CREATE TRIGGER trg27006_a_insert AFTER INSERT ON t1 FOR EACH ROW
 BEGIN
@@ -3217,6 +3232,8 @@ CREATE TABLE t1 (fld1 VARCHAR(64) NOT NULL,
 fld2 INT DEFAULT 0, PRIMARY KEY (fld1));
 CREATE TABLE t2 (fld1 VARCHAR(64) NOT NULL,
 fld2 INT(11) DEFAULT NULL, PRIMARY KEY (fld1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(fld1) VALUES (1100);
 INSERT INTO t2 VALUES (1100, 40);
 CREATE TRIGGER update_after_update

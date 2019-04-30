@@ -111,6 +111,8 @@ uuid VARCHAR(36) DEFAULT NULL,
 PRIMARY KEY (t1_autoinc),
 KEY k (uuid)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 t2_autoinc INT(11) NOT NULL AUTO_INCREMENT,
 uuid VARCHAR(36) DEFAULT NULL,
@@ -118,6 +120,8 @@ date DATETIME DEFAULT NULL,
 PRIMARY KEY (t2_autoinc),
 KEY k (uuid)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE VIEW v1 AS 
 SELECT t1_autoinc, uuid
 FROM t1

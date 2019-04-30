@@ -340,6 +340,13 @@ CREATE TABLE `db_17876.slow_log_data` (
 `sql_text` mediumblob,
 `thread_id` bigint(21) unsigned not NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `db_17876.general_log_data` (
 `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 `user_host` mediumtext,
@@ -348,6 +355,9 @@ CREATE TABLE `db_17876.general_log_data` (
 `command_type` varchar(64) DEFAULT NULL,
 `argument` mediumblob
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE procedure `db_17876.archiveSlowLog`()
 BEGIN
 DECLARE start_time, query_time, lock_time CHAR(20);
@@ -658,6 +668,8 @@ DROP TABLE IF EXISTS log_count;
 DROP TABLE IF EXISTS slow_log_copy;
 DROP TABLE IF EXISTS general_log_copy;
 CREATE TABLE log_count (count BIGINT(21));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET GLOBAL general_log = ON;
 SET GLOBAL slow_query_log = ON;
 CREATE TABLE slow_log_copy SELECT * FROM mysql.slow_log;

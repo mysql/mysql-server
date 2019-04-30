@@ -117,12 +117,18 @@ a int(11) default NULL,
 b int(11) default NULL,
 KEY a (a,b)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,10),(0,11),(0,12);
 CREATE TABLE t2 (
 a int(11) default NULL,
 b int(11) default NULL,
 KEY a (a)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (3,NULL),(3,11),(3,12);
 SELECT * FROM t2 inner join t1 WHERE ( t1.a = 0 OR t1.a IS NULL) AND t2.a = 3 AND t2.b = t1.b;
 a	b	a	b

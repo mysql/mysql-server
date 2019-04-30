@@ -98,9 +98,14 @@ f3 VARCHAR(1) DEFAULT NULL,
 f2 INT(11) DEFAULT NULL,
 KEY (f1)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2(
 f1 INT(11) DEFAULT NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 f1 VARCHAR(1) DEFAULT NULL,
 f2 VARCHAR(1) DEFAULT NULL,
@@ -118,18 +123,33 @@ Note	1003	update /*+ JOIN_SUFFIX(@`select#1` `ta1`,`t2`) */ `test`.`t2` left joi
 DROP TABLE t1, t2, t3;
 CREATE TABLE t2(f1 VARCHAR(255) DEFAULT NULL, f2 INT(11) DEFAULT NULL,
 KEY (f1), KEY (f2)) charset latin1 ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t4(f1 INT(11) DEFAULT NULL, f2 INT(11) DEFAULT NULL, KEY (f1))
 charset latin1 ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t5(f1 INT(11) NOT NULL AUTO_INCREMENT, f2 INT(11) DEFAULT NULL, PRIMARY KEY (f1))
 charset latin1 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6(f1 INT(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1))
 charset latin1 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t7 (f1 VARCHAR(255) DEFAULT NULL)
 charset latin1 ENGINE=InnoDB;
 CREATE TABLE t10(f1 INT(11) NOT NULL AUTO_INCREMENT,f2 INT(11) DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL,
 PRIMARY KEY (f1),KEY (f2),KEY (f3)) charset latin1 ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t11(f1 INT(11) DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL,
 KEY (f1),KEY (f2)) charset latin1 ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN
 SELECT /*+ JOIN_ORDER(alias11, alias8) */ 1
 FROM t4 AS alias4
@@ -165,6 +185,8 @@ CREATE TABLE t1
 f1 INT(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (f1)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2
 (
 f1 VARCHAR(1) DEFAULT NULL

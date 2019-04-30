@@ -14850,6 +14850,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,co
 DROP TABLE t1;
 frame buffer navigation assert
 CREATE TABLE ta (a INT(11) DEFAULT NULL, b INT(11) DEFAULT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO  ta VALUES (1,1), (1,2), (1,3), (2,1), (2,2), (2,3);
 ANALYZE TABLE ta;
 Table	Op	Msg_type	Msg_text

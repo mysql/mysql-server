@@ -70333,10 +70333,16 @@ length(c1)	c1	length(c2)	c2
 2	HH	10	Hulk Hogan
 DROP TABLE t3,t4;
 CREATE TABLE t3 (id int(11) NOT NULL default '0',name varchar(10) default NULL,PRIMARY KEY  (id)) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1, 'aaa'),(2,'aaa'),(3,'aaa');
 CREATE TABLE t4 (id int(11) NOT NULL default '0',name varchar(10) default NULL, PRIMARY KEY  (id)) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (2,'bbb'),(3,'bbb'),(4,'bbb');
 CREATE TABLE t5 (id int(11) NOT NULL default '0', mydate datetime default NULL,PRIMARY KEY  (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (1,'2002-02-04 00:00:00'),(3,'2002-05-12 00:00:00'),(5,'2002-05-12 00:00:00'),(6,'2002-06-22 00:00:00'),(7,'2002-07-22 00:00:00');
 delete t3,t4,t5 from t3,t4,t5 where to_days(now())-to_days(t5.mydate)>=30 and t5.id=t3.id and t5.id=t4.id;
 select * from t5;

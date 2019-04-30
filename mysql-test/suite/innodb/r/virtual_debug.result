@@ -260,6 +260,9 @@ CREATE TABLE t1 (
 col1 int(11) NOT NULL,
 col2 int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET DEBUG_SYNC='purge_wait_for_btr_search_latch WAIT_FOR go';
 ALTER TABLE t1 ADD COLUMN col3 INT GENERATED ALWAYS AS (col1 % col2) VIRTUAL, algorithm=inplace;;
 SET DEBUG_SYNC = 'now signal go';
@@ -381,6 +384,8 @@ v VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(a,2,2)) VIRTUAL,
 c varchar(100),
 UNIQUE KEY k (v)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 ( pkey,a,c) VALUES (149,'bata','test');
 SELECT pkey,a,v FROM t1;
 pkey	a	v
@@ -411,6 +416,8 @@ v1 VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(c,2,2)) VIRTUAL,
 KEY k (v),
 KEY v (v1)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (pkey, a, c) VALUES (149, 'bata', 'test');
 INSERT INTO t1 (pkey, a, c) VALUES (150, 'bata', 'test');
 INSERT INTO t1 (pkey, a, c) VALUES (160, 'bata', 'test');

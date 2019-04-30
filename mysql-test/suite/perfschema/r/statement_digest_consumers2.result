@@ -126,6 +126,8 @@ CALL p1();
 c
 DROP PROCEDURE p1;
 CREATE FUNCTION `func`(a INT, b INT) RETURNS int(11) RETURN a+b //
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select func(3,4);
 func(3,4)
 7

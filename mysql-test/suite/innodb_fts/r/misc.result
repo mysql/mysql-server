@@ -1290,6 +1290,8 @@ CREATE TABLE ift (
 PRIMARY KEY (`a`),
 FULLTEXT KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO ift values (1, "skip");
 INSERT INTO ift values (2, "skip and networking");
 INSERT INTO ift values (3, "--skip-networking");

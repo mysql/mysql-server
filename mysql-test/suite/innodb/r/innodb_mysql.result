@@ -8,6 +8,9 @@ org_id int(11) default null,
 unique key contacts$c_id (c_id),
 key contacts$org_id (org_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (2,null),(120,null),(141,null),(218,7), (128,1),
 (151,2),(234,2),(236,2),(243,2),(255,2),(259,2),(232,3),(235,3),(238,3),
@@ -31,6 +34,19 @@ unique key t2$slai_id (slai_id),
 key t2$owner_id (owner_id),
 key t2$sla_id (sla_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2(slai_id, owner_tbl, owner_id, sla_id) values
 (1,3,1,1), (3,3,10,2), (4,3,3,6), (5,3,2,5), (6,3,8,3), (7,3,9,7),
 (8,3,6,8), (9,3,4,9), (10,3,5,10), (11,3,11,11), (12,3,7,12);
@@ -368,7 +384,12 @@ Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f
 drop table t1;
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
 INDEX (name));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t2 ADD FOREIGN KEY (fkey) REFERENCES t2(id);
 INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
 INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
@@ -397,6 +418,8 @@ age tinyint(3) unsigned NOT NULL,
 PRIMARY KEY (id),
 INDEX (name,dept)
 ) ENGINE=InnoDB STATS_PERSISTENT=0;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(id, dept, age, name) VALUES
 (3987, 'cs1', 10, 'rs1'), (3988, 'cs2', 20, 'rs1'), (3995, 'cs3', 10, 'rs2'),
 (3996, 'cs4', 20, 'rs2'), (4003, 'cs5', 10, 'rs3'), (4004, 'cs6', 20, 'rs3'),
@@ -1581,6 +1604,10 @@ CREATE TABLE `t2` (
 PRIMARY KEY  (`k`),
 UNIQUE KEY `idx_1` (`a`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 ( a ) values ( 6 ) on duplicate key update c =
 ifnull( c,
 0 ) + 1;
@@ -2775,6 +2802,11 @@ PRIMARY KEY (f1),
 KEY idx1 (f2,f5,f4),
 KEY idx2 (f2,f4)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/intersect-bug50389.tsv' INTO TABLE t1;
 ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE f1 IN
@@ -2815,6 +2847,11 @@ PRIMARY KEY (f1),
 UNIQUE KEY (f2, f3),
 KEY (f4)
 ) ENGINE=InnoDB STATS_PERSISTENT=0;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,1,991,1), (2,1,992,1), (3,1,993,1), (4,1,994,1), (5,1,995,1),
 (6,1,996,1), (7,1,997,1), (8,1,998,1), (10,1,999,1), (11,1,9910,1),
@@ -3060,6 +3097,8 @@ v2 varchar(20) DEFAULT NULL,
 KEY i (i),
 KEY v (v1,i)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'f','no');
 INSERT INTO t1 VALUES (2,'u','yes-u');
 INSERT INTO t1 VALUES (2,'h','yes-h');

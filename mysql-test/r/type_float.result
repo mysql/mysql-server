@@ -351,6 +351,10 @@ CREATE TABLE t1 (
 f1 real zerofill,
 f2 double zerofill,
 f3 float zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 INSERT INTO t1 VALUES ( 0.314152e+1, 0.314152e+1, 0.314152e+1);
 PREPARE stmt1 FROM 'select f1, f2, f3 FROM t1';
 select f1, f2, f3 FROM t1;

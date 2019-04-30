@@ -639,6 +639,9 @@ CREATE TABLE `t1` (
 KEY `a` (`a`),
 KEY `b` (`b`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (0, 'filler', 0), (1, 'filler', 1), (2, 'filler', 2), (3, 'filler', 3), 
 (4, 'filler', 4), (5, 'filler', 5), (6, 'filler', 6), (7, 'filler', 7), 
@@ -656,6 +659,9 @@ create table t2(
 KEY USING BTREE (`a`),
 KEY USING BTREE (`b`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 select * from t1;
 must use sort-union rather than union:
 explain select * from t1 where a=4 or b=4;
@@ -1321,6 +1327,12 @@ KEY `fk_bbk_niederlassung` (`fk_bbk_niederlassung`),
 KEY `fk_wochentag` (`fk_wochentag`),
 KEY `ix_version` (`version`)
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert  into t1 values
 (1, 38, 1, '08:00:00', '13:00:00', 0, 1),
 (2, 38, 2, '08:00:00', '13:00:00', 0, 1),
@@ -1451,6 +1463,11 @@ key idx1(a,b,c),
 key idx2(c),
 key idx3(kp1,kp2,kp3,kp4,kp5)
 ) default charset=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @fill=NULL;
 SELECT COUNT(*) FROM t1 WHERE b = 0 AND a = 0 AND c = 13286427 AND
 kp1='279' AND kp2='ELM0678' AND kp3='6' AND kp4='10' AND  kp5 = 'R        ';
@@ -1877,6 +1894,8 @@ TADIRFLAG char(1),
 PRIMARY KEY  (RUNID,SUBMITNR,ORDERNR,PROGRAMM,TESTID,UCCHECK),
 KEY `TVERM~KEY`  (PROGRAMM,TESTID,UCCHECK)
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 update t1 set `ETEXT` = '', `ETEXT_TYPE`='', `INFO`='', `SEVERITY`='', `TADIRFLAG`=''
 WHERE
 `RUNID`= '' AND `SUBMITNR`= '' AND `ORDERNR`='' AND `PROGRAMM`='' AND
@@ -1926,6 +1945,10 @@ KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,2,1,'0000-00-00','0000-00-00','00:00:07','00:00:25','0000-00-00 00:00:00','0000-00-00 00:00:00','2','2'),
 (109,25,1,'0000-00-00','0000-00-00','00:00:07','00:00:25','0000-00-00 00:00:00','0000-00-00 00:00:00','1','7');
@@ -1948,6 +1971,10 @@ KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES
 (10,2,4,'2000-04-16','2000-04-16','17:02:34','17:02:34','2009-08-04 02:49:10','2009-08-04 02:49:10','u','u'),
 (11,6,5,'1900-01-01','1900-01-01','12:31:32','12:31:32','2004-05-24 22:22:06','2004-05-24 22:22:06','b','b'),

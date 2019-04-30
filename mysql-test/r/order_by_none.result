@@ -8,6 +8,9 @@ flag char(1),
 KEY id (id),
 PRIMARY KEY (clee)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2,4,'6067169d','Y');
 INSERT INTO t1 VALUES (2,5,'606716d1','Y');
 INSERT INTO t1 VALUES (2,1,'606717c1','Y');
@@ -24,6 +27,9 @@ image varchar(60),
 PRIMARY KEY (id),
 KEY id (id,ordre)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'Emettre un appel d''offres','en_construction.html',10,'emettre.gif');
 INSERT INTO t2 VALUES (2,'Emettre des soumissions','en_construction.html',20,'emettre.gif');
 INSERT INTO t2 VALUES (7,'Liste des t2','t2_liste_form.phtml',51060,'link.gif');
@@ -282,6 +288,7 @@ ipnr varchar(30) NOT NULL default '',
 PRIMARY KEY  (member_id)
 ) charset utf8mb4 ENGINE=MyISAM PACK_KEYS=1;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'info' can't have a default value
 insert into t1 (member_id) values (1),(2),(3);
 select member_id, nickname, voornaam FROM t1
@@ -539,8 +546,13 @@ cid smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY  (gid),
 KEY component_id (cid)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (103853,108),(103867,108),(103962,108),(104505,108),(104619,108),(104620,108);
 ALTER TABLE t1 add skr int(10) not null;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 gid int(10) unsigned NOT NULL default '0',
 uid smallint(5) unsigned NOT NULL default '1',
@@ -549,13 +561,21 @@ PRIMARY KEY  (gid),
 KEY uid (uid),
 KEY status_id (sid)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (103853,250,5),(103867,27,5),(103962,27,5),(104505,117,5),(104619,75,5),(104620,15,5);
 CREATE TABLE t3 (
 uid smallint(6) NOT NULL auto_increment,
 PRIMARY KEY  (uid)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1),(15),(27),(75),(117),(250);
 ALTER TABLE t3 add skr int(10) not null;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 gid	sid	uid
 104620	5	15
@@ -625,12 +645,22 @@ KEY `auteur` (`auteur`,`lu`),
 KEY `auteur_2` (`auteur`,`date`),
 KEY `dest_2` (`dest`,`date`)
 ) CHECKSUM=1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 `numeropost` mediumint(8) unsigned NOT NULL default '0',
 `pseudo` char(35) NOT NULL default '',
 PRIMARY KEY  (`numeropost`,`pseudo`),
 KEY `pseudo` (`pseudo`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (titre,auteur,dest) VALUES ('test','joce','bug');
 INSERT INTO t2 (numeropost,pseudo) VALUES (1,'joce'),(1,'bug');
 SELECT titre,t1.numeropost,auteur,icone,nbrep,0,date,vue,ouvert,lastauteur,dest FROM t2 LEFT JOIN t1 USING(numeropost) WHERE t2.pseudo='joce' ORDER BY date DESC LIMIT 0,30;
@@ -691,6 +721,8 @@ KEY FieldKey (FieldKey),
 KEY LongField (FieldKey,LongVal),
 KEY StringField (FieldKey,StringVal(32))
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
 EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -728,6 +760,9 @@ SET @id=0;
 UPDATE t1 SET a=0 ORDER BY (a=@id), b;
 DROP TABLE t1;
 CREATE TABLE t1 (  id smallint(6) unsigned NOT NULL default '0',  menu tinyint(4) NOT NULL default '0',  KEY id (id),  KEY menu (menu)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (11384, 2),(11392, 2);
 SELECT id FROM t1 WHERE id <11984 AND menu =2 ORDER BY id DESC LIMIT 1 ;
 id
@@ -1886,6 +1921,8 @@ DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE t2 (a varchar(32), b int(11), c float, d double, 
 UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c)) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b))
 charset utf8mb4;
 CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b))

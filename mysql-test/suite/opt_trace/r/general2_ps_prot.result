@@ -3730,18 +3730,26 @@ SORTORDER int(11) NOT NULL auto_increment,
 KEY t1_SortIndex (SORTORDER),
 KEY t1_IdIndex (OBJECTID)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 ID int(11) default NULL,
 PARID int(11) default NULL,
 UNIQUE KEY t2_ID_IDX (ID),
 KEY t2_PARID_IDX (PARID)
 ) engine=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1000,0),(1001,0),(1002,0),(1003,0),(1008,1),(1009,1),(1010,1),(1011,1),(1016,2);
 CREATE TABLE t3 (
 ID int(11) default NULL,
 DATA decimal(10,2) default NULL,
 UNIQUE KEY t3_ID_IDX (ID)
 ) engine=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1000,0.00),(1001,0.25),(1002,0.50),(1003,0.75),(1008,1.00),(1009,1.25),(1010,1.50),(1011,1.75);
 select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as tmp;
 497	ID	NULL
@@ -4117,6 +4125,12 @@ UNIQUE _field_72 (_field_72),
 KEY _field_115 (_field_115),
 KEY _field_122 (_field_122)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'admin','21232f297a57a5a743894a0e4a801fc3',0,1,NULL,NULL);
 INSERT INTO t1 VALUES (2,'hroberts','7415275a8c95952901e42b13a6b78566',0,1,NULL,NULL);
 INSERT INTO t1 VALUES (3,'guest','d41d8cd98f00b204e9800998ecf8427e',1,0,NULL,NULL);
@@ -4125,6 +4139,9 @@ seq_0_id bigint(21) DEFAULT '0' NOT NULL,
 seq_1_id bigint(21) DEFAULT '0' NOT NULL,
 PRIMARY KEY (seq_0_id,seq_1_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,1);
 INSERT INTO t2 VALUES (2,1);
 INSERT INTO t2 VALUES (2,2);
@@ -4148,6 +4165,13 @@ KEY _field_142 (_field_142),
 KEY _field_145 (_field_145),
 KEY _field_148 (_field_148)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,'test job 1',0,'0000-00-00 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
 INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);
 SET sql_mode = default;
@@ -4156,6 +4180,9 @@ seq_0_id bigint(21) DEFAULT '0' NOT NULL,
 seq_1_id bigint(21) DEFAULT '0' NOT NULL,
 PRIMARY KEY (seq_0_id,seq_1_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (1,1);
 INSERT INTO t4 VALUES (2,1);
 CREATE TABLE t5 (
@@ -4175,6 +4202,9 @@ KEY _field_159 (_field_159),
 KEY _field_160 (_field_160),
 KEY _field_161 (_field_161)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (1,0,'tomato','','','','','');
 INSERT INTO t5 VALUES (2,0,'cilantro','','','','','');
 CREATE TABLE t6 (
@@ -4182,6 +4212,9 @@ seq_0_id bigint(21) DEFAULT '0' NOT NULL,
 seq_1_id bigint(21) DEFAULT '0' NOT NULL,
 PRIMARY KEY (seq_0_id,seq_1_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t6 VALUES (1,1);
 INSERT INTO t6 VALUES (1,2);
 INSERT INTO t6 VALUES (2,2);
@@ -4193,6 +4226,10 @@ _field_166 smallint(6) DEFAULT '0' NOT NULL,
 PRIMARY KEY (t7_id),
 KEY _field_166 (_field_166)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t7 VALUES (1,0,'High',1);
 INSERT INTO t7 VALUES (2,0,'Medium',2);
 INSERT INTO t7 VALUES (3,0,'Low',3);

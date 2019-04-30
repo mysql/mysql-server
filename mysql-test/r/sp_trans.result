@@ -432,12 +432,16 @@ CREATE TABLE t3 (
 `ID` int(11) default NULL,
 `txt` char(5) default NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 (`ID`,`txt`) VALUES
 (1,'a'), (2,'b'), (3,'c'), (4,'d')|
 CREATE TABLE t4 (
 `ID` int(11) default NULL,
 `txt` char(5) default NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 (`ID`,`txt`) VALUES
 (1,'a'), (2,'b'), (3,'c'), (4,'d')|
 create procedure bug10656_create_index()

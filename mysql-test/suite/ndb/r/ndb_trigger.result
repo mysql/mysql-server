@@ -337,6 +337,9 @@ TRIGGER_NAME	EVENT_OBJECT_TABLE
 trg1	t2
 drop table t2;
 create table t1(c1 int(11) not null auto_increment primary key, c2 int(11) not null) engine=ndb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create trigger bi_t1 before insert on t1
 FOR EACH ROW BEGIN 
 SET new.c2 = last_insert_id();

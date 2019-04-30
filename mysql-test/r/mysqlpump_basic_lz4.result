@@ -16,6 +16,9 @@ id2 tinyint(3) NOT NULL,
 PRIMARY KEY (id),
 KEY index2 (id2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW TABLES;
 Tables_in_bug21644479_lz4
 t1

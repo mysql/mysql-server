@@ -32,9 +32,15 @@ CREATE TABLE t1innodb (c INT) ENGINE = INNODB;
 CREATE TABLE t3967_1 (id INT(11) NOT NULL AUTO_INCREMENT,
 b INT(11) DEFAULT NULL, PRIMARY KEY (id))
 ENGINE = INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3967_2 (id INT(11) NOT NULL AUTO_INCREMENT,
 b INT(11) DEFAULT NULL, PRIMARY KEY (id))
 ENGINE = INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t1_30138` (id INT) ENGINE = INNODB;
 COMMIT;
 --- connection master ---

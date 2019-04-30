@@ -36,6 +36,8 @@ DROP TABLE t1;
 # Bug #50946: fast index creation still seems to copy the table
 #
 CREATE TABLE t1 (a INT(100) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1), (0), (2);
 SET SESSION debug='+d,alter_table_only_index_change';
 ALTER TABLE t1 ADD INDEX a(a);

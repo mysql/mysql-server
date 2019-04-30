@@ -77,6 +77,9 @@ KEY `b` (`b`)
 )
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,0),(0,0),(1,0),(1,0),(2,0),(2,0),(0,0);
 INSERT INTO t1 SELECT t1.a,t1.b FROM t1, t1 t2;
 INSERT INTO t1 VALUES (1,1),(2,2);

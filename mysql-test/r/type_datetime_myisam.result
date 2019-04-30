@@ -7,6 +7,8 @@ PRIMARY KEY  (`numfacture`),
 KEY `date` (`date`),
 KEY `expedition` (`expedition`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (expedition) VALUES ('0001-00-00 00:00:00');
 SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
 date	numfacture	expedition

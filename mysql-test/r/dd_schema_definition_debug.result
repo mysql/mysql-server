@@ -719,6 +719,8 @@ SET debug = '-d,skip_dd_table_access_check';
 # with an already recorded checksum.
 ########################################################################
 SET debug = '+d,skip_dd_table_access_check';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
 The schema checksum corresponds to DD version 80017.

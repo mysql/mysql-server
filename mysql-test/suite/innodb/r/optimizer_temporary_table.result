@@ -74,6 +74,9 @@ key col_date_key (col_date_key),
 key col_varchar_key (col_int_key)
 ) engine=innodb;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1831	Duplicate index 'col_varchar_key' defined on the table 'test.t9'. This is deprecated and will be disallowed in a future release.
 create  table t10 (
 pk int(11) not null auto_increment,
@@ -87,6 +90,9 @@ key col_date_key (col_date_key),
 key col_varchar_key (col_int_key)
 ) engine=innodb;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1831	Duplicate index 'col_varchar_key' defined on the table 'test.t10'. This is deprecated and will be disallowed in a future release.
 insert into t9 values
 (1, 2, 4, '2008-12-05', '2008-12-05'),
@@ -239,7 +245,10 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert ignore into t11 values
 ('2005-03-10','have','o','gryvuwdllyhymuwyypoiuyeqbnaanbur','2004','going','h','well','f',1140785152,'2003','YTLDF',NULL,NULL,'20050908213850.042201'),
 ('2003', 'g', 'ELTFL', 'got', '20:07:16.048352', 'ryvuwdllyhymuwyypoiuyeqbnaanbursgddnqhyvxnnpadsjiqdkajofferjfslatroorycttbiuhlubvmoikwwnalqyewgthdmfvsedatazrflwenzeiwdxtheqppbmqfydsawvanehgvfvbsqxzkqzhtjkybvikmpexipoddmoulsnzfchusfgkdazecevrpuakfioamyyqyribcnydfxmmzsxcpkydyczmeajaebsaskneaqwxjbpjptiwgiizoxfygnbjojpifpzldsdhrukdbwpzribxgafunywmmcfpjugozduylotsugqocbadhcnxjqlugncbebwsbobhxgghyyphxfqqnpliazusgjswynfotwdonpbkllfdbuoqceirksegypasuuxnrjumrkaryhkgkbdfgoqbdmrdrmpvwitqzswgossxltimkbtrxitnmigcxgfaqmrnvspyaftisgdbkzlevczyrlossygtnatwcobbtsxqhjrdykmthpyzmdgyirxwlidiknxwsufkyexucekyhivscjdcouswuiyltrpmrngriwvrxgovfyewdsvlwirfzkwexxzoccufvuvhsjfvuwjsrrzguntudxxhblzbescayrbbrijnvucxxmbyltlojlgcweddzrfxsmwnxxewigapgrowtmrlqsknuaegzfvdwfdnnbfyubwckwfdrwmrymagyswwvvyeqhaaskgxogthhrzsdlsyqoeuvhwxquwbnivpowtybzehvbsoppuefqngkqohtdeylosjyvtxuziotnfpbqxkpxvzcjbgxokjzitakfevxduhtudsslluhzgcwgrcrtpnczgxchnmmgnubjzvvuklklfhiupbsjzhcqyadhskxtjzabzesulhgpykga', 'she', 'have', 'PYJKD', 9, '2008-06-10', 'yvuwdllyhymuwyypoiuyeqbnaanbursgddnqhyvxnnpadsjiqdkajofferjfslatroorycttbiuhlubvmoikwwnalqyewgthdmfvsedatazrflwenzeiwdxtheqppbmqfydsawvanehgvfvbsqxzkqzhtjkybvikmpexipoddmoulsnzfchusfgkdazecevrpuakfioamyyqyribcnydfxmmzsxcpkydyczmeajaebsaskneaqwxjbpjptiwgiizoxfygnbjojpifpzldsdhrukdbwpzribxgafunywmmcfpjugozduylotsugqocbadhcnxjqlugncbebwsbobhxgghyyphxfqqnpliazusgjswynfotwdonpbkllfdbuoqceirksegypasuuxnrjumrkaryhkgkbdfgoqbdmrdrmpvwitqzswgossxltimkbtrxitnmigcxgfaqmrnv', NULL, NULL, '2008-01-09');
@@ -266,6 +275,10 @@ key col_date_key (col_date_key),
 key col_time_key (col_time_key),
 key col_varchar_key (col_varchar_key, col_int_key)
 ) engine=myisam auto_increment=21;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t13 values
 (2, 150, 62, '2005-03-27', '14:26:02', 'v', 'v'),
 (3, NULL, 7, '2004-04-09', '14:03:03', 'c', 'c'),
@@ -300,6 +313,10 @@ key col_date_key (col_date_key),
 key col_time_key (col_time_key),
 key col_varchar_key (col_varchar_key,col_int_key)
 ) ENGINE=myisam auto_increment=30;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t14 values
 (10, NULL, 8, '2000-12-03', '22:55:23', 'x', 'x'),
 (11, 8, 7, '2008-05-03', '10:19:31', 'd', 'd'),

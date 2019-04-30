@@ -1908,6 +1908,9 @@ DROP TABLE t1;
 CREATE TABLE C1 (
 pk int(11) NOT NULL AUTO_INCREMENT KEY,
 col_int int(11) DEFAULT NULL) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO C1 VALUES (1,2);
 SELECT SUM( DISTINCT table1.col_int ) AS field1,
 MAX( table1.col_int ) AS field3
@@ -1924,8 +1927,12 @@ col_int_key int(11) DEFAULT NULL,
 col_jsonn json DEFAULT NULL,
 KEY mv_idx ((cast(col_jsonn->'$[*]' as char(40) array)))
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (NULL,'[1]'), (4,'[1]'), (1,'[2]');
 CREATE TABLE t2(col_int int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1), (2), (3), (11), (12);
 ANALYZE TABLE t1,t2;
 Table	Op	Msg_type	Msg_text
@@ -1954,6 +1961,8 @@ KEY mv_idx_char
 KEY mv_idx_time
 ((cast(json_extract(`col_jsonn`,_utf8mb4'$[6][*]') as time array)))
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO c1 VALUES (266852963,'[[1835802859, 1212466474, 1958770846],
 [140577309, 37575131, 1480381571, 1610621995], ["6PivylM", "D4MJJ1N", "M0KX",
 "0ELw", "sIgqeN", "HHOzYx8vo", "u7htig76J0", "SVd7N"], [1, 0, 0, 1],

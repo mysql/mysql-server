@@ -442,6 +442,8 @@ e VARCHAR(1000) DEFAULT NULL,
 KEY (a) INVISIBLE,
 KEY (b)
 ) PARTITION BY KEY (a) PARTITIONS 20;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (a, b, c, d, e) VALUES
 ('07', '03', 343, '1', '07_03_343'),
 ('01', '04', 343, '2', '01_04_343'),

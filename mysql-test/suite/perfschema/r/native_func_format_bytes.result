@@ -130,6 +130,8 @@ ERROR 22003: Input value is out of range in 'format_bytes'
 USE test;
 
 CREATE TABLE memory_counts (id VARCHAR(10), bytes BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 INSERT INTO memory_counts VALUES ('Bytes', 512);
 INSERT INTO memory_counts VALUES ('10 KiB', 10 * 1024);

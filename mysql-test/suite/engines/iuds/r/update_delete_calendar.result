@@ -1241,10 +1241,16 @@ SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
 c1	c2	c3	c1	c2	c3
 DROP TABLE t1,t2;
 CREATE TABLE mt1(id int(11) NOT NULL default '0', name varchar(10) default NULL, PRIMARY KEY  (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt1 VALUES (1,'aaa'),(2,'aaa'),(3,'aaa');
 CREATE TABLE mt2 (id int(11) NOT NULL default '0', name varchar(10) default NULL, PRIMARY KEY  (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt2 VALUES (2,'bbb'),(3,'bbb'),(4,'bbb');
 CREATE TABLE mt3 (id int(11) NOT NULL default '0', mydate datetime default NULL, PRIMARY KEY  (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt3 VALUES (1,'2002-02-04 00:00:00'),(3,'2002-05-12 00:00:00'),(5,'2002-05-12 00:00:00'),(6,'2002-06-22 00:00:00'),(7,'2002-07-22 00:00:00');
 delete mt1,mt2,mt3 from mt1,mt2,mt3 where to_days(now())-to_days(mt3.mydate)>=30 and mt3.id=mt1.id and mt3.id=mt2.id;
 select * from mt3;

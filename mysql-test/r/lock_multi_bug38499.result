@@ -7,6 +7,204 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
 # 1.1.2. PS mode
 # 1.2. test altering of columns that multiupdate uses
 # 1.2.1. normal mode
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # 1.2.2. PS mode
 ALTER TABLE t1 ADD COLUMN a INT;
 # 2. test UNIONs
@@ -15,5 +213,203 @@ ALTER TABLE t1 ADD COLUMN a INT;
 # 2.1.2. PS mode
 # 2.2. test altering of columns that multiupdate uses
 # 2.2.1. normal mode
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # 2.2.2. PS mode
 DROP TABLE t1;

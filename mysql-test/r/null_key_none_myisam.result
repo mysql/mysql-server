@@ -355,11 +355,17 @@ uniq_id int(10) unsigned default NULL,
 PRIMARY KEY  (id),
 UNIQUE KEY idx1 (uniq_id)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(10) unsigned NOT NULL auto_increment,
 uniq_id int(10) unsigned default NULL,
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4),(9,NULL),(10,NULL);
 INSERT INTO t2 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4),(9,NULL),(10,NULL);
 explain select id from t1 where uniq_id is null;
@@ -411,12 +417,16 @@ CREATE TABLE `t1` (
 `product_type` int(11) NOT NULL default '0',
 PRIMARY KEY  (`order_id`,`product_id`,`product_type`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
 `order_id` char(32) NOT NULL default '',
 `product_id` char(32) NOT NULL default '',
 `product_type` int(11) NOT NULL default '0',
 PRIMARY KEY  (`order_id`,`product_id`,`product_type`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (order_id, product_id, product_type) VALUES
 ('3d7ce39b5d4b3e3d22aaafe9b633de51',1206029, 3),
 ('3d7ce39b5d4b3e3d22aaafe9b633de51',5880836, 3),

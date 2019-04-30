@@ -1875,6 +1875,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a tinyint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -1883,6 +1885,9 @@ hex(concat(a))	a
 313030	100
 drop table t1;
 create table t1 (a tinyint(4) zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1), (10), (100);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -1915,6 +1920,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a smallint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -1937,6 +1944,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a mediumint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -1959,6 +1968,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a int zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -1981,6 +1992,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a bigint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2006,6 +2019,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a float zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2031,6 +2046,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a double zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2160,6 +2177,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a tinyint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2173,6 +2192,9 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a tinyint(30) zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1), (10), (100);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2208,6 +2230,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a smallint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2234,6 +2258,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a mediumint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2260,6 +2286,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a int zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2286,6 +2314,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a bigint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2312,6 +2342,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a float zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2341,6 +2373,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a double zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2629,6 +2663,8 @@ CREATE TABLE t1 (
 id INT(11) DEFAULT NULL,
 date_column DATE DEFAULT NULL,
 KEY(date_column));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text

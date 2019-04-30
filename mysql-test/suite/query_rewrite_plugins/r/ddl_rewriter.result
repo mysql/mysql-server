@@ -246,6 +246,7 @@ i  int NOT NULL AUTO_INCREMENT,
 mt mediumtext NOT NULL,
 c  varchar(10) NOT NULL,
 ti tinyint(1
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (

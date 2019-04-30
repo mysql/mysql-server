@@ -25,6 +25,8 @@ CREATE TABLE t4(
 `mean` varchar(300) NOT NULL,
 PRIMARY KEY (`k`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ############################
 # Creating Stored Programs #
 ############################

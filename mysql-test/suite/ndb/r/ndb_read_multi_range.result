@@ -352,6 +352,9 @@ c datetime default NULL,
 PRIMARY KEY  (a),
 KEY idx_bc (b,c)
 ) ENGINE=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
 (406989,67,'2006-02-23 17:08:46'), (150078,67,'2005-10-26 11:17:45'),
 (406993,67,'2006-02-27 11:20:57'), (245655,67,'2005-12-08 15:59:08'),
@@ -517,6 +520,8 @@ type varchar(150) NOT NULL,
 modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 PRIMARY KEY (id)
 ) ENGINE=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('sakila',1,'Some text goes here','text',CURRENT_TIMESTAMP);
 SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','orka');
 id	tag	doc	type
@@ -529,11 +534,17 @@ var1 int(2) NOT NULL,
 var2 int(2) NOT NULL,
 PRIMARY KEY  (var1)
 ) ENGINE=ndbcluster DEFAULT CHARSET=ascii CHECKSUM=1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 var1 int(2) NOT NULL,
 var2 int(2) NOT NULL,
 PRIMARY KEY  (var1)
 ) ENGINE=ndbcluster DEFAULT CHARSET=ascii CHECKSUM=1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER testtrigger
 AFTER UPDATE ON t1 FOR EACH ROW BEGIN
 REPLACE INTO t2 SELECT * FROM t1 WHERE t1.var1 = NEW.var1;END|

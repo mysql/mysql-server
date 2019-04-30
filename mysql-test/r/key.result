@@ -29,6 +29,8 @@ schoolsyes enum('Y','N') DEFAULT 'Y' NOT NULL,
 petsyes enum('Y','N') DEFAULT 'Y' NOT NULL,
 KEY price (price,area,type,transityes,shopsyes,schoolsyes,petsyes)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT IGNORE INTO t1 VALUES (900,'Vancouver','Shared/Roomate','','','','');
@@ -170,6 +172,9 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1;
 CREATE TABLE t1 (numeropost mediumint(8) unsigned NOT NULL default '0', numreponse int(10) unsigned NOT NULL auto_increment, PRIMARY KEY (numeropost,numreponse), UNIQUE KEY numreponse (numreponse));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (numeropost,numreponse) VALUES ('1','1'),('1','2'),('2','3'),('2','4');
 SELECT numeropost FROM t1 WHERE numreponse='1';
 numeropost
@@ -827,6 +832,7 @@ CREATE TABLE `mytable` (   `id` INT(10) UNSIGNED NOT NULL DEFAULT '0',   `somefi
 PRIMARY KEY (`id`,`somefield`) )
 DEFAULT CHARSET=UTF8MB3;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE mytable CONVERT TO CHARACTER SET UTF8MB4;
 ERROR HY000: Could not change column 'somefield' of table 'mytable'. The resulting size of index 'PRIMARY' would exceed the max key length of 3072 bytes.

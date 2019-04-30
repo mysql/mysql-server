@@ -135,6 +135,8 @@ primary key (id)
 ) engine=myisam;
 create function bug15728() returns int(11)
 return last_insert_id();
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (last_id) values (0);
 insert into t1 (last_id) values (last_insert_id());
 insert into t1 (last_id) values (bug15728());
@@ -148,6 +150,8 @@ begin
 insert into t2 (last_id) values (bug15728());
 return bug15728();
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create trigger t1_bi before insert on t1 for each row
 begin
 declare res int;
@@ -300,11 +304,16 @@ field_3 varchar(255) NOT NULL,
 PRIMARY KEY (id),
 UNIQUE KEY field_1 (field_1, field_2)
 ) ENGINE=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 field_a int(10) unsigned NOT NULL,
 field_b varchar(249) NOT NULL,
 field_c varchar(255) NOT NULL
 ) ENGINE=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');

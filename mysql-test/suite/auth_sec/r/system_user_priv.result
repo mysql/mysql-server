@@ -286,6 +286,8 @@ ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege
 # 7.1.2 ALTER and DROP FUNCTIONS
 CREATE DEFINER=test_user@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
 RETURN i*10;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT f1(2);
 f1(2)
 20

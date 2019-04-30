@@ -567,6 +567,8 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`id`),
 KEY `mv_idx_binary` ((JSON_LENGTH(`j3`)), (CAST(JSON_EXTRACT(`j4`,_utf8mb4'$[*]') AS BINARY(10) ARRAY)), (JSON_DEPTH(`j2`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(0, CAST(_utf8mb4'[5,-1,0]' AS JSON), CAST(_utf8mb4'[9,8,0,1]' AS JSON), CAST(_utf8mb4'["foobar"]' AS JSON), CAST(_utf8mb4'["HelloWorld"]' AS JSON), CAST(_utf8mb4'["HelloMySQL"]' AS JSON));
 INSERT INTO t1 VALUES(0, CAST(_utf8mb4'[5,-1,0]' AS JSON), CAST(_utf8mb4'[9,8,0,1]' AS JSON), CAST(_utf8mb4'["foobar"]' AS JSON), CAST(_utf8mb4'["HelloWorld"]' AS JSON), '[]');
 SELECT * FROM t1;

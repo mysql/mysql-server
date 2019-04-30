@@ -2331,6 +2331,8 @@ c1	c2
 30	9
 drop table t1;
 CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b)) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('AA',1), ('AA',2), ('AA',3), ('BB',1), ('AA',4);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2366,6 +2368,8 @@ a int(11) NOT NULL DEFAULT '0',
 b varchar(16) COLLATE latin1_general_ci NOT NULL DEFAULT '',
 PRIMARY KEY  (a,b)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE PROCEDURE a(x INT)
 BEGIN
 DECLARE rnd INT;
@@ -3604,6 +3608,8 @@ f1 int(11) NOT NULL DEFAULT '0',
 f2 char(1) NOT NULL DEFAULT '',
 PRIMARY KEY (f1,f2)
 )  charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'), 
 (3, 'A'), (3, 'B'), (3, 'C'), (3, 'D');
 SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;

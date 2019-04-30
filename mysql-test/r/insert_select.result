@@ -617,6 +617,8 @@ CREATE TABLE t1 (
 f1 int(10) unsigned NOT NULL auto_increment PRIMARY KEY,
 f2 varchar(100) NOT NULL default ''
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 f1 varchar(10) NOT NULL default '',
 f2 char(3) NOT NULL default '',

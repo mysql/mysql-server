@@ -627,6 +627,10 @@ KEY ind211 ((cast(col_date_nokey as date))),
 KEY ind602 ((is_uuid(col_time_nokey)))
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
 ST_GeomFromGeoJSON(col_varchar_key) ));
 ERROR HY000: Functional index 'ind320' cannot refer to an auto-increment column.

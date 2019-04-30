@@ -156,6 +156,8 @@ f2 date NOT NULL,
 f3 int(11) unsigned NOT NULL default '0',
 PRIMARY KEY  (f3, f2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values('2007-07-01', 1);
 insert into t1 values('2007-07-01', 2);
 insert into t1 values('2007-07-02', 1);

@@ -814,11 +814,15 @@ example VARCHAR(100) NOT NULL DEFAULT '',
 PRIMARY KEY (id),
 KEY example_key (example(9))
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id INT(11) NOT NULL AUTO_INCREMENT,
 example VARCHAR(100) NOT NULL DEFAULT '',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (example) VALUES ('1234567890');
 INSERT INTO t2 (example) VALUES ('1234567890');
 EXPLAIN SELECT t2.example, t2.id FROM t2, t1 WHERE t1.example = LOWER(t2.example);

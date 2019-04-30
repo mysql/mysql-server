@@ -8,6 +8,8 @@ CREATE TABLE `country` (
 `last_update` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`country_id`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `city` (
 `city_id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
 `city` VARCHAR(50) NOT NULL,
@@ -17,6 +19,9 @@ PRIMARY KEY (`city_id`),
 KEY `idx_fk_country_id` (`country_id`),
 CONSTRAINT `fk_city_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`country_id`) ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `address` (
 `address_id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
 `address` VARCHAR(50) NOT NULL,
@@ -27,6 +32,9 @@ PRIMARY KEY (`address_id`),
 KEY `idx_fk_city_id` (`city_id`),
 CONSTRAINT `fk_address_city` FOREIGN KEY (`city_id`) REFERENCES `city` (`city_id`) ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO country (`country_id`, `country`) VALUES
 (1, 'Canada'),
 (2, 'USA'),

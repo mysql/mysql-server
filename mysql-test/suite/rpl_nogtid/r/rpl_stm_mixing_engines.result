@@ -12786,6 +12786,11 @@ CREATE TABLE `t1` (
 `c4` int(10) unsigned NOT NULL, 
 `c5` int(10) unsigned DEFAULT NULL, 
 PRIMARY KEY (`c1`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 ALTER TABLE `t1` Engine=InnoDB;
 SET AUTOCOMMIT=0;

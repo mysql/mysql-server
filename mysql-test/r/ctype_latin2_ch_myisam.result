@@ -40,6 +40,9 @@ CREATE TABLE `t1` (
 `Post` enum('','B','O','Z','U') COLLATE latin2_czech_cs DEFAULT NULL,
 PRIMARY KEY (`ID`)
 ) ENGINE=MyISAM AUTO_INCREMENT=135 DEFAULT CHARSET=latin2;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

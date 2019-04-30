@@ -153,12 +153,16 @@ Note	1051	Unknown table 'test.test1'
 CREATE TABLE `test1` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS `test2`;
 Warnings:
 Note	1051	Unknown table 'test.test2'
 CREATE TABLE `test2` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER `testref` BEFORE INSERT ON `test1` FOR EACH ROW BEGIN
 INSERT INTO test2 SET a2 = NEW.a1; END  //
 INSERT INTO `test1` VALUES (1);
@@ -186,9 +190,13 @@ DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t1 test` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2 test` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
 INSERT INTO `t2 test` SET a2 = NEW.a1; END  //
 INSERT INTO `t1 test` VALUES (1);

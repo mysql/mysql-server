@@ -489,6 +489,9 @@ test.t1	optimize	status	OK
 proceed with the normal connection
 drop table t1;
 CREATE TABLE t1 (  no1 smallint(5) NOT NULL default '0',  no2 int(10) NOT NULL default '0',  PRIMARY KEY  (no1,no2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,274),(1,275),(2,6),(2,8),(4,1),(4,2);
 HANDLER t1 OPEN;
 HANDLER t1 READ `primary` = (1, 1000);

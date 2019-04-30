@@ -158,6 +158,8 @@ c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
 c32 set('monday', 'tuesday', 'wednesday')
 ) engine = MYISAM ;
 create table t2 like t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
 prepare stmt1 from @stmt ;
 Warnings:
@@ -219,6 +221,8 @@ drop table t1;
 create table t1 (id int(10) unsigned NOT NULL default '0',
 name varchar(64) NOT NULL default '',
 PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(6,'6'),(7,'7');
 prepare stmt1 from 'select name from t1 where id=? or id=?';
 set @id1=1,@id2=6;
@@ -302,6 +306,8 @@ a
 deallocate prepare stmt;
 drop table t1;
 create table t1 (a bigint(20) not null primary key auto_increment);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (a) values (null);
 select * from t1;
 a
@@ -576,6 +582,9 @@ Warnings:
 Note	1051	Unknown table 'test.t1'
 create table t1 (c1 int(11) not null, c2 int(11) not null,
 primary key  (c1,c2), key c2 (c2), key c1 (c1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (200887, 860);
 insert into t1 values (200887, 200887);
 select * from t1 where (c1=200887 and c2=200887) or c2=860;
@@ -606,10 +615,12 @@ start_date datetime default null,
 primary key  (id), unique key code (code)
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (
 id bigint(20) not null auto_increment,
 email varchar(250) character set utf8 collate utf8_bin default null,
@@ -622,12 +633,16 @@ primary key  (id), unique key email (email), key t1_id (t1_id),
 constraint t2_fk1 foreign key (t1_id) references t1 (id)
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (1, 'demo', 'demo s', 0, current_date()),
 (2, 'code2', 'name 2', 0, current_date()),
@@ -657,6 +672,9 @@ id int(11) unsigned not null primary key auto_increment,
 partner_id varchar(35) not null,
 t1_status_id int(10) unsigned
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values ("1", "partner1", "10"), ("2", "partner2", "10"),
 ("3", "partner3", "10"), ("4", "partner4", "10");
 create table t2 (
@@ -666,6 +684,10 @@ article_id varchar(20),
 sequence int(11) not null default '0',
 primary key  (id,t1_line_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
 ("2", "2", "sup", "2"), ("2", "3", "sup", "3"),
 ("2", "4", "imp", "4"), ("3", "1", "sup", "0"),
@@ -675,6 +697,9 @@ id int(11) not null default '0',
 preceding_id int(11) not null default '0',
 primary key  (id,preceding_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t4 (
 user_id varchar(50) not null,
 article_id varchar(20) not null,
@@ -796,6 +821,8 @@ create table t1 (
 word_id mediumint(8) unsigned not null default '0',
 formatted varchar(20) not null default ''
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (80,'pendant'), (475,'pretendants'), (989,'tendances'),
 (1019,'cependant'),(1022,'abondance'),(1205,'independants'),
@@ -1008,6 +1035,8 @@ PRIMARY KEY (ID),
 KEY Action (Action),
 KEY Action_Date (Action_Date)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
 ('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
 ('111111', 'Enrolled', '2006-03-01', 'CAD' ),
@@ -1765,6 +1794,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 prepare stmt from "insert into t1 values (?,?)";
 set @a= 9999999999999999;
 set @b= 14632475938453979136;

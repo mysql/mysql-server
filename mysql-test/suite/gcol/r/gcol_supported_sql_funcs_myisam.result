@@ -1346,6 +1346,8 @@ set sql_warnings = 0;
 # STRCMP()
 set sql_warnings = 1;
 create table t1 (a varchar(9), b varchar(9), c tinyint(1) generated always as (strcmp(a,b)) virtual) charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

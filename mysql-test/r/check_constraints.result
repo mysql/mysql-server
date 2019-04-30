@@ -659,12 +659,18 @@ CREATE TABLE t1 (
 `f2` int(11) NOT NULL default '0',
 PRIMARY KEY  (`f1`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4433,5424);
 CREATE TABLE t2 (
 `f3` int(10) unsigned NOT NULL default '0',
 `f4` int(10) unsigned NOT NULL default '0' CHECK (f4 <= 500),
 PRIMARY KEY  (`f3`,`f4`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (495,500);
 INSERT INTO t2 VALUES (496,500);
 UPDATE t2,t1 set t2.f4 = t2.f4 + 1;

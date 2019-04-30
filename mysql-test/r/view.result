@@ -3245,6 +3245,9 @@ id int(11) NOT NULL PRIMARY KEY,
 country varchar(32),
 code int(11) default NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,'ITALY',100),(2,'ITALY',200),(3,'FRANCE',100), (4,'ITALY',100);
 CREATE VIEW v1 AS SELECT * FROM t1;
@@ -3277,6 +3280,9 @@ b bigint,
 c int(4),
 d bigint(48)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create view view_24532_a as
 select
 a IS TRUE,

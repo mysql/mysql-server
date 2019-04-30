@@ -12,6 +12,8 @@ unique(name),
 key k2(parent_id),
 unique(parent_c1, parent_c2)
 )engine = ndb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table c1(c1 varchar(100),
 id int(11),
 primary key(c1),
@@ -19,6 +21,8 @@ unique key abc (id),
 key (c1),
 constraint fk1 foreign key (id) references p1 (id)
 ) engine=ndb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table c2(c2 varchar(100),
 id int(11),
 parent_temp int,
@@ -32,6 +36,8 @@ constraint c2_fk1 foreign key (id) references p1 (id),
 constraint c2_fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
 constraint c2_fk3 foreign key (parent_rc3) references c1(id)
 ) engine=ndb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into p1(parent_id) select a from `rows`;
 select count(1) from test.p1;
 count(1)
