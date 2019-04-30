@@ -289,7 +289,7 @@ TEST_F(RestRouterApiTest, rest_router_section_has_key) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(
       router_output.find("plugin 'rest_router' init failed: [rest_router] "
                          "section does not expect a key, found 'A'"),
@@ -317,7 +317,7 @@ TEST_F(RestRouterApiTest, router_api_no_auth) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find("plugin 'rest_router' init failed: option "
                                "require_realm in [rest_router] is required"),
             router_output.npos)
@@ -343,7 +343,7 @@ TEST_F(RestRouterApiTest, invalid_realm) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(
       router_output.find("Configuration error: unknown authentication "
                          "realm for [rest_router] '': invalidrealm, known "

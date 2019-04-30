@@ -135,7 +135,7 @@ class StateFileTest : public RouterComponentTest {
         temp_test_dir,
         logger_section + metadata_cache_section + routing_section,
         &default_section);
-    auto &router = RouterComponentTest::launch_router(
+    auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
         /*with_sudo=*/false);
     return router;
@@ -174,7 +174,7 @@ class StateFileTest : public RouterComponentTest {
     auto cluster_nodes =
         metadata_cache_section["cluster-metadata-servers"].GetArray();
     ASSERT_EQ(expected_gr_nodes.size(), cluster_nodes.Size())
-        << state_file_content << get_router_log_output();
+        << state_file_content;
     for (unsigned i = 0; i < cluster_nodes.Size(); ++i) {
       EXPECT_TRUE(cluster_nodes[i].IsString()) << state_file_content;
       EXPECT_STREQ(expected_gr_nodes[i].c_str(), cluster_nodes[i].GetString())
@@ -258,7 +258,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
   const auto trace_file =
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   for (unsigned i = 0; i < 2; ++i) {
-    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i]));
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i]))
@@ -399,7 +399,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
       "// Launch single server mock that will act as our metadata server");
   const auto trace_file =
       get_data_dir().join("metadata_dynamic_nodes.js").str();
-  auto &cluster_node(RouterComponentTest::launch_mysql_server_mock(
+  auto &cluster_node(ProcessManager::launch_mysql_server_mock(
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port));
   ASSERT_TRUE(wait_for_port_ready(cluster_node_port))
       << cluster_node.get_full_output();
@@ -492,7 +492,7 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
   SCOPED_TRACE("// Launch  server mock that will act as our metadata server");
   const auto trace_file =
       get_data_dir().join("metadata_dynamic_nodes.js").str();
-  auto &cluster_node = RouterComponentTest::launch_mysql_server_mock(
+  auto &cluster_node = ProcessManager::launch_mysql_server_mock(
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
   ASSERT_TRUE(wait_for_port_ready(cluster_node_port))
       << cluster_node.get_full_output();
@@ -538,8 +538,8 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
-                state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache has the "
@@ -555,7 +555,7 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
                    {"mysql://127.0.0.1:" + std::to_string(cluster_node_port)});
 
   SCOPED_TRACE("// We expect an error in the logfile");
-  auto log_content = get_router_log_output();
+  auto log_content = router.get_full_logfile();
   EXPECT_TRUE(
       log_content.find(
           "Failed fetching metadata from any of the 1 metadata servers") !=
@@ -597,7 +597,7 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
   for (unsigned i = 0; i < kNodesNum; i++) {
     const auto port_connect = cluster_node_ports[i].first;
     const auto port_http = cluster_node_ports[i].second;
-    cluster_nodes.push_back(&RouterComponentTest::launch_mysql_server_mock(
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, port_connect, EXIT_SUCCESS, false, port_http));
     ASSERT_TRUE(wait_for_port_ready(port_connect))
         << cluster_nodes[i]->get_full_output();
@@ -723,8 +723,8 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
-                state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
 
   wait_for_port_ready(router_port);
 
@@ -742,7 +742,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
             "Failed fetching metadata from any of the 0 metadata servers");
       },
       std::chrono::milliseconds(0));
-  EXPECT_TRUE(found) << get_router_log_output();
+  EXPECT_TRUE(found) << router.get_full_logfile();
 
   // now try to connect to the router port, we expect error 2003
   std::string out_port_unused;
@@ -828,7 +828,7 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 
   // proper log should get logged
-  auto log_content = get_router_log_output();
+  auto log_content = router.get_full_logfile();
   for (const auto &expeted_in_log : test_params.expected_errors_in_log) {
     EXPECT_TRUE(log_content.find(expeted_in_log) != std::string::npos)
         << log_content << "\n";
@@ -1097,7 +1097,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
       },
       std::chrono::milliseconds(1));
 
-  EXPECT_TRUE(found) << get_router_log_output();
+  EXPECT_TRUE(found) << router.get_full_logfile();
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -1132,7 +1132,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
 
   const auto trace_file = get_data_dir().join("bootstrap.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
-  auto &md_server = RouterComponentTest::launch_mysql_server_mock(
+  auto &md_server = ProcessManager::launch_mysql_server_mock(
       trace_file, metadata_server_port, EXIT_SUCCESS, false);
   ASSERT_TRUE(wait_for_port_ready(metadata_server_port))
       << md_server.get_full_output();
@@ -1141,7 +1141,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   std::vector<std::string> router_cmdline{
       "--bootstrap=localhost:" + std::to_string(metadata_server_port), "-d",
       temp_test_dir.name()};
-  auto &router = RouterComponentTest::launch_router(router_cmdline);
+  auto &router = ProcessManager::launch_router(router_cmdline);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
@@ -1202,7 +1202,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
 
   const auto trace_file = get_data_dir().join("bootstrap.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
-  auto &md_server = RouterComponentTest::launch_mysql_server_mock(
+  auto &md_server = ProcessManager::launch_mysql_server_mock(
       trace_file, metadata_server_port, EXIT_SUCCESS, false);
   ASSERT_TRUE(wait_for_port_ready(metadata_server_port))
       << md_server.get_full_output();
@@ -1210,7 +1210,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
                                           std::to_string(metadata_server_port)};
-  auto &router = RouterComponentTest::launch_router(router_cmdline);
+  auto &router = ProcessManager::launch_router(router_cmdline);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 

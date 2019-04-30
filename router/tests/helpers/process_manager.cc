@@ -121,7 +121,11 @@ ProcessWrapper &ProcessManager::launch_router(
   args.erase(args.begin());
   std::copy(params.begin(), params.end(), std::back_inserter(args));
 
-  return launch_command(cmd, args, expected_exit_code, catch_stderr);
+  auto &router = launch_command(cmd, args, expected_exit_code, catch_stderr);
+  router.logging_dir_ = logging_dir_.name();
+  router.logging_file_ = "mysqlrouter.log";
+
+  return router;
 }
 
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
@@ -232,13 +236,6 @@ std::string ProcessManager::create_state_file(const std::string &dir_name,
   return file_path.str();
 }
 
-std::string ProcessManager::get_router_log_output(
-    const std::string &file_name, const std::string &file_path) {
-  const std::string path = file_path.empty() ? logging_dir_.name() : file_path;
-
-  return get_file_output(file_name, path);
-}
-
 void ProcessManager::shutdown_all() {
   // stop them all
   for (auto &proc : processes_) {
@@ -251,11 +248,13 @@ void ProcessManager::ensure_clean_exit() {
     try {
       EXPECT_EQ(std::get<1>(proc), std::get<0>(proc).wait_for_exit())
           << std::get<0>(proc).get_command_line() << "\n"
-          << std::get<0>(proc).get_full_output();
+          << std::get<0>(proc).get_full_output() << "\n"
+          << std::get<0>(proc).get_full_logfile() << "\n";
     } catch (const std::exception &e) {
       FAIL() << std::get<0>(proc).get_command_line() << "\n"
              << e.what() << "\n"
-             << std::get<0>(proc).get_full_output();
+             << "output: " << std::get<0>(proc).get_full_output() << "\n"
+             << "log: " << std::get<0>(proc).get_full_logfile() << "\n";
     }
   }
 }

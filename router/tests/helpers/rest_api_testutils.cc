@@ -373,7 +373,7 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
   ASSERT_TRUE(wait_for_rest_endpoint_ready(test_params.uri, http_port_,
                                            test_params.user_name,
                                            test_params.user_password))
-      << http_server.get_full_output() << get_router_log_output();
+      << http_server.get_full_output() << http_server.get_full_logfile();
 
   for (HttpMethod::pos_type ndx = 0; ndx < HttpMethod::Pos::_LAST; ++ndx) {
     if (test_params.methods.test(ndx)) {
@@ -475,6 +475,5 @@ void RestApiComponentTest::validate_value(
   const auto jp = JsonPointer(value_json_pointer.c_str());
   ASSERT_TRUE(jp.IsValid()) << value_json_pointer;
   SCOPED_TRACE("// validating field: " + value_json_pointer);
-  ASSERT_NO_FATAL_FAILURE(value_check(jp.Get(json_doc)))
-      << get_router_log_output();
+  ASSERT_NO_FATAL_FAILURE(value_check(jp.Get(json_doc)));
 }

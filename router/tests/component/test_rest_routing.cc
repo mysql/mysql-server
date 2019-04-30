@@ -187,7 +187,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
                                  route_names[i], http_port_, "127.0.0.1",
                                  kRestApiUsername, kRestApiPassword))
         << http_server.get_full_output() << "\n"
-        << get_router_log_output();
+        << http_server.get_full_logfile();
   }
 
   // make 3 connections to route "ro"
@@ -211,7 +211,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   for (size_t i = 0; i < 3; ++i) {
     ASSERT_TRUE(wait_for_port_ready(routing_ports_[2], 500))
         << http_server.get_full_output() << "\n"
-        << get_router_log_output();
+        << http_server.get_full_logfile();
   }
 
   EXPECT_NO_FATAL_FAILURE(
@@ -948,7 +948,7 @@ TEST_F(RestRoutingApiTest, routing_api_no_auth) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find("plugin 'rest_routing' init failed: option "
                                "require_realm in [rest_routing] is required"),
             router_output.npos)
@@ -975,7 +975,7 @@ TEST_F(RestRoutingApiTest, invalid_realm) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(
       router_output.find("Configuration error: unknown authentication "
                          "realm for [rest_routing] '': invalidrealm, known "
@@ -1058,7 +1058,7 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
   const unsigned wait_for_process_exit_timeout{10000};
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
 
-  const std::string router_output = get_router_log_output();
+  const std::string router_output = router.get_full_logfile();
   EXPECT_NE(
       router_output.find("plugin 'rest_routing' init failed: [rest_routing] "
                          "section does not expect a key, found 'A'"),

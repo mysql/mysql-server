@@ -84,7 +84,8 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return json_doc["md_query_count"].GetInt();
   }
 
-  bool wait_for_refresh_thread_started(unsigned timeout_msec) {
+  bool wait_for_refresh_thread_started(const ProcessWrapper &router,
+                                       unsigned timeout_msec) {
     if (getenv("WITH_VALGRIND")) {
       timeout_msec *= 10;
     }
@@ -93,7 +94,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     bool thread_started = false;
     const auto started = std::chrono::steady_clock::now();
     do {
-      const std::string log_content = get_router_log_output();
+      const std::string log_content = router.get_full_logfile();
       const std::string needle = "Starting metadata cache refresh thread";
       thread_started = (log_content.find(needle) != log_content.npos);
       if (!thread_started) {
@@ -130,11 +131,11 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     const std::string conf_file = create_config_file(
         conf_dir, logger_section + metadata_cache_section + routing_section,
         &default_section);
-    auto &router = RouterComponentTest::launch_router(
+    auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_exitcode, true, false);
     if (wait_for_md_refresh_started) {
-      bool ready = wait_for_refresh_thread_started(5000);
-      EXPECT_TRUE(ready) << get_router_log_output();
+      bool ready = wait_for_refresh_thread_started(router, 5000);
+      EXPECT_TRUE(ready) << router.get_full_logfile();
     }
 
     return router;
@@ -227,7 +228,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
     // falls into <expected_count-1, expected_count+1>
     EXPECT_THAT(ttl_count, IsBetween(test_params.expected_md_queries_count - 1,
                                      test_params.expected_md_queries_count + 1))
-        << get_router_log_output();
+        << router.get_full_output();
   } else {
     // we only check that the TTL was queried at least N times
     EXPECT_GE(ttl_count, test_params.expected_md_queries_count);

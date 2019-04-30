@@ -71,9 +71,9 @@ class ShutdownTest : public RouterComponentTest {
         create_config_file(conf_dir.name(), other_sections, &default_section);
 
     // launch the router
-    auto &router = RouterComponentTest::launch_router({"-c", conf_file});
+    auto &router = ProcessManager::launch_router({"-c", conf_file});
     bool ready = wait_for_port_ready(router_port);
-    EXPECT_TRUE(ready) << router.get_full_output() << get_router_log_output();
+    EXPECT_TRUE(ready) << router.get_full_output() << router.get_full_logfile();
 
     return router;
   }
@@ -320,7 +320,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   EXPECT_NO_THROW(router.wait_for_exit(kAcceptableShutdownWait * 1000))
       << "full output:\n"
       << router.get_full_output() << "\nrouter log:\n"
-      << get_router_log_output() << std::endl;
+      << router.get_full_logfile() << std::endl;
 }
 
 int main(int argc, char *argv[]) {

@@ -51,7 +51,7 @@ TEST_P(RouterTestBrokenConfig, ensure) {
 
   EXPECT_NO_THROW(EXPECT_EQ(EXIT_FAILURE, router.wait_for_exit()));
 
-  EXPECT_THAT(get_router_log_output(),
+  EXPECT_THAT(router.get_full_logfile(),
               ::testing::HasSubstr(GetParam().expected_logfile_substring));
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(GetParam().expected_stderr_substring));

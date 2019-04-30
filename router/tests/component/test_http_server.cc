@@ -272,7 +272,8 @@ TEST_P(HttpServerPlainTest, ensure) {
     RestClient rest_client(io_ctx, http_hostname_, http_port);
 
     SCOPED_TRACE("// wait http port connectable");
-    ASSERT_TRUE(wait_for_port_ready(http_port)) << get_router_log_output();
+    ASSERT_TRUE(wait_for_port_ready(http_port))
+        << http_server.get_full_logfile();
 
     SCOPED_TRACE("// GETing " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
@@ -283,7 +284,7 @@ TEST_P(HttpServerPlainTest, ensure) {
               http_server.wait_for_exit(1000));  // assume it finishes in 1s
     EXPECT_THAT(http_server.get_full_output(),
                 ::testing::ContainsRegex(GetParam().stderr_regex));
-    EXPECT_THAT(get_router_log_output(),
+    EXPECT_THAT(http_server.get_full_logfile(),
                 ::testing::ContainsRegex(GetParam().errmsg_regex));
   }
 }
@@ -980,7 +981,8 @@ TEST_P(HttpClientSecureTest, ensure) {
 
   SCOPED_TRACE("// wait http port connectable");
   ASSERT_TRUE(wait_for_port_ready(http_port_))
-      << get_router_log_output() << http_server_.get_full_output();
+      << http_server_.get_full_output() << "\n"
+      << http_server_.get_full_logfile();
 
   SCOPED_TRACE("// GETing " + u.join());
   auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
@@ -1129,7 +1131,7 @@ TEST_P(HttpServerSecureTest, ensure) {
 
     SCOPED_TRACE("// wait for port ready");
     ASSERT_TRUE(wait_for_port_ready(http_port_))
-        << get_router_log_output() << "\n"
+        << http_server.get_full_logfile() << "\n"
         << ConfigBuilder::build_section("http_server", http_section);
 
     SCOPED_TRACE("// GETing " + u.join());
@@ -1140,7 +1142,7 @@ TEST_P(HttpServerSecureTest, ensure) {
     EXPECT_EQ(EXIT_FAILURE,
               http_server.wait_for_exit(1000));  // assume it finishes in 1s
     EXPECT_EQ(kSuccessfulLogOutput, http_server.get_full_output());
-    EXPECT_THAT(get_router_log_output(),
+    EXPECT_THAT(http_server.get_full_logfile(),
                 ::testing::ContainsRegex(GetParam().errmsg_regex));
   }
 }
@@ -1465,7 +1467,8 @@ class HttpServerAuthTest
  */
 TEST_P(HttpServerAuthTest, ensure) {
   SCOPED_TRACE("// wait http port connectable");
-  ASSERT_TRUE(wait_for_port_ready(http_port_)) << get_router_log_output();
+  ASSERT_TRUE(wait_for_port_ready(http_port_))
+      << http_server_.get_full_logfile();
 
   std::string http_uri = GetParam().url;
   SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
@@ -1580,7 +1583,8 @@ TEST_P(HttpServerAuthFailTest, ensure) {
   pwf.close();
 
   if (GetParam().check_at_runtime) {
-    ASSERT_TRUE(wait_for_port_ready(http_port_)) << get_router_log_output();
+    ASSERT_TRUE(wait_for_port_ready(http_port_))
+        << http_server.get_full_logfile();
     std::string http_uri = "/";
     SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
                  std::to_string(http_port_) + " for " + http_uri);
@@ -1593,7 +1597,7 @@ TEST_P(HttpServerAuthFailTest, ensure) {
   } else {
     SCOPED_TRACE("// wait process to exit with with error");
     EXPECT_NO_THROW({ ASSERT_NE(0, http_server.wait_for_exit()); });
-    EXPECT_THAT(get_router_log_output(),
+    EXPECT_THAT(http_server.get_full_logfile(),
                 ::testing::HasSubstr(GetParam().expected_errmsg));
   }
 }
