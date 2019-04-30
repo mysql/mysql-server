@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -390,7 +390,7 @@ dberr_t SysTablespace::set_size(Datafile &file) {
 
   bool success = os_file_set_size(
       file.m_filepath, file.m_handle, 0,
-      static_cast<os_offset_t>(file.m_size << UNIV_PAGE_SIZE_SHIFT),
+      static_cast<os_offset_t>(file.m_size) << UNIV_PAGE_SIZE_SHIFT,
       m_ignore_read_only ? false : srv_read_only_mode, true);
 
   if (success) {
