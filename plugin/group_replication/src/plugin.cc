@@ -1400,6 +1400,7 @@ bool attempt_rejoin() {
   /*
     Finally we attempt the join itself.
   */
+  DBUG_EXECUTE_IF("group_replication_fail_rejoin", goto end;);
   view_change_notifier->start_view_modification();
   join_state =
       gcs_module->join(*events_handler, *events_handler, view_change_notifier);
