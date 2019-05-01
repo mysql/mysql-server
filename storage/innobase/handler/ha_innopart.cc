@@ -3119,26 +3119,78 @@ handler object.
 @param[out]	num_rows	Number of rows.
 @return	0 or error number. */
 int ha_innopart::records(ha_rows *num_rows) {
-  ha_rows n_rows;
-  int err;
   DBUG_TRACE;
 
   *num_rows = 0;
 
-  /* The index scan is probably so expensive, so the overhead
-  of the rest of the function is neglectable for each partition.
-  So no current reason for optimizing this further. */
+  auto trx = thd_to_trx(ha_thd());
+  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
-       i = m_part_info->get_next_used_partition(i)) {
-    set_partition(i);
-    err = ha_innobase::records(&n_rows);
-    update_partition(i);
-    if (err != 0) {
-      *num_rows = HA_POS_ERROR;
-      return err;
+  n_threads = Parallel_reader::available_threads(n_threads);
+
+  if (n_threads > 0 && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
+      m_prebuilt->select_lock_type == LOCK_NONE &&
+      trx->mysql_n_tables_locked == 0 && !m_prebuilt->ins_sel_stmt &&
+      n_threads > 1) {
+    trx_start_if_not_started_xa(trx, false);
+    trx_assign_read_view(trx);
+
+    const auto first_used_partition = m_part_info->get_first_used_partition();
+
+    std::vector<dict_index_t *> indexes{};
+
+    for (auto i = first_used_partition; i < m_tot_parts;
+         i = m_part_info->get_next_used_partition(i)) {
+      set_partition(i);
+
+      if (dict_table_is_discarded(m_prebuilt->table)) {
+        ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
+                    m_prebuilt->table->name.m_name);
+        return (HA_ERR_NO_SUCH_TABLE);
+      }
+
+      build_template(true);
+
+      indexes.push_back(m_prebuilt->table->first_index());
     }
-    *num_rows += n_rows;
+
+    ulint n_rows{};
+
+    auto err =
+        row_mysql_parallel_select_count_star(trx, indexes, n_threads, &n_rows);
+
+    if (thd_killed(m_user_thd) || err == DB_INTERRUPTED) {
+      *num_rows = HA_POS_ERROR;
+      return HA_ERR_QUERY_INTERRUPTED;
+    }
+
+    if (err == DB_SUCCESS) {
+      *num_rows = n_rows;
+    } else {
+      *num_rows = HA_POS_ERROR;
+      return convert_error_code_to_mysql(err, 0, m_user_thd);
+    }
+  } else {
+    /* The index scan is probably so expensive, so the overhead
+    of the rest of the function is neglectable for each partition.
+    So no current reason for optimizing this further. */
+
+    for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
+         i = m_part_info->get_next_used_partition(i)) {
+      set_partition(i);
+
+      ha_rows n_rows{};
+
+      auto err = ha_innobase::records(&n_rows);
+
+      update_partition(i);
+
+      if (err != 0) {
+        *num_rows = HA_POS_ERROR;
+        return err;
+      }
+      *num_rows += n_rows;
+    }
   }
   return 0;
 }

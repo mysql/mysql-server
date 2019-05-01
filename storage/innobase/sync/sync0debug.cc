@@ -1484,6 +1484,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(CLONE_SNAPSHOT, SYNC_NO_ORDER_CHECK,
                   clone_snapshot_mutex_key);
 
+  LATCH_ADD_MUTEX(PARALLEL_READ, SYNC_NO_ORDER_CHECK, parallel_read_mutex_key);
+
   LATCH_ADD_MUTEX(REDO_LOG_ARCHIVE_ADMIN_MUTEX, SYNC_NO_ORDER_CHECK,
                   PFS_NOT_INSTRUMENTED);
 

@@ -227,6 +227,11 @@ class ha_innobase : public handler {
 
   int records(ha_rows *num_rows) override;
 
+  int records_from_index(ha_rows *num_rows, uint) override {
+    /* Force use of cluster index until we implement sec index parallel scan. */
+    return ha_innobase::records(num_rows);
+  }
+
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key) override;
 
@@ -418,48 +423,38 @@ class ha_innobase : public handler {
                                   dd::Table *new_dd_tab) override;
   /** @} */
 
-  /** Initializes a parallel scan. It creates a parallel_scan_ctx that has to
+  using Reader = Parallel_reader_adapter;
+
+  /** Initializes a parallel scan. It creates a scan_ctx that has to
   be used across all parallel_scan methods. Also, gets the number of threads
   that would be spawned for parallel scan.
-  @param[in, out]   parallel_scan_ctx a scan context created by this method
-                                      that has to be used in
-                                      pread_adapter_scan_parallel_load
-  @param[in, out]   num_threads       number of threads to be spawned
-
+  @param[out]   scan_ctx        A scan context created by this method
+                                that has to be used in
+                                parallel_scan
+  @param[out]   num_threads     Number of threads to be spawned
   @return error code
-  @retval 0 on success
-  */
-  int pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
-                                        size_t &num_threads) override;
+  @retval 0 on success */
+  int parallel_scan_init(void *&scan_ctx, size_t &num_threads) override;
 
-  /** Run the parallel read of data.
-  @param[in]      parallel_scan_ctx a scan context created by
-                                    pread_adapter_scan_get_num_threads
-  @param[in]      thread_contexts   context for each of the spawned threads
-  @param[in]      load_init_fn      callback called by each parallel load
-                                    thread at the beginning of the parallel
-                                    load.
-  @param[in]      load_rows_fn      callback called by each parallel load
-                                    thread when processing of rows is
-                                    required.
-  @param[in]      load_end_fn       callback called by each parallel load
-                                    thread when processing of rows has ended.
+  /** Start parallel read of InnoDB records.
+  @param[in]  scan_ctx          A scan context created by parallel_scan_init
+  @param[in]  thread_ctxs       Context for each of the spawned threads
+  @param[in]  init_fn           Callback called by each parallel load
+                                thread at the beginning of the parallel load.
+  @param[in]  load_fn           Callback called by each parallel load
+                                thread when processing of rows is required.
+  @param[in]  end_fn            Callback called by each parallel load
+                                thread when processing of rows has ended.
   @return error code
-  @retval 0 on success
-  */
-  int pread_adapter_parallel_scan_run(
-      void *parallel_scan_ctx, void **thread_contexts,
-      pread_adapter_pload_init_cbk load_init_fn,
-      pread_adapter_pload_row_cbk load_rows_fn,
-      pread_adapter_pload_end_cbk load_end_fn) override;
+  @retval 0 on success */
+  int parallel_scan(void *scan_ctx, void **thread_ctxs, Reader::Init_fn init_fn,
+                    Reader::Load_fn load_fn, Reader::End_fn end_fn) override;
 
-  /** Run the parallel read of data.
-  @param[in]      parallel_scan_ctx a scan context created by
-                                    pread_adapter_scan_get_num_threads
+  /** End of the parallel scan.
+  @param[in]      scan_ctx      A scan context created by parallel_scan_init.
   @return error code
-  @retval 0 on success
-  */
-  int pread_adapter_parallel_scan_end(void *parallel_scan_ctx) override;
+  @retval 0 on success */
+  int parallel_scan_end(void *scan_ctx) override;
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;

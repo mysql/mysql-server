@@ -1840,7 +1840,7 @@ static ibool row_ins_dupl_error_with_rec(
 
   matched_fields = 0;
 
-  cmp_dtuple_rec_with_match(entry, rec, index, offsets, &matched_fields);
+  entry->compare(rec, index, offsets, &matched_fields);
 
   if (matched_fields < n_unique) {
     return (FALSE);
@@ -2561,7 +2561,7 @@ and return. don't execute actual insert. */
       err = row_ins_index_entry_big_rec(thr_get_trx(thr), entry, big_rec,
                                         offsets, &offsets_heap, index,
                                         thr_get_trx(thr)->mysql_thd);
-      dtuple_convert_back_big_rec(index, entry, big_rec);
+      dtuple_convert_back_big_rec(entry, big_rec);
     } else {
       if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
         row_log_table_insert(insert_rec, entry, index, offsets);
@@ -2692,7 +2692,7 @@ static dberr_t row_ins_sorted_clust_index_entry(ulint mode, dict_index_t *index,
                                         offsets, &offsets_heap, index,
                                         thr_get_trx(thr)->mysql_thd);
 
-      dtuple_convert_back_big_rec(index, entry, big_rec);
+      dtuple_convert_back_big_rec(entry, big_rec);
 
     } else if (err == DB_SUCCESS) {
       if (!commit_mtr && !index->last_ins_cur->disable_caching) {

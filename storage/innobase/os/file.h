@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -35,8 +35,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /** NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
 external tools. */
-
-#include "my_compiler.h"
 
 /** @file os/file.h
  The interface to the operating system file io

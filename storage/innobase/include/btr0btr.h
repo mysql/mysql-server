@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -126,11 +126,6 @@ constexpr size_t BTR_MODIFY_EXTERNAL = 262144;
 /** Try to delete mark the record at the searched position when the
 record is in spatial index */
 constexpr size_t BTR_RTREE_DELETE_MARK = 524288;
-
-/** Caller has acquired the dict_index_t::lock in SX mode. This is to
-prevent structure modifications while the persistent cursors are being
-created. */
-constexpr size_t BTR_PARALLEL_READ_INIT = 1048576;
 
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)                            \
   ((latch_mode) &                                                           \

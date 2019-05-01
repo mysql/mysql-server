@@ -141,6 +141,7 @@ mysql_pfs_key_t master_key_id_mutex_key;
 mysql_pfs_key_t clone_sys_mutex_key;
 mysql_pfs_key_t clone_task_mutex_key;
 mysql_pfs_key_t clone_snapshot_mutex_key;
+mysql_pfs_key_t parallel_read_mutex_key;
 
 #endif /* UNIV_PFS_MUTEX */
 

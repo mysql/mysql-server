@@ -651,19 +651,19 @@ struct btr_path_t {
   (index in alphabetical order). Value ULINT_UNDEFINED denotes array
   end. In the above example, if the search stopped on record 'c', then
   nth_rec will be 3. */
-  ulint nth_rec;
+  ulint nth_rec{ULINT_UNDEFINED};
 
   /** Number of the records on the page, not counting inf and sup.
   In the above example n_recs will be 4. */
-  ulint n_recs;
+  ulint n_recs{ULINT_UNDEFINED};
 
   /** Number of the page containing the record. */
-  page_no_t page_no;
+  page_no_t page_no{FIL_NULL};
 
   /** Level of the page. If later we fetch the page under page_no
-  and it is no different level then we know that the tree has been
+  and it is on a different level then we know that the tree has been
   reorganized. */
-  ulint page_level;
+  ulint page_level{ULINT_UNDEFINED};
 };
 
 #define BTR_PATH_ARRAY_N_SLOTS 250 /*!< size of path array (in slots) */

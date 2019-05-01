@@ -631,6 +631,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(page_sys_arch_client_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(parallel_read_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -737,6 +738,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(fts_parallel_merge_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(srv_ts_alter_encrypt_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(parallel_read_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(parallel_read_ahead_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(meb::redo_log_archive_consumer_thread, 0, 0, PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_THREAD */
 
@@ -898,9 +901,9 @@ static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
 
 static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           "Number of threads to do parallel read.", NULL, NULL,
-                          4,   /* Default. */
-                          1,   /* Minimum. */
-                          256, /* Maxumum. */
+                          4,                            /* Default. */
+                          1,                            /* Minimum. */
+                          Parallel_reader::MAX_THREADS, /* Maxumum. */
                           0);
 
 static SHOW_VAR innodb_status_variables[] = {
@@ -7835,12 +7838,9 @@ static mysql_row_templ_t *build_template_field(
 }
 
 /** Builds a 'template' to the m_prebuilt struct. The template is used in fast
- retrieval of just those column values MySQL needs in its processing. */
-
-void ha_innobase::build_template(
-    bool whole_row) /*!< in: true=ROW_MYSQL_WHOLE_ROW,
-                    false=ROW_MYSQL_REC_FIELDS */
-{
+retrieval of just those column values MySQL needs in its processing.
+@param[in] whole_row  true=ROW_MYSQL_WHOLE_ROW, false=ROW_MYSQL_REC_FIELDS */
+void ha_innobase::build_template(bool whole_row) {
   dict_index_t *index;
   dict_index_t *clust_index;
   ulint n_fields;

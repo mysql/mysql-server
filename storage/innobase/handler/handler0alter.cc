@@ -1146,8 +1146,7 @@ bool ha_innobase::prepare_inplace_alter_table(TABLE *altered_table,
       altered_table, ha_alter_info, old_dd_tab, new_dd_tab);
 }
 
-int ha_innobase::pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
-                                                   size_t &num_threads) {
+int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
   if (dict_table_is_discarded(m_prebuilt->table)) {
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                 m_prebuilt->table->name.m_name);
@@ -1155,37 +1154,62 @@ int ha_innobase::pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
     return (HA_ERR_NO_SUCH_TABLE);
   }
 
-  parallel_scan_ctx = nullptr;
-
-  auto index = m_prebuilt->table->first_index();
+  scan_ctx = nullptr;
 
   update_thd();
+
   auto trx = m_prebuilt->trx;
+
   innobase_register_trx(ht, ha_thd(), trx);
+
   trx_start_if_not_started_xa(trx, false);
+
   trx_assign_read_view(trx);
 
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  Parallel_reader_adapter *parallel_reader =
-      UT_NEW_NOKEY(Parallel_reader_adapter(m_prebuilt->table, trx, index,
-                                           n_threads, m_prebuilt));
+  n_threads = Parallel_reader::available_threads(n_threads);
 
-  if (parallel_reader == nullptr) {
+  if (n_threads == 0) {
+    return (HA_ERR_GENERIC);
+  }
+
+  const auto row_len = m_prebuilt->mysql_row_len;
+
+  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(n_threads, row_len));
+
+  if (adapter == nullptr) {
+    Parallel_reader::release_threads(n_threads);
     return (HA_ERR_OUT_OF_MEM);
   }
 
-  num_threads = parallel_reader->calc_num_threads();
-  parallel_scan_ctx = parallel_reader;
+  Parallel_reader::Scan_range full_scan{};
+
+  Parallel_reader::Config config(full_scan, m_prebuilt->table->first_index());
+
+  auto success =
+      adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
+        return (adapter->process_rows(ctx));
+      });
+
+  if (!success) {
+    UT_DELETE(adapter);
+    return (HA_ERR_GENERIC);
+  }
+
+  scan_ctx = adapter;
+  num_threads = n_threads;
+
+  build_template(true);
+
+  adapter->set(m_prebuilt);
 
   return (0);
 }
 
-int ha_innobase::pread_adapter_parallel_scan_run(
-    void *parallel_scan_ctx, void **thread_contexts,
-    pread_adapter_pload_init_cbk load_init_fn,
-    pread_adapter_pload_row_cbk load_rows_fn,
-    pread_adapter_pload_end_cbk load_end_fn) {
+int ha_innobase::parallel_scan(void *scan_ctx, void **thread_ctxs,
+                               Reader::Init_fn init_fn, Reader::Load_fn load_fn,
+                               Reader::End_fn end_fn) {
   if (dict_table_is_discarded(m_prebuilt->table)) {
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                 m_prebuilt->table->name.m_name);
@@ -1193,37 +1217,20 @@ int ha_innobase::pread_adapter_parallel_scan_run(
     return (HA_ERR_NO_SUCH_TABLE);
   }
 
+  ut_a(scan_ctx != nullptr);
+
   update_thd();
+
   build_template(true);
 
-  Parallel_reader_adapter *parallel_reader =
-      static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
+  auto adapter = static_cast<Parallel_reader_adapter *>(scan_ctx);
 
-  ut_ad(parallel_reader != nullptr);
-  ut_ad(parallel_reader->table() == m_prebuilt->table);
-  ut_ad(parallel_reader->index() == m_prebuilt->table->first_index());
-  ut_ad(parallel_reader->trx() == m_prebuilt->trx);
+  auto err = adapter->run(thread_ctxs, init_fn, load_fn, end_fn);
 
-#ifdef UNIV_DEBUG
-  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
-  ut_ad(parallel_reader->n_threads() == n_threads);
-#endif
-
-  parallel_reader->set_callback(thread_contexts, load_init_fn, load_rows_fn,
-                                load_end_fn);
-
-  dberr_t err = parallel_reader->read([&](size_t id, const buf_block_t *block,
-                                          const rec_t *rec, dict_index_t *index,
-                                          row_prebuilt_t *prebuilt,
-                                          bool new_range) {
-    return (parallel_reader->process_rows(id, rec, index, prebuilt, new_range));
-  });
-
-  int error = convert_error_code_to_mysql(err, 0, ha_thd());
-  return (error);
+  return (convert_error_code_to_mysql(err, 0, ha_thd()));
 }
 
-int ha_innobase::pread_adapter_parallel_scan_end(void *parallel_scan_ctx) {
+int ha_innobase::parallel_scan_end(void *parallel_scan_ctx) {
   Parallel_reader_adapter *parallel_reader =
       static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
   UT_DELETE(parallel_reader);
@@ -9699,28 +9706,40 @@ static inline Instant_Type innopart_support_instant(
   return (type);
 }
 
-int ha_innopart::pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
-                                                   size_t &num_threads) {
-  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
+  auto n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  ut_a(n_threads <= Parallel_reader::MAX_THREADS);
 
-  parallel_scan_ctx = nullptr;
+  n_threads = Parallel_reader::available_threads(n_threads);
 
-  auto index = m_prebuilt->table->first_index();
+  if (n_threads == 0) {
+    return (HA_ERR_GENERIC);
+  }
 
-  Parallel_partition_reader_adapter *parallel_reader =
-      UT_NEW_NOKEY(Parallel_partition_reader_adapter(
-          m_prebuilt->table, m_prebuilt->trx, index, n_threads, m_prebuilt,
-          m_tot_parts));
+  scan_ctx = nullptr;
 
-  if (parallel_reader == nullptr) {
+  const auto row_len = m_prebuilt->mysql_row_len;
+
+  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(n_threads, row_len));
+
+  if (adapter == nullptr) {
+    Parallel_reader::release_threads(n_threads);
     return (HA_ERR_OUT_OF_MEM);
   }
 
-  parallel_scan_ctx = parallel_reader;
+  auto trx = m_prebuilt->trx;
 
-  const uint first_used_partition = m_part_info->get_first_used_partition();
+  innobase_register_trx(ht, ha_thd(), trx);
 
-  for (uint i = first_used_partition; i < m_tot_parts;
+  trx_start_if_not_started_xa(trx, false);
+
+  trx_assign_read_view(trx);
+
+  const Parallel_reader::Scan_range FULL_SCAN{};
+
+  const auto first_used_partition = m_part_info->get_first_used_partition();
+
+  for (auto i = first_used_partition; i < m_tot_parts;
        i = m_part_info->get_next_used_partition(i)) {
     set_partition(i);
 
@@ -9728,57 +9747,47 @@ int ha_innopart::pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
       ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                   m_prebuilt->table->name.m_name);
 
+      UT_DELETE(adapter);
       return (HA_ERR_NO_SUCH_TABLE);
     }
 
     build_template(true);
-    auto trx = m_prebuilt->trx;
-    innobase_register_trx(ht, ha_thd(), trx);
-    trx_start_if_not_started_xa(trx, false);
-    trx_assign_read_view(trx);
 
-    parallel_reader->set_info(
-        m_prebuilt->table, m_prebuilt->table->first_index(), trx, m_prebuilt);
+    Parallel_reader::Config config(FULL_SCAN, m_prebuilt->table->first_index());
+
+    auto success =
+        adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
+          return (adapter->process_rows(ctx));
+        });
+
+    if (!success) {
+      UT_DELETE(adapter);
+      return (HA_ERR_GENERIC);
+    }
   }
 
-  num_threads = parallel_reader->calc_num_threads();
+  scan_ctx = adapter;
+  num_threads = n_threads;
+
+  adapter->set(m_prebuilt);
+
   return (0);
 }
 
-int ha_innopart::pread_adapter_parallel_scan_run(
-    void *parallel_scan_ctx, void **thread_contexts,
-    pread_adapter_pload_init_cbk load_init_fn,
-    pread_adapter_pload_row_cbk load_rows_fn,
-    pread_adapter_pload_end_cbk load_end_fn) {
-  Parallel_reader_adapter *parallel_reader =
-      static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
+int ha_innopart::parallel_scan(void *scan_ctx, void **thread_ctxs,
+                               Parallel_reader_adapter::Init_fn init_fn,
+                               Parallel_reader_adapter::Load_fn load_fn,
+                               Parallel_reader_adapter::End_fn end_fn) {
+  auto adapter = static_cast<Parallel_reader_adapter *>(scan_ctx);
 
-  ut_ad(parallel_reader != nullptr);
+  auto err = adapter->run(thread_ctxs, init_fn, load_fn, end_fn);
 
-#ifdef UNIV_DEBUG
-  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
-  ut_ad(parallel_reader->n_threads() == n_threads);
-#endif
-
-  parallel_reader->set_callback(thread_contexts, load_init_fn, load_rows_fn,
-                                load_end_fn);
-
-  dberr_t err = parallel_reader->read([&](size_t id, const buf_block_t *block,
-                                          const rec_t *rec, dict_index_t *index,
-                                          row_prebuilt_t *prebuilt,
-                                          bool new_range) {
-    return (parallel_reader->process_rows(id, rec, index, prebuilt, new_range));
-  });
-
-  int error = convert_error_code_to_mysql(err, 0, ha_thd());
-
-  return (error);
+  return (convert_error_code_to_mysql(err, 0, ha_thd()));
 }
 
-int ha_innopart::pread_adapter_parallel_scan_end(void *parallel_scan_ctx) {
-  Parallel_reader_adapter *parallel_reader =
-      static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
-  UT_DELETE(parallel_reader);
+int ha_innopart::parallel_scan_end(void *parallel_scan_ctx) {
+  auto adapter = static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
+  UT_DELETE(adapter);
   return 0;
 }
 

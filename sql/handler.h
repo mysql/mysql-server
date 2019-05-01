@@ -4340,14 +4340,16 @@ class handler {
                       bool error_if_not_loaded);
 
   /**
-        Initializes a parallel scan. It creates a parallel_scan_ctx that has to
-        be used across all parallel_scan methods. Also, gets the number of
-     threads that would be spawned for parallel scan.
-        @return error code
-        @retval 0 on success
+    Initializes a parallel scan. It creates a parallel_scan_ctx that has to
+    be used across all parallel_scan methods. Also, gets the number of
+    threads that would be spawned for parallel scan.
+    @param[out] scan_ctx   The parallel scan context.
+    @param[out] num_threads Number of threads used for the scan.
+    @return error code
+    @retval 0 on success
   */
-  virtual int pread_adapter_parallel_scan_start(void *& /* parallel_scan_ctx */,
-                                                size_t & /* num_threads */) {
+  virtual int parallel_scan_init(void *&scan_ctx MY_ATTRIBUTE((unused)),
+                                 size_t &num_threads MY_ATTRIBUTE((unused))) {
     return (0);
   }
 
@@ -4370,9 +4372,9 @@ class handler {
                        memory of this array belongs to the caller and will be
                      free-ed after the pload_end_cbk call.
   */
-  using pread_adapter_pload_init_cbk = std::function<bool(
-      void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
-      ulong *null_byte_offsets, ulong *null_bitmasks)>;
+  using Load_init_cbk = std::function<bool(
+      void *cookie, ulong ncols, ulong row_len, const ulong *col_offsets,
+      const ulong *null_byte_offsets, const ulong *null_bitmasks)>;
 
   /**
     This callback is called by each parallel load thread when processing
@@ -4381,39 +4383,46 @@ class handler {
     @param[in] nrows     The nrows that are available
     @param[in] rowdata   The mysql-in-memory row data buffer. This is a memory
                          buffer for nrows records. The length of each record
-                         is fixed and communicated via
-                         pread_adapter_pload_init_cbk.
+                         is fixed and communicated via Load_init_cbk
     @returns true if there is an error, false otherwise.
   */
-  using pread_adapter_pload_row_cbk =
-      std::function<bool(void *cookie, uint nrows, void *rowdata)>;
+  using Load_cbk = std::function<bool(void *cookie, uint nrows, void *rowdata)>;
 
   /**
     This callback is called by each parallel load thread when processing
     of rows has ended for the adapter scan.
     @param[in] cookie    The cookie for this thread
   */
-  using pread_adapter_pload_end_cbk = std::function<void(void *cookie)>;
+  using Load_end_cbk = std::function<void(void *cookie)>;
 
   /**
     Run the parallel read of data.
+    @param[in]  scan_ctx Scan context of the parallel read.
+    @param[in,out] thread_ctxs Caller thread contexts.
+    @param[in]  init_fn  Callback called by each parallel load
+                         thread at the beginning of the parallel load.
+    @param[in]  load_fn  Callback called by each parallel load
+                         thread when processing of rows is required.
+    @param[in]  end_fn   Callback called by each parallel load
+                         thread when processing of rows has ended.
     @return error code
     @retval 0 on success
   */
-  virtual int pread_adapter_parallel_scan_run(
-      void * /* parallel_scan_ctx */, void ** /* thread_contexts */,
-      pread_adapter_pload_init_cbk /* load_init_fn */,
-      pread_adapter_pload_row_cbk /* load_rows_fn */,
-      pread_adapter_pload_end_cbk /* load_end_fn */) {
+  virtual int parallel_scan(void *scan_ctx MY_ATTRIBUTE((unused)),
+                            void **thread_ctxs MY_ATTRIBUTE((unused)),
+                            Load_init_cbk init_fn MY_ATTRIBUTE((unused)),
+                            Load_cbk load_fn MY_ATTRIBUTE((unused)),
+                            Load_end_cbk end_fn MY_ATTRIBUTE((unused))) {
     return (0);
   }
 
   /**
-    Run the parallel read of data.
+    End of the parallel scan.
+    @param[in]      scan_ctx      A scan context created by parallel_scan_init.
     @return error code
     @retval 0 on success
   */
-  virtual int pread_adapter_parallel_scan_end(void * /* parallel_scan_ctx */) {
+  virtual int parallel_scan_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
     return (0);
   }
 

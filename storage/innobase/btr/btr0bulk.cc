@@ -974,7 +974,7 @@ dberr_t BtrBulk::insert(dtuple_t *tuple, ulint level) {
 
 func_exit:
   if (big_rec != nullptr) {
-    dtuple_convert_back_big_rec(m_index, tuple, big_rec);
+    dtuple_convert_back_big_rec(tuple, big_rec);
   }
 
   return (err);

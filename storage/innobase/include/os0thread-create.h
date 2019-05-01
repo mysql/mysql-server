@@ -33,10 +33,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef os0thread_create_h
 #define os0thread_create_h
 
-#include "os0thread.h"
+#include <my_thread.h>
+
 #include "univ.i"
 
-#include <my_thread.h>
+#include "os0thread.h"
+
 #include <atomic>
 #include <functional>
 
@@ -168,6 +170,9 @@ class Runnable {
   void init() { m_thread.init(m_promise); }
 };
 
+/** Create a detached thread
+@param[in]	thread Thread handle.
+@return true if the thread is active. */
 inline bool thread_is_active(const IB_thread &thread) {
   switch (thread.state()) {
     case IB_thread::State::NOT_STARTED:
