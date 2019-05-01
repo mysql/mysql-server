@@ -57,11 +57,6 @@ byte data_error;
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/** Compare two data tuples.
-@param[in]	tuple1	first data tuple, which is allowed to have
-                        multi-value data
-@param[in]	tuple2	second data tuple
-@return whether tuple1 == tuple2 */
 bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
   ulint n_fields;
   ulint i;
@@ -97,11 +92,7 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
   return (cmp == 0);
 }
 
-/** Sets number of fields used in a tuple. Normally this is set in
- dtuple_create, but if you want later to set it smaller, you can use this. */
-void dtuple_set_n_fields(dtuple_t *tuple, /*!< in: tuple */
-                         ulint n_fields)  /*!< in: number of fields */
-{
+void dtuple_set_n_fields(dtuple_t *tuple, ulint n_fields) {
   ut_ad(tuple);
 
   tuple->n_fields = n_fields;
@@ -109,30 +100,25 @@ void dtuple_set_n_fields(dtuple_t *tuple, /*!< in: tuple */
 }
 
 /** Checks that a data field is typed.
- @return true if ok */
-static ibool dfield_check_typed_no_assert(
-    const dfield_t *field) /*!< in: data field */
-{
+@param[in] field                  Data field.
+@return true if ok */
+static bool dfield_check_typed_no_assert(const dfield_t *field) {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
     ib::error(ER_IB_MSG_156)
         << "Data field type " << dfield_get_type(field)->mtype << ", len "
         << dfield_get_len(field);
 
-    return (FALSE);
+    return (false);
   }
 
-  return (TRUE);
+  return (true);
 }
 
 /** Checks that a data tuple is typed.
- @return true if ok */
-static ibool dtuple_check_typed_no_assert(
-    const dtuple_t *tuple) /*!< in: tuple */
-{
-  const dfield_t *field;
-  ulint i;
-
+@param[in] tuple                Tuple to check.
+@return true if ok */
+static bool dtuple_check_typed_no_assert(const dtuple_t *tuple) {
   if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
     ib::error(ER_IB_MSG_157)
         << "Index entry has " << dtuple_get_n_fields(tuple) << " fields";
@@ -141,26 +127,23 @@ static ibool dtuple_check_typed_no_assert(
     dtuple_print(stderr, tuple);
     putc('\n', stderr);
 
-    return (FALSE);
+    return (false);
   }
 
-  for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
-    field = dtuple_get_nth_field(tuple, i);
+  for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
+    auto field = dtuple_get_nth_field(tuple, i);
 
     if (!dfield_check_typed_no_assert(field)) {
       goto dump;
     }
   }
 
-  return (TRUE);
+  return (true);
 }
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
-/** Checks that a data field is typed. Asserts an error if not.
- @return true if ok */
-ibool dfield_check_typed(const dfield_t *field) /*!< in: data field */
-{
+bool dfield_check_typed(const dfield_t *field) {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
     ib::fatal(ER_IB_MSG_158)
@@ -168,13 +151,10 @@ ibool dfield_check_typed(const dfield_t *field) /*!< in: data field */
         << dfield_get_len(field);
   }
 
-  return (TRUE);
+  return (true);
 }
 
-/** Checks that a data tuple is typed. Asserts an error if not.
- @return true if ok */
-ibool dtuple_check_typed(const dtuple_t *tuple) /*!< in: tuple */
-{
+bool dtuple_check_typed(const dtuple_t *tuple) {
   const dfield_t *field;
   ulint i;
 
@@ -184,38 +164,27 @@ ibool dtuple_check_typed(const dtuple_t *tuple) /*!< in: tuple */
     ut_a(dfield_check_typed(field));
   }
 
-  return (TRUE);
+  return (true);
 }
 
-/** Validates the consistency of a tuple which must be complete, i.e,
- all fields must have been set.
- @return true if ok */
-ibool dtuple_validate(const dtuple_t *tuple) /*!< in: tuple */
-{
-  const dfield_t *field;
-  ulint n_fields;
-  ulint len;
-  ulint i;
-
+bool dtuple_validate(const dtuple_t *tuple) {
   ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
-  n_fields = dtuple_get_n_fields(tuple);
+  auto n_fields = dtuple_get_n_fields(tuple);
 
   /* We dereference all the data of each field to test
   for memory traps */
 
-  for (i = 0; i < n_fields; i++) {
-    field = dtuple_get_nth_field(tuple, i);
-    len = dfield_get_len(field);
+  for (ulint i = 0; i < n_fields; i++) {
+    auto field = dtuple_get_nth_field(tuple, i);
+    auto len = dfield_get_len(field);
 
     if (!dfield_is_null(field)) {
       const byte *data;
 
       data = static_cast<const byte *>(dfield_get_data(field));
 #ifndef UNIV_DEBUG_VALGRIND
-      ulint j;
-
-      for (j = 0; j < len; j++) {
+      for (ulint j = 0; j < len; j++) {
         data++;
       }
 #endif /* !UNIV_DEBUG_VALGRIND */
@@ -226,23 +195,14 @@ ibool dtuple_validate(const dtuple_t *tuple) /*!< in: tuple */
 
   ut_a(dtuple_check_typed(tuple));
 
-  return (TRUE);
+  return (true);
 }
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/** Pretty prints a dfield value according to its data type. Also the hex string
- is printed if a string contains non-printable characters. */
-void dfield_print_also_hex(const dfield_t *dfield) /*!< in: dfield */
-{
-  const byte *data;
-  ulint len;
-  ulint prtype;
-  ulint i;
-  ibool print_also_hex;
-
-  len = dfield_get_len(dfield);
-  data = static_cast<const byte *>(dfield_get_data(dfield));
+void dfield_print_also_hex(const dfield_t *dfield) {
+  auto len = dfield_get_len(dfield);
+  auto data = static_cast<const byte *>(dfield_get_data(dfield));
 
   if (dfield_is_null(dfield)) {
     fputs("NULL", stderr);
@@ -250,7 +210,8 @@ void dfield_print_also_hex(const dfield_t *dfield) /*!< in: dfield */
     return;
   }
 
-  prtype = dtype_get_prtype(dfield_get_type(dfield));
+  bool print_also_hex{};
+  auto prtype = dtype_get_prtype(dfield_get_type(dfield));
 
   switch (dtype_get_mtype(dfield_get_type(dfield))) {
     ib_id_t id;
@@ -346,13 +307,13 @@ void dfield_print_also_hex(const dfield_t *dfield) /*!< in: dfield */
 
     case DATA_CHAR:
     case DATA_VARCHAR:
-      print_also_hex = FALSE;
+      print_also_hex = false;
 
-      for (i = 0; i < len; i++) {
+      for (ulint i = 0; i < len; i++) {
         int c = *data++;
 
         if (!isprint(c)) {
-          print_also_hex = TRUE;
+          print_also_hex = true;
 
           fprintf(stderr, "\\x%02x", (unsigned char)c);
         } else {
@@ -376,7 +337,7 @@ void dfield_print_also_hex(const dfield_t *dfield) /*!< in: dfield */
     print_hex:
       fputs(" Hex: ", stderr);
 
-      for (i = 0; i < len; i++) {
+      for (ulint i = 0; i < len; i++) {
         fprintf(stderr, "%02lx", static_cast<ulong>(*data++));
       }
 
@@ -386,10 +347,10 @@ void dfield_print_also_hex(const dfield_t *dfield) /*!< in: dfield */
   }
 }
 
-/** Print a dfield value using ut_print_buf. */
-static void dfield_print_raw(FILE *f,                /*!< in: output stream */
-                             const dfield_t *dfield) /*!< in: dfield */
-{
+/** Print a dfield value using ut_print_buf.
+@param[in,out] f                Output stream.
+@param[in]  dfield              Value to print. */
+static void dfield_print_raw(FILE *f, const dfield_t *dfield) {
   ulint len = dfield_get_len(dfield);
   if (!dfield_is_null(dfield)) {
     ulint print_len = ut_min(len, static_cast<ulint>(1000));
@@ -403,18 +364,12 @@ static void dfield_print_raw(FILE *f,                /*!< in: output stream */
   }
 }
 
-/** The following function prints the contents of a tuple. */
-void dtuple_print(FILE *f,               /*!< in: output stream */
-                  const dtuple_t *tuple) /*!< in: tuple */
-{
-  ulint n_fields;
-  ulint i;
-
-  n_fields = dtuple_get_n_fields(tuple);
+void dtuple_print(FILE *f, const dtuple_t *tuple) {
+  auto n_fields = dtuple_get_n_fields(tuple);
 
   fprintf(f, "DATA TUPLE: %lu fields;\n", (ulong)n_fields);
 
-  for (i = 0; i < n_fields; i++) {
+  for (ulint i = 0; i < n_fields; i++) {
     fprintf(f, " %lu:", (ulong)i);
 
     dfield_print_raw(f, dtuple_get_nth_field(tuple, i));
@@ -426,10 +381,6 @@ void dtuple_print(FILE *f,               /*!< in: output stream */
   ut_ad(dtuple_validate(tuple));
 }
 
-/** Print the contents of a tuple.
-@param[out]	o	output stream
-@param[in]	field	array of data fields
-@param[in]	n	number of data fields */
 void dfield_print(std::ostream &o, const dfield_t *field, ulint n) {
   for (ulint i = 0; i < n; i++, field++) {
     const void *data = dfield_get_data(field);
@@ -456,33 +407,19 @@ void dfield_print(std::ostream &o, const dfield_t *field, ulint n) {
   }
 }
 
-/** Print the contents of a tuple.
-@param[out]	o	output stream
-@param[in]	tuple	data tuple */
 void dtuple_print(std::ostream &o, const dtuple_t *tuple) {
   const ulint n = dtuple_get_n_fields(tuple);
 
   o << "TUPLE (info_bits=" << dtuple_get_info_bits(tuple) << ", " << n
-    << " fields): {";
+    << " n_cmp=" << tuple->n_fields_cmp << ", fields): {";
 
   dfield_print(o, tuple->fields, n);
 
   o << "}";
 }
 
-/** Moves parts of long fields in entry to the big record vector so that
- the size of tuple drops below the maximum record size allowed in the
- database. Moves data only from those fields which are not necessary
- to determine uniquely the insertion place of the tuple in the index.
- @return own: created big record vector, NULL if we are not able to
- shorten the entry enough, i.e., if there are too many fixed-length or
- short fields in entry or the index is clustered */
-big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
-                                  upd_t *upd,      /*!< in/out: update vector */
-                                  dtuple_t *entry, /*!< in/out: index entry */
-                                  ulint *n_ext)    /*!< in/out: number of
-                                                   externally stored columns */
-{
+big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
+                                  dtuple_t *entry, ulint *n_ext) {
   DBUG_ENTER("dtuple_convert_big_rec");
 
   mem_heap_t *heap;
@@ -510,7 +447,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
 
   size = rec_get_converted_size(index, entry, *n_ext);
 
-  if (UNIV_UNLIKELY(size > 1000000000)) {
+  if (size > 1000000000) {
     ib::warn(ER_IB_MSG_159) << "Tuple size is very big: " << size;
     fputs("InnoDB: Tuple contents: ", stderr);
     dtuple_print(stderr, entry);
@@ -532,13 +469,12 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
                                 dict_table_is_comp(index->table),
                                 dict_index_get_n_fields(index),
                                 dict_table_page_size(index->table))) {
-    ulint i;
+    byte *data;
     ulint longest = 0;
     ulint longest_i = ULINT_MAX;
-    byte *data;
     upd_field_t *uf = nullptr;
 
-    for (i = dict_index_get_n_unique_in_tree(index);
+    for (ulint i = dict_index_get_n_unique_in_tree(index);
          i < dtuple_get_n_fields(entry); i++) {
       ulint savings;
 
@@ -678,16 +614,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
   DBUG_RETURN(vector);
 }
 
-/** Puts back to entry the data stored in vector. Note that to ensure the
- fields in entry can accommodate the data, vector must have been created
- from entry with dtuple_convert_big_rec. */
-void dtuple_convert_back_big_rec(
-    dict_index_t *index MY_ATTRIBUTE((unused)), /*!< in: index */
-    dtuple_t *entry,   /*!< in: entry whose data was put to vector */
-    big_rec_t *vector) /*!< in, own: big rec vector; it is
-                       freed in this function */
-{
-  big_rec_field_t *b = vector->fields;
+void dtuple_convert_back_big_rec(dtuple_t *entry, big_rec_t *vector) {
+  auto b = vector->fields;
   const big_rec_field_t *const end = b + vector->n_fields;
 
   for (; b < end; b++) {
@@ -713,13 +641,6 @@ void dtuple_convert_back_big_rec(
   mem_heap_free(vector->heap);
 }
 
-/** Allocate a big_rec_t object in the given memory heap, and for storing
-n_fld number of fields.
-@param[in]	heap	memory heap in which this object is allocated
-@param[in]	n_fld	maximum number of fields that can be stored in
-                        this object
-
-@return the allocated object */
 big_rec_t *big_rec_t::alloc(mem_heap_t *heap, ulint n_fld) {
   big_rec_t *rec =
       static_cast<big_rec_t *>(mem_heap_alloc(heap, sizeof(big_rec_t)));
@@ -734,11 +655,6 @@ big_rec_t *big_rec_t::alloc(mem_heap_t *heap, ulint n_fld) {
   return (rec);
 }
 
-/** Create a deep copy of this object
-@param[in]	heap	the memory heap in which the clone will be
-                        created.
-
-@return	the cloned object. */
 dfield_t *dfield_t::clone(mem_heap_t *heap) {
   const ulint size = len == UNIV_SQL_NULL ? 0 : len;
   dfield_t *obj =
@@ -773,13 +689,6 @@ uint32_t dfield_t::lob_version() const {
   return (ref.version());
 }
 
-/** Adjust and(or) set virtual column value which is read from undo
-or online DDL log
-@param[in]	vcol		virtual column definition
-@param[in]	comp		true if compact format
-@param[in]	field		virtual column value
-@param[in]	len		value length
-@param[in,out]	heap		memory heap to keep value when necessary */
 void dfield_t::adjust_v_data_mysql(const dict_v_col_t *vcol, bool comp,
                                    const byte *field, ulint len,
                                    mem_heap_t *heap) {
@@ -832,9 +741,6 @@ void dfield_t::adjust_v_data_mysql(const dict_v_col_t *vcol, bool comp,
   dfield_set_data(this, data, len);
 }
 
-/** Print the dfield_t object into the given output stream.
-@param[in]	out	the output stream.
-@return	the ouput stream. */
 std::ostream &dfield_t::print(std::ostream &out) const {
   out << "[dfield_t: data=" << (void *)data << ", ext=" << ext << " ";
 
@@ -851,9 +757,6 @@ std::ostream &dfield_t::print(std::ostream &out) const {
 }
 
 #ifdef UNIV_DEBUG
-/** Print the big_rec_field_t object into the given output stream.
-@param[in]	out	the output stream.
-@return	the ouput stream. */
 std::ostream &big_rec_field_t::print(std::ostream &out) const {
   out << "[big_rec_field_t: field_no=" << field_no << ", len=" << len
       << ", data=" << PrintBuffer(data, len) << ", ext_in_old=" << ext_in_old
@@ -861,9 +764,6 @@ std::ostream &big_rec_field_t::print(std::ostream &out) const {
   return (out);
 }
 
-/** Print the current object into the given output stream.
-@param[in]	out	the output stream.
-@return	the ouput stream. */
 std::ostream &big_rec_t::print(std::ostream &out) const {
   out << "[big_rec_t: capacity=" << capacity << ", n_fields=" << n_fields
       << " ";
@@ -875,8 +775,6 @@ std::ostream &big_rec_t::print(std::ostream &out) const {
 }
 #endif /* UNIV_DEBUG */
 
-/* Read the trx id from the tuple (DB_TRX_ID)
-@return transaction id of the tuple. */
 trx_id_t dtuple_t::get_trx_id() const {
   for (ulint i = 0; i < n_fields; ++i) {
     dfield_t &field = fields[i];
@@ -891,8 +789,6 @@ trx_id_t dtuple_t::get_trx_id() const {
   return (0);
 }
 
-/** Ignore trailing default fields if this is a tuple from instant index
-@param[in]	index		clustered index object for this tuple */
 void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
   if (!index->has_instant_cols()) {
     return;

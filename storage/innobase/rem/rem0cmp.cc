@@ -114,13 +114,8 @@ int innobase_mysql_cmp(ulint prtype, const byte *a, size_t a_length,
   return (0);
 }
 
-/** Returns TRUE if two columns are equal for comparison purposes.
- @return true if the columns are considered equal in comparisons */
-ibool cmp_cols_are_equal(const dict_col_t *col1, /*!< in: column 1 */
-                         const dict_col_t *col2, /*!< in: column 2 */
-                         ibool check_charsets)
-/*!< in: whether to check charsets */
-{
+bool cmp_cols_are_equal(const dict_col_t *col1, const dict_col_t *col2,
+                        bool check_charsets) {
   if (dtype_is_non_binary_string_type(col1->mtype, col1->prtype) &&
       dtype_is_non_binary_string_type(col2->mtype, col2->prtype)) {
     /* Both are non-binary string types: they can be compared if
@@ -230,7 +225,7 @@ static UNIV_COLD int cmp_decimal(const byte *a, unsigned int a_length,
 }
 
 /** Innobase uses this function to compare two geometry data fields
- @return	1, 0, -1, if a is greater, equal, less than b, respectively */
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
 static int cmp_geometry_field(ulint mtype,           /*!< in: main type */
                               ulint prtype,          /*!< in: precise type */
                               const byte *a,         /*!< in: data field */
@@ -287,6 +282,7 @@ static int cmp_geometry_field(ulint mtype,           /*!< in: main type */
 
   return (0);
 }
+
 /** Innobase uses this function to compare two gis data fields
  @return	1, 0, -1, if mode == PAGE_CUR_MBR_EQUAL. And return
  1, 0 for rest compare modes, depends on a and b qualifies the
@@ -454,7 +450,6 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
   }
 
   ulint len;
-  int cmp;
 
   if (len1 < len2) {
     len = len1;
@@ -466,7 +461,9 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
     len2 = 0;
   }
 
-  if (len) {
+  int cmp;
+
+  if (len > 0) {
 #if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
     /* Compare the first bytes with a loop to avoid the call
     overhead of memcmp(). On x86 and x86-64, the GCC built-in
@@ -487,8 +484,9 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
     the performance. */
     for (ulint i = 4 + (len & 3); i > 0; i--) {
       cmp = int(*data1++) - int(*data2++);
-      if (cmp) {
-        goto func_exit;
+
+      if (cmp != 0) {
+        return (is_asc ? cmp : -cmp);
       }
 
       if (!--len) {
@@ -500,8 +498,8 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
 #endif /* IA32 or AMD64 */
       cmp = memcmp(data1, data2, len);
 
-      if (cmp) {
-        goto func_exit;
+      if (cmp != 0) {
+        return (is_asc ? cmp : -cmp);
       }
 
       data1 += len;
@@ -513,56 +511,44 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
 
   cmp = (int)(len1 - len2);
 
-  if (!cmp) {
-    return (cmp);
+  if (cmp == 0) {
+    return (0);
   }
 
   if (pad == ULINT_UNDEFINED) {
-    goto func_exit;
+    return (is_asc ? cmp : -cmp);
   }
 
-  len = 0;
+  if (len1 > 0) {
+    ulint len{};
 
-  if (len1) {
     do {
-      cmp = static_cast<int>(mach_read_from_1(&data1[len++]) - pad);
+      cmp = static_cast<int>(mach_read_from_1(&data1[len]) - pad);
+      ++len;
     } while (cmp == 0 && len < len1);
+
   } else {
     ut_ad(len2 > 0);
 
+    ulint len{};
+
     do {
-      cmp = static_cast<int>(pad - mach_read_from_1(&data2[len++]));
+      cmp = static_cast<int>(pad - mach_read_from_1(&data2[len]));
+      ++len;
     } while (cmp == 0 && len < len2);
   }
 
-func_exit:
   return (is_asc ? cmp : -cmp);
 }
 
-/** Compare a GIS data tuple to a physical record.
-@param[in] dtuple data tuple
-@param[in] rec B-tree record
-@param[in] offsets rec_get_offsets(rec)
-@param[in] mode compare mode
-@param[in] srs Spatial reference system of R-tree
-@retval negative if dtuple is less than rec */
-int cmp_dtuple_rec_with_gis(
-    const dtuple_t *dtuple, /*!< in: data tuple */
-    const rec_t *rec,       /*!< in: physical record which differs from
-                            dtuple in some of the common fields, or which
-                            has an equal number or more fields than
-                            dtuple */
-    const ulint *offsets,   /*!< in: array returned by rec_get_offsets() */
-    page_cur_mode_t mode,   /*!< in: compare mode */
-    const dd::Spatial_reference_system *srs) /*!< in: SRS of R-tree */
-{
-  const dfield_t *dtuple_field; /* current field in logical record */
-  ulint dtuple_f_len;           /* the length of the current field
-                                in the logical record */
-  ulint rec_f_len;              /* length of current field in rec */
-  const byte *rec_b_ptr;        /* pointer to the current byte in
-                                rec field */
-  int ret = 0;                  /* return value */
+int cmp_dtuple_rec_with_gis(const dtuple_t *dtuple, const rec_t *rec,
+                            const ulint *offsets, page_cur_mode_t mode,
+                            const dd::Spatial_reference_system *srs) {
+  const dfield_t *dtuple_field;
+  ulint dtuple_f_len;
+  ulint rec_f_len;
+  const byte *rec_b_ptr;
+  int ret = 0;
 
   dtuple_field = dtuple_get_nth_field(dtuple, 0);
   dtuple_f_len = dfield_get_len(dtuple_field);
@@ -575,14 +561,6 @@ int cmp_dtuple_rec_with_gis(
   return (ret);
 }
 
-/** Compare a GIS data tuple to a physical record in rtree non-leaf node.
-We need to check the page number field, since we don't store pk field in
-rtree non-leaf node.
-@param[in]	dtuple		data tuple
-@param[in]	rec		R-tree record
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	srs	        Spatial reference system of R-tree
-@retval negative if dtuple is less than rec */
 int cmp_dtuple_rec_with_gis_internal(const dtuple_t *dtuple, const rec_t *rec,
                                      const ulint *offsets,
                                      const dd::Spatial_reference_system *srs) {
@@ -614,89 +592,69 @@ int cmp_dtuple_rec_with_gis_internal(const dtuple_t *dtuple, const rec_t *rec,
                    rec_b_ptr, rec_f_len));
 }
 
-/** Compare two data fields.
-@param[in]	mtype	main type
-@param[in]	prtype	precise type
-@param[in]	is_asc	true=ascending, false=descending order
-@param[in]	data1	data field
-@param[in]	len1	length of data1 in bytes, or UNIV_SQL_NULL
-@param[in]	data2	data field
-@param[in]	len2	length of data2 in bytes, or UNIV_SQL_NULL
-@return the comparison result of data1 and data2
-@retval 0 if data1 is equal to data2
-@retval negative if data1 is less than data2
-@retval positive if data1 is greater than data2 */
 int cmp_data_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
                   ulint len1, const byte *data2, ulint len2) {
   return (cmp_data(mtype, prtype, is_asc, data1, len1, data2, len2));
 }
 
-/** Compare a data tuple to a physical record.
-@param[in]	dtuple		data tuple
-@param[in]	rec		record
-@param[in]	index		index
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	n_cmp		number of fields to compare
-@param[in,out]	matched_fields	number of completely matched fields
-@return the comparison result of dtuple and rec
-@retval 0 if dtuple is equal to rec
-@retval negative if dtuple is less than rec
-@retval positive if dtuple is greater than rec */
 int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
                                   const dict_index_t *index,
                                   const ulint *offsets, ulint n_cmp,
                                   ulint *matched_fields) {
-  ulint cur_field; /* current field number */
-  int ret;         /* return value */
-
   ut_ad(dtuple_check_typed(dtuple));
   ut_ad(rec_offs_validate(rec, index, offsets));
 
-  cur_field = *matched_fields;
-
   ut_ad(n_cmp > 0);
+  ut_ad(*matched_fields == DISABLE_MIN_REC_FLAG_CHECK ||
+        *matched_fields <= n_cmp);
   ut_ad(n_cmp <= dtuple_get_n_fields(dtuple));
-  ut_ad(cur_field <= n_cmp);
-  ut_ad(cur_field <= rec_offs_n_fields(offsets));
+  ut_ad(*matched_fields == DISABLE_MIN_REC_FLAG_CHECK ||
+        *matched_fields <= rec_offs_n_fields(offsets));
 
-  if (cur_field == 0) {
+  if (*matched_fields == 0) {
     ulint rec_info = rec_get_info_bits(rec, rec_offs_comp(offsets));
     ulint tup_info = dtuple_get_info_bits(dtuple);
 
     /* The leftmost node pointer record is defined as
     smaller than any other node pointer, independent of
     any ASC/DESC flags. It is an "infimum node pointer". */
-    if (UNIV_UNLIKELY(rec_info & REC_INFO_MIN_REC_FLAG)) {
-      ret = !(tup_info & REC_INFO_MIN_REC_FLAG);
-      goto order_resolved;
-    } else if (UNIV_UNLIKELY(tup_info & REC_INFO_MIN_REC_FLAG)) {
-      ret = -1;
-      goto order_resolved;
+    if (rec_info & REC_INFO_MIN_REC_FLAG) {
+      return (!(tup_info & REC_INFO_MIN_REC_FLAG));
+    } else if (tup_info & REC_INFO_MIN_REC_FLAG) {
+      return (-1);
     }
+  } else if (*matched_fields == DISABLE_MIN_REC_FLAG_CHECK) {
+    /* Disable the left most node check. */
+    *matched_fields = 0;
   }
 
-  /* Match fields in a loop */
+  /* Compare fields in a loop. */
+  for (auto i = *matched_fields; i < n_cmp; ++i) {
+    const auto dtuple_field = dtuple_get_nth_field(dtuple, i);
 
-  for (; cur_field < n_cmp; cur_field++) {
-    const byte *rec_b_ptr;
-    const dfield_t *dtuple_field = dtuple_get_nth_field(dtuple, cur_field);
-    const byte *dtuple_b_ptr =
+    const auto dtuple_b_ptr =
         static_cast<const byte *>(dfield_get_data(dtuple_field));
-    const dtype_t *type = dfield_get_type(dtuple_field);
-    ulint dtuple_f_len = dfield_get_len(dtuple_field);
-    ulint rec_f_len;
+
+    const auto type = dfield_get_type(dtuple_field);
+
+    auto dtuple_f_len = dfield_get_len(dtuple_field);
 
     /* We should never compare against an externally
     stored field.  Only clustered index records can
     contain externally stored fields, and the first fields
     (primary key fields) should already differ. */
-    ut_ad(!rec_offs_nth_extern(offsets, cur_field));
-    /* So does the field with default value */
-    ut_ad(!rec_offs_nth_default(offsets, cur_field));
+    ut_ad(!rec_offs_nth_extern(offsets, i));
 
-    rec_b_ptr = rec_get_nth_field(rec, offsets, cur_field, &rec_f_len);
+    /* So does the field with default value */
+    ut_ad(!rec_offs_nth_default(offsets, i));
+
+    ulint rec_f_len;
+
+    const auto rec_b_ptr = rec_get_nth_field(rec, offsets, i, &rec_f_len);
 
     ut_ad(!dfield_is_ext(dtuple_field));
+
+    int ret{};
 
     if (dfield_is_multi_value(dtuple_field) &&
         (dtuple_f_len == UNIV_MULTI_VALUE_ARRAY_MARKER ||
@@ -714,22 +672,22 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
     } else {
       /* For now, change buffering is only supported on
       indexes with ascending order on the columns. */
-      ret = cmp_data(type->mtype, type->prtype,
-                     dict_index_is_ibuf(index) ||
-                         index->get_field(cur_field)->is_ascending,
-                     dtuple_b_ptr, dtuple_f_len, rec_b_ptr, rec_f_len);
+      ret = cmp_data(
+          type->mtype, type->prtype,
+          dict_index_is_ibuf(index) || index->get_field(i)->is_ascending,
+          dtuple_b_ptr, dtuple_f_len, rec_b_ptr, rec_f_len);
     }
 
     if (ret) {
-      goto order_resolved;
+      *matched_fields = i;
+      return (ret);
     }
   }
 
-  ret = 0; /* If we ran out of fields, dtuple was equal to rec
-           up to the common fields */
-order_resolved:
-  *matched_fields = cur_field;
-  return (ret);
+  /* If we ran out of fields, dtuple was equal to rec up to the common fields */
+  *matched_fields = n_cmp;
+
+  return (0);
 }
 
 /** Get the pad character code point for a type.
@@ -769,18 +727,6 @@ ulint cmp_get_pad_char(const dtype_t *type) {
   }
 }
 
-/** Compare a data tuple to a physical record.
-@param[in]	dtuple		data tuple
-@param[in]	rec		B-tree or R-tree index record
-@param[in]	index		index tree
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in,out]	matched_fields	number of completely matched fields
-@param[in,out]	matched_bytes	number of matched bytes in the first
-field that is not matched
-@return the comparison result of dtuple and rec
-@retval 0 if dtuple is equal to rec
-@retval negative if dtuple is less than rec
-@retval positive if dtuple is greater than rec */
 int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
                                     const dict_index_t *index,
                                     const ulint *offsets, ulint *matched_fields,
@@ -792,7 +738,6 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
 
   ut_ad(dtuple_check_typed(dtuple));
   ut_ad(rec_offs_validate(rec, index, offsets));
-  // ut_ad(page_is_leaf(page_align(rec)));
   ut_ad(!(REC_INFO_MIN_REC_FLAG & dtuple_get_info_bits(dtuple)));
   ut_ad(!(REC_INFO_MIN_REC_FLAG &
           rec_get_info_bits(rec, rec_offs_comp(offsets))));
@@ -930,66 +875,47 @@ order_resolved:
   return (ret);
 }
 
-/** Compare a data tuple to a physical record.
-@see cmp_dtuple_rec_with_match
-@param[in]	dtuple	data tuple
-@param[in]	rec	record
-@param[in]	index	index
-@param[in]	offsets	rec_get_offsets(rec)
-@return the comparison result of dtuple and rec
-@retval 0 if dtuple is equal to rec
-@retval negative if dtuple is less than rec
-@retval positive if dtuple is greater than rec */
 int cmp_dtuple_rec(const dtuple_t *dtuple, const rec_t *rec,
                    const dict_index_t *index, const ulint *offsets) {
   ulint matched_fields = 0;
 
-  return (
-      cmp_dtuple_rec_with_match(dtuple, rec, index, offsets, &matched_fields));
+  return (dtuple->compare(rec, index, offsets, &matched_fields));
 }
 
-/** Checks if a dtuple is a prefix of a record. The last field in dtuple is
-allowed to be a prefix of the corresponding field in the record.
-@param[in]	dtuple	data tuple
-@param[in]	rec	B-tree record
-@param[in]	index	B-tree index
-@param[in]	offsets	rec_get_offsets(rec)
-@return true if prefix */
-ibool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
-                                  const dict_index_t *index,
-                                  const ulint *offsets) {
+bool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
+                                 const dict_index_t *index,
+                                 const ulint *offsets) {
   ut_ad(!dict_index_is_spatial(index));
 
-  ulint n_fields;
-  ulint matched_fields = 0;
-
-  n_fields = dtuple_get_n_fields(dtuple);
+  auto n_fields = dtuple_get_n_fields(dtuple);
 
   if (n_fields > rec_offs_n_fields(offsets)) {
     ut_ad(0);
-    return (FALSE);
+    return (false);
   }
 
-  return (
-      !cmp_dtuple_rec_with_match(dtuple, rec, index, offsets, &matched_fields));
+  ulint matched_fields = 0;
+
+  return (dtuple->compare(rec, index, offsets, &matched_fields) == 0);
 }
 
 /** Compare two physical record fields.
- @retval positive if rec1 field is greater than rec2
- @retval negative if rec1 field is less than rec2
- @retval 0 if rec1 field equals to rec2 */
+@param[in] rec1                 Physical record.
+@param[in] rec2                 Physical record.
+@param[in] offsets1             rec_get_offsets(rec1, ...).
+@param[in] offsets2             rec_get_offsets(rec2, ...).
+@param[in] index                Data dictionary index.
+@param[in] n                    Field to compare.
+@retval positive if rec1 field is greater than rec2
+@retval negative if rec1 field is less than rec2
+@retval 0 if rec1 field equals to rec2 */
 static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
-    const rec_t *rec1,         /*!< in: physical record */
-    const rec_t *rec2,         /*!< in: physical record */
-    const ulint *offsets1,     /*!< in: rec_get_offsets(rec1, ...) */
-    const ulint *offsets2,     /*!< in: rec_get_offsets(rec2, ...) */
-    const dict_index_t *index, /*!< in: data dictionary index */
-    ulint n)                   /*!< in: field to compare */
-{
-  const byte *rec1_b_ptr;
-  const byte *rec2_b_ptr;
+    const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
+    const ulint *offsets2, const dict_index_t *index, ulint n) {
   ulint rec1_f_len;
   ulint rec2_f_len;
+  const byte *rec1_b_ptr;
+  const byte *rec2_b_ptr;
   const dict_col_t *col = index->get_col(n);
   const dict_field_t *field = index->get_field(n);
 
@@ -1003,21 +929,9 @@ static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
                    rec1_f_len, rec2_b_ptr, rec2_f_len));
 }
 
-/** Compare two physical records that contain the same number of columns,
-none of which are stored externally.
-@retval positive if rec1 (including non-ordering columns) is greater than rec2
-@retval negative if rec1 (including non-ordering columns) is less than rec2
-@retval 0 if rec1 is a duplicate of rec2 */
-int cmp_rec_rec_simple(
-    const rec_t *rec1,         /*!< in: physical record */
-    const rec_t *rec2,         /*!< in: physical record */
-    const ulint *offsets1,     /*!< in: rec_get_offsets(rec1, ...) */
-    const ulint *offsets2,     /*!< in: rec_get_offsets(rec2, ...) */
-    const dict_index_t *index, /*!< in: data dictionary index */
-    struct TABLE *table)       /*!< in: MySQL table, for reporting
-                               duplicate key value if applicable,
-                               or NULL */
-{
+int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
+                       const ulint *offsets1, const ulint *offsets2,
+                       const dict_index_t *index, struct TABLE *table) {
   ulint n;
   ulint n_uniq = dict_index_get_n_unique(index);
   bool null_eq = false;
@@ -1077,72 +991,45 @@ int cmp_rec_rec_simple(
   return (0);
 }
 
-/** Compare two B-tree records.
-@param[in] rec1 B-tree record
-@param[in] rec2 B-tree record
-@param[in] offsets1 rec_get_offsets(rec1, index)
-@param[in] offsets2 rec_get_offsets(rec2, index)
-@param[in] index B-tree index
-@param[in] nulls_unequal true if this is for index cardinality
-statistics estimation, and innodb_stats_method=nulls_unequal
-or innodb_stats_method=nulls_ignored
-@param[out] matched_fields number of completely matched fields
-within the first field not completely matched
-@return the comparison result
-@retval 0 if rec1 is equal to rec2
-@retval negative if rec1 is less than rec2
-@retval positive if rec2 is greater than rec2 */
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
                            const dict_index_t *index, bool nulls_unequal,
                            ulint *matched_fields) {
-  ulint rec1_n_fields;    /* the number of fields in rec */
-  ulint rec1_f_len;       /* length of current field in rec */
-  const byte *rec1_b_ptr; /* pointer to the current byte
-                          in rec field */
-  ulint rec2_n_fields;    /* the number of fields in rec */
-  ulint rec2_f_len;       /* length of current field in rec */
-  const byte *rec2_b_ptr; /* pointer to the current byte
-                          in rec field */
-  ulint cur_field = 0;    /* current field number */
-  int ret = 0;            /* return value */
-  ulint comp;
-
-  ut_ad(rec1 != NULL);
-  ut_ad(rec2 != NULL);
-  ut_ad(index != NULL);
+  ut_ad(rec1 != nullptr);
+  ut_ad(rec2 != nullptr);
+  ut_ad(index != nullptr);
   ut_ad(rec_offs_validate(rec1, index, offsets1));
   ut_ad(rec_offs_validate(rec2, index, offsets2));
   ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
 
-  comp = rec_offs_comp(offsets1);
-  rec1_n_fields = rec_offs_n_fields(offsets1);
-  rec2_n_fields = rec_offs_n_fields(offsets2);
+  const auto comp = rec_offs_comp(offsets1);
+  const auto rec1_n_fields = rec_offs_n_fields(offsets1);
+  const auto rec2_n_fields = rec_offs_n_fields(offsets2);
+
+  *matched_fields = 0;
 
   /* Test if rec is the predefined minimum record */
-  if (UNIV_UNLIKELY(rec_get_info_bits(rec1, comp) & REC_INFO_MIN_REC_FLAG)) {
+  if (rec_get_info_bits(rec1, comp) & REC_INFO_MIN_REC_FLAG) {
     /* There should only be one such record. */
     ut_ad(!(rec_get_info_bits(rec2, comp) & REC_INFO_MIN_REC_FLAG));
-    ret = -1;
-    goto order_resolved;
-  } else if (UNIV_UNLIKELY(rec_get_info_bits(rec2, comp) &
-                           REC_INFO_MIN_REC_FLAG)) {
-    ret = 1;
-    goto order_resolved;
+    return (-1);
+  } else if (rec_get_info_bits(rec2, comp) & REC_INFO_MIN_REC_FLAG) {
+    return (1);
   }
 
-  /* Match fields in a loop */
+  ulint i;
 
-  for (; cur_field < rec1_n_fields && cur_field < rec2_n_fields; cur_field++) {
+  for (i = 0; i < rec1_n_fields && i < rec2_n_fields; ++i) {
+    /* If this is node-ptr records then avoid comparing node-ptr
+    field. Only key field needs to be compared. */
+    if (i == dict_index_get_n_unique_in_tree(index)) {
+      *matched_fields = i;
+      return (0);
+    }
+
     ulint mtype;
     ulint prtype;
     bool is_asc;
-
-    /* If this is node-ptr records then avoid comparing node-ptr
-    field. Only key field needs to be compared. */
-    if (cur_field == dict_index_get_n_unique_in_tree(index)) {
-      break;
-    }
 
     if (dict_index_is_ibuf(index)) {
       /* This is for the insert buffer B-tree. */
@@ -1150,10 +1037,8 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
       prtype = 0;
       is_asc = true;
     } else {
-      const dict_col_t *col;
-      const dict_field_t *field = index->get_field(cur_field);
-
-      col = index->get_col(cur_field);
+      auto col = index->get_col(i);
+      const auto field = index->get_field(i);
 
       mtype = col->mtype;
       prtype = col->prtype;
@@ -1161,7 +1046,7 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
 
       /* If the index is spatial index, we mark the
       prtype of the first field as MBR field. */
-      if (cur_field == 0 && dict_index_is_spatial(index)) {
+      if (i == 0 && dict_index_is_spatial(index)) {
         ut_ad(DATA_GEOMETRY_MTYPE(mtype));
         prtype |= DATA_GIS_MBR;
       }
@@ -1172,33 +1057,36 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
     leaf page records. These fields should already differ
     in the primary key columns already, before DB_TRX_ID,
     DB_ROLL_PTR, and any externally stored columns. */
-    ut_ad(!rec_offs_nth_extern(offsets1, cur_field));
-    ut_ad(!rec_offs_nth_extern(offsets2, cur_field));
+    ut_ad(!rec_offs_nth_extern(offsets1, i));
+    ut_ad(!rec_offs_nth_extern(offsets2, i));
 
-    rec1_b_ptr = rec_get_nth_field_instant(rec1, offsets1, cur_field, index,
-                                           &rec1_f_len);
-    rec2_b_ptr = rec_get_nth_field_instant(rec2, offsets2, cur_field, index,
-                                           &rec2_f_len);
+    ulint r1_len;
 
-    if (nulls_unequal && rec1_f_len == UNIV_SQL_NULL &&
-        rec2_f_len == UNIV_SQL_NULL) {
-      ret = -1;
-      goto order_resolved;
+    const auto r1 =
+        rec_get_nth_field_instant(rec1, offsets1, i, index, &r1_len);
+
+    ulint r2_len;
+
+    const auto r2 =
+        rec_get_nth_field_instant(rec2, offsets2, i, index, &r2_len);
+
+    if (nulls_unequal && r1_len == UNIV_SQL_NULL && r2_len == UNIV_SQL_NULL) {
+      *matched_fields = i;
+      return (-1);
     }
 
-    ret = cmp_data(mtype, prtype, is_asc, rec1_b_ptr, rec1_f_len, rec2_b_ptr,
-                   rec2_f_len);
-    if (ret) {
-      goto order_resolved;
+    auto ret = cmp_data(mtype, prtype, is_asc, r1, r1_len, r2, r2_len);
+
+    if (ret != 0) {
+      *matched_fields = i;
+      return (ret);
     }
   }
 
-  /* If we ran out of fields, rec1 was equal to rec2 up
-  to the common fields */
-  ut_ad(ret == 0);
-order_resolved:
-  *matched_fields = cur_field;
-  return (ret);
+  /* If we ran out of fields, rec1 was equal to rec2 up to the common fields */
+  *matched_fields = i;
+
+  return (0);
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
@@ -1206,16 +1094,15 @@ order_resolved:
 #ifdef HAVE_UT_CHRONO_T
 
 void test_cmp_data_data(ulint len) {
-  int i;
   static byte zeros[64];
 
-  if (len > sizeof zeros) {
-    len = sizeof zeros;
+  if (len > sizeof(zeros)) {
+    len = sizeof(zeros);
   }
 
   ut_chrono_t ch(__func__);
 
-  for (i = 1000000; i > 0; i--) {
+  for (int i = 1000000; i > 0; i--) {
     i += cmp_data(DATA_INT, 0, zeros, len, zeros, len);
   }
 }
@@ -1223,3 +1110,9 @@ void test_cmp_data_data(ulint len) {
 #endif /* HAVE_UT_CHRONO_T */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+
+int dtuple_t::compare(const rec_t *rec, const dict_index_t *index,
+                      const ulint *offsets, ulint *matched_fields) const {
+  return (cmp_dtuple_rec_with_match_low(this, rec, index, offsets, n_fields_cmp,
+                                        matched_fields));
+}

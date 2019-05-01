@@ -2752,34 +2752,33 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
 }
 
 /** Convert a field from Innobase format to MySQL format. */
-#define row_sel_store_mysql_field(m, p, r, i, o, f, t, s, l) \
-  row_sel_store_mysql_field_func(m, p, r, i, o, f, t, s, l)
+#define row_sel_store_mysql_field(m, p, r, i, o, f, t, s, l, bh) \
+  row_sel_store_mysql_field_func(m, p, r, i, o, f, t, s, l, bh)
+// clang-format off
 /** Convert a field in the Innobase format to a field in the MySQL format.
-@param[out]	mysql_rec		record in the MySQL format
-@param[in,out]	prebuilt		prebuilt struct
-@param[in]	rec			InnoDB record; must be protected
-                                        by a page latch
-@param[in]	index			index of rec
-@param[in]	offsets			array returned by rec_get_offsets()
-@param[in]	field_no		templ->rec_field_no or
-                                        templ->clust_rec_field_no
-                                        or templ->icp_rec_field_no
-                                        or sec field no if clust_templ_for_sec
-                                        is TRUE
-@param[in]	templ			row template
-@param[in]	sec_field_no		secondary index field no if the
-                                        secondary index record but the
-                                        prebuilt template is in clustered index
-                                        format and used only for end
-                                        range comparison.
-@param[in]	lob_undo		the LOB undo information. */
-static MY_ATTRIBUTE((warn_unused_result)) ibool
-    row_sel_store_mysql_field_func(byte *mysql_rec, row_prebuilt_t *prebuilt,
-                                   const rec_t *rec, const dict_index_t *index,
-                                   const ulint *offsets, ulint field_no,
-                                   const mysql_row_templ_t *templ,
-                                   ulint sec_field_no,
-                                   lob::undo_vers_t *lob_undo) {
+@param[out]	mysql_rec		        Record in the MySQL format
+@param[in,out]	prebuilt		    Prebuilt struct
+@param[in]	rec			            InnoDB record; must be protected by a page latch
+@param[in]	index			          Index of rec
+@param[in]	offsets			        Array returned by rec_get_offsets()
+@param[in]	field_no		        templ->rec_field_no or
+                                templ->clust_rec_field_no
+                                or templ->icp_rec_field_no
+                                or sec field no if clust_templ_for_sec
+                                is true
+@param[in]	templ			          Row template
+@param[in]	sec_field_no		    Secondary index field no if the secondary index
+                                record but the prebuilt template is in
+                                clustered index format and used only for end
+                                range comparison.
+@param[in]	lob_undo		        the LOB undo information.
+@param[in,out] blob_heap        If not null then use this heap for BLOBs */
+// clang-format on
+static MY_ATTRIBUTE((warn_unused_result)) bool row_sel_store_mysql_field_func(
+    byte *mysql_rec, row_prebuilt_t *prebuilt, const rec_t *rec,
+    const dict_index_t *index, const ulint *offsets, ulint field_no,
+    const mysql_row_templ_t *templ, ulint sec_field_no,
+    lob::undo_vers_t *lob_undo, mem_heap_t *blob_heap) {
   DBUG_ENTER("row_sel_store_mysql_field_func");
 
   const byte *data;
@@ -2787,12 +2786,14 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   ulint clust_field_no = 0;
   bool clust_templ_for_sec = (sec_field_no != ULINT_UNDEFINED);
 
-  ut_ad(prebuilt->default_rec);
   ut_ad(templ);
+  ut_ad(prebuilt->default_rec);
   ut_ad(templ >= prebuilt->mysql_template);
   ut_ad(templ < &prebuilt->mysql_template[prebuilt->n_template]);
+
   ut_ad(clust_templ_for_sec || field_no == templ->clust_rec_field_no ||
         field_no == templ->rec_field_no || field_no == templ->icp_rec_field_no);
+
   ut_ad(rec_offs_validate(
       rec, clust_templ_for_sec == true ? prebuilt->index : index, offsets));
 
@@ -2803,20 +2804,24 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     field_no = sec_field_no;
   }
 
-  if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets, field_no))) {
-    mem_heap_t *heap;
+  if (rec_offs_nth_extern(offsets, field_no)) {
     /* Copy an externally stored field to a temporary heap */
 
     ut_a(!prebuilt->trx->has_search_latch);
     ut_ad(field_no == templ->clust_rec_field_no);
     ut_ad(templ->type != DATA_POINT);
 
-    if (DATA_LARGE_MTYPE(templ->type)) {
-      if (prebuilt->blob_heap == NULL) {
-        prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
-      }
+    mem_heap_t *heap;
 
-      heap = prebuilt->blob_heap;
+    if (DATA_LARGE_MTYPE(templ->type)) {
+      if (blob_heap != nullptr) {
+        heap = blob_heap;
+      } else {
+        if (prebuilt->blob_heap == nullptr) {
+          prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
+        }
+        heap = prebuilt->blob_heap;
+      }
     } else {
       heap = mem_heap_create(UNIV_PAGE_SIZE);
     }
@@ -2835,7 +2840,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
         prebuilt->trx, clust_index, rec, offsets, page_size, field_no, &len,
         &lob_version, dict_index_is_sdi(index), heap);
 
-    if (UNIV_UNLIKELY(!data)) {
+    if (data == nullptr) {
       /* The externally stored field was not written
       yet. This record should only be seen by
       trx_rollback_or_clean_all_recovered() or any
@@ -2847,14 +2852,14 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       by recv_recovery_rollback_active() or any
       TRX_ISO_READ_UNCOMMITTED transactions. */
 
-      if (heap != prebuilt->blob_heap) {
+      if (heap != blob_heap && heap != prebuilt->blob_heap) {
         mem_heap_free(heap);
       }
 
       ut_a((!prebuilt->idx_cond &&
-            prebuilt->m_mysql_handler->end_range != NULL) ||
+            prebuilt->m_mysql_handler->end_range != nullptr) ||
            (prebuilt->trx->isolation_level == TRX_ISO_READ_UNCOMMITTED));
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
     }
 
     if (lob_undo != nullptr) {
@@ -2875,7 +2880,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
                                         templ, index, field_no, data, len,
                                         ULINT_UNDEFINED);
 
-    if (heap != prebuilt->blob_heap) {
+    if (heap != blob_heap && heap != prebuilt->blob_heap) {
       mem_heap_free(heap);
     }
   } else {
@@ -2895,7 +2900,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       memcpy(mysql_rec + templ->mysql_col_offset,
              (const byte *)prebuilt->default_rec + templ->mysql_col_offset,
              templ->mysql_col_len);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     if (DATA_LARGE_MTYPE(templ->type) || DATA_GEOMETRY_MTYPE(templ->type)) {
@@ -2912,11 +2917,17 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       but it should be a BLOB field in MySQL layer. So we
       still treated it as BLOB here. */
 
-      if (prebuilt->blob_heap == NULL) {
-        prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
-      }
+      mem_heap_t *heap{};
 
-      data = static_cast<byte *>(mem_heap_dup(prebuilt->blob_heap, data, len));
+      if (blob_heap != nullptr) {
+        heap = blob_heap;
+      } else {
+        if (prebuilt->blob_heap == nullptr) {
+          prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
+        }
+        heap = prebuilt->blob_heap;
+      }
+      data = static_cast<byte *>(mem_heap_dup(heap, data, len));
     }
 
     /* Reassign the clustered index field no. */
@@ -2932,21 +2943,20 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   ut_ad(rec_field_not_null_not_add_col_def(len));
 
   if (templ->mysql_null_bit_mask) {
-    /* It is a nullable column with a non-NULL
-    value */
+    /* It is a nullable column with a non-NULL value */
     mysql_rec[templ->mysql_null_byte_offset] &=
         ~(byte)templ->mysql_null_bit_mask;
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
-ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
-                              const rec_t *rec, const dtuple_t *vrow,
-                              ibool rec_clust, const dict_index_t *index,
-                              const ulint *offsets, bool clust_templ_for_sec,
-                              lob::undo_vers_t *lob_undo) {
-  ulint i;
+bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
+                             const rec_t *rec, const dtuple_t *vrow,
+                             bool rec_clust, const dict_index_t *index,
+                             const ulint *offsets, bool clust_templ_for_sec,
+                             lob::undo_vers_t *lob_undo,
+                             mem_heap_t *blob_heap) {
   std::vector<const dict_col_t *> template_col;
 
   DBUG_ENTER("row_sel_store_mysql_rec");
@@ -2954,29 +2964,30 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
   ut_ad(rec_clust || index == prebuilt->index);
   ut_ad(!rec_clust || index->is_clustered());
 
-  if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
+  if (blob_heap != nullptr) {
+    mem_heap_empty(blob_heap);
+  } else if (prebuilt->blob_heap != nullptr) {
     mem_heap_empty(prebuilt->blob_heap);
   }
 
   if (clust_templ_for_sec) {
-    /* Store all clustered index column of
-    secondary index record. */
-    for (i = 0; i < dict_index_get_n_fields(prebuilt->index); i++) {
-      ulint sec_field = dict_index_get_nth_field_pos(index, prebuilt->index, i);
+    /* Store all clustered index column of secondary index record. */
+    for (ulint i = 0; i < dict_index_get_n_fields(prebuilt->index); i++) {
+      auto sec_field = dict_index_get_nth_field_pos(index, prebuilt->index, i);
 
       if (sec_field == ULINT_UNDEFINED) {
         template_col.push_back(nullptr);
         continue;
       }
 
-      const dict_field_t *field = index->get_field(sec_field);
-      const dict_col_t *col = field->col;
+      const auto field = index->get_field(sec_field);
+      const auto col = field->col;
       template_col.push_back(col);
     }
   }
 
-  for (i = 0; i < prebuilt->n_template; i++) {
-    const mysql_row_templ_t *templ = &prebuilt->mysql_template[i];
+  for (ulint i = 0; i < prebuilt->n_template; i++) {
+    const auto templ = &prebuilt->mysql_template[i];
 
     if (templ->is_virtual && index->is_clustered()) {
       /* Skip virtual columns if it is not a covered
@@ -2993,7 +3004,7 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
 
       ut_ad(vrow);
 
-      const dfield_t *dfield = dtuple_get_nth_v_field(vrow, col->v_pos);
+      const auto dfield = dtuple_get_nth_v_field(vrow, col->v_pos);
 
       /* If this is a partitioned table, it might request
       InnoDB to fill out virtual column data for serach
@@ -3058,8 +3069,9 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     }
 
     if (!row_sel_store_mysql_field(mysql_rec, prebuilt, rec, index, offsets,
-                                   field_no, templ, sec_field_no, lob_undo)) {
-      DBUG_RETURN(FALSE);
+                                   field_no, templ, sec_field_no, lob_undo,
+                                   blob_heap)) {
+      DBUG_RETURN(false);
     }
   }
 
@@ -3076,7 +3088,7 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     }
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /** Builds a previous version of a clustered index record for a consistent read
@@ -3816,7 +3828,7 @@ static ICP_RESULT row_search_idx_cond_check(
   /* Convert to MySQL format those fields that are needed for
   evaluating the index condition. */
 
-  if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
+  if (prebuilt->blob_heap != nullptr) {
     mem_heap_empty(prebuilt->blob_heap);
   }
 
@@ -3830,7 +3842,7 @@ static ICP_RESULT row_search_idx_cond_check(
 
     if (!row_sel_store_mysql_field(mysql_rec, prebuilt, rec, prebuilt->index,
                                    offsets, templ->icp_rec_field_no, templ,
-                                   ULINT_UNDEFINED, nullptr)) {
+                                   ULINT_UNDEFINED, nullptr, nullptr)) {
       return (ICP_NO_MATCH);
     }
   }
@@ -3850,7 +3862,7 @@ static ICP_RESULT row_search_idx_cond_check(
       if (!prebuilt->need_to_access_clustered ||
           prebuilt->index->is_clustered()) {
         if (!row_sel_store_mysql_rec(mysql_rec, prebuilt, rec, NULL, FALSE,
-                                     prebuilt->index, offsets, false,
+                                     prebuilt->index, offsets, false, nullptr,
                                      nullptr)) {
           ut_ad(prebuilt->index->is_clustered());
           return (ICP_NO_MATCH);
@@ -3911,7 +3923,7 @@ static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
       if (templ.is_virtual && templ.icp_rec_field_no != ULINT_UNDEFINED &&
           !row_sel_store_mysql_field(mysql_rec, prebuilt, rec, prebuilt->index,
                                      offsets, templ.icp_rec_field_no, &templ,
-                                     ULINT_UNDEFINED, nullptr)) {
+                                     ULINT_UNDEFINED, nullptr, nullptr)) {
         return (false);
       }
     }
@@ -4181,7 +4193,8 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
 
     } else if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, NULL, TRUE,
-                                        clust_index, offsets, false, nullptr)) {
+                                        clust_index, offsets, false, nullptr,
+                                        nullptr)) {
       err = DB_ERROR;
       break;
     }
@@ -4544,7 +4557,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
           }
 
           if (!row_sel_store_mysql_rec(buf, prebuilt, rec, NULL, FALSE, index,
-                                       offsets, false, nullptr)) {
+                                       offsets, false, nullptr, nullptr)) {
             /* Only fresh inserts may contain
             incomplete externally stored
             columns. Pretend that such
@@ -4840,7 +4853,7 @@ rec_loop:
       if (row_sel_store_mysql_rec(end_range_cache, prebuilt, prev_rec,
                                   prev_vrow, clust_templ_for_sec, key_index,
                                   offsets, clust_templ_for_sec,
-                                  prebuilt->get_lob_undo())) {
+                                  prebuilt->get_lob_undo(), nullptr)) {
         if (row_search_end_range_check(end_range_cache, prev_rec, prebuilt,
                                        clust_templ_for_sec, offsets,
                                        record_buffer)) {
@@ -5376,7 +5389,8 @@ locks_ok:
       authoritative case is in result_rec, the
       appropriate version of the clustered index record. */
       if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, vrow, TRUE,
-                                   clust_index, offsets, false, nullptr)) {
+                                   clust_index, offsets, false, nullptr,
+                                   nullptr)) {
         goto next_rec;
       }
     }
@@ -5473,7 +5487,7 @@ locks_ok:
       if (!row_sel_store_mysql_rec(next_buf, prebuilt, result_rec, vrow,
                                    result_rec != rec,
                                    result_rec != rec ? clust_index : index,
-                                   offsets, false, nullptr)) {
+                                   offsets, false, nullptr, nullptr)) {
         if (next_buf == buf) {
           ut_a(prebuilt->n_fetch_cached == 0);
           next_buf = 0;
@@ -5555,10 +5569,10 @@ locks_ok:
       mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
     } else if (!prebuilt->idx_cond && !prebuilt->innodb_api) {
       /* The record was not yet converted to MySQL format. */
-      if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, vrow,
-                                   result_rec != rec,
-                                   result_rec != rec ? clust_index : index,
-                                   offsets, false, prebuilt->get_lob_undo())) {
+      if (!row_sel_store_mysql_rec(
+              buf, prebuilt, result_rec, vrow, result_rec != rec,
+              result_rec != rec ? clust_index : index, offsets, false,
+              prebuilt->get_lob_undo(), nullptr)) {
         /* Only fresh inserts may contain
         incomplete externally stored
         columns. Pretend that such records do

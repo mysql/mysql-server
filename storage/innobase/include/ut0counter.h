@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <array>
 #include <atomic>
+#include <functional>
 
 /** CPU cache line size */
 #ifdef __powerpc__
@@ -224,7 +225,9 @@ class ib_counter_t {
 /** Sharded atomic counter. */
 namespace Counter {
 
-using N = std::atomic<size_t>;
+using Type = uint64_t;
+
+using N = std::atomic<Type>;
 
 static_assert(INNOBASE_CACHE_LINE_SIZE >= sizeof(N),
               "Atomic counter size > INNOBASE_CACHE_LINE_SIZE");
@@ -241,23 +244,47 @@ struct Shard {
 };
 
 using Shards = std::array<Shard, 128>;
+using Function = std::function<void(const Type)>;
 
-/** Increment the counter.
+/** Increment the counter of a shard by 1.
 @param[in,out]  shards          Sharded counter to increment.
 @param[in] id                   Shard key. */
 inline void inc(Shards &shards, size_t id) {
   shards[id % shards.size()].m_n.fetch_add(1, std::memory_order_relaxed);
 }
 
+/** Increment the counter for a shard by n.
+@param[in,out]  shards          Sharded counter to increment.
+@param[in] id                   Shard key.
+@param[in] n                    Number to add. */
+inline void add(Shards &shards, size_t id, size_t n) {
+  shards[id % shards.size()].m_n.fetch_add(n, std::memory_order_relaxed);
+}
+
+/** Get the counter value for a shard.
+@param[in,out]  shards          Sharded counter to increment.
+@param[in] id                   Shard key. */
+inline Type get(const Shards &shards, size_t id) {
+  return (shards[id % shards.size()].m_n.load(std::memory_order_relaxed));
+}
+
+/** Iterate over the shards.
+@param[in] shards               Shards to iterate over
+@param[in] f                    Callback function
+@return total value. */
+inline void for_each(const Shards &shards, Function &&f) {
+  for (const auto &shard : shards) {
+    f(shard.m_n);
+  }
+}
+
 /** Get the total value of all shards.
 @param[in] shards               Shards to sum.
 @return total value. */
-inline size_t total(const Shards &shards) {
-  size_t n = 0;
+inline Type total(const Shards &shards) {
+  Type n = 0;
 
-  for (const auto &shard : shards) {
-    n += shard.m_n;
-  }
+  for_each(shards, [&](const Type count) { n += count; });
 
   return (n);
 }

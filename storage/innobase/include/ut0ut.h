@@ -857,6 +857,7 @@ class trace_3 : public logger {
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 #endif /* UNIV_HOTBACKUP */
+
 }  // namespace ib
 
 #ifdef UNIV_HOTBACKUP

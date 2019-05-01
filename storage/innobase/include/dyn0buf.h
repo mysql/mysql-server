@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -141,7 +141,7 @@ class dyn_buf_t {
 #endif /* UNIV_DEBUG */
 
     /** SIZE - sizeof(m_node) + sizeof(m_used) */
-    enum { MAX_DATA_SIZE = SIZE - sizeof(block_node_t) + sizeof(ib_uint32_t) };
+    static constexpr auto MAX_DATA_SIZE = SIZE;
 
     /** Storage */
     byte m_data[MAX_DATA_SIZE];
@@ -156,7 +156,7 @@ class dyn_buf_t {
     friend class dyn_buf_t;
   };
 
-  enum { MAX_DATA_SIZE = block_t::MAX_DATA_SIZE };
+  static constexpr auto MAX_DATA_SIZE = block_t::MAX_DATA_SIZE;
 
   /** Default constructor */
   dyn_buf_t() : m_heap(), m_size() {
@@ -344,8 +344,10 @@ class dyn_buf_t {
 
  private:
   // Disable copying
-  dyn_buf_t(const dyn_buf_t &);
-  dyn_buf_t &operator=(const dyn_buf_t &);
+  dyn_buf_t(dyn_buf_t &&) = delete;
+  dyn_buf_t(const dyn_buf_t &) = delete;
+  dyn_buf_t &operator=(dyn_buf_t &&) = delete;
+  dyn_buf_t &operator=(const dyn_buf_t &) = delete;
 
   /**
   Add the block to the end of the list*/

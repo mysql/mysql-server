@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -248,6 +248,13 @@ struct btr_pcur_t {
   void open_on_user_rec(dict_index_t *index, const dtuple_t *tuple,
                         page_cur_mode_t mode, ulint latch_mode, mtr_t *mtr,
                         const char *file, ulint line);
+
+  /** Allows setting the persistent cursor manually.
+  @param[in]      cursor      Page cursor where positioned.
+  @param[in]	    mode		    PAGE_CUR_L, ...
+  @param[in]	    latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF */
+  void open_on_user_rec(const page_cur_t &cursor, page_cur_mode_t mode,
+                        ulint latch_mode);
 
   /** Initializes and opens a persistent cursor to an index tree
   It should be closed with close().
@@ -548,7 +555,7 @@ struct btr_pcur_t {
 
   /** the modify clock value of the buffer block when the cursor position
   was stored */
-  ib_uint64_t m_modify_clock{0};
+  uint64_t m_modify_clock{0};
 
   /** the withdraw clock value of the buffer pool when the cursor
   position was stored */

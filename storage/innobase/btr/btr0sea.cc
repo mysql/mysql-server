@@ -734,7 +734,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
   match = 0;
 
   offsets = rec_get_offsets(rec, cursor->index, offsets, n_unique, &heap);
-  cmp = cmp_dtuple_rec_with_match(tuple, rec, cursor->index, offsets, &match);
+  cmp = tuple->compare(rec, cursor->index, offsets, &match);
 
   if (mode == PAGE_CUR_GE) {
     if (cmp > 0) {
@@ -787,8 +787,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
 
     offsets =
         rec_get_offsets(prev_rec, cursor->index, offsets, n_unique, &heap);
-    cmp = cmp_dtuple_rec_with_match(tuple, prev_rec, cursor->index, offsets,
-                                    &match);
+    cmp = tuple->compare(prev_rec, cursor->index, offsets, &match);
     if (mode == PAGE_CUR_GE) {
       success = cmp > 0;
     } else {
@@ -814,8 +813,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
 
     offsets =
         rec_get_offsets(next_rec, cursor->index, offsets, n_unique, &heap);
-    cmp = cmp_dtuple_rec_with_match(tuple, next_rec, cursor->index, offsets,
-                                    &match);
+    cmp = tuple->compare(next_rec, cursor->index, offsets, &match);
     if (mode == PAGE_CUR_LE) {
       success = cmp < 0;
       cursor->up_match = match;

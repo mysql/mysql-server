@@ -61,6 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
+// Forward declarations
 class THD;
 class ha_innobase;
 class innodb_session_t;
@@ -124,12 +125,12 @@ void row_mysql_store_blob_ref(
                       also to set the NULL bit in the MySQL record
                       header! */
 /** Reads a reference to a BLOB in the MySQL format.
- @return pointer to BLOB data */
-const byte *row_mysql_read_blob_ref(ulint *len,      /*!< out: BLOB length */
-                                    const byte *ref, /*!< in: BLOB reference in
-                                                     the MySQL format */
-                                    ulint col_len);  /*!< in: BLOB reference
-                                                     length  (not BLOB length) */
+@param[out] len                 BLOB length.
+@param[in] ref                  BLOB reference in the MySQL format.
+@param[in] col_len              BLOB reference length (not BLOB length).
+@return pointer to BLOB data */
+const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len);
+
 /** Converts InnoDB geometry data format to MySQL data format. */
 void row_mysql_store_geometry(
     byte *dest,      /*!< in/out: where to store */
@@ -202,11 +203,13 @@ row_prebuilt_t *row_create_prebuilt(
 void row_prebuilt_free(
     row_prebuilt_t *prebuilt, /*!< in, own: prebuilt struct */
     ibool dict_locked);       /*!< in: TRUE=data dictionary locked */
+
 /** Updates the transaction pointers in query graphs stored in the prebuilt
- struct. */
-void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, /*!< in/out: prebuilt
-                                                       struct in MySQL handle */
-                             trx_t *trx); /*!< in: transaction handle */
+struct.
+@param[in,out] prebuilt         Prebuilt struct in MySQL handle.
+@param[in,out] trx              Transaction handle. */
+void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, trx_t *trx);
+
 /** Sets an AUTO_INC type lock on the table mentioned in prebuilt. The
  AUTO_INC lock gives exclusive access to the auto-inc counter of the
  table. The lock is reserved only for the duration of an SQL statement.
@@ -449,7 +452,17 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                                    bool replay)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Scans an index for either COOUNT(*) or CHECK TABLE.
+/** Read the total number of records in a consistent view.
+@param[in,out]  trx             Covering transaction.
+@param[in]  indexes             Indexes to scan.
+@param[in]  max_threads         Maximum number of threads to use.
+@param[out] n_rows              Number of rows seen.
+@return DB_SUCCESS or error code. */
+dberr_t row_mysql_parallel_select_count_star(
+    trx_t *trx, std::vector<dict_index_t *> &indexes, size_t max_threads,
+    ulint *n_rows);
+
+/** Scans an index for either COUNT(*) or CHECK TABLE.
 If CHECK TABLE; Checks that the index contains entries in an ascending order,
 unique constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.

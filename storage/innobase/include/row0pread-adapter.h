@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,272 +33,165 @@ Created 2018-02-28 by Darshan M N. */
 #define row0pread_adapter_h
 
 #include "row0pread.h"
+#include "ut0counter.h"
 
-/** Size of the buffer used to store InnoDB records and sent to the adapter*/
-const uint64_t ADAPTER_SEND_BUFFER_SIZE = 2 * 1024 * 1024;
+#include "handler.h"
 
 /** Traverse an index in the leaf page block list order and send records to
- * adapter. */
-class Parallel_reader_adapter : public Key_reader {
-  using Counter = ib_counter_t<size_t, 64, generic_indexer_t>;
-
-  /** This callback is called by each parallel load thread at the beginning of
-  the parallel load for the adapter scan.
-  @param cookie      The cookie for this thread
-  @param ncols       Number of columns in each row
-  @param row_len     The size of a row in bytes
-  @param col_offsets An array of size ncols, where each element represents
-                     the offset of a column in the row data. The memory of
-                     this array belongs to the caller and will be free-ed
-                     after the pload_end_cbk call.
-  @param nullbyte_offsets An array of size ncols, where each element
-                     represents the offset of a column in the row data. The
-                     memory of this array belongs to the caller and will be
-                     free-ed after the pload_end_cbk call.
-  @param null_bitmasks An array of size ncols, where each element
-                     represents the bitmask required to get the null bit. The
-                     memory of this array belongs to the caller and will be
-                     free-ed after the pload_end_cbk call.
-  @returns true if the is an error, false otherwise. */
-  using pread_adapter_pload_init_cbk = std::function<bool(
-      void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
-      ulong *null_byte_offsets, ulong *null_bitmasks)>;
-
-  /** This callback is called by each parallel load thread when processing
-  of rows is required for the adapter scan.
-  @param cookie    The cookie for this thread
-  @param nrows     The nrows that are available
-  @param rowdata   The mysql-in-memory row data buffer. It consistes of nrows
-  number of records. */
-  using pread_adapter_pload_row_cbk =
-      std::function<bool(void *cookie, uint nrows, void *rowdata)>;
-
-  /** This callback is called by each parallel load thread when processing
-  of rows has eneded for the adapter scan.
-  @param cookie    The cookie for this thread */
-  using pread_adapter_pload_end_cbk = std::function<void(void *cookie)>;
+adapter. */
+class Parallel_reader_adapter {
+  /** Size of the buffer used to store InnoDB records and sent to the adapter*/
+  static constexpr size_t ADAPTER_SEND_BUFFER_SIZE = 2 * 1024 * 1024;
 
  public:
+  using Load_fn = handler::Load_cbk;
+
+  using End_fn = handler::Load_end_cbk;
+
+  using Init_fn = handler::Load_init_cbk;
+
   /** Constructor.
-  @param[in]    table           Table to be read
-  @param[in]    trx             Transaction used for parallel read
-  @param[in]    index           Index in table to scan.
-  @param[in]    n_threads       Maximum threads to use for reading
-  @param[in]    prebuilt        InnoDB row prebuilt structure */
-  Parallel_reader_adapter(dict_table_t *table, trx_t *trx, dict_index_t *index,
-                          size_t n_threads, row_prebuilt_t *prebuilt)
-      : Key_reader(table, trx, index, prebuilt, n_threads) {
-    m_bufs.reserve(n_threads);
-
-    for (size_t i = 0; i < n_threads; ++i) {
-      m_bufs.push_back(
-          static_cast<byte *>(ut_malloc_nokey(ADAPTER_SEND_BUFFER_SIZE)));
-    }
-
-    m_send_num_recs = ADAPTER_SEND_BUFFER_SIZE / m_prebuilt->mysql_row_len;
-  }
+  @param[in]  max_threads       Maximum threads to use for all scan contexts.
+  @param[in]  rowlen            Row length.  */
+  Parallel_reader_adapter(size_t max_threads, ulint rowlen);
 
   /** Destructor. */
-  ~Parallel_reader_adapter() {
-    for (auto buf : m_bufs) {
-      ut_free(buf);
-    }
+  ~Parallel_reader_adapter();
 
-    if (!m_partitions.empty()) {
-      auto &range = m_partitions.front();
-      Ctx::destroy(range.first);
+  /** Add scan context.
+  @param[in]  trx               Transaction used for parallel read.
+  @param[in]  config            (Cluster) Index scan configuration.
+  @param[in]  f                 Callback function.
+  @retval true on success. */
+  bool add_scan(trx_t *trx, const Parallel_reader::Config &config,
+                Parallel_reader::F &&f) MY_ATTRIBUTE((warn_unused_result));
 
-      for (auto &range : m_partitions) {
-        Ctx::destroy(range.second);
-      }
+  /** Run the parallel scan.
+  @param[in]  thread_contexts   Context for each of the spawned threads
+  @param[in]  init_fn           Callback called by each parallel load thread
+                                at the beginning of the parallel load.
+  @param[in]  load_fn           Callback called by each parallel load thread
+                                when processing of rows is required.
+  @param[in]  end_fn            Callback called by each parallel load thread
+                                when processing of rows has ended.
+  @return DB_SUCCESS or error code. */
+  dberr_t run(void **thread_contexts, Init_fn init_fn, Load_fn load_fn,
+              End_fn end_fn) MY_ATTRIBUTE((warn_unused_result));
 
-      m_partitions.clear();
-    }
-  }
-
-  /** Set callback info.
-  @param[in]     thread_contexts context for each of the spawned threads
-  @param[in]     load_init_fn    callback called by each parallel load thread
-  at the beginning of the parallel load.
-  @param[in]     load_rows_fn    callback called by each parallel load thread
-  when processing of rows is required.
-  @param[in]     load_end_fn     callback called by each parallel load thread
-  when processing of rows has ended. */
-  void set_callback(void **thread_contexts,
-                    pread_adapter_pload_init_cbk load_init_fn,
-                    pread_adapter_pload_row_cbk load_rows_fn,
-                    pread_adapter_pload_end_cbk load_end_fn) {
-    m_thread_contexts = thread_contexts;
-    m_load_init = load_init_fn;
-    m_load_rows = load_rows_fn;
-    m_load_end = load_end_fn;
-  }
-
-  /** Convert the record in InnoDB format to MySQL format and send it to
-  adapter.
-  @param[in]      thread_id  Thread ID
-  @param[in]      rec        InnoDB record
-  @param[in]      index      InnoDB index which contains the record
-  @param[in]      prebuilt   InnoDB row prebuilt structure
-  @param[in]      new_range  true if new range of rows (new ctx) is being
-  processed
+  /** Convert the record in InnoDB format to MySQL format and send them.
+  @param[in]  ctx               Parallel read context.
   @return error code */
-  dberr_t process_rows(size_t thread_id, const rec_t *rec, dict_index_t *index,
-                       row_prebuilt_t *prebuilt, bool new_range);
+  dberr_t process_rows(const Parallel_reader::Ctx *ctx)
+      MY_ATTRIBUTE((warn_unused_result));
 
- protected:
-  /** Counter to track number of records sent to adapter */
-  Counter n_total_recs_sent;
+  /** Set up the query processing state cache.
+  @param[in]  prebuilt           The prebuilt cache for the query. */
+  void set(row_prebuilt_t *prebuilt);
 
  private:
-  /** Poll for requests and execute.
-  @param[in]      id         Thread ID
-  @param[in,out]  ctxq       Queue with requests.
-  @param[in]      f          Callback function. */
-  dberr_t worker(size_t id, Queue &ctxq, Function &f);
+  /** The callers init function.
+  @param[in]  thread_id         ID of the thread.
+  @return DB_SUCCESS or error code. */
+  dberr_t init(size_t thread_id) MY_ATTRIBUTE((warn_unused_result));
 
-  /** Counter to track number of records processed by each row. */
-  Counter n_recs;
+  /** For pushing any left over rows to the caller.
+  @param[in]  thread_id         ID of the thread.
+  @return DB_SUCCESS or error code. */
+  dberr_t end(size_t thread_id) MY_ATTRIBUTE((warn_unused_result));
 
-  /** Counter to track number of records added to the buffer. */
-  Counter n_recs_in_buffer;
+  /** Send a batch of records.
+  @param[in]  thread_id         ID of the thread.
+  @param[in]  n_recs            Number of records to send.
+  @return DB_SUCCESS or error code. */
+  dberr_t send_batch(size_t thread_id, uint64_t n_recs)
+      MY_ATTRIBUTE((warn_unused_result));
 
-  /* adapter context for each of the spawned threads. */
+  /** Get the number of rows buffered but not sent.
+  @param[in]  thread_id         ID of the thread.
+  @return number of buffered items. */
+  Counter::Type pending(size_t thread_id) const
+      MY_ATTRIBUTE((warn_unused_result)) {
+    return (Counter::get(m_n_read, thread_id) -
+            Counter::get(m_n_sent, thread_id));
+  }
+
+  /** Check if the buffer is full.
+  @param[in]  thread_id         ID of the thread.
+  @return true if the buffer is full. */
+  bool is_buffer_full(size_t thread_id) const
+      MY_ATTRIBUTE((warn_unused_result)) {
+    return (!(Counter::get(m_n_read, thread_id) % m_batch_size));
+  }
+
+ private:
+  /** Counter to track number of records sent to the caller. */
+  Counter::Shards m_n_sent{};
+
+  /** Counter to track number of records processed. */
+  Counter::Shards m_n_read{};
+
+  /** Adapter context for each of the spawned threads. */
   void **m_thread_contexts{nullptr};
 
-  /** adapter callback called by each parallel load thread at the
-  beginning of the parallel load for the adapter scan. */
-  pread_adapter_pload_init_cbk m_load_init;
+  /** Callback called by each parallel load thread at the
+  beginning of the parallel load for the scan. */
+  Init_fn m_init_fn{};
 
-  /** adapter callback called by each parallel load thread when
-  processing of rows is required for the adapter scan. */
-  pread_adapter_pload_row_cbk m_load_rows;
+  /** Callback called by each parallel load thread when
+  processing of rows is required for the scan. */
+  Load_fn m_load_fn{};
 
-  /** adapter callback called by each parallel load thread when
-  processing of rows has ended for the adapter scan. */
-  pread_adapter_pload_end_cbk m_load_end;
+  /** Callback called by each parallel load thread when
+  processing of rows has ended for the scan. */
+  End_fn m_end_fn{};
 
-  /** Number of records to be sent across to adapter. */
-  uint64_t m_send_num_recs;
+  /** Number of records to be sent across to the caller in a batch. */
+  uint64_t m_batch_size{};
 
-  /** Buffer to store records to be sent to adapter. */
-  std::vector<byte *> m_bufs;
-};
+  /** The row buffer. */
+  using Buffer = std::vector<byte>;
 
-/** Traverse all the indexes of a partitioned table in the leaf page block list
-order and send records to adapter */
-class Parallel_partition_reader_adapter : public Parallel_reader_adapter {
-  using Counter = ib_counter_t<size_t, 64, generic_indexer_t>;
+  /** Buffer to store records to be sent to the caller. */
+  std::vector<Buffer> m_buffers{};
 
-  /** This callback is called by each parallel load thread at the beginning of
-  the parallel load for the adapter scan.
-  @param cookie      The cookie for this thread
-  @param ncols       Number of columns in each row
-  @param row_len     The size of a row in bytes
-  @param col_offsets An array of size ncols, where each element represents
-                     the offset of a column in the row data. The memory of
-                     this array belongs to the caller and will be free-ed
-                     after the pload_end_cbk call.
-  @param nullbyte_offsets An array of size ncols, where each element
-                     represents the offset of a column in the row data. The
-                     memory of this array belongs to the caller and will be
-                     free-ed after the pload_end_cbk call.
-  @param null_bitmasks An array of size ncols, where each element
-                     represents the bitmask required to get the null bit. The
-                     memory of this array belongs to the caller and will be
-                     free-ed after the pload_end_cbk call. */
-  using pread_adapter_pload_init_cbk = std::function<bool(
-      void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
-      ulong *null_byte_offsets, ulong *null_bitmasks)>;
+  /** MySQL row meta data. This is common across partitions. */
+  struct MySQL_row {
+    using Column_meta_data = std::vector<ulong, ut_allocator<ulong>>;
 
-  /** This callback is called by each parallel load thread when processing
-  of rows is required for the adapter scan.
-  @param cookie    The cookie for this thread
-  @param nrows     The nrows that are available
-  @param rowdata   The mysql-in-memory row data buffer. It consistes of nrows
-  number of records. */
-  using pread_adapter_pload_row_cbk =
-      std::function<bool(void *cookie, uint nrows, void *rowdata)>;
+    /** Column offsets. */
+    Column_meta_data m_offsets{};
 
-  /** This callback is called by each parallel load thread when processing
-  of rows has eneded for the adapter scan.
-  @param cookie    The cookie for this thread */
-  using pread_adapter_pload_end_cbk = std::function<void(void *cookie)>;
+    /** Column null bit masks. */
+    Column_meta_data m_null_bit_mask{};
 
- public:
-  /** Constructor.
-  @param[in]    table           Table to be read
-  @param[in]    trx             Transaction used for parallel read
-  @param[in]    index           Index in table to scan.
-  @param[in]    n_threads       Maximum threads to use for reading
-  @param[in]    prebuilt        InnoDB row prebuilt structure
-  @param[in]    num_parts       total number of partitions present in a table */
-  Parallel_partition_reader_adapter(dict_table_t *table, trx_t *trx,
-                                    dict_index_t *index, size_t n_threads,
-                                    row_prebuilt_t *prebuilt,
-                                    uint64_t num_parts)
-      : Parallel_reader_adapter(table, trx, index, n_threads, prebuilt),
-        m_num_parts(num_parts) {}
+    /** Column null bit offsets. */
+    Column_meta_data m_null_bit_offsets{};
 
-  /** Destructor */
-  ~Parallel_partition_reader_adapter() {
-    if (m_partitions.empty()) {
-      return;
-    }
+    /** Maximum row length. */
+    ulong m_max_len{};
+  };
 
-    for (uint i = 0; i < m_num_parts; ++i) {
-      if (m_partitions[i].empty()) {
-        continue;
-      }
+  /** Row meta data per scan context. */
+  MySQL_row m_mysql_row{};
 
-      auto &range = m_partitions[i].front();
-      Ctx::destroy(range.first);
+  /** Prebuilt to use for conversion to MySQL row format.
+  NOTE: We are sharing this because we don't convert BLOBs yet. There are
+  data members in row_prebuilt_t that cannot be accessed in multi-threaded
+  mode e.g., blob_heap.
 
-      for (auto &range : m_partitions[i]) {
-        Ctx::destroy(range.second);
-      }
+  row_prebuilt_t is designed for single threaded access and to share
+  it among threads is not recommended unless "you know what you are doing".
+  This is very fragile code as it stands.
 
-      m_partitions[i].clear();
-    }
-  }
+  To solve the blob heap issue in prebuilt we use per thread m_blob_heaps.
+  Pass the blob heap to the InnoDB to MySQL row format conversion function. */
+  row_prebuilt_t *m_prebuilt{};
 
-  /** Fetch number of threads that would be spawned for the parallel read.
-  @return number of threads */
-  size_t calc_num_threads();
+  /** BLOB heap per thread. */
+  std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>> m_blob_heaps{};
 
-  /** Fill info.
-  @param[in]   table   table to be read
-  @param[in]   index   index in table to scan
-  @param[in]   trx     trx used for parallel read
-  @param[in]   prebuilt        InnoDB row prebuilt structure */
-  void set_info(dict_table_t *table, dict_index_t *index, trx_t *trx,
-                row_prebuilt_t *prebuilt);
-
-  /** Start the threads to do the parallel read.
-  @param[in,out]  f    Callback to process the rows.
-  @return error code. */
-  dberr_t read(Function &&f);
-
- private:
-  using Ranges = std::vector<Range, ut_allocator<Range>>;
-
-  /** Vector of tables to read. */
-  std::vector<dict_table_t *> m_table;
-
-  /** Vector of indexes of all the partition in a table. */
-  std::vector<dict_index_t *> m_index;
-
-  /** Vector of trx's belonging to partitions. */
-  std::vector<trx_t *> m_trx;
-
-  /** Vector of row prebuilt structure belonging to partitions. */
-  std::vector<row_prebuilt_t *> m_prebuilt;
-
-  /** Range values of all the partitions in a table. */
-  std::vector<Ranges> m_partitions;
-
-  /** Total number of partitions present in a table. */
-  uint64_t m_num_parts;
+  /** Parallel reader to use. */
+  Parallel_reader m_parallel_reader;
 };
 
 #endif /* !row0pread_adapter_h */

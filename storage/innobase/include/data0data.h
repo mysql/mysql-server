@@ -172,14 +172,13 @@ If len>0, tests the first len bytes of the content for equality.
                                 or 0 to compare the whole field length.
                                 This works only if !multi_val
 @return true if both fields are NULL or if they are equal */
-UNIV_INLINE
-ibool dfield_datas_are_binary_equal(const dfield_t *field1,
-                                    const dfield_t *field2, ulint len)
+inline bool dfield_datas_are_binary_equal(const dfield_t *field1,
+                                          const dfield_t *field2, ulint len)
     MY_ATTRIBUTE((warn_unused_result));
 /** Tests if dfield data length and content is equal to the given.
  @return true if equal */
 UNIV_INLINE
-ibool dfield_data_is_binary_equal(
+bool dfield_data_is_binary_equal(
     const dfield_t *field, /*!< in: field */
     ulint len,             /*!< in: data length or UNIV_SQL_NULL */
     const byte *data)      /*!< in: data */
@@ -290,9 +289,11 @@ UNIV_INLINE
 dtuple_t *dtuple_create_with_vcol(mem_heap_t *heap, ulint n_fields,
                                   ulint n_v_fields);
 /** Sets number of fields used in a tuple. Normally this is set in
- dtuple_create, but if you want later to set it smaller, you can use this. */
-void dtuple_set_n_fields(dtuple_t *tuple, /*!< in: tuple */
-                         ulint n_fields); /*!< in: number of fields */
+dtuple_create, but if you want later to set it smaller, you can use this.
+@param[in] tuple                Tuple.
+@param[in] n_fields             Number of fields. */
+void dtuple_set_n_fields(dtuple_t *tuple, ulint n_fields);
+
 /** Copies a data tuple's virtaul fields to another. This is a shallow copy;
 @param[in,out]	d_tuple		destination tuple
 @param[in]	s_tuple		source tuple */
@@ -344,29 +345,31 @@ void dtuple_set_types_binary(dtuple_t *tuple, ulint n);
 /** Checks if a dtuple contains an SQL null value.
  @return true if some field is SQL null */
 UNIV_INLINE
-ibool dtuple_contains_null(const dtuple_t *tuple) /*!< in: dtuple */
+bool dtuple_contains_null(const dtuple_t *tuple) /*!< in: dtuple */
     MY_ATTRIBUTE((warn_unused_result));
 /** Checks that a data field is typed. Asserts an error if not.
  @return true if ok */
-ibool dfield_check_typed(const dfield_t *field) /*!< in: data field */
+bool dfield_check_typed(const dfield_t *field) /*!< in: data field */
     MY_ATTRIBUTE((warn_unused_result));
 /** Checks that a data tuple is typed. Asserts an error if not.
  @return true if ok */
-ibool dtuple_check_typed(const dtuple_t *tuple) /*!< in: tuple */
+bool dtuple_check_typed(const dtuple_t *tuple) /*!< in: tuple */
     MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 /** Validates the consistency of a tuple which must be complete, i.e,
  all fields must have been set.
  @return true if ok */
-ibool dtuple_validate(const dtuple_t *tuple) /*!< in: tuple */
+bool dtuple_validate(const dtuple_t *tuple) /*!< in: tuple */
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 /** Pretty prints a dfield value according to its data type. Also the hex string
  is printed if a string contains non-printable characters. */
 void dfield_print_also_hex(const dfield_t *dfield); /*!< in: dfield */
-/** The following function prints the contents of a tuple. */
-void dtuple_print(FILE *f,                /*!< in: output stream */
-                  const dtuple_t *tuple); /*!< in: tuple */
+
+/** The following function prints the contents of a tuple.
+@param[in,out] f                Output stream.
+@param[in] tuple                Tuple to print. */
+void dtuple_print(FILE *f, const dtuple_t *tuple);
 
 /** Print the contents of a tuple.
 @param[out]	o	output stream
@@ -388,26 +391,27 @@ inline std::ostream &operator<<(std::ostream &o, const dtuple_t &tuple) {
 }
 
 /** Moves parts of long fields in entry to the big record vector so that
- the size of tuple drops below the maximum record size allowed in the
- database. Moves data only from those fields which are not necessary
- to determine uniquely the insertion place of the tuple in the index.
- @return own: created big record vector, NULL if we are not able to
- shorten the entry enough, i.e., if there are too many fixed-length or
- short fields in entry or the index is clustered */
-big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
-                                  upd_t *upd,      /*!< in/out: update vector */
-                                  dtuple_t *entry, /*!< in/out: index entry */
-                                  ulint *n_ext)    /*!< in/out: number of
-                                                   externally stored columns */
+the size of tuple drops below the maximum record size allowed in the
+database. Moves data only from those fields which are not necessary
+to determine uniquely the insertion place of the tuple in the index.
+@param[in,out] index            Index that owns the record.
+@param[in,out] upd              Update vector.
+@param[in,out] entry            Index entry.
+@param[in,out] n_ext            Number of externally stored columns.
+@return own: created big record vector, NULL if we are not able to
+shorten the entry enough, i.e., if there are too many fixed-length or
+short fields in entry or the index is clustered */
+big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
+                                  dtuple_t *entry, ulint *n_ext)
     MY_ATTRIBUTE((malloc, warn_unused_result));
+
 /** Puts back to entry the data stored in vector. Note that to ensure the
- fields in entry can accommodate the data, vector must have been created
- from entry with dtuple_convert_big_rec. */
-void dtuple_convert_back_big_rec(
-    dict_index_t *index, /*!< in: index */
-    dtuple_t *entry,     /*!< in: entry whose data was put to vector */
-    big_rec_t *vector);  /*!< in, own: big rec vector; it is
-                 freed in this function */
+fields in entry can accommodate the data, vector must have been created
+from entry with dtuple_convert_big_rec.
+@param[in] entry                Entry whose data was put to vector.
+@param[in] vector               Big rec vector; it is freed in this function*/
+void dtuple_convert_back_big_rec(dtuple_t *entry, big_rec_t *vector);
+
 /** Frees the memory in a big rec vector. */
 UNIV_INLINE
 void dtuple_big_rec_free(big_rec_t *vector); /*!< in, own: big rec vector; it is
@@ -708,41 +712,50 @@ inline std::ostream &operator<<(std::ostream &out, const dfield_t &obj) {
 
 /** Structure for an SQL data tuple of fields (logical record) */
 struct dtuple_t {
-  ulint info_bits;    /*!< info bits of an index record:
-                      the default is 0; this field is used
-                      if an index record is built from
-                      a data tuple */
-  ulint n_fields;     /*!< number of fields in dtuple */
-  ulint n_fields_cmp; /*!< number of fields which should
-                      be used in comparison services
-                      of rem0cmp.*; the index search
-                      is performed by comparing only these
-                      fields, others are ignored; the
-                      default value in dtuple creation is
-                      the same value as n_fields */
-  dfield_t *fields;   /*!< fields */
-  ulint n_v_fields;   /*!< number of virtual fields */
-  dfield_t *v_fields; /*!< fields on virtual column */
-  UT_LIST_NODE_T(dtuple_t) tuple_list;
-  /*!< data tuples can be linked into a
-  list using this field */
-#ifdef UNIV_DEBUG
+  /** info bits of an index record: the default is 0; this field is used if an
+  index record is built from a data tuple */
+  ulint info_bits;
 
+  /** Number of fields in dtuple */
+  ulint n_fields;
+
+  /** number of fields which should be used in comparison services of rem0cmp.*;
+  the index search is performed by comparing only these fields, others are
+  ignored; the default value in dtuple creation is the same value as n_fields */
+  ulint n_fields_cmp;
+
+  /** Fields. */
+  dfield_t *fields;
+
+  /** Number of virtual fields. */
+  ulint n_v_fields;
+
+  /** Fields on virtual column */
+  dfield_t *v_fields;
+
+  /** Data tuples can be linked into a list using this field */
+  UT_LIST_NODE_T(dtuple_t) tuple_list;
+#ifdef UNIV_DEBUG
   /** memory heap where this tuple is allocated. */
   mem_heap_t *m_heap;
 
-  ulint magic_n; /*!< magic number, used in
-                 debug assertions */
+  /** Magic number, used in debug assertions */
+  ulint magic_n;
+
 /** Value of dtuple_t::magic_n */
 #define DATA_TUPLE_MAGIC_N 65478679
+
 #endif /* UNIV_DEBUG */
 
+  /** Print the tuple to the output stream.
+  @param[in,out] out            Stream to output to.
+  @return stream */
   std::ostream &print(std::ostream &out) const {
     dtuple_print(out, this);
     return (out);
   }
 
-  /* Read the trx id from the tuple (DB_TRX_ID)
+  /** Read the trx id from the tuple (DB_TRX_ID)
   @return transaction id of the tuple. */
   trx_id_t get_trx_id() const;
 
@@ -750,6 +763,33 @@ struct dtuple_t {
   from instant index
   @param[in]	index	clustered index object for this tuple */
   void ignore_trailing_default(const dict_index_t *index);
+
+  /** Compare a data tuple to a physical record.
+  @param[in]	rec		record
+  @param[in]	index		index
+  @param[in]	offsets		rec_get_offsets(rec)
+  @param[in,out]	matched_fields	number of completely matched fields
+  @return the comparison result of dtuple and rec
+  @retval 0 if dtuple is equal to rec
+  @retval negative if dtuple is less than rec
+  @retval positive if dtuple is greater than rec */
+  int compare(const rec_t *rec, const dict_index_t *index, const ulint *offsets,
+              ulint *matched_fields) const;
+
+  /** Compare a data tuple to a physical record.
+  @param[in]	rec		record
+  @param[in]	index		index
+  @param[in]	offsets		rec_get_offsets(rec)
+  @return the comparison result of dtuple and rec
+  @retval 0 if dtuple is equal to rec
+  @retval negative if dtuple is less than rec
+  @retval positive if dtuple is greater than rec */
+  inline int compare(const rec_t *rec, const dict_index_t *index,
+                     const ulint *offsets) const {
+    ulint matched_fields{};
+
+    return (compare(rec, index, offsets, &matched_fields));
+  }
 };
 
 /** A slot for a field in a big rec vector */

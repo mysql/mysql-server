@@ -92,6 +92,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0roll.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include <array>
+
 /** Buffered B-tree operation types, introduced as part of delete buffering. */
 enum btr_op_t {
   BTR_NO_OP = 0,               /*!< Not buffered */
@@ -157,12 +159,12 @@ can be released by page reorganize, then it is reorganized */
 
 #ifndef UNIV_HOTBACKUP
 /** Adds path information to the cursor for the current page, for which
- the binary search has been performed. */
-static void btr_cur_add_path_info(
-    btr_cur_t *cursor,  /*!< in: cursor positioned on a page */
-    ulint height,       /*!< in: height of the page in tree;
-                        0 means leaf node */
-    ulint root_height); /*!< in: root node height in tree */
+the binary search has been performed.
+@param[in, out] cursor    Cursor positioned on a page.
+@param[in] height Height of the page in the tree; 0 means leaf.
+@param[in] root_height Root node height in true. */
+static void btr_cur_add_path_info(btr_cur_t *cursor, ulint height,
+                                  ulint root_height);
 
 /*==================== B-TREE SEARCH =========================*/
 
@@ -194,7 +196,6 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
     case BTR_SEARCH_LEAF:
     case BTR_MODIFY_LEAF:
     case BTR_SEARCH_TREE:
-    case BTR_PARALLEL_READ_INIT:
       if (spatial) {
         cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS] =
             mtr_set_savepoint(mtr);
@@ -442,7 +443,6 @@ static rw_lock_type_t btr_cur_latch_for_root_leaf(ulint latch_mode) {
     case BTR_SEARCH_LEAF:
     case BTR_SEARCH_TREE:
     case BTR_SEARCH_PREV:
-    case BTR_PARALLEL_READ_INIT:
       return (RW_S_LATCH);
     case BTR_MODIFY_LEAF:
     case BTR_MODIFY_TREE:
@@ -644,7 +644,6 @@ void btr_cur_search_to_nth_level(
   page_cur_mode_t page_mode;
   page_cur_mode_t search_mode = PAGE_CUR_UNSUPP;
   Page_fetch fetch;
-  ulint estimate;
   ulint node_ptr_max_size = UNIV_PAGE_SIZE / 2;
   page_cur_t *page_cursor;
   btr_op_t btr_op;
@@ -699,13 +698,11 @@ void btr_cur_search_to_nth_level(
 #endif /* UNIV_DEBUG */
 
   bool s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
-
-  bool par_read_init = latch_mode & BTR_PARALLEL_READ_INIT;
+  latch_mode &= ~BTR_ALREADY_S_LATCHED;
 
   ut_ad(!s_latch_by_caller || srv_read_only_mode ||
         mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
-                                  MTR_MEMO_S_LOCK | MTR_MEMO_SX_LOCK) ||
-        (rw_lock_own(dict_index_get_lock(index), RW_LOCK_SX) && par_read_init));
+                                  MTR_MEMO_S_LOCK | MTR_MEMO_SX_LOCK));
 
   /* These flags are mutually exclusive, they are lumped together
   with the latch mode for historical reasons. It's possible for
@@ -742,7 +739,7 @@ void btr_cur_search_to_nth_level(
   /* Operation on the spatial index cannot be buffered. */
   ut_ad(btr_op == BTR_NO_OP || !dict_index_is_spatial(index));
 
-  estimate = latch_mode & BTR_ESTIMATE;
+  auto estimate = latch_mode & BTR_ESTIMATE;
 
   lock_intention = btr_cur_get_and_clear_intention(&latch_mode);
 
@@ -859,7 +856,8 @@ void btr_cur_search_to_nth_level(
       if (!srv_read_only_mode) {
         if (s_latch_by_caller) {
           /* The BTR_ALREADY_S_LATCHED indicates that the index->lock has been
-           * taken either in RW_S_LATCH or RW_SX_LATCH mode. */
+          taken either in RW_S_LATCH or RW_SX_LATCH mode. For parallel reads
+          another thread can own the dict index lock. */
           ut_ad(rw_lock_own_flagged(dict_index_get_lock(index),
                                     RW_LOCK_FLAG_S | RW_LOCK_FLAG_SX));
 
@@ -869,7 +867,7 @@ void btr_cur_search_to_nth_level(
           ut_ad(latch_mode != BTR_SEARCH_TREE);
 
           mtr_s_lock(dict_index_get_lock(index), mtr);
-        } else if (!par_read_init) {
+        } else {
           /* BTR_MODIFY_EXTERNAL needs to be excluded */
           mtr_sx_lock(dict_index_get_lock(index), mtr);
         }
@@ -1890,9 +1888,7 @@ void btr_cur_open_at_index_side_func(
 
   ut_ad(level != ULINT_UNDEFINED);
 
-  bool s_latch_by_caller;
-
-  s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
+  const bool s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
   latch_mode &= ~BTR_ALREADY_S_LATCHED;
 
   lock_intention = btr_cur_get_and_clear_intention(&latch_mode);
@@ -2752,7 +2748,7 @@ dberr_t btr_cur_optimistic_insert(
 
   if (page_size.is_compressed() && page_zip_is_too_big(index, entry)) {
     if (big_rec_vec != NULL) {
-      dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+      dtuple_convert_back_big_rec(entry, big_rec_vec);
     }
 
     return (DB_TOO_BIG_RECORD);
@@ -2778,7 +2774,7 @@ dberr_t btr_cur_optimistic_insert(
   fail_err:
 
     if (big_rec_vec) {
-      dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+      dtuple_convert_back_big_rec(entry, big_rec_vec);
     }
 
     return (err);
@@ -3027,7 +3023,7 @@ dberr_t btr_cur_pessimistic_insert(
       /* This should never happen, but we handle
       the situation in a robust manner. */
       ut_ad(0);
-      dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+      dtuple_convert_back_big_rec(entry, big_rec_vec);
     }
 
     big_rec_vec = dtuple_convert_big_rec(index, 0, entry, &n_ext);
@@ -4876,28 +4872,20 @@ return_after_reservations:
   DBUG_RETURN(ret);
 }
 
-/** Adds path information to the cursor for the current page, for which
- the binary search has been performed. */
-static void btr_cur_add_path_info(
-    btr_cur_t *cursor, /*!< in: cursor positioned on a page */
-    ulint height,      /*!< in: height of the page in tree;
-                       0 means leaf node */
-    ulint root_height) /*!< in: root node height in tree */
-{
-  btr_path_t *slot;
-  const rec_t *rec;
-  const page_t *page;
-
+static void btr_cur_add_path_info(btr_cur_t *cursor, ulint height,
+                                  ulint root_height) {
   ut_a(cursor->path_arr);
 
   if (root_height >= BTR_PATH_ARRAY_N_SLOTS - 1) {
     /* Do nothing; return empty path */
 
-    slot = cursor->path_arr;
+    const auto slot = cursor->path_arr;
     slot->nth_rec = ULINT_UNDEFINED;
 
     return;
   }
+
+  btr_path_t *slot;
 
   if (height == 0) {
     /* Mark end of slots for path */
@@ -4905,16 +4893,16 @@ static void btr_cur_add_path_info(
     slot->nth_rec = ULINT_UNDEFINED;
   }
 
-  rec = btr_cur_get_rec(cursor);
+  const auto rec = btr_cur_get_rec(cursor);
 
   slot = cursor->path_arr + (root_height - height);
 
-  page = page_align(rec);
+  const auto page = page_align(rec);
 
-  slot->nth_rec = page_rec_get_n_recs_before(rec);
   slot->n_recs = page_get_n_recs(page);
   slot->page_no = page_get_page_no(page);
   slot->page_level = btr_page_get_level_low(page);
+  slot->nth_rec = page_rec_get_n_recs_before(rec);
 }
 
 /** Estimate the number of rows between slot1 and slot2 for any level on a
@@ -5094,11 +5082,9 @@ the two dives). */
 static int64_t btr_estimate_n_rows_in_range_low(
     dict_index_t *index, const dtuple_t *tuple1, page_cur_mode_t mode1,
     const dtuple_t *tuple2, page_cur_mode_t mode2, unsigned nth_attempt) {
-  btr_path_t path1[BTR_PATH_ARRAY_N_SLOTS];
-  btr_path_t path2[BTR_PATH_ARRAY_N_SLOTS];
+  std::array<btr_path_t, BTR_PATH_ARRAY_N_SLOTS> path1;
+  std::array<btr_path_t, BTR_PATH_ARRAY_N_SLOTS> path2;
   btr_cur_t cursor;
-  btr_path_t *slot1;
-  btr_path_t *slot2;
   ibool diverged;
   ibool diverged_lot;
   ulint divergence_level;
@@ -5121,7 +5107,7 @@ static int64_t btr_estimate_n_rows_in_range_low(
 
   mtr_start(&mtr);
 
-  cursor.path_arr = path1;
+  cursor.path_arr = path1.data();
 
   bool should_count_the_left_border;
 
@@ -5157,7 +5143,7 @@ static int64_t btr_estimate_n_rows_in_range_low(
 
   mtr_start(&mtr);
 
-  cursor.path_arr = path2;
+  cursor.path_arr = path2.data();
 
   bool should_count_the_right_border;
 
@@ -5224,11 +5210,17 @@ static int64_t btr_estimate_n_rows_in_range_low(
   /* This is the level where paths diverged a lot. */
   divergence_level = 1000000;
 
-  for (i = 0;; i++) {
+  btr_path_t *slot1{};
+  btr_path_t *slot2{};
+
+  ut_a(path1.size() == path2.size());
+  ut_a(path1.size() == BTR_PATH_ARRAY_N_SLOTS);
+
+  for (i = 0;; ++i) {
     ut_ad(i < BTR_PATH_ARRAY_N_SLOTS);
 
-    slot1 = path1 + i;
-    slot2 = path2 + i;
+    slot1 = &path1[i];
+    slot2 = &path2[i];
 
     if (slot1->nth_rec == ULINT_UNDEFINED ||
         slot2->nth_rec == ULINT_UNDEFINED) {
@@ -5244,8 +5236,8 @@ static int64_t btr_estimate_n_rows_in_range_low(
         if the number is exact, otherwise we do
         much grosser adjustments below. */
 
-        btr_path_t *last1 = &path1[i - 1];
-        btr_path_t *last2 = &path2[i - 1];
+        auto last1 = &path1[i - 1];
+        auto last2 = &path2[i - 1];
 
         /* If both paths end up on the same record on
         the leaf level. */

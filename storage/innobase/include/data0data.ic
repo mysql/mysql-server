@@ -255,17 +255,8 @@ void dfield_multi_value_dup(dfield_t *field, mem_heap_t *heap) {
   }
 }
 
-/** Tests if two data fields are equal.
-If len==0, tests the data length and content for equality.
-If len>0, tests the first len bytes of the content for equality.
-@param[in]      field1          first field to compare
-@param[in]      filed2          second field to compare
-@param[in]      len             maximum prefix to compare,
-                                or 0 to compare the whole field length.
-@return true if both fields are NULL or if they are equal */
-UNIV_INLINE
-ibool dfield_datas_are_binary_equal(const dfield_t *field1,
-                                    const dfield_t *field2, ulint len) {
+inline bool dfield_datas_are_binary_equal(const dfield_t *field1,
+                                          const dfield_t *field2, ulint len) {
   if (dfield_is_multi_value(field1)) {
     ut_ad(dfield_is_multi_value(field2));
     ut_ad(field1->len == UNIV_MULTI_VALUE_ARRAY_MARKER ||
@@ -283,15 +274,13 @@ ibool dfield_datas_are_binary_equal(const dfield_t *field1,
     ut_ad(field1->len == UNIV_MULTI_VALUE_ARRAY_MARKER);
     ut_ad(field2->len == UNIV_MULTI_VALUE_ARRAY_MARKER);
 
-    multi_value_data *multi_val1 =
-        static_cast<multi_value_data *>(field1->data);
-    multi_value_data *multi_val2 =
-        static_cast<multi_value_data *>(field2->data);
+    const auto *multi_val1 = static_cast<multi_value_data *>(field1->data);
+    const auto *multi_val2 = static_cast<multi_value_data *>(field2->data);
 
     return (multi_val1->equal(multi_val2));
   }
 
-  ulint len2 = len;
+  auto len2 = len;
 
   if (field1->len == UNIV_SQL_NULL || len == 0 || field1->len < len) {
     len = field1->len;
@@ -308,7 +297,7 @@ ibool dfield_datas_are_binary_equal(const dfield_t *field1,
 /** Tests if dfield data length and content is equal to the given.
  @return true if equal */
 UNIV_INLINE
-ibool dfield_data_is_binary_equal(
+bool dfield_data_is_binary_equal(
     const dfield_t *field, /*!< in: field */
     ulint len,             /*!< in: data length or UNIV_SQL_NULL */
     const byte *data)      /*!< in: data */
@@ -367,12 +356,7 @@ ulint dtuple_get_n_fields_cmp(const dtuple_t *tuple) /*!< in: tuple */
   return (tuple->n_fields_cmp);
 }
 
-/** Sets number of fields used in record comparisons. */
-UNIV_INLINE
-void dtuple_set_n_fields_cmp(dtuple_t *tuple,    /*!< in: tuple */
-                             ulint n_fields_cmp) /*!< in: number of fields used
-                                                 in comparisons in rem0cmp.* */
-{
+UNIV_INLINE void dtuple_set_n_fields_cmp(dtuple_t *tuple, ulint n_fields_cmp) {
   ut_ad(tuple);
   ut_ad(n_fields_cmp <= tuple->n_fields);
 
@@ -656,12 +640,6 @@ void dtuple_set_types_binary(dtuple_t *tuple, /*!< in: data tuple */
   }
 }
 
-/** Compute a hash value of a prefix of an index record.
-@param[in]	tuple		index record
-@param[in]	n_fields	number of fields to include
-@param[in]	n_bytes		number of bytes to fold in the last field
-@param[in]	fold		fold value of the index identifier
-@return the folded value */
 UNIV_INLINE
 ulint dtuple_fold(const dtuple_t *tuple, ulint n_fields, ulint n_bytes,
                   ulint fold) {
@@ -703,37 +681,20 @@ ulint dtuple_fold(const dtuple_t *tuple, ulint n_fields, ulint n_bytes,
   return (fold);
 }
 
-/** Writes an SQL null field full of zeros. */
 UNIV_INLINE
-void data_write_sql_null(byte *data, /*!< in: pointer to a buffer of size len */
-                         ulint len)  /*!< in: SQL null size in bytes */
-{
-  memset(data, 0, len);
-}
+void data_write_sql_null(byte *data, ulint len) { memset(data, 0, len); }
 
-/** Checks if a dtuple contains an SQL null value.
- @return true if some field is SQL null */
 UNIV_INLINE
-ibool dtuple_contains_null(const dtuple_t *tuple) /*!< in: dtuple */
-{
-  ulint n;
-  ulint i;
+bool dtuple_contains_null(const dtuple_t *tuple) {
+  auto n = dtuple_get_n_fields(tuple);
 
-  n = dtuple_get_n_fields(tuple);
-
-  for (i = 0; i < n; i++) {
+  for (ulint i = 0; i < n; i++) {
     if (dfield_is_null(dtuple_get_nth_field(tuple, i))) {
-      return (TRUE);
+      return (true);
     }
   }
 
-  return (FALSE);
+  return (false);
 }
 
-/** Frees the memory in a big rec vector. */
-UNIV_INLINE
-void dtuple_big_rec_free(big_rec_t *vector) /*!< in, own: big rec vector; it is
-                                            freed in this function */
-{
-  mem_heap_free(vector->heap);
-}
+void dtuple_big_rec_free(big_rec_t *vector) { mem_heap_free(vector->heap); }

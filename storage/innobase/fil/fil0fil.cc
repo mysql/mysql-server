@@ -2109,9 +2109,7 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
     return (nullptr);
   }
 
-  fil_node_t file;
-
-  memset(&file, 0x0, sizeof(file));
+  fil_node_t file{};
 
   file.name = mem_strdup(name);
 
