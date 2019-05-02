@@ -617,6 +617,39 @@ BackupRestore::m_allowed_promotion_attrs[] = {
   {NDBCOL::Text,           NDBCOL::Text,           check_compat_text_to_text,
    NULL},
 
+  // text to blob promotions (uses staging table)
+  // blobs use the BINARY charset, while texts use charsets like UTF8
+  // ignore charset diffs by using check_compat_blob_to_blob
+  {NDBCOL::Text,           NDBCOL::Blob, check_compat_blob_to_blob,
+   NULL},
+
+  // binary to blob promotions (uses staging table)
+  {NDBCOL::Binary,         NDBCOL::Blob,           check_compat_binary_to_blob,
+   NULL},
+  {NDBCOL::Varbinary,      NDBCOL::Blob,           check_compat_binary_to_blob,
+   NULL},
+  {NDBCOL::Longvarbinary,  NDBCOL::Blob,           check_compat_binary_to_blob,
+   NULL},
+
+  // blob to binary promotions (uses staging table)
+  {NDBCOL::Blob,           NDBCOL::Binary,         check_compat_blob_to_binary,
+   NULL},
+  {NDBCOL::Blob,           NDBCOL::Varbinary,      check_compat_blob_to_binary,
+   NULL},
+  {NDBCOL::Blob,           NDBCOL::Longvarbinary,  check_compat_blob_to_binary,
+   NULL},
+
+  // blob to blob promotions (uses staging table)
+  // required when part lengths of blob columns are not equal
+  {NDBCOL::Blob,           NDBCOL::Blob,           check_compat_blob_to_blob,
+   NULL},
+
+  // blob to text promotions (uses staging table)
+  // blobs use the BINARY charset, while texts use charsets like UTF8
+  // ignore charset diffs by using check_compat_blob_to_blob
+  {NDBCOL::Blob,           NDBCOL::Text, check_compat_blob_to_blob,
+   NULL},
+
   // integral promotions
   {NDBCOL::Tinyint,        NDBCOL::Smallint,       check_compat_promotion,
    convert_integral< Hint8, Hint16>},
@@ -4114,6 +4147,36 @@ BackupRestore::check_compat_text_to_text(const NDBCOL &old_col,
    // TEXT/MEDIUMTEXT/LONGTEXT to TINYTEXT conversion is potentially lossy at the 
    // Ndb level because there is a hard limit on the TINYTEXT size.
    // TEXT/MEDIUMTEXT/LONGTEXT is not lossy at the Ndb level, but can be at the 
+   // MySQL level.
+   // Both conversions require the lossy switch, but they are not lossy in the same way.
+    return ACT_STAGING_LOSSY;
+  }
+  return ACT_STAGING_PRESERVING;
+}
+
+AttrConvType
+BackupRestore::check_compat_binary_to_blob(const NDBCOL &old_col,
+                                           const NDBCOL &new_col)
+{
+  return ACT_STAGING_PRESERVING;
+}
+
+AttrConvType
+BackupRestore::check_compat_blob_to_binary(const NDBCOL &old_col,
+                                           const NDBCOL &new_col)
+{
+  return ACT_STAGING_LOSSY;
+}
+
+AttrConvType
+BackupRestore::check_compat_blob_to_blob(const NDBCOL &old_col,
+                                         const NDBCOL &new_col)
+{
+  if(old_col.getPartSize() > new_col.getPartSize())
+  {
+   // BLOB/MEDIUMBLOB/LONGBLOB to TINYBLOB conversion is potentially lossy at the
+   // Ndb level because there is a hard limit on the TINYBLOB size.
+   // BLOB/MEDIUMBLOB/LONGBLOB is not lossy at the Ndb level, but can be at the
    // MySQL level.
    // Both conversions require the lossy switch, but they are not lossy in the same way.
     return ACT_STAGING_LOSSY;

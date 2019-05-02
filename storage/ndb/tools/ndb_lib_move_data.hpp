@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,6 +127,7 @@ private:
     Uint32 size_in_bytes;
     Uint32 length_bytes;
     Uint32 data_size; // size_in_bytes - length_bytes
+    Uint32 tiny_bytes;
     int pad_char;
     bool equal; // attr1,attr2 equal non-blobs
     Attr();
@@ -134,7 +135,7 @@ private:
   Attr* m_sourceattr;
   Attr* m_targetattr;
   void set_type(Attr& attr, const NdbDictionary::Column* c);
-  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, char *data, uint32 maxlen);
+  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, const char *data, uint32 maxlen);
   int check_nopk(const Attr& attr1, const Attr& attr2);
   int check_promotion(const Attr& attr1, const Attr& attr2);
   int check_demotion(const Attr& attr1, const Attr& attr2);

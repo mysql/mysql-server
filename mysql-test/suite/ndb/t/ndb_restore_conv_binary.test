@@ -1,0 +1,710 @@
+-- source include/have_ndb.inc
+-- source include/not_windows.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--echo ***********************
+--echo Test binary conversions
+--echo ***********************
+
+create table test.t1 (
+  a int unsigned primary key,
+  b binary(20),
+  c varbinary(200),
+  d varbinary(2000),
+  e blob,
+  f tinyblob,
+  g mediumblob,
+  h longblob
+) engine=ndb;
+
+insert into test.t1 values (1,
+                            '1111111111',                 # binary
+                            repeat('Pattern', 20),        # varbinary
+                            repeat('LongPattern', 100),   # longvarbinary
+                            repeat('Tartan', 4096),       # blob
+                            repeat('Tartan', 40),         # tinyblob
+                            repeat('Tartan', 4096),       # mediumblob
+                            repeat('Tartan', 4096));      # longblob
+insert into test.t1 select a+1, repeat(a+1, 10), c, d, e, f, g, h from test.t1;
+insert into test.t1 select a+2, repeat(a+2, 10), c, d, e, f, g, h from test.t1;
+insert into test.t1 select a+4, repeat(a+4, 10), c, d, e, f, g, h from test.t1;
+
+--echo Source data
+select a,
+       hex(b),
+       sha1(c),
+       length(c),
+       sha1(d),
+       length(d),
+       sha1(e),
+       length(e),
+       sha1(f),
+       length(f),
+       sha1(g),
+       length(g),
+       sha1(h),
+       length(h) from test.t1 order by a;
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+rename table test.t1 to test.t1_orig;
+
+--echo ********************
+--echo Test type promotions
+--echo ********************
+--echo Have one of each we are interested in to start with
+--echo Repeatedly 'shift left' onto wider types
+--echo longblob <- mediumblob <- blob <- longvarbinary <- tinyblob <- varbinary <- binary
+
+create table test.t1 (
+  a int unsigned primary key,
+  b varbinary(20),               # binary -> varbinary
+  c varbinary(2000),             # varbinary -> longvarbinary
+  d blob,                        # longvarbinary -> blob
+  e mediumblob,                  # blob -> mediumblob
+  f blob,                        # tinyblob -> blob
+  g longblob,                    # mediumblob -> longblob
+  h longblob                     # longblob -> longblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no data differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  LEFT(o.b,10) != r.b or  # ignore Binary padding
+       length(r.b) != 10 or
+       o.c != r.c or
+       o.d != r.d or
+       o.e != r.e or
+       o.f != r.f or
+       o.g != r.g or
+       o.h != r.h;
+drop table test.t1;
+
+create table test.t1 (
+  a int unsigned primary key,
+  b varbinary(2000),             # binary -> longvarbinary
+  c tinyblob,                    # varbinary -> tinyblob
+  d mediumblob,                  # longvarbinary -> mediumblob
+  e longblob,                    # blob -> longblob
+  f mediumblob,                  # tinyblob -> mediumblob
+  g longblob,                    # mediumblob -> longblob
+  h longblob                     # longblob -> longblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no data differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  LEFT(o.b,10) != r.b or  # ignore Binary padding
+       length(r.b) != 10 or
+       o.c != r.c or
+       o.d != r.d or
+       o.e != r.e or
+       o.f != r.f or
+       o.g != r.g or
+       o.h != r.h;
+drop table test.t1;
+
+
+create table test.t1 (
+  a int unsigned primary key,
+  b tinyblob,                    # binary -> tinyblob
+  c blob,                        # varbinary -> blob
+  d longblob,                    # longvarbinary -> longblob
+  e longblob,                    # blob -> longblob
+  f longblob,                    # tinyblob -> longblob
+  g longblob,                    # mediumblob -> longblob
+  h longblob                     # longblob -> longblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no data differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  LEFT(o.b,10) != r.b or  # ignore Binary padding
+       length(r.b) != 10 or
+       o.c != r.c or
+       o.d != r.d or
+       o.e != r.e or
+       o.f != r.f or
+       o.g != r.g or
+       o.h != r.h;
+drop table test.t1;
+
+create table test.t1 (
+  a int unsigned primary key,
+  b blob,                        # binary -> blob
+  c mediumblob,                  # varbinary -> mediumblob
+  d longblob,                    # longvarbinary -> longblob
+  e longblob,                    # blob -> longblob
+  f longblob,                    # tinyblob -> longblob
+  g longblob,                    # mediumblob -> longblob
+  h longblob                     # longblob -> longblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no data differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  LEFT(o.b,10) != r.b or  # ignore Binary padding
+       length(r.b) != 10 or
+       o.c != r.c or
+       o.d != r.d or
+       o.e != r.e or
+       o.f != r.f or
+       o.g != r.g or
+       o.h != r.h;
+drop table test.t1;
+
+create table test.t1 (
+  a int unsigned primary key,
+  b mediumblob,                  # binary -> mediumblob
+  c longblob,                    # varbinary -> longblob
+  d longblob,                    # longvarbinary -> longblob
+  e longblob,                    # blob -> longblob
+  f longblob,                    # tinyblob -> longblob
+  g longblob,                    # mediumblob -> longblob
+  h longblob                     # longblob -> longblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no data differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  LEFT(o.b,10) != r.b or  # ignore Binary padding
+       length(r.b) != 10 or
+       o.c != r.c or
+       o.d != r.d or
+       o.e != r.e or
+       o.f != r.f or
+       o.g != r.g or
+       o.h != r.h;
+drop table test.t1;
+
+create table test.t1 (
+  a int unsigned primary key,
+  b longblob,                    # binary -> longblob
+  c longblob,                    # varbinary -> longblob
+  d longblob,                    # longvarbinary -> longblob
+  e longblob,                    # blob -> longblob
+  f longblob,                    # tinyblob -> longblob
+  g longblob,                    # mediumblob -> longblob
+  h longblob                     # longblob -> longblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+
+--echo Expect no data differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  LEFT(o.b,10) != r.b or  # ignore Binary padding
+       length(r.b) != 10 or
+       o.c != r.c or
+       o.d != r.d or
+       o.e != r.e or
+       o.f != r.f or
+       o.g != r.g or
+       o.h != r.h;
+drop table test.t1;
+
+--echo *******************
+--echo Test type demotions
+--echo *******************
+--echo Have one of each we are interested in to start with
+--echo Repeatedly 'shift right' onto smaller types
+--echo longblob -> mediumblob -> blob -> longvarbinary ->  tinyblob -> varbinary -> binary
+
+create table test.t1 (
+  a int unsigned primary key,
+  b binary(20),                  # binary -> binary
+  c binary(200),                 # varbinary -> binary
+  d tinyblob,                    # longvarbinary -> tinyblob
+  e varbinary(2000),             # blob -> longvarbinary
+  f varbinary(200),              # tinyblob -> varbinary
+  g blob,                        # mediumblob -> blob
+  h mediumblob                   # longblob -> mediumblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no unexpected differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  o.b != r.b                # b as is
+       or o.c != left(r.c, 140)
+       or length(o.c) != 140     # c expanded to 200
+       or left(o.d, 255) != r.d  # d truncated to 255
+       or left(o.e,2000) != r.e
+       or length(r.e) != 2000    # e truncated to 2000
+       or left(o.f,200) != r.f
+       or length(r.f) != 200     # f truncated to 200
+       or o.g != r.g             # g as-is
+       or o.h != r.h             # h as-is
+;
+drop table test.t1;
+
+create table test.t1 (
+  a int unsigned primary key,
+  b binary(20),                  # binary -> binary
+  c binary(200),                 # varbinary -> binary
+  d varbinary(200),              # longvarbinary -> varbinary
+  e tinyblob,                    # blob -> tinyblob
+  f binary(200),                 # tinyblob -> binary
+  g varbinary(2000),             # mediumblob -> longvarbinary
+  h blob                         # longblob -> blob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no unexpected differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  o.b != r.b                # b as is
+       or o.c != left(r.c, 140)
+       or length(o.c) != 140     # c expanded to 200
+       or left(o.d, 200) != r.d  # d truncated to 200
+       or left(o.e, 255) != r.e
+       or length(r.e) != 255     # e truncated to 255
+       or left(o.f, 200) != r.f
+       or length(r.f) != 200     # f truncated to 200
+       or left(o.g, 2000) != r.g
+       or length(r.g) != 2000    # g truncated to 2000
+       or o.h != r.h             # h as-is
+;
+drop table test.t1;
+
+
+create table test.t1 (
+  a int unsigned primary key,
+  b binary(20),                  # binary -> binary
+  c binary(200),                 # varbinary -> binary
+  d binary(200),                 # longvarbinary -> binary
+  e varbinary(200),              # blob -> varbinary
+  f binary(200),                 # tinyblob -> binary
+  g tinyblob,                    # mediumblob -> tinyblob
+  h varbinary(2000)              # longblob -> longvarbinary
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no unexpected differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  o.b != r.b                # b as is
+       or o.c != left(r.c, 140)
+       or length(o.c) != 140     # c expanded to 200
+       or left(o.d, 200) != r.d  # d truncated to 200
+       or left(o.e, 200) != r.e
+       or length(r.e) != 200     # e truncated to 200
+       or left(o.f, 200) != r.f
+       or length(r.f) != 200     # f truncated to 200
+       or left(o.g, 255) != r.g
+       or length(r.g) != 255     # g truncated to 255
+       or left(o.h, 2000) != r.h
+       or length(r.h) != 2000    # h truncated to 2000
+;
+drop table test.t1;
+
+
+create table test.t1 (
+  a int unsigned primary key,
+  b binary(20),                  # binary -> binary
+  c binary(200),                 # varbinary -> binary
+  d binary(200),                 # longvarbinary -> binary
+  e binary(200),                 # blob -> binary
+  f binary(200),                 # tinyblob -> binary
+  g varbinary(200),              # mediumblob -> varbinary
+  h tinyblob                     # longblob -> tinyblob
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no unexpected differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  o.b != r.b                # b as is
+       or o.c != left(r.c, 140)
+       or length(o.c) != 140     # c expanded to 200
+       or left(o.d, 200) != r.d  # d truncated to 200
+       or left(o.e, 200) != r.e
+       or length(r.e) != 200     # e truncated to 200
+       or left(o.f, 200) != r.f
+       or length(r.f) != 200     # f truncated to 200
+       or left(o.g, 200) != r.g
+       or length(r.g) != 200     # g truncated to 200
+       or left(o.h, 255) != r.h
+       or length(r.h) != 255     # h truncated to 255
+;
+drop table test.t1;
+
+
+create table test.t1 (
+  a int unsigned primary key,
+  b binary(20),                  # binary -> binary
+  c binary(200),                 # varbinary -> binary
+  d binary(200),                 # longvarbinary -> binary
+  e binary(200),                 # blob -> binary
+  f binary(200),                 # tinyblob -> binary
+  g binary(200),                 # mediumblob -> binary
+  h varbinary(200)               # longblob -> varbinary
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no unexpected differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  o.b != r.b                # b as is
+       or o.c != left(r.c, 140)
+       or length(o.c) != 140     # c expanded to 200
+       or left(o.d, 200) != r.d  # d truncated to 200
+       or left(o.e, 200) != r.e
+       or length(r.e) != 200     # e truncated to 200
+       or left(o.f, 200) != r.f
+       or length(r.f) != 200     # f truncated to 200
+       or left(o.g, 200) != r.g
+       or length(r.g) != 200     # g truncated to 200
+       or left(o.h, 200) != r.h
+       or length(r.h) != 200     # h truncated to 200
+;
+drop table test.t1;
+
+create table test.t1 (
+  a int unsigned primary key,
+  b binary(20),                  # binary -> binary
+  c binary(200),                 # varbinary -> binary
+  d binary(200),                 # longvarbinary -> binary
+  e binary(200),                 # blob -> binary
+  f binary(200),                 # tinyblob -> binary
+  g binary(200),                 # mediumblob -> binary
+  h binary(200)                  # longblob -> binary
+) engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect no unexpected differences between orig and restored
+select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
+       r.a, r.b, sha1(r.c), length(r.c), sha1(r.d), length(r.d), sha1(r.e), length(r.e), sha1(r.f), length(r.f), sha1(r.g), length(r.g), sha1(r.h), length(r.h)
+ from  t1_orig o join t1 r
+   on  o.a = r.a
+where  o.b != r.b                # b as is
+       or o.c != left(r.c, 140)
+       or length(o.c) != 140     # c expanded to 200
+       or left(o.d, 200) != r.d  # d truncated to 200
+       or left(o.e, 200) != r.e
+       or length(r.e) != 200     # e truncated to 200
+       or left(o.f, 200) != r.f
+       or length(r.f) != 200     # f truncated to 200
+       or left(o.g, 200) != r.g
+       or length(r.g) != 200     # g truncated to 200
+       or left(o.h, 200) != r.h
+       or length(r.h) != 200     # h truncated to 200
+;
+drop table test.t1;
+drop table test.t1_orig;
+
+--echo ********************************
+--echo Text to blob conversions
+--echo ********************************
+
+create table test.t2 (
+  a int unsigned primary key,
+  tinytext1 tinytext,
+  tinytext2 tinytext,
+  tinytext3 tinytext,
+  tinytext4 tinytext,
+  text1 text,
+  text2 text,
+  text3 text,
+  text4 text,
+  mediumtext1 mediumtext,
+  mediumtext2 mediumtext,
+  mediumtext3 mediumtext,
+  mediumtext4 mediumtext,
+  longtext1 longtext,
+  longtext2 longtext,
+  longtext3 longtext,
+  longtext4 longtext
+) engine=ndb character set UTF8MB4;
+
+insert into test.t2 values (1,
+  repeat('Tartan', 40),    # tinytext
+  repeat('Tartan', 40),
+  repeat('Tartan', 40),
+  repeat('Tartan', 40),
+  repeat('Tartan', 4096),  # text
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),  # mediumtext
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),   # longtext
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096));
+
+insert into test.t2 values  (0,
+  NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL);
+
+--echo Source data
+select a,
+ sha(tinytext1), sha(tinytext2), sha(tinytext3), sha(tinytext4),
+ length(tinytext1), length(tinytext2), length(tinytext3), length(tinytext4),
+ sha(text1), sha(text2), sha(text3), sha(text4),
+ length(text1), length(text2), length(text3), length(text4),
+ sha(mediumtext1), sha(mediumtext2), sha(mediumtext3), sha(mediumtext4),
+ length(mediumtext1), length(mediumtext2), length(mediumtext3), length(mediumtext4),
+ sha(longtext1), sha(longtext2), sha(longtext3), sha(longtext4),
+ length(longtext1), length(longtext2), length(longtext3), length(longtext4) from test.t2 order by a;
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+rename table test.t2 to test.t2_orig;
+
+create table test.t2 (
+  a int unsigned primary key,
+  tinytext1 tinyblob,    # tinytext -> tinyblob
+  tinytext2 blob,        # tinytext -> blob
+  tinytext3 mediumblob,  # tinytext -> mediumblob
+  tinytext4 longblob,    # tinytext -> longblob
+  text1 tinyblob,        # text -> tinyblob
+  text2 blob,            # text -> blob
+  text3 mediumblob,      # text -> mediumblob
+  text4 longblob,        # text -> longblob
+  mediumtext1 tinyblob,  # mediumtext -> tinyblob
+  mediumtext2 blob,      # mediumtext -> blob
+  mediumtext3 mediumblob,# mediumtext -> mediumblob
+  mediumtext4 longblob,  # mediumtext -> longblob
+  longtext1 tinyblob,    # longtext -> tinyblob
+  longtext2 blob,        # longtext -> blob
+  longtext3 mediumblob,  # longtext -> mediumblob
+  longtext4 longblob     # longtext -> longblob
+) engine=ndb;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from test.t2;
+
+select a,
+ sha(tinytext1), sha(tinytext2), sha(tinytext3), sha(tinytext4),
+ length(tinytext1), length(tinytext2), length(tinytext3), length(tinytext4),
+ sha(text1), sha(text2), sha(text3), sha(text4),
+ length(text1), length(text2), length(text3), length(text4),
+ sha(mediumtext1), sha(mediumtext2), sha(mediumtext3), sha(mediumtext4),
+ length(mediumtext1), length(mediumtext2), length(mediumtext3), length(mediumtext4),
+ sha(longtext1), sha(longtext2), sha(longtext3), sha(longtext4),
+ length(longtext1), length(longtext2), length(longtext3), length(longtext4) from test.t2 order by a;
+
+drop table test.t2;
+drop table test.t2_orig;
+
+--echo ********************************
+--echo Blob to text conversions
+--echo ********************************
+
+create table test.t2 (
+  a int unsigned primary key,
+  tinyblob1 tinyblob,
+  tinyblob2 tinyblob,
+  tinyblob3 tinyblob,
+  tinyblob4 tinyblob,
+  blob1 blob,
+  blob2 blob,
+  blob3 blob,
+  blob4 blob,
+  mediumblob1 mediumblob,
+  mediumblob2 mediumblob,
+  mediumblob3 mediumblob,
+  mediumblob4 mediumblob,
+  longblob1 longblob,
+  longblob2 longblob,
+  longblob3 longblob,
+  longblob4 longblob
+) engine=ndb character set UTF8MB4;
+
+insert into test.t2 values (1,
+  repeat('Tartan', 40),    # tinyblob
+  repeat('Tartan', 40),
+  repeat('Tartan', 40),
+  repeat('Tartan', 40),
+  repeat('Tartan', 4096),  # blob
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),  # mediumblob
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),   # longblob
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096),
+  repeat('Tartan', 4096));
+
+insert into test.t2 values  (0,
+  NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL);
+
+--echo Source data
+select a,
+ sha(tinyblob1), sha(tinyblob2), sha(tinyblob3), sha(tinyblob4),
+ length(tinyblob1), length(tinyblob2), length(tinyblob3), length(tinyblob4),
+ sha(blob1), sha(blob2), sha(blob3), sha(blob4),
+ length(blob1), length(blob2), length(blob3), length(blob4),
+ sha(mediumblob1), sha(mediumblob2), sha(mediumblob3), sha(mediumblob4),
+ length(mediumblob1), length(mediumblob2), length(mediumblob3), length(mediumblob4),
+ sha(longblob1), sha(longblob2), sha(longblob3), sha(longblob4),
+ length(longblob1), length(longblob2), length(longblob3), length(longblob4) from test.t2 order by a;
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+rename table test.t2 to test.t2_orig;
+
+create table test.t2 (
+  a int unsigned primary key,
+  tinyblob1 tinytext,    # tinyblob -> tinytext
+  tinyblob2 text,        # tinyblob -> text
+  tinyblob3 mediumtext,  # tinyblob -> mediumtext
+  tinyblob4 longtext,    # tinyblob -> longtext
+  blob1 tinytext,        # blob -> tinytext
+  blob2 text,            # blob -> text
+  blob3 mediumtext,      # blob -> mediumtext
+  blob4 longtext,        # blob -> longtext
+  mediumblob1 tinytext,  # mediumblob -> tinytext
+  mediumblob2 text,      # mediumblob -> text
+  mediumblob3 mediumtext,# mediumblob -> mediumtext
+  mediumblob4 longtext,  # mediumblob -> longtext
+  longblob1 tinytext,    # longblob -> tinytext
+  longblob2 text,        # longblob -> text
+  longblob3 mediumtext,  # longblob -> mediumtext
+  longblob4 longtext     # longblob -> longtext
+) engine=ndb;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from test.t2;
+
+select a,
+ sha(tinyblob1), sha(tinyblob2), sha(tinyblob3), sha(tinyblob4),
+ length(tinyblob1), length(tinyblob2), length(tinyblob3), length(tinyblob4),
+ sha(blob1), sha(blob2), sha(blob3), sha(blob4),
+ length(blob1), length(blob2), length(blob3), length(blob4),
+ sha(mediumblob1), sha(mediumblob2), sha(mediumblob3), sha(mediumblob4),
+ length(mediumblob1), length(mediumblob2), length(mediumblob3), length(mediumblob4),
+ sha(longblob1), sha(longblob2), sha(longblob3), sha(longblob4),
+ length(longblob1), length(longblob2), length(longblob3), length(longblob4) from test.t2 order by a;
+
+drop table test.t2;
+drop table test.t2_orig;
+
+--echo *****************************************************************************
+--echo Charset-aware truncation in blob -> tinytext and text ->tinyblob conversions
+--echo *****************************************************************************
+
+--echo # ndb_restore TEXT -> TINYBLOB and BLOB->TINYTEXT truncation with UTF8MB4
+set character_set_client=UTF8MB4;
+create table t2(id int primary key, text_val text character set UTF8MB4, blob_val blob)engine=ndb;
+insert into t2 values(11111, REPEAT(UNHEX("E38182"), 100), REPEAT(UNHEX("E38182"), 100));
+insert into t2 values(22222, CONCAT("AA",REPEAT(UNHEX("E38182"), 100)), CONCAT("AA",REPEAT(UNHEX("E38182"), 100)));
+select length(text_val), char_length(text_val), length(blob_val), char_length(blob_val) from t2 order by id;
+--echo # run backup
+--source include/ndb_backup.inc
+
+drop table t2;
+create table t2(id int primary key, text_val tinyblob, blob_val tinytext character set UTF8MB4)engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo # run ndb_select_all to see charset-aware truncation in ndb
+--echo # text_val = TINYBLOB, truncation on byte boundary, mid-character
+--echo #            last char E38182 truncated to E3
+--echo # blob_val = TINYTEXT, truncation on well-formed char boundary
+--echo #            last char E38182 not truncated
+--exec $NDB_SELECT_ALL -d test t2 -o PRIMARY
+
+--echo # run mysql select to see charset-aware truncation in mysqld
+--echo # blob_val = TINYTEXT, truncation on well-formed char boundary
+--echo # length = well-formed char length * sizeof(UTF8MB4 char)
+--echo # 1. pk-based read
+select length(blob_val), char_length(blob_val) from t2 where id = 11111;
+select length(blob_val), char_length(blob_val) from t2 where id = 22222;
+--echo # 2. scan
+select length(blob_val), char_length(blob_val) from t2 order by id;
+
+--echo # text_val = TINYBLOB, truncation on byte boundary, mid-character
+--echo # length = well-formed char length
+--echo # 1. pk-based read
+select length(text_val), char_length(text_val) from t2 where id = 11111;
+select length(text_val), char_length(text_val) from t2 where id = 22222;
+--echo # 2. scan
+select length(text_val), char_length(text_val) from t2 order by id;
+
+drop table t2;
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

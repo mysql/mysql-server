@@ -1714,6 +1714,9 @@ static uint64 calc_ndb_blob_len(const CHARSET_INFO *cs, uchar *blob_ptr,
 {
   int errors = 0;
   
+  if (!cs)
+    cs = &my_charset_bin;
+
   const char *begin = (const char*) blob_ptr;
   const char *end = (const char*) (blob_ptr+maxlen);
   
