@@ -141,8 +141,8 @@ class Synchronized_queue {
   void push(const T &value) {
     mysql_mutex_lock(&lock);
     queue.push(value);
-    mysql_mutex_unlock(&lock);
     mysql_cond_broadcast(&cond);
+    mysql_mutex_unlock(&lock);
   }
 
   /**
