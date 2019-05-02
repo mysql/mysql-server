@@ -1223,9 +1223,10 @@ greatly the issue of deciding which lock request is blocked by which. In
 reality, our LOCK_REC locks have a very rich structure including gap locks,
 locks simultaneously on records and gaps, etc. which means that the "wait for"
 relation is neither symmetric (for example insert intention locks have to wait
-for gap locks, but not the other way around), nor transitive (for example a
-record-only lock, has to wait for a gap+record lock, which has to wait for a
-gap-only lock, but the record-only lock does not have to wait for the gap-lock).
+for gap locks, but not the other way around), nor transitive (for example an
+insert-intention lock, has to wait for a gap+record lock, which has to wait for
+a record-only lock, but the insert-intention lock does not have to wait for the
+record-only lock).
 Our current implementation of CATS simply uses a conservative simplification,
 that if two lock requests are for the same <space_id, page_id, heap_no> and one
 of them is granted and the other is waiting, then we can (for the purpose of
@@ -1289,8 +1290,6 @@ static void lock_update_trx_age(trx_t *trx, int32_t age) {
 
   ut_ad(trx->age_updated < lock_sys->mark_age_updated);
 
-  trx->age += age;
-
   /* In an incorrect implementation the `trx->age` could grow exponentially due
   to double-counting trx's own weight when a cycle is formed in the
   wait-for graph. A correct implementation should keep the `trx->age` value
@@ -1301,12 +1300,24 @@ static void lock_update_trx_age(trx_t *trx, int32_t age) {
   There is also another test case which creates N=100 transactions each of which
   in a correct implementation should not affect the trx->age, yet in an
   incorrect implementation each caused a constant increment (~4) - to detect
-  that the assertion threshold needs to be between 0 and 100*constant. */
-  DBUG_EXECUTE_IF("lock_update_trx_age_check_age_limit", ut_a(trx->age < 100););
+  that the assertion threshold needs to be between 0 and 100*constant.
+  There are many other ways in which current implementation of CATS can cause
+  the trx->age to grow arbitrary large or negative, as it is incapable of
+  properly accounting for multiple paths in wait-for-graph connecting the same
+  pair of transactions. Therefore, instead of naive:
+     trx->age += age;
+  we use a temporary workaround to avoid over- and under-flows.
+  The RHS in the += assignment will be equal to one of three possible values,
+  which make the end result equal to MAX_REASONABLE_AGE, 0 or trx->age+age, and
+  the third option is used if and only if it is inside the valid range of
+  <0,MAX_REASONABLE_AGE>. */
 
-  if (trx->age < 0) {
-    trx->age = 0;
-  }
+  const int32_t MAX_REASONABLE_AGE = std::min<ulint>(srv_max_n_threads, 100000);
+  trx->age += std::min(MAX_REASONABLE_AGE - trx->age, std::max(-trx->age, age));
+
+  DBUG_EXECUTE_IF("lock_update_trx_age_check_age_limit", ut_a(trx->age < 100););
+  ut_ad(0 <= trx->age);
+  ut_ad(trx->age <= MAX_REASONABLE_AGE);
 
   trx->age_updated = lock_sys->mark_age_updated;
 
