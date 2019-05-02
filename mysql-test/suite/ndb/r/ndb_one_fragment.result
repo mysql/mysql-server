@@ -78,7 +78,6 @@ info: Records: 10000  Duplicates: 10000  Warnings: 10000
 set @@max_error_count = @save_max_error_count;
 
 set ndb_use_transactions=0;
-insert into t2 select 160000+a from t2;
 drop table t1;
 create table t1 (a int primary key)
 engine=ndbcluster
@@ -88,108 +87,6 @@ insert into t1 select * from t2;
 drop table t1;
 select max(used_pages) into @data_memory_pages
 from ndbinfo.memoryusage where memory_type = 'Data memory';
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
-create table t1 (a int primary key)
-engine=ndbcluster
-comment='NDB_TABLE=NOLOGGING'
-    partition by key() partitions 1;
-insert into t1 select * from t2;
-drop table t1;
 create table t1 (a int primary key)
 engine=ndbcluster
 comment='NDB_TABLE=NOLOGGING'
