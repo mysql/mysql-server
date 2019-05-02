@@ -539,7 +539,7 @@ std::pair<bool, Gcs_packet> Gcs_message_stage_split_v2::reassemble_fragments(
   bool constexpr OK = false;
   auto result = std::make_pair(ERROR, Gcs_packet());
 
-  auto &some_fragment = fragments[0];
+  auto &last_delivered_fragment = fragments.back();
 
   /*
    Create a packet big enough to hold the reassembled payload.
@@ -548,11 +548,13 @@ std::pair<bool, Gcs_packet> Gcs_message_stage_split_v2::reassemble_fragments(
    the payload size before the stage was applied.
    */
   unsigned long long whole_payload_length =
-      some_fragment.get_current_dynamic_header().get_payload_length();
+      last_delivered_fragment.get_current_dynamic_header().get_payload_length();
   bool packet_ok;
   Gcs_packet whole_packet;
+  /* We base the reassembled packet on the last delivered fragment because the
+     last delivered packet has the up to date synod. */
   std::tie(packet_ok, whole_packet) = Gcs_packet::make_from_existing_packet(
-      some_fragment, whole_payload_length);
+      last_delivered_fragment, whole_payload_length);
   if (!packet_ok) goto end;
 
   // clang-format off
