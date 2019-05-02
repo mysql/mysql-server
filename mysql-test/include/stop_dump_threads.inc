@@ -19,6 +19,9 @@
 
 while ($_sdt_dump_thread_id != '')
 {
+  # error "ER_NO_SUCH_THREAD" may occur in case the Binlog Dump thread terminates
+  # between the query "SELECT ID ..." and the KILL statement
+  --error 0,ER_NO_SUCH_THREAD
   eval KILL $_sdt_dump_thread_id;
   --let $wait_condition= SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = $_sdt_dump_thread_id
   --source include/wait_condition.inc
