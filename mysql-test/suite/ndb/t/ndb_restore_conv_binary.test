@@ -546,27 +546,15 @@ create table test.t2 (
 
 select count(*) from test.t2;
 
-## Query crashes for truncated TINYBLOB fields, Bug#29486538
-##
-## select a,
-##  sha(tinytext1), sha(tinytext2), sha(tinytext3), sha(tinytext4),
-##  length(tinytext1), length(tinytext2), length(tinytext3), length(tinytext4),
-##  sha(text1), sha(text2), sha(text3), sha(text4),
-##  length(text1), length(text2), length(text3), length(text4),
-##  sha(mediumtext1), sha(mediumtext2), sha(mediumtext3), sha(mediumtext4),
-##  length(mediumtext1), length(mediumtext2), length(mediumtext3), length(mediumtext4),
-##  sha(longtext1), sha(longtext2), sha(longtext3), sha(longtext4),
-##  length(longtext1), length(longtext2), length(longtext3), length(longtext4) from test.t2 order by a;
-
 select a,
- sha(tinytext2), sha(tinytext3), sha(tinytext4),
- length(tinytext2), length(tinytext3), length(tinytext4),
- sha(text2), sha(text3), sha(text4),
- length(text2), length(text3), length(text4),
- sha(mediumtext2), sha(mediumtext3), sha(mediumtext4),
- length(mediumtext2), length(mediumtext3), length(mediumtext4),
- sha(longtext2), sha(longtext3), sha(longtext4),
- length(longtext2), length(longtext3), length(longtext4) from test.t2 order by a;
+ sha(tinytext1), sha(tinytext2), sha(tinytext3), sha(tinytext4),
+ length(tinytext1), length(tinytext2), length(tinytext3), length(tinytext4),
+ sha(text1), sha(text2), sha(text3), sha(text4),
+ length(text1), length(text2), length(text3), length(text4),
+ sha(mediumtext1), sha(mediumtext2), sha(mediumtext3), sha(mediumtext4),
+ length(mediumtext1), length(mediumtext2), length(mediumtext3), length(mediumtext4),
+ sha(longtext1), sha(longtext2), sha(longtext3), sha(longtext4),
+ length(longtext1), length(longtext2), length(longtext3), length(longtext4) from test.t2 order by a;
 
 drop table test.t2;
 drop table test.t2_orig;
@@ -709,13 +697,12 @@ select length(blob_val), char_length(blob_val) from t2 where id = 22222;
 --echo # 2. scan
 select length(blob_val), char_length(blob_val) from t2 order by id;
 
-## Disable read of truncated TINYBLOB column, Bug#29486538
-##--echo # text_val = TINYBLOB, truncation on byte boundary, mid-character
-##--echo # length = well-formed char length
-##--echo # 1. pk-based read
-##select length(text_val), char_length(text_val) from t2 where id = 11111;
-##select length(text_val), char_length(text_val) from t2 where id = 22222;
-##--echo # 2. scan
-##select length(text_val), char_length(text_val) from t2 order by id;
+--echo # text_val = TINYBLOB, truncation on byte boundary, mid-character
+--echo # length = well-formed char length
+--echo # 1. pk-based read
+select length(text_val), char_length(text_val) from t2 where id = 11111;
+select length(text_val), char_length(text_val) from t2 where id = 22222;
+--echo # 2. scan
+select length(text_val), char_length(text_val) from t2 order by id;
 
 drop table t2;

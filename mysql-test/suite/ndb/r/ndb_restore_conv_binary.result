@@ -518,17 +518,21 @@ select count(*) from test.t2;
 count(*)
 2
 select a,
-sha(tinytext2), sha(tinytext3), sha(tinytext4),
-length(tinytext2), length(tinytext3), length(tinytext4),
-sha(text2), sha(text3), sha(text4),
-length(text2), length(text3), length(text4),
-sha(mediumtext2), sha(mediumtext3), sha(mediumtext4),
-length(mediumtext2), length(mediumtext3), length(mediumtext4),
-sha(longtext2), sha(longtext3), sha(longtext4),
-length(longtext2), length(longtext3), length(longtext4) from test.t2 order by a;
-a	sha(tinytext2)	sha(tinytext3)	sha(tinytext4)	length(tinytext2)	length(tinytext3)	length(tinytext4)	sha(text2)	sha(text3)	sha(text4)	length(text2)	length(text3)	length(text4)	sha(mediumtext2)	sha(mediumtext3)	sha(mediumtext4)	length(mediumtext2)	length(mediumtext3)	length(mediumtext4)	sha(longtext2)	sha(longtext3)	sha(longtext4)	length(longtext2)	length(longtext3)	length(longtext4)
-0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	b45dcdc72f779995c05640ed7baa8ee5602c560f	b45dcdc72f779995c05640ed7baa8ee5602c560f	b45dcdc72f779995c05640ed7baa8ee5602c560f	240	240	240	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	24576	24576	24576	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	24576	24576	24576	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	24576	24576	24576
+sha(tinytext1), sha(tinytext2), sha(tinytext3), sha(tinytext4),
+length(tinytext1), length(tinytext2), length(tinytext3), length(tinytext4),
+sha(text1), sha(text2), sha(text3), sha(text4),
+length(text1), length(text2), length(text3), length(text4),
+sha(mediumtext1), sha(mediumtext2), sha(mediumtext3), sha(mediumtext4),
+length(mediumtext1), length(mediumtext2), length(mediumtext3), length(mediumtext4),
+sha(longtext1), sha(longtext2), sha(longtext3), sha(longtext4),
+length(longtext1), length(longtext2), length(longtext3), length(longtext4) from test.t2 order by a;
+a	sha(tinytext1)	sha(tinytext2)	sha(tinytext3)	sha(tinytext4)	length(tinytext1)	length(tinytext2)	length(tinytext3)	length(tinytext4)	sha(text1)	sha(text2)	sha(text3)	sha(text4)	length(text1)	length(text2)	length(text3)	length(text4)	sha(mediumtext1)	sha(mediumtext2)	sha(mediumtext3)	sha(mediumtext4)	length(mediumtext1)	length(mediumtext2)	length(mediumtext3)	length(mediumtext4)	sha(longtext1)	sha(longtext2)	sha(longtext3)	sha(longtext4)	length(longtext1)	length(longtext2)	length(longtext3)	length(longtext4)
+0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	b45dcdc72f779995c05640ed7baa8ee5602c560f	b45dcdc72f779995c05640ed7baa8ee5602c560f	b45dcdc72f779995c05640ed7baa8ee5602c560f	b45dcdc72f779995c05640ed7baa8ee5602c560f	240	240	240	240	6824e9d1a458a3ceb7fa93ad783746f7698f1ba8	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	255	24576	24576	24576	6824e9d1a458a3ceb7fa93ad783746f7698f1ba8	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	255	24576	24576	24576	6824e9d1a458a3ceb7fa93ad783746f7698f1ba8	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	a76f74b45fc6f668715f91d7bf13658bcbe3410e	255	24576	24576	24576
+Warnings:
+Warning	1265	Truncated value from TEXT field 'text1'
+Warning	1265	Truncated value from TEXT field 'mediumtext1'
+Warning	1265	Truncated value from TEXT field 'longtext1'
 drop table test.t2;
 drop table test.t2_orig;
 ********************************
@@ -673,4 +677,25 @@ select length(blob_val), char_length(blob_val) from t2 order by id;
 length(blob_val)	char_length(blob_val)
 255	85
 254	86
+# text_val = TINYBLOB, truncation on byte boundary, mid-character
+# length = well-formed char length
+# 1. pk-based read
+select length(text_val), char_length(text_val) from t2 where id = 11111;
+length(text_val)	char_length(text_val)
+255	255
+Warnings:
+Warning	1265	Truncated value from TEXT field 'text_val'
+select length(text_val), char_length(text_val) from t2 where id = 22222;
+length(text_val)	char_length(text_val)
+255	255
+Warnings:
+Warning	1265	Truncated value from TEXT field 'text_val'
+# 2. scan
+select length(text_val), char_length(text_val) from t2 order by id;
+length(text_val)	char_length(text_val)
+255	255
+255	255
+Warnings:
+Warning	1265	Truncated value from TEXT field 'text_val'
+Warning	1265	Truncated value from TEXT field 'text_val'
 drop table t2;

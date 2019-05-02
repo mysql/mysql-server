@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1648,6 +1648,9 @@ uint64 calc_ndb_blob_len(const CHARSET_INFO *cs, uchar *blob_ptr, uint64 maxlen)
 {
   int errors = 0;
   
+  if (!cs)
+    cs = &my_charset_bin;
+
   const char *begin = (const char*) blob_ptr;
   const char *end = (const char*) (blob_ptr+maxlen);
   
