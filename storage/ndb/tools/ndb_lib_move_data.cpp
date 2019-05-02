@@ -96,6 +96,7 @@ Ndb_move_data::Attr::Attr()
   size_in_bytes = 0;
   length_bytes = 0;
   data_size = 0;
+  tiny_bytes = 0;
   pad_char = -1;
   equal = false;
 }
@@ -137,6 +138,12 @@ Ndb_move_data::set_type(Attr& attr, const NdbDictionary::Column* c)
   case NdbDictionary::Column::Blob:
     attr.type = Attr::TypeBlob;
     attr.length_bytes = 0;
+    if (unlikely(c->getPartSize() == 0))
+    {
+      /* Tiny BLOB/TEXT, store inline size */
+      attr.tiny_bytes = c->getInlineSize();
+      require(attr.tiny_bytes);
+    }
     break;
   default:
     attr.type = Attr::TypeOther;
@@ -145,8 +152,11 @@ Ndb_move_data::set_type(Attr& attr, const NdbDictionary::Column* c)
 }
 
 Uint32
-Ndb_move_data::calc_str_len_truncated(CHARSET_INFO *cs, char *data, Uint32 maxlen)
+Ndb_move_data::calc_str_len_truncated(CHARSET_INFO *cs, const char *data, Uint32 maxlen)
 {
+  if (!cs)
+    return maxlen; // no charset found, do not truncate
+
   const char *begin = (const char*) data;
   const char *end= (const char*) (data+maxlen);
   int errors = 0;
@@ -554,8 +564,9 @@ Ndb_move_data::copy_data_to_array(const char* data1, const Attr& attr2,
       if (length1x > attr2.data_size)
       {
         require(opts.flags & Opts::MD_ATTRIBUTE_DEMOTION);
-        length1 = attr2.data_size;
         op.truncated_in_batch++;
+        length1 = calc_str_len_truncated(attr2.column->getCharset(),
+                                         data1, attr2.data_size);
       }
 
       uchar* uptr = (uchar*)&op.buf2[0];
@@ -657,6 +668,13 @@ Ndb_move_data::copy_array_to_blob(const Attr& attr1, const Attr& attr2)
       if (attr1.length_bytes == 0)
         while (length1 != 0 && data1[length1-1] == attr1.pad_char)
           length1--;
+      if (unlikely(attr2.tiny_bytes && length1 > attr2.tiny_bytes))
+      {
+        require(m_opts.flags & Opts::MD_ATTRIBUTE_DEMOTION);
+        op.truncated_in_batch++;
+        length1 = calc_str_len_truncated(attr2.column->getCharset(),
+                                         data1, attr2.tiny_bytes);
+      }
       char* data1copy = alloc_data(length1);
       memcpy(data1copy, data1, length1);
       CHK2(bh2->setValue(data1copy, length1) == 0, (bh2->getNdbError()));
@@ -739,14 +757,14 @@ Ndb_move_data::copy_blob_to_blob(const Attr& attr1, const Attr& attr2)
       require(bytes == data_length);
       
       // prevent TINYTEXT/TINYBLOB overflow by truncating data
-      if(attr2.column->getPartSize() == 0)
+      if(attr2.tiny_bytes)
       {
-        Uint32 inline_size = attr2.column->getInlineSize();
-        if(bytes > inline_size) 
+        if(bytes > attr2.tiny_bytes)
         {
-          data_length = calc_str_len_truncated(attr2.column->getCharset(),
-                                               data, inline_size);
+          require(m_opts.flags & Opts::MD_ATTRIBUTE_DEMOTION);
           op.truncated_in_batch++;
+          data_length = calc_str_len_truncated(attr2.column->getCharset(),
+                                               data, attr2.tiny_bytes);
         }
       }
       CHK2(bh2->setValue(data, data_length) == 0,
