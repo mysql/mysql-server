@@ -1,0 +1,77 @@
+#======Purpose======
+#
+# This test script aims to verify that the following requirement holds:
+#
+# R1. RESET MASTER should reset the counter that tracks how many transactions
+# have been committed since the last gtid_executed compression (as configured
+# with @@global.gtid_executed_compression_period).
+#
+# (Before BUG#27608561, RESET MASTER would not reset the counter, which made
+# it hard for test cases to predict the number of rows in the gtid_executed
+# table, since many tests may run in sequence on the same server instance.)
+#
+#======Implementation=====
+#
+# 1)- set the GTID_EXECUTED_COMPRESSION_PERIOD to 16.
+# 2)- Repeat following 4 times:
+#   a)- create a table, insert 3 rows.
+#   b)- wait till changes are synced to slave.
+#   c)- verify that slave's gtid_executed table has 5 rows.
+#   d)- RESET MASTER and RESET SLAVE.
+# 3)- restore the old value of GTID_EXECUTED_COMPRESSION_PERIOD
+#
+#=======Reference=====
+#
+# BUG #27608561: RESET MASTER SHOULD RESET GTID COMPRESSION COUNTER
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+
+# 1)- set the GTID_EXECUTED_COMPRESSION_PERIOD to 16.
+SET @old_compression_period = @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD;
+# In absence of the fix, test should fail in 4th iteration.
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD = 16;
+
+--let testcount = 0
+while ($testcount < 4) {
+  CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+
+  #  2.a)- create a table, insert 3 rows.
+  CREATE TABLE t (a INT);
+  --disable_query_log
+
+  --let $count = 0
+  while ($count  < 3) {
+    INSERT INTO t VALUES (1);
+    --inc $count
+  }
+  --enable_query_log
+  --let $SERVER_UUID = `SELECT @@global.server_uuid`
+
+  #  2.b)- wait till changes are synced to slave.
+  --source include/sync_slave_sql_with_master.inc
+
+  #  2.c)- verify that slave's gtid_executed table has 5 rows.
+  --let $count = `SELECT COUNT(*) FROM mysql.gtid_executed`
+  --let $assert_text = mysql.gtid_executed table has 5 records
+  --let $assert_cond = "$count" = "5"
+  --let $show_rpl_debug_info =
+  --source include/assert.inc
+
+  --replace_result $SERVER_UUID UUID
+  SELECT @@GLOBAL.GTID_EXECUTED;
+
+  # Clean up
+  --source include/rpl_connection_master.inc
+  DROP TABLE t;
+
+  #  2.d)- RESET MASTER and RESET SLAVE
+  --source include/rpl_reset.inc
+  --inc $testcount
+}
+
+# 3)- restore the old value of GTID_EXECUTED_COMPRESSION_PERIOD
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD = @old_compression_period;
+--source include/rpl_end.inc

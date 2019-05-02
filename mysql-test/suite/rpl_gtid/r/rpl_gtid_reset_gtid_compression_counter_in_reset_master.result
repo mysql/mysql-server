@@ -1,0 +1,49 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @old_compression_period = @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD;
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD = 16;
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+CREATE TABLE t (a INT);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.gtid_executed table has 5 records]
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+UUID:1-5
+[connection master]
+DROP TABLE t;
+include/rpl_reset.inc
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+CREATE TABLE t (a INT);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.gtid_executed table has 5 records]
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+UUID:1-5
+[connection master]
+DROP TABLE t;
+include/rpl_reset.inc
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+CREATE TABLE t (a INT);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.gtid_executed table has 5 records]
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+UUID:1-5
+[connection master]
+DROP TABLE t;
+include/rpl_reset.inc
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+CREATE TABLE t (a INT);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.gtid_executed table has 5 records]
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+UUID:1-5
+[connection master]
+DROP TABLE t;
+include/rpl_reset.inc
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD = @old_compression_period;
+include/rpl_end.inc

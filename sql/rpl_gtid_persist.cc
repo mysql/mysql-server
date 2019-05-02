@@ -614,7 +614,10 @@ int Gtid_table_persistor::reset(THD *thd) {
     error = 1;
     goto end;
   }
-
+  /* Reseting the counter as gtid_executed table will also
+     be emptied.
+  */
+  m_atomic_count = 0;
   error = delete_all(table);
 
 end:
