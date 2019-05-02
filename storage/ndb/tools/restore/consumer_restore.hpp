@@ -155,6 +155,12 @@ public:
                                                 const NDBCOL &new_col);
   static AttrConvType check_compat_text_to_text(const NDBCOL &old_col,
                                                 const NDBCOL &new_col);
+  static AttrConvType check_compat_binary_to_blob(const NDBCOL &old_col,
+                                                  const NDBCOL &new_col);
+  static AttrConvType check_compat_blob_to_binary(const NDBCOL &old_col,
+                                                  const NDBCOL &new_col);
+  static AttrConvType check_compat_blob_to_blob(const NDBCOL &old_col,
+                                                const NDBCOL &new_col);
   static AttrConvType check_compat_promotion(const NDBCOL &old_col,
                                              const NDBCOL &new_col);
   static AttrConvType check_compat_lossy(const NDBCOL &old_col,
