@@ -72,7 +72,6 @@ set @@max_error_count = @save_max_error_count;
 # Avoid problem with too large transactions.
 set ndb_use_transactions=0;
 
-insert into t2 select 160000+a from t2;
 drop table t1;
 
 create table t1 (a int primary key)
@@ -86,7 +85,7 @@ drop table t1;
 select max(used_pages) into @data_memory_pages
   from ndbinfo.memoryusage where memory_type = 'Data memory';
 
-let $lap = 20;
+let $lap = 3;
 while ($lap)
 {
   create table t1 (a int primary key)
