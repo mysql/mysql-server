@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,10 @@ typedef enum ACL_TABLES {
 */
 class Acl_table_intact : public Table_check_intact {
  public:
-  Acl_table_intact(THD *c_thd) : thd(c_thd) { has_keys = true; }
+  Acl_table_intact(THD *c_thd, enum loglevel log_level = ERROR_LEVEL)
+      : thd(c_thd), log_level_(log_level) {
+    has_keys = true;
+  }
 
   /**
     Checks whether an ACL table is intact.
@@ -95,7 +98,7 @@ class Acl_table_intact : public Table_check_intact {
       db_name = va_arg(args, char *);
       table_name = va_arg(args, char *);
       my_error(code, MYF(0), db_name, table_name);
-      LogErr(ERROR_LEVEL, ER_SERVER_CANNOT_LOAD_FROM_TABLE_V2, db_name,
+      LogErr(log_level_, ER_SERVER_CANNOT_LOAD_FROM_TABLE_V2, db_name,
              table_name);
     } else {
       my_printv_error(code, ER_THD(thd, code), MYF(0), args);
@@ -110,7 +113,7 @@ class Acl_table_intact : public Table_check_intact {
 
       va_start(args, fmt);
       LogEvent()
-          .prio(ERROR_LEVEL)
+          .prio(log_level_)
           .errcode(code)
           .subsys(LOG_SUBSYSTEM_TAG)
           .source_file(MY_BASENAME)
@@ -123,6 +126,7 @@ class Acl_table_intact : public Table_check_intact {
  private:
   THD *thd;
   static const TABLE_FIELD_DEF mysql_acl_table_defs[];
+  enum loglevel log_level_;
 };
 
 int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,

@@ -19302,6 +19302,9 @@ ER_LDAP_EMPTY_USERDN_PASSWORD
 ER_GROUPING_ON_TIMESTAMP_IN_DST
   eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
 
+ER_ACL_WRONG_OR_MISSING_ACL_TABLES_LOG
+  eng "The current layout of the ACL tables does not conform to the server's expected layout. They're either altered, missing or not upgraded from a previous version. However a best effort attempt to read data from these tables will still be made."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
