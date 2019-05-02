@@ -1717,7 +1717,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
 
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   } else {
-    LogErr(ERROR_LEVEL, ER_AUTHCACHE_TABLE_PROXIES_PRIV_MISSING);
+    LogErr(WARNING_LEVEL, ER_AUTHCACHE_TABLE_PROXIES_PRIV_MISSING);
   }
   acl_proxy_users->shrink_to_fit();
   validate_user_plugin_records();
@@ -1730,7 +1730,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
       goto end;
     }
   } else {
-    LogErr(ERROR_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
+    LogErr(WARNING_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
   initialized = 1;
@@ -1838,7 +1838,7 @@ class Acl_ignore_error_handler : public Internal_error_handler {
     true        Error.
 */
 bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables) {
-  Acl_table_intact table_intact(thd);
+  Acl_table_intact table_intact(thd, WARNING_LEVEL);
   bool result_acl = false;
 
   DBUG_ASSERT(tables);
@@ -1851,6 +1851,10 @@ bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables) {
       result_acl |= true;
     }
   }
+  /* say that we're still gonna give reading a try */
+  if (result_acl)
+    LogErr(INFORMATION_LEVEL, ER_ACL_WRONG_OR_MISSING_ACL_TABLES_LOG);
+
   return result_acl;
 }
 
