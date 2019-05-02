@@ -1,0 +1,990 @@
+#
+# Bug #91959 UBSAN: signed integer overflow in lock_update_trx_age
+#
+CREATE TABLE t1 (
+id INT PRIMARY KEY
+) Engine=InnoDB;
+SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout = 100000;
+# establishing connection cats0
+# establishing connection cats1
+# establishing connection cats2
+# establishing connection cats3
+# establishing connection cats4
+# establishing connection cats5
+# establishing connection cats6
+# establishing connection cats7
+# establishing connection cats8
+# establishing connection cats9
+# establishing connection cats10
+# establishing connection cats11
+# establishing connection cats12
+# establishing connection cats13
+# establishing connection cats14
+# establishing connection cats15
+# establishing connection cats16
+# establishing connection cats17
+# establishing connection cats18
+# establishing connection cats19
+# establishing connection cats20
+# establishing connection cats21
+# establishing connection cats22
+# establishing connection cats23
+# establishing connection cats24
+# establishing connection cats25
+# establishing connection cats26
+# establishing connection cats27
+# establishing connection cats28
+# establishing connection cats29
+# establishing connection cats30
+# establishing connection cats31
+# establishing connection cats32
+# wating for cats1
+# wating for cats2
+# wating for cats3
+# wating for cats4
+# wating for cats5
+# wating for cats6
+# wating for cats7
+# wating for cats8
+# wating for cats9
+# wating for cats10
+# wating for cats11
+# wating for cats12
+# wating for cats13
+# wating for cats14
+# wating for cats15
+# wating for cats16
+# wating for cats17
+# wating for cats18
+# wating for cats19
+# wating for cats20
+# wating for cats21
+# wating for cats22
+# wating for cats23
+# wating for cats24
+# wating for cats25
+# wating for cats26
+# wating for cats27
+# wating for cats28
+# wating for cats29
+# wating for cats30
+# wating for cats31
+# wating for cats32
+INSERT INTO t1 (id) VALUES (0);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t1 (id) VALUES (2);
+INSERT INTO t1 (id) VALUES (3);
+INSERT INTO t1 (id) VALUES (4);
+INSERT INTO t1 (id) VALUES (5);
+INSERT INTO t1 (id) VALUES (6);
+INSERT INTO t1 (id) VALUES (7);
+INSERT INTO t1 (id) VALUES (8);
+INSERT INTO t1 (id) VALUES (9);
+INSERT INTO t1 (id) VALUES (10);
+INSERT INTO t1 (id) VALUES (11);
+INSERT INTO t1 (id) VALUES (12);
+INSERT INTO t1 (id) VALUES (13);
+INSERT INTO t1 (id) VALUES (14);
+INSERT INTO t1 (id) VALUES (15);
+INSERT INTO t1 (id) VALUES (16);
+INSERT INTO t1 (id) VALUES (17);
+INSERT INTO t1 (id) VALUES (18);
+INSERT INTO t1 (id) VALUES (19);
+INSERT INTO t1 (id) VALUES (20);
+INSERT INTO t1 (id) VALUES (21);
+INSERT INTO t1 (id) VALUES (22);
+INSERT INTO t1 (id) VALUES (23);
+INSERT INTO t1 (id) VALUES (24);
+INSERT INTO t1 (id) VALUES (25);
+INSERT INTO t1 (id) VALUES (26);
+INSERT INTO t1 (id) VALUES (27);
+INSERT INTO t1 (id) VALUES (28);
+INSERT INTO t1 (id) VALUES (29);
+INSERT INTO t1 (id) VALUES (30);
+INSERT INTO t1 (id) VALUES (31);
+INSERT INTO t1 (id) VALUES (32);
+# establishing connection connection0 on layer 0 and acquire S lock on 0
+BEGIN;
+SELECT * FROM t1 WHERE id = 0 FOR SHARE;
+id
+0
+# establishing connection connection1 on layer 0 and acquire S lock on 0
+BEGIN;
+SELECT * FROM t1 WHERE id = 0 FOR SHARE;
+id
+0
+# establishing connection connection2 on layer 1 and acquire S lock on 1
+BEGIN;
+SELECT * FROM t1 WHERE id = 1 FOR SHARE;
+id
+1
+# establishing connection connection3 on layer 1 and acquire S lock on 1
+BEGIN;
+SELECT * FROM t1 WHERE id = 1 FOR SHARE;
+id
+1
+# establishing connection connection4 on layer 2 and acquire S lock on 2
+BEGIN;
+SELECT * FROM t1 WHERE id = 2 FOR SHARE;
+id
+2
+# establishing connection connection5 on layer 2 and acquire S lock on 2
+BEGIN;
+SELECT * FROM t1 WHERE id = 2 FOR SHARE;
+id
+2
+# establishing connection connection6 on layer 3 and acquire S lock on 3
+BEGIN;
+SELECT * FROM t1 WHERE id = 3 FOR SHARE;
+id
+3
+# establishing connection connection7 on layer 3 and acquire S lock on 3
+BEGIN;
+SELECT * FROM t1 WHERE id = 3 FOR SHARE;
+id
+3
+# establishing connection connection8 on layer 4 and acquire S lock on 4
+BEGIN;
+SELECT * FROM t1 WHERE id = 4 FOR SHARE;
+id
+4
+# establishing connection connection9 on layer 4 and acquire S lock on 4
+BEGIN;
+SELECT * FROM t1 WHERE id = 4 FOR SHARE;
+id
+4
+# establishing connection connection10 on layer 5 and acquire S lock on 5
+BEGIN;
+SELECT * FROM t1 WHERE id = 5 FOR SHARE;
+id
+5
+# establishing connection connection11 on layer 5 and acquire S lock on 5
+BEGIN;
+SELECT * FROM t1 WHERE id = 5 FOR SHARE;
+id
+5
+# establishing connection connection12 on layer 6 and acquire S lock on 6
+BEGIN;
+SELECT * FROM t1 WHERE id = 6 FOR SHARE;
+id
+6
+# establishing connection connection13 on layer 6 and acquire S lock on 6
+BEGIN;
+SELECT * FROM t1 WHERE id = 6 FOR SHARE;
+id
+6
+# establishing connection connection14 on layer 7 and acquire S lock on 7
+BEGIN;
+SELECT * FROM t1 WHERE id = 7 FOR SHARE;
+id
+7
+# establishing connection connection15 on layer 7 and acquire S lock on 7
+BEGIN;
+SELECT * FROM t1 WHERE id = 7 FOR SHARE;
+id
+7
+# establishing connection connection16 on layer 8 and acquire S lock on 8
+BEGIN;
+SELECT * FROM t1 WHERE id = 8 FOR SHARE;
+id
+8
+# establishing connection connection17 on layer 8 and acquire S lock on 8
+BEGIN;
+SELECT * FROM t1 WHERE id = 8 FOR SHARE;
+id
+8
+# establishing connection connection18 on layer 9 and acquire S lock on 9
+BEGIN;
+SELECT * FROM t1 WHERE id = 9 FOR SHARE;
+id
+9
+# establishing connection connection19 on layer 9 and acquire S lock on 9
+BEGIN;
+SELECT * FROM t1 WHERE id = 9 FOR SHARE;
+id
+9
+# establishing connection connection20 on layer 10 and acquire S lock on 10
+BEGIN;
+SELECT * FROM t1 WHERE id = 10 FOR SHARE;
+id
+10
+# establishing connection connection21 on layer 10 and acquire S lock on 10
+BEGIN;
+SELECT * FROM t1 WHERE id = 10 FOR SHARE;
+id
+10
+# establishing connection connection22 on layer 11 and acquire S lock on 11
+BEGIN;
+SELECT * FROM t1 WHERE id = 11 FOR SHARE;
+id
+11
+# establishing connection connection23 on layer 11 and acquire S lock on 11
+BEGIN;
+SELECT * FROM t1 WHERE id = 11 FOR SHARE;
+id
+11
+# establishing connection connection24 on layer 12 and acquire S lock on 12
+BEGIN;
+SELECT * FROM t1 WHERE id = 12 FOR SHARE;
+id
+12
+# establishing connection connection25 on layer 12 and acquire S lock on 12
+BEGIN;
+SELECT * FROM t1 WHERE id = 12 FOR SHARE;
+id
+12
+# establishing connection connection26 on layer 13 and acquire S lock on 13
+BEGIN;
+SELECT * FROM t1 WHERE id = 13 FOR SHARE;
+id
+13
+# establishing connection connection27 on layer 13 and acquire S lock on 13
+BEGIN;
+SELECT * FROM t1 WHERE id = 13 FOR SHARE;
+id
+13
+# establishing connection connection28 on layer 14 and acquire S lock on 14
+BEGIN;
+SELECT * FROM t1 WHERE id = 14 FOR SHARE;
+id
+14
+# establishing connection connection29 on layer 14 and acquire S lock on 14
+BEGIN;
+SELECT * FROM t1 WHERE id = 14 FOR SHARE;
+id
+14
+# establishing connection connection30 on layer 15 and acquire S lock on 15
+BEGIN;
+SELECT * FROM t1 WHERE id = 15 FOR SHARE;
+id
+15
+# establishing connection connection31 on layer 15 and acquire S lock on 15
+BEGIN;
+SELECT * FROM t1 WHERE id = 15 FOR SHARE;
+id
+15
+# establishing connection connection32 on layer 16 and acquire S lock on 16
+BEGIN;
+SELECT * FROM t1 WHERE id = 16 FOR SHARE;
+id
+16
+# establishing connection connection33 on layer 16 and acquire S lock on 16
+BEGIN;
+SELECT * FROM t1 WHERE id = 16 FOR SHARE;
+id
+16
+# establishing connection connection34 on layer 17 and acquire S lock on 17
+BEGIN;
+SELECT * FROM t1 WHERE id = 17 FOR SHARE;
+id
+17
+# establishing connection connection35 on layer 17 and acquire S lock on 17
+BEGIN;
+SELECT * FROM t1 WHERE id = 17 FOR SHARE;
+id
+17
+# establishing connection connection36 on layer 18 and acquire S lock on 18
+BEGIN;
+SELECT * FROM t1 WHERE id = 18 FOR SHARE;
+id
+18
+# establishing connection connection37 on layer 18 and acquire S lock on 18
+BEGIN;
+SELECT * FROM t1 WHERE id = 18 FOR SHARE;
+id
+18
+# establishing connection connection38 on layer 19 and acquire S lock on 19
+BEGIN;
+SELECT * FROM t1 WHERE id = 19 FOR SHARE;
+id
+19
+# establishing connection connection39 on layer 19 and acquire S lock on 19
+BEGIN;
+SELECT * FROM t1 WHERE id = 19 FOR SHARE;
+id
+19
+# establishing connection connection40 on layer 20 and acquire S lock on 20
+BEGIN;
+SELECT * FROM t1 WHERE id = 20 FOR SHARE;
+id
+20
+# establishing connection connection41 on layer 20 and acquire S lock on 20
+BEGIN;
+SELECT * FROM t1 WHERE id = 20 FOR SHARE;
+id
+20
+# establishing connection connection42 on layer 21 and acquire S lock on 21
+BEGIN;
+SELECT * FROM t1 WHERE id = 21 FOR SHARE;
+id
+21
+# establishing connection connection43 on layer 21 and acquire S lock on 21
+BEGIN;
+SELECT * FROM t1 WHERE id = 21 FOR SHARE;
+id
+21
+# establishing connection connection44 on layer 22 and acquire S lock on 22
+BEGIN;
+SELECT * FROM t1 WHERE id = 22 FOR SHARE;
+id
+22
+# establishing connection connection45 on layer 22 and acquire S lock on 22
+BEGIN;
+SELECT * FROM t1 WHERE id = 22 FOR SHARE;
+id
+22
+# establishing connection connection46 on layer 23 and acquire S lock on 23
+BEGIN;
+SELECT * FROM t1 WHERE id = 23 FOR SHARE;
+id
+23
+# establishing connection connection47 on layer 23 and acquire S lock on 23
+BEGIN;
+SELECT * FROM t1 WHERE id = 23 FOR SHARE;
+id
+23
+# establishing connection connection48 on layer 24 and acquire S lock on 24
+BEGIN;
+SELECT * FROM t1 WHERE id = 24 FOR SHARE;
+id
+24
+# establishing connection connection49 on layer 24 and acquire S lock on 24
+BEGIN;
+SELECT * FROM t1 WHERE id = 24 FOR SHARE;
+id
+24
+# establishing connection connection50 on layer 25 and acquire S lock on 25
+BEGIN;
+SELECT * FROM t1 WHERE id = 25 FOR SHARE;
+id
+25
+# establishing connection connection51 on layer 25 and acquire S lock on 25
+BEGIN;
+SELECT * FROM t1 WHERE id = 25 FOR SHARE;
+id
+25
+# establishing connection connection52 on layer 26 and acquire S lock on 26
+BEGIN;
+SELECT * FROM t1 WHERE id = 26 FOR SHARE;
+id
+26
+# establishing connection connection53 on layer 26 and acquire S lock on 26
+BEGIN;
+SELECT * FROM t1 WHERE id = 26 FOR SHARE;
+id
+26
+# establishing connection connection54 on layer 27 and acquire S lock on 27
+BEGIN;
+SELECT * FROM t1 WHERE id = 27 FOR SHARE;
+id
+27
+# establishing connection connection55 on layer 27 and acquire S lock on 27
+BEGIN;
+SELECT * FROM t1 WHERE id = 27 FOR SHARE;
+id
+27
+# establishing connection connection56 on layer 28 and acquire S lock on 28
+BEGIN;
+SELECT * FROM t1 WHERE id = 28 FOR SHARE;
+id
+28
+# establishing connection connection57 on layer 28 and acquire S lock on 28
+BEGIN;
+SELECT * FROM t1 WHERE id = 28 FOR SHARE;
+id
+28
+# establishing connection connection58 on layer 29 and acquire S lock on 29
+BEGIN;
+SELECT * FROM t1 WHERE id = 29 FOR SHARE;
+id
+29
+# establishing connection connection59 on layer 29 and acquire S lock on 29
+BEGIN;
+SELECT * FROM t1 WHERE id = 29 FOR SHARE;
+id
+29
+# establishing connection connection60 on layer 30 and acquire S lock on 30
+BEGIN;
+SELECT * FROM t1 WHERE id = 30 FOR SHARE;
+id
+30
+# establishing connection connection61 on layer 30 and acquire S lock on 30
+BEGIN;
+SELECT * FROM t1 WHERE id = 30 FOR SHARE;
+id
+30
+# establishing connection connection62 on layer 31 and acquire S lock on 31
+BEGIN;
+SELECT * FROM t1 WHERE id = 31 FOR SHARE;
+id
+31
+# establishing connection connection63 on layer 31 and acquire S lock on 31
+BEGIN;
+SELECT * FROM t1 WHERE id = 31 FOR SHARE;
+id
+31
+# establishing connection connection64 on layer 32 and acquire S lock on 32
+BEGIN;
+SELECT * FROM t1 WHERE id = 32 FOR SHARE;
+id
+32
+# establishing connection connection65 on layer 32 and acquire S lock on 32
+BEGIN;
+SELECT * FROM t1 WHERE id = 32 FOR SHARE;
+id
+32
+# connection_name on layer 0 tries to acquire X lock on 1
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection0';
+SELECT * FROM t1 WHERE id = 1 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection0';
+# connection_name on layer 0 tries to acquire X lock on 1
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection1';
+SELECT * FROM t1 WHERE id = 1 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection1';
+# connection_name on layer 1 tries to acquire X lock on 2
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection2';
+SELECT * FROM t1 WHERE id = 2 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection2';
+# connection_name on layer 1 tries to acquire X lock on 2
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection3';
+SELECT * FROM t1 WHERE id = 2 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection3';
+# connection_name on layer 2 tries to acquire X lock on 3
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection4';
+SELECT * FROM t1 WHERE id = 3 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection4';
+# connection_name on layer 2 tries to acquire X lock on 3
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection5';
+SELECT * FROM t1 WHERE id = 3 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection5';
+# connection_name on layer 3 tries to acquire X lock on 4
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection6';
+SELECT * FROM t1 WHERE id = 4 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection6';
+# connection_name on layer 3 tries to acquire X lock on 4
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection7';
+SELECT * FROM t1 WHERE id = 4 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection7';
+# connection_name on layer 4 tries to acquire X lock on 5
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection8';
+SELECT * FROM t1 WHERE id = 5 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection8';
+# connection_name on layer 4 tries to acquire X lock on 5
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection9';
+SELECT * FROM t1 WHERE id = 5 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection9';
+# connection_name on layer 5 tries to acquire X lock on 6
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection10';
+SELECT * FROM t1 WHERE id = 6 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection10';
+# connection_name on layer 5 tries to acquire X lock on 6
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection11';
+SELECT * FROM t1 WHERE id = 6 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection11';
+# connection_name on layer 6 tries to acquire X lock on 7
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection12';
+SELECT * FROM t1 WHERE id = 7 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection12';
+# connection_name on layer 6 tries to acquire X lock on 7
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection13';
+SELECT * FROM t1 WHERE id = 7 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection13';
+# connection_name on layer 7 tries to acquire X lock on 8
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection14';
+SELECT * FROM t1 WHERE id = 8 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection14';
+# connection_name on layer 7 tries to acquire X lock on 8
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection15';
+SELECT * FROM t1 WHERE id = 8 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection15';
+# connection_name on layer 8 tries to acquire X lock on 9
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection16';
+SELECT * FROM t1 WHERE id = 9 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection16';
+# connection_name on layer 8 tries to acquire X lock on 9
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection17';
+SELECT * FROM t1 WHERE id = 9 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection17';
+# connection_name on layer 9 tries to acquire X lock on 10
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection18';
+SELECT * FROM t1 WHERE id = 10 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection18';
+# connection_name on layer 9 tries to acquire X lock on 10
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection19';
+SELECT * FROM t1 WHERE id = 10 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection19';
+# connection_name on layer 10 tries to acquire X lock on 11
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection20';
+SELECT * FROM t1 WHERE id = 11 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection20';
+# connection_name on layer 10 tries to acquire X lock on 11
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection21';
+SELECT * FROM t1 WHERE id = 11 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection21';
+# connection_name on layer 11 tries to acquire X lock on 12
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection22';
+SELECT * FROM t1 WHERE id = 12 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection22';
+# connection_name on layer 11 tries to acquire X lock on 12
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection23';
+SELECT * FROM t1 WHERE id = 12 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection23';
+# connection_name on layer 12 tries to acquire X lock on 13
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection24';
+SELECT * FROM t1 WHERE id = 13 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection24';
+# connection_name on layer 12 tries to acquire X lock on 13
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection25';
+SELECT * FROM t1 WHERE id = 13 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection25';
+# connection_name on layer 13 tries to acquire X lock on 14
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection26';
+SELECT * FROM t1 WHERE id = 14 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection26';
+# connection_name on layer 13 tries to acquire X lock on 14
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection27';
+SELECT * FROM t1 WHERE id = 14 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection27';
+# connection_name on layer 14 tries to acquire X lock on 15
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection28';
+SELECT * FROM t1 WHERE id = 15 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection28';
+# connection_name on layer 14 tries to acquire X lock on 15
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection29';
+SELECT * FROM t1 WHERE id = 15 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection29';
+# connection_name on layer 15 tries to acquire X lock on 16
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection30';
+SELECT * FROM t1 WHERE id = 16 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection30';
+# connection_name on layer 15 tries to acquire X lock on 16
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection31';
+SELECT * FROM t1 WHERE id = 16 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection31';
+# connection_name on layer 16 tries to acquire X lock on 17
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection32';
+SELECT * FROM t1 WHERE id = 17 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection32';
+# connection_name on layer 16 tries to acquire X lock on 17
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection33';
+SELECT * FROM t1 WHERE id = 17 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection33';
+# connection_name on layer 17 tries to acquire X lock on 18
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection34';
+SELECT * FROM t1 WHERE id = 18 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection34';
+# connection_name on layer 17 tries to acquire X lock on 18
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection35';
+SELECT * FROM t1 WHERE id = 18 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection35';
+# connection_name on layer 18 tries to acquire X lock on 19
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection36';
+SELECT * FROM t1 WHERE id = 19 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection36';
+# connection_name on layer 18 tries to acquire X lock on 19
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection37';
+SELECT * FROM t1 WHERE id = 19 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection37';
+# connection_name on layer 19 tries to acquire X lock on 20
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection38';
+SELECT * FROM t1 WHERE id = 20 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection38';
+# connection_name on layer 19 tries to acquire X lock on 20
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection39';
+SELECT * FROM t1 WHERE id = 20 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection39';
+# connection_name on layer 20 tries to acquire X lock on 21
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection40';
+SELECT * FROM t1 WHERE id = 21 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection40';
+# connection_name on layer 20 tries to acquire X lock on 21
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection41';
+SELECT * FROM t1 WHERE id = 21 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection41';
+# connection_name on layer 21 tries to acquire X lock on 22
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection42';
+SELECT * FROM t1 WHERE id = 22 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection42';
+# connection_name on layer 21 tries to acquire X lock on 22
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection43';
+SELECT * FROM t1 WHERE id = 22 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection43';
+# connection_name on layer 22 tries to acquire X lock on 23
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection44';
+SELECT * FROM t1 WHERE id = 23 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection44';
+# connection_name on layer 22 tries to acquire X lock on 23
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection45';
+SELECT * FROM t1 WHERE id = 23 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection45';
+# connection_name on layer 23 tries to acquire X lock on 24
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection46';
+SELECT * FROM t1 WHERE id = 24 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection46';
+# connection_name on layer 23 tries to acquire X lock on 24
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection47';
+SELECT * FROM t1 WHERE id = 24 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection47';
+# connection_name on layer 24 tries to acquire X lock on 25
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection48';
+SELECT * FROM t1 WHERE id = 25 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection48';
+# connection_name on layer 24 tries to acquire X lock on 25
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection49';
+SELECT * FROM t1 WHERE id = 25 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection49';
+# connection_name on layer 25 tries to acquire X lock on 26
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection50';
+SELECT * FROM t1 WHERE id = 26 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection50';
+# connection_name on layer 25 tries to acquire X lock on 26
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection51';
+SELECT * FROM t1 WHERE id = 26 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection51';
+# connection_name on layer 26 tries to acquire X lock on 27
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection52';
+SELECT * FROM t1 WHERE id = 27 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection52';
+# connection_name on layer 26 tries to acquire X lock on 27
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection53';
+SELECT * FROM t1 WHERE id = 27 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection53';
+# connection_name on layer 27 tries to acquire X lock on 28
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection54';
+SELECT * FROM t1 WHERE id = 28 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection54';
+# connection_name on layer 27 tries to acquire X lock on 28
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection55';
+SELECT * FROM t1 WHERE id = 28 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection55';
+# connection_name on layer 28 tries to acquire X lock on 29
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection56';
+SELECT * FROM t1 WHERE id = 29 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection56';
+# connection_name on layer 28 tries to acquire X lock on 29
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection57';
+SELECT * FROM t1 WHERE id = 29 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection57';
+# connection_name on layer 29 tries to acquire X lock on 30
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection58';
+SELECT * FROM t1 WHERE id = 30 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection58';
+# connection_name on layer 29 tries to acquire X lock on 30
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection59';
+SELECT * FROM t1 WHERE id = 30 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection59';
+# connection_name on layer 30 tries to acquire X lock on 31
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection60';
+SELECT * FROM t1 WHERE id = 31 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection60';
+# connection_name on layer 30 tries to acquire X lock on 31
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection61';
+SELECT * FROM t1 WHERE id = 31 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection61';
+# connection_name on layer 31 tries to acquire X lock on 32
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection62';
+SELECT * FROM t1 WHERE id = 32 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection62';
+# connection_name on layer 31 tries to acquire X lock on 32
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL connection63';
+SELECT * FROM t1 WHERE id = 32 FOR UPDATE;ROLLBACK;
+SET DEBUG_SYNC = 'now WAIT_FOR connection63';
+# cleaning up connection connection65
+ROLLBACK;
+# cleaning up connection connection64
+ROLLBACK;
+# cleaning up connection connection63
+id
+32
+ROLLBACK;
+# cleaning up connection connection62
+id
+32
+ROLLBACK;
+# cleaning up connection connection61
+id
+31
+ROLLBACK;
+# cleaning up connection connection60
+id
+31
+ROLLBACK;
+# cleaning up connection connection59
+id
+30
+ROLLBACK;
+# cleaning up connection connection58
+id
+30
+ROLLBACK;
+# cleaning up connection connection57
+id
+29
+ROLLBACK;
+# cleaning up connection connection56
+id
+29
+ROLLBACK;
+# cleaning up connection connection55
+id
+28
+ROLLBACK;
+# cleaning up connection connection54
+id
+28
+ROLLBACK;
+# cleaning up connection connection53
+id
+27
+ROLLBACK;
+# cleaning up connection connection52
+id
+27
+ROLLBACK;
+# cleaning up connection connection51
+id
+26
+ROLLBACK;
+# cleaning up connection connection50
+id
+26
+ROLLBACK;
+# cleaning up connection connection49
+id
+25
+ROLLBACK;
+# cleaning up connection connection48
+id
+25
+ROLLBACK;
+# cleaning up connection connection47
+id
+24
+ROLLBACK;
+# cleaning up connection connection46
+id
+24
+ROLLBACK;
+# cleaning up connection connection45
+id
+23
+ROLLBACK;
+# cleaning up connection connection44
+id
+23
+ROLLBACK;
+# cleaning up connection connection43
+id
+22
+ROLLBACK;
+# cleaning up connection connection42
+id
+22
+ROLLBACK;
+# cleaning up connection connection41
+id
+21
+ROLLBACK;
+# cleaning up connection connection40
+id
+21
+ROLLBACK;
+# cleaning up connection connection39
+id
+20
+ROLLBACK;
+# cleaning up connection connection38
+id
+20
+ROLLBACK;
+# cleaning up connection connection37
+id
+19
+ROLLBACK;
+# cleaning up connection connection36
+id
+19
+ROLLBACK;
+# cleaning up connection connection35
+id
+18
+ROLLBACK;
+# cleaning up connection connection34
+id
+18
+ROLLBACK;
+# cleaning up connection connection33
+id
+17
+ROLLBACK;
+# cleaning up connection connection32
+id
+17
+ROLLBACK;
+# cleaning up connection connection31
+id
+16
+ROLLBACK;
+# cleaning up connection connection30
+id
+16
+ROLLBACK;
+# cleaning up connection connection29
+id
+15
+ROLLBACK;
+# cleaning up connection connection28
+id
+15
+ROLLBACK;
+# cleaning up connection connection27
+id
+14
+ROLLBACK;
+# cleaning up connection connection26
+id
+14
+ROLLBACK;
+# cleaning up connection connection25
+id
+13
+ROLLBACK;
+# cleaning up connection connection24
+id
+13
+ROLLBACK;
+# cleaning up connection connection23
+id
+12
+ROLLBACK;
+# cleaning up connection connection22
+id
+12
+ROLLBACK;
+# cleaning up connection connection21
+id
+11
+ROLLBACK;
+# cleaning up connection connection20
+id
+11
+ROLLBACK;
+# cleaning up connection connection19
+id
+10
+ROLLBACK;
+# cleaning up connection connection18
+id
+10
+ROLLBACK;
+# cleaning up connection connection17
+id
+9
+ROLLBACK;
+# cleaning up connection connection16
+id
+9
+ROLLBACK;
+# cleaning up connection connection15
+id
+8
+ROLLBACK;
+# cleaning up connection connection14
+id
+8
+ROLLBACK;
+# cleaning up connection connection13
+id
+7
+ROLLBACK;
+# cleaning up connection connection12
+id
+7
+ROLLBACK;
+# cleaning up connection connection11
+id
+6
+ROLLBACK;
+# cleaning up connection connection10
+id
+6
+ROLLBACK;
+# cleaning up connection connection9
+id
+5
+ROLLBACK;
+# cleaning up connection connection8
+id
+5
+ROLLBACK;
+# cleaning up connection connection7
+id
+4
+ROLLBACK;
+# cleaning up connection connection6
+id
+4
+ROLLBACK;
+# cleaning up connection connection5
+id
+3
+ROLLBACK;
+# cleaning up connection connection4
+id
+3
+ROLLBACK;
+# cleaning up connection connection3
+id
+2
+ROLLBACK;
+# cleaning up connection connection2
+id
+2
+ROLLBACK;
+# cleaning up connection connection1
+id
+1
+ROLLBACK;
+# cleaning up connection connection0
+id
+1
+ROLLBACK;
+# cleaning up connection cats0
+# cleaning up connection cats1
+# cleaning up connection cats2
+# cleaning up connection cats3
+# cleaning up connection cats4
+# cleaning up connection cats5
+# cleaning up connection cats6
+# cleaning up connection cats7
+# cleaning up connection cats8
+# cleaning up connection cats9
+# cleaning up connection cats10
+# cleaning up connection cats11
+# cleaning up connection cats12
+# cleaning up connection cats13
+# cleaning up connection cats14
+# cleaning up connection cats15
+# cleaning up connection cats16
+# cleaning up connection cats17
+# cleaning up connection cats18
+# cleaning up connection cats19
+# cleaning up connection cats20
+# cleaning up connection cats21
+# cleaning up connection cats22
+# cleaning up connection cats23
+# cleaning up connection cats24
+# cleaning up connection cats25
+# cleaning up connection cats26
+# cleaning up connection cats27
+# cleaning up connection cats28
+# cleaning up connection cats29
+# cleaning up connection cats30
+# cleaning up connection cats31
+# cleaning up connection cats32
+DROP TABLE t1;
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+#
+# End of Bug #91959
+#
