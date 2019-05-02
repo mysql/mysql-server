@@ -106,12 +106,14 @@ enum enum_vio_type : int {
   */
   VIO_TYPE_PLUGIN = 7,
 
+  VIO_TYPE_FUZZ = 8,
+
   FIRST_VIO_TYPE = VIO_TYPE_TCPIP,
   /*
     If a new type is added, please update LAST_VIO_TYPE. In addition, please
     change get_vio_type_name() in vio/vio.c to return correct name for it.
   */
-  LAST_VIO_TYPE = VIO_TYPE_PLUGIN
+  LAST_VIO_TYPE = VIO_TYPE_FUZZ
 };
 
 /**
@@ -456,5 +458,20 @@ struct Vio {
 #else
 #define SSL_handle void *
 #endif
+
+
+//Vio fuzzing
+bool vio_connect_fuzz(MYSQL_VIO vio, struct sockaddr *addr, socklen_t len,
+                        int timeout);
+int vio_socket_timeout_fuzz(Vio *vio, uint which, bool b);
+void sock_initfuzz(const uint8_t *Data, size_t Size);
+size_t vio_read_buff_fuzz(Vio *vio, uchar *buf, size_t size);
+size_t vio_write_buff_fuzz(Vio *vio, const uchar *buf, size_t size);
+bool vio_is_connected_fuzz(Vio *vio);
+bool vio_was_timeout_fuzz(Vio *vio);
+int vio_shutdown_fuzz(Vio *vio);
+int vio_keepalive_fuzz(Vio *vio, bool set_keep_alive);
+int vio_io_wait_fuzz(Vio *vio, enum enum_vio_io_event event, int timeout);
+int vio_fastsend_fuzz(Vio *vio);
 
 #endif /* vio_violite_h_ */

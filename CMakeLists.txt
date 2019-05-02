@@ -461,6 +461,7 @@ ENDIF()
 
 OPTION(DISABLE_SHARED 
  "Don't build shared libraries, compile code as position-dependent" OFF)
+OPTION(FUZZING "Fuzzing" OFF)
 IF(DISABLE_SHARED)
   MESSAGE("Dynamic plugins are disabled.")
 ENDIF()
@@ -1138,6 +1139,10 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(testclients)
   ADD_SUBDIRECTORY(sql)
+ENDIF()
+
+IF (FUZZING)
+  ADD_SUBDIRECTORY(fuzz)
 ENDIF()
 
 # scripts/mysql_config depends on client and server targets loaded above.

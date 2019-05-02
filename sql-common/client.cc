@@ -5692,6 +5692,12 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
     }
   }
 #endif /* _WIN32 */
+if (!net->vio &&
+      (mysql->options.protocol == MYSQL_PROTOCOL_FUZZ)) {
+    net->vio =
+        vio_new(0, VIO_TYPE_FUZZ, 0);
+    ctx->host_info = (char *)ER_CLIENT(CR_LOCALHOST_CONNECTION);
+}
 #if defined(HAVE_SYS_UN_H)
   if (!net->vio &&
       (!mysql->options.protocol ||

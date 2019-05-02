@@ -300,6 +300,27 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     return false;
   }
 #endif /* HAVE_OPENSSL */
+  if (type == VIO_TYPE_FUZZ) {
+    vio->viodelete = vio_delete;
+    vio->vioerrno = vio_errno;
+    vio->read = vio_read_buff_fuzz;
+    vio->write = vio_write_buff_fuzz;
+    vio->fastsend = vio_fastsend_fuzz;
+    vio->viokeepalive = vio_keepalive_fuzz;
+    vio->should_retry = vio_should_retry;
+    vio->was_timeout = vio_was_timeout_fuzz;
+    vio->vioshutdown = vio_shutdown_fuzz;
+    vio->peer_addr = vio_peer_addr;
+    vio->timeout = vio_socket_timeout_fuzz;
+    vio->io_wait = vio_io_wait_fuzz;
+    vio->is_connected = vio_is_connected_fuzz;
+    vio->has_data = vio->read_buffer ? vio_buff_has_data : has_no_data;
+    vio->is_blocking = vio_is_blocking;
+    vio->set_blocking = vio_set_blocking;
+    vio->set_blocking_flag = vio_set_blocking_flag;
+    vio->is_blocking_flag = false;
+    return false;
+  }
   vio->viodelete = vio_delete;
   vio->vioerrno = vio_errno;
   vio->read = vio->read_buffer ? vio_read_buff : vio_read;
@@ -577,7 +598,8 @@ static const vio_string vio_type_names[] = {{"", 0},
                                             {STRING_WITH_LEN("SSL/TLS")},
                                             {STRING_WITH_LEN("Shared Memory")},
                                             {STRING_WITH_LEN("Internal")},
-                                            {STRING_WITH_LEN("Plugin")}};
+                                            {STRING_WITH_LEN("Plugin")},
+                                            {STRING_WITH_LEN("Fuzz")}};
 
 void get_vio_type_name(enum enum_vio_type vio_type, const char **str,
                        int *len) {
