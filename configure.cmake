@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -81,45 +81,6 @@ int main()
 #endif
 }" HAVE_LLVM_LIBCPP)
 
-MACRO(DIRNAME IN OUT)
-  GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
-ENDMACRO()
-
-
-# We assume that developer studio runtime libraries are installed.
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-   CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
-
-  SET(LIBRARY_SUFFIX "lib/compilers/CC-gcc/lib")
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-    SET(LIBRARY_SUFFIX "${LIBRARY_SUFFIX}/sparcv9")
-  ENDIF()
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    SET(LIBRARY_SUFFIX "${LIBRARY_SUFFIX}/amd64")
-  ENDIF()
-  FIND_LIBRARY(STL_LIBRARY_NAME
-    NAMES "stdc++"
-    PATHS ${CXX_PATH}/../${LIBRARY_SUFFIX}
-    NO_DEFAULT_PATH
-  )
-  MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
-  IF(STL_LIBRARY_NAME)
-    DIRNAME(${STL_LIBRARY_NAME} STL_LIBRARY_PATH)
-    SET(QUOTED_CMAKE_CXX_LINK_FLAGS
-      "${CMAKE_CXX_LINK_FLAGS} -L${STL_LIBRARY_PATH} -R${STL_LIBRARY_PATH}")
-    SET(CMAKE_CXX_LINK_FLAGS
-      "${CMAKE_CXX_LINK_FLAGS} -L${STL_LIBRARY_PATH} -R${STL_LIBRARY_PATH}")
-    SET(CMAKE_C_LINK_FLAGS
-      "${CMAKE_C_LINK_FLAGS} -L${STL_LIBRARY_PATH} -R${STL_LIBRARY_PATH}")
-  ENDIF()
-  SET(CMAKE_C_LINK_FLAGS
-    "${CMAKE_C_LINK_FLAGS} -lc")
-  SET(CMAKE_CXX_LINK_FLAGS
-    "${CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
-  SET(QUOTED_CMAKE_CXX_LINK_FLAGS
-    "${QUOTED_CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc ")
-ENDIF()
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
   IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
