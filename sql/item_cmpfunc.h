@@ -1116,6 +1116,7 @@ class Item_func_if final : public Item_func {
   uint decimal_precision() const override;
   const char *func_name() const override { return "if"; }
   enum Functype functype() const override { return IF_FUNC; }
+  bool is_bool_func() const override;
 };
 
 class Item_func_nullif final : public Item_bool_func2 {
@@ -1599,6 +1600,7 @@ class Item_func_case final : public Item_func {
   const char *func_name() const override { return "case"; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  bool is_bool_func() const override;
   Item *find_item(String *str);
   const CHARSET_INFO *compare_collation() const override {
     return cmp_collation.collation;

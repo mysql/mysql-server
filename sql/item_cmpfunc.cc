@@ -3078,6 +3078,10 @@ longlong Item_func_if::val_int() {
   return value;
 }
 
+bool Item_func_if::is_bool_func() const {
+  return args[1]->is_bool_func() && args[2]->is_bool_func();
+}
+
 String *Item_func_if::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
 
@@ -3327,6 +3331,17 @@ double Item_func_case::val_real() {
   res = item->val_real();
   null_value = item->null_value;
   return res;
+}
+
+bool Item_func_case::is_bool_func() const {
+  uint i;
+  for (i = 1; i < ncases && args[i]->is_bool_func(); i += 2);
+  if (i >= ncases) {
+    if (else_expr_num != -1)
+      return args[else_expr_num]->is_bool_func();
+    return true;
+  }
+  return false;
 }
 
 my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value) {

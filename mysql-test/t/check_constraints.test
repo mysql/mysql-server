@@ -113,6 +113,15 @@ CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1
 --error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
 CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1 + 10));
 
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int CHECK(IF(f1 < 10, "f1 is a monkey", f1 IS NULL)));
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f2 int CHECK(CASE WHEN f2 THEN "f2 is a chicken" ELSE f2 IS NULL END));
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f2 int CHECK(CASE WHEN f2 THEN f2 < 5 ELSE "f2 is a dog" END));
+
 --error ER_CHECK_CONSTRAINT_REFERS_UNKNOWN_COLUMN
 CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f2 > 1));
 
@@ -269,6 +278,18 @@ INSERT INTO t1(c1,c2) VALUES(1,1);
 INSERT INTO t1(c1,c2) VALUES(10,10);
 DROP TABLE t1;
 
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraints with if/case functions
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 int CHECK(IF(c1 < 10, c1 < 3, c1 IS NULL)),
+  c2 int CHECK(CASE WHEN c2 THEN c2 < 0 ELSE c2 IS NULL END),
+  s varchar(12) CHECK(CASE WHEN s = "monkey" THEN 12 > 11 ELSE s IS NULL END)
+);
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c1,c2,s) VALUES(5, -1, "monkey");
+INSERT INTO t1(c1,c2,s) VALUES(2, NULL, NULL);
+DROP TABLE t1;
 
 --echo #------------------------------------------------------------------------
 --echo # Test case to verify check constraints with DEFAULT column value.
