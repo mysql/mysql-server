@@ -1523,5 +1523,5 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1
 INSERT INTO t(b) VALUES('S4');
-Got one of the listed errors
+ERROR 23000: Duplicate entry '127' for key 'PRIMARY'
 DROP TABLE t;
