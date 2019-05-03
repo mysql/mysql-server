@@ -652,6 +652,9 @@ let $conn1_id= `SELECT CONNECTION_ID()`;
 send SELECT regexp_instr('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', '(A+)+B');
 
 connection default;
+# Wait until the query is actually executing before we try to kill it
+--let $wait_condition= SELECT count(*)=1 FROM performance_schema.threads WHERE processlist_info LIKE "SELECT regexp_instr%" AND processlist_state = "executing";
+--source include/wait_condition.inc
 replace_result $conn1_id <conn1_id>;
 eval KILL QUERY $conn1_id;
 
