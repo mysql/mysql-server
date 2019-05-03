@@ -32,7 +32,6 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
-%{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
@@ -42,14 +41,6 @@
 %{!?src_base:                    %global src_base mysql}
 
 %global src_dir               %{src_base}-@VERSION_SRC@
-
-# No debuginfo for now
-%if 0%{?nodebuginfo}
-%global _enable_debug_package 0
-%global debug_package         %{nil}
-%global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
-%endif
-
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 
 %if 0%{?commercial}
@@ -62,7 +53,6 @@
 
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
-Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
 Release:        1@MYSQL_VERSION_EXTRA_DOT@%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
@@ -71,7 +61,18 @@ Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
+BuildRequires:  bison >= 2.1
 BuildRequires:  cmake
+BuildRequires:  cyrus-sasl-devel
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  libaio-devel
+BuildRequires:  mecab-devel
+BuildRequires:  multilib-rpm-config
+BuildRequires:  ncurses-devel
+BuildRequires:  numactl-devel
+BuildRequires:  openldap-devel
+BuildRequires:  openssl-devel
 BuildRequires:  perl
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
@@ -88,6 +89,8 @@ BuildRequires:  perl(File::Path)
 BuildRequires:  perl(File::Spec)
 BuildRequires:  perl(File::Spec::Functions)
 BuildRequires:  perl(File::Temp)
+BuildRequires:  perl-generators
+BuildRequires:  perl-interpreter
 BuildRequires:  perl(Getopt::Long)
 BuildRequires:  perl(IO::File)
 BuildRequires:  perl(IO::Handle)
@@ -101,22 +104,13 @@ BuildRequires:  perl(POSIX)
 BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  perl(Time::HiRes)
 BuildRequires:  perl(Time::localtime)
-BuildRequires:  perl-generators
-BuildRequires:  openssl-devel
-BuildRequires:  time
-BuildRequires:  cyrus-sasl-devel
-BuildRequires:  libaio-devel
-BuildRequires:  mecab-devel
-BuildRequires:  multilib-rpm-config
-BuildRequires:  ncurses-devel
-BuildRequires:  numactl-devel
-BuildRequires:  openldap-devel
-BuildRequires:  zlib-devel
-BuildRequires:  systemd
-BuildRequires:  rpcgen
 BuildRequires:  pkgconfig(libtirpc)
 BuildRequires:  pkgconfig(systemd)
-
+BuildRequires:  rpcgen
+BuildRequires:  sed
+BuildRequires:  systemd
+BuildRequires:  time
+BuildRequires:  zlib-devel
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
 %global __requires_exclude ^perl\\((hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
@@ -141,12 +135,9 @@ documentation and the manual for more information.
 
 %package        server
 Summary:        A very fast and reliable SQL database server
-Group:          Applications/Databases
 Requires:       coreutils
 Requires:       grep
-Requires:       procps
 Requires:       shadow-utils
-Requires:       net-tools
 Recommends:     mecab-ipadic
 Recommends:     mecab-ipadic-EUCJP
 %if 0%{?commercial}
@@ -165,9 +156,11 @@ Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
 Obsoletes:      mariadb-backup
 Obsoletes:      mariadb-bench
+Obsoletes:      mariadb-connect-engine
 Obsoletes:      mariadb-connector-c-config
 Obsoletes:      mariadb-cracklib-password-check
 Obsoletes:      mariadb-gssapi-server
+Obsoletes:      mariadb-oqgraph-engine
 Obsoletes:      mariadb-rocksdb-engine
 Obsoletes:      mariadb-sphinx-engine
 Obsoletes:      mariadb-tokudb-engine
@@ -208,9 +201,18 @@ and the manual for more information.
 This package includes the MySQL server binary as well as related utilities
 to run and administer a MySQL server.
 
+%package        server-debug
+Summary:        The debug version of MySQL server
+%if 0%{?commercial}
+Requires:       mysql-commercial-server = %{version}-%{release}
+%else
+Requires:       mysql-community-server = %{version}-%{release}
+%endif
+%description    server-debug
+This packages contains the special debug build of MySQL server.
+
 %package        client
 Summary:        MySQL database client applications and tools
-Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-client < %{version}-%{release}
 Requires:       mysql-commercial-libs%{?_isa} >= %{min}
@@ -229,7 +231,6 @@ tools.
 
 %package        common
 Summary:        MySQL database common files for server and client libs
-Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
@@ -246,7 +247,8 @@ MySQL database server.
 
 %package        test
 Summary:        Test suite for the MySQL database server
-Group:          Applications/Databases
+Requires:       gzip
+Requires:       lz4
 Requires:       mecab-ipadic
 Requires:       mecab-ipadic-EUCJP
 Requires:       perl(Carp)
@@ -277,6 +279,7 @@ Requires:       perl(POSIX)
 Requires:       perl(Sys::Hostname)
 Requires:       perl(Time::HiRes)
 Requires:       perl(Time::localtime)
+Requires:       procps
 %if 0%{?commercial}
 Requires:       mysql-commercial-server%{?_isa} >= %{min}
 Obsoletes:      mysql-community-test < %{version}-%{release}
@@ -295,12 +298,12 @@ database server.
 
 %package        devel
 Summary:        Development header files and libraries for MySQL database client applications
-Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
 Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 %else
 Requires:       mysql-community-libs%{?_isa} >= %{min}
+Requires:       openssl-devel
 %endif
 Obsoletes:      mariadb-devel
 Obsoletes:      mariadb-connector-c-devel
@@ -315,7 +318,6 @@ to develop MySQL client applications.
 
 %package        libs
 Summary:        Shared libraries for MySQL database client applications
-Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
 Requires:       mysql-commercial-common%{?_isa} >= %{min}
@@ -332,7 +334,7 @@ applications.
 
 %package  -n   mysql-router-%{product_suffix}
 Summary:       MySQL Router
-Group:         Applications/Databases
+Requires:      shadow-utils
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
 %if 0%{?commercial}
@@ -358,7 +360,6 @@ documentation and the manual for more information.
 
 %package   -n   mysql-router-%{product_suffix}-devel
 Summary:        Development header files and libraries for MySQL Router
-Group:          Applications/Databases
 Provides:       mysql-router-devel = %{version}-%{release}
 Obsoletes:      mysql-router-devel < %{version}-%{release}
 %if 0%{?commercial}
@@ -414,10 +415,11 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
+           -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
-           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?ssl_option} \
@@ -454,10 +456,11 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
-           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?ssl_option} \
@@ -473,13 +476,13 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d -m 0751 %{buildroot}/var/lib/mysql
-install -d -m 0755 %{buildroot}/var/run/mysqld
+install -d -m 0755 %{buildroot}/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
 install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
 # Router directories
 install -d -m 0755 %{buildroot}/var/log/mysqlrouter
-install -d -m 0755 %{buildroot}/var/run/mysqlrouter
+install -d -m 0755 %{buildroot}/run/mysqlrouter
 
 # Install all binaries
 pushd $MBD/release
@@ -509,12 +512,6 @@ rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql-*/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql-*/mysqld_multi.server
 
-# Remove upcoming man pages, to avoid breakage when they materialize
-# Keep this comment as a placeholder for future cases
-# rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
-
-# Remove removed manpages here until they are removed from the docs repo
-
 # remove some unwanted router files
 rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
 rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
@@ -531,7 +528,7 @@ export MTR_BUILD_THREAD=auto
 pushd mysql-test
 ./mtr \
     --mem --parallel=auto --force --retry=0 \
-    --mysqld=--binlog-format=mixed \
+    --mysqld=--binlog-format=row \
     --suite-timeout=720 --testcase-timeout=30 \
     --clean-vardir
 rm -r $(readlink var) var
@@ -543,7 +540,7 @@ rm -r $(readlink var) var
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
+datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | cut -d= -f2- | tail -n 1)
 /bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
@@ -556,28 +553,21 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %postun server
 %systemd_postun_with_restart mysqld.service
 
-%post libs -p /sbin/ldconfig
-
-%postun libs -p /sbin/ldconfig
-
 %pre -n mysql-router-%{product_suffix}
 /usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
     -c "MySQL Router" mysqlrouter >/dev/null 2>&1 || :
 
 %post -n mysql-router-%{product_suffix}
-/sbin/ldconfig
 %systemd_post mysqlrouter.service
 
 %preun -n mysql-router-%{product_suffix}
 %systemd_preun mysqlrouter.service
 
 %postun -n mysql-router-%{product_suffix}
-/sbin/ldconfig
 %systemd_postun_with_restart mysqlrouter.service
 
 %files server
-%defattr(-, root, root, -)
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
@@ -622,7 +612,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_bindir}/lz4_decompress
 %attr(755, root, root) %{_bindir}/zlib_decompress
 %attr(755, root, root) %{_sbindir}/mysqld
-%attr(755, root, root) %{_sbindir}/mysqld-debug
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -652,6 +641,23 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
+
+%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
+%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
+%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
+%attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
+%attr(644, root, root) %{_unitdir}/mysqld.service
+%attr(644, root, root) %{_unitdir}/mysqld@.service
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
+%dir %attr(751, mysql, mysql) /var/lib/mysql
+%dir %attr(755, mysql, mysql) /run/mysqld
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
+%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
+
+%files server-debug
+%attr(755, root, root) %{_sbindir}/mysqld-debug
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -681,22 +687,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 
-%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
-%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
-%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
-%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
-%attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
-%attr(644, root, root) %{_unitdir}/mysqld.service
-%attr(644, root, root) %{_unitdir}/mysqld@.service
-%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
-%dir %attr(751, mysql, mysql) /var/lib/mysql
-%dir %attr(755, mysql, mysql) /var/run/mysqld
-%dir %attr(750, mysql, mysql) /var/lib/mysql-files
-%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
-
 %files common
-%defattr(-, root, root, -)
 %doc %{?license_files_server}
 %{_datadir}/mysql-*/charsets/
 %{_datadir}/mysql-*/errmsg-utf8.txt
@@ -726,7 +717,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %{_datadir}/mysql-*/ukrainian/
 
 %files client
-%defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
@@ -751,7 +741,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
 %files devel
-%defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
@@ -765,14 +754,12 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %{_libdir}/pkgconfig/mysqlclient.pc
 
 %files libs
-%defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
 
 %files test
-%defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
@@ -931,7 +918,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 
 %files -n mysql-router-%{product_suffix}
-%defattr(-, root, root, -)
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
@@ -946,7 +932,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %dir %{_libdir}/mysqlrouter
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
-%dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
+%dir %attr(755, mysqlrouter, mysqlrouter) /run/mysqlrouter
 
 %changelog
 * Mon Feb 18 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.16-1

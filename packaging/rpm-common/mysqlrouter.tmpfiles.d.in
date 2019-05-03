@@ -20,22 +20,4 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-#
-# MySQL Router configuration file
-#
-# Documentation is available at
-#    http://dev.mysql.com/doc/mysql-router/en/
-
-[DEFAULT]
-logging_folder = /var/log/mysqlrouter
-runtime_folder = @ROUTER_RUNTIMEDIR@
-config_folder = /etc/mysqlrouter
-
-[logger]
-level = INFO
-
-# If no plugin is configured which starts a service, keepalive
-# will make sure MySQL Router will not immediately exit. It is
-# safe to remove once Router is configured.
-[keepalive]
-interval = 60
+d @ROUTER_RUNTIMEDIR@ 0755 mysqlrouter mysqlrouter  -

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,4 +20,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-d /var/run/mysqlrouter 0755 mysqlrouter mysqlrouter  -
+[Unit]
+Description=MySQL Router
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User=mysqlrouter
+Group=mysqlrouter
+
+PIDFile=@ROUTER_RUNTIMEDIR@/mysqlrouter.pid
+
+ExecStart=/usr/bin/mysqlrouter -c /etc/mysqlrouter/mysqlrouter.conf
+
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
