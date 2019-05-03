@@ -1,0 +1,9 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+CALL mtr.add_suppression("option 'performance_schema_digests_size': signed value 1125899906842624 adjusted to 1048576.");
+CALL mtr.add_suppression("option 'performance_schema_max_sql_text_length': signed value 1125899906842624 adjusted to 1048576.");
+CALL mtr.add_suppression("Failed to allocate .* bytes for buffer '' due to out-of-memory.");
+CALL mtr.add_suppression("Performance schema disabled .reason: init failed..");
+
