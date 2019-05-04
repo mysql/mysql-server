@@ -100,6 +100,8 @@ CREATE TABLE t1(f2 int CHECK(CASE WHEN f2 THEN "f2 is a chicken" ELSE f2 IS NULL
 ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_1'.
 CREATE TABLE t1(f2 int CHECK(CASE WHEN f2 THEN f2 < 5 ELSE "f2 is a dog" END));
 ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_1'.
+CREATE TABLE t1(f2 int CHECK(CASE WHEN f2 THEN 5 ELSE -1 END));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_1'.
 CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f2 > 1));
 ERROR HY000: Check constraint 't2_ck' refers to non-existing column 'f2'.
 CREATE TABLE t1(f1 int, CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1 > 1));
@@ -314,7 +316,7 @@ DROP TABLE t1;
 #-----------------------------------------------------------------------
 CREATE TABLE t1(c1 int CHECK(IF(c1 < 10, c1 < 3, c1 IS NULL)),
 c2 int CHECK(CASE WHEN c2 THEN c2 < 0 ELSE c2 IS NULL END),
-s varchar(12) CHECK(CASE WHEN s = "monkey" THEN 12 > 11 ELSE s IS NULL END)
+s varchar(12) CHECK(CASE WHEN s = "monkey" THEN TRUE ELSE s IS NULL END)
 );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -324,7 +326,7 @@ t1	CREATE TABLE `t1` (
   `s` varchar(12) DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK (if((`c1` < 10),(`c1` < 3),isnull(`c1`))),
   CONSTRAINT `t1_chk_2` CHECK ((case when `c2` then (`c2` < 0) else isnull(`c2`) end)),
-  CONSTRAINT `t1_chk_3` CHECK ((case when (`s` = _utf8mb4'monkey') then (12 > 11) else isnull(`s`) end))
+  CONSTRAINT `t1_chk_3` CHECK ((case when (`s` = _utf8mb4'monkey') then TRUE else isnull(`s`) end))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(c1,c2,s) VALUES(5, -1, "monkey");
 ERROR HY000: Check constraint 't1_chk_1' is violated.

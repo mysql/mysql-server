@@ -3887,6 +3887,7 @@ class Item_int : public Item_num {
     return (uint)(max_length - (value < 0));
   }
   bool eq(const Item *, bool) const override;
+  virtual bool is_bool_func() const override { return value == 0LL || value == 1LL; }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
 };
