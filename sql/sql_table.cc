@@ -2547,7 +2547,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   if (!table_def.options().exists("secondary_engine") ||
       table_def.options().get("secondary_engine", &secondary_engine,
                               thd->mem_root))
-    return error_if_not_loaded;
+    return false;
 
   // Get handlerton of secondary engine. It may happen that no handlerton is
   // found either if the defined secondary engine is invalid (if so, the table
