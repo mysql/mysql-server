@@ -58,6 +58,30 @@ eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/my_extra_slow2.log';
 
 let SLOW_LOG2= `SELECT @@global.slow_query_log_file`;
 
+SET GLOBAL long_query_time=0;
+
+connect (con,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS islow;
+--enable_warnings
+
+CREATE TABLE islow(i INT) ENGINE=innodb;
+INSERT INTO islow VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+
+SELECT * FROM islow;
+SELECT * FROM islow;
+
+# make sure we don't log disconnect even when running in valgrind
+SET GLOBAL slow_query_log=0;
+
+connection default;
+disconnect con;
+
+SET GLOBAL long_query_time=1;
+
+DROP TABLE islow;
+
 --echo #
 --echo # This is a hack to check the log result.
 --echo # We strip off time related fields (non-deterministic) and
@@ -77,5 +101,6 @@ foreach $line (@lines) {
 EOF
 
 SET @@global.slow_query_log_file=@save_sqlf;
+SET GLOBAL slow_query_log=1;
 
 --remove_file $SLOW_LOG2
