@@ -68,5 +68,6 @@ index_name	PRIMARY
 compress_ops	65
 compress_ops_ok	65
 uncompress_ops	0
+SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
 DROP TABLE t;
 SET GLOBAL innodb_cmp_per_index_enabled=default;
