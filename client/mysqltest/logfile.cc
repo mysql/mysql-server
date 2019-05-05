@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,8 @@ bool Logfile::open(const char *dirname, const char *filename, const char *ext) {
   } else {
     fn_format(m_filename, filename, dirname, ext,
               *dirname ? MY_REPLACE_DIR | MY_REPLACE_EXT : MY_REPLACE_EXT);
+
+    this->close();
 
     // Open a file, print an error message if the operation fails.
     if ((m_file = std::fopen(m_filename, "wb+")) == NULL) {
