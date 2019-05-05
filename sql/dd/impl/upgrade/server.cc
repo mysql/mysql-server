@@ -555,23 +555,19 @@ bool upgrade_help_tables(THD *thd) {
   return false;
 }
 
-bool create_upgrade_file() {
+static void create_upgrade_file() {
   FILE *out;
   char upgrade_info_file[FN_REFLEN] = {0};
-
   fn_format(upgrade_info_file, "mysql_upgrade_info", mysql_real_data_home_ptr,
             "", MYF(0));
 
-  if (!(out = my_fopen(upgrade_info_file, O_TRUNC | O_WRONLY, MYF(0)))) {
-    LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_INFO_FILE, mysql_real_data_home_ptr);
-    return true;
+  if ((out = my_fopen(upgrade_info_file, O_TRUNC | O_WRONLY, MYF(0)))) {
+    /* Write new version to file */
+    fputs(MYSQL_SERVER_VERSION, out);
+    my_fclose(out, MYF(0));
+    return;
   }
-
-  /* Write new version to file */
-  fputs(MYSQL_SERVER_VERSION, out);
-  my_fclose(out, MYF(0));
-
-  return false;
+  LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_INFO_FILE, upgrade_info_file);
 }
 
 }  // namespace
@@ -909,8 +905,9 @@ bool upgrade_system_schemas(THD *thd) {
            : check.check_system_schemas(thd)) ||
       check.repair_tables(thd) ||
       dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_UPGRADED",
-                                                MYSQL_VERSION_ID) ||
-      create_upgrade_file();
+                                                MYSQL_VERSION_ID);
+
+  create_upgrade_file();
   bootstrap_error_handler.set_log_error(true);
 
   if (!err)

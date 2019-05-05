@@ -1,6 +1,8 @@
 # restart:--upgrade=FORCE --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,ANSI_QUOTES --log-error=MYSQLD_LOG
 # There should be no errors
 Pattern "\[ERROR\]" not found
+# mysql_upgrade_info file should be created successfully.
+Pattern "Could not open server upgrade info file \'.*\' for writing\. Please make sure the file is writable\." not found
 # Restart server with defaults
 # restart:
 #
@@ -32,6 +34,13 @@ GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 # Bug #28855207: 8.0.13 - MYSQL_UPGRADE FAILS DUE TO PRIMARY KEY ERROR WITHOUT STATING THE TABLE
 #
 # restart: --sql_require_primary_key=1 --upgrade=FORCE
+#
+# Bug #29702060: BE MORE ROBUST IF MYSQL_UPGRADE_INFO IS NOT WRITABLE
+#
+# restart:--upgrade=FORCE --log-error=MYSQLD_LOG
+
+Pattern "Could not open server upgrade info file \'.*\' for writing\. Please make sure the file is writable\." found
+# Cleanup
 # restart: 
 
 End of tests
