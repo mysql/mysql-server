@@ -212,6 +212,30 @@ sub validate_test_name_part($$$$) {
   }
 }
 
+## Check that a test specified in disabled.def actually exists
+## if the suite it belongs to is collected.
+##
+## Arguments:
+##   $test_name      Name of the test to be located
+sub validate_test_existence($) {
+  my $test_name = shift;
+  my ($sname, $tname, $extension) = split_testname($test_name);
+
+  # Search if the specified suite is present in the list
+  # of suites which MTR collects
+  for my $suite (split(",", $::opt_suites)) {
+    if ($sname eq $suite or $sname eq "i_" . $suite) {
+      # Proceed to check if the disabled test exists only if its
+      # suite is picked up
+      my $suitedir = get_suite_dir($sname);
+      mtr_error("Disabled test '$test_name' could not be located.")
+        if $suitedir and
+        not my_find_file($suitedir, [ "", "t" ], "$tname.test", NOT_REQUIRED);
+      last;
+    }
+  }
+}
+
 ## Check if the comment section in a disabled.def file is correct. The
 ## format is "<BUG|WL>#<XXXX> [<comment>]". If the format is incorrect,
 ## throw an error and abort the test run.
@@ -269,6 +293,9 @@ sub validate_disabled_test_entry($$$) {
   my $test_name =
     validate_test_name_part($test_name_part, $line, $line_number,
                             $disabled_def_file);
+
+  # Check if the disabled test exists
+  validate_test_existence($test_name) if $test_name;
 
   # Check the format of comment part.
   my $comment =
@@ -701,9 +728,9 @@ sub create_test_combinations($$) {
     # Skip this combination if the values it provides already are set
     # in master_opt or slave_opt.
     if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
-        My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ||
+        My::Options::is_set($test->{slave_opt},          $comb->{comb_opt}) ||
         My::Options::is_set(\@::opt_extra_bootstrap_opt, $comb->{comb_opt}) ||
-        My::Options::is_set(\@::opt_extra_mysqld_opt, $comb->{comb_opt})) {
+        My::Options::is_set(\@::opt_extra_mysqld_opt,    $comb->{comb_opt})) {
       next;
     }
 
@@ -767,20 +794,7 @@ sub collect_one_suite($$$$) {
       mtr_report(" - from '$suitedir'");
 
     } else {
-      $suitedir = my_find_dir(
-        $::basedir,
-        [ "internal/cloud/mysql-test/suite/",
-          "internal/mysql-test/suite/",
-          "internal/plugin/$suite/tests",
-          "lib/mysql-test/suite",
-          "mysql-test/suite",
-          # Look in plugin specific suite dir
-          "plugin/$suite/tests",
-          "share/mysql-test/suite",
-        ],
-        [ $suite, "mtr" ],
-        # Allow reference to no-existing suite in PB2
-        ($suite =~ /^i_/ || defined $ENV{PB2WORKDIR}));
+      $suitedir = get_suite_dir($suite);
       return unless $suitedir;
     }
     mtr_verbose("suitedir: $suitedir");
@@ -917,6 +931,26 @@ sub collect_one_suite($$$$) {
 
   optimize_cases(\@cases);
   return @cases;
+}
+
+# Find location of the specified suite
+sub get_suite_dir($) {
+  my $suite = shift;
+  return $::glob_mysql_test_dir if ($suite eq "main");
+  return my_find_dir(
+    $::basedir,
+    [ "internal/cloud/mysql-test/suite/",
+      "internal/mysql-test/suite/",
+      "internal/plugin/$suite/tests",
+      "lib/mysql-test/suite",
+      "mysql-test/suite",
+      # Look in plugin specific suite dir
+      "plugin/$suite/tests",
+      "share/mysql-test/suite",
+    ],
+    [ $suite, "mtr" ],
+    # Allow reference to non-existing suite in PB2
+    ($suite =~ /^i_/ || defined $ENV{PB2WORKDIR}));
 }
 
 # Set the skip flag in test object and add the skip comments.
