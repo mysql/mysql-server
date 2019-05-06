@@ -38,7 +38,6 @@ innodb.ddl_crash_alter_table_partition_tablespace : WL#12034 Enable again once s
 innodb.innodb_bug14676111                         : BUG#18200831 The test has never worked correctly
 innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
 innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten 
-innodb.innodb_bug84958                            : Bug#28623992 Too many sporadict failures
 
 # json suite tests
 json.json_ddl_ndb : BUG#26616564 PB2 failures.

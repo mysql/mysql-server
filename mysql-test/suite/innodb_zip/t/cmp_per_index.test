@@ -85,9 +85,9 @@ uncompress_ops
 FROM information_schema.innodb_cmp_per_index
 ORDER BY 1, 2, 3;
 
---disable_testcase BUG#28624115
-
 SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
+
+--disable_testcase BUG#28624115
 
 # restart mysqld and see that uncompress ops also gets increased when
 # selecting from the table again
