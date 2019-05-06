@@ -267,21 +267,21 @@ static Sys_var_bool Sys_lo_enabled("lock_order", "Enable the lock order.",
                                    CMD_LINE(OPT_ARG), DEFAULT(false),
                                    LO_TRAILING_PROPERTIES);
 
-static Sys_var_charptr Sys_lo_out_dir(
-    "lock_order_output_directory", "Lock order output directory.",
-    READ_ONLY NOT_VISIBLE GLOBAL_VAR(lo_param.m_out_dir), CMD_LINE(OPT_ARG),
-    IN_FS_CHARSET, DEFAULT(nullptr), LO_TRAILING_PROPERTIES);
+static Sys_var_charptr Sys_lo_out_dir("lock_order_output_directory",
+                                      "Lock order output directory.",
+                                      READ_ONLY GLOBAL_VAR(lo_param.m_out_dir),
+                                      CMD_LINE(OPT_ARG), IN_FS_CHARSET,
+                                      DEFAULT(nullptr), LO_TRAILING_PROPERTIES);
 
 static Sys_var_charptr Sys_lo_dep_1(
     "lock_order_dependencies", "Lock order dependencies file.",
-    READ_ONLY NOT_VISIBLE GLOBAL_VAR(lo_param.m_dependencies_1),
-    CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT("lock_order_dependencies.txt"),
-    LO_TRAILING_PROPERTIES);
+    READ_ONLY GLOBAL_VAR(lo_param.m_dependencies_1), CMD_LINE(OPT_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), LO_TRAILING_PROPERTIES);
 
 static Sys_var_charptr Sys_lo_dep_2(
     "lock_order_extra_dependencies", "Lock order extra dependencies file.",
-    READ_ONLY NOT_VISIBLE GLOBAL_VAR(lo_param.m_dependencies_2),
-    CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr), LO_TRAILING_PROPERTIES);
+    READ_ONLY GLOBAL_VAR(lo_param.m_dependencies_2), CMD_LINE(OPT_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), LO_TRAILING_PROPERTIES);
 
 static Sys_var_bool Sys_lo_print_txt("lock_order_print_txt",
                                      "Print the lock_order.txt file.",
