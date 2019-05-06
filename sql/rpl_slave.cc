@@ -8322,12 +8322,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
       if (!ignored_error_code(ER_UNKNOWN_ERROR)) {
         report_level = ERROR_LEVEL;
         current_thd->is_slave_error = 1;
-      }
-      /*
-        In case of ignored errors report warnings only if
-        log_error_verbosity > 2.
-      */
-      else if (log_error_verbosity > 2)
+      } else if (log_error_verbosity >= 2)
         report_level = WARNING_LEVEL;
 
       if (report_level != INFORMATION_LEVEL)

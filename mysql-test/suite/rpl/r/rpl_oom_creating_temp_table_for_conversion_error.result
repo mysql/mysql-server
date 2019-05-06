@@ -1,0 +1,25 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Slave SQL for channel .*Can.t create conversion table for table .test.t., Error_code: MY-001678");
+# Adding debug point 'simulate_out_of_memory_while_creating_temp_table_for_conversion' to @@GLOBAL.debug
+SET @saved_global_slave_type_conversions = @@global.SLAVE_TYPE_CONVERSIONS;
+SET @@global.SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+[connection master]
+SET sql_log_bin = 0;
+CREATE TABLE t (a TINYINT);
+SET sql_log_bin = 1;
+[connection slave]
+CREATE TABLE t (a INT);
+[connection master]
+INSERT INTO t VALUES (1);
+include/sync_slave_sql_with_master.inc
+# Removing debug point 'simulate_out_of_memory_while_creating_temp_table_for_conversion' from @@GLOBAL.debug
+SET @@global.SLAVE_TYPE_CONVERSIONS = @saved_global_slave_type_conversions;
+include/assert_grep.inc [Found 1 warning in the error log]
+[connection master]
+DROP TABLE t;
+include/rpl_end.inc
