@@ -54,6 +54,7 @@
 #include <ndb_version.h>
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
+#include <math.h>
 
 #include <TransporterRegistry.hpp> // Get connect address
 
@@ -478,6 +479,11 @@ void Qmgr::setHbDelay(UintR aHbDelay)
   hb_send_timer.reset(now);
   hb_check_timer.setDelay(aHbDelay < 10 ? 10 : aHbDelay);
   hb_check_timer.reset(now);
+}
+
+UintR Qmgr::getHbDelay()
+{
+  return hb_send_timer.getDelay();
 }
 
 void Qmgr::setHbApiDelay(UintR aHbApiDelay)
@@ -2972,12 +2978,19 @@ void Qmgr::checkHeartbeat(Signal* signal)
 
   if (get_hb_count(nodePtr.i) > 2)
   {
-    /**
-     * If we have seen more than 10 heartbeat failures it is because
-     * we are in the process of stopping and the stop has most likely
-     * hanged.
-     */
-    ndbrequire(get_hb_count(nodePtr.i) < 10);
+    if (get_hb_count(nodePtr.i) >= 10)
+    {
+      /**
+       * If we have seen more than max_hb_count heartbeat failures it is
+       * because we are in the process of stopping and the stop has most
+       * likely hanged. STOP usually hangs due to GCP STOP errors.
+       * It takes about 2 minutes to crash on GCP STOP.
+       * Hence, we set the time interval to 2 minutes so that
+       * we can crash on GCP STOP if that's the cause of error.
+       */
+      Uint32 max_hb_count = 120000 / getHbDelay() + 1; // heartbeats in 2 min
+      ndbrequire(get_hb_count(nodePtr.i) < max_hb_count);
+    }
     signal->theData[0] = NDB_LE_MissedHeartbeat;
     signal->theData[1] = nodePtr.i;
     signal->theData[2] = get_hb_count(nodePtr.i) - 1;
