@@ -3,8 +3,8 @@
 #
 
 ## Test setup
---source include/xplugin_create_user.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 #
 ## Test start here

@@ -49,10 +49,13 @@ INCLUDE(utils.cmake)
 INCLUDE(variables.cmake)
 INCLUDE(configure.cmake)
 
-ADD_SUBDIRECTORY(protocol)
+IF(PROTOBUF_FOUND)
+  ADD_SUBDIRECTORY(protocol)
+  ADD_SUBDIRECTORY(client)
+ENDIF()
+
 # MYSQL_ADD_PLUGIN may have decided *not* to build mysqlx
 IF(WITH_MYSQLX)
-  ADD_SUBDIRECTORY(client)
   ADD_SUBDIRECTORY(tests)
 ENDIF()
 

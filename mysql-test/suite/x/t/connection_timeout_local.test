@@ -1,7 +1,6 @@
---source include/xplugin_create_user.inc
-
 --echo Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 --source include/restart_mysqld.inc
 
 
