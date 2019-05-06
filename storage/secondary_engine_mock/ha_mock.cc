@@ -212,10 +212,11 @@ int ha_mock::load_table(const TABLE &table_arg) {
 }
 
 int ha_mock::unload_table(const char *db_name, const char *table_name,
-                          bool error_if_not_loaded MY_ATTRIBUTE((unused))) {
+                          bool error_if_not_loaded) {
   if (error_if_not_loaded &&
       loaded_tables->get(db_name, table_name) == nullptr) {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), db_name, table_name);
+    my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0),
+             "Table is not loaded on a secondary engine");
     return 1;
   } else {
     loaded_tables->erase(db_name, table_name);
