@@ -1030,7 +1030,7 @@ CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
---error ER_OPEN_AS_READONLY
+--error ER_READ_ONLY_MODE
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 SHOW WARNINGS;
 --error ER_INNODB_READ_ONLY

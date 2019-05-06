@@ -262,7 +262,7 @@ SET GLOBAL innodb_fast_shutdown = 0;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Running in read-only mode
-test.t1	analyze	Error	Table 'table_stats' is read only
+test.t1	analyze	Error	Running in read-only mode
 test.t1	analyze	Error	Unable to store dynamic table statistics into data dictionary.
 test.t1	analyze	status	Unable to write table statistics to DD tables
 # restart

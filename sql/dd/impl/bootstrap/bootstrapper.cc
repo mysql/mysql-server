@@ -616,16 +616,7 @@ bool populate_tables(THD *thd) {
 // Re-populate character sets and collations upon normal restart.
 bool repopulate_charsets_and_collations(THD *thd) {
   /*
-    If we are in read-only mode, we skip re-populating. Here, 'opt_readonly'
-    is the value of the '--read-only' option.
-  */
-  if (opt_readonly) {
-    LogErr(WARNING_LEVEL, ER_DD_NO_WRITES_NO_REPOPULATION, "", "");
-    return false;
-  }
-
-  /*
-    We must also check if the DDSE is started in a way that makes the DD
+    We must check if the DDSE is started in a way that makes the DD
     read only. For now, we only support InnoDB as SE for the DD. The call
     to retrieve the handlerton for the DDSE should be replaced by a more
     generic mechanism.

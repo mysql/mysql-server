@@ -20,7 +20,7 @@ ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 update t1 set f1=3 where f2=2;
 ERROR HY000: Table 't1' is read only
 create table t3(f1 int not null)engine=innodb;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Running in read-only mode
 drop table t3;
 ERROR 42S02: Unknown table 'test.t3'
 rename table t1 to t3;
@@ -28,7 +28,7 @@ ERROR HY000: Error on rename of './test/t1' to './test/t3' (errno: 165 - Table i
 truncate table t1;
 ERROR HY000: Table 't1' is read only
 create tablespace t4 add datafile 't1.ibd' Engine=InnoDB;
-ERROR HY000: Table 'tablespaces' is read only
+ERROR HY000: Running in read-only mode
 # restart
 drop table t1;
 show tables;
@@ -50,7 +50,7 @@ ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 update t2 set f1=3 where f2=2;
 ERROR HY000: Table 't2' is read only
 create table t1(f1 int not null)engine=innodb;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Running in read-only mode
 drop table t1;
 ERROR 42S02: Unknown table 'test.t1'
 rename table t2 to t3;
@@ -58,7 +58,7 @@ ERROR HY000: Error on rename of './test/t2' to './test/t3' (errno: 165 - Table i
 truncate table t2;
 ERROR HY000: Table 't2' is read only
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
-ERROR HY000: Table 'tablespaces' is read only
+ERROR HY000: Running in read-only mode
 drop table t2;
 ERROR HY000: Storage engine can't drop table 'test.t2'
 show tables;
@@ -80,7 +80,7 @@ ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 update t2 set f1=3 where f2=2;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 create table t1(f1 int not null)engine=innodb;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Running in read-only mode
 drop table t1;
 ERROR 42S02: Unknown table 'test.t1'
 rename table t2 to t3;
@@ -88,7 +88,7 @@ ERROR HY000: Error on rename of './test/t2' to './test/t3' (errno: 165 - Table i
 truncate table t2;
 ERROR HY000: Table 't2' is read only
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
-ERROR HY000: Table 'tablespaces' is read only
+ERROR HY000: Running in read-only mode
 drop table t2;
 ERROR HY000: Storage engine can't drop table 'test.t2'
 show tables;

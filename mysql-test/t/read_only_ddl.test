@@ -1,0 +1,382 @@
+--source include/have_case_sensitive_file_system.inc
+--source include/big_test.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # Create a base table, an SQL statement file, and a non-super user with a connection.
+--echo # -----------------------------------------------------------------------
+create table t_alter(i int);
+insert into t_alter values(1);
+
+let INIT_SQL = $MYSQL_TMP_DIR/init.sql;
+write_file $INIT_SQL;
+create table test.t_create as select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+alter table test.t_alter comment = 'new comment';
+EOF
+
+create user nonsuper@localhost;
+grant CREATE, SELECT, DROP on *.* to nonsuper@localhost;
+enable_connect_log;
+connect (con_nonsuper, localhost, nonsuper,, test);
+enable_reconnect;
+connect (con_super, localhost, root,, test);
+enable_reconnect;
+
+--echo # -----------------------------------------------------------------------
+--echo # Set read-only.
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Server side DDL execution succeeds with read_only = 1.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/read_only.log;
+let $restart_parameters = "restart: --init-file=$INIT_SQL --read-only=1 --log-error=$MYSQLD_LOG";
+replace_result $MYSQLD_LOG MYSQLD_LOG $INIT_SQL INIT_SQL;
+source include/restart_mysqld.inc;
+source include/wait_until_connected_again.inc;
+
+select * from t_create;
+drop table t_create;
+show create table t_alter;
+alter table t_alter comment = '';
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+--echo #
+--echo # A non-super user cannot create or alter tables with read_only = 1.
+--echo #
+connection con_nonsuper;
+--error ER_OPTION_PREVENTS_STATEMENT
+create table t_create (a int);
+--error ER_OPTION_PREVENTS_STATEMENT
+alter table t_alter comment = 'new comment';
+
+--echo #
+--echo # A super user can create or alter tables with read_only = 1.
+--echo #
+connection con_super;
+create table t_create (a int);
+drop table t_create;
+alter table t_alter comment = 'new comment';
+alter table t_alter comment = '';
+
+--echo # -----------------------------------------------------------------------
+--echo # Set super-read-only.
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Server side DDL execution succeeds with super_read_only = 1 because we
+--echo # set opt_super_read_only after the init-file is processed.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/super_read_only.log;
+let $restart_parameters = "restart: --init-file=$INIT_SQL --super-read-only=1 --log-error=$MYSQLD_LOG";
+replace_result $MYSQLD_LOG MYSQLD_LOG $INIT_SQL INIT_SQL;
+source include/restart_mysqld.inc;
+source include/wait_until_connected_again.inc;
+
+set @@global.super_read_only = 0;
+select * from t_create;
+drop table t_create;
+show create table t_alter;
+alter table t_alter comment = '';
+set @@global.super_read_only = 1;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+--echo #
+--echo # A non-super user cannot create or alter tables with super_read_only = 1.
+--echo #
+connection con_nonsuper;
+--error ER_OPTION_PREVENTS_STATEMENT
+create table t_create (a int);
+--error ER_OPTION_PREVENTS_STATEMENT
+alter table t_alter comment = 'new comment';
+
+--echo #
+--echo # A super user cannot create or alter tables with super_read_only = 1.
+--echo #
+connection con_super;
+--error ER_OPTION_PREVENTS_STATEMENT
+create table t_create (a int);
+--error ER_OPTION_PREVENTS_STATEMENT
+alter table t_alter comment = 'new comment';
+
+--echo # -----------------------------------------------------------------------
+--echo # Set transaction-read-only.
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Server side DDL execution succeeds with transaction_read_only = 1 because
+--echo # the THDs that execute statements have transaction_read_only explicitly
+--echo # turned off.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/transaction_read_only.log;
+let $restart_parameters = "restart: --init-file=$INIT_SQL --transaction-read-only=1 --log-error=$MYSQLD_LOG" ;
+replace_result $MYSQLD_LOG MYSQLD_LOG $INIT_SQL INIT_SQL;
+source include/restart_mysqld.inc;
+source include/wait_until_connected_again.inc;
+
+set @@session.transaction_read_only = 0;
+select * from t_create;
+drop table t_create;
+show create table t_alter;
+alter table t_alter comment = '';
+set @@session.transaction_read_only = 1;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+--echo #
+--echo # A non-super user cannot create or alter tables with transaction_read_only = 1.
+--echo #
+connection con_nonsuper;
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+create table t_create (a int);
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+alter table t_alter comment = 'new comment';
+
+--echo #
+--echo # A super user cannot create or alter tables with transaction_read_only = 1.
+--echo #
+connection con_super;
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+create table t_create (a int);
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+alter table t_alter comment = 'new comment';
+
+--echo # -----------------------------------------------------------------------
+--echo # Set innodb-read-only.
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Server side DDL execution fails with innodb_read_only = 1.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only.log;
+let $restart_parameters = "restart: --init-file=$INIT_SQL --innodb-read-only=1 --log-error=$MYSQLD_LOG";
+replace_result $MYSQLD_LOG MYSQLD_LOG $INIT_SQL INIT_SQL;
+source include/restart_mysqld.inc;
+source include/wait_until_connected_again.inc;
+
+let SEARCH_FILE = $MYSQLD_LOG;
+let SEARCH_PATTERN = InnoDB read-only mode;
+source include/search_pattern.inc;
+
+--error ER_NO_SUCH_TABLE
+select * from t_create;
+show create table t_alter;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+--echo #
+--echo # A non-super user cannot create or alter tables with innodb_read_only = 1.
+--echo #
+connection con_nonsuper;
+--error ER_READ_ONLY_MODE
+create table t_create (a int);
+--error ER_READ_ONLY_MODE
+alter table t_alter comment = 'new comment';
+
+--echo #
+--echo # A super user cannot create or alter tables with innodb_read_only = 1.
+--echo #
+connection con_super;
+--error ER_READ_ONLY_MODE
+create table t_create (a int);
+--error ER_READ_ONLY_MODE
+alter table t_alter comment = 'new comment';
+
+--echo # -----------------------------------------------------------------------
+--echo # Upgrade from 5.7.22.
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Prepare data directory
+--echo #
+let $VERSION = 57022;
+copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_$VERSION.zip $MYSQL_TMP_DIR/data_$VERSION.zip;
+file_exists $MYSQL_TMP_DIR/data_$VERSION.zip;
+let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with read-only = 1 succeeds.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/read_only_$VERSION.log;
+let $restart_parameters = "restart: --datadir=$MYSQLD_DATADIR --read-only=1 --log-error=$MYSQLD_LOG";
+let $wait_counter= 10000;
+replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD_DATADIR MYSQLD_DATADIR;
+source include/restart_mysqld.inc;
+source include/wait_until_connected_again.inc;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+let $wait_counter= 10000;
+let $shutdown_server_timeout= 300;
+source include/shutdown_mysqld.inc;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with super-read-only = 1 succeeds.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/super_read_only_$VERSION.log;
+let $restart_parameters = "restart: --datadir=$MYSQLD_DATADIR --super-read-only=1 --log-error=$MYSQLD_LOG";
+let $wait_counter= 10000;
+replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD_DATADIR MYSQLD_DATADIR;
+source include/start_mysqld.inc;
+source include/wait_until_connected_again.inc;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+let $wait_counter= 10000;
+let $shutdown_server_timeout= 300;
+source include/shutdown_mysqld.inc;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with transaction-read-only = 1 succeeds.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/transaction_read_only_$VERSION.log;
+let $restart_parameters = "restart: --datadir=$MYSQLD_DATADIR --transaction-read-only=1 --log-error=$MYSQLD_LOG";
+let $wait_counter= 10000;
+replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD_DATADIR MYSQLD_DATADIR;
+source include/start_mysqld.inc;
+source include/wait_until_connected_again.inc;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+let $wait_counter= 10000;
+let $shutdown_server_timeout= 300;
+source include/shutdown_mysqld.inc;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with innodb-read-only = 1 fails.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only_$VERSION.log;
+--error 1
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG;
+
+let SEARCH_FILE = $MYSQLD_LOG;
+let SEARCH_PATTERN = Database upgrade cannot be accomplished in read-only mode;
+source include/search_pattern.inc;
+
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+remove_file $MYSQL_TMP_DIR/data_$VERSION.zip;
+
+--echo # -----------------------------------------------------------------------
+--echo # Upgrade from 8.0.15.
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Prepare data directory
+--echo #
+let $VERSION = 80015;
+copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_$VERSION.zip $MYSQL_TMP_DIR/data_$VERSION.zip;
+file_exists $MYSQL_TMP_DIR/data_$VERSION.zip;
+let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with read-only = 1 succeeds.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/read_only_$VERSION.log;
+let $restart_parameters = "restart: --datadir=$MYSQLD_DATADIR --read-only=1 --log-error=$MYSQLD_LOG";
+let $wait_counter= 10000;
+replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD_DATADIR MYSQLD_DATADIR;
+source include/start_mysqld.inc;
+source include/wait_until_connected_again.inc;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+let $wait_counter= 10000;
+let $shutdown_server_timeout= 300;
+source include/shutdown_mysqld.inc;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with super-read-only = 1 succeeds.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/super_read_only_$VERSION.log;
+let $restart_parameters = "restart: --datadir=$MYSQLD_DATADIR --super-read-only=1 --log-error=$MYSQLD_LOG";
+let $wait_counter= 10000;
+replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD_DATADIR MYSQLD_DATADIR;
+source include/start_mysqld.inc;
+source include/wait_until_connected_again.inc;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+let $wait_counter= 10000;
+let $shutdown_server_timeout= 300;
+source include/shutdown_mysqld.inc;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with transaction-read-only = 1 succeeds.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/transaction_read_only_$VERSION.log;
+let $restart_parameters = "restart: --datadir=$MYSQLD_DATADIR --transaction-read-only=1 --log-error=$MYSQLD_LOG";
+let $wait_counter= 10000;
+replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD_DATADIR MYSQLD_DATADIR;
+source include/start_mysqld.inc;
+source include/wait_until_connected_again.inc;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+
+let $wait_counter= 10000;
+let $shutdown_server_timeout= 300;
+source include/shutdown_mysqld.inc;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Upgrade with innodb-read-only = 1 fails.
+--echo #
+exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only_$VERSION.log;
+--error 1
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG;
+
+let SEARCH_FILE = $MYSQLD_LOG;
+let SEARCH_PATTERN = Cannot resize log files in read-only mode;
+source include/search_pattern.inc;
+
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+remove_file $MYSQL_TMP_DIR/data_$VERSION.zip;
+
+--echo # -----------------------------------------------------------------------
+--echo # Initialize.
+--echo # -----------------------------------------------------------------------
+let $VERSION = initialize;
+let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Initialize with read-only = 1 succeeds.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/read_only_$VERSION.log;
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --read-only=1 --log-error=$MYSQLD_LOG --initialize-insecure;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Initialize with super-read-only = 1 succeeds.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/super_read_only_$VERSION.log;
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --super-read-only=1 --log-error=$MYSQLD_LOG --initialize-insecure;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Initialize with transaction-read-only = 1 succeeds.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/transaction_read_only_$VERSION.log;
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --transaction-read-only=1 --log-error=$MYSQLD_LOG --initialize-insecure;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo #
+--echo # Initialize with innodb-read-only = 1 fails.
+--echo #
+let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only_$VERSION.log;
+--error 1
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG --initialize-insecure;
+let SEARCH_FILE = $MYSQLD_LOG;
+let SEARCH_PATTERN = --innodb-read-only is set;
+source include/search_pattern.inc;
+force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
+
+--echo # -----------------------------------------------------------------------
+--echo # Cleanup.
+--echo # -----------------------------------------------------------------------
+connection default;
+disconnect con_nonsuper;
+disconnect con_super;
+enable_reconnect;
+let $restart_parameters = "restart:";
+source include/start_mysqld.inc;
+source include/wait_until_connected_again.inc;
+drop table t_alter;
+drop user nonsuper@localhost;
+remove_file $INIT_SQL;

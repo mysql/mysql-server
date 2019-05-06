@@ -1,0 +1,245 @@
+# -----------------------------------------------------------------------
+# Create a base table, an SQL statement file, and a non-super user with a connection.
+# -----------------------------------------------------------------------
+create table t_alter(i int);
+insert into t_alter values(1);
+create user nonsuper@localhost;
+grant CREATE, SELECT, DROP on *.* to nonsuper@localhost;
+connect  con_nonsuper, localhost, nonsuper,, test;
+connect  con_super, localhost, root,, test;
+# -----------------------------------------------------------------------
+# Set read-only.
+# -----------------------------------------------------------------------
+#
+# Server side DDL execution succeeds with read_only = 1.
+#
+# restart: --init-file=INIT_SQL --read-only=1 --log-error=MYSQLD_LOG
+select * from t_create;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	0
+drop table t_create;
+show create table t_alter;
+Table	Create Table
+t_alter	CREATE TABLE `t_alter` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='new comment'
+alter table t_alter comment = '';
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	0
+#
+# A non-super user cannot create or alter tables with read_only = 1.
+#
+connection con_nonsuper;
+create table t_create (a int);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+alter table t_alter comment = 'new comment';
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+#
+# A super user can create or alter tables with read_only = 1.
+#
+connection con_super;
+create table t_create (a int);
+drop table t_create;
+alter table t_alter comment = 'new comment';
+alter table t_alter comment = '';
+# -----------------------------------------------------------------------
+# Set super-read-only.
+# -----------------------------------------------------------------------
+#
+# Server side DDL execution succeeds with super_read_only = 1 because we
+# set opt_super_read_only after the init-file is processed.
+#
+# restart: --init-file=INIT_SQL --super-read-only=1 --log-error=MYSQLD_LOG
+set @@global.super_read_only = 0;
+select * from t_create;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	1
+drop table t_create;
+show create table t_alter;
+Table	Create Table
+t_alter	CREATE TABLE `t_alter` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='new comment'
+alter table t_alter comment = '';
+set @@global.super_read_only = 1;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	1
+#
+# A non-super user cannot create or alter tables with super_read_only = 1.
+#
+connection con_nonsuper;
+create table t_create (a int);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+alter table t_alter comment = 'new comment';
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+#
+# A super user cannot create or alter tables with super_read_only = 1.
+#
+connection con_super;
+create table t_create (a int);
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+alter table t_alter comment = 'new comment';
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+# -----------------------------------------------------------------------
+# Set transaction-read-only.
+# -----------------------------------------------------------------------
+#
+# Server side DDL execution succeeds with transaction_read_only = 1 because
+# the THDs that execute statements have transaction_read_only explicitly
+# turned off.
+#
+# restart: --init-file=INIT_SQL --transaction-read-only=1 --log-error=MYSQLD_LOG 
+set @@session.transaction_read_only = 0;
+select * from t_create;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	0	0
+drop table t_create;
+show create table t_alter;
+Table	Create Table
+t_alter	CREATE TABLE `t_alter` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='new comment'
+alter table t_alter comment = '';
+set @@session.transaction_read_only = 1;
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	1	0	0
+#
+# A non-super user cannot create or alter tables with transaction_read_only = 1.
+#
+connection con_nonsuper;
+create table t_create (a int);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+alter table t_alter comment = 'new comment';
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+#
+# A super user cannot create or alter tables with transaction_read_only = 1.
+#
+connection con_super;
+create table t_create (a int);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+alter table t_alter comment = 'new comment';
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+# -----------------------------------------------------------------------
+# Set innodb-read-only.
+# -----------------------------------------------------------------------
+#
+# Server side DDL execution fails with innodb_read_only = 1.
+#
+# restart: --init-file=INIT_SQL --innodb-read-only=1 --log-error=MYSQLD_LOG
+Pattern "InnoDB read-only mode" found
+select * from t_create;
+ERROR 42S02: Table 'test.t_create' doesn't exist
+show create table t_alter;
+Table	Create Table
+t_alter	CREATE TABLE `t_alter` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+1	0	0	0
+#
+# A non-super user cannot create or alter tables with innodb_read_only = 1.
+#
+connection con_nonsuper;
+create table t_create (a int);
+ERROR HY000: Running in read-only mode
+alter table t_alter comment = 'new comment';
+ERROR HY000: Running in read-only mode
+#
+# A super user cannot create or alter tables with innodb_read_only = 1.
+#
+connection con_super;
+create table t_create (a int);
+ERROR HY000: Running in read-only mode
+alter table t_alter comment = 'new comment';
+ERROR HY000: Running in read-only mode
+# -----------------------------------------------------------------------
+# Upgrade from 5.7.22.
+# -----------------------------------------------------------------------
+#
+# Prepare data directory
+#
+#
+# Upgrade with read-only = 1 succeeds.
+#
+# restart: --datadir=MYSQLD_DATADIR --read-only=1 --log-error=MYSQLD_LOG
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	0
+#
+# Upgrade with super-read-only = 1 succeeds.
+#
+# restart: --datadir=MYSQLD_DATADIR --super-read-only=1 --log-error=MYSQLD_LOG
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	1
+#
+# Upgrade with transaction-read-only = 1 succeeds.
+#
+# restart: --datadir=MYSQLD_DATADIR --transaction-read-only=1 --log-error=MYSQLD_LOG
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	1	0	0
+#
+# Upgrade with innodb-read-only = 1 fails.
+#
+Pattern "Database upgrade cannot be accomplished in read-only mode" found
+# -----------------------------------------------------------------------
+# Upgrade from 8.0.15.
+# -----------------------------------------------------------------------
+#
+# Prepare data directory
+#
+#
+# Upgrade with read-only = 1 succeeds.
+#
+# restart: --datadir=MYSQLD_DATADIR --read-only=1 --log-error=MYSQLD_LOG
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	0
+#
+# Upgrade with super-read-only = 1 succeeds.
+#
+# restart: --datadir=MYSQLD_DATADIR --super-read-only=1 --log-error=MYSQLD_LOG
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	0	1	1
+#
+# Upgrade with transaction-read-only = 1 succeeds.
+#
+# restart: --datadir=MYSQLD_DATADIR --transaction-read-only=1 --log-error=MYSQLD_LOG
+select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
+@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
+0	1	0	0
+#
+# Upgrade with innodb-read-only = 1 fails.
+#
+Pattern "Cannot resize log files in read-only mode" found
+# -----------------------------------------------------------------------
+# Initialize.
+# -----------------------------------------------------------------------
+#
+# Initialize with read-only = 1 succeeds.
+#
+#
+# Initialize with super-read-only = 1 succeeds.
+#
+#
+# Initialize with transaction-read-only = 1 succeeds.
+#
+#
+# Initialize with innodb-read-only = 1 fails.
+#
+Pattern "--innodb-read-only is set" found
+# -----------------------------------------------------------------------
+# Cleanup.
+# -----------------------------------------------------------------------
+connection default;
+disconnect con_nonsuper;
+disconnect con_super;
+# restart:
+drop table t_alter;
+drop user nonsuper@localhost;

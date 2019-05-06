@@ -158,3 +158,37 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --let $restart_parameters= restart:
 --source include/start_mysqld.inc
 
+--echo #
+--echo # Bug#29697670: OVERRIDING SERVER DEFAULT CHARSET/COLLATION AFFECTS UPGRADE
+--echo #
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_3.log
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80015.zip $MYSQL_TMP_DIR/data_80015.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_80015.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80015.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/data_80015
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQLD_DATADIR
+
+--echo # Stop / start DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_80015.zip
+--force-rmdir $MYSQLD_DATADIR
+--echo # Restart the server with default options.
+--let $restart_parameters= restart:
+--source include/start_mysqld.inc

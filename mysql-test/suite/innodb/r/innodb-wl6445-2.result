@@ -37,7 +37,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Running in read-only mode
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
@@ -105,7 +105,7 @@ i	LEFT(j,20)
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 ERROR 42S01: Table 't2' already exists
 CREATE TABLE t3 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Running in read-only mode
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
