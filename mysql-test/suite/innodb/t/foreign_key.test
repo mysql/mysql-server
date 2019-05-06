@@ -535,3 +535,13 @@ CHECK TABLE t1;
 CHECK TABLE t2;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #27020089 "I_S.INNODB_SYS_FOREIGN LOST FOREIGN KEY INFORMATION."
+--echo #
+CREATE TABLE t1(pk INT PRIMARY KEY);
+CREATE TABLE `..................................................`
+  (fk INT, FOREIGN KEY(fk) REFERENCES t1(pk));
+SHOW CREATE TABLE `..................................................`;
+SELECT id, for_name, ref_name FROM information_schema.innodb_foreign WHERE id LIKE 'test%';
+DROP TABLES `..................................................`, t1;
