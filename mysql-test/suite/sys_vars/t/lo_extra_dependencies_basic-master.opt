@@ -1,0 +1,2 @@
+--loose-disable-lock-order
+--loose-lock-order-extra-dependencies="/some/path/to/lock_order_extra_dependencies.txt"
