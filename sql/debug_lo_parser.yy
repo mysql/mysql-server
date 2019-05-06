@@ -21,6 +21,8 @@
 #include "sql/debug_lo_parser.h"
 #include "sql/debug_lo_scanner.h"
 #include "sql/debug_lock_order.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 
 class LO_graph;
 
@@ -354,8 +356,8 @@ void process_node(LO_parser_param *p,
 
 void LOCK_ORDER_error(YYLTYPE * yylloc_param, LO_parser_param * p, const char* msg)
 {
-  fprintf(stderr,
-    "Lock order dependencies file <%s> (%d:%d) - (%d:%d) : %s\n",
+  /* message format = "Lock order dependencies file <%s> (%d:%d) - (%d:%d) : %s" */
+  LogErr(ERROR_LEVEL, ER_LOCK_ORDER_DEPENDENCIES_SYNTAX,
     p->m_filename,
     yylloc_param->first_line,
     yylloc_param->first_column,

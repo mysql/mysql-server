@@ -19305,6 +19305,21 @@ ER_GROUPING_ON_TIMESTAMP_IN_DST
 ER_ACL_WRONG_OR_MISSING_ACL_TABLES_LOG
   eng "The current layout of the ACL tables does not conform to the server's expected layout. They're either altered, missing or not upgraded from a previous version. However a best effort attempt to read data from these tables will still be made."
 
+ER_LOCK_ORDER_FAILED_WRITE_FILE
+  eng "LOCK_ORDER: Failed to write to file <%s>."
+
+ER_LOCK_ORDER_FAILED_READ_FILE
+  eng "LOCK_ORDER: Failed to read from file <%s>."
+
+ER_LOCK_ORDER_MESSAGE
+  eng "LOCK_ORDER message: %s"
+
+ER_LOCK_ORDER_DEPENDENCIES_SYNTAX
+  eng "Lock order dependencies file <%s> (%d:%d) - (%d:%d) : %s"
+
+ER_LOCK_ORDER_SCANNER_SYNTAX
+  eng "Lock order scanner: (%d:%d) - (%d:%d) : %s"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

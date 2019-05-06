@@ -27,11 +27,14 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysqld.h"
+#include "mysqld_error.h"
 #include "sql/debug_lock_order.h"
 
 #include "sql/debug_lo_misc.h"
 #include "sql/debug_lo_parser.h"
 #include "sql/debug_lo_scanner.h"
+
+#include "mysql/components/services/log_builtins.h"
 
 /* Old versions of bison forget to declare this in sql/debug_lo_parser.h */
 int LOCK_ORDER_parse(struct LO_parser_param *param);
@@ -5919,7 +5922,7 @@ static void debug_lock_order_break_here(const char *why) {
   /* Put a breakpoint here in your debugger. */
   debugger_calls++;
 
-  print_file(stderr, "LOCK ORDER message: %s\n", why);
+  LogErr(ERROR_LEVEL, ER_LOCK_ORDER_MESSAGE, why);
 
   my_print_stacktrace(nullptr, my_thread_stack_size);
 
@@ -7772,7 +7775,7 @@ struct PSI_statement_bootstrap LO_statement_bootstrap = {
 
 LO_global_param lo_param;
 
-void LO_load_graph(LO_graph *g);
+int LO_load_graph(LO_graph *g);
 
 int LO_init(LO_global_param *param, PSI_thread_bootstrap **thread_bootstrap,
             PSI_mutex_bootstrap **mutex_bootstrap,
@@ -7783,6 +7786,7 @@ int LO_init(LO_global_param *param, PSI_thread_bootstrap **thread_bootstrap,
             PSI_idle_bootstrap **idle_bootstrap, PSI_stage_bootstrap **,
             PSI_statement_bootstrap **statement_bootstrap,
             PSI_transaction_bootstrap **, PSI_memory_bootstrap **) {
+  int rc;
   native_mutex_init(&serialize, nullptr);
   native_mutex_init(&serialize_logs, nullptr);
 
@@ -7798,13 +7802,18 @@ int LO_init(LO_global_param *param, PSI_thread_bootstrap **thread_bootstrap,
     because filenames with pid alone are recycled,
     when running a full test suite.
   */
-  safe_snprintf(filename, sizeof(filename), "%s/lock_order-%ju-%d.log",
-                param->m_out_dir, (uintmax_t)now, getpid());
+  if (param->m_out_dir != nullptr) {
+    safe_snprintf(filename, sizeof(filename), "%s/lock_order-%ju-%d.log",
+                  param->m_out_dir, (uintmax_t)now, getpid());
+  } else {
+    safe_snprintf(filename, sizeof(filename), "lock_order-%ju-%d.log",
+                  (uintmax_t)now, getpid());
+  }
 
   out_log = fopen(filename, "w");
 
   if (out_log == nullptr) {
-    fprintf(stderr, "Failed to write to file <%s>\n", filename);
+    LogErr(ERROR_LEVEL, ER_LOCK_ORDER_FAILED_WRITE_FILE, filename);
     perror(filename);
     native_mutex_unlock(&serialize);
     return 1;
@@ -7813,11 +7822,16 @@ int LO_init(LO_global_param *param, PSI_thread_bootstrap **thread_bootstrap,
   print_file(out_log, "-- begin lock order\n");
 
   if (param->m_print_txt) {
-    safe_snprintf(filename, sizeof(filename), "%s/lock_order.txt",
-                  param->m_out_dir);
+    if (param->m_out_dir != nullptr) {
+      safe_snprintf(filename, sizeof(filename), "%s/lock_order.txt",
+                    param->m_out_dir);
+    } else {
+      strncpy(filename, "lock_order.txt", sizeof(filename));
+    }
+
     out_txt = fopen(filename, "w");
     if (out_txt == nullptr) {
-      fprintf(stderr, "Failed to write to file <%s>\n", filename);
+      LogErr(ERROR_LEVEL, ER_LOCK_ORDER_FAILED_WRITE_FILE, filename);
       perror(filename);
       native_mutex_unlock(&serialize);
       return 1;
@@ -7866,13 +7880,14 @@ int LO_init(LO_global_param *param, PSI_thread_bootstrap **thread_bootstrap,
   }
   *statement_bootstrap = &LO_statement_bootstrap;
 
-  LO_load_graph(global_graph);
+  rc = LO_load_graph(global_graph);
 
   native_mutex_unlock(&serialize);
-  return 0;
+  return rc;
 }
 
-void LO_load_dependencies(LO_graph *g, const char *filename) {
+int LO_load_dependencies(LO_graph *g, const char *filename) {
+  int rc;
   if (filename != nullptr) {
     FILE *data = fopen(filename, "r");
     if (data != nullptr) {
@@ -7886,19 +7901,29 @@ void LO_load_dependencies(LO_graph *g, const char *filename) {
 
       LOCK_ORDER_lex_init_extra(&parser_root, &param.m_scanner);
       LOCK_ORDER_set_in(data, param.m_scanner);
-      LOCK_ORDER_parse(&param);
+      rc = LOCK_ORDER_parse(&param);
       LOCK_ORDER_lex_destroy(param.m_scanner);
       fclose(data);
     } else {
-      print_file(stderr, "LOCK ORDER message: failed to open file <%s>\n",
-                 filename);
+      LogErr(ERROR_LEVEL, ER_LOCK_ORDER_FAILED_READ_FILE, filename);
+      perror(filename);
+      rc = 1;
     }
+  } else {
+    /* Dependency file is optional. */
+    rc = 0;
   }
+  return rc;
 }
 
-void LO_load_graph(LO_graph *g) {
-  LO_load_dependencies(g, lo_param.m_dependencies_1);
-  LO_load_dependencies(g, lo_param.m_dependencies_2);
+int LO_load_graph(LO_graph *g) {
+  int rc;
+  rc = LO_load_dependencies(g, lo_param.m_dependencies_1);
+  if (rc != 0) {
+    return rc;
+  }
+  rc = LO_load_dependencies(g, lo_param.m_dependencies_2);
+  return rc;
 }
 
 void LO_add_authorised_arc(LO_graph *g, const LO_authorised_arc *arc) {

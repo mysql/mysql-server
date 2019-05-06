@@ -45,6 +45,8 @@
 
 #include "my_alloc.h"
 #include "sql/debug_lo_parser.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 
 #define YY_DECL int LOCK_ORDER_lex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, yyscan_t yyscanner)
 
@@ -151,7 +153,16 @@ STR [^"]*
 {COMMENT_LINE} {}
 {NEW_LINE} {}
 
-. { printf( "Lock Order scanner: Unrecognized character: %s\n", yytext );
+. {
+  char msg[256];
+  snprintf(msg, sizeof(msg), "Unrecognized character: %s", yytext);
+  /* message format = "Lock order scanner: (%d:%d) - (%d:%d) : %s" */
+  LogErr(ERROR_LEVEL, ER_LOCK_ORDER_SCANNER_SYNTAX,
+    yylloc_param->first_line,
+    yylloc_param->first_column,
+    yylloc_param->last_line,
+    yylloc_param->last_column,
+    msg);
   }
 
 %%
