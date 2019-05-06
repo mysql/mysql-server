@@ -511,3 +511,20 @@ CHECK TABLE t2;
 Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
 DROP TABLE t1, t2;
+#
+# Bug #27020089 "I_S.INNODB_SYS_FOREIGN LOST FOREIGN KEY INFORMATION."
+#
+CREATE TABLE t1(pk INT PRIMARY KEY);
+CREATE TABLE `..................................................`
+  (fk INT, FOREIGN KEY(fk) REFERENCES t1(pk));
+SHOW CREATE TABLE `..................................................`;
+Table	Create Table
+..................................................	CREATE TABLE `..................................................` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `.................................................._ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id, for_name, ref_name FROM information_schema.innodb_foreign WHERE id LIKE 'test%';
+id	for_name	ref_name
+test/.................................................._ibfk_1	test/..................................................	test/t1
+DROP TABLES `..................................................`, t1;
