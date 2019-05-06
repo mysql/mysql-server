@@ -1,0 +1,3 @@
+--loose-enable-performance-schema
+--loose-performance-schema-digests-size=1125899906842624
+--loose-performance-schema-max-sql-text-length=1125899906842624

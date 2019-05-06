@@ -1,7 +1,7 @@
 #ifndef THR_MUTEX_INCLUDED
 #define THR_MUTEX_INCLUDED
 
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,6 +167,7 @@ static inline int my_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr
 #endif
 ) {
 #ifdef SAFE_MUTEX
+  DBUG_ASSERT(mp != NULL);
   mp->m_u.m_safe_ptr = (safe_mutex_t *)malloc(sizeof(safe_mutex_t));
   return safe_mutex_init(mp->m_u.m_safe_ptr, attr, file, line);
 #else
@@ -181,6 +182,8 @@ static inline int my_mutex_lock(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
+  DBUG_ASSERT(mp != NULL);
+  DBUG_ASSERT(mp->m_u.m_safe_ptr != NULL);
   return safe_mutex_lock(mp->m_u.m_safe_ptr, false, file, line);
 #else
   return native_mutex_lock(&mp->m_u.m_native);
@@ -194,6 +197,8 @@ static inline int my_mutex_trylock(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
+  DBUG_ASSERT(mp != NULL);
+  DBUG_ASSERT(mp->m_u.m_safe_ptr != NULL);
   return safe_mutex_lock(mp->m_u.m_safe_ptr, true, file, line);
 #else
   return native_mutex_trylock(&mp->m_u.m_native);
@@ -207,6 +212,8 @@ static inline int my_mutex_unlock(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
+  DBUG_ASSERT(mp != NULL);
+  DBUG_ASSERT(mp->m_u.m_safe_ptr != NULL);
   return safe_mutex_unlock(mp->m_u.m_safe_ptr, file, line);
 #else
   return native_mutex_unlock(&mp->m_u.m_native);
@@ -220,6 +227,8 @@ static inline int my_mutex_destroy(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
+  DBUG_ASSERT(mp != NULL);
+  DBUG_ASSERT(mp->m_u.m_safe_ptr != NULL);
   int rc = safe_mutex_destroy(mp->m_u.m_safe_ptr, file, line);
   free(mp->m_u.m_safe_ptr);
   mp->m_u.m_safe_ptr = NULL;
