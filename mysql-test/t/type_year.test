@@ -226,3 +226,20 @@ SELECT COUNT(DISTINCT name), AVG(YEAR(date1)) AS aa, class
   FROM t1 GROUP BY class ORDER BY aa;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29668676 DATA TRUNCATION ERROR OCCURRED ON A WRITE OF
+--echo #              COLUMN 0DATA WAS 0 BYTES LONG AND
+--echo #
+
+CREATE TABLE t(QC_DATE_KEY bigint, QC_DATE date, QC_TIMESTAMP datetime);
+INSERT INTO t VALUES
+
+(1, '1999-02-28', '1999-11-28 14:45:00'),
+(2, '1999-12-31', '2000-01-01 00:00:00');
+
+# used to give an error for negative result (1999 - 2000 above)
+SELECT ((year(QC_DATE) - year(QC_TIMESTAMP))) FROM t
+  WHERE QC_DATE_KEY = 2;
+
+DROP TABLE t;
