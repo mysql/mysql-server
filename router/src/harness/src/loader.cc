@@ -126,9 +126,13 @@ std::condition_variable log_reopen_cond;
 static std::atomic<bool> g_log_reopen_requested{false};
 
 static void request_application_shutdown(const ShutdownReason reason) {
-  g_shutdown_pending = reason;
-  we_might_shutdown_cond.notify_one();
+  {
+    std::unique_lock<std::mutex> lk(we_might_shutdown_cond_mutex);
+    std::unique_lock<std::mutex> lk2(log_reopen_cond_mutex);
+    g_shutdown_pending = reason;
+  }
 
+  we_might_shutdown_cond.notify_one();
   // let's wake the log_reopen_thread too
   log_reopen_cond.notify_one();
 }
@@ -138,7 +142,10 @@ void request_application_shutdown() {
 }
 
 static void request_log_reopen() {
-  g_log_reopen_requested = true;
+  {
+    std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+    g_log_reopen_requested = true;
+  }
   log_reopen_cond.notify_one();
 }
 
@@ -236,23 +243,32 @@ static void start_and_detach_signal_handler_thread() {
 
 static void log_reopen_thread_function() {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
-  std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
-  log_reopen_cond.wait(lk, [&] {
-    if (g_shutdown_pending) {
-      return true;
-    }
-    if (g_log_reopen_requested) {
-      g_log_reopen_requested = false;
-      try {
-        logging_registry.flush_all_loggers();
-      } catch (const std::exception &e) {
-        shutdown_fatal_error_message = e.what();
-        request_application_shutdown(SHUTDOWN_FATAL_ERROR);
+  bool request_shutdown{false};
+  {
+    std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+    log_reopen_cond.wait(lk, [&] {
+      if (g_shutdown_pending) {
         return true;
       }
-    }
-    return false;
-  });
+      if (g_log_reopen_requested) {
+        g_log_reopen_requested = false;
+        try {
+          logging_registry.flush_all_loggers();
+        } catch (const std::exception &e) {
+          // we have to postpone the shutdown request as it locks the
+          // mutex that we currently hold
+          request_shutdown = true;
+          shutdown_fatal_error_message = e.what();
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  if (request_shutdown) {
+    request_application_shutdown(SHUTDOWN_FATAL_ERROR);
+  }
 }
 
 #ifdef _WIN32
