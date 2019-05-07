@@ -577,7 +577,10 @@ void MetadataCache::start() {
  * Stop the refresh thread.
  */
 void MetadataCache::stop() noexcept {
-  terminated_ = true;
+  {
+    std::unique_lock<std::mutex> lk(refresh_wait_mtx_);
+    terminated_ = true;
+  }
   refresh_wait_.notify_one();
   refresh_thread_.join();
 }
@@ -845,8 +848,10 @@ void MetadataCache::on_instances_changed(const bool md_servers_reachable) {
 }
 
 void MetadataCache::on_refresh_requested() {
-  std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
-  refresh_requested_ = true;
+  {
+    std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
+    refresh_requested_ = true;
+  }
   refresh_wait_.notify_one();
 }
 
