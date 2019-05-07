@@ -465,11 +465,11 @@ END
 	<table_structure name="v1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v1" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
+		<options Name="v1" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<table_structure name="v2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v2" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
+		<options Name="v2" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<events>
 		<event Event="e1" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION" time_zone="SYSTEM" character_set_client="utf8mb4" collation_connection="utf8mb4_0900_ai_ci" Database_Collation="utf8mb4_0900_ai_ci">
@@ -608,7 +608,7 @@ END
 	<table_structure name="v1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v1" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
+		<options Name="v1" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 <!-- 
 -
@@ -618,7 +618,7 @@ END
  -->
 	<table_structure name="v2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v2" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
+		<options Name="v2" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 <!-- 
 -
@@ -741,11 +741,11 @@ END
 	<table_structure name="v1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v1" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
+		<options Name="v1" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<table_structure name="v2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v2" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
+		<options Name="v2" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<events>
 		<event Event="e1" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION" time_zone="SYSTEM" character_set_client="utf8mb4" collation_connection="utf8mb4_0900_ai_ci" Database_Collation="utf8mb4_0900_ai_ci">

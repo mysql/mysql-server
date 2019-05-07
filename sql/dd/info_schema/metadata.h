@@ -119,6 +119,11 @@ namespace info_schema {
     INFORMATION_SCHEMA.TABLES.CREATE_OPTIONS and
   INFORMATION_SCHEMA.COLUMNS.EXTRA.
 
+  - Bug#29406053: OPTIMIZER_SWITCH DERIVED_MERGE=OFF CAUSES TABLE COMMENTS
+                  "... IS NOT BASE TABLE"
+    Modifies the INFORMATION_SCHEMA.TABLES dynamic column definitions to
+    return NULL, if it finds a view.
+
   80018: Next IS version number after the previous is public.
   ----------------------------------------------------------------------------
   Changes from version 80016:

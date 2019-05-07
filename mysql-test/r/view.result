@@ -167,12 +167,12 @@ v6	VIEW
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	#	#	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
-v1	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v2	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v3	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v4	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v5	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v6	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v1	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v2	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v3	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v4	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v5	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v6	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 drop view v1,v2,v3,v4,v5,v6;
 create view v1 (c,d,e,f) as select a,b,
 a in (select a+2 from t1), a = all (select a from t1) from t1;
@@ -868,7 +868,7 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	#	#	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
-v1	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+v1	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
