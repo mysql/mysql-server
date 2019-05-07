@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,11 @@ verify_ready() {
 				echo "Error: Datadir ${MYSQLDATA} does not exist. For security reasons the service will not automatically create directories outside /var/lib.."
 				ERROR_FLAG=1
 			fi
+		fi
+
+		# Ensures that the mysql_upgrade_info file is owned by the database
+		if [ -O "${MYSQLDATA}/mysql_upgrade_info" ]; then
+			chown --reference="${MYSQLDATA}" "${MYSQLDATA}/mysql_upgrade_info"
 		fi
 
 		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ]; then

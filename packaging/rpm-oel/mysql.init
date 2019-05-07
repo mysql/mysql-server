@@ -73,6 +73,15 @@ install_validate_password_sql_file () {
     echo "$initfile"
 }
 
+fix_mysql_upgrade_info () {
+    if [ -d  "$datadir" ]  && [ -O "$datadir/mysql_upgrade_info" ]; then
+       chown --reference="$datadir" "$datadir/mysql_upgrade_info"
+       if [ -x /usr/bin/chcon ]; then
+	   /usr/bin/chcon --reference="$datadir" "$datadir/mysql_upgrade_info"
+       fi
+    fi
+}
+
 start(){
     [ -x $exec ] || exit 5
     # check to see if it's already running
@@ -92,6 +101,10 @@ start(){
 	    install /dev/null -m0640 -omysql -gmysql "$errlogfile"
 	fi
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
+
+	# mysql_upgrade_info file should be owned by mysql user since MySQL 8.0.16
+	fix_mysql_upgrade_info
+
 	if [ ! -d "$datadir/mysql" ] ; then
 	    # First, make sure $datadir is there with correct permissions
 	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
