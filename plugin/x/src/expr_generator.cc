@@ -461,14 +461,6 @@ void Expression_generator::generate_json_literal_param(
 void Expression_generator::generate_json_only_param(
     const Mysqlx::Expr::Expr &arg, const std::string &expr_name) const {
   switch (arg.type()) {
-    case Mysqlx::Expr::Expr::IDENT:
-      if (arg.identifier().document_path_size() < 1)
-        throw Error(ER_X_EXPR_BAD_VALUE, expr_name +
-                                             " expression requires identifier"
-                                             " that produce a JSON value.");
-      generate(arg);
-      break;
-
     case Mysqlx::Expr::Expr::LITERAL:
       generate_json_literal_param(arg.literal());
       break;
