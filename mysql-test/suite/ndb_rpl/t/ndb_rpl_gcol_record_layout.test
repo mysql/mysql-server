@@ -84,7 +84,8 @@ connection master;
 CREATE TABLE virtual_blob_gcol (
   i int primary key,
   j varchar(20),
-  k text as (repeat(j,i)) virtual
+  k text as (repeat(j,i)) virtual,
+  l text as (repeat(j, 2*i)) virtual
 ) engine=ndb;
 
 insert into virtual_blob_gcol(i,j) values (1,"c__"), (2,"b__"), (3,"a__");
@@ -94,6 +95,7 @@ sync_slave_with_master;
 select i from virtual_blob_gcol order by i;
 select j from virtual_blob_gcol order by j;
 select k from virtual_blob_gcol order by i;
+select l from virtual_blob_gcol order by i;
 select * from virtual_blob_gcol order by j;
 delete from virtual_blob_gcol where length(j) = length(k);
 select * from virtual_blob_gcol where i < 3;

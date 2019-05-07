@@ -7392,7 +7392,23 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
   for ( ; field; p_field++, field= *p_field)
   {
     if(field->is_virtual_gcol())
+    {
+      if (field->flags & BLOB_FLAG)
+      {
+        /**
+         * Valgrind shows Server binlog code uses length
+         * of virtual blob fields for allocation decisions
+         * even when the blob is not read
+         */
+        Field_blob* field_blob = (Field_blob*) field;
+        DBUG_PRINT("info", ("[%u] is virtual blob, setting length 0",
+                            field->field_index));
+        Uint32 zerolen = 0;
+        field_blob->set_ptr((uchar*) &zerolen, NULL);
+      }
+
       continue;
+    }
 
     field->set_notnull(row_offset);
     if ((*value).ptr)
