@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,76 +88,86 @@ Tables::Tables() {
     workaround until Bug#26389402 is fixed.
   */
   m_target_def.add_field(FIELD_TABLE_ROWS, "TABLE_ROWS",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_TABLE_ROWS(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.table_rows, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_AVG_ROW_LENGTH(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.avg_row_length, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_DATA_LENGTH(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.data_length, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_MAX_DATA_LENGTH, "MAX_DATA_LENGTH",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_MAX_DATA_LENGTH(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.max_data_length, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_INDEX_LENGTH, "INDEX_LENGTH",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_INDEX_LENGTH(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.index_length, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_DATA_FREE, "DATA_FREE",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_DATA_FREE(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.data_free, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_AUTO_INCREMENT, "AUTO_INCREMENT",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.auto_increment, 0),"
                          "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), "
-                         "tbl.se_private_data)");
+                         "tbl.se_private_data))");
   m_target_def.add_field(FIELD_UPDATE_TIME, "UPDATE_TIME",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_UPDATE_TIME(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(CAST(stat.update_time as UNSIGNED), 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_CHECK_TIME, "CHECK_TIME",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_CHECK_TIME(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(CAST(stat.check_time as UNSIGNED), 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_CHECKSUM, "CHECKSUM",
+                         "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_CHECKSUM(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.checksum, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   /*
     Supply mysql.tablespaces.se_private_data to internal functions
     INTERNAL_*(), which is used by SE to read the SE specific tablespace
