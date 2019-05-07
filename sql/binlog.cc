@@ -3396,7 +3396,6 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
       m_key_LOCK_log(key_LOG_LOCK_log),
       bytes_written(0),
       file_id(1),
-      open_count(1),
       sync_period_ptr(sync_period),
       sync_counter(0),
       is_relay_log(0),
@@ -4772,8 +4771,6 @@ bool MYSQL_BIN_LOG::open_binlog(
   }
 
   max_size = max_size_arg;
-
-  open_count++;
 
   bool write_file_name_to_index_file = 0;
 

@@ -411,7 +411,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   // current file sequence number for load data infile binary logging
   uint file_id;
-  uint open_count;  // For replication
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -854,7 +853,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline void lock_index() { mysql_mutex_lock(&LOCK_index); }
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index); }
   inline IO_CACHE *get_index_file() { return &index_file; }
-  inline uint32 get_open_count() { return open_count; }
   static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want
