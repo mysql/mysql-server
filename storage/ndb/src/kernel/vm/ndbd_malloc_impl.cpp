@@ -421,6 +421,7 @@ Resource_limits::Resource_limits()
   m_free_reserved = 0;
   m_in_use = 0;
   m_spare = 0;
+  m_untaken = 0;
   m_max_page = 0;
   m_prio_free_limit = 0;
   memset(m_limit, 0, sizeof(m_limit));
@@ -479,12 +480,13 @@ void
 Resource_limits::dump() const
 {
   printf("ri: global "
-         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u\n",
+         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u: untaken %u\n",
          m_max_page,
          m_free_reserved,
          m_in_use,
          m_allocated,
-         m_spare);
+         m_spare,
+         m_untaken);
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
     printf("ri: %u id: %u min: %u curr: %u max: %u spare: %u spare_pct: %u\n",
@@ -1617,6 +1619,129 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
   m_resource_limits.check();
   if (!locked)
     mt_mem_manager_unlock();
+}
+
+/** Transfer pages between resource groups without risk that some other
+ * resource gets them in betweeen.
+ *
+ * In some cases allocating pages fail.  Preferable the application can handle
+ * the allocation failure gracefully.
+ * In other cases application really need to have those pages.
+ * For that the memory manager support giving up and taking pages.
+ *
+ * The allocation may fail, either because there are no free pages at all, or
+ * that all free pages are reserved by other resources, or that the current
+ * resource have reached it upper limit of allowed allocations.
+ *
+ * One can use a combination of give_up_pages() and take_pages() instead of
+ * release_pages() and alloc_pages() to avoid that the pages are put into the
+ * global free list of pages but rather only the book keeping about how many
+ * pages are used in what way.
+ *
+ * An examples transferring pages from DM to TM.
+ *
+ * 1) Try do an ordinary alloc_pages(TM) first. If that succeed there is no
+ *    need for special page transfer.  Follow up with release_pages(DM).
+ *
+ * 2) When alloc_pages(TM) fail, do give_up_pages(DM) instead of
+ *    release_pages(DM).
+ *
+ * 3) Call take_pages(TM).  When called after matching give_up_pages() function
+ *    should never fail.
+ *
+ * 4) Call release_pages(TM).
+ *
+ * 5) Calling alloc_pages(DM).
+ *
+ * Code example:
+ *
+    ...
+    Uint32 page_count = 3;
+    Uint32 DM_page_no;
+    Uint32 DM_page_count = page_count;
+    mem.alloc_pages(RG_DM, &DM_page_no, &DM_page_count, page_count);
+    ...
+    assert(DM_page_count == page_count);
+    Uint32 TM_page_no;
+    Uint32 TM_page_count = page_count;
+    mem.alloc_pages(RG_TM, &TM_page_no, &TM_page_count, page_count);
+    if (TM_page_count != 0)
+    {
+      mem.release_pages(RG_DM, DM_page_no, page_count);
+    }
+    else
+    {
+      require(mem.give_up_pages(RG_DM, page_count));
+      require(mem.take_pages(RG_TM, page_count));
+      DM_page_no = TM_page_no;
+      TM_page_count = page_count;
+    }
+    ...
+    mem.release_pages(RG_TM, TM_page_no, TM_page_count);
+    ...
+    DM_page_count = 1;
+    // Typically will reclaim one lent out DM page
+    mem.alloc_pages(RG_DM, &DM_page_no, &DM_page_count, 1);
+    ...
+    mem.release_pages(RG_DM, DM_page_no, DM_page_count);
+    ...
+ */
+
+bool Resource_limits::give_up_pages(Uint32 id, Uint32 cnt)
+{
+  if (get_resource_in_use(id) < cnt)
+  {
+    // Can not pass more pages than actually in use!
+    return false;
+  }
+
+  // Not yet implemented.
+  return false;
+}
+
+bool Ndbd_mem_manager::give_up_pages(Uint32 type, Uint32 cnt)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx <= MM_RG_COUNT);
+  mt_mem_manager_lock();
+
+  if (!m_resource_limits.give_up_pages(idx, cnt))
+  {
+    mt_mem_manager_unlock();
+    return false;
+  }
+
+  m_resource_limits.check();
+  mt_mem_manager_unlock();
+  return true;
+}
+
+bool Resource_limits::take_pages(Uint32, Uint32 cnt)
+{
+  if (m_untaken < cnt)
+  {
+    return false;
+  }
+
+  // Not yet implemented.
+  return false;
+}
+
+bool Ndbd_mem_manager::take_pages(Uint32 type, Uint32 cnt)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx <= MM_RG_COUNT);
+  mt_mem_manager_lock();
+
+  if (!m_resource_limits.take_pages(idx, cnt))
+  {
+    mt_mem_manager_unlock();
+    return false;
+  }
+
+  m_resource_limits.check();
+  mt_mem_manager_unlock();
+  return true;
 }
 
 template class Vector<InitChunk>;

@@ -25,6 +25,7 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include <algorithm>
 #include <cstdint>
 #include <kernel_types.h>
 #include <Bitmask.hpp>
@@ -135,6 +136,18 @@ class Resource_limits
   Uint32 m_spare;
 
   /**
+    Number of pages that some resource have given up but have not been taken
+    by some other resource yet.
+
+    This should zero, but while transferring pages from one resource to another
+    pages using give_up_pages() and take_pages() this can be non zero for a
+    short moment.
+
+    Note, untaken pages still are accounted as in_use in global.
+  */
+  Uint32 m_untaken;
+
+  /**
     One more than highest page number allocated.
 
     Used internally by Ndbd_mem_manager for consistency checks.
@@ -203,6 +216,8 @@ public:
   Uint32 get_resource_free_shared(Uint32 id) const;
   Uint32 get_resource_reserved(Uint32 id) const;
   Uint32 get_resource_spare(Uint32 resource) const;
+  void dec_untaken(Uint32 cnt);
+  void inc_untaken(Uint32 cnt);
   void set_max_page(Uint32 page);
   void set_allocated(Uint32 cnt);
   void set_free_reserved(Uint32 cnt);
@@ -210,6 +225,9 @@ public:
   Uint32 post_alloc_resource_pages(Uint32 id, Uint32 cnt);
   void post_release_resource_pages(Uint32 id, Uint32 cnt);
   void post_alloc_resource_spare(Uint32 id, Uint32 cnt);
+
+  bool give_up_pages(Uint32 id, Uint32 cnt);
+  bool take_pages(Uint32 id, Uint32 cnt);
 
   void check() const;
   void dump() const;
@@ -265,6 +283,9 @@ public:
                    AllocZone zone = NDB_ZONE_LE_32,
                    bool locked = false);
   void release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked = false);
+
+  bool give_up_pages(Uint32 type, Uint32 cnt);
+  bool take_pages(Uint32 type, Uint32 cnt);
 
   void lock();
   void unlock();
@@ -731,6 +752,20 @@ void Resource_limits::set_free_reserved(Uint32 cnt)
   m_free_reserved = cnt;
   // Leave the last percentage of shared memory for high prio resource groups.
   m_prio_free_limit = (m_allocated - m_free_reserved) * HIGH_PRIO_FREE_PCT / 100;
+}
+
+inline
+void Resource_limits::dec_untaken(Uint32 cnt)
+{
+  assert(m_untaken >= cnt);
+  m_untaken -= cnt;
+}
+
+inline
+void Resource_limits::inc_untaken(Uint32 cnt)
+{
+  m_untaken += cnt;
+  assert(m_untaken >= cnt);
 }
 
 inline
