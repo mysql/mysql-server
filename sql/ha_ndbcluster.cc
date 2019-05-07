@@ -20233,6 +20233,22 @@ static MYSQL_SYSVAR_INT(
     0                                 /* block */
 );
 
+ulong opt_ndb_schema_dist_lock_wait_timeout;
+static MYSQL_SYSVAR_ULONG(
+  schema_dist_lock_wait_timeout,     /* name */
+  opt_ndb_schema_dist_lock_wait_timeout, /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Time (in seconds) during schema distribution to wait for a lock before "
+  "returning an error. This setting allows avoiding that the binlog "
+  "injector thread waits too long while handling schema operations.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  30,                                /* default */
+  0,                                 /* min */
+  1200,                              /* max */
+  0                                  /* block */
+);
+
 static MYSQL_SYSVAR_STR(
   connectstring,                    /* name */
   opt_ndb_connectstring,            /* var */
@@ -20438,6 +20454,7 @@ static SYS_VAR* system_variables[]= {
   MYSQL_SYSVAR(clear_apply_status),
   MYSQL_SYSVAR(schema_dist_upgrade_allowed),
   MYSQL_SYSVAR(schema_dist_timeout),
+  MYSQL_SYSVAR(schema_dist_lock_wait_timeout),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),

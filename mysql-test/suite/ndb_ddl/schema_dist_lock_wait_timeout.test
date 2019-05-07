@@ -1,0 +1,36 @@
+--source include/have_ndb.inc
+
+# The variable ndb-schema-dist-lock-wait-timeout controls how long the
+# ndbcluster binlog injector thread will wait for locks to be acquired while
+# handling schema operations. Acquiring these locks are necessary to update the
+# data dictionary (DD) with latest metadata. While it's important to update
+# the DD, it's even more important that the ndbcluster binlog injector thread
+# does not block for an extended amount of time but instead rather skip
+# updating the DD if lock acquisition fails. By using this variable, it's
+# possible to configure how long it's acceptable for the thread to wait.
+
+let $save_lock_wait_timeout = `select @@ndb_schema_dist_lock_wait_timeout`;
+
+--echo # Current value of ndb-schema-dist-lock-wait-timeout
+select @@ndb_schema_dist_lock_wait_timeout;
+
+# Check that variable is global variable
+set @@global.ndb_schema_dist_lock_wait_timeout = 1;
+select @@ndb_schema_dist_lock_wait_timeout;
+
+# Check that variable is not a session variable
+--error ER_GLOBAL_VARIABLE
+set @@session.ndb_schema_dist_lock_wait_timeout = 1;
+--error ER_GLOBAL_VARIABLE
+set @@ndb_schema_dist_lock_wait_timeout = 1;
+
+# Check that variable can be set to zero
+set @@global.ndb_schema_dist_lock_wait_timeout = 0;
+select @@ndb_schema_dist_lock_wait_timeout;
+
+# Check that variable can be set to the max value
+set @@global.ndb_schema_dist_lock_wait_timeout = 1200;
+select @@ndb_schema_dist_lock_wait_timeout;
+
+# Restore intial value
+eval set @@global.ndb_schema_dist_lock_wait_timeout = $save_lock_wait_timeout;

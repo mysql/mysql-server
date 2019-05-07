@@ -6,6 +6,10 @@ mysqld=,,,
 [mysqld]
 ndb-cluster-connection-pool=1
 
+# Test performs DDL with heavy background activity, need to wait longer
+# for MDL locks during schema distribution
+ndb-schema-dist-lock-wait-timeout=1200
+
 [mysqld.1.1]
 new
 log-bin=mysqld-bin

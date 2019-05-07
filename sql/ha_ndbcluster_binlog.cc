@@ -90,6 +90,7 @@ extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
 extern bool opt_ndb_schema_dist_upgrade_allowed;
 extern int opt_ndb_schema_dist_timeout;
+extern ulong opt_ndb_schema_dist_lock_wait_timeout;
 
 bool ndb_log_empty_epochs(void);
 
@@ -3224,6 +3225,23 @@ class Ndb_schema_event_handler {
     uint32 result() const { return m_result; }
   };
 
+  class Lock_wait_timeout_guard {
+   public:
+    Lock_wait_timeout_guard(THD *thd, ulong lock_wait_timeout)
+        : m_thd(thd),
+          m_save_lock_wait_timeout(thd->variables.lock_wait_timeout) {
+      m_thd->variables.lock_wait_timeout = lock_wait_timeout;
+    }
+
+    ~Lock_wait_timeout_guard() {
+      m_thd->variables.lock_wait_timeout = m_save_lock_wait_timeout;
+    }
+
+   private:
+    THD *const m_thd;
+    ulong m_save_lock_wait_timeout;
+  };
+
   /**
      @brief Log conditions accumulated in THD and then clear conditions.
 
@@ -5362,6 +5380,10 @@ class Ndb_schema_event_handler {
         }
       }
 
+      // Set the custom lock_wait_timeout for schema distribution
+      Lock_wait_timeout_guard lwt_guard(m_thd,
+                                        opt_ndb_schema_dist_lock_wait_timeout);
+
       Ndb_schema_op_result schema_op_result;
       switch (schema_type)
       {
@@ -5463,6 +5485,10 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d",
                          schema->db, schema->name,
                          schema->query, schema->type));
+
+    // Set the custom lock_wait_timeout for schema distribution
+    Lock_wait_timeout_guard lwt_guard(m_thd,
+                                      opt_ndb_schema_dist_lock_wait_timeout);
 
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
