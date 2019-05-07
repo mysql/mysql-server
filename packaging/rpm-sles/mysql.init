@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,15 @@ install_validate_password_sql_file () {
     echo $initfile
 }
 
+fix_mysql_upgrade_info () {
+    if [ -d  "$datadir" ]  && [ -O "$datadir/mysql_upgrade_info" ]; then
+       chown --reference="$datadir" "$datadir/mysql_upgrade_info"
+       if [ -x /usr/bin/chcon ]; then
+           /usr/bin/chcon --reference="$datadir" "$datadir/mysql_upgrade_info" > /dev/null 2>&1
+       fi
+    fi
+}
+
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires 
     # SELinux policy changes (in enforcing mode)
@@ -103,6 +112,9 @@ install_db () {
         /usr/sbin/restorecon "$datadir"
         /usr/sbin/restorecon "$logfile"
     fi
+
+    # mysql_upgrade_info file should be owned by mysql user since MySQL 8.0.16
+    fix_mysql_upgrade_info
 
     # If special mysql dir is in place, skip db install 
     [ -d "$datadir/mysql" ] && return 0
