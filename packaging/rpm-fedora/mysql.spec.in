@@ -606,10 +606,7 @@ rm -r $(readlink var) var
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
-/bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
-/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
-/bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
+[ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
 %systemd_post mysqld.service
 /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
 
