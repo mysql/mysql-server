@@ -2454,6 +2454,9 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
 
 /* Enable UNDO tablespace encryption */
 bool srv_enable_undo_encryption(bool is_boot) {
+  /* Make sure undo::ddl_mutex is owned. */
+  ut_ad(mutex_own(&(undo::ddl_mutex)));
+
   /* Traverse over all UNDO tablespaces and mark them encrypted. */
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
@@ -2563,23 +2566,36 @@ loop:
         redo_rotate_default_master_key();
       }
 
-      /* Rotate default master key for undo log encryption if it is set */
+      /* If srv_undo_log_encrypt is ON, then make sure all UNDO tablespaces
+      are encrypted. */
       if (srv_undo_log_encrypt) {
+        mutex_enter(&(undo::ddl_mutex));
+        undo::spaces->s_lock();
+        bool is_locked = true;
         ut_ad(!undo::spaces->empty());
         for (auto &undo_ts : undo::spaces->m_spaces) {
           fil_space_t *space = fil_space_get(undo_ts->id());
-          /* It is possible that during UNDO Tablespace truncate, space for
-          this space_id is deleted. So space will be nullptr. */
-          if (space) {
-            ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+          ut_ad(space != nullptr);
+          ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-            if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-              ib::warn(ER_IB_MSG_1285, space->name, "srv_undo_log_encrypt");
-              srv_enable_undo_encryption(false);
-            }
+          if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+            ib::warn(ER_IB_MSG_1285, space->name, "srv_undo_log_encrypt");
+            undo::spaces->s_unlock();
+            is_locked = false;
+            ut_d(bool ret =) srv_enable_undo_encryption(false);
+            ut_ad(!ret);
+            /* No need to loop further as srv_enable_undo_encryption() would
+            have already looped through all UNDO tablespaces and encrypted. */
+            break;
           }
         }
+        if (is_locked) {
+          undo::spaces->s_unlock();
+        }
+
+        /* Rotate default master key for undo log encryption. */
         undo_rotate_default_master_key();
+        mutex_exit(&(undo::ddl_mutex));
       }
     }
   }

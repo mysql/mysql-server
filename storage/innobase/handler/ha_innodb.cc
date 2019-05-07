@@ -3625,10 +3625,12 @@ static void innobase_post_recover() {
       srv_undo_log_encrypt = false;
     } else {
       /* Enable encryption for UNDO tablespaces */
+      mutex_enter(&(undo::ddl_mutex));
       if (srv_enable_undo_encryption(true)) {
         ut_ad(false);
         srv_undo_log_encrypt = false;
       }
+      mutex_exit(&(undo::ddl_mutex));
     }
   }
 
@@ -20374,11 +20376,13 @@ static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
     return;
   }
 
+  /* UNDO tablespace encryption to be mutually exclusive with any UNDO DDL */
+  mutex_enter(&(undo::ddl_mutex));
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write UNDO pages encrypted from now on. */
   if (srv_undo_log_encrypt == true) {
     srv_undo_log_encrypt = false;
-    return;
+    goto exit;
   }
 
   /* There would be at least 2 UNDO tablespaces */
@@ -20386,16 +20390,17 @@ static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
 
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1051);
-    return;
+    goto exit;
   }
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption(false);
-
-  if (ret == false) {
+  if (!srv_enable_undo_encryption(false)) {
     /* At this point, all UNDO tablespaces have been encrypted. */
     srv_undo_log_encrypt = true;
   }
+
+exit:
+  mutex_exit(&(undo::ddl_mutex));
   return;
 }
 
