@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,14 +186,23 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
   return;
 }//allocConsPages()
 
-void Dbtup::returnCommonArea(Uint32 retPageRef,
-                             Uint32 retNo,
-                             bool locked)
+void Dbtup::returnCommonArea(Uint32 retPageRef, Uint32 retNo)
 {
-  m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo, locked);
+  m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo);
+
+  // Count number of allocated pages
+  m_pages_allocated -= retNo;
+}//Dbtup::returnCommonArea()
+
+bool Dbtup::returnCommonArea_for_reuse(Uint32 retPageRef, Uint32 retNo)
+{
+  if (!m_ctx.m_mm.give_up_pages(RT_DBTUP_PAGE, retNo))
+  {
+    return false;
+  }
 
   // Count number of allocated pages
   m_pages_allocated -= retNo;
 
-}//Dbtup::returnCommonArea()
-
+  return true;
+}
