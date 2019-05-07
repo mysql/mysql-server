@@ -110,7 +110,7 @@ INSERT INTO t1 VALUES
 (99,99,99,'99');
 "Run DUMP commands to start LCP"
 "Sleep 10s so that LCP can complete"
-"Run DUMP commands to crash nodes with SEGV"
+"Insert ERROR command to crash nodes with SEGV"
 "Wait till nodes started"
 pk	attr1	attr2	attr3
 0	0	[NULL]	"0"
