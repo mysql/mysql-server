@@ -255,6 +255,7 @@ public:
 
   bool give_up_pages(Uint32 id, Uint32 cnt);
   bool take_pages(Uint32 id, Uint32 cnt);
+  void reclaim_lent_pages(Uint32 id, Uint32 cnt);
 
   void check() const;
   void dump() const;
@@ -421,9 +422,25 @@ private:
  */
 
 inline
+void Resource_limits::reclaim_lent_pages(Uint32 id, Uint32 cnt)
+{
+  const Uint32 resource_lent = get_resource_lent(id);
+  const Uint32 returned_lent = m_lent - (m_untaken + m_borrowed);
+  const Uint32 reclaim_lent = std::min({cnt, returned_lent, resource_lent});
+  if (reclaim_lent > 0)
+  {
+    dec_resource_lent(id, reclaim_lent);
+    dec_lent(reclaim_lent);
+    inc_free_reserved(reclaim_lent);
+  }
+}
+
+inline
 Uint32 Resource_limits::post_alloc_resource_pages(Uint32 id, Uint32 cnt)
 {
-  const Uint32 inuse = get_resource_in_use(id) + get_resource_spare(id);
+  const Uint32 inuse = get_resource_in_use(id) +
+                       get_resource_spare(id) +
+                       get_resource_lent(id);
   const Uint32 reserved = get_resource_reserved(id);
   if (inuse < reserved)
   {
@@ -461,9 +478,9 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   Uint32 spare_need = (-spare_level + gain - 1) / gain;
 
   Uint32 spare_res = 0;
-  if (rl.m_min > rl.m_curr + rl.m_spare)
+  if (rl.m_min > rl.m_curr + rl.m_spare + rl.m_lent)
   {
-    spare_res = rl.m_min - rl.m_curr - rl.m_spare;
+    spare_res = rl.m_min - (rl.m_curr + rl.m_spare + rl.m_lent);
     if (spare_res >= spare_need)
     {
       m_limit[id - 1].m_spare += spare_need;
@@ -475,8 +492,8 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   }
 
   Uint32 free_shr = m_allocated - m_in_use - m_spare;
-  assert(rl.m_max >= rl.m_curr + rl.m_spare + spare_res);
-  Uint32 limit = rl.m_max - rl.m_curr - rl.m_spare - spare_res;
+  assert(rl.m_max >= rl.m_curr + rl.m_spare + spare_res + rl.m_lent);
+  Uint32 limit = rl.m_max - (rl.m_curr + rl.m_spare + spare_res + rl.m_lent);
   if (free_shr > limit)
   {
     free_shr = limit;
@@ -583,7 +600,7 @@ Uint32 Resource_limits::get_free_shared() const
 inline
 Uint32 Resource_limits::get_in_use() const
 {
-  return m_in_use;
+  return m_in_use + m_untaken;
 }
 
 inline
@@ -609,8 +626,8 @@ Uint32 Resource_limits::get_resource_free(Uint32 id) const
 {
   require(id <= MM_RG_COUNT);
   const Resource_limit& rl = m_limit[id - 1];
-  assert(rl.m_curr + rl.m_spare <= rl.m_max);
-  return rl.m_max - (rl.m_curr + rl.m_spare);
+  assert(rl.m_curr + rl.m_spare + rl.m_lent <= rl.m_max);
+  return rl.m_max - (rl.m_curr + rl.m_spare + rl.m_lent);
 }
 
 inline
@@ -618,9 +635,9 @@ Uint32 Resource_limits::get_resource_free_reserved(Uint32 id) const
 {
   require(id <= MM_RG_COUNT);
   const Resource_limit& rl = m_limit[id - 1];
-  if (rl.m_min > (rl.m_curr + rl.m_spare))
+  if (rl.m_min > (rl.m_curr + rl.m_spare + rl.m_lent))
   {
-     return rl.m_min - (rl.m_curr + rl.m_spare);
+     return rl.m_min - (rl.m_curr + rl.m_spare + rl.m_lent);
   }
   return 0;
 }
@@ -718,7 +735,9 @@ void Resource_limits::inc_spare(Uint32 cnt)
 inline
 void Resource_limits::post_release_resource_pages(Uint32 id, Uint32 cnt)
 {
-  const Uint32 inuse = get_resource_in_use(id) + get_resource_spare(id);
+  const Uint32 inuse = get_resource_in_use(id) +
+                       get_resource_spare(id) +
+                       get_resource_lent(id);
   const Uint32 reserved = get_resource_reserved(id);
   if (inuse - cnt < reserved)
   {
@@ -729,6 +748,17 @@ void Resource_limits::post_release_resource_pages(Uint32 id, Uint32 cnt)
   }
   dec_resource_in_use(id, cnt);
   dec_in_use(cnt);
+
+  /* If resource have pages borrowed from other resource, return them now.
+   * Note that there is no way that this release is exactly for the pages
+   * earlier borrowed by take_pages().
+   */
+  const Uint32 return_borrowed = std::min(cnt, get_resource_borrowed(id));
+  if (return_borrowed > 0)
+  {
+    dec_resource_borrowed(id, return_borrowed);
+    dec_borrowed(return_borrowed);
+  }
 
   release_resource_spare(id, cnt);
 }

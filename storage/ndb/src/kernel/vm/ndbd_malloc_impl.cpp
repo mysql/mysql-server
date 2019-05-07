@@ -1480,6 +1480,8 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
   if (!locked)
     mt_mem_manager_lock();
 
+  m_resource_limits.reclaim_lent_pages(idx, 1);
+
   Uint32 cnt = 1;
   const Uint32 min = 1;
   const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
@@ -1587,6 +1589,8 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
     mt_mem_manager_lock();
 
   Uint32 req = *cnt;
+  m_resource_limits.reclaim_lent_pages(idx, req);
+
   const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
   if (free_res < req)
   {
@@ -1674,14 +1678,28 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
  *    need for special page transfer.  Follow up with release_pages(DM).
  *
  * 2) When alloc_pages(TM) fail, do give_up_pages(DM) instead of
- *    release_pages(DM).
+ *    release_pages(DM).  This function should never fail.
+ *    All given up pages will be counted as lent.
+ *    These pages may not be further used by DM until lent count is decreased.
+ *    See point 5) how lent pages are reclaimed.
  *
- * 3) Call take_pages(TM).  When called after matching give_up_pages() function
- *    should never fail.
+ * 3) Call take_pages(TM).  This will increase the count of pages in use for
+ *    TM, as a normal alloc_pages() would do.  And the borrowed pages count is
+ *    increased.
  *
- * 4) Call release_pages(TM).
+ * 4) When later calling release_pages(TM), it will decrease both the global
+ *    and the TM resource borrow count.  This will eventually allow reclaim of
+ *    lent DM pages, see next point.
  *
- * 5) Calling alloc_pages(DM).
+ * 5) When later calling alloc_pages(DM) it will first try to reclaim lent out
+ *    pages.
+ *    If the global counts for untaken and borrowed toghether is less than the
+ *    global lent count, that means that some lent pages have been
+ *    taken/borrowed and also released and those we may reclaim that many lent
+ *    pages.
+ *    If DM has lent pages, The minimum of globally reclaimable lent pages and
+ *    request count of pages and the number of lent pages in resource are
+ *    reclaimed.
  *
  * Code example:
  *
@@ -1719,14 +1737,27 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
 
 bool Resource_limits::give_up_pages(Uint32 id, Uint32 cnt)
 {
+  const Resource_limit& rl = m_limit[id - 1];
+
+  /* Only support give up pages for resources with only reserved pages to
+   * simplify logic.
+   */
+
+  require(rl.m_min == rl.m_max);
+
   if (get_resource_in_use(id) < cnt)
   {
     // Can not pass more pages than actually in use!
     return false;
   }
 
-  // Not yet implemented.
-  return false;
+  post_release_resource_pages(id, cnt);
+  inc_untaken(cnt);
+  inc_resource_lent(id, cnt);
+  inc_lent(cnt);
+  dec_free_reserved(cnt);
+
+  return true;
 }
 
 bool Ndbd_mem_manager::give_up_pages(Uint32 type, Uint32 cnt)
@@ -1746,15 +1777,29 @@ bool Ndbd_mem_manager::give_up_pages(Uint32 type, Uint32 cnt)
   return true;
 }
 
-bool Resource_limits::take_pages(Uint32, Uint32 cnt)
+bool Resource_limits::take_pages(Uint32 id, Uint32 cnt)
 {
+  const Resource_limit& rl = m_limit[id - 1];
+
+  /* Support take pages only for "unlimited" resources (m_max == HIGHEST_LIMIT)
+   * and with no spare pages (m_spare_pct == 0) to simplify logic.
+   */
+
+  require(rl.m_max == Resource_limit::HIGHEST_LIMIT);
+  require(rl.m_spare_pct == 0);
+
   if (m_untaken < cnt)
   {
     return false;
   }
 
-  // Not yet implemented.
-  return false;
+  inc_resource_borrowed(id, cnt);
+  inc_borrowed(cnt);
+  dec_untaken(cnt);
+  const Uint32 spare_taken = post_alloc_resource_pages(id, cnt);
+  require(spare_taken == 0);
+
+  return true;
 }
 
 bool Ndbd_mem_manager::take_pages(Uint32 type, Uint32 cnt)
