@@ -1296,7 +1296,8 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
   }
 
   if (srv_undo_log_encrypt) {
-    srv_enable_undo_encryption(false);
+    ut_d(bool ret =) srv_enable_undo_encryption(false);
+    ut_ad(!ret);
   }
 
   return (DB_SUCCESS);
@@ -1513,8 +1514,10 @@ static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
   /* If this is opening an existing database, create and open any
   undo tablespaces that are still needed. For a new DB, create
   them all. */
+  mutex_enter(&(undo::ddl_mutex));
   err = srv_undo_tablespaces_create();
   if (err != DB_SUCCESS) {
+    mutex_exit(&(undo::ddl_mutex));
     return (err);
   }
 
@@ -1524,9 +1527,11 @@ static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
   This list includes any tablespace newly created or fixed-up. */
   err = srv_undo_tablespaces_construct(create_new_db);
   if (err != DB_SUCCESS) {
+    mutex_exit(&(undo::ddl_mutex));
     return (err);
   }
 
+  mutex_exit(&(undo::ddl_mutex));
   return (DB_SUCCESS);
 }
 
