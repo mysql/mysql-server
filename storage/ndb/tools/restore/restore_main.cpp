@@ -109,6 +109,8 @@ Vector<class RestoreOption *> g_include_exclude;
 static void save_include_exclude(int optid, char * argument);
 
 static inline void parse_rewrite_database(char * argument);
+static void exitHandler(int code);
+static void free_include_excludes_vector();
 
 /**
  * print and restore flags
@@ -487,7 +489,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     if (ga_nodeId == 0)
     {
       err << "Error in --nodeid,-n setting, see --help";
-      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+      exitHandler(NDBT_WRONGARGS);
     }
     info.setLevel(254);
     info << "Nodeid = " << ga_nodeId << endl;
@@ -496,7 +498,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     if (ga_backupId == 0)
     {
       err << "Error in --backupid,-b setting, see --help";
-      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+      exitHandler(NDBT_WRONGARGS);
     }
     info.setLevel(254);
     info << "Backup Id = " << ga_backupId << endl;
@@ -513,7 +515,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     if (analyse_nodegroup_map(opt_nodegroup_map_str,
                               &opt_nodegroup_map[0]))
     {
-      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+      exitHandler(NDBT_WRONGARGS);
     }
     break;
   case OPT_INCLUDE_DATABASES:
@@ -568,7 +570,7 @@ processTableList(const char* str, Vector<BaseString> &lst)
     if (makeInternalTableName(tmp[i], internalName))
     {
       info << "`" << tmp[i] << "` is not a valid tablename!" << endl;
-      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+      exitHandler(NDBT_WRONGARGS);
     }
     lst.push_back(internalName);
   }
@@ -619,17 +621,17 @@ readArguments(Ndb_opts & opts, char*** pargv)
 
   if (opts.handle_options(get_one_option))
   {
-    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    exitHandler(NDBT_WRONGARGS);
   }
   if (ga_nodeId == 0)
   {
     err << "Backup file node ID not specified, please provide --nodeid" << endl;
-    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    exitHandler(NDBT_WRONGARGS);
   }
   if (ga_backupId == 0)
   {
     err << "Backup ID not specified, please provide --backupid" << endl;
-    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    exitHandler(NDBT_WRONGARGS);
   }
 
 
@@ -1045,7 +1047,7 @@ static void parse_rewrite_database(char * argument)
 
   info << "argument `" << arg.c_str()
        << "` is not a pair 'a,b' of non-empty names." << endl;
-  exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  exitHandler(NDBT_WRONGARGS);
 }
 
 static void save_include_exclude(int optid, char * argument)
@@ -1065,7 +1067,7 @@ static void save_include_exclude(int optid, char * argument)
       if (makeInternalTableName(args[i], arg))
       {
         info << "`" << args[i] << "` is not a valid tablename!" << endl;
-        exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+        exitHandler(NDBT_WRONGARGS);
       }
       break;
     default:
