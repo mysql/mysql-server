@@ -166,7 +166,6 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
           nullptr,  // table_def
           to, from, new_db_name, new_table_name, old_db_name, old_table_name,
           real_rename, real_rename_db, real_rename_table,
-          false,  // real_rename_log_on_participants
           drop_events, create_events, false /*commit_alter*/)) {
     thd_ndb->push_warning("Failed to rollback rename table.");
     return false;

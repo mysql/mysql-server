@@ -38,8 +38,7 @@ int rename_table_impl(class THD *thd, class Ndb *ndb,
                       const char *old_dbname, const char *old_tabname,
                       const char *new_dbname, const char *new_tabname,
                       bool real_rename, const char *real_rename_db,
-                      const char *real_rename_name,
-                      bool real_rename_log_on_participant, bool drop_events,
+                      const char *real_rename_name, bool drop_events,
                       bool create_events, bool commit_alter);
 
 int drop_table_impl(class THD *thd, class Ndb *ndb,

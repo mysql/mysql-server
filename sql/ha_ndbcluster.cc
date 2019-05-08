@@ -11826,20 +11826,16 @@ int rename_table_impl(THD *thd, Ndb *ndb,
                       const char *old_dbname, const char *old_tabname,
                       const char *new_dbname, const char *new_tabname,
                       bool real_rename, const char *real_rename_db,
-                      const char *real_rename_name,
-                      bool real_rename_log_on_participant, bool drop_events,
+                      const char *real_rename_name, bool drop_events,
                       bool create_events, bool commit_alter) {
   DBUG_ENTER("ha_ndbcluster::rename_table_impl");
   DBUG_PRINT("info", ("real_rename: %d", real_rename));
   DBUG_PRINT("info", ("real_rename_db: '%s'", real_rename_db));
   DBUG_PRINT("info", ("real_rename_name: '%s'", real_rename_name));
-  DBUG_PRINT("info", ("real_rename_log_on_participant: %d",
-                      real_rename_log_on_participant));
   // Verify default values of real_rename related parameters
   DBUG_ASSERT(real_rename ||
               (real_rename_db == NULL &&
-               real_rename_name == NULL &&
-               real_rename_log_on_participant == false));
+               real_rename_name == NULL));
 
   DBUG_PRINT("info", ("drop_events: %d", drop_events));
   DBUG_PRINT("info", ("create_events: %d", create_events));
@@ -12054,12 +12050,16 @@ int rename_table_impl(THD *thd, Ndb *ndb,
       table name when communicating with the participant, otherwise it
       will not find the share where the final table name has been stashed.
 
-      Also note the special flag which control wheter or not this
-      query is written to binlog or not on the participants.
+      Also note that this has to be written to the participant binlog only if
+      it is not a part of an copy alter. In case of this rename being a part
+      of or done through a copy alter, the query will be written to the
+      participant's binlog during the distribution of that ALTER. This should
+      also be skipped if the rename is part of a rollback.
     */
+    const bool log_on_participant = !(commit_alter || rollback_in_progress);
     if (schema_dist_client->rename_table(
             real_rename_db, real_rename_name, ndb_table_id, ndb_table_version,
-            new_dbname, new_tabname, real_rename_log_on_participant)) {
+            new_dbname, new_tabname, log_on_participant)) {
       if (!ddl_ctx->rollback_in_progress() && !commit_alter) {
         // Schema Distribution success. Mark the ndb_rename_stmt as distributed
         // if this is not a rollback and not a copy alter(i.e. proper rename).
@@ -12258,7 +12258,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
                                     true, // real_rename
                                     old_dbname, // real_rename_db
                                     m_tabname, // real_rename_name
-                                    true, // real_rename_log_on_participants
                                     true, // drop_events
                                     true, // create events
                                     false)); // commit_alter
@@ -12321,7 +12320,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
                                     false, // real_rename
                                     NULL, // real_rename_db
                                     NULL, // real_rename_name
-                                    false, // real_rename_log_on_participants
                                     true, // drop_events
                                     false, // create events
                                     false)); // commit_alter
@@ -12362,12 +12360,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
         const char* real_rename_db = orig_db;
         const char* real_rename_name = orig_name;
 
-        /*
-          Don't log the rename query on participant since that would
-          cause both an ALTER TABLE RENAME and RENAME TABLE to appear in
-          the binlog
-        */
-        const bool real_rename_log_on_participant = false;
         DBUG_RETURN(rename_table_impl(thd, ndb,
                                       &schema_dist_client,
                                       orig_tab, to_table_def,
@@ -12377,7 +12369,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
                                       true, // real_rename
                                       real_rename_db,
                                       real_rename_name,
-                                      real_rename_log_on_participant,
                                       false, // drop_events
                                       true, // create events
                                       true)); // commit_alter
@@ -12392,7 +12383,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
                                     false, // real_rename
                                     NULL, // real_rename_db
                                     NULL, // real_rename_name
-                                    false, // real_rename_log_on_participants
                                     false, // drop_events
                                     true, // create events
                                     true)); // commit_alter
@@ -12411,7 +12401,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
                                   true, // real_rename
                                   old_dbname, // real_rename_db
                                   m_tabname, // real_rename_name
-                                  true, // real_rename_log_on_participants
                                   true, // drop_events
                                   true, // create events
                                   false)); // commit_alter
