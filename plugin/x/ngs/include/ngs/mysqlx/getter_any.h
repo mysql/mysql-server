@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ class Getter_any {
       case Scalar::V_OCTETS:
         throw_invalid_type_if_false(
             scalar, scalar.has_v_octets() && scalar.v_octets().has_value());
-        functor(scalar.v_octets().value());
+        functor(scalar.v_octets().value(), scalar.v_octets().content_type());
         break;
 
       case Scalar::V_DOUBLE:

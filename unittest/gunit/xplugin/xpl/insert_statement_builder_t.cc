@@ -296,16 +296,18 @@ TEST_P(Add_document_param_test, add_document) {
   EXPECT_STREQ(param.expect.c_str(), query.get().c_str());
 }
 
+using Octets = Scalar::Octets;
+
 Param_add_document add_document_param[] = {
     {"('" EXPECT_DOC_EXAMPLE1 "')", k_doc_example1},
     {"(3.14)", 3.14},
     {"(JSON_OBJECT('_id','abc1','one',1))",
      Object{{"_id", "abc1"}, {"one", 1}}},
     {"('" EXPECT_DOC_EXAMPLE1 "')",
-     Scalar{k_doc_example1, Expression_generator::CT_PLAIN}},
+     Octets{k_doc_example1, Octets::Content_type::k_plain}},
     {"('" EXPECT_DOC_EXAMPLE1 "')",
-     Scalar{k_doc_example1, Expression_generator::CT_JSON}},
-    {"('abc')", Scalar{"abc", Expression_generator::CT_XML}},
+     Octets{k_doc_example1, Octets::Content_type::k_json}},
+    {"('abc')", Octets{"abc", Octets::Content_type::k_xml}},
     {"(JSON_SET('" EXPECT_DOC_EXAMPLE_NO_ID "', '$._id', '0ff0'))",
      k_doc_example_no_id},
     {"(JSON_SET('{}', '$._id', '0ff0'))", "{}"},
@@ -364,11 +366,11 @@ Param_add_prep_stmt_document add_prep_stmt_document_param[] = {
      Object{{"_id", "abc1"}, {"one", 1}}},
     {EXPECT_VALUE("'" EXPECT_DOC_EXAMPLE1 "'"),
      {},
-     Scalar{k_doc_example1, Expression_generator::CT_PLAIN}},
+     Octets{k_doc_example1, Octets::Content_type::k_plain}},
     {EXPECT_VALUE("CAST('" EXPECT_DOC_EXAMPLE1 "' AS JSON)"),
      {},
-     Scalar{k_doc_example1, Expression_generator::CT_JSON}},
-    {EXPECT_VALUE("'abc'"), {}, Scalar{"abc", Expression_generator::CT_XML}},
+     Octets{k_doc_example1, Octets::Content_type::k_json}},
+    {EXPECT_VALUE("'abc'"), {}, Octets{"abc", Octets::Content_type::k_xml}},
     {EXPECT_VALUE("'" EXPECT_DOC_EXAMPLE_NO_ID "'"), {}, k_doc_example_no_id},
     {EXPECT_VALUE("'{}'"), {}, "{}"},
     {EXPECT_VALUE("JSON_OBJECT('tree',3)"), {}, Object{{"tree", 3}}},

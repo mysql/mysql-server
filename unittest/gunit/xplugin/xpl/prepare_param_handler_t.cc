@@ -139,6 +139,9 @@ struct Param_prepare_parameters {
 #define JSN(id) \
   { id, Placeholder_info::Type::k_json }
 
+using Octets = Scalar::Octets;
+using String = Scalar::String;
+
 Param_prepare_parameters prepare_parameters_param[] = {
     {ER_X_SUCCESS, {}, {}, {}, {}, {}},
     {ER_X_SUCCESS, {NLL}, {}, {}, Any_list{Scalar::Null()}, {RAW(0)}},
@@ -147,19 +150,31 @@ Param_prepare_parameters prepare_parameters_param[] = {
     {ER_X_SUCCESS, {SIN}, {Value(-1)}, {}, Any_list{Scalar(-1)}, {JSN(0)}},
     {ER_X_SUCCESS, {UIN}, {Value(1u)}, {}, Any_list{Scalar(1u)}, {RAW(0)}},
     {ER_X_SUCCESS, {UIN}, {Value(1u)}, {}, Any_list{Scalar(1u)}, {JSN(0)}},
-    {ER_X_SUCCESS, {STR(3)}, {}, {}, Any_list{Scalar::String("abc")}, {RAW(0)}},
+    {ER_X_SUCCESS, {STR(3)}, {}, {}, Any_list{String("abc")}, {RAW(0)}},
     {ER_X_SUCCESS,
      {STR(5)},
      {},
      {"\"abc\""},
-     Any_list{Scalar::String("abc")},
+     Any_list{String("abc")},
      {JSN(0)}},
-    {ER_X_SUCCESS, {STR(3)}, {}, {}, Any_list{Scalar::Octets("abc")}, {RAW(0)}},
+    {ER_X_SUCCESS, {STR(3)}, {}, {}, Any_list{Octets("abc")}, {RAW(0)}},
+    {ER_X_SUCCESS,
+     {STR(3)},
+     {},
+     {},
+     Any_list{Octets("abc", Octets::Content_type::k_json)},
+     {RAW(0)}},
     {ER_X_SUCCESS,
      {STR(5)},
      {},
      {"\"abc\""},
-     Any_list{Scalar::Octets("abc")},
+     Any_list{Octets("abc")},
+     {JSN(0)}},
+    {ER_X_SUCCESS,
+     {STR(3)},
+     {},
+     {"abc"},
+     Any_list{Octets("abc", Octets::Content_type::k_json)},
      {JSN(0)}},
     {ER_X_SUCCESS, {DBL}, {Value(1.1)}, {}, Any_list{Scalar(1.1)}, {RAW(0)}},
     {ER_X_SUCCESS, {DBL}, {Value(1.1)}, {}, Any_list{Scalar(1.1)}, {JSN(0)}},
