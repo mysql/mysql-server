@@ -597,6 +597,7 @@ class Parallel_reader::Scan_ctx {
   Scan_ctx(Scan_ctx &&) = delete;
   Scan_ctx(const Scan_ctx &) = delete;
   Scan_ctx &operator=(Scan_ctx &) = delete;
+  Scan_ctx &operator=(Scan_ctx &&) = delete;
   Scan_ctx &operator=(const Scan_ctx &) = delete;
 };
 

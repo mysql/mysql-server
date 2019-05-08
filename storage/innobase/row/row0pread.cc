@@ -491,6 +491,9 @@ dberr_t Parallel_reader::Ctx::traverse() {
     if (page_cur_is_after_last(cur)) {
       mem_heap_empty(heap);
 
+      offsets = offsets_;
+      rec_offs_init(offsets_);
+
       if (m_scan_ctx->m_config.m_read_ahead) {
         auto next_page_no = btr_page_get_next(page_cur_get_page(cur), &mtr);
 
