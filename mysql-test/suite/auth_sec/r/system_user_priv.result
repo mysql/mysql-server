@@ -11,7 +11,7 @@ GRANT USAGE ON *.* TO `sys_usr`@`%`
 GRANT SYSTEM_USER ON *.* TO sys_usr WITH GRANT OPTION;
 SHOW GRANTS FOR sys_usr;
 Grants for sys_usr@%
-GRANT USAGE ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `sys_usr`@`%`
 GRANT SYSTEM_USER ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
 
 # 1.2 Revoke the SYSTEM_USER privilege from user;
@@ -32,7 +32,7 @@ GRANT USAGE ON *.* TO `sys_role`@`%`
 GRANT SYSTEM_USER ON *.* TO sys_role WITH GRANT OPTION;
 SHOW GRANTS FOR sys_role;
 Grants for sys_role@%
-GRANT USAGE ON *.* TO `sys_role`@`%` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `sys_role`@`%`
 GRANT SYSTEM_USER ON *.* TO `sys_role`@`%` WITH GRANT OPTION
 
 # 1.4 Revoke the SYSTEM_USER privilege from user;
@@ -211,7 +211,7 @@ ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege
 GRANT INSERT(restricted) ON restricted.t1 TO sys_usr;
 SHOW GRANTS FOR CURRENT_USER();
 Grants for sys_usr@%
-GRANT USAGE ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `sys_usr`@`%`
 GRANT SET_USER_ID ON *.* TO `sys_usr`@`%`
 GRANT SYSTEM_USER ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
 GRANT INSERT (`restricted`) ON `restricted`.`t1` TO `sys_usr`@`%`
