@@ -22,6 +22,7 @@
 #include "named_pipe.h"
 #include "log.h"
 #include "my_thread.h"
+#include <sddl.h>
 
 namespace win_unittest {
 using my_testing::Server_initializer;
@@ -122,6 +123,53 @@ TEST_F(NamedPipeTest, CreatePipeTwice)
                                           m_pipe_name,
                                           sizeof(m_pipe_name));
   EXPECT_EQ(INVALID_HANDLE_VALUE, handle);
+}
+
+// Verify that a warning is written to the error log when using
+// "*everyone* as the full access group name.
+TEST_F(NamedPipeTest, CreatePipeForEveryone)
+{
+  Mock_error_handler error_handler(m_initializer.thd(),
+                                   WARN_NAMED_PIPE_ACCESS_EVERYONE);
+  m_pipe_handle = create_server_named_pipe(&mp_sec_attr,
+                                           1024,
+                                           m_name.c_str(),
+                                           m_pipe_name,
+                                           sizeof(m_pipe_name),
+                                           "*everyone*");
+  EXPECT_NE(INVALID_HANDLE_VALUE, m_pipe_handle);
+}
+
+// Verify that a warning is written to the error log when using
+// the group name corresponding to the built in Windows group
+// with SID S-1-1-0  (i.e. "everyone" on English systems)
+TEST_F(NamedPipeTest, CreatePipeForEveryoneSid)
+{
+  PSID everyone_SID;
+  EXPECT_TRUE(ConvertStringSidToSid("S-1-1-0", &everyone_SID));
+  const DWORD max_name_len = 256;
+  char everyone_name[max_name_len];
+  DWORD everyone_name_size = max_name_len;
+  char domain_name[max_name_len];
+  DWORD domain_name_size = max_name_len;
+  SID_NAME_USE name_use;
+
+  EXPECT_TRUE(LookupAccountSid(NULL, everyone_SID, everyone_name, &everyone_name_size,
+                               domain_name, &domain_name_size, &name_use));
+  // The "S-1-1-0" SID is well known, so we expect the domain_name to empty and
+  // the name_use to be SidTypeWellKnownGroup
+  EXPECT_EQ(domain_name_size, 0);
+  EXPECT_EQ(name_use, SidTypeWellKnownGroup);
+
+  Mock_error_handler error_handler(m_initializer.thd(),
+                                   WARN_NAMED_PIPE_ACCESS_EVERYONE);
+  m_pipe_handle = create_server_named_pipe(&mp_sec_attr,
+                                           1024,
+                                           m_name.c_str(),
+                                           m_pipe_name,
+                                           sizeof(m_pipe_name),
+                                           everyone_name);
+  EXPECT_NE(INVALID_HANDLE_VALUE, m_pipe_handle);
 }
 
 }
