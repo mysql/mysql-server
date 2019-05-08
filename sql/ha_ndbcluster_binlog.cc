@@ -3243,6 +3243,19 @@ class Ndb_schema_event_handler {
   };
 
   /**
+     @brief Clear conditions accumulated in THD
+
+     @note This function should be used after calling functions that report
+     detailed failure information by both writing to log as well as push as
+     warnings when they fail.
+  */
+  void clear_THD_conditions() const {
+    // Remove the THD conditions
+    m_thd->get_stmt_da()->reset_diagnostics_area();
+    m_thd->get_stmt_da()->reset_condition_info(m_thd);
+  }
+
+  /**
      @brief Log conditions accumulated in THD and then clear conditions.
 
      @note This function should be used after calling functions
@@ -3259,9 +3272,7 @@ class Ndb_schema_event_handler {
       ndb_log_warning("Got error '%d: %s'", err->mysql_errno(),
                       err->message_text());
     }
-    // Remove the logged conditions
-    m_thd->get_stmt_da()->reset_diagnostics_area();
-    m_thd->get_stmt_da()->reset_condition_info(m_thd);
+    clear_THD_conditions();
   }
 
   // Log error code and message returned from NDB
@@ -3892,8 +3903,9 @@ class Ndb_schema_event_handler {
     // First acquire exclusive MDL lock on schema and table
     if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
       log_and_clear_THD_conditions();
-      ndb_log_error("Failed to acquire locks for table '%s.%s'",
-                    schema_name, table_name);
+      ndb_log_error(
+          "Failed to acquire exclusive metadata lock for table '%s.%s'",
+          schema_name, table_name);
       return false;
     }
 
@@ -3982,6 +3994,8 @@ class Ndb_schema_event_handler {
     // Check if binlogging should be setup for this table
     if (ndbcluster_binlog_setup_table(m_thd, ndb, schema_name, table_name,
                                       dd_table.get_table_def())) {
+      // Error information has been logged AND pushed -> clear warnings
+      clear_THD_conditions();
       ndb_log_error("Failed to setup binlogging for table '%s.%s'", schema_name,
                     table_name);
       return false;
@@ -4241,6 +4255,7 @@ class Ndb_schema_event_handler {
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_table(share->db, share->table_name))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("NDB Binlog: Failed to acquire MDL lock for table '%s.%s'",
                     share->db, share->table_name);
       DBUG_RETURN(nullptr);
@@ -4249,6 +4264,7 @@ class Ndb_schema_event_handler {
     const dd::Table* table_def;
     if (!dd_client.get_table(share->db, share->table_name, &table_def))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("NDB Binlog: Failed to read table '%s.%s' from DD",
                     share->db, share->table_name);
       DBUG_RETURN(nullptr);
@@ -4432,8 +4448,11 @@ class Ndb_schema_event_handler {
 
     if (exists_in_DD)
     {
-      // The table exists in DD on this Server, remove it
-      tab.remove_table();
+      // Remove table from DD
+      if (!tab.remove_table()) {
+        ndb_log_warning(
+            "Failed to remove table definition from DD, continue anyway...");
+      }
     }
     else
     {
@@ -4520,7 +4539,10 @@ class Ndb_schema_event_handler {
     const NDBTAB *ndbtab= ndbtab_g.get_table();
     if (!ndbtab)
     {
-      // Could not open table
+      // Could not open the table from NDB, very unusual
+      log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
+      ndb_log_error("Failed to open table '%s.%s' from NDB",
+                    db_name, table_name);
       DBUG_RETURN(false);
     }
 
@@ -4606,14 +4628,18 @@ class Ndb_schema_event_handler {
                                     &ndb_table_id, &ndb_table_version))
     {
       // It was not possible to open the table from NDB
-      DBUG_ASSERT(false);
+      ndb_log_error("Could not get id and version for table");
       DBUG_VOID_RETURN;
     }
 
-    // Rename the local table
-    from.rename_table(NDB_SHARE::key_get_db_name(prepared_key),
-                      NDB_SHARE::key_get_table_name(prepared_key),
-                      ndb_table_id, ndb_table_version);
+    // Rename table in DD
+    if (!from.rename_table(NDB_SHARE::key_get_db_name(prepared_key),
+                           NDB_SHARE::key_get_table_name(prepared_key),
+                           ndb_table_id, ndb_table_version)) {
+      log_and_clear_THD_conditions();
+      ndb_log_warning(
+          "Failed to rename table definition in DD, continue anyway...");
+    }
 
     // Rename share and release the old key
     NDB_SHARE_KEY* old_key = share->key;
@@ -4650,18 +4676,19 @@ class Ndb_schema_event_handler {
     // Lock the schema in DD
     if (!dd_client.mdl_lock_schema(schema->db))
     {
-      DBUG_PRINT("info", ("Failed to acquire MDL for db '%s'", schema->db));
-      // Failed to lock the DD, skip dropping the database
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to acquire MDL for db '%s'", schema->db);
+      // Failed to lock the DD, skip dropping
       DBUG_VOID_RETURN;
     }
 
     bool schema_exists;
     if (!dd_client.schema_exists(schema->db, &schema_exists))
     {
-        DBUG_PRINT("info", ("Failed to determine if schema '%s' exists",
-                            schema->db));
-        // Failed to check if schema existed, skip dropping the database
-        DBUG_VOID_RETURN;
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to determine if database '%s' exists", schema->db);
+      // Failed to check if database existed, skip dropping
+      DBUG_VOID_RETURN;
     }
 
     if (!schema_exists)
@@ -4682,8 +4709,9 @@ class Ndb_schema_event_handler {
     std::unordered_set<std::string> ndb_tables_in_DD;
     if (!dd_client.get_ndb_table_names_in_schema(schema->db, &ndb_tables_in_DD))
     {
-      DBUG_PRINT("info", ("Failed to get list of NDB table in schema '%s'",
-                          schema->db));
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to get list of NDB tables in database '%s'",
+                    schema->db);
       DBUG_VOID_RETURN;
     }
 
@@ -4694,9 +4722,9 @@ class Ndb_schema_event_handler {
       if (!dd_client.mdl_locks_acquire_exclusive(schema->db,
                                                  ndb_table_name.c_str()))
       {
-        DBUG_PRINT("error", ("Failed to acquire exclusive MDL on '%s.%s'",
-                             schema->db, ndb_table_name.c_str()));
-        DBUG_ASSERT(false);
+        log_and_clear_THD_conditions();
+        ndb_log_warning("Failed to acquire exclusive MDL on '%s.%s'",
+                        schema->db, ndb_table_name.c_str());
         continue;
       }
 
@@ -4705,9 +4733,9 @@ class Ndb_schema_event_handler {
       {
         // Failed to remove the table from DD, not much else to do
         // than try with the next
-        DBUG_PRINT("error", ("Failed to remove table '%s.%s' from DD",
-                             schema->db, ndb_table_name.c_str()));
-        DBUG_ASSERT(false);
+        log_and_clear_THD_conditions();
+        ndb_log_error("Failed to remove table '%s.%s' from DD", schema->db,
+                      ndb_table_name.c_str());
         continue;
       }
 
@@ -4734,7 +4762,9 @@ class Ndb_schema_event_handler {
 
     if (!invalidator.invalidate())
     {
-      DBUG_ASSERT(false);
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to invalidate referenced tables for database '%s'",
+                    schema->db);
       DBUG_VOID_RETURN;
     }
 
@@ -4743,9 +4773,12 @@ class Ndb_schema_event_handler {
     bool found_local_tables;
     if (!dd_client.have_local_tables_in_schema(schema->db, &found_local_tables))
     {
-      DBUG_PRINT("info", ("Failed to check if db contained local tables"));
       // Failed to access the DD to check if non NDB tables existed, assume
       // the worst and skip dropping this database
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to check if database '%s' contained local tables.",
+                    schema->db);
+      ndb_log_error("Skipping drop of non NDB database artifacts.");
       DBUG_VOID_RETURN;
     }
 
@@ -4767,10 +4800,13 @@ class Ndb_schema_event_handler {
     // Note! This is not done in the case where a "shadow" table is found
     // in the schema, but at least all the NDB tables have in such case
     // already been removed from the DD
-    const int no_print_error[1]= {0};
-    run_query(m_thd, schema->query,
-              schema->query + schema->query_length(),
-              no_print_error);
+    Ndb_local_connection mysqld(m_thd);
+    if (mysqld.drop_database(schema->db)){
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to execute 'DROP DATABASE' for database '%s'",
+                    schema->db);
+      DBUG_VOID_RETURN;
+    }
 
     DBUG_VOID_RETURN;
   }
@@ -4849,7 +4885,7 @@ class Ndb_schema_event_handler {
     }
 
     if (!create_table_from_engine(schema->db, schema->name,
-                                  false, /* force_overwrite */
+                                  true, /* force_overwrite */
                                   true /* invalidate_referenced_tables */)) {
       ndb_log_error("Distribution of CREATE TABLE '%s.%s' failed",
                     schema->db, schema->name);
@@ -4874,14 +4910,22 @@ class Ndb_schema_event_handler {
     // Participant never takes GSL
     assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
-    const int no_print_error[1]= {0};
-    run_query(m_thd, schema->query,
-              schema->query + schema->query_length(),
-              no_print_error);
+    Ndb_local_connection mysqld(m_thd);
+    if (mysqld.execute_database_ddl(schema->query)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to execute 'CREATE DATABASE' for database '%s'",
+                    schema->db);
+      DBUG_VOID_RETURN;
+    }
 
     // Update the Schema in DD with the id and version details
-    ndb_dd_update_schema_version(m_thd, schema->db,
-                                 schema->id, schema->version);
+    if (!ndb_dd_update_schema_version(m_thd, schema->db, schema->id,
+                                      schema->version)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to update schema version for database '%s'",
+                    schema->db);
+      DBUG_VOID_RETURN;
+    }
 
     DBUG_VOID_RETURN;
   }
@@ -4902,14 +4946,22 @@ class Ndb_schema_event_handler {
     // Participant never takes GSL
     assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
-    const int no_print_error[1]= {0};
-    run_query(m_thd, schema->query,
-              schema->query + schema->query_length(),
-              no_print_error);
+    Ndb_local_connection mysqld(m_thd);
+    if (mysqld.execute_database_ddl(schema->query)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to execute 'ALTER DATABASE' for database '%s'",
+                    schema->db);
+      DBUG_VOID_RETURN;
+    }
 
     // Update the Schema in DD with the id and version details
-    ndb_dd_update_schema_version(m_thd, schema->db,
-                                 schema->id, schema->version);
+    if (!ndb_dd_update_schema_version(m_thd, schema->db, schema->id,
+                                      schema->version)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to update schema version for database '%s'",
+                    schema->db);
+      DBUG_VOID_RETURN;
+    }
 
     DBUG_VOID_RETURN;
   }
@@ -5017,6 +5069,7 @@ class Ndb_schema_event_handler {
     if (!dd_client.mdl_lock_tablespace(name,
                                        true /* intention_exclusive */))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("MDL lock could not be acquired on tablespace '%s'", name);
       return false;
     }
@@ -5024,6 +5077,7 @@ class Ndb_schema_event_handler {
     const dd::Tablespace *existing = nullptr;
     if (!dd_client.get_tablespace(name, &existing))
     {
+      log_and_clear_THD_conditions();
       return false;
     }
 
@@ -5035,6 +5089,7 @@ class Ndb_schema_event_handler {
 
     if (!ndb_dd_disk_data_get_table_refs(m_thd, *existing, table_refs))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("Failed to get table refs in tablespace '%s'", name);
       return false;
     }
@@ -5051,6 +5106,7 @@ class Ndb_schema_event_handler {
     if (!dd_client.mdl_lock_tablespace(tablespace_name,
                                        true /* intention_exclusive */))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("MDL lock could not be acquired on tablespace '%s'",
                     tablespace_name);
       return false;
@@ -5059,6 +5115,7 @@ class Ndb_schema_event_handler {
     dd::Object_id tablespace_id;
     if (!dd_client.lookup_tablespace_id(tablespace_name, &tablespace_id))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("Failed to retrieve object id of tablespace '%s'",
                     tablespace_name);
       return false;
@@ -5070,6 +5127,7 @@ class Ndb_schema_event_handler {
       const char *table_name = table_ref.m_name.c_str();
       if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
       {
+        log_and_clear_THD_conditions();
         ndb_log_error("MDL lock could not be acquired on table '%s'",
                       table_name);
         return false;
@@ -5078,6 +5136,7 @@ class Ndb_schema_event_handler {
       if (!dd_client.set_tablespace_id_in_table(schema_name, table_name,
                                                 tablespace_id))
       {
+        log_and_clear_THD_conditions();
         ndb_log_error("Could not set tablespace id in table '%s'", table_name);
         return false;
       }
@@ -5153,6 +5212,7 @@ class Ndb_schema_event_handler {
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_tablespace_exclusive(schema->name))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
                     schema->name);
       ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
@@ -5163,6 +5223,7 @@ class Ndb_schema_event_handler {
     if (!dd_client.drop_tablespace(schema->name,
                                    false /* fail_if_not_exists */))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("Failed to drop tablespace '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
                     schema->name);
@@ -5280,6 +5341,7 @@ class Ndb_schema_event_handler {
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_logfile_group_exclusive(schema->name))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     schema->name);
       ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
@@ -5290,6 +5352,7 @@ class Ndb_schema_event_handler {
     if (!dd_client.drop_logfile_group(schema->name,
                                       false /* fail_if_not_exists */))
     {
+      log_and_clear_THD_conditions();
       ndb_log_error("Failed to drop logfile group '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
                     schema->name);
@@ -5476,6 +5539,10 @@ class Ndb_schema_event_handler {
         ack_schema_op(schema);
       }
     }
+
+    // Errors should have been reported to log and then cleared
+    DBUG_ASSERT(!m_thd->is_error());
+
     DBUG_RETURN(0);
   }
 
@@ -5539,6 +5606,9 @@ class Ndb_schema_event_handler {
         DBUG_ASSERT(false);
       }
     }
+
+    // Errors should have been reported to log and then cleared
+    DBUG_ASSERT(!m_thd->is_error());
 
     DBUG_VOID_RETURN;
   }
@@ -6631,13 +6701,11 @@ int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   if (ndbtab == 0)
   {
-    const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+    const NdbError ndb_error = ndb->getDictionary()->getNdbError();
     ndb_log_verbose(1,
                     "NDB Binlog: Failed to open table '%s' from NDB, "
-                    "error %s, %d",
-                    share->key_string(),
-                    dict->getNdbError().message,
-                    dict->getNdbError().code);
+                    "error: '%d - %s'",
+                    share->key_string(), ndb_error.code, ndb_error.message);
     DBUG_RETURN(-1); // error
   }
 

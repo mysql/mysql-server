@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,20 +197,20 @@ Ndb_local_schema::Table::mdl_try_lock_exclusive(void) const
 }
 
 
-void
+bool
 Ndb_local_schema::Table::remove_table(void) const
 {
   // Acquire exclusive MDL lock on the table
   if (!mdl_try_lock_exclusive())
   {
-    return;
+    return false;
   }
 
   // Remove the table from DD
   if (!ndb_dd_remove_table(m_thd, m_db, m_name))
   {
     log_warning("Failed to remove table from DD");
-    return;
+    return false;
   }
 
   if (m_has_triggers)
@@ -221,6 +221,8 @@ Ndb_local_schema::Table::remove_table(void) const
     if (drop_all_triggers(m_thd, m_db, m_name))
     {
       log_warning("Failed to drop all triggers");
+      // NOTE! removing table and dropping triggers should be made
+      // in same transaction, then it's ok to return false here
     }
   }
 
@@ -229,6 +231,7 @@ Ndb_local_schema::Table::remove_table(void) const
   // to the now non existing table must be removed. Assumption is
   // that if user tries to open such a table an error
   // saying 'no such table' will be returned
+  return true;
 }
 
 
@@ -270,7 +273,7 @@ Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
 }
 
 
-void
+bool
 Ndb_local_schema::Table::rename_table(const char* new_db,
                                       const char* new_name,
                                       int new_id, int new_version) const
@@ -278,14 +281,14 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
   // Acquire exclusive MDL lock on the table
   if (!mdl_try_lock_exclusive())
   {
-    return;
+    return false;
   }
 
   // Take write lock for the new table name
   if (!mdl_try_lock_for_rename(new_db, new_name))
   {
     log_warning("Failed to acquire MDL lock for rename");
-    return;
+    return false;
   }
 
   if (!ndb_dd_rename_table(m_thd,
@@ -294,6 +297,7 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
                            new_id, new_version))
   {
     log_warning("Failed to rename table in DD");
-    return;
+    return false;
   }
+  return true;
 }

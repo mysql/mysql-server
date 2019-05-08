@@ -13521,13 +13521,13 @@ int ndbcluster_discover(handlerton*, THD* thd,
           DBUG_RETURN(1);
         }
       }
-      // Install the table into DD, don't use force_overwrite since
-      // this function would never have been called unless the table
-      // didn't exist
+      // Install the table into DD, use force_overwrite since this function
+      // may be called both for non existent table as well as for metadata
+      // version mismatch
       if (!dd_client.install_table(db, name, sdi, ndbtab->getObjectId(),
                                    ndbtab->getObjectVersion(),
                                    ndbtab->getPartitionCount(), tablespace_name,
-                                   false))
+                                   true))
       {
         // Table existed in NDB but it could not be inserted into DD
         thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,8 +83,8 @@ public:
     Table(class THD* thd, const char* db, const char* name);
 
     bool is_local_table(bool* exists) const;
-    void remove_table(void) const;
-    void rename_table(const char* new_db, const char* new_name,
+    bool remove_table(void) const;
+    bool rename_table(const char* new_db, const char* new_name,
                       int new_id, int new_version) const;
   };
 };
