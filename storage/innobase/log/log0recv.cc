@@ -1132,7 +1132,11 @@ static ulint recv_read_in_area(const page_id_t &page_id) {
     }
   }
 
-  buf_read_recv_pages(false, page_id.space(), &page_nos[0], n);
+  if (n > 0) {
+    /* There are pages that need to be read. Go ahead and read them
+    for recovery. */
+    buf_read_recv_pages(false, page_id.space(), &page_nos[0], n);
+  }
 
   return (n);
 }
