@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
 #include <utility>
 
 namespace mysql_protocol {
@@ -38,13 +39,14 @@ Packet::Packet(const vector_t &buffer, Capabilities::Flags capabilities,
       sequence_id_(0),
       payload_size_(0),
       capability_flags_(capabilities) {
-  parse_header(allow_partial);
+  parse_header(allow_partial);  // throws mysql_protocol::packet_error
 }
 
 Packet::Packet(std::initializer_list<uint8_t> ilist) : Packet(vector_t(ilist)) {
-  parse_header();
+  parse_header();  // throws mysql_protocol::packet_error
 }
 
+// throws mysql_protocol::packet_error
 void Packet::parse_header(bool allow_partial) {
   if (size() < 4) {
     // do nothing when there are not enough bytes

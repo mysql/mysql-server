@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,13 @@
 #include <sys/types.h>
 #include <memory>
 
-#include "binary_log_types.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"                 // dd::get_new_field_type
+#include "sql/dd/impl/utils.h"               // dd::my_time_t_to_ull_datetime
 #include "sql/dd/properties.h"               // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/function.h"                // dd::Function
@@ -102,8 +102,13 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
   // Set result is_unsigned flag.
   sf->set_result_unsigned(return_field->is_unsigned);
 
-  // set result char length.
-  sf->set_result_char_length(return_field->length);
+  /*
+    set result char length.
+    Note that setting this only affects information schema views, and not any
+    actual definitions. When initializing functions/routines, length information
+    is read from dd::Parameter and not this field.
+  */
+  sf->set_result_char_length(return_field->max_display_width_in_bytes());
 
   // Set result numeric precision.
   uint numeric_precision = 0;
@@ -166,7 +171,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   param->set_unsigned(field->is_unsigned);
 
   // Set char length.
-  param->set_char_length(field->length);
+  param->set_char_length(field->max_display_width_in_bytes());
 
   // Set result numeric precision.
   uint numeric_precision = 0;
@@ -187,7 +192,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   // Set geometry sub type
   if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
     Properties *param_options = &param->options();
-    param_options->set_uint32("geom_type", field->geom_type);
+    param_options->set("geom_type", field->geom_type);
   }
 
   // Set elements of enum or set data type.
@@ -439,11 +444,8 @@ bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
   DBUG_ENTER("dd::alter_routine");
 
   // Set last altered time.
-  MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
-  routine->set_last_altered(ull_curtime);
+  routine->set_last_altered(
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs()));
 
   // Set security type.
   if (chistics->suid != SP_IS_DEFAULT_SUID) {

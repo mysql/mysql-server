@@ -1,0 +1,33 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start the group making server 2 have a debug point to fail
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_group_action_start_msg_error';
+include/start_group_replication.inc
+
+# 2. Execute an action to change group to single primary mode on server 1
+# Server 2 shall abort
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode();
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+[connection server2]
+include/rpl_reconnect.inc
+[connection server2]
+
+# 5. Cleanup
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Error while executing a group configuration operation: This member received an unknown action for execution.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during a Group Replication configuration change. This member received an unknown action for execution.");
+SET SESSION sql_log_bin=1;
+include/group_replication_end.inc

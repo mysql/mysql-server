@@ -1,0 +1,34 @@
+--disable_result_log
+SELECT * FROM performance_schema.keyring_keys
+  LIMIT 1;
+
+SELECT * FROM performance_schema.keyring_keys
+  where KEY_ID='FOO' OR KEY_OWNER='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.keyring_keys
+  SET KEY_ID='FOO', KEY_OWNER='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.keyring_keys
+  SET KEY_ID='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.keyring_keys
+  SET KEY_ID='FOO' WHERE KEY_OWNER='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.keyring_keys
+  WHERE KEY_OWNER='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.keyring_keys;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.keyring_keys READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.keyring_keys WRITE;
+UNLOCK TABLES;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,9 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <string>
 #include <vector>
 
 #include "lex_string.h"
-#include "map_helpers.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"  // enum_sql_command
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -41,7 +39,6 @@ class i_string;
 struct MEM_ROOT;
 struct SYS_VAR;
 struct my_option;
-struct st_bookmark;
 template <class T>
 class I_List;
 
@@ -189,7 +186,6 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();
-malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash();
 
 bool end_transaction(THD *thd, bool error);
 

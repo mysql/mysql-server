@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,6 +208,23 @@ class Sql_mode_parse_guard {
  private:
   THD *m_thd;
   const sql_mode_t m_old_sql_mode;
+};
+
+/**
+  RAII class to temporarily swap thd->mem_root to a different mem_root.
+*/
+class Swap_mem_root_guard {
+ public:
+  Swap_mem_root_guard(THD *thd, MEM_ROOT *mem_root)
+      : m_thd(thd), m_old_mem_root(thd->mem_root) {
+    thd->mem_root = mem_root;
+  }
+
+  ~Swap_mem_root_guard() { m_thd->mem_root = m_old_mem_root; }
+
+ private:
+  THD *m_thd;
+  MEM_ROOT *m_old_mem_root;
 };
 
 #endif  // THD_RAII_INCLUDED

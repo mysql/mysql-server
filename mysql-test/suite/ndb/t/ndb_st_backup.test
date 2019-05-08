@@ -1,0 +1,22 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+# backup is single-threaded -> no backup-parts to be serialised
+# turn off serial part-by-part restore
+let $serialrestore = 0;
+let $backup_parts = 4;
+
+--echo Case 1: single-threaded backup + single-threaded restore
+let $snapshotstart = 0;
+--source ndb_backup_restore.inc
+
+--echo Case 2: single-threaded snapshotstart backup + single-threaded restore
+let $snapshotstart = 1;
+--source ndb_backup_restore.inc
+
+--echo Case 3: start backup wait completed
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait completed" >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

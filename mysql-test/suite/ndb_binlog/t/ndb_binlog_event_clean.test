@@ -1,0 +1,1260 @@
+--source include/have_multi_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--echo # We are using some debug-only features in this test
+--source include/have_debug.inc
+--source include/not_windows.inc
+
+--echo Explore some event weirdness
+
+--let $SHOW_DETAIL=0
+
+connection server1;
+use test;
+
+create table test.synch(x int primary key auto_increment) engine=ndb;
+
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+
+--echo Create table with tableId X and blob part tables :
+--echo   NDB\$BLOB_X_2
+--echo   NDB\$BLOB_X_3
+--echo   NDB\$BLOB_X_4
+--echo Event will also be created
+--echo   REPL\$test/t1
+--echo Plus
+--echo   NDB\$BLOBEVENT_REPL\$test/t1_2
+--echo   NDB\$BLOBEVENT_REPL\$test/t1_3
+--echo   NDB\$BLOBEVENT_REPL\$test/t1_4
+
+connection server1;
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+
+insert into test.t1 values(0, "b", "c", "d");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+--echo Show tables and events
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES -p --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop table, and show tables and events gone
+
+drop table test.t1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 0 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Recreate the table
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+
+insert into test.t1 values(0, "b", "c", "d");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop the table, but fail to drop the event(s)
+set @save_debug = @@global.debug;
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Expect : The tables are gone, but their events still hang around
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+--echo Expect : The tables are gone, but their events still hang around
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 1 : Create a table with the same tableId and same number of blobs
+--echo Expect : Creation ok with no errors 
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, "b", "c", "d");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop the table, but fail to drop the event(s)
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 2 : Create a table with the same tableid + name, more blobs
+--echo Expect : No errors, event setup includes one event for each blob column
+
+create table test.t1 (a int primary key, b text, c text, d text, e text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, "b", "c", "d", "e");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 4 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop the table, but fail to drop the event(s)
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 4 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 3 : Create a table with the same tableid + name, fewer blobs
+--echo Expect : No errors, extra blob events dropped
+
+create table test.t1 (a int primary key, b text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, "b");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 1 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop the table, but fail to drop the event(s)
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 1 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 4 : Create a table with the same tableid + name, different numbered blobs
+--echo Expect : No errors, event for new numbered blob, others gone
+create table test.t1 (a int primary key, b int, c text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, 1, "c");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 1 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop the table, but fail to drop the event(s)
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+--echo Cleanup table in cluster
+--echo Expect : All t1 related events and tables gone
+create table test.t1 (a int primary key, b text) engine=ndb;
+
+insert into test.t1 values(0, "b");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+drop table test.t1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 0 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Create table with 3 blob columns
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+
+insert into test.t1 values(0, "b", "c", "d");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo And drop without dropping events...
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 5 : Create a table with same name, different tableid, same blobs 
+--echo Expect : No errors, all blobs have events referring to their parts tables
+
+--echo Create a filler table to shift-up tableids
+create table test.filler1(a int) engine=ndb;
+
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, "b", "c", "d");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop table and recreate to get normal setup
+--echo Expect : Table creates without warnings and all events are as expected
+drop table test.t1;
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, "b", "c", "d");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo And drop without dropping events...
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 6 : Same name, different tableid, different numbered blobs
+--echo Drop filler table to shift tableids
+drop table test.filler1;
+
+create table test.t1 (a int primary key, spacer int, b text, c text, d text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, 1, "b", "c", "d");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 6 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo And drop without dropping events...
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 3 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 7 : Create a table with the same tableid + name, no blobs
+--echo Expect : No errors, all blob events gone, currently fail
+
+create table test.t1 (a int primary key, b varchar(2), c varchar(2), d varchar(2), e varchar(2)) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, "b", "c", "d", "e");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+--source ndb_binlog_count_event_t1.inc
+
+--echo Drop the table, but fail to drop any event(s)
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_skip_drop_event';
+
+drop table test.t1;
+show warnings;
+
+--echo Redo the drop command to clear MySQLD metadata
+--echo Expect an error as the table doesn't exist in Ndb
+--error 1051
+drop table test.t1;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+set global debug=@save_debug;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+--source ndb_binlog_count_event_t1.inc
+
+--echo ----------------------------------------------------------------------
+--echo Case 8 : Create a table with the same tableid + name, blobs when previously no blobs
+--echo Expect : No errors, event setup includes one event for each blob column
+
+create table test.t1 (a int primary key, b text, c text, d text, e text) engine=ndb;
+show warnings;
+
+insert into test.t1 values(0, "b", "c", "d", "e");
+
+connection server1;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (null);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the inserted row"
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+drop table raw_binlog_rows;
+--enable_query_log
+reset master;
+
+connection server1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 8 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 4 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+# Cases : 
+# 1: Same name
+# 2: Same name, same tableid, more blobs
+# 3: Same name, same tableid, fewer blobs
+# 4: Same name, same tableid, different numbered blobs
+# 5: Same name, different tableid, same blobs
+# 6: Same name, different tableid, different numbered blobs
+# 7: Same name, same tableid, no blobs when previously blobs
+# 8: Same name, same tableid, blobs when previously no blobs
+ 
+
+# Weird 'reuse existing event with name x'
+# Missing blob event
+
+drop table test.t1;
+
+if ($SHOW_DETAIL)
+{
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+}
+--echo Expecting 0 BLOB events for t1    
+--source ndb_binlog_count_event_t1.inc
+
+drop table test.synch;
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--remove_file $MYSQLTEST_VARDIR/tmp.dat

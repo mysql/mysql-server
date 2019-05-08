@@ -28,6 +28,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 #include <string>
 #include <typeinfo>
 #include <vector>

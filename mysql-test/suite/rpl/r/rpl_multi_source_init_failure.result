@@ -23,3 +23,4 @@ STOP SLAVE FOR CHANNEL 'ch_a';
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start]
 [connection slave]
 RESET SLAVE ALL;
+include/rpl_end.inc

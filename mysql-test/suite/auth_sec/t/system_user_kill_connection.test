@@ -1,0 +1,397 @@
+###############################################################################
+# WL#12364: Kill administration for system users                              #
+#                                                                             #
+#   This test file covers the scenarios around prohibiting the killing        #
+#   connections of a user who is granted the SYSTEM_USER dynamic privilege    #
+#   from the connections of a user who is not granted the SYSTEM_USER         #
+#   dynamic privilege.                                                        #
+#                                                                             #
+###############################################################################
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # Setup
+CREATE USER sys_user, non_sys_user;
+CREATE ROLE system_user_role;
+GRANT SYSTEM_USER ON *.* TO system_user_role;
+GRANT CONNECTION_ADMIN ON *.* TO non_sys_user;
+connect(sys_user_con,localhost,sys_user,,);
+connect(non_sys_user_con,localhost,non_sys_user,,);
+connection default;
+
+--echo #------------------------------------------------------------------------
+--echo # 1. User without SYSTEM_USER privilege cannot kill the connection of
+--echo #    the user who has SYSTEM_USER privilege.
+--echo #------------------------------------------------------------------------
+connection sys_user_con;
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connection non_sys_user_con;
+--echo # non_sys_user should be able to kill as sys_user does not have
+--echo # SYSTEM_USER privilege.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+connection default;
+--echo # Grant SYSTEM_USER privilege to sys_user and then try to kill its
+--echo # session through non_sys_user.
+GRANT SYSTEM_USER ON *.* TO sys_user;
+connection sys_user_con;
+--enable_reconnect
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connection non_sys_user_con;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+--echo # Existing connection of sys_user cannot be killed by non_sys_user user
+--echo # even after revoking the SYSTEM_USER privilege from former.
+connection default;
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+connection non_sys_user_con;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+--echo # New connection of sys_user can be killed by non_sys_user user
+--echo # after revoking the SYSTEM_USER privilege from former.
+disconnect sys_user_con;
+connect(sys_user_con,localhost,sys_user,,);
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connection non_sys_user_con;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+
+--echo #------------------------------------------------------------------------
+--echo # 2. Grant SYSTEM_USER privilege to non_sys_user and try to kill the
+--echo #    connection of the sys_user who already had SYSTEM_USER privilege
+--echo #------------------------------------------------------------------------
+connection default;
+GRANT SYSTEM_USER ON *.* TO sys_user,non_sys_user;
+disconnect sys_user_con;
+connect(sys_user_con,localhost,sys_user,,);
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connection non_sys_user_con;
+--echo # Must fail; Since THD::is_susytem_user of the existing session is not
+--echo # updated about the SYSTEM_USER privilege granted
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+connection default;
+disconnect non_sys_user_con;
+connect(non_sys_user_con,localhost,non_sys_user,,);
+--echo # Must be able to kill since the THD of new connection would know that
+--echo # it has SYSTEM_USER privilege
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+
+connection default;
+disconnect non_sys_user_con;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_user, sys_user;
+
+--echo #------------------------------------------------------------------------
+--echo # 3. Grant SYSTEM_USER privilege through roles
+--echo #------------------------------------------------------------------------
+connection default;
+GRANT system_user_role TO sys_user;
+connection sys_user_con;
+--enable_reconnect
+SET ROLE system_user_role;
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connect(non_sys_user_con,localhost,non_sys_user,,);
+--echo # Must fail. non_sys_user does not have SYSTEM_USER privilege while the
+--echo # sys_user has activated that privilege through role.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+connection default;
+GRANT system_user_role TO non_sys_user;
+disconnect non_sys_user_con;
+connect(non_sys_user_con,localhost,non_sys_user,,);
+--echo # Must fail. non_sys_user has desired role but latter is not yet
+--echo # activated.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+--echo # Must work. non_sys_user gets the SYSTEM_USER privilege through roles
+--echo # activation.
+SET ROLE system_user_role;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+connection sys_user_con;
+--enable_reconnect
+SET ROLE system_user_role;
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connection non_sys_user_con;
+SET ROLE NONE;
+--echo # Must fail. non_sys_user has deactivated all roles.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+SET ROLE system_user_role;
+SET ROLE ALL EXCEPT system_user_role;
+--echo # Must fail. non_sys_user has all roles activated except the one that
+--echo # activates the SYSTEM_USER privilege
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+SET ROLE ALL;
+--echo # Must Work. non_sys_user has all roles activated.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+
+connection default;
+REVOKE system_user_role FROM non_sys_user;
+# Make MTR system happy by granting privilege to test DB
+GRANT SELECT ON test.* TO sys_user;
+disconnect sys_user_con;
+disconnect non_sys_user_con;
+
+--echo #------------------------------------------------------------------------
+--echo # 4. Grant SYSTEM_USER privilege through default roles
+--echo #------------------------------------------------------------------------
+SET DEFAULT ROLE system_user_role TO sys_user;
+connect(sys_user_con,localhost,sys_user);
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connect(non_sys_user_con,localhost,non_sys_user,,);
+--echo # Must fail. non_sys_user does not have the SYSTEM_USER privilege
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+connection default;
+GRANT SYSTEM_USER ON *.* TO non_sys_user;
+connection non_sys_user_con;
+--echo # Must fail. non_sys_user is granted the SYSTEM_USER privilege but
+--echo # existing session does not know about it.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+disconnect non_sys_user_con;
+connect(non_sys_user_con,localhost,non_sys_user,,);
+--echo # Must work. non_sys_user has the SYSTEM_USER privilege
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+connection default;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_user;
+SET DEFAULT ROLE NONE TO sys_user;
+connection sys_user_con;
+--enable_reconnect
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+disconnect non_sys_user_con;
+connect(non_sys_user_con,localhost,non_sys_user,,);
+--echo # Must work. non_sys_user and sys_user both do not have SYSTEM_USER
+--echo # privilege.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+
+--echo #------------------------------------------------------------------------
+--echo # 5. Grant SYSTEM_USER privilege through role as well as GRANT statement
+--echo #------------------------------------------------------------------------
+connection sys_user_con;
+--enable_reconnect
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connection default;
+GRANT SYSTEM_USER ON *.* TO sys_user;
+connection sys_user_con;
+SET ROLE NONE;
+connection non_sys_user_con;
+--echo # Must fail due to cumulative effect of SET ROLE and GRANT statement
+--echo # on existing connection of sys_user.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+connection default;
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+connection sys_user_con;
+SET ROLE system_user_role;
+connection non_sys_user_con;
+--echo # Must fail due to cumulative effect of SET ROLE and REVOKE statement
+--echo # on existing connection of sys_user.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+connection sys_user_con;
+SET ROLE NONE;
+connection non_sys_user_con;
+--echo # Must work since existing connection does not have SYSTEM_USER even
+--echo # cumulatively.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+connection default;
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+
+--echo #------------------------------------------------------------------------
+--echo # 6. Killing another sessions of itself
+--echo #------------------------------------------------------------------------
+--echo # 6.1 Through Roles
+connection default;
+disconnect sys_user_con;
+connect(sys_user_con,localhost,sys_user,,);
+--enable_reconnect
+SET ROLE system_user_role;
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connect(sys_user_con_1,localhost,sys_user,,);
+--echo # Must fail. Other session has SYSTEM_USER privilege through role
+--echo # activation.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+--echo # Must work. After activating the role in current session.
+SET ROLE system_user_role;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+--echo # 6.2 Through usual grant statement
+connection default;
+disconnect sys_user_con_1;
+disconnect sys_user_con;
+GRANT SYSTEM_USER ON *.* TO sys_user;
+connect(sys_user_con,localhost,sys_user,,);
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+connect(sys_user_con_1,localhost,sys_user,,);
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+
+connection  default;
+disconnect sys_user_con_1;
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+
+--echo #------------------------------------------------------------------------
+--echo # 7. SYSTEM_USER definer must not elevate session from regular to power
+--echo #------------------------------------------------------------------------
+
+--echo # 7.1 Verify through SET_ROLE statement
+disconnect non_sys_user_con;
+CREATE USER baz@localhost;
+GRANT EXECUTE ON *.* TO non_sys_user;
+GRANT SET_USER_ID, EXECUTE ON *.* TO baz@localhost;
+GRANT system_user_role TO baz@localhost;
+CREATE DEFINER=baz@localhost PROCEDURE test.role_proc()SET ROLE system_user_role;
+
+connect(non_sys_user_con,localhost,non_sys_user,,);
+CALL role_proc();
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+
+connect(non_sys_user_con_1,localhost,non_sys_user,,);
+--echo # Stored procedure should not have elevated the other session to
+--echo # power_session.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+
+--echo #7.2 Verify through GRANT statement
+connection default;
+CREATE USER foo@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO foo@localhost;
+# Create stored procedure.
+DELIMITER $$;
+CREATE DEFINER=root@localhost PROCEDURE test.grant_proc()
+BEGIN
+GRANT SYSTEM_USER ON *.* TO non_sys_user;
+END $$
+DELIMITER ;$$
+
+connection non_sys_user_con;
+--enable_reconnect
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+call grant_proc();
+--echo # non_sys_user must have SYSTEM_USER privilege.
+SHOW GRANTS;
+
+connect(foo_con,localhost,foo,,);
+--echo # We should be able to kill the existing connection because stored
+--echo # procedure should not have elevated the other session to power_session.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL $SU_CON_ID;
+
+# Cleanup
+connection default;
+disconnect non_sys_user_con_1;
+disconnect foo_con;
+DROP PROCEDURE test.role_proc;
+DROP PROCEDURE test.grant_proc;
+DROP USER baz@localhost, foo@localhost;
+REVOKE EXECUTE,SYSTEM_USER ON *.* FROM non_sys_user;
+
+--echo #------------------------------------------------------------------------
+--echo # 8. SYSTEM_USER invoker may elevate session from regular to power
+--echo #------------------------------------------------------------------------
+
+--echo # 8.1 Verify through SET_ROLE statement
+disconnect non_sys_user_con;
+CREATE USER baz@localhost;
+GRANT EXECUTE ON *.* TO non_sys_user;
+GRANT SET_USER_ID, EXECUTE ON *.* TO baz@localhost;
+GRANT system_user_role TO baz@localhost, non_sys_user;
+CREATE DEFINER=baz@localhost PROCEDURE test.role_proc() SQL SECURITY INVOKER
+ SET ROLE system_user_role;
+
+connect(non_sys_user_con,localhost,non_sys_user,,);
+CALL role_proc();
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+
+connect(non_sys_user_con_1,localhost,non_sys_user,,);
+--echo # Stored procedure execution should have elevated the other session to
+--echo # power_session.
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL $SU_CON_ID;
+
+
+# Cleanup
+connection default;
+disconnect non_sys_user_con_1;
+disconnect non_sys_user_con;
+DROP PROCEDURE test.role_proc;
+DROP USER baz@localhost;
+REVOKE EXECUTE,SYSTEM_USER ON *.* FROM non_sys_user;
+REVOKE system_user_role ON *.* FROM non_sys_user;
+
+--echo #------------------------------------------------------------------------
+--echo # 9. Change the user in current session (COM_CHANGE_USER)
+--echo #------------------------------------------------------------------------
+disconnect sys_user_con;
+GRANT SYSTEM_USER ON *.* TO sys_user;
+CREATE USER baz;
+
+connect(sys_user_con,localhost,sys_user,,);
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+--echo # Regular_user should not be able to kill the power_session
+connect(non_sys_user_con,localhost,non_sys_user,,);
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL CONNECTION $SU_CON_ID;
+--echo # Change the user in power_session that does not have SYSTEM_USER
+--echo # privilege. In other word change the user from power to regular
+connection sys_user_con;
+change_user baz;
+--echo # Now, regular session should be able to kill the previous session that
+--echo # has been demoted from power_session to regular_session
+connection non_sys_user_con;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL CONNECTION $SU_CON_ID;
+--echo # This time, change the user in regular session to power user. It must
+--echo # promote the session to power_session;
+change_user sys_user;
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+
+connect(non_sys_user_con_1,localhost,non_sys_user,,);
+--echo # Regular_user should not be able to kill the power_session
+connection non_sys_user_con_1;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL CONNECTION $SU_CON_ID;
+--echo # Change user in current session as well. Now, should be able to kill
+change_user sys_user;
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL CONNECTION $SU_CON_ID;
+
+
+# Cleanup
+connection default;
+DROP USER baz;
+disconnect non_sys_user_con_1;
+
+--echo # Cleanup
+connection default;
+disconnect sys_user_con;
+disconnect non_sys_user_con;
+DROP USER sys_user, non_sys_user;
+DROP ROLE system_user_role;
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

@@ -316,3 +316,25 @@ SELECT constraint_name FROM information_schema.table_constraints
 ALTER TABLE T3 DROP FOREIGN KEY t2_ibfk_1;
 
 DROP TABLE T3, t1;
+
+--echo #
+--echo # BUG#28351038 - MYSQL WORKBENCH ERROR GETTING DDL FOR OBJECT ON TABLES
+--echo # WITH AN UPPERCASE LETTER.
+--echo #
+CREATE TABLE `T1` (
+`id` INT NOT NULL AUTO_INCREMENT,
+`creation_utc` DATETIME NOT NULL,
+PRIMARY KEY (`id`));
+
+DELIMITER $$;
+CREATE TRIGGER `test`.`test_table_t1_before_insert` BEFORE INSERT ON `T1`
+FOR EACH ROW
+BEGIN
+  SET NEW.creation_utc = UTC_TIMESTAMP();
+END
+$$
+DELIMITER ;$$
+--echo # The SHOW CREATE TRIGGER command fails without the fix.
+--replace_column 7 #
+SHOW CREATE TRIGGER `test`.`test_table_t1_before_insert`;
+DROP TABLE `T1`;

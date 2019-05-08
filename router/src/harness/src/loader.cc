@@ -28,10 +28,14 @@
 
 ////////////////////////////////////////
 // Package include files
+#include "builtin_plugins.h"
 #include "designator.h"
+#include "dim.h"
 #include "exception.h"
+#include "harness_assert.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
 #include "utilities.h"
 IMPORT_LOG_FUNCTIONS()
@@ -47,6 +51,7 @@ IMPORT_LOG_FUNCTIONS()
 #include <exception>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -88,8 +93,6 @@ using mysql_harness::Path;
 
 using std::ostringstream;
 
-static const int kPluginExitCheckInterval = 100;  // milliseconds
-
 /**
  * @defgroup Loader Plugin loader
  *
@@ -102,38 +105,39 @@ static const int kPluginExitCheckInterval = 100;  // milliseconds
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// when Router receives a signal to shut down, this flag is set
-static volatile std::atomic<sig_atomic_t> g_shutdown_pending{0};
+std::mutex we_might_shutdown_cond_mutex;
+std::condition_variable we_might_shutdown_cond;
 
-// ensure that 'terminate'-flag is thread-safe and signal-safe
-//
-// * sigatomic_t is not thread-safe
-// * std::atomic is not signal-safe by default (only lock-free std::atomics are
-// signal-safe)
-//
-// assume that sig_atomic_t is int-or-long
-// (in C++17 we could use std::atomic<sig_atomic_t>.is_always_lock_free)
-static_assert((std::is_same<sig_atomic_t, int>::value &&
-               (ATOMIC_INT_LOCK_FREE == 2)) ||
-                  (std::is_same<sig_atomic_t, long>::value &&
-                   (ATOMIC_LONG_LOCK_FREE == 2)),
-              "expected sig_atomic_t to lock-free");
+enum ShutdownReason { SHUTDOWN_NONE, SHUTDOWN_REQUESTED, SHUTDOWN_FATAL_ERROR };
 
-// called from sig_handler() on Unix,
-//        from NTService class and Ctrl+C handler on Windows
-void request_application_shutdown() { g_shutdown_pending = 1; }
+// set when the Router receives a signal to shut down or some fatal error
+// condition occured
+static std::atomic<ShutdownReason> g_shutdown_pending{SHUTDOWN_NONE};
 
-static void sig_handler(int signal) {
-#ifdef USE_POSIX_SIGNALS
-  switch (signal) {
-    case SIGINT:
-    case SIGTERM:
-      request_application_shutdown();
-      break;
-    default:
-      break;
-  }
-#endif
+// the thread that is setting the g_shutdown_pending to SHUTDOWN_FATAL_ERROR is
+// supposed to set this error message so that it bubbles up and ends up on the
+// console
+static std::string shutdown_fatal_error_message;
+
+std::mutex log_reopen_cond_mutex;
+std::condition_variable log_reopen_cond;
+static std::atomic<bool> g_log_reopen_requested{false};
+
+static void request_application_shutdown(const ShutdownReason reason) {
+  g_shutdown_pending = reason;
+  we_might_shutdown_cond.notify_one();
+
+  // let's wake the log_reopen_thread too
+  log_reopen_cond.notify_one();
+}
+
+void request_application_shutdown() {
+  request_application_shutdown(SHUTDOWN_REQUESTED);
+}
+
+static void request_log_reopen() {
+  g_log_reopen_requested = true;
+  log_reopen_cond.notify_one();
 }
 
 static void block_all_signals() {
@@ -147,42 +151,85 @@ static void block_all_signals() {
 #endif
 }
 
-static void set_signal_handlers() {
+static void start_and_detach_signal_handler_thread() {
 #ifdef USE_POSIX_SIGNALS
+  std::promise<void> signal_handler_thread_setup_done;
 
-  // set up handlers
-  {
-    struct sigaction sa;
-
-    // It would seem reasonable to set all fields explicity instead. It turns
-    // out that on Ubuntu 14.04 (and maybe others?), sa.sa_sigaction and
-    // sa.sa_handler are a union! (yes, man page about struct sigaction is
-    // incorrect)
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = sig_handler;
-    sigfillset(&sa.sa_mask);  // for good measure, it doesn't really matter
-                              // what we block - the handler is trivial
-
-    if (sigaction(SIGINT, &sa, nullptr) == -1 ||
-        sigaction(SIGTERM, &sa, nullptr) == -1) {
-      throw std::runtime_error("sigaction() failed: " +
-                               std::string(std::strerror(errno)));
-    }
-  }
-
-  // and finally, let's unblock the signals
-  {
+  std::thread signal_thread([&signal_handler_thread_setup_done] {
     sigset_t ss;
     sigemptyset(&ss);
     sigaddset(&ss, SIGINT);
     sigaddset(&ss, SIGTERM);
-    if (0 != pthread_sigmask(SIG_UNBLOCK, &ss, nullptr)) {
-      throw std::runtime_error("pthread_sigmask() failed: " +
-                               std::string(std::strerror(errno)));
+    sigaddset(&ss, SIGHUP);
+
+    signal_handler_thread_setup_done.set_value();
+    int sig = 0;
+
+    while (true) {
+      if (0 == sigwait(&ss, &sig)) {
+        if (sig == SIGHUP) {
+          request_log_reopen();
+        } else {
+          harness_assert(sig == SIGINT || sig == SIGTERM);
+          request_application_shutdown();
+          return;
+        }
+      } else {
+        // man sigwait() says, it should only fail if we provided invalid
+        // signals.
+        harness_assert_this_should_not_execute();
+      }
     }
-  }
+  });
+
+  // wait until the signal handler is setup
+  signal_handler_thread_setup_done.get_future().wait();
+
+  // let the signal handler thread be independent of the rest of the app
+  signal_thread.detach();
 #endif
 }
+
+static void log_reopen_thread_function() {
+  auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
+  std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+  log_reopen_cond.wait(lk, [&] {
+    if (g_shutdown_pending) {
+      return true;
+    }
+    if (g_log_reopen_requested) {
+      g_log_reopen_requested = false;
+      try {
+        logging_registry.flush_all_loggers();
+      } catch (const std::exception &e) {
+        shutdown_fatal_error_message = e.what();
+        request_application_shutdown(SHUTDOWN_FATAL_ERROR);
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+#ifdef _WIN32
+static BOOL ctrl_c_handler(DWORD ctrl_type) {
+  if (ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_BREAK_EVENT) {
+    // user presed Ctrl+C or we got Ctrl+Break request
+    request_application_shutdown();
+    return TRUE;  // don't pass this event to further handlers
+  } else {
+    // some other event
+    return FALSE;  // let the default Windows handler deal with it
+  }
+}
+
+void register_ctrl_c_handler() {
+  if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)ctrl_c_handler, TRUE)) {
+    std::cerr << "Could not install Ctrl+C handler, exiting.\n";
+    exit(1);
+  }
+}
+#endif
 
 namespace mysql_harness {
 
@@ -420,9 +467,17 @@ Plugin *Loader::load_from(const std::string &plugin_name,
 Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
   log_info("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
 
-  ConfigSection &plugin = config_.get(plugin_name, key);  // throws bad_section
-  const std::string &library_name = plugin.get("library");
-  return load_from(plugin_name, library_name);  // throws bad_plugin
+  if (BuiltinPlugins::instance().has(plugin_name)) {
+    Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
+    PluginInfo info(nullptr, plugin);
+    plugins_.emplace(plugin_name, std::move(info));
+    return plugin;
+  } else {
+    ConfigSection &plugin =
+        config_.get(plugin_name, key);  // throws bad_section
+    const std::string &library_name = plugin.get("library");
+    return load_from(plugin_name, library_name);  // throws bad_plugin
+  }
 }
 
 Plugin *Loader::load(const std::string &plugin_name) {
@@ -451,6 +506,15 @@ void Loader::start() {
   // unload plugins on exit
   std::shared_ptr<void> exit_guard(nullptr, [this](void *) { unload_all(); });
 
+  // check if there is anything to load; if not we currently treat is as an
+  // error, not letting the user to run "idle" router that would close right
+  // away
+  if (external_plugins_to_load_count() == 0) {
+    throw std::runtime_error(
+        "Error: MySQL Router not configured to load or start any plugin. "
+        "Exiting.");
+  }
+
   // load plugins
   load_all();  // throws bad_plugin on load error, causing an early return
 
@@ -459,6 +523,17 @@ void Loader::start() {
   if (first_eptr) {
     std::rethrow_exception(first_eptr);
   }
+}
+
+size_t Loader::external_plugins_to_load_count() {
+  size_t result = 0;
+  for (std::pair<const std::string &, std::string> name : available()) {
+    if (!BuiltinPlugins::instance().has(name.first)) {
+      result++;
+    }
+  }
+
+  return result;
 }
 
 void Loader::load_all() {
@@ -480,6 +555,8 @@ void Loader::unload_all() {
   // this stage has no implementation so far; however, we want to flag that we
   // reached this stage
   log_info("Unloading all plugins.");
+  // If that ever gets implemented make sure to not attempt unloading
+  // built-in plugins
 }
 
 std::exception_ptr Loader::run() {
@@ -598,8 +675,15 @@ std::exception_ptr Loader::init_all() {
   log_info("Initializing all plugins.");
 
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
+  order_.reverse();  // we need reverse-topo order for non-built-in plugins
 
-  order_.reverse();  // we need reverse-topo order
+  // we put the built-in plugins at the beginning
+  for (const std::pair<const std::string, PluginInfo> &plugin : plugins_) {
+    if (BuiltinPlugins::instance().has(plugin.first)) {
+      order_.push_front(plugin.first);
+    }
+  }
+
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     const std::string &plugin_name = *it;
     PluginInfo &info = plugins_.at(plugin_name);
@@ -631,14 +715,12 @@ std::exception_ptr Loader::init_all() {
 void Loader::start_all() {
   log_info("Starting all plugins.");
 
-  // On Windows, this is a no-op, because we don't use signals on Windows
-  // On Unix systems, this line does two things:
-  // - for main thread, it block all signals until we set up the proper handlers
-  //   later on
-  // - since the signal mask is inherited, it will be passed on to new (plugin)
-  //   threads. However, unlike in case of main thread, we will never unblock
-  //   the signals there. This way, all signals sent to the program are
-  //   guaranteed to be passed on to the main thread.
+  // block signal handling for all threads
+  //
+  // - no other thread than the signal-handler thread should receive signals
+  // - syscalls should not get interrupted by signals either
+  //
+  // on windows, this is a no-op
   block_all_signals();
 
   // start all the plugins (call plugin's start() function)
@@ -662,7 +744,7 @@ void Loader::start_all() {
     std::promise<std::shared_ptr<PluginFuncEnv>> env_promise;
 
     // plugin start() will run in this new thread
-    auto dispatch = [fptr, section, &env_promise]() -> std::exception_ptr {
+    plugin_threads_.emplace_back([fptr, section, &env_promise, this]() {
       log_info("  plugin '%s:%s' starting", section->name.c_str(),
                section->key.c_str());
 
@@ -675,15 +757,12 @@ void Loader::start_all() {
       std::exception_ptr eptr;
       call_plugin_function(this_thread_env.get(), eptr, fptr, "start",
                            section->name.c_str(), section->key.c_str());
-      return eptr;
-    };
 
-    // launch plugin and save the future for exit status retrieval later on
-    std::future<std::exception_ptr> fut =
-        std::async(std::launch::async, dispatch);
-    sessions_.push_back(std::move(fut));
+      plugin_stopped_events_.push(std::move(eptr));
+      we_might_shutdown_cond.notify_one();
+    });
 
-    // block until dispatch() initializes plugin thread to a thread-safe state,
+    // block until starter thread is started
     // then save the env object for later
     assert(plugin_start_env_.count(section) == 0);
     plugin_start_env_[section] =
@@ -695,83 +774,100 @@ void Loader::start_all() {
   // We wait with this until after we launch all plugin threads, to avoid
   // a potential race if a signal was received while plugins were still
   // launching.
-  set_signal_handlers();
+  start_and_detach_signal_handler_thread();
 }
 
-// returns first exception triggered by start() or stop()
+/**
+ * wait for shutdown signal or plugins exit.
+ *
+ * blocks until one of the following happens:
+ *
+ * - shutdown signal is received
+ * - one plugin return an exception
+ * - all plugins finished
+ *
+ * calls Loader::stop_all() and waits until all plugins finished.
+ *
+ * @returns first exception returned by any of the plugins start() or stop()
+ * functions
+ * @retval nullptr if no exception was returned
+ */
 std::exception_ptr Loader::main_loop() {
   log_info("Running.");
 
-  // This function waits for all threads to finish. First thread that returns
-  // an exception will trigger stop_all().
+  // let's spawn the log reopen thread
+  std::thread log_reopen_thread(log_reopen_thread_function);
 
-  // This is the "main" loop, where the Router app spends all its time while
-  // "running" (servicing requests, etc). It stays here until all plugins are
-  // terminated (all futures are settled) or until shutdown signal was received.
   std::exception_ptr first_eptr;
-  bool have_unsettled_futures;
-  bool called_stop_all = false;
-  do {  // while (have_unsettled_futures)
-    have_unsettled_futures = false;
-    std::chrono::steady_clock::time_point timepoint =
-        std::chrono::steady_clock::now() +
-        std::chrono::milliseconds(kPluginExitCheckInterval);
 
-    // handle received shutdown signal
-    if (g_shutdown_pending && !called_stop_all) {
-      std::exception_ptr tmp = stop_all();
-      if (!first_eptr) {
-        first_eptr = tmp;
-      }
-      called_stop_all = true;
-    }
+  size_t plugins_running = plugin_threads_.size();
 
-    // check all plugin instances for termination
-    for (std::future<std::exception_ptr> &fut : sessions_) {
-      // handle this plugin no longer running
-      if (!fut.valid()) {
-        continue;
-      }
+  // wait for a reason to shutdown
+  {
+    std::unique_lock<std::mutex> lk(we_might_shutdown_cond_mutex);
 
-      // handle terminating plugin
-      //
-      // NOTE: Here we rely on ambiguous behavior of future::wait_until().
-      // What will be returned when you call it when future is ready BUT
-      // timepoint is expired? On Ubuntu 14.04, it returns future_status::ready,
-      // which seems reasonable. However to ensure it works all platforms, we
-      // have a unit test in test_loader_lifecycle.cc to guard against
-      // surprises.
-      if (fut.wait_until(timepoint) == std::future_status::ready) {
-        std::exception_ptr tmp = fut.get();
+    we_might_shutdown_cond.wait(lk, [&first_eptr, &plugins_running, this] {
+      // external shutdown
+      if (g_shutdown_pending == SHUTDOWN_REQUESTED) return true;
 
-        // if plugin's start() threw, we save its exception and initiate
-        // shutdown
-        if (tmp && !first_eptr) {
-          first_eptr = tmp;
-          if (!called_stop_all) {
-            stop_all();
-            called_stop_all = true;
-          }
+      // shutdown due to a fatal error originating from Loader and its callees
+      // (but NOT from plugins)
+      if (g_shutdown_pending == SHUTDOWN_FATAL_ERROR) {
+        // there is a request to shut down due to a fatal error; generate an
+        // exception with requested message so that it bubbles up and ends up on
+        // the console as an error message
+        try {
+          throw std::runtime_error(shutdown_fatal_error_message);
+        } catch (const std::exception &) {
+          first_eptr = std::current_exception();  // capture
         }
-      } else {  // this plugin is still running
-        have_unsettled_futures = true;
+        return true;
       }
 
-    }  // for (std::future<std::exception_ptr>& fut : sessions_)
+      // wait for the first non-fatal exit from plugin
+      for (std::exception_ptr tmp; plugin_stopped_events_.try_pop(tmp);) {
+        plugins_running--;
 
-  } while (have_unsettled_futures);
+        if (tmp) {
+          first_eptr = tmp;
+          return true;
+        }
+      }
 
-  // No (plugin) threads are running at this point, all futures have been
-  // consumed. It's weird to tell all plugins to stop after they already
-  // stopped, however, we guarantee that each plugin that exposes a stop()
-  // function will have this function called during shutdown, thus we must
-  // make sure it happens.
-  if (!called_stop_all) {
+      // all plugins stop successfully
+      if (plugins_running == 0) return true;
+
+      return false;
+    });
+  }
+
+  // stop all plugins
+  {
     std::exception_ptr tmp = stop_all();
-    if (!first_eptr) {
+    if (tmp && !first_eptr) {
       first_eptr = tmp;
     }
   }
+
+  // wait until all plugins signaled their return value
+  for (; plugins_running > 0; plugins_running--) {
+    std::exception_ptr tmp = plugin_stopped_events_.pop();
+
+    if (tmp && !first_eptr) {
+      first_eptr = tmp;
+    }
+  }
+
+  // wait for all plugin-threads to join
+  for (auto &thr : plugin_threads_) {
+    thr.join();
+  }
+
+  // before trying to join the log_reopen_thread we need to make sure to trigger
+  // its exit
+  request_application_shutdown();
+  // join the log_reopen_thread
+  log_reopen_thread.join();
 
   // we will no longer need the env objects for start(), might as well
   // clean them up now for good measure
@@ -851,10 +947,16 @@ std::exception_ptr Loader::deinit_all() {
 bool Loader::topsort() {
   std::map<std::string, Loader::Status> status;
   std::list<std::string> order;
+
+  // for the non-builtin plugins do the sorting that takes their dependencies
+  // into account
   for (std::pair<const std::string, PluginInfo> &plugin : plugins_) {
-    bool succeeded = visit(plugin.first, &status, &order);
-    if (!succeeded) return false;
+    if (!BuiltinPlugins::instance().has(plugin.first)) {
+      bool succeeded = visit(plugin.first, &status, &order);
+      if (!succeeded) return false;
+    }
   }
+
   order_.swap(order);
   return true;
 }
@@ -897,6 +999,6 @@ bool Loader::visit(const std::string &designator,
 namespace unittest_backdoor {
 HARNESS_EXPORT
 void set_shutdown_pending(bool shutdown_pending) {
-  g_shutdown_pending = shutdown_pending;
+  g_shutdown_pending = shutdown_pending ? SHUTDOWN_REQUESTED : SHUTDOWN_NONE;
 }
 }  // namespace unittest_backdoor

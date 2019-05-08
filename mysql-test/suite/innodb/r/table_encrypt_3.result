@@ -191,31 +191,28 @@ c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't_encrypt' doesn't have this option
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
 CREATE TABLESPACE s_alt1 ADD DATAFILE 's_alt1.ibd';
 CREATE TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" TABLESPACE=`s_alt1` ENGINE=InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't_encrypt' doesn't have this option
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 DROP TABLESPACE s_alt1;
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't_encrypt' doesn't have this option
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
-ERROR HY000: Table storage engine for 't_encrypt_myisam' doesn't have this option
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
 CREATE PROCEDURE tde_db.row_format_t_encrypt(row_form VARCHAR(1000))
 begin
 declare i int default 1;

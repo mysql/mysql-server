@@ -4,6 +4,9 @@
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
 
+# Test requires TLSv1 and TLSv1.1
+--source include/not_min_protocol_tlsv12.inc
+
 call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([-0-9]*\\)'");
 call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL handshake'");
 

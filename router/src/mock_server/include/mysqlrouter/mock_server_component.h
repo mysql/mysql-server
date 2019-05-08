@@ -44,11 +44,11 @@ class MOCK_SERVER_EXPORT MockServerComponent {
   MockServerComponent() = default;
 
  public:
-  static MockServerComponent &getInstance();
+  static MockServerComponent &get_instance();
 
   void init(std::shared_ptr<server_mock::MySQLServerMock> srv);
 
-  std::shared_ptr<MockServerGlobalScope> getGlobalScope();
+  std::shared_ptr<MockServerGlobalScope> get_global_scope();
   void close_all_connections();
 };
 

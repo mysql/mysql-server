@@ -164,6 +164,7 @@ DROP TABLE not_encrypted2;
 
 
 # Cleanup
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --remove_file $MYSQL_TMP_DIR/keyring_query_log
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring2
 --remove_file $MYSQL_TMP_DIR/mysqlpump_encrypt.sql

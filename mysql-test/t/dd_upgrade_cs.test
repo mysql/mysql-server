@@ -1,0 +1,170 @@
+--echo ########################################################################
+--echo # This test scripts covers meta data related aspects of upgrade
+--echo # after 8.0. For upgrade from 5.7 to 8.0, see dd_upgrade_test.
+--echo ########################################################################
+
+--source include/have_case_sensitive_file_system.inc
+--source include/no_valgrind_without_big.inc
+
+--echo ########################################################################
+--echo # Bug#29350955: UPGRADE 8.0.11-13 TO 8.0.14-16 FAILS IF DB OBJ HAS
+--echo #               SQL_MODE ALLOW_INVALID_DATES
+--echo ########################################################################
+
+--echo ########################################################################
+--echo # Copy and unzip the datadir, and stop the server.
+--echo ########################################################################
+  #
+  # The datadir is created by building server version 80013 and executing the
+  # following SQL statements:
+  #
+  # USE test;
+  # SET sql_mode = 'allow_invalid_dates';
+  # CREATE PROCEDURE p(OUT t DATETIME) SELECT now() INTO t;
+  # CREATE TABLE t(i INT);
+  # CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET @i = 1;
+  # CREATE EVENT eve ON SCHEDULE EVERY 1 HOUR DO SELECT 1;
+  #
+  # Then, move data/ to data_80013_sql_modes/, and finally zip the entire
+  # directory (zip -r data_80013_sql_modes.zip data_80013_sql_modes).
+  #
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80013_sql_modes.zip $MYSQL_TMP_DIR/data_80013_sql_modes.zip
+--file_exists $MYSQL_TMP_DIR/data_80013_sql_modes.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80013_sql_modes.zip -d $MYSQL_TMP_DIR
+--let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_80013_sql_modes
+--let $MYSQLD_LOG_UPGRADE = $MYSQLTEST_VARDIR/log/save_dd_upgrade_sql_modes.log
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo ########################################################################
+--echo # Restart the server to trigger upgrade.
+--echo ########################################################################
+--exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG_UPGRADE --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+
+--echo ########################################################################
+--echo # Verify that the entities have retained the SQL mode.
+--echo ########################################################################
+USE test;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT eve;
+SHOW CREATE PROCEDURE p;
+--replace_column 7 #
+SHOW CREATE TRIGGER trg;
+
+--echo ########################################################################
+--echo # Stop the server and do cleanup.
+--echo ########################################################################
+--source include/shutdown_mysqld.inc
+--source include/wait_until_disconnected.inc
+--remove_file $MYSQL_TMP_DIR/data_80013_sql_modes.zip
+--force-rmdir $MYSQL_TMP_DIR/data_80013_sql_modes
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+
+--echo #-----------------------------------------------------------------------
+--echo # WL#929: CHECK Constraint
+--echo #         Test case to verify upgrade from version before check
+--echo #         constraint suppport.
+--echo #-----------------------------------------------------------------------
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_1.log
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80014.zip $MYSQL_TMP_DIR/data_80014.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_80014.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80014.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data_80014/
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQL_TMP_DIR/data_80014
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Start the DB server
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+
+USE test;
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+--echo # After upgrade CHECK_CONSTRAINTS table should be present and should list
+--echo # check constraints.
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+--echo # After upgrade TABLE_CONSTRAINTS should list check constraints.
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES (100);
+DROP TABLE t1;
+
+--echo # Stop the server and do cleanup
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_80014.zip
+--force-rmdir $MYSQL_TMP_DIR/data_80014
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+
+--echo #
+--echo # Bug#28901821 - AFTER UPGRADE TO 8.0.13, SYS SCHEMA VIEWS ARE LISTED AS INVALID
+--echo #                IN I_S.TABLES
+--echo #
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_2.log;
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80012.zip $MYSQL_TMP_DIR/data_80012.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_80012.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80012.zip -d $MYSQL_TMP_DIR/data_80012
+
+--echo # Set different paths for --datadir
+let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data_80012/data_80012;
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQL_TMP_DIR/data_80012/data_80012
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Start the DB server
+--exec echo "restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 3000
+--source include/wait_until_connected_again.inc
+
+--echo # Without fix, following views are listed as invalid.
+SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_NAME = 'schema_auto_increment_columns' OR
+               TABLE_NAME = 'schema_object_overview' OR
+               TABLE_NAME = 'schema_redundant_indexes' OR
+               TABLE_NAME = 'schema_unused_indexes' OR
+               TABLE_NAME = 'x$schema_flattened_keys'
+         ORDER BY TABLE_NAME;
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_80012.zip
+--force-rmdir $MYSQL_TMP_DIR/data_80012
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc

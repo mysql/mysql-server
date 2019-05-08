@@ -5,7 +5,7 @@ COUNT(@@GLOBAL.ssl_capath)
 0 Expected
 '#---------------------BS_STVARS_046_02----------------------#'
 SET @@GLOBAL.ssl_capath=1;
-ERROR HY000: Variable 'ssl_capath' is a read only variable
+ERROR 42000: Incorrect argument type to variable 'ssl_capath'
 Expected error 'Read only variable'
 SELECT COUNT(@@GLOBAL.ssl_capath);
 COUNT(@@GLOBAL.ssl_capath)

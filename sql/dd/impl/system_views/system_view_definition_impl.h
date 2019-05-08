@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define DD_SYSTEM_VIEWS__SYSTEM_VIEW_DEFINITION_IMPL_INCLUDED
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "sql/dd/string_type.h"                   // dd::String_type
@@ -83,7 +84,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     @return void.
   */
   virtual void add_field(int field_number, const String_type &field_name,
-                         const String_type field_definition,
+                         const String_type &field_definition,
                          bool add_quotes = false) {
     // Make sure the field_number and field_name are not added twise.
     DBUG_ASSERT(m_field_numbers.find(field_name) == m_field_numbers.end() &&
@@ -210,37 +211,42 @@ class System_view_select_definition_impl : public System_view_definition_impl {
 class System_view_union_definition_impl : public System_view_definition_impl {
  public:
   /**
-    Get the object for first SELECT view definition to be used in UNION.
+    Get the object for a SELECT definition to be used in the UNION.
 
-    @return The System_view_select_definition_impl*.
+    @return The System_view_select_definition_impl&.
   */
-  System_view_select_definition_impl *get_first_select() {
-    return &m_first_select;
-  }
-
-  /**
-    Get the object for second SELECT view definition to be used in UNION.
-
-    @return The System_view_select_definition_impl*.
-  */
-  System_view_select_definition_impl *get_second_select() {
-    return &m_second_select;
+  System_view_select_definition_impl &get_select() {
+    m_selects.push_back(
+        Select_definition(new System_view_select_definition_impl));
+    return *(m_selects.back().get());
   }
 
   virtual String_type build_ddl_create_view() const {
     Stringstream_type ss;
-    ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
-       << "information_schema." << view_name() << " AS "
-       << "(" << m_first_select.build_select_query() << ")"
-       << " UNION "
-       << "(" << m_second_select.build_select_query() << ")";
+    bool first_select = true;
+    // Union definition must have minimum two SELECTs.
+    DBUG_ASSERT(m_selects.size() >= 2);
+
+    for (auto &select : m_selects) {
+      if (first_select) {
+        ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
+           << "information_schema." << view_name() << " AS "
+           << "(" << select->build_select_query() << ")";
+        first_select = false;
+      } else {
+        ss << " UNION "
+           << "(" << select->build_select_query() << ")";
+      }
+    }
 
     return ss.str();
   }
 
  private:
-  // Member that holds two SELECT's used for UNION
-  System_view_select_definition_impl m_first_select, m_second_select;
+  using Select_definition = std::unique_ptr<System_view_select_definition_impl>;
+
+  // Member holds SELECT's used for the UNION
+  std::vector<Select_definition> m_selects;
 };
 
 }  // namespace system_views

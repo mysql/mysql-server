@@ -14,8 +14,6 @@ eval INSTALL PLUGIN test_sql_cmds_1 SONAME '$TEST_SQL_CMDS_1';
 --echo ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_sql_cmds_1;
 
---disable_warnings
-
 --echo ------ Check output from tested service --------------------------------------
 let $MYSQLD_DATADIR= `select @@datadir`;
 cat_file $MYSQLD_DATADIR/test_sql_cmds_1.log;

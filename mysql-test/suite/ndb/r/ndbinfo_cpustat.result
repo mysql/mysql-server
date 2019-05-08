@@ -52,33 +52,107 @@ thread_spinning	int(10) unsigned	YES		NULL
 thread_send	int(10) unsigned	YES		NULL	
 thread_buffer_full	int(10) unsigned	YES		NULL	
 elapsed_time	int(10) unsigned	YES		NULL	
+Create temporary table for more diagnostics on failure
+create temporary table cpustat_sum (
+tstamp timestamp,
+source char(20),
+cnt int,
+OS_user_time int,
+OS_system_time int,
+OS_idle_time int,
+exec_time int,
+sleep_time int,
+spin_time int,
+send_time int,
+buffer_flule_time int,
+elapsed_time int
+);
 Check that the tables 'fill' over time if they are not
 already full
 select @node_id:=node_id, @thr_no:=thr_no from cpustat_50ms limit 1;
-select @start_invalid_50ms:= count(1) as invalid_lines from cpustat_50ms 
-where node_id=@node_id and thr_no=@thr_no and 
+There should be no invalid lines.
+That is lines width longer duration than sampling period.
+Expect zero as result.
+select count(1) as invalid_lines from cpustat_50ms
+where node_id=@node_id and thr_no=@thr_no and
 OS_user_time > (2 * 1 * 1000000);
-select @start_invalid_1sec:=count(1) as invalid_lines from cpustat_1sec 
-where node_id=@node_id and thr_no=@thr_no and 
+invalid_lines
+0
+select count(1) as invalid_lines from cpustat_1sec
+where node_id=@node_id and thr_no=@thr_no and
 OS_user_time > (2 * 20 * 1 * 1000000);
-select @start_invalid_20sec:=count(1) as invalid_lines from cpustat_20sec 
-where node_id=@node_id and thr_no=@thr_no and 
+invalid_lines
+0
+select count(1) as invalid_lines from cpustat_20sec
+where node_id=@node_id and thr_no=@thr_no and
 OS_user_time > (2 * 20 * 20 * 1000000);
-select @later_invalid_50ms:= count(1) as invalid_lines from cpustat_50ms 
-where node_id=@node_id and thr_no=@thr_no and 
+invalid_lines
+0
+Save line counts before sleep.
+select count(1) into @start_lines_50ms from cpustat_50ms
+where node_id=@node_id and thr_no=@thr_no;
+select count(1) into @start_lines_1sec from cpustat_1sec
+where node_id=@node_id and thr_no=@thr_no;
+select count(1) into @start_lines_20sec from cpustat_20sec
+where node_id=@node_id and thr_no=@thr_no;
+insert into cpustat_sum
+select now(), 'cpustat_50ms', count(*),
+sum(OS_user_time), sum(OS_system_time), sum(OS_idle_time),
+sum(exec_time), sum(sleep_time), sum(spin_time),
+sum(send_time), sum(buffer_full_time), sum(elapsed_time)
+from cpustat_50ms where node_id=@node_id and thr_no=@thr_no;
+insert into cpustat_sum
+select now(), 'cpustat_1sec', count(*),
+sum(OS_user_time), sum(OS_system_time), sum(OS_idle_time),
+sum(exec_time), sum(sleep_time), sum(spin_time),
+sum(send_time), sum(buffer_full_time), sum(elapsed_time)
+from cpustat_1sec where node_id=@node_id and thr_no=@thr_no;
+insert into cpustat_sum
+select now(), 'cpustat_20sec', count(*),
+sum(OS_user_time), sum(OS_system_time), sum(OS_idle_time),
+sum(exec_time), sum(sleep_time), sum(spin_time),
+sum(send_time), sum(buffer_full_time), sum(elapsed_time)
+from cpustat_20sec where node_id=@node_id and thr_no=@thr_no;
+select now() into @sleep_start;
+select now() into @sleep_end;
+insert into cpustat_sum
+select now(), 'cpustat_50ms', count(*),
+sum(OS_user_time), sum(OS_system_time), sum(OS_idle_time),
+sum(exec_time), sum(sleep_time), sum(spin_time),
+sum(send_time), sum(buffer_full_time), sum(elapsed_time)
+from cpustat_50ms where node_id=@node_id and thr_no=@thr_no;
+insert into cpustat_sum
+select now(), 'cpustat_1sec', count(*),
+sum(OS_user_time), sum(OS_system_time), sum(OS_idle_time),
+sum(exec_time), sum(sleep_time), sum(spin_time),
+sum(send_time), sum(buffer_full_time), sum(elapsed_time)
+from cpustat_1sec where node_id=@node_id and thr_no=@thr_no;
+insert into cpustat_sum
+select now(), 'cpustat_20sec', count(*),
+sum(OS_user_time), sum(OS_system_time), sum(OS_idle_time),
+sum(exec_time), sum(sleep_time), sum(spin_time),
+sum(send_time), sum(buffer_full_time), sum(elapsed_time)
+from cpustat_20sec where node_id=@node_id and thr_no=@thr_no;
+select count(1) as invalid_lines from cpustat_50ms
+where node_id=@node_id and thr_no=@thr_no and
 OS_user_time > (2 * 1 * 1000000);
-select @later_invalid_1sec:=count(1) as invalid_lines from cpustat_1sec 
-where node_id=@node_id and thr_no=@thr_no and 
+invalid_lines
+0
+select count(1) as invalid_lines from cpustat_1sec
+where node_id=@node_id and thr_no=@thr_no and
 OS_user_time > (2 * 20 * 1 * 1000000);
-select @later_invalid_20sec:=count(1) as invalid_lines from cpustat_20sec 
-where node_id=@node_id and thr_no=@thr_no and 
+invalid_lines
+0
+select count(1) as invalid_lines from cpustat_20sec
+where node_id=@node_id and thr_no=@thr_no and
 OS_user_time > (2 * 20 * 20 * 1000000);
-select (@start_invalid_50ms = 0) or (@later_invalid_50ms < @start_invalid_50ms);
-(@start_invalid_50ms = 0) or (@later_invalid_50ms < @start_invalid_50ms)
-1
-select (@start_invalid_1sec = 0) or (@later_invalid_1sec < @start_invalid_1sec);
-(@start_invalid_1sec = 0) or (@later_invalid_1sec < @start_invalid_1sec)
-1
-select (@start_invalid_20sec = 0) or (@later_invalid_20sec < @start_invalid_20sec);
-(@start_invalid_20sec = 0) or (@later_invalid_20sec < @start_invalid_20sec)
-1
+invalid_lines
+0
+Save line counts after sleep.
+select count(1) into @later_lines_50ms from cpustat_50ms
+where node_id=@node_id and thr_no=@thr_no;
+select count(1) into @later_lines_1sec from cpustat_1sec
+where node_id=@node_id and thr_no=@thr_no;
+select count(1) into @later_lines_20sec from cpustat_20sec
+where node_id=@node_id and thr_no=@thr_no;
+drop table cpustat_sum;

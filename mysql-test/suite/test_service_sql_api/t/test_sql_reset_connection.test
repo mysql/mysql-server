@@ -1,0 +1,25 @@
+#--source include/have_daemon_example_plugin.inc
+
+## Preamble
+call mtr.add_suppression("This is a warning from test plugin");
+call mtr.add_suppression("This is an error from test plugin");
+
+--echo ------ Setup ------------------------------------------------
+
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_SQL_RESET_CONNECTION TEST_SQL_RESET_CONNECTION
+eval INSTALL PLUGIN test_sql_reset_connection SONAME '$TEST_SQL_RESET_CONNECTION';
+
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_sql_reset_connection;
+
+--disable_warnings
+
+--echo ------ Check output from tested service --------------------------------------
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_reset_connection.log;
+remove_file $MYSQLD_DATADIR/test_sql_reset_connection.log;
+
+--echo ------- Cleanup --------------------------------------
+
+--enable_warnings

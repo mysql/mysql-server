@@ -21,10 +21,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/group_actions/group_action_coordinator.h"
+#include "plugin/group_replication/include/group_actions/communication_protocol_action.h"
 #include "plugin/group_replication/include/group_actions/multi_primary_migration_action.h"
 #include "plugin/group_replication/include/group_actions/primary_election_action.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 Group_action_information::Group_action_information(
     bool is_local_arg, Group_action *action,
@@ -57,6 +59,8 @@ Group_action_information::~Group_action_information() {}
      to true.
   2) It is deleted under the coordinator_process_lock on terminate_action or
      awake_coordinator_on_error
+     If it was proposed locally the code proposing the action will delete the
+     object on coordinate_action_execution.
   3) All accesses are under the execution of the said action on the thread, or
      on the coordination or stop methods, were we use the
      coordinator_process_lock
@@ -91,7 +95,8 @@ Group_action_information::~Group_action_information() {}
  miss the action start, it will fail due to the flag.
 */
 
-Group_action_coordinator::Group_action_coordinator()
+Group_action_coordinator::Group_action_coordinator(
+    ulong components_stop_timeout)
     : is_sender(false),
       action_proposed(false),
       action_running(false),
@@ -101,10 +106,12 @@ Group_action_coordinator::Group_action_coordinator()
       local_action_killed(false),
       action_execution_error(false),
       coordinator_terminating(false),
+      action_cancelled_on_termination(false),
       member_leaving_group(false),
       remote_warnings_reported(false),
       action_handler_thd_state(),
-      is_group_action_being_executed(false) {
+      is_group_action_being_executed(false),
+      stop_wait_timeout(components_stop_timeout) {
   mysql_mutex_init(key_GR_LOCK_group_action_coordinator_process,
                    &coordinator_process_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_group_action_coordinator_process,
@@ -117,6 +124,9 @@ Group_action_coordinator::Group_action_coordinator()
                    &group_thread_end_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_group_action_coordinator_thread_end,
                   &group_thread_end_cond);
+#ifndef DBUG_OFF
+  failure_debug_flag = false;
+#endif
 }
 
 Group_action_coordinator::~Group_action_coordinator() {
@@ -134,6 +144,10 @@ void Group_action_coordinator::register_coordinator_observers() {
 
 void Group_action_coordinator::unregister_coordinator_observers() {
   group_events_observation_manager->unregister_group_event_observer(this);
+}
+
+void Group_action_coordinator::set_stop_wait_timeout(ulong timeout) {
+  stop_wait_timeout = timeout;
 }
 
 static void *launch_handler_thread(void *arg) {
@@ -159,12 +173,18 @@ int send_message(Group_action_message *message) {
 
 void Group_action_coordinator::reset_coordinator_process() {
   coordinator_terminating = false;
+  action_cancelled_on_termination = false;
   action_running = false;
   local_action_killed = false;
   action_execution_error = false;
   action_proposed = false;
   member_leaving_group = false;
   remote_warnings_reported = false;
+
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("group_replication_group_action_start_msg_error",
+                  { failure_debug_flag = true; });
+#endif
 }
 
 int Group_action_coordinator::stop_coordinator_process(bool coordinator_stop,
@@ -174,7 +194,15 @@ int Group_action_coordinator::stop_coordinator_process(bool coordinator_stop,
 
   if (action_running) {
     current_executing_action->executing_action->stop_action_execution(false);
+  } else if (action_proposed) {
+    /**
+      If we sent a start message but then left the group, the action might be
+      waiting
+    */
+    action_cancelled_on_termination = true;
+    mysql_cond_broadcast(&coordinator_process_condition);
   }
+
   mysql_mutex_unlock(&coordinator_process_lock);
 
   /**
@@ -277,7 +305,7 @@ int Group_action_coordinator::coordinate_action_execution(
   delete start_message;
 
   while (!local_action_terminating && !action_execution_error &&
-         !thread_killed()) {
+         !action_cancelled_on_termination && !thread_killed()) {
     struct timespec abstime;
     set_timespec(&abstime, 1);
 
@@ -325,6 +353,15 @@ int Group_action_coordinator::coordinate_action_execution(
     else
       execution_info->append_warning_message(
           " There were warnings detected on other members, check their logs.");
+  }
+
+  // This action was proposed but canceled before being declared running
+  if (action_cancelled_on_termination && !local_action_terminating &&
+      !action_execution_error) {
+    execution_info->set_execution_message(
+        Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
+        "The group coordination process is terminating.");
+    error = 2;
   }
 
   action_proposed = false;
@@ -449,11 +486,37 @@ bool Group_action_coordinator::handle_action_start_message(
   if (!is_sender) {
     Group_action_message::enum_action_message_type message_type =
         message->get_group_action_message_type();
+#ifndef DBUG_OFF
+    if (failure_debug_flag) {
+      message_type = Group_action_message::ACTION_UNKNOWN_MESSAGE;
+    }
+#endif
     if (message_type == Group_action_message::ACTION_MULTI_PRIMARY_MESSAGE)
       action_info->executing_action = new Multi_primary_migration_action();
     else if (message_type ==
              Group_action_message::ACTION_PRIMARY_ELECTION_MESSAGE)
       action_info->executing_action = new Primary_election_action();
+    else if (message_type ==
+             Group_action_message::ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE)
+      action_info->executing_action = new Communication_protocol_action();
+  }
+  /*
+   In the unlikely case a member of a higher version sent an unknown action
+   type we abort directly.
+   This case should never happen IRL and we cannot set read only mode in this
+   method
+  */
+  if (nullptr == action_info->executing_action) {
+    if (!is_message_sender) {
+      delete action_info->execution_message_area;
+      delete action_info;
+      action_info = nullptr;
+    }
+    abort_plugin_process(
+        "Fatal error during a Group Replication configuration change: This "
+        "member received an unknown action for execution.");
+    error = 1;
+    goto end;
   }
 
   current_executing_action = action_info;
@@ -917,15 +980,18 @@ void Group_action_coordinator::kill_transactions_and_leave() {
   notify_and_reset_ctx(ctx);
 
   bool set_read_mode = false;
-  if (view_change_notifier != NULL &&
-      !view_change_notifier->is_view_modification_ongoing()) {
-    view_change_notifier->start_view_modification();
-  }
-  Gcs_operations::enum_leave_state state = gcs_module->leave();
+  Plugin_gcs_view_modification_notifier view_change_notifier;
+  view_change_notifier.start_view_modification();
+
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
+
+  Gcs_operations::enum_leave_state leave_state =
+      gcs_module->leave(&view_change_notifier);
 
   longlong errcode = 0;
   longlong log_severity = WARNING_LEVEL;
-  switch (state) {
+  switch (leave_state) {
     case Gcs_operations::ERROR_WHEN_LEAVING:
       errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP; /* purecov:
                                                                     inspected */
@@ -963,15 +1029,17 @@ void Group_action_coordinator::kill_transactions_and_leave() {
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
 
-  if (view_change_notifier != NULL) {
+  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
+      Gcs_operations::ALREADY_LEFT != leave_state) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier->wait_for_view_modification()) {
+    if (view_change_notifier.wait_for_view_modification()) {
       LogPluginErr(
           WARNING_LEVEL,
           ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN); /* purecov:
                                                                     inspected */
     }
   }
+  gcs_module->remove_view_notifer(&view_change_notifier);
 
   if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
     std::string error_message(

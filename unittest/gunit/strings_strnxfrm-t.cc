@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,8 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -61,7 +63,9 @@
 using std::make_pair;
 using std::max;
 using std::pair;
+using std::string;
 using std::to_string;
+using std::unordered_map;
 
 namespace strnxfrm_unittest {
 
@@ -549,7 +553,7 @@ static void BM_SimpleUTF8(size_t num_iterations) {
   }
   StopBenchmarkTiming();
 }
-BENCHMARK(BM_SimpleUTF8);
+BENCHMARK(BM_SimpleUTF8)
 
 // Verifies using my_charpos to find the length of a string.
 // hp_hash.c does this extensively. Not really a strnxfrm benchmark,
@@ -577,7 +581,7 @@ static void BM_UTF8MB4StringLength(size_t num_iterations) {
   EXPECT_NE(0, tot_len);
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_UTF8MB4StringLength);
+BENCHMARK(BM_UTF8MB4StringLength)
 
 // Benchmark testing the default recommended collation for 8.0, without
 // stressing padding as much, but still testing only Latin letters.
@@ -649,7 +653,7 @@ static void BM_SimpleUTF8MB4(size_t num_iterations) {
 
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_SimpleUTF8MB4);
+BENCHMARK(BM_SimpleUTF8MB4)
 
 // Benchmark testing a wider variety of character sets on a more complicated
 // collation (the recommended default collation for 8.0), without stressing
@@ -698,7 +702,7 @@ static void BM_MixedUTF8MB4(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_MixedUTF8MB4);
+BENCHMARK(BM_MixedUTF8MB4)
 
 static void BM_MixedUTF8MB4_AS_CI(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -760,7 +764,7 @@ static void BM_MixedUTF8MB4_AS_CI(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_MixedUTF8MB4_AS_CI);
+BENCHMARK(BM_MixedUTF8MB4_AS_CI)
 
 // Case-sensitive, accent-sensitive benchmark, using the same string as
 // BM_SimpleUTF8MB4. This will naturally be slower, since many more weights
@@ -1386,7 +1390,7 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations) {
   expect_arrays_equal(expected, dest, ret);
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_MixedUTF8MB4_AS_CS);
+BENCHMARK(BM_MixedUTF8MB4_AS_CS)
 
 // Specifically benchmark Japanese text.
 static void BM_JapaneseUTF8MB4(size_t num_iterations) {
@@ -1430,7 +1434,7 @@ static void BM_JapaneseUTF8MB4(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_JapaneseUTF8MB4);
+BENCHMARK(BM_JapaneseUTF8MB4)
 
 /*
   A benchmark that illustrates the potential perils of not including the
@@ -1485,7 +1489,7 @@ static void BM_NewlineFilledUTF8MB4(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_NewlineFilledUTF8MB4);
+BENCHMARK(BM_NewlineFilledUTF8MB4)
 
 static void BM_HashSimpleUTF8MB4(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -1499,7 +1503,7 @@ static void BM_HashSimpleUTF8MB4(size_t num_iterations) {
       "and collation supports much more complicated scenarios.";
   const int len = strlen(content);
 
-  ulong nr1 = 1, nr2 = 4;
+  uint64 nr1 = 1, nr2 = 4;
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
@@ -1516,7 +1520,7 @@ static void BM_HashSimpleUTF8MB4(size_t num_iterations) {
   */
   EXPECT_FALSE(nr1 == 0 && nr2 == 0);
 }
-BENCHMARK(BM_HashSimpleUTF8MB4);
+BENCHMARK(BM_HashSimpleUTF8MB4)
 
 /*
   Test a non-trivial collation with contractions, to highlight
@@ -1607,7 +1611,7 @@ static void BM_Hungarian_AS_CS(size_t num_iterations) {
 
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Hungarian_AS_CS);
+BENCHMARK(BM_Hungarian_AS_CS)
 
 static void BM_Japanese_AS_CS(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -1695,7 +1699,7 @@ static void BM_Japanese_AS_CS(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Japanese_AS_CS);
+BENCHMARK(BM_Japanese_AS_CS)
 
 static void BM_Japanese_AS_CS_KS(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -1796,7 +1800,184 @@ static void BM_Japanese_AS_CS_KS(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Japanese_AS_CS_KS);
+BENCHMARK(BM_Japanese_AS_CS_KS)
+
+TEST(StrXfrmTest, ChineseUTF8MB4) {
+  CHARSET_INFO *cs = init_collation("utf8mb4_zh_0900_as_cs");
+
+  const char *src =
+      "\xE9\x98\xBF\xE5\x92\x97"  // The first and last Han character in zh.xml
+      "\xF0\xAC\xBA\xA1"          // The last Han character
+      "\xC4\x81\x61\x62\xC5\xAB\x75\x55\xC7\x96\x5A"  // Some latin characters
+                                                      // are used as Bopomofo.
+      "\xF0\x94\x99\x86"  // The last character that has explicit weight
+                          // in the DUCET.
+
+      /* Non-Han characters that have implicit weight. */
+      "\xF0\x97\x86\xA0\xF0\xAC\xBA\xA2\xF0\xAE\xAF\xA0\xF0\xB3\x8C\xB3";
+
+  static const unsigned char full_answer_with_pad[116] = {
+      // level 1
+      0x1C, 0x47, 0xBD, 0xBE,  // The first and last Han character in zh.xml
+      0xBD, 0xC3, 0xCE, 0xA1,  // The last Han character
+      /* Latin characters. Some are used as Bopomofo. */
+      0xBD, 0xC4, 0xBD, 0xC4, 0xBD, 0xDD, 0xC0, 0x32, 0xC0, 0x32, 0xC0, 0x32,
+      0xC0, 0x32, 0xC0, 0x9E,
+
+      0xF6, 0x20,  // The last character that has explicit weight in the DUCET.
+      /* Non-Han characters that have implicit weight. */
+      0xF6, 0x21, 0x81, 0xA0, 0xF6, 0x27, 0xCE, 0xA2, 0xF6, 0x27, 0xEB, 0xE0,
+      0xF6, 0x28, 0xB3, 0x33,
+
+      // level separator.
+      0x00, 0x00,
+
+      // level 2
+      0x00, 0x20, 0x00, 0x20,  // The first and last Han character in zh.xml
+      0x00, 0x20,              // The last Han character
+
+      /* Latin characters. Some are used as Bopomofo. */
+      0x00, 0x1F, 0x01, 0x16, 0x00, 0x20, 0x00, 0x20, 0x00, 0x1F, 0x01, 0x16,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x01, 0x16, 0x00, 0x20,
+
+      0x00, 0x20,  // The last character that has explicit weight in the DUCET.
+      /* Non-Han characters that have implicit weight. */
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      // level separator.
+      0x00, 0x00,
+
+      // level 3
+      0x00, 0x02, 0x00, 0x02,  // The first and last Han character in zh.xml
+      0x00, 0x02,              // The last Han character
+      /* Latin characters. Some are used as Bopomofo. */
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x08,
+      0x00, 0x08, 0x00, 0x08,
+
+      0x00, 0x02,  // The last character that has explicit weight in the DUCET.
+      /* Non-Han characters that have implicit weight. */
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02};
+
+  unsigned char buf[sizeof(full_answer_with_pad)];
+  for (size_t maxlen = 0; maxlen < sizeof(buf); maxlen += 2) {
+    memset(buf, 0xff, sizeof(buf));
+    my_strnxfrm(cs, buf, maxlen, pointer_cast<const uchar *>(src), strlen(src));
+    expect_arrays_equal(full_answer_with_pad, buf, maxlen);
+  }
+}
+
+static void BM_Chinese_AS_CS(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  CHARSET_INFO *cs = init_collation("utf8mb4_zh_0900_as_cs");
+  const char *content =
+      "春江潮水连海平，海上明月共潮生。"
+      "滟滟随波千万里，何处春江无月明！"
+      "江流宛转绕芳甸，月照花林皆似霰；"
+      "空里流霜不觉飞，汀上白沙看不见。"
+      "江天一色无纤尘，皎皎空中孤月轮。"
+      "江畔何人初见月？江月何年初照人？"
+      "人生代代无穷已，江月年年只相似。"
+      "不知江月待何人，但见长江送流水。"
+      "白云一片去悠悠，青枫浦上不胜愁。"
+      "谁家今夜扁舟子？何处相思明月楼？";
+  const int len = strlen(content);
+
+  // Just recorded from a trial run on the string above.
+  static constexpr uchar expected[] = {
+      0x2C, 0xD0, 0x4F, 0xF1, 0x28, 0x08, 0x87, 0xE8, 0x60, 0x4C, 0x42, 0xEF,
+      0x75, 0x93, 0x02, 0x22, 0x42, 0xEF, 0x83, 0x8A, 0x6C, 0x4F, 0xAF, 0x96,
+      0x3F, 0x58, 0x28, 0x08, 0x84, 0xCF, 0x02, 0x8A, 0xA3, 0xA4, 0xA3, 0xA4,
+      0x8A, 0x5F, 0x23, 0x71, 0x78, 0xA8, 0x93, 0x1A, 0x5E, 0xD9, 0x02, 0x22,
+      0x44, 0xAC, 0x2B, 0xD5, 0x2C, 0xD0, 0x4F, 0xF1, 0x96, 0x31, 0xAF, 0x96,
+      0x6C, 0x4F, 0x02, 0x60, 0x4F, 0xF1, 0x63, 0x7B, 0x92, 0xDD, 0xBA, 0x2E,
+      0x7F, 0x07, 0x39, 0x15, 0x32, 0xB2, 0x02, 0x22, 0xAF, 0x96, 0xB4, 0x41,
+      0x47, 0xD7, 0x62, 0x27, 0x51, 0x4C, 0x85, 0xE9, 0x81, 0x86, 0x02, 0x34,
+      0x59, 0x09, 0x5E, 0xD9, 0x63, 0x7B, 0x87, 0xBA, 0x24, 0x78, 0x56, 0x5A,
+      0x39, 0x48, 0x02, 0x22, 0x8F, 0x74, 0x83, 0x8A, 0x1E, 0x4D, 0x82, 0x46,
+      0x57, 0xD9, 0x24, 0x78, 0x4F, 0x79, 0x02, 0x8A, 0x4F, 0xF1, 0x8E, 0x8A,
+      0xA6, 0x3E, 0x81, 0xEE, 0x96, 0x31, 0x99, 0x9E, 0x28, 0x97, 0x02, 0x22,
+      0x50, 0xC2, 0x50, 0xC2, 0x59, 0x09, 0xB8, 0x20, 0x3F, 0xCC, 0xAF, 0x96,
+      0x66, 0xC9, 0x02, 0x8A, 0x4F, 0xF1, 0x72, 0xB6, 0x44, 0xAC, 0x7F, 0x11,
+      0x2B, 0x7B, 0x4F, 0x79, 0xAF, 0x96, 0x02, 0x66, 0x4F, 0xF1, 0xAF, 0x96,
+      0x44, 0xAC, 0x6F, 0xD5, 0x2B, 0x7B, 0xB4, 0x41, 0x7F, 0x11, 0x02, 0x66,
+      0x7F, 0x11, 0x84, 0xCF, 0x2F, 0xE2, 0x2F, 0xE2, 0x96, 0x31, 0x7B, 0xE1,
+      0xA7, 0x41, 0x02, 0x22, 0x4F, 0xF1, 0xAF, 0x96, 0x6F, 0xD5, 0x6F, 0xD5,
+      0xB6, 0xC3, 0x9B, 0x15, 0x85, 0xE9, 0x02, 0x8A, 0x24, 0x78, 0xB6, 0x2E,
+      0x4F, 0xF1, 0xAF, 0x96, 0x2F, 0xF4, 0x44, 0xAC, 0x7F, 0x11, 0x02, 0x22,
+      0x30, 0x86, 0x4F, 0x79, 0xB3, 0xDD, 0x4F, 0xF1, 0x89, 0x2A, 0x63, 0x7B,
+      0x87, 0xE8, 0x02, 0x8A, 0x1E, 0x4D, 0xB0, 0x1B, 0xA6, 0x3E, 0x75, 0x00,
+      0x7D, 0x93, 0xAB, 0xAF, 0xAB, 0xAF, 0x02, 0x22, 0x7B, 0x7D, 0x3A, 0x63,
+      0x76, 0xA2, 0x83, 0x8A, 0x24, 0x78, 0x85, 0x16, 0x2B, 0x2D, 0x02, 0x8A,
+      0x84, 0x30, 0x4D, 0xF3, 0x52, 0x63, 0xA5, 0xC7, 0x21, 0xE0, 0xB8, 0x87,
+      0xBC, 0x16, 0x02, 0x66, 0x44, 0xAC, 0x2B, 0xD5, 0x9B, 0x15, 0x88, 0x52,
+      0x6C, 0x4F, 0xAF, 0x96, 0x64, 0xA1, 0x02, 0x66, 0x00, 0x00, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+      0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x00, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x03, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x03,
+      0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+      0x00, 0x02, 0x00, 0x03};
+  uchar dest[sizeof(expected)];
+
+  StartBenchmarkTiming();
+  for (size_t i = 0; i < num_iterations; ++i) {
+    my_strnxfrm(cs, dest, sizeof(dest),
+                reinterpret_cast<const uchar *>(content), len);
+  }
+  StopBenchmarkTiming();
+
+  expect_arrays_equal(expected, dest, sizeof(dest));
+  SetBytesProcessed(num_iterations * strlen(content));
+}
+BENCHMARK(BM_Chinese_AS_CS)
 
 // The classic MySQL latin1 collation, for reference.
 static void BM_Latin1_CI(size_t num_iterations) {
@@ -1847,7 +2028,7 @@ static void BM_Latin1_CI(size_t num_iterations) {
 
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Latin1_CI);
+BENCHMARK(BM_Latin1_CI)
 
 // Since the UCA collations are NO PAD, strnncollsp should heed spaces.
 TEST(PadCollationTest, BasicTest) {
@@ -2009,8 +2190,8 @@ TEST(BitfiddlingTest, FastOutOfRange16) {
   }
 }
 
-ulong hash(CHARSET_INFO *cs, const char *str) {
-  ulong nr1 = 1, nr2 = 4;
+uint64 hash(CHARSET_INFO *cs, const char *str) {
+  uint64 nr1 = 1, nr2 = 4;
   cs->coll->hash_sort(cs, pointer_cast<const uchar *>(str), strlen(str), &nr1,
                       &nr2);
   return nr1;
@@ -2054,7 +2235,7 @@ TEST(PadCollationTest, HashSort) {
 
 TEST(HashTest, NullPointer) {
   CHARSET_INFO *cs = init_collation("utf8mb4_0900_ai_ci");
-  ulong nr1 = 1, nr2 = 4;
+  uint64 nr1 = 1, nr2 = 4;
 
   /*
     We should get the same hash from the empty string no matter what
@@ -2114,6 +2295,330 @@ TEST(StrxfrmLenTest, StrnxfrmLenIsLongEnoughForAllCharacters) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
       SCOPED_TRACE(cs->name);
       test_strnxfrmlen(init_collation(cs->name));
+    }
+  }
+}
+
+// Golden hashes for a test string. These may be stored on disk, so we need to
+// make sure that they never change.
+struct GoldenHashResult {
+  pair<uint64, uint64> hash_value;
+};
+
+TEST(StrmxfrmHashTest, HashStability) {
+  // Load one collation to get everything going.
+  init_collation("utf8mb4_0900_ai_ci");
+
+  // Reference values. Please keep this list sorted.
+  unordered_map<string, GoldenHashResult> expected = {
+      {"armscii8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"armscii8_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"ascii_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"ascii_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"big5_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"big5_chinese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"binary", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1250_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1250_croatian_ci", {{0xe25aa32298f78f4aLL, 0x000002b0LL}}},
+      {"cp1250_czech_cs", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1250_general_ci", {{0x81c46f6c6b06f8fcLL, 0x000002b0LL}}},
+      {"cp1250_polish_ci", {{0xe25aa32298f78f4aLL, 0x000002b0LL}}},
+      {"cp1251_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1251_bulgarian_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"cp1251_general_ci", {{0xce71da5364c300a4LL, 0x000002b0LL}}},
+      {"cp1251_general_cs", {{0xff44ce45c6d3d142LL, 0x000002b0LL}}},
+      {"cp1251_ukrainian_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"cp1256_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1256_general_ci", {{0x44ed84e7ad4a6c1cLL, 0x000002b0LL}}},
+      {"cp1257_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1257_general_ci", {{0x15219f243a38ad58LL, 0x000002b0LL}}},
+      {"cp1257_lithuanian_ci", {{0xaa3ef638e5e056e8LL, 0x000002b0LL}}},
+      {"cp850_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp850_general_ci", {{0xf32b1cf4087a0b08LL, 0x000002b0LL}}},
+      {"cp852_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp852_general_ci", {{0x60dce9bffdeccd52LL, 0x000002b0LL}}},
+      {"cp866_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp866_general_ci", {{0xce71da5364c300a4LL, 0x000002b0LL}}},
+      {"cp932_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp932_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"dec8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"dec8_swedish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"eucjpms_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"eucjpms_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"euckr_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"euckr_korean_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"gb18030_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"gb18030_chinese_ci", {{0xb7b6676124243e73LL, 0x00000abdLL}}},
+      {"gb18030_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"gb2312_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"gb2312_chinese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"gbk_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"gbk_chinese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"geostd8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"geostd8_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"greek_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"greek_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"hebrew_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"hebrew_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"hp8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"hp8_english_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"keybcs2_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"keybcs2_general_ci", {{0xd2d54c0201229650LL, 0x000002b0LL}}},
+      {"koi8r_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"koi8r_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"koi8u_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"koi8u_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin1_danish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_general_ci", {{0xd7d424d55cb8f402LL, 0x000002b0LL}}},
+      {"latin1_general_cs", {{0x96b2a3f94ffe41f9LL, 0x000002b0LL}}},
+      {"latin1_german1_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_german2_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_spanish_ci", {{0xd7d424d55cb8f402LL, 0x000002b0LL}}},
+      {"latin1_swedish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin2_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin2_croatian_ci", {{0xe25aa32298f78f4aLL, 0x000002b0LL}}},
+      {"latin2_czech_cs", {{0xba89a4855c3a88b6LL, 0x000002b0LL}}},
+      {"latin2_general_ci", {{0xd9179195a5ddebf8LL, 0x000002b0LL}}},
+      {"latin2_hungarian_ci", {{0xba89a4855c3a88b6LL, 0x000002b0LL}}},
+      {"latin5_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin5_turkish_ci", {{0x68989a162aab9f1cLL, 0x000002b0LL}}},
+      {"latin7_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin7_estonian_cs", {{0xa281f3df87b89fe1LL, 0x000002b0LL}}},
+      {"latin7_general_ci", {{0xc6808727382ffb41LL, 0x000002b0LL}}},
+      {"latin7_general_cs", {{0xf70d2b9f0d640804LL, 0x000002b0LL}}},
+      {"macce_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"macce_general_ci", {{0xb27ca521eb9b7492LL, 0x000002b0LL}}},
+      {"macroman_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"macroman_general_ci", {{0x3254bac0fa3625efLL, 0x000002b0LL}}},
+      {"sjis_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"sjis_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"swe7_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"swe7_swedish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"tis620_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"tis620_thai_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"ucs2_bin", {{0x1877f0a25b18b4c6LL, 0x0000055fLL}}},
+      {"ucs2_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"ucs2_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"ucs2_general_mysql500_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"ucs2_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"ucs2_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"ucs2_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"ucs2_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"ucs2_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"ucs2_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"ucs2_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"ucs2_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ujis_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"ujis_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"utf16_bin", {{0x1877f0a25b18b4c6LL, 0x0000055fLL}}},
+      {"utf16_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf16_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf16_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf16_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf16_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf16_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf16_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf16_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf16_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf16_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16le_bin", {{0x3da26ce08ecbfaf9LL, 0x0000055fLL}}},
+      {"utf16le_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf32_bin", {{0x353330032692faLL, 0x00000abdLL}}},
+      {"utf32_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf32_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_general_ci", {{0x353330032692faLL, 0x00000abdLL}}},
+      {"utf32_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf32_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf32_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf32_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf32_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf32_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf32_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf32_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"utf8_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8_general_mysql500_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf8_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf8_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf8_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf8_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_tolower_ci", {{0x8eab9a2c403c8eb9LL, 0x0000055fLL}}},
+      {"utf8_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf8_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf8_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_0900_as_ci", {{0xfc978781d49d0d9bLL, 0x00000001LL}}},
+      {"utf8mb4_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"utf8mb4_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_cs_0900_ai_ci", {{0x36582be4fafa0bbbLL, 0x00000001LL}}},
+      {"utf8mb4_cs_0900_as_cs", {{0xac403419684d8c71LL, 0x00000001LL}}},
+      {"utf8mb4_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8mb4_da_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_da_0900_as_cs", {{0xbd24fdcb7b0cf519LL, 0x00000001LL}}},
+      {"utf8mb4_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_de_pb_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_de_pb_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_eo_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_eo_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_es_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_es_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_es_trad_0900_ai_ci", {{0x555a77b8a263f17fLL, 0x00000001LL}}},
+      {"utf8mb4_es_trad_0900_as_cs", {{0xae993a138c5c030dLL, 0x00000001LL}}},
+      {"utf8mb4_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_et_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_et_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8mb4_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_hr_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_hr_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_hu_0900_ai_ci", {{0x3162e9e9cebb9148LL, 0x00000001LL}}},
+      {"utf8mb4_hu_0900_as_cs", {{0x88842661c548eec1LL, 0x00000001LL}}},
+      {"utf8mb4_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_is_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_is_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_ja_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_ja_0900_as_cs_ks", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_la_0900_ai_ci", {{0x2928cd07bca9a85dLL, 0x00000001LL}}},
+      {"utf8mb4_la_0900_as_cs", {{0x29a7f3eb43a9819LL, 0x00000001LL}}},
+      {"utf8mb4_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf8mb4_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf8mb4_lt_0900_ai_ci", {{0xcd5ce469f67f6792LL, 0x00000001LL}}},
+      {"utf8mb4_lt_0900_as_cs", {{0xe2e6dc41a4d6b3c1LL, 0x00000001LL}}},
+      {"utf8mb4_lv_0900_ai_ci", {{0xcd5ce469f67f6792LL, 0x00000001LL}}},
+      {"utf8mb4_lv_0900_as_cs", {{0xfe377cec9551f0f4LL, 0x00000001LL}}},
+      {"utf8mb4_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_pl_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_pl_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_ro_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_ro_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf8mb4_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_ru_0900_ai_ci", {{0xb55bc2bf5ab2bf53LL, 0x00000001LL}}},
+      {"utf8mb4_ru_0900_as_cs", {{0x36f5a31292841899LL, 0x00000001LL}}},
+      {"utf8mb4_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_sk_0900_ai_ci", {{0x36582be4fafa0bbbLL, 0x00000001LL}}},
+      {"utf8mb4_sk_0900_as_cs", {{0xac403419684d8c71LL, 0x00000001LL}}},
+      {"utf8mb4_sl_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_sl_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8mb4_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf8mb4_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_sv_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_sv_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_tr_0900_ai_ci", {{0x7ea67be76364740fLL, 0x00000001LL}}},
+      {"utf8mb4_tr_0900_as_cs", {{0xfa4556e24336675eLL, 0x00000001LL}}},
+      {"utf8mb4_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf8mb4_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf8mb4_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_vi_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_vi_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_zh_0900_as_cs", {{0x23c370d9ac589d1fLL, 0x00000001LL}}},
+  };
+
+  string test_str =
+      "This is a fairly long string. It does not contain any special "
+      "characters since they are probably not universally supported across all "
+      "character sets, but should at least be enough to make the nr1 value go "
+      "up past the 32-bit mark.";
+
+  for (CHARSET_INFO *cs : all_charsets) {
+    if (cs && (cs->state & MY_CS_AVAILABLE)) {
+      init_collation(cs->name);
+
+      char buf[4096];
+      uint errors;
+      size_t len =
+          my_convert(buf, sizeof(buf), cs, test_str.data(), test_str.size(),
+                     &my_charset_utf8mb4_0900_ai_ci, &errors);
+      ASSERT_EQ(0, errors);
+
+      uint64 nr1 = 4, nr2 = 1;
+      cs->coll->hash_sort(cs, pointer_cast<const uchar *>(buf), len, &nr1,
+                          &nr2);
+
+      // Change this from false to true to output source code you can paste
+      // into “expected” above.
+      if (false) {
+        printf("    {\"%s\", {{0x%016llxLL, 0x%08llxLL}}},\n", cs->name, nr1,
+               nr2);
+        continue;
+      }
+
+      ASSERT_EQ(1, expected.count(cs->name))
+          << "Character set " << cs->name << " is missing in the database";
+      SCOPED_TRACE(cs->name);
+
+      EXPECT_EQ(expected[cs->name].hash_value.first, nr1);
+      EXPECT_EQ(expected[cs->name].hash_value.second, nr2);
     }
   }
 }

@@ -1,5 +1,4 @@
 --disable_ps_protocol
---disable_warnings
 --enable_connect_log
 
 SET lock_wait_timeout= 1;
@@ -115,7 +114,6 @@ DROP TABLE IF EXISTS testtable_31;
 --disconnect con2
 --disconnect con3
 
-DROP TABLE IF EXISTS testtable_1;
 DROP USER 'user1'@'localhost';
 DROP USER 'user2'@'localhost';
 DROP USER 'user3'@'localhost';

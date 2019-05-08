@@ -12,13 +12,11 @@ show global variables like 'performance_schema_max_table_handles';
 
 show session variables like 'performance_schema_max_table_handles';
 
---disable_warnings
 select * from performance_schema.global_variables
   where variable_name='performance_schema_max_table_handles';
 
 select * from performance_schema.session_variables
   where variable_name='performance_schema_max_table_handles';
---disable_warnings
 
 #
 # Read-only

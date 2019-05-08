@@ -59,8 +59,6 @@ class Member_version {
   bool operator>=(const Member_version &other) const;
   bool operator<=(const Member_version &other) const;
 
-  virtual ~Member_version();
-
  private:
   uint32 version;
 };

@@ -27,13 +27,13 @@ create user ssl_user1@localhost, ssl_user2@localhost,
 grant select on test.* to ssl_user1@localhost, ssl_user2@localhost,
                           ssl_user3@localhost, ssl_user4@localhost,
                           ssl_user5@localhost;
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 -- eval alter user ssl_user2@localhost require cipher $cipher_val
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 -- eval alter user ssl_user3@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 -- eval alter user ssl_user4@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 -- eval alter user ssl_user5@localhost require cipher $cipher_val AND SUBJECT "xxx"
 flush privileges;
 
@@ -47,7 +47,7 @@ connect (con5,localhost,ssl_user5,,,,,SSL);
 
 connection con1;
 # Check ssl turned on
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -55,7 +55,7 @@ delete from t1;
 
 connection con2;
 # Check ssl turned on
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -63,7 +63,7 @@ delete from t1;
 
 connection con3;
 # Check ssl turned on
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -71,7 +71,7 @@ delete from t1;
 
 connection con4;
 # Check ssl turned on
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -94,7 +94,7 @@ drop table t1;
 # a different cacert
 #
 --exec echo "this query should not execute;" > $MYSQLTEST_VARDIR/tmp/test.sql
---replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
+--replace_regex /2026 SSL connection error.*\n/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/untrusted-cacert.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 --echo
@@ -103,7 +103,7 @@ drop table t1;
 # Test that we can't open connection to server if we are using
 # a blank ca
 #
---replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
+--replace_regex /2026 SSL connection error.*\n/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-mode=VERIFY_CA --ssl-ca= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 --echo
@@ -112,7 +112,7 @@ drop table t1;
 # Test that we can't open connection to server if we are using
 # a nonexistent ca file
 #
---replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
+--replace_regex /2026 SSL connection error.*\n/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-mode=VERIFY_CA --ssl-ca=nonexisting_file.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 --echo
@@ -137,7 +137,7 @@ drop table t1;
 # - Usa a cipher that both yaSSL and OpenSSL supports
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/bug21611_stderr
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/bug21611_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/bug21611_stderr
 #Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21611_stderr
@@ -149,7 +149,7 @@ drop table t1;
 # verification of servers certificate by setting both ca certificate
 # and ca path to NULL
 #
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
 --echo End of 5.0 tests
 
@@ -196,13 +196,13 @@ DROP TABLE thread_status;
 # Test to connect using a list of ciphers
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/stderr_output
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/stderr_output
 --cat_file $MYSQLTEST_VARDIR/tmp/stderr_output
 
 # Test to connect using a specifi cipher
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql  2> $MYSQLTEST_VARDIR/tmp/stderr_output
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql  2> $MYSQLTEST_VARDIR/tmp/stderr_output
 --cat_file $MYSQLTEST_VARDIR/tmp/stderr_output
 #Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/stderr_output
@@ -210,8 +210,10 @@ DROP TABLE thread_status;
 # Test to connect using an unknown cipher
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit" > $MYSQLTEST_VARDIR/tmp/test.sql
+--replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
 --error 1
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER --ssl-mode=VERIFY_CA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=UNKNOWN-CIPHER --ssl-mode=VERIFY_CA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--echo
 
 #
 # Bug#27669 mysqldump: SSL connection error when trying to connect
@@ -241,31 +243,31 @@ DROP TABLE t1;
 #
 
 # Common ciphers to openssl and yassl
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES128-SHA:
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --ssl-cipher=AES256-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES128-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES128-SHA:
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES128-SHA
 --disable_query_log
 --disable_result_log
 
 # Below here caused crashes.  ################
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=NOT----EXIST
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=NOT----EXIST
 # These probably exist but the server's keys can't be used to accept these kinds of connections.
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-DSS-AES128-RMD
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES128-RMD
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-DSS-AES128-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES128-SHA
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-DSS-AES256-RMD
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES256-RMD
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-DSS-AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES256-SHA
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-DSS-DES-CBC3-RMD
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-DES-CBC3-RMD
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=EDH-DSS-DES-CBC3-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=EDH-DSS-DES-CBC3-SHA
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --ssl-cipher=EDH-DSS-DES-CBC-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=EDH-DSS-DES-CBC-SHA
 # End of crashers.  ##########################
 
 # If this gives a result, then the bug is fixed.
@@ -281,7 +283,7 @@ CREATE USER bug42158@localhost REQUIRE X509;
 GRANT SELECT ON test.* TO bug42158@localhost;
 FLUSH PRIVILEGES;
 connect(con1,localhost,bug42158,,,,,SSL);
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 disconnect con1;
 connection default;

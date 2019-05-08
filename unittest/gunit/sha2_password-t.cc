@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -282,14 +282,14 @@ TEST_F(SHA256_digestTest, SHA2_password_cache) {
     ASSERT_TRUE(sha256_digest.all_ok() == true);
     ASSERT_TRUE(sha256_digest.update_digest(source.c_str(), source.length()) ==
                 false);
-    ASSERT_TRUE(sha256_digest.retrieve_digest(stored_hash.digest_buffer,
+    ASSERT_TRUE(sha256_digest.retrieve_digest(stored_hash.digest_buffer[0],
                                               CACHING_SHA2_DIGEST_LENGTH) ==
                 false);
     sha256_digest.scrub();
-    ASSERT_TRUE(sha256_digest.update_digest(stored_hash.digest_buffer,
+    ASSERT_TRUE(sha256_digest.update_digest(stored_hash.digest_buffer[0],
                                             CACHING_SHA2_DIGEST_LENGTH) ==
                 false);
-    ASSERT_TRUE(sha256_digest.retrieve_digest(stored_hash.digest_buffer,
+    ASSERT_TRUE(sha256_digest.retrieve_digest(stored_hash.digest_buffer[0],
                                               CACHING_SHA2_DIGEST_LENGTH) ==
                 false);
     sha256_digest.scrub();
@@ -300,8 +300,8 @@ TEST_F(SHA256_digestTest, SHA2_password_cache) {
   ASSERT_TRUE(sha2_password_cache.add(auth_id1, stored_hash) == false);
   ASSERT_TRUE(sha2_password_cache.search(auth_id1, retrieved_password) ==
               false);
-  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer,
-                     (void *)retrieved_password.digest_buffer,
+  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer[0],
+                     (void *)retrieved_password.digest_buffer[0],
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
   ASSERT_TRUE(sha2_password_cache.remove(auth_id1) == false);
   ASSERT_TRUE(sha2_password_cache.add(auth_id1, stored_hash) == false);
@@ -329,14 +329,14 @@ TEST_F(SHA256_digestTest, SHA2_password_cache) {
 
   ASSERT_TRUE(sha2_password_cache.search(auth_id1, retrieved_password) ==
               false);
-  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer,
-                     (void *)retrieved_password.digest_buffer,
+  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer[0],
+                     (void *)retrieved_password.digest_buffer[0],
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
 
   ASSERT_TRUE(sha2_password_cache.search(auth_id3, retrieved_password) ==
               false);
-  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer,
-                     (void *)retrieved_password.digest_buffer,
+  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer[0],
+                     (void *)retrieved_password.digest_buffer[0],
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
 
   ASSERT_TRUE(sha2_password_cache.search(auth_id2, retrieved_password) == true);
@@ -345,8 +345,8 @@ TEST_F(SHA256_digestTest, SHA2_password_cache) {
   ASSERT_TRUE(sha2_password_cache.add(auth_empty, stored_hash) == false);
   ASSERT_TRUE(sha2_password_cache.search(auth_empty, retrieved_password) ==
               false);
-  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer,
-                     (void *)retrieved_password.digest_buffer,
+  ASSERT_TRUE(memcmp((void *)stored_hash.digest_buffer[0],
+                     (void *)retrieved_password.digest_buffer[0],
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
   ASSERT_TRUE(sha2_password_cache.remove(auth_empty) == false);
 }
@@ -492,14 +492,14 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_fast_digest) {
       0x91, 0x06, 0x4a, 0xf2, 0xa5, 0x05, 0x8b, 0x4a, 0xcd, 0x7d, 0x9c,
       0x90, 0xa5, 0x4b, 0x44, 0x45, 0xf5, 0xfc, 0x33, 0x53, 0xfa};
 
-  ASSERT_TRUE(caching_sha2_password.generate_fast_digest(plaintext, digest) ==
-              false);
-  ASSERT_TRUE(memcmp(digest.digest_buffer, expected_digest,
+  ASSERT_TRUE(caching_sha2_password.generate_fast_digest(plaintext, digest,
+                                                         0) == false);
+  ASSERT_TRUE(memcmp(digest.digest_buffer[0], expected_digest,
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
 
-  ASSERT_TRUE(caching_sha2_password_4.generate_fast_digest(plaintext, digest) ==
-              false);
-  ASSERT_TRUE(memcmp(digest.digest_buffer, expected_digest_4,
+  ASSERT_TRUE(caching_sha2_password_4.generate_fast_digest(plaintext, digest,
+                                                           0) == false);
+  ASSERT_TRUE(memcmp(digest.digest_buffer[0], expected_digest_4,
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
 
   plaintext.assign(";bCdEF34^i9&*\":({\\56\"");
@@ -514,14 +514,14 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_fast_digest) {
       0x4c, 0x65, 0x8c, 0x98, 0xfb, 0x72, 0x0a, 0x10, 0xd3, 0x27, 0x91,
       0xf8, 0x73, 0x1b, 0xfc, 0x11, 0xb9, 0x28, 0x09, 0x32, 0x7a};
 
-  ASSERT_TRUE(caching_sha2_password.generate_fast_digest(plaintext, digest) ==
-              false);
-  ASSERT_TRUE(memcmp(digest.digest_buffer, expected_digest2,
+  ASSERT_TRUE(caching_sha2_password.generate_fast_digest(plaintext, digest,
+                                                         0) == false);
+  ASSERT_TRUE(memcmp(digest.digest_buffer[0], expected_digest2,
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
 
-  ASSERT_TRUE(caching_sha2_password_4.generate_fast_digest(plaintext, digest) ==
-              false);
-  ASSERT_TRUE(memcmp(digest.digest_buffer, expected_digest2_4,
+  ASSERT_TRUE(caching_sha2_password_4.generate_fast_digest(plaintext, digest,
+                                                           0) == false);
+  ASSERT_TRUE(memcmp(digest.digest_buffer[0], expected_digest2_4,
                      CACHING_SHA2_DIGEST_LENGTH) == 0);
 }
 
@@ -568,7 +568,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
 TEST_F(SHA256_digestTest,
        Caching_sha2_password_authenticate_fast_authenticate) {
   Caching_sha2_password caching_sha2_password(0);
-  std::string serialized_string;
+  std::string serialized_string[MAX_PASSWORDS];
   Digest_info digest_type = Digest_info::SHA256_DIGEST;
   std::string digest;
   std::string salt;
@@ -588,16 +588,18 @@ TEST_F(SHA256_digestTest,
   digest.assign(digest_buffer_arthur, STORED_SHA256_DIGEST_LENGTH);
   salt.assign(salt_buffer_arthur);
   plaintext.assign(plaintext_buffer_arthur);
-  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string, digest_type,
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string[0], digest_type,
                                               salt, digest,
                                               iterations) == false);
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_arthur, serialized_string, plaintext) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .first == false);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
   // Attempt again, it should pass
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_arthur, serialized_string, plaintext) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .first == false);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
   // Attempt with incorrect digest, it should fail
@@ -608,11 +610,12 @@ TEST_F(SHA256_digestTest,
       0x52, 0x33, 0x5a, 0x2e, 0x78, 0x70, 0x4c, 0x4f, 0x57, 0x3a};
 
   digest.assign(digest_buffer_arthur_ic, STORED_SHA256_DIGEST_LENGTH);
-  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string, digest_type,
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string[0], digest_type,
                                               salt, digest,
                                               iterations) == false);
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_arthur, serialized_string, plaintext) == true);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .first == true);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
   std::string auth_id_marvin("'marvin'@'theparanoidandroid.com'");
@@ -628,14 +631,16 @@ TEST_F(SHA256_digestTest,
   salt.assign(salt_buffer_marvin);
   plaintext.assign(plaintext_buffer_marvin);
 
-  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string, digest_type,
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string[0], digest_type,
                                               salt, digest,
                                               iterations) == false);
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_marvin, serialized_string, plaintext) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, serialized_string, plaintext)
+                  .first == false);
   // Attempt again, it should pass
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_marvin, serialized_string, plaintext) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, serialized_string, plaintext)
+                  .first == false);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
   std::string auth_id_zaphod("'zaphod'@'beeblebrox'");
@@ -651,14 +656,16 @@ TEST_F(SHA256_digestTest,
   salt.assign(salt_buffer_zaphod);
   plaintext.assign(plaintext_buffer_zaphod);
 
-  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string, digest_type,
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized_string[0], digest_type,
                                               salt, digest,
                                               iterations) == false);
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_zaphod, serialized_string, plaintext) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_zaphod, serialized_string, plaintext)
+                  .first == false);
   // Attempt again, it should pass
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_zaphod, serialized_string, plaintext) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_zaphod, serialized_string, plaintext)
+                  .first == false);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 3);
 
   /* Part 2 : Perform fast authentication */
@@ -667,17 +674,21 @@ TEST_F(SHA256_digestTest,
   unsigned char scramble_zaphod[CACHING_SHA2_DIGEST_LENGTH];
   generate_scramble.scramble(scramble_zaphod, CACHING_SHA2_DIGEST_LENGTH);
 
-  ASSERT_TRUE(caching_sha2_password.fast_authenticate(
-                  auth_id_zaphod,
-                  reinterpret_cast<const unsigned char *>(
-                      scramble_random_zaphod.c_str()),
-                  scramble_random_zaphod.length(), scramble_zaphod) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .fast_authenticate(auth_id_zaphod,
+                                     reinterpret_cast<const unsigned char *>(
+                                         scramble_random_zaphod.c_str()),
+                                     scramble_random_zaphod.length(),
+                                     scramble_zaphod, false)
+                  .first == false);
   caching_sha2_password.remove_cached_entry(auth_id_zaphod);
-  ASSERT_TRUE(caching_sha2_password.fast_authenticate(
-                  auth_id_zaphod,
-                  reinterpret_cast<const unsigned char *>(
-                      scramble_random_zaphod.c_str()),
-                  scramble_random_zaphod.length(), scramble_zaphod) == true);
+  ASSERT_TRUE(caching_sha2_password
+                  .fast_authenticate(auth_id_zaphod,
+                                     reinterpret_cast<const unsigned char *>(
+                                         scramble_random_zaphod.c_str()),
+                                     scramble_random_zaphod.length(),
+                                     scramble_zaphod, false)
+                  .first == true);
 
   plaintext.assign(plaintext_buffer_arthur);
   char random_salt_buffer[CRYPT_SALT_LENGTH + 1];
@@ -688,11 +699,13 @@ TEST_F(SHA256_digestTest,
   generate_scramble_arthur.scramble(scramble_arthur,
                                     CACHING_SHA2_DIGEST_LENGTH);
 
-  ASSERT_TRUE(caching_sha2_password.fast_authenticate(
-                  auth_id_arthur,
-                  reinterpret_cast<const unsigned char *>(
-                      scramble_random_arthur.c_str()),
-                  scramble_random_arthur.length(), scramble_arthur) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .fast_authenticate(auth_id_arthur,
+                                     reinterpret_cast<const unsigned char *>(
+                                         scramble_random_arthur.c_str()),
+                                     scramble_random_arthur.length(),
+                                     scramble_arthur, false)
+                  .first == false);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
   caching_sha2_password.clear_cache();
@@ -701,7 +714,7 @@ TEST_F(SHA256_digestTest,
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_authenticate_sanity) {
   Caching_sha2_password caching_sha2_password(0);
-  std::string serialized_string;
+  std::string serialized_string[MAX_PASSWORDS];
   std::string plaintext;
 
   std::string auth_id_arthur("'arthur'@'dent.com'");
@@ -714,18 +727,21 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_authenticate_sanity) {
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
   plaintext.assign(empty_plaintext_buffer_arthur);
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_arthur, serialized_string, plaintext) == false);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .first == false);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
 
   plaintext.assign(nonempty_plaintext_buffer_arthur);
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_arthur, serialized_string, plaintext) == true);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .first == true);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
 
   plaintext.assign(invalid_plaintext_buffer_arthur);
-  ASSERT_TRUE(caching_sha2_password.authenticate(
-                  auth_id_arthur, serialized_string, plaintext) == true);
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .first == true);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
 }
 }  // namespace sha2_password_unittest

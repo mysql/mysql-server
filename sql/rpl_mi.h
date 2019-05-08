@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,6 +134,33 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
 
   /// Information on the current and last queued transactions
   Gtid_monitoring_info *gtid_monitoring_info;
+
+#ifdef HAVE_PSI_INTERFACE
+  /**
+    PSI key for the `rotate_lock`
+  */
+  PSI_mutex_key *key_info_rotate_lock;
+  /**
+    PSI key for the `rotate_cond`
+  */
+  PSI_mutex_key *key_info_rotate_cond;
+#endif
+  /**
+    Lock to protect from rotating the relay log when in the middle of a
+    transaction.
+  */
+  mysql_mutex_t rotate_lock;
+  /**
+    Waiting condition that will block the process/thread requesting a relay log
+    rotation in the middle of a transaction. The process/thread will wait until
+    the transaction is written to the relay log and the rotation is,
+    successfully accomplished.
+  */
+  mysql_cond_t rotate_cond;
+  /**
+    If a rotate was requested while the relay log was in a transaction.
+  */
+  std::atomic<bool> rotate_requested{false};
 
  public:
   /**
@@ -289,6 +316,18 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   char master_uuid[UUID_LENGTH + 1];
   char bind_addr[HOSTNAME_LENGTH + 1];
 
+  /*
+    Name of a network namespace where a socket for connection to a master
+    should be created.
+  */
+  char network_namespace[NAME_LEN];
+
+  bool is_set_network_namespace() const { return network_namespace[0] != 0; }
+
+  const char *network_namespace_str() const {
+    return is_set_network_namespace() ? network_namespace : "";
+  }
+
   int mi_init_info();
   void end_info();
   int flush_info(bool force = false);
@@ -366,6 +405,25 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   }
 
   virtual ~Master_info();
+
+  /**
+    Sets the flag that indicates that a relay log rotation has been requested.
+
+    @param[in]         thd     the client thread carrying the command.
+   */
+  void request_rotate(THD *thd);
+  /**
+    Clears the flag that indicates that a relay log rotation has been requested
+    and notifies requester that the rotation has finished.
+   */
+  void clear_rotate_requests();
+  /**
+    Checks whether or not there is a request for rotating the underlying relay
+    log.
+
+    @returns true if there is, false otherwise
+   */
+  bool is_rotate_requested();
 
  protected:
   char master_log_name[FN_REFLEN];
@@ -472,10 +530,12 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
       PSI_mutex_key *param_key_info_data_lock,
       PSI_mutex_key *param_key_info_sleep_lock,
       PSI_mutex_key *param_key_info_thd_lock,
+      PSI_mutex_key *param_key_info_rotate_lock,
       PSI_mutex_key *param_key_info_data_cond,
       PSI_mutex_key *param_key_info_start_cond,
       PSI_mutex_key *param_key_info_stop_cond,
       PSI_mutex_key *param_key_info_sleep_cond,
+      PSI_mutex_key *param_key_info_rotate_cond,
 #endif
       uint param_id, const char *param_channel);
 

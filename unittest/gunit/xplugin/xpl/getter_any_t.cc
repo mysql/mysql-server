@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -89,11 +89,6 @@ TEST_F(Getter_any_testsuite, put_throwError_whenPutAnyWithoutType) {
   ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
 }
 
-/*
-  HAVE_UBSAN: undefined behaviour in gmock.
-  runtime error: member call on null pointer of type 'const struct ResultHolder'
- */
-#if !defined(HAVE_UBSAN)
 TEST_F(Getter_any_testsuite, put_executesNullCallback) {
   any.set_type(Any_Type_SCALAR);
   any.mutable_scalar()->set_type(Scalar_Type_V_NULL);
@@ -168,7 +163,6 @@ TEST_F(Getter_any_testsuite, put_executesDoubleCallback) {
 
   Getter_any::put_scalar_value_to_functor(any, *this);
 }
-#endif  // HAVE_UBSAN
 
 TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue) {
   std::string expected_value = "Expected string";
@@ -180,7 +174,6 @@ TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue) {
   ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
 }
 
-#if !defined(HAVE_UBSAN)
 TEST_F(Getter_any_testsuite, put_executesStringCallback) {
   std::string expected_value = "Expected string";
 
@@ -206,7 +199,6 @@ TEST_F(Getter_any_testsuite, put_executesOctetsCallback) {
 
   Getter_any::put_scalar_value_to_functor(any, *this);
 }
-#endif  // HAVE_UBSAN
 
 class Getter_any_type_testsuite
     : public Getter_any_testsuite,

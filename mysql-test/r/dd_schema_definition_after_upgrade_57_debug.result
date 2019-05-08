@@ -1,0 +1,205 @@
+########################################################################
+#
+# This test will first verify the DD schema of the currently running
+# server, and dump the SHOW CREATE statements for the DD tables to
+# a file. Then, it will unzip a data dirctory from version 5.7,
+# estart the server to make it do upgrade, and verify that the DD tables
+# after upgrade are similar to those that are created when initializing
+# the target server.
+#
+# The zipped 5.7 data directory can be restored on any file system.
+# There is a corresponding test for upgrade after 8.0.
+#
+########################################################################
+########################################################################
+# Assert target schema ids.
+########################################################################
+########################################################################
+# Verify the hard coded ids of the mysql schema, the mysql tablespace,
+# the dd_properties table, and the innodb_dynamic_metadata table.
+########################################################################
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The id of the mysql schema must be fixed.
+########################################################################
+include/assert.inc [The id of the 'mysql' schema is 1.]
+########################################################################
+# The ids of the mysql tablespace must be fixed.
+########################################################################
+include/assert.inc [The id of the 'mysql' tablespace is 1.]
+include/assert.inc [The SE private id of the 'mysql' tablespace is 4294967294.]
+########################################################################
+# The ids of the dd_properties table must be fixed.
+########################################################################
+include/assert.inc [The id of 'mysql.dd_properties' is 1.]
+include/assert.inc [The SE private id of 'mysql.dd_properties' is 1.]
+include/assert.inc [The clustering index id of 'mysql.dd_properties' is 1.]
+########################################################################
+# The ids of the innodb_dynamic_metadata table must be fixed.
+########################################################################
+include/assert.inc [The id of 'mysql.innodb_dynamic_metadata' is 2.]
+include/assert.inc [The SE private id of 'mysql.innodb_dynamic_metadata' is 2.]
+include/assert.inc [The index id of 'mysql.innodb_dynamic_metadata' is 2.]
+SET debug = '-d,skip_dd_table_access_check';
+########################################################################
+# Assert target schema table names.
+########################################################################
+########################################################################
+# Verify the existence of the expected DD tables, neither less nor more.
+# Fill two help tables with the DD and DDSE table names.
+########################################################################
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The number of hidden DD/DDSE tables must be as expected.
+########################################################################
+include/assert.inc [There are 32 hidden DD/DDSE tables.]
+include/assert.inc [There are 34 DD/DDSE tables in total.]
+########################################################################
+# No unexpected DD tables must be present.
+########################################################################
+include/assert.inc [No unexpected DD tables are present.]
+########################################################################
+# All expected DD tables must be present.
+########################################################################
+include/assert.inc [All expected DD tables are present.]
+########################################################################
+# All expected DDSE tables must be present.
+########################################################################
+include/assert.inc [All expected DDSE are be present.]
+DROP TABLE test.ddse_table_names;
+DROP TABLE test.dd_table_names;
+SET debug = '-d,skip_dd_table_access_check';
+########################################################################
+# Dump DD table definitions to file.
+########################################################################
+########################################################################
+# Verify the DD_VERSION and the CREATE TABLE statements of the
+# DD tables.
+########################################################################
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The actual DD version stored on disk.
+########################################################################
+########################################################################
+# List the CREATE TABLE statements for the DD tables.
+# Mask the AUTO INCREMENT counter, which is not
+# deterministic when running mtr. Mask collations that
+# depend on the lower case table names setting.
+########################################################################
+SET debug = '-d,skip_dd_table_access_check';
+########################################################################
+# Dump mysql.dd_properties to file.
+########################################################################
+set debug='+d,skip_dd_table_access_check';
+SELECT * FROM mysql.dd_properties INTO OUTFILE 'MYSQL_TMP_DIR/target_dd_properties.txt';
+set debug='-d,skip_dd_table_access_check';
+########################################################################
+# Stop the running server.
+########################################################################
+########################################################################
+# Test upgrade from 57022.
+########################################################################
+########################################################################
+# Unzip a 57022 datadir, start the server against it and prepare a
+# file containing the DD table definitions after upgrade.
+########################################################################
+########################################################################
+# Copy and unzip the datadir.
+########################################################################
+########################################################################
+# Restart the server against the unzipped datadir.
+########################################################################
+########################################################################
+# Verify that we can restart after upgrade.
+########################################################################
+########################################################################
+# Target schema ids for an upgrade from 57022 should hold.
+########################################################################
+########################################################################
+# Verify the hard coded ids of the mysql schema, the mysql tablespace,
+# the dd_properties table, and the innodb_dynamic_metadata table.
+########################################################################
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The id of the mysql schema must be fixed.
+########################################################################
+include/assert.inc [The id of the 'mysql' schema is 1.]
+########################################################################
+# The ids of the mysql tablespace must be fixed.
+########################################################################
+include/assert.inc [The id of the 'mysql' tablespace is 1.]
+include/assert.inc [The SE private id of the 'mysql' tablespace is 4294967294.]
+########################################################################
+# The ids of the dd_properties table must be fixed.
+########################################################################
+include/assert.inc [The id of 'mysql.dd_properties' is 1.]
+include/assert.inc [The SE private id of 'mysql.dd_properties' is 1.]
+include/assert.inc [The clustering index id of 'mysql.dd_properties' is 1.]
+########################################################################
+# The ids of the innodb_dynamic_metadata table must be fixed.
+########################################################################
+include/assert.inc [The id of 'mysql.innodb_dynamic_metadata' is 2.]
+include/assert.inc [The SE private id of 'mysql.innodb_dynamic_metadata' is 2.]
+include/assert.inc [The index id of 'mysql.innodb_dynamic_metadata' is 2.]
+SET debug = '-d,skip_dd_table_access_check';
+########################################################################
+# Assert actual schema table names after upgrade.
+########################################################################
+########################################################################
+# Verify the existence of the expected DD tables, neither less nor more.
+# Fill two help tables with the DD and DDSE table names.
+########################################################################
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The number of hidden DD/DDSE tables must be as expected.
+########################################################################
+include/assert.inc [There are 32 hidden DD/DDSE tables.]
+include/assert.inc [There are 34 DD/DDSE tables in total.]
+########################################################################
+# No unexpected DD tables must be present.
+########################################################################
+include/assert.inc [No unexpected DD tables are present.]
+########################################################################
+# All expected DD tables must be present.
+########################################################################
+include/assert.inc [All expected DD tables are present.]
+########################################################################
+# All expected DDSE tables must be present.
+########################################################################
+include/assert.inc [All expected DDSE are be present.]
+DROP TABLE test.ddse_table_names;
+DROP TABLE test.dd_table_names;
+SET debug = '-d,skip_dd_table_access_check';
+########################################################################
+# Dump actual DD table definitions after upgrade to file and
+# compare to target.
+########################################################################
+########################################################################
+# Verify the DD_VERSION and the CREATE TABLE statements of the
+# DD tables.
+########################################################################
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The actual DD version stored on disk.
+########################################################################
+########################################################################
+# List the CREATE TABLE statements for the DD tables.
+# Mask the AUTO INCREMENT counter, which is not
+# deterministic when running mtr. Mask collations that
+# depend on the lower case table names setting.
+########################################################################
+SET debug = '-d,skip_dd_table_access_check';
+########################################################################
+# Dump actual DD table properties after upgrade to file and
+# compare to target.
+########################################################################
+set debug='+d,skip_dd_table_access_check';
+SELECT * FROM mysql.dd_properties INTO OUTFILE 'MYSQL_TMP_DIR/actual_dd_properties.txt';
+set debug='-d,skip_dd_table_access_check';
+########################################################################
+# Remove copied files and stop the server.
+########################################################################
+########################################################################
+# Cleanup: Remove definition files and restart with default options.
+########################################################################
+# restart

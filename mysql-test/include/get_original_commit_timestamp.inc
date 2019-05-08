@@ -31,6 +31,8 @@ perl;
 
   my $gtid_next_stmt;
   my $prev_gtid_next_stmt;
+  my $prev_prev;
+  my $OCT;
 
   while (my $gtid_next_stmt = <FILE>)
   {
@@ -39,13 +41,15 @@ perl;
     {
       last;
     }
+    $OCT=$prev_prev;
+    $prev_prev=$prev_gtid_next_stmt;
     $prev_gtid_next_stmt=$gtid_next_stmt;
   }
 
-  $prev_gtid_next_stmt =~ s/.*original_commit_timestamp=([0-9][0-9]*).*/\1/;
+  $OCT =~ s/.*original_commit_timestamp=([0-9][0-9]*).*/\1/;
   my $dir = $ENV{'MYSQLTEST_VARDIR'};
   open (OUTPUT, ">$dir/tmp/tar.inc") ;
-  print OUTPUT "--let \$original_commit_timestamp =  $prev_gtid_next_stmt\n";
+  print OUTPUT "--let \$original_commit_timestamp =  $OCT\n";
   close (OUTPUT);
 
 EOF

@@ -101,6 +101,12 @@ static PSI_thread *new_thread_noop(PSI_thread_key, const void *, ulonglong) {
 
 static void set_thread_id_noop(PSI_thread *, ulonglong) { return; }
 
+static ulonglong get_current_thread_internal_id_noop() { return 0; }
+
+static ulonglong get_thread_internal_id_noop(PSI_thread *) { return 0; }
+
+static PSI_thread *get_thread_by_id_noop(ulonglong) { return nullptr; }
+
 static void set_thread_THD_noop(PSI_thread *, THD *) { return; }
 
 static void set_thread_os_id_noop(PSI_thread *) { return; }
@@ -121,8 +127,6 @@ static void set_connection_type_noop(opaque_vio_type) { return; }
 
 static void set_thread_start_time_noop(time_t) { return; }
 
-static void set_thread_state_noop(const char *) { return; }
-
 static void set_thread_info_noop(const char *, uint) { return; }
 
 static void set_thread_noop(PSI_thread *) { return; }
@@ -136,6 +140,8 @@ static int set_thread_resource_group_by_id_noop(PSI_thread *, ulonglong,
   return 0;
 }
 
+static void aggregate_thread_status_noop(PSI_thread *) { return; }
+
 static void delete_current_thread_noop(void) { return; }
 
 static void delete_thread_noop(PSI_thread *) { return; }
@@ -147,7 +153,14 @@ static int set_thread_connect_attrs_noop(
   return 0;
 }
 
-static void get_thread_event_id_noop(ulonglong *thread_internal_id,
+static void get_current_thread_event_id_noop(ulonglong *thread_internal_id,
+                                             ulonglong *event_id) {
+  *thread_internal_id = 0;
+  *event_id = 0;
+}
+
+static void get_thread_event_id_noop(PSI_thread *,
+                                     ulonglong *thread_internal_id,
                                      ulonglong *event_id) {
   *thread_internal_id = 0;
   *event_id = 0;
@@ -177,6 +190,9 @@ static PSI_thread_service_t psi_thread_noop = {
     spawn_thread_noop,
     new_thread_noop,
     set_thread_id_noop,
+    get_current_thread_internal_id_noop,
+    get_thread_internal_id_noop,
+    get_thread_by_id_noop,
     set_thread_THD_noop,
     set_thread_os_id_noop,
     get_thread_noop,
@@ -186,14 +202,15 @@ static PSI_thread_service_t psi_thread_noop = {
     set_thread_command_noop,
     set_connection_type_noop,
     set_thread_start_time_noop,
-    set_thread_state_noop,
     set_thread_info_noop,
     set_thread_resource_group_noop,
     set_thread_resource_group_by_id_noop,
     set_thread_noop,
+    aggregate_thread_status_noop,
     delete_current_thread_noop,
     delete_thread_noop,
     set_thread_connect_attrs_noop,
+    get_current_thread_event_id_noop,
     get_thread_event_id_noop,
     get_thread_system_attrs_noop,
     get_thread_system_attrs_by_id_noop,
@@ -603,6 +620,10 @@ static void set_statement_text_noop(PSI_statement_locker *, const char *,
   return;
 }
 
+static void set_statement_query_id_noop(PSI_statement_locker *, ulonglong) {
+  return;
+}
+
 static void set_statement_lock_time_noop(PSI_statement_locker *, ulonglong) {
   return;
 }
@@ -726,6 +747,7 @@ static PSI_statement_service_t psi_statement_noop = {
     refine_statement_noop,
     start_statement_noop,
     set_statement_text_noop,
+    set_statement_query_id_noop,
     set_statement_lock_time_noop,
     set_statement_rows_sent_noop,
     set_statement_rows_examined_noop,

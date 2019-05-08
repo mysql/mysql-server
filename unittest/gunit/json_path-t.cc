@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,8 @@ class JsonPathTest : public ::testing::Test {
   of path parsing.
 */
 struct Bad_path {
-  const bool m_begins_with_column_id;  ///< true if column scope
-  const char *m_path_expression;       ///< the path to parse
-  const size_t m_expected_index;       ///< the offset of the syntax error
+  const char *m_path_expression;  ///< the path to parse
+  const size_t m_expected_index;  ///< the offset of the syntax error
 };
 
 /**
@@ -75,9 +74,8 @@ class JsonBadPathTestP : public ::testing::TestWithParam<Bad_path> {};
   of path parsing.
 */
 struct Good_path {
-  const bool m_begins_with_column_id;  ///< true if column scope
-  const char *m_path_expression;       ///< the path to parse
-  const char *m_expected_path;         ///< expected canonical path
+  const char *m_path_expression;  ///< the path to parse
+  const char *m_expected_path;    ///< expected canonical path
 };
 
 /**
@@ -85,9 +83,8 @@ struct Good_path {
   Json_dom.get_location().
 */
 struct Location_tuple {
-  const bool m_begins_with_column_id;  // true if column scope
-  const char *m_json_text;             // the document text
-  const char *m_path_expression;       // the path to parse
+  const char *m_json_text;        // the document text
+  const char *m_path_expression;  // the path to parse
 };
 
 /**
@@ -95,19 +92,17 @@ struct Location_tuple {
   the only_needs_one argument of Json_wrapper.seek().
 */
 struct Ono_tuple {
-  const bool m_begins_with_column_id;  // true if column scope
-  const char *m_json_text;             // the document text
-  const char *m_path_expression;       // the path to parse
-  const uint m_expected_hits;          // total number of matches
+  const char *m_json_text;        // the document text
+  const char *m_path_expression;  // the path to parse
+  const uint m_expected_hits;     // total number of matches
 };
 
 /**
   Struct that defines input for cloning test cases.
 */
 struct Clone_tuple {
-  const bool m_begins_with_column_id;  // true if column scope
-  const char *m_path_expression_1;     // the first path to parse
-  const char *m_path_expression_2;     // the second path to parse
+  const char *m_path_expression_1;  // the first path to parse
+  const char *m_path_expression_2;  // the second path to parse
 };
 
 /**
@@ -144,15 +139,11 @@ class JsonGoodCloneTestP : public ::testing::TestWithParam<Clone_tuple> {
 };
 
 /*
-  Constants
-*/
-
-/*
   Helper functions.
 */
 
 /* Concatenate the left and right strings and write the result into dest */
-char *concat(char *dest, char *left, const char *right) {
+char *concat(char *dest, const char *left, const char *right) {
   dest[0] = 0;
   std::strcat(dest, left);
   std::strcat(dest, right);
@@ -161,20 +152,19 @@ char *concat(char *dest, char *left, const char *right) {
 }
 
 /** Code common to good_path() and good_leg_types() */
-void good_path_common(bool begins_with_column_id, const char *path_expression,
-                      Json_path *json_path) {
+void good_path_common(const char *path_expression, Json_path *json_path) {
   size_t bad_idx = 0;
-  EXPECT_FALSE(parse_path(begins_with_column_id, strlen(path_expression),
-                          path_expression, json_path, &bad_idx));
+  EXPECT_FALSE(parse_path(strlen(path_expression), path_expression, json_path,
+                          &bad_idx));
 
   EXPECT_EQ(0U, bad_idx) << "bad_idx != 0 for " << path_expression;
 }
 
 /** Verify that a good path parses correctly */
-void good_path(bool begins_with_column_id, bool check_path,
-               const char *path_expression, std::string expected_path) {
+void good_path(bool check_path, const char *path_expression,
+               std::string expected_path) {
   Json_path json_path;
-  good_path_common(begins_with_column_id, path_expression, &json_path);
+  good_path_common(path_expression, &json_path);
   if (check_path) {
     String str;
     EXPECT_FALSE(json_path.to_string(&str));
@@ -195,30 +185,28 @@ void good_path(bool begins_with_column_id, bool check_path,
   }
 }
 
-void good_path(bool begins_with_column_id, const char *path_expression,
-               std::string expected_path) {
-  good_path(begins_with_column_id, true, path_expression, expected_path);
+void good_path(const char *path_expression, std::string expected_path) {
+  good_path(true, path_expression, expected_path);
 }
 
 /** Shorter form of good_path() */
-void good_path(bool, const char *path_expression) {
-  good_path(false, false, path_expression, "");
+void good_path(const char *path_expression) {
+  good_path(false, path_expression, "");
 }
 
 /** Verify whether the path contains a wildcard, ellipsis or range token. */
-void contains_wildcard(bool begins_with_column_id, const char *path_expression,
-                       bool expected_answer) {
+void contains_wildcard(const char *path_expression, bool expected_answer) {
   Json_path json_path;
-  good_path_common(begins_with_column_id, path_expression, &json_path);
+  good_path_common(path_expression, &json_path);
   EXPECT_EQ(expected_answer, json_path.can_match_many());
 }
 
 /** Verify that the leg at the given offset looks good */
-void good_leg_at(bool begins_with_column_id, char *path_expression,
-                 int leg_index, std::string expected_leg,
+void good_leg_at(const char *path_expression, int leg_index,
+                 const std::string &expected_leg,
                  enum_json_path_leg_type expected_leg_type) {
   Json_path json_path;
-  good_path_common(begins_with_column_id, path_expression, &json_path);
+  good_path_common(path_expression, &json_path);
 
   const Json_path_leg *actual_leg = *(json_path.begin() + leg_index);
   String str;
@@ -248,17 +236,17 @@ void compare_paths(Json_path &left, Json_path_clone &right) {
 }
 
 /** Verify that clones look alike */
-void verify_clone(bool begins_with_column_id, const char *path_expression_1,
+void verify_clone(const char *path_expression_1,
                   const char *path_expression_2) {
   Json_path real_path1;
-  good_path_common(begins_with_column_id, path_expression_1, &real_path1);
+  good_path_common(path_expression_1, &real_path1);
 
   Json_path_clone cloned_path;
   for (const Json_path_leg *leg : real_path1) cloned_path.append(leg);
   compare_paths(real_path1, cloned_path);
 
   Json_path real_path2;
-  good_path_common(begins_with_column_id, path_expression_2, &real_path2);
+  good_path_common(path_expression_2, &real_path2);
   cloned_path.clear();
   for (const Json_path_leg *leg : real_path2) cloned_path.append(leg);
   compare_paths(real_path2, cloned_path);
@@ -267,11 +255,11 @@ void verify_clone(bool begins_with_column_id, const char *path_expression_1,
 /**
    Verify that a good path has the expected sequence of leg types.
 */
-void good_leg_types(bool begins_with_column_id, char *path_expression,
+void good_leg_types(const char *path_expression,
                     enum_json_path_leg_type *expected_leg_types,
                     size_t length) {
   Json_path json_path;
-  good_path_common(begins_with_column_id, path_expression, &json_path);
+  good_path_common(path_expression, &json_path);
 
   EXPECT_EQ(length, json_path.leg_count());
   Json_path_iterator it = json_path.begin();
@@ -281,29 +269,28 @@ void good_leg_types(bool begins_with_column_id, char *path_expression,
 }
 
 /** Verify that a bad path fails as expected */
-void bad_path(bool begins_with_column_id, const char *path_expression,
-              size_t expected_index) {
+void bad_path(const char *path_expression, size_t expected_index) {
   size_t actual_index = 0;
   Json_path json_path;
-  EXPECT_TRUE(parse_path(begins_with_column_id, strlen(path_expression),
-                         path_expression, &json_path, &actual_index))
+  EXPECT_TRUE(parse_path(strlen(path_expression), path_expression, &json_path,
+                         &actual_index))
       << "Unexpectedly parsed " << path_expression;
   EXPECT_EQ(expected_index, actual_index)
       << "Unexpected index for " << path_expression;
 }
 
-/** Bad identifiers are ok as membern names if they are double-quoted */
+/** Bad identifiers are ok as member names if they are double-quoted */
 void bad_identifier(const char *identifier, size_t expected_index) {
   char dummy1[30];
   char dummy2[30];
   char *path_expression;
 
-  path_expression = concat(dummy1, (char *)"$.", identifier);
-  bad_path(false, path_expression, expected_index);
+  path_expression = concat(dummy1, "$.", identifier);
+  bad_path(path_expression, expected_index);
 
-  path_expression = concat(dummy1, (char *)"$.\"", identifier);
-  path_expression = concat(dummy2, path_expression, (const char *)"\"");
-  good_path(false, path_expression);
+  path_expression = concat(dummy1, "$.\"", identifier);
+  path_expression = concat(dummy2, path_expression, "\"");
+  good_path(path_expression);
 }
 
 /*
@@ -332,8 +319,8 @@ void JsonPathTest::vet_wrapper_seek(Json_wrapper *wrapper,
   std::string actual = std::string(result_buffer.ptr(), result_buffer.length());
 
   if (expected_null) {
-    const char *source_output = (char *)"";
-    const char *result_output = (char *)"";
+    const char *source_output = "";
+    const char *result_output = "";
 
     if (hits.size() > 0) {
       String source_buffer;
@@ -365,17 +352,16 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
   Json_wrapper binary_wrapper(binary);
 
   Json_path path;
-  good_path_common(false, path_text, &path);
+  good_path_common(path_text, &path);
   vet_wrapper_seek(&dom_wrapper, path, expected, expected_null);
   vet_wrapper_seek(&binary_wrapper, path, expected, expected_null);
 }
 
-void vet_dom_location(bool begins_with_column_id, const char *json_text,
-                      const char *path_text) {
+void vet_dom_location(const char *json_text, const char *path_text) {
   Json_dom_ptr dom =
       Json_dom::parse(json_text, std::strlen(json_text), nullptr, nullptr);
   Json_path path;
-  good_path_common(begins_with_column_id, path_text, &path);
+  good_path_common(path_text, &path);
   Json_dom_vector hits(PSI_NOT_INSTRUMENTED);
 
   dom->seek(path, path.leg_count(), &hits, true, false);
@@ -414,15 +400,13 @@ void vet_only_needs_one(Json_wrapper &wrapper, const Json_path &path,
   Vet the short-circuiting effects of the only_needs_one argument
   of Json_wrapper.seek().
 
-  @param[in] begins_with_column_id  True if the path begins with a column.
   @param[in] json_text              Text of the json document to search.
   @param[in] path_text              Text of the path expression to use.
   @param[in] expected_hits          Total number of expected matches.
   @param[in] thd                    THD handle
 */
-void vet_only_needs_one(bool begins_with_column_id, const char *json_text,
-                        const char *path_text, uint expected_hits,
-                        const THD *thd) {
+void vet_only_needs_one(const char *json_text, const char *path_text,
+                        uint expected_hits, const THD *thd) {
   Json_dom_ptr dom =
       Json_dom::parse(json_text, std::strlen(json_text), nullptr, nullptr);
 
@@ -435,7 +419,7 @@ void vet_only_needs_one(bool begins_with_column_id, const char *json_text,
   Json_wrapper binary_wrapper(binary);
 
   Json_path path;
-  good_path_common(begins_with_column_id, path_text, &path);
+  good_path_common(path_text, &path);
   vet_only_needs_one(dom_wrapper, path, expected_hits);
   vet_only_needs_one(binary_wrapper, path, expected_hits);
 }
@@ -466,102 +450,101 @@ std::string format(Json_dom *dom) {
 
 // Good paths with no column scope.
 static const Good_path good_paths_no_column_scope[] = {
-    {false, "$", "$"},
-    {false, " $", "$"},
-    {false, "$ ", "$"},
-    {false, "  $   ", "$"},
+    {"$", "$"},
+    {" $", "$"},
+    {"$ ", "$"},
+    {"  $   ", "$"},
 
-    {false, "$[5]", "$[5]"},
-    {false, "$[ 5 ]", "$[5]"},
-    {false, " $[ 5 ] ", "$[5]"},
-    {false, " $ [ 5  ] ", "$[5]"},
+    {"$[5]", "$[5]"},
+    {"$[ 5 ]", "$[5]"},
+    {" $[ 5 ] ", "$[5]"},
+    {" $ [ 5  ] ", "$[5]"},
 
-    {false, "$[456]", "$[456]"},
-    {false, "$[ 456 ]", "$[456]"},
-    {false, " $[ 456 ] ", "$[456]"},
-    {false, " $ [  456   ] ", "$[456]"},
+    {"$[456]", "$[456]"},
+    {"$[ 456 ]", "$[456]"},
+    {" $[ 456 ] ", "$[456]"},
+    {" $ [  456   ] ", "$[456]"},
 
-    {false, "$[last]", "$[last]"},
-    {false, "$[ last]", "$[last]"},
-    {false, "$[last ]", "$[last]"},
-    {false, "$[last-1]", "$[last-1]"},
-    {false, "$[last -1]", "$[last-1]"},
-    {false, "$[last- 1]", "$[last-1]"},
+    {"$[last]", "$[last]"},
+    {"$[ last]", "$[last]"},
+    {"$[last ]", "$[last]"},
+    {"$[last-1]", "$[last-1]"},
+    {"$[last -1]", "$[last-1]"},
+    {"$[last- 1]", "$[last-1]"},
 
-    {false, "$[4294967295]", "$[4294967295]"},
-    {false, "$[last-4294967295]", "$[last-4294967295]"},
+    {"$[4294967295]", "$[4294967295]"},
+    {"$[last-4294967295]", "$[last-4294967295]"},
 
-    {false, "$.a", "$.a"},
-    {false, "$ .a", "$.a"},
-    {false, "$. a", "$.a"},
-    {false, " $ .  a ", "$.a"},
+    {"$.a", "$.a"},
+    {"$ .a", "$.a"},
+    {"$. a", "$.a"},
+    {" $ .  a ", "$.a"},
 
-    {false, " $. abc", "$.abc"},
-    {false, " $ . abc", "$.abc"},
-    {false, " $ . abc ", "$.abc"},
-    {false, " $  . abc ", "$.abc"},
+    {" $. abc", "$.abc"},
+    {" $ . abc", "$.abc"},
+    {" $ . abc ", "$.abc"},
+    {" $  . abc ", "$.abc"},
 
-    {false, "$.a[7]", "$.a[7]"},
-    {false, " $ . a [ 7 ] ", "$.a[7]"},
+    {"$.a[7]", "$.a[7]"},
+    {" $ . a [ 7 ] ", "$.a[7]"},
 
-    {false, "$[7].a", "$[7].a"},
-    {false, " $ [ 7 ] . a ", "$[7].a"},
+    {"$[7].a", "$[7].a"},
+    {" $ [ 7 ] . a ", "$[7].a"},
 
-    {false, "$.*", "$.*"},
-    {false, " $ . * ", "$.*"},
+    {"$.*", "$.*"},
+    {" $ . * ", "$.*"},
 
-    {false, "$.*.b", "$.*.b"},
-    {false, " $ . * . b ", "$.*.b"},
+    {"$.*.b", "$.*.b"},
+    {" $ . * . b ", "$.*.b"},
 
-    {false, "$.*[4]", "$.*[4]"},
-    {false, "  $ . * [ 4 ]  ", "$.*[4]"},
+    {"$.*[4]", "$.*[4]"},
+    {"  $ . * [ 4 ]  ", "$.*[4]"},
 
-    {false, "$[*]", "$[*]"},
-    {false, " $ [ * ] ", "$[*]"},
+    {"$[*]", "$[*]"},
+    {" $ [ * ] ", "$[*]"},
 
-    {false, "$[*].a", "$[*].a"},
-    {false, "  $ [ * ] . a ", "$[*].a"},
+    {"$[*].a", "$[*].a"},
+    {"  $ [ * ] . a ", "$[*].a"},
 
-    {false, "$[*][31]", "$[*][31]"},
-    {false, " $ [ * ] [ 31 ] ", "$[*][31]"},
+    {"$[*][31]", "$[*][31]"},
+    {" $ [ * ] [ 31 ] ", "$[*][31]"},
 
-    {false, "$**.abc", "$**.abc"},
-    {false, " $  ** . abc ", "$**.abc"},
+    {"$**.abc", "$**.abc"},
+    {" $  ** . abc ", "$**.abc"},
 
-    {false, "$**[0]", "$**[0]"},
-    {false, " $ ** [ 0 ] ", "$**[0]"},
+    {"$**[0]", "$**[0]"},
+    {" $ ** [ 0 ] ", "$**[0]"},
 
-    {false, "$**.a", "$**.a"},
-    {false, " $ ** . a ", "$**.a"},
+    {"$**.a", "$**.a"},
+    {" $ ** . a ", "$**.a"},
 
     // backslash in front of a quote
-    {false, "$.\"\\\\\"", "$.\"\\\\\""},
+    {"$.\"\\\\\"", "$.\"\\\\\""},
 
     // 0-length member names must be quoted
-    {false, "$.\"\"", "$.\"\""},
-    {false, "$.\"\".\"\"", "$.\"\".\"\""},
-    {false, "$.\"\".a.\"\"", "$.\"\".a.\"\""},
-    {false, "$.abc.\"\"", "$.abc.\"\""},
-    {false, "$.abc.\"\".def", "$.abc.\"\".def"},
-    {false, "$.\"abc\".\"\".def", "$.abc.\"\".def"},
+    {"$.\"\"", "$.\"\""},
+    {"$.\"\".\"\"", "$.\"\".\"\""},
+    {"$.\"\".a.\"\"", "$.\"\".a.\"\""},
+    {"$.abc.\"\"", "$.abc.\"\""},
+    {"$.abc.\"\".def", "$.abc.\"\".def"},
+    {"$.\"abc\".\"\".def", "$.abc.\"\".def"},
 
-    {false, "$[0 to 0]", "$[0 to 0]"},
-    {false, "$[1 to 1]", "$[1 to 1]"},
-    {false, "$[1 to 3]", "$[1 to 3]"},
-    {false, "$[  1  to  3  ]", "$[1 to 3]"},
-    {false, "$[0 to 4294967295]", "$[0 to 4294967295]"},
-    {false, "$[last to last]", "$[last to last]"},
-    {false, "$[last-0 to last - 0]", "$[last to last]"},
-    {false, "$[last-1 to last-1]", "$[last-1 to last-1]"},
-    {false, "$[last to 1]", "$[last to 1]"},
-    {false, "$[1 to last]", "$[1 to last]"},
+    {"$[0 to 0]", "$[0 to 0]"},
+    {"$[1 to 1]", "$[1 to 1]"},
+    {"$[1 to 3]", "$[1 to 3]"},
+    {"$[  1  to  3  ]", "$[1 to 3]"},
+    {"$[0 to 4294967295]", "$[0 to 4294967295]"},
+    {"$[last to last]", "$[last to last]"},
+    {"$[last-0 to last - 0]", "$[last to last]"},
+    {"$[last-1 to last-1]", "$[last-1 to last-1]"},
+    {"$[last to 1]", "$[last to 1]"},
+    {"$[1 to last]", "$[1 to last]"},
 };
 
 /** Test good paths without column scope */
 TEST_P(JsonGoodPathTestP, GoodPaths) {
   Good_path param = GetParam();
-  good_path(param.m_begins_with_column_id, param.m_path_expression,
-            param.m_expected_path);
+  good_path(param.m_path_expression, param.m_expected_path);
 }
 
 INSTANTIATE_TEST_CASE_P(PositiveNoColumnScope, JsonGoodPathTestP,
@@ -572,61 +555,61 @@ TEST_F(JsonPathTest, LegTypes) {
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types1[] = {jpl_member};
-    good_leg_types(false, (char *)"$.a", leg_types1, 1);
+    good_leg_types("$.a", leg_types1, 1);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types2[] = {jpl_array_cell};
-    good_leg_types(false, (char *)"$[3456]", leg_types2, 1);
+    good_leg_types("$[3456]", leg_types2, 1);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types3[] = {jpl_member_wildcard};
-    good_leg_types(false, (char *)"$.*", leg_types3, 1);
+    good_leg_types("$.*", leg_types3, 1);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types4[] = {jpl_array_cell_wildcard};
-    good_leg_types(false, (char *)"$[*]", leg_types4, 1);
+    good_leg_types("$[*]", leg_types4, 1);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types5[] = {jpl_member, jpl_member};
-    good_leg_types(false, (char *)"$.foo.bar", leg_types5, 2);
+    good_leg_types("$.foo.bar", leg_types5, 2);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types6[] = {jpl_member, jpl_array_cell};
-    good_leg_types(false, (char *)"$.foo[987654321]", leg_types6, 2);
+    good_leg_types("$.foo[987654321]", leg_types6, 2);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types7[] = {jpl_member, jpl_member_wildcard};
-    good_leg_types(false, (char *)"$.foo.*", leg_types7, 2);
+    good_leg_types("$.foo.*", leg_types7, 2);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types8[] = {jpl_member,
                                             jpl_array_cell_wildcard};
-    good_leg_types(false, (char *)"$.foo[*]", leg_types8, 2);
+    good_leg_types("$.foo[*]", leg_types8, 2);
   }
 
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types9[] = {jpl_ellipsis, jpl_member};
-    good_leg_types(false, (char *)"$**.foo", leg_types9, 2);
+    good_leg_types("$**.foo", leg_types9, 2);
   }
 
   {
     SCOPED_TRACE("");
-    good_leg_types(false, (char *)" $ ", NULL, 0);
+    good_leg_types(" $ ", nullptr, 0);
   }
 }
 
@@ -634,15 +617,15 @@ TEST_F(JsonPathTest, LegTypes) {
 TEST_F(JsonPathTest, Accessors) {
   {
     SCOPED_TRACE("");
-    good_leg_at(false, (char *)"$[*][31]", 0, "[*]", jpl_array_cell_wildcard);
+    good_leg_at("$[*][31]", 0, "[*]", jpl_array_cell_wildcard);
   }
   {
     SCOPED_TRACE("");
-    good_leg_at(false, (char *)"$.abc[ 3 ].def", 2, ".def", jpl_member);
+    good_leg_at("$.abc[ 3 ].def", 2, ".def", jpl_member);
   }
   {
     SCOPED_TRACE("");
-    good_leg_at(false, (char *)"$.abc**.def", 1, "**", jpl_ellipsis);
+    good_leg_at("$.abc**.def", 1, "**", jpl_ellipsis);
   }
 }
 
@@ -650,178 +633,176 @@ TEST_F(JsonPathTest, Accessors) {
 TEST_F(JsonPathTest, WildcardDetection) {
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$", false);
+    contains_wildcard("$", false);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$.foo", false);
+    contains_wildcard("$.foo", false);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$[3]", false);
+    contains_wildcard("$[3]", false);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$.foo.bar", false);
+    contains_wildcard("$.foo.bar", false);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$[3].foo", false);
+    contains_wildcard("$[3].foo", false);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$[3][5]", false);
+    contains_wildcard("$[3][5]", false);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$.*", true);
+    contains_wildcard("$.*", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$[*]", true);
+    contains_wildcard("$[*]", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$.*.bar", true);
+    contains_wildcard("$.*.bar", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$**.bar", true);
+    contains_wildcard("$**.bar", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$[*].foo", true);
+    contains_wildcard("$[*].foo", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$**.foo", true);
+    contains_wildcard("$**.foo", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$[3].*", true);
+    contains_wildcard("$[3].*", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$[*][5]", true);
+    contains_wildcard("$[*][5]", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, (char *)"$**[5]", true);
+    contains_wildcard("$**[5]", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, "$[1 to 2]", true);
+    contains_wildcard("$[1 to 2]", true);
   }
   {
     SCOPED_TRACE("");
-    contains_wildcard(false, "$.a[1 to 2].b", true);
+    contains_wildcard("$.a[1 to 2].b", true);
   }
 }
 
 TEST_P(JsonBadPathTestP, BadPaths) {
   Bad_path param = GetParam();
-  bad_path(param.m_begins_with_column_id, param.m_path_expression,
-           param.m_expected_index);
+  bad_path(param.m_path_expression, param.m_expected_index);
 }
 
 // Bad paths with no column scope.
 static const Bad_path bad_paths_no_column_scope[] = {
     // no leading $
-    {false, "foo", 1},
-    {false, "[5]", 1},
+    {"foo", 1},
+    {"[5]", 1},
 
     // no period before key name
-    {false, "$foo", 1},
-    {false, "$[5]foo", 4},
+    {"$foo", 1},
+    {"$[5]foo", 4},
 
     // array index not a number or a valid range
-    {false, "$[a]", 2},
-    {false, "$[5].foo[b]", 9},
-    {false, "$[]", 2},
-    {false, "$[1.2]", 4},
-    {false, "$[1,2]", 4},
-    {false, "$[1,]", 4},
-    {false, "$[1 TO 3]", 5},
-    {false, "$[1 tO 3]", 5},
-    {false, "$[1 To 3]", 5},
-    {false, "$[1 to]", 5},
-    {false, "$[1to]", 4},
-    {false, "$[1to 2]", 4},
-    {false, "$[1 to2]", 5},
-    {false, "$[1 ti 2]", 5},
-    {false, "$[1 t", 5},
-    {false, "$[1 to ", 5},
-    {false, "$[1 to 2,]", 9},
-    {false, "$[4 to 3]", 8},
-    {false, "$[0 tolast]", 5},
-    {false, "$[lastto 2]", 7},
-    {false, "$[lastto to 2]", 7},
-    {false, "$[last+0]", 7},
-    {false, "$[last+1]", 7},
-    {false, "$[LAST]", 2},
+    {"$[a]", 2},
+    {"$[5].foo[b]", 9},
+    {"$[]", 2},
+    {"$[1.2]", 4},
+    {"$[1,2]", 4},
+    {"$[1,]", 4},
+    {"$[1 TO 3]", 5},
+    {"$[1 tO 3]", 5},
+    {"$[1 To 3]", 5},
+    {"$[1 to]", 5},
+    {"$[1to]", 4},
+    {"$[1to 2]", 4},
+    {"$[1 to2]", 5},
+    {"$[1 ti 2]", 5},
+    {"$[1 t", 5},
+    {"$[1 to ", 5},
+    {"$[1 to 2,]", 9},
+    {"$[4 to 3]", 8},
+    {"$[0 tolast]", 5},
+    {"$[lastto 2]", 7},
+    {"$[lastto to 2]", 7},
+    {"$[last+0]", 7},
+    {"$[last+1]", 7},
+    {"$[LAST]", 2},
 
     // absurdly large array index, largest supported array index is 2^32-1
-    {false,
-     "$[9999999999999999999999999999999999999999"
+    {"$[9999999999999999999999999999999999999999"
      "999999999999999999999999999]",
      2},
-    {false, "$[4294967296]", 2},
-    {false, "$[18446744073709551616]", 2},
-    {false, "$[9223372036854775808]", 2},
-    {false, "$[4294967296 to 2]", 2},
-    {false, "$[0 to 4294967296]", 7},
-    {false, "$[0 to 4294967297]", 7},
-    {false, "$[last-4294967296]", 7},
+    {"$[4294967296]", 2},
+    {"$[18446744073709551616]", 2},
+    {"$[9223372036854775808]", 2},
+    {"$[4294967296 to 2]", 2},
+    {"$[0 to 4294967296]", 7},
+    {"$[0 to 4294967297]", 7},
+    {"$[last-4294967296]", 7},
 
     // period not followed by member name
-    {false, "$.", 2},
-    {false, "$.foo.", 6},
-    {false, "$[3].", 5},
-    {false, "$.[3]", 2},
-    {false, "$.foo[4].", 9},
+    {"$.", 2},
+    {"$.foo.", 6},
+    {"$[3].", 5},
+    {"$.[3]", 2},
+    {"$.foo[4].", 9},
 
     // array index not terminated by ]
-    {false, "$[4", 3},
-    {false, "$[4a]", 4},
-    {false, "$[4abc]", 4},
+    {"$[4", 3},
+    {"$[4a]", 4},
+    {"$[4abc]", 4},
 
     // ends in ellipsis
-    {false, "$**", 3},
-    {false, "$.foo**", 7},
+    {"$**", 3},
+    {"$.foo**", 7},
 
     // paths shouldn't have column scopes if the caller says
     // they don't
-    {false, "a.b.c$", 1},
-    {false, "b.c$", 1},
-    {false, "c$", 1},
-    {false, "a.b.c$.e", 1},
-    {false, "b.c$.e", 1},
-    {false, "c$.e", 1},
+    {"a.b.c$", 1},
+    {"b.c$", 1},
+    {"c$", 1},
+    {"a.b.c$.e", 1},
+    {"b.c$.e", 1},
+    {"c$.e", 1},
 
     // unterminated double-quoted name
-    {false, "$.\"bar", 6},
+    {"$.\"bar", 6},
 
     // 0-length member names must be quoted
-    {false, "$..ab", 2},
-    {false, "$.", 2},
-    {false, "$. ", 3},
-    {false, "$.abc.", 6},
-    {false, "$.abc..def", 6},
-    {false, "$.\"abc\"..def", 8},
+    {"$..ab", 2},
+    {"$.", 2},
+    {"$. ", 3},
+    {"$.abc.", 6},
+    {"$.abc..def", 6},
+    {"$.\"abc\"..def", 8},
 
     // backslash in front of a quote, and no end quote
-    {false, "$.\"\\\"", 5},
+    {"$.\"\\\"", 5},
 
     // reject plus in front of array index
-    {false, "$[+1]", 2},
+    {"$[+1]", 2},
 
     // negative array indexes are rejected
-    {false, "$[-0]", 2},
-    {false, "$[-1]", 2},
-    {false, "$[0 to -1]", 7},
-    {false, "$[-1 to 0]", 2},
-    {false, "$[- 1]", 2},
-    {false, "$[-]", 2},
+    {"$[-0]", 2},
+    {"$[-1]", 2},
+    {"$[0 to -1]", 7},
+    {"$[-1 to 0]", 2},
+    {"$[- 1]", 2},
+    {"$[-]", 2},
 };
 
 INSTANTIATE_TEST_CASE_P(NegativeNoColumnScope, JsonBadPathTestP,
@@ -832,43 +813,43 @@ TEST_F(JsonPathTest, PositiveColumnScope) {
   //
   // Test good path syntax
   //
-  bad_path(true, (char *)"a.b.c$", 0);
+  bad_path("a.b.c$", 1);
 }
 
 /** Test good quoted key names */
 static const Good_path good_quoted_key_names[] = {
-    {false, "$.\"a\"", "$.a"},
-    {false, "$ .\"a\"", "$.a"},
-    {false, "$. \"a\"", "$.a"},
-    {false, " $ .  \"a\" ", "$.a"},
+    {"$.\"a\"", "$.a"},
+    {"$ .\"a\"", "$.a"},
+    {"$. \"a\"", "$.a"},
+    {" $ .  \"a\" ", "$.a"},
 
-    {false, " $. \"abc\"", "$.abc"},
-    {false, " $ . \"abc\"", "$.abc"},
-    {false, " $ . \"abc\" ", "$.abc"},
-    {false, " $  . \"abc\" ", "$.abc"},
+    {" $. \"abc\"", "$.abc"},
+    {" $ . \"abc\"", "$.abc"},
+    {" $ . \"abc\" ", "$.abc"},
+    {" $  . \"abc\" ", "$.abc"},
 
-    {false, "$.\"a\"[7]", "$.a[7]"},
-    {false, " $ . \"a\" [ 7 ] ", "$.a[7]"},
+    {"$.\"a\"[7]", "$.a[7]"},
+    {" $ . \"a\" [ 7 ] ", "$.a[7]"},
 
-    {false, "$[7].\"a\"", "$[7].a"},
-    {false, " $ [ 7 ] . \"a\" ", "$[7].a"},
+    {"$[7].\"a\"", "$[7].a"},
+    {" $ [ 7 ] . \"a\" ", "$[7].a"},
 
-    {false, "$.*.\"b\"", "$.*.b"},
-    {false, " $ . * . \"b\" ", "$.*.b"},
+    {"$.*.\"b\"", "$.*.b"},
+    {" $ . * . \"b\" ", "$.*.b"},
 
-    {false, "$[*].\"a\"", "$[*].a"},
-    {false, "  $ [ * ] . \"a\" ", "$[*].a"},
+    {"$[*].\"a\"", "$[*].a"},
+    {"  $ [ * ] . \"a\" ", "$[*].a"},
 
-    {false, "$**.\"abc\"", "$**.abc"},
-    {false, " $ ** . \"abc\" ", "$**.abc"},
+    {"$**.\"abc\"", "$**.abc"},
+    {" $ ** . \"abc\" ", "$**.abc"},
 
-    {false, "$**.\"a\"", "$**.a"},
-    {false, " $ ** . \"a\" ", "$**.a"},
+    {"$**.\"a\"", "$**.a"},
+    {" $ ** . \"a\" ", "$**.a"},
 
     // embedded spaces
-    {false, "$.\" c d \"", "$.\" c d \""},
-    {false, "$.\" c d \".\"a b\"", "$.\" c d \".\"a b\""},
-    {false, "$.\"a b\".\" c d \"", "$.\"a b\".\" c d \""},
+    {"$.\" c d \"", "$.\" c d \""},
+    {"$.\" c d \".\"a b\"", "$.\" c d \".\"a b\""},
+    {"$.\"a b\".\" c d \"", "$.\"a b\".\" c d \""},
 };
 
 INSTANTIATE_TEST_CASE_P(QuotedKeyNamesPositive, JsonGoodPathTestP,
@@ -877,22 +858,22 @@ INSTANTIATE_TEST_CASE_P(QuotedKeyNamesPositive, JsonGoodPathTestP,
 /** Test bad quoted key names */
 static const Bad_path bad_quoted_key_names[] = {
     // no closing quote
-    {false, "$.a.\"bcd", 8},
-    {false, "$.a.\"", 5},
-    {false, "$.\"a\".\"bcd", 10},
+    {"$.a.\"bcd", 8},
+    {"$.a.\"", 5},
+    {"$.\"a\".\"bcd", 10},
 
     // not followed by a member or array cell
-    {false, "$.abc.\"def\"ghi", 11},
-    {false, "$.abc.\"def\"5", 11},
+    {"$.abc.\"def\"ghi", 11},
+    {"$.abc.\"def\"5", 11},
 
     // unrecognized escape character
-    {false, "$.abc.\"def\\aghi\"", 16},
+    {"$.abc.\"def\\aghi\"", 16},
 
     // unrecognized unicode escape
-    {false, "$.abcd.\"ef\\u01kfmno\"", 20},
+    {"$.abcd.\"ef\\u01kfmno\"", 20},
 
     // not preceded by a period
-    {false, "$\"abcd\"", 1},
+    {"$\"abcd\"", 1},
     //{ false, "$.ghi\"abcd\"", 5 },
 };
 
@@ -903,36 +884,36 @@ INSTANTIATE_TEST_CASE_P(QuotedKeyNamesNegative, JsonBadPathTestP,
 
 static const Good_path good_ecmascript_identifiers[] = {
     // keywords, however, are allowed
-    {false, "$.if.break.return", "$.if.break.return"},
+    {"$.if.break.return", "$.if.break.return"},
 
     // member name can start with $ and _
-    {false, "$.$abc", "$.$abc"},
-    {false, "$.$abc", "$.$abc"},
+    {"$.$abc", "$.$abc"},
+    {"$.$abc", "$.$abc"},
 
     // internal digits are ok
-    {false, "$.a1_$bc", "$.a1_$bc"},
+    {"$.a1_$bc", "$.a1_$bc"},
 
     // and so are internal <ZWNJ> and <ZWJ> characters
-    {false, "$.a\\u200Cbc",
+    {"$.a\\u200Cbc",
      "$.a\xE2\x80\x8C"
      "bc"},
-    {false, "$.a\\u200Dbc",
+    {"$.a\\u200Dbc",
      "$.a\xE2\x80\x8D"
      "bc"},
 
     // and so are internal unicode combining marks
-    {false, "$.a\\u0300bc",
+    {"$.a\\u0300bc",
      "$.a\xCC\x80"
      "bc"},
-    {false, "$.a\\u030Fbc",
+    {"$.a\\u030Fbc",
      "$.a\xCC\x8F"
      "bc"},
-    {false, "$.a\\u036Fbc",
+    {"$.a\\u036Fbc",
      "$.a\xCD\xAF"
      "bc"},
 
     // and so are internal unicode connector punctuation codepoints
-    {false, "$.a\\uFE33bc",
+    {"$.a\\uFE33bc",
      "$.a\xEF\xB8\xB3"
      "bc"},
 };
@@ -944,43 +925,43 @@ TEST_F(JsonPathTest, BadECMAScriptIdentifiers) {
   // key names may not contain embedded quotes
   {
     SCOPED_TRACE("");
-    bad_path(false, (char *)"$.a\"bc", 6);
+    bad_path("$.a\"bc", 6);
   }
 
   // key names may not start with a digit or punctuation
   {
     SCOPED_TRACE("");
-    bad_identifier((char *)"1abc", 6);
+    bad_identifier("1abc", 6);
   }
   {
     SCOPED_TRACE("");
-    bad_identifier((char *)";abc", 6);
+    bad_identifier(";abc", 6);
   }
 
   // and not with the <ZWNJ> and <ZWJ> characters
   {
     SCOPED_TRACE("");
-    bad_identifier((char *)"\\u200Cabc", 11);
+    bad_identifier("\\u200Cabc", 11);
   }
 
   // and not with a unicode combining mark
   {
     SCOPED_TRACE("");
-    bad_identifier((char *)"\\u0300abc", 11);
+    bad_identifier("\\u0300abc", 11);
   }
   {
     SCOPED_TRACE("");
-    bad_identifier((char *)"\\u030Fabc", 11);
+    bad_identifier("\\u030Fabc", 11);
   }
   {
     SCOPED_TRACE("");
-    bad_identifier((char *)"\\u036Fabc", 11);
+    bad_identifier("\\u036Fabc", 11);
   }
 
   // and not with unicode connector punctuation
   {
     SCOPED_TRACE("");
-    bad_identifier((char *)"\\uFE33abc", 11);
+    bad_identifier("\\uFE33abc", 11);
   }
 }
 
@@ -1306,13 +1287,12 @@ TEST_F(JsonPathTest, RemoveDomTest) {
   object1.add_clone(std::string("b"), &false_literal1);
   object1.add_alias(std::string("c"), null_literal1);
   EXPECT_EQ(&object1, null_literal1->parent());
-  EXPECT_EQ((char *)"{\"a\": true, \"b\": false, \"c\": null}",
-            format(&object1));
+  EXPECT_EQ("{\"a\": true, \"b\": false, \"c\": null}", format(&object1));
   SCOPED_TRACE("");
   EXPECT_TRUE(object1.remove("c"));
-  EXPECT_EQ((char *)"{\"a\": true, \"b\": false}", format(&object1));
+  EXPECT_EQ("{\"a\": true, \"b\": false}", format(&object1));
   EXPECT_FALSE(object1.remove("c"));
-  EXPECT_EQ((char *)"{\"a\": true, \"b\": false}", format(&object1));
+  EXPECT_EQ("{\"a\": true, \"b\": false}", format(&object1));
 
   // Json_dom.add_clone()
 
@@ -1332,7 +1312,7 @@ TEST_F(JsonPathTest, RemoveDomTest) {
   array.append_clone(&true_literal2);
   array.append_clone(&false_literal2);
   array.append_clone(&null_literal3);
-  EXPECT_EQ((char *)"[true, false, null]", format(&array));
+  EXPECT_EQ("[true, false, null]", format(&array));
   Json_dom *cell = array[2];
   EXPECT_EQ(&array, cell->parent());
 
@@ -1340,18 +1320,18 @@ TEST_F(JsonPathTest, RemoveDomTest) {
 
   Json_boolean *true_literal3 = new (std::nothrow) Json_boolean(true);
   array.append_alias(true_literal3);
-  EXPECT_EQ((char *)"[true, false, null, true]", format(&array));
+  EXPECT_EQ("[true, false, null, true]", format(&array));
   EXPECT_EQ(&array, true_literal3->parent());
   EXPECT_TRUE(array.remove(3));
-  EXPECT_EQ((char *)"[true, false, null]", format(&array));
+  EXPECT_EQ("[true, false, null]", format(&array));
   EXPECT_FALSE(array.remove(3));
-  EXPECT_EQ((char *)"[true, false, null]", format(&array));
+  EXPECT_EQ("[true, false, null]", format(&array));
 
   // Json_array.insert_clone()
 
   Json_boolean true_literal4(true);
   array.insert_clone(2, &true_literal4);
-  EXPECT_EQ((char *)"[true, false, true, null]", format(&array));
+  EXPECT_EQ("[true, false, true, null]", format(&array));
   cell = array[2];
   EXPECT_EQ(&array, cell->parent());
 
@@ -1359,47 +1339,46 @@ TEST_F(JsonPathTest, RemoveDomTest) {
 
   Json_boolean *false_literal3 = new (std::nothrow) Json_boolean(false);
   array.insert_alias(3, Json_dom_ptr(false_literal3));
-  EXPECT_EQ((char *)"[true, false, true, false, null]", format(&array));
+  EXPECT_EQ("[true, false, true, false, null]", format(&array));
   EXPECT_EQ(&array, false_literal3->parent());
   EXPECT_TRUE(array.remove(3));
-  EXPECT_EQ((char *)"[true, false, true, null]", format(&array));
+  EXPECT_EQ("[true, false, true, null]", format(&array));
   EXPECT_FALSE(array.remove(4));
-  EXPECT_EQ((char *)"[true, false, true, null]", format(&array));
+  EXPECT_EQ("[true, false, true, null]", format(&array));
 
   // Json_array.insert_clone()
   Json_boolean true_literal5(true);
   array.insert_clone(5, &true_literal5);
-  EXPECT_EQ((char *)"[true, false, true, null, true]", format(&array));
+  EXPECT_EQ("[true, false, true, null, true]", format(&array));
   EXPECT_EQ(&array, array[4]->parent());
 
   // Json_array.insert_alias()
   Json_boolean *false_literal4 = new (std::nothrow) Json_boolean(false);
   array.insert_alias(7, Json_dom_ptr(false_literal4));
-  EXPECT_EQ((char *)"[true, false, true, null, true, false]", format(&array));
+  EXPECT_EQ("[true, false, true, null, true, false]", format(&array));
   EXPECT_EQ(&array, false_literal4->parent());
   EXPECT_EQ(&array, array[5]->parent());
   EXPECT_TRUE(array.remove(5));
-  EXPECT_EQ((char *)"[true, false, true, null, true]", format(&array));
+  EXPECT_EQ("[true, false, true, null, true]", format(&array));
   EXPECT_FALSE(array.remove(5));
-  EXPECT_EQ((char *)"[true, false, true, null, true]", format(&array));
+  EXPECT_EQ("[true, false, true, null, true]", format(&array));
 }
 
 // Tuples for the test of Json_dom.get_location()
 static const Location_tuple location_tuples[] = {
-    {false, "true", "$"},
-    {false, "[true, false, null]", "$"},
-    {false, "[true, false, null]", "$[1]"},
-    {false, "{ \"a\": true}", "$"},
-    {false, "{ \"a\": true}", "$.a"},
-    {false, "{ \"a\": true, \"b\": [1, 2, 3] }", "$.b[2]"},
-    {false, "[ 0, 1, { \"a\": true, \"b\": [1, 2, 3] } ]", "$[2].b[0]"},
+    {"true", "$"},
+    {"[true, false, null]", "$"},
+    {"[true, false, null]", "$[1]"},
+    {"{ \"a\": true}", "$"},
+    {"{ \"a\": true}", "$.a"},
+    {"{ \"a\": true, \"b\": [1, 2, 3] }", "$.b[2]"},
+    {"[ 0, 1, { \"a\": true, \"b\": [1, 2, 3] } ]", "$[2].b[0]"},
 };
 
 /** Test good paths without column scope */
 TEST_P(JsonGoodLocationTestP, GoodLocations) {
   Location_tuple param = GetParam();
-  vet_dom_location(param.m_begins_with_column_id, param.m_json_text,
-                   param.m_path_expression);
+  vet_dom_location(param.m_json_text, param.m_path_expression);
 }
 
 INSTANTIATE_TEST_CASE_P(LocationTesting, JsonGoodLocationTestP,
@@ -1407,10 +1386,9 @@ INSTANTIATE_TEST_CASE_P(LocationTesting, JsonGoodLocationTestP,
 
 // Tuples for the test of the only_needs_one arg of Json_wrapper.seek()
 static const Ono_tuple ono_tuples[] = {
-    {false, "[ { \"a\": 1  }, { \"a\": 2 }  ]", "$[*].a", 2},
-    {false, "[ { \"a\": 1  }, { \"a\": 2 }  ]", "$**.a", 2},
-    {false,
-     "{ \"a\": { \"x\" : { \"b\": { \"y\": { \"b\": "
+    {"[ { \"a\": 1  }, { \"a\": 2 }  ]", "$[*].a", 2},
+    {"[ { \"a\": 1  }, { \"a\": 2 }  ]", "$**.a", 2},
+    {"{ \"a\": { \"x\" : { \"b\": { \"y\": { \"b\": "
      "{ \"z\": { \"c\": 100 }, \"c\": 200 } } } } } }",
      "$.a**.b**.c", 2},
 };
@@ -1418,8 +1396,8 @@ static const Ono_tuple ono_tuples[] = {
 /** Test good paths without column scope */
 TEST_P(JsonGoodOnoTestP, GoodOno) {
   Ono_tuple param = GetParam();
-  vet_only_needs_one(param.m_begins_with_column_id, param.m_json_text,
-                     param.m_path_expression, param.m_expected_hits, thd());
+  vet_only_needs_one(param.m_json_text, param.m_path_expression,
+                     param.m_expected_hits, thd());
 }
 
 INSTANTIATE_TEST_CASE_P(OnoTesting, JsonGoodOnoTestP,
@@ -1427,16 +1405,15 @@ INSTANTIATE_TEST_CASE_P(OnoTesting, JsonGoodOnoTestP,
 
 // Tuples for tests of cloning
 static const Clone_tuple clone_tuples[] = {
-    {false, "$", "$[33]"},
-    {false, "$[*].a", "$.a.b.c.d.e"},
-    {false, "$.a.b.c[73]", "$**.abc.d.e.f.g"},
+    {"$", "$[33]"},
+    {"$[*].a", "$.a.b.c.d.e"},
+    {"$.a.b.c[73]", "$**.abc.d.e.f.g"},
 };
 
-/** Test cloning without column scope */
+/** Test cloning. */
 TEST_P(JsonGoodCloneTestP, GoodClone) {
   Clone_tuple param = GetParam();
-  verify_clone(param.m_begins_with_column_id, param.m_path_expression_1,
-               param.m_path_expression_2);
+  verify_clone(param.m_path_expression_1, param.m_path_expression_2);
 }
 
 INSTANTIATE_TEST_CASE_P(CloneTesting, JsonGoodCloneTestP,
@@ -1456,8 +1433,7 @@ TEST_P(JsonPathLegAutowrapP, Autowrap) {
 
   Json_path path;
   size_t idx = 0;
-  EXPECT_FALSE(
-      parse_path(false, path_text.length(), path_text.data(), &path, &idx));
+  EXPECT_FALSE(parse_path(path_text.length(), path_text.data(), &path, &idx));
   EXPECT_EQ(0U, idx);
   EXPECT_EQ(2U, path.leg_count());
   EXPECT_EQ(expected_result, (*path.begin())->is_autowrap());

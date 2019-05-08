@@ -346,6 +346,15 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t`",
+                "original_table_condition": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))",
+                "final_table_condition   ": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t`"
@@ -619,6 +628,15 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t`",
+                "original_table_condition": "((`t`.`a` = 5) and (`t`.`c` > 4) and (`t`.`d` < 3))",
+                "final_table_condition   ": "((`t`.`a` = 5) and (`t`.`c` > 4) and (`t`.`d` < 3))"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t`"
@@ -865,10 +883,19 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
               "attached_conditions_summary": [
                 {
                   "table": "`t`",
-                  "attached": "(`t`.`d` < 3)"
+                  "attached": "((`t`.`a` = 5) and (`t`.`d` < 3))"
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t`",
+                "original_table_condition": "((`t`.`a` = 5) and (`t`.`d` < 3))",
+                "final_table_condition   ": "(`t`.`d` < 3)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -1114,6 +1141,15 @@ EXPLAIN SELECT b FROM t WHERE d < 2	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t`",
+                "original_table_condition": "(`t`.`d` < 2)",
+                "final_table_condition   ": "(`t`.`d` < 2)"
+              }
+            ]
           },
           {
             "refine_plan": [

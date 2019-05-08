@@ -1,0 +1,34 @@
+-- source include/have_ssl.inc
+-- source include/have_openssl.inc
+
+--echo #
+--echo # Tests for WL#12086: Cryptographically signed SET statements
+--echo #
+
+
+--echo # Testing FR1 and FR1.5.
+--echo # Must be empty
+SELECT @@GLOBAL.persist_only_admin_x509_subject;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.persist_only_admin_x509_subject;
+
+
+--echo # Testing FR1.1.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL persist_only_admin_x509_subject = 'haha';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION persist_only_admin_x509_subject = 'haha';
+
+--echo # Testing FR1.2.
+SELECT CHARSET(@@global.persist_only_admin_x509_subject);
+
+--echo # Testing FR1.4.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY persist_only_admin_x509_subject = 'persist_only';
+
+--echo # Testing FR3
+
+--echo # Must be empty
+SELECT @@GLOBAL.persist_only_admin_x509_subject;
+let $persist_only_admin_x509_subject_vars_result= ER_INCORRECT_GLOBAL_LOCAL_VAR;
+source ../inc/persist_only_admin_x509_subject_vars.inc;

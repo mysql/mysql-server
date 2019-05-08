@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,6 +100,8 @@ Multi_primary_migration_action::execute_action(
   bool mode_is_set = false;
   bool action_terminated = false;
   int error = 0;
+
+  DBUG_ENTER("Multi_primary_migration_action::execute_action");
 
   /**
     Wait for all packets in the applier module to be consumed.
@@ -214,16 +216,16 @@ end:
                          mode_is_set);
 
   if ((!multi_primary_switch_aborted && !error) || action_terminated)
-    return Group_action::GROUP_ACTION_RESULT_TERMINATED;
+    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_TERMINATED);
 
   if (action_killed) {
-    return Group_action::GROUP_ACTION_RESULT_KILLED;
+    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_KILLED);
   }
   if (error) {
-    return Group_action::GROUP_ACTION_RESULT_ERROR;
+    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ERROR);
   }
 
-  return Group_action::GROUP_ACTION_RESULT_ABORTED;
+  DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ABORTED);
 }
 
 bool Multi_primary_migration_action::stop_action_execution(bool killed) {
@@ -290,8 +292,8 @@ int Multi_primary_migration_action::before_message_handling(
   Plugin_gcs_message::enum_cargo_type message_type = message.get_cargo_type();
 
   if (message_type == Plugin_gcs_message::CT_SINGLE_PRIMARY_MESSAGE) {
-    const Single_primary_message single_primary_message =
-        (const Single_primary_message &)message;
+    const Single_primary_message &single_primary_message =
+        down_cast<const Single_primary_message &>(message);
     Single_primary_message::Single_primary_message_type
         single_primary_msg_type =
             single_primary_message.get_single_primary_message_type();

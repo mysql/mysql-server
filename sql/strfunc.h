@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <cstring>
 #include <utility>
 
 #include "lex_string.h"
@@ -33,6 +34,7 @@
 #include "mysql/mysql_lex_string.h"  // MYSQL_LEX_CSTRING
 
 class THD;
+struct MEM_ROOT;
 struct TYPELIB;
 
 ulonglong find_set(const TYPELIB *lib, const char *x, size_t length,
@@ -48,6 +50,8 @@ char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
                         const char *lib[]);
 char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
                     const char *lib[]);
+char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
+                    const char *lib[], bool quoted);
 
 size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length,
@@ -108,5 +112,46 @@ template <class STRLIKE_TYPE>
 STRLIKE_TYPE casedn(const CHARSET_INFO *ci, const STRLIKE_TYPE &src) {
   return casedn(ci, STRLIKE_TYPE{src});
 }
+
+/**
+  Create a LEX_STRING in a MEM_ROOT and copy the given string
+  into it.
+
+  @param mem_root MEM_ROOT where to allocate the LEX_STRING.
+  @param str      string to be copied into the LEX_STRING.
+  @param length   length of str, in bytes
+
+  @return  nullptr on failure, or pointer to the LEX_STRING object
+*/
+LEX_STRING *make_lex_string_root(MEM_ROOT *mem_root, const char *str,
+                                 size_t length);
+
+/**
+  Copy the given string into a LEX_STRING, allocating it in the
+  given MEM_ROOT.
+
+  @param mem_root MEM_ROOT where to allocate the string.
+  @param lex_str  LEX_STRING to fill with the copied string.
+  @param str      string to be copied into the LEX_STRING.
+  @param length   length of str, in bytes
+
+  @return  true on failure (OOM), false otherwise.
+*/
+bool lex_string_strmake(MEM_ROOT *mem_root, LEX_STRING *lex_str,
+                        const char *str, size_t length);
+
+/**
+  Copy the given string into a LEX_CSTRING, allocating it in the
+  given MEM_ROOT.
+
+  @param mem_root MEM_ROOT where to allocate the string.
+  @param lex_str  LEX_CSTRING to fill with the copied string.
+  @param str      string to be copied into the LEX_CSTRING.
+  @param length   length of str, in bytes
+
+  @return  true on failure (OOM), false otherwise.
+*/
+bool lex_string_strmake(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
+                        const char *str, size_t length);
 
 #endif /* STRFUNC_INCLUDED */

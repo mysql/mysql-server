@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,8 @@
 #define PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 
 #include <algorithm>
+#include <functional>
 #include <vector>
-
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/src/xpl_log.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
@@ -72,11 +70,12 @@ class Plugin_system_variables {
   static char *bind_address;
   static uint32_t m_interactive_timeout;
   static uint32_t m_document_id_unique_prefix;
+  static bool m_enable_hello_notice;
 
   static Ssl_config ssl_config;
 
  public:
-  typedef ngs::function<void(THD *)> Value_changed_callback;
+  typedef std::function<void(THD *)> Value_changed_callback;
 
   static void clean_callbacks();
   static void registry_callback(Value_changed_callback callcback);

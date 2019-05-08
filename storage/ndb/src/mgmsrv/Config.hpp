@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +140,7 @@ public:
                     ndb_mgm_node_type type = NDB_MGM_NODE_TYPE_UNKNOWN) const;
 
   struct ndb_mgm_configuration * m_configValues;
-  struct ndb_mgm_configuration * values(void) const { return m_configValues; };
+  struct ndb_mgm_configuration * values(void) const { return m_configValues; }
 
 private:
   bool setValue(Uint32 section, Uint32 section_no,
@@ -158,7 +156,7 @@ private:
 class ConfigIter : public ndb_mgm_configuration_iterator {
 public:
   ConfigIter(const Config* conf, unsigned type) :
-    ndb_mgm_configuration_iterator(*conf->m_configValues, type) {};
+    ndb_mgm_configuration_iterator(*conf->m_configValues, type) {}
 };
 
 #endif // Config_H

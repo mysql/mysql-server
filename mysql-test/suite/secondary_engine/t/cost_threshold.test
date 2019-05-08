@@ -1,0 +1,147 @@
+--echo #
+--echo # Test cases for the secondary_engine_cost_threshold variable.
+--echo #
+
+--disable_query_log
+--eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN'
+--enable_query_log
+
+# Remember the original threshold and restore it at the end of the test.
+SELECT @@secondary_engine_cost_threshold,
+       @@global.secondary_engine_cost_threshold;
+SET @saved_threshold = @@secondary_engine_cost_threshold;
+
+# Negative threshold values give a warning and are adjusted to 0.
+SET @@secondary_engine_cost_threshold = -100;
+SELECT @@secondary_engine_cost_threshold;
+
+CREATE TABLE t1(x INT, y INT);
+INSERT INTO t1 VALUES (1, 2), (2, 3), (3, 4);
+
+# A costly Cartesian product to help create plans with high cost.
+CREATE VIEW v1 AS
+SELECT t1.x x1, t2.x x2, t3.x x3, t4.x x4, t5.x x5, t6.x x6, t7.x x7,
+       t8.x x8, t9.x x9, t10.x x10, t11.x x11, t12.x x12, t13.x x13
+FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6, t1 t7, t1 t8, t1 t9,
+     t1 t10, t1 t11, t1 t12, t1 t13;
+
+ANALYZE TABLE t1;
+
+# Some queries with different costs.
+let $q1 = SELECT * FROM t1;
+let $q2 = SELECT (SELECT y FROM t1 WHERE x = 1);
+let $q3 = SELECT * FROM v1;
+let $q4 = SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
+let $q5 = SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
+let $q6 = SELECT * FROM t1 tt
+            WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
+
+--eval EXPLAIN $q1
+SHOW STATUS LIKE 'Last_query_cost';
+--eval EXPLAIN $q2
+SHOW STATUS LIKE 'Last_query_cost';
+--eval EXPLAIN $q3
+SHOW STATUS LIKE 'Last_query_cost';
+--eval EXPLAIN $q4
+SHOW STATUS LIKE 'Last_query_cost';
+--eval EXPLAIN $q5
+SHOW STATUS LIKE 'Last_query_cost';
+--eval EXPLAIN $q6
+SHOW STATUS LIKE 'Last_query_cost';
+
+ALTER TABLE t1 SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+
+# The threshold is 0. Queries with non-zero cost are offloaded.
+SET @@secondary_engine_cost_threshold = 0;
+SELECT @@secondary_engine_cost_threshold,
+       @@global.secondary_engine_cost_threshold;
+
+FLUSH STATUS;
+--eval EXPLAIN $q1
+--eval $q1
+--eval EXPLAIN $q2
+--eval $q2
+--eval EXPLAIN $q3
+--eval $q3
+--eval EXPLAIN $q4
+--eval $q4
+--eval EXPLAIN $q5
+--eval $q5
+--eval EXPLAIN $q6
+--eval $q6
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+
+# Increase the threshold. Only the two most expensive queries are offloaded.
+SET @@secondary_engine_cost_threshold = 100;
+SELECT @@secondary_engine_cost_threshold,
+       @@global.secondary_engine_cost_threshold;
+
+FLUSH STATUS;
+--eval EXPLAIN $q1
+--eval $q1
+--eval EXPLAIN $q2
+--eval $q2
+--eval EXPLAIN $q3
+--eval $q3
+--eval EXPLAIN $q4
+--eval $q4
+--eval EXPLAIN $q5
+--eval $q5
+--eval EXPLAIN $q6
+--eval $q6
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+
+# Increase the threshold even more. All the queries should be executed
+# in the primary storage engine.
+SET @@secondary_engine_cost_threshold = 1000000;
+SELECT @@secondary_engine_cost_threshold,
+       @@global.secondary_engine_cost_threshold;
+--eval EXPLAIN $q1
+--eval EXPLAIN $q2
+--eval EXPLAIN $q3
+--eval EXPLAIN $q4
+--eval EXPLAIN $q5
+--eval EXPLAIN $q6
+
+# Set the threshold in a hint.
+EXPLAIN SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 0) */ * FROM t1;
+EXPLAIN SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 100) */ * FROM t1;
+
+# The use_secondary_engine variable overrides the threshold.
+EXPLAIN
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 1000000)
+           SET_VAR(use_secondary_engine = FORCED) */
+  * FROM t1;
+EXPLAIN
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 0)
+           SET_VAR(use_secondary_engine = OFF) */
+  * FROM t1;
+
+# The threshold is evaluated on each execution.
+FLUSH STATUS;
+--eval PREPARE ps FROM '$q1'
+SET @@secondary_engine_cost_threshold = 0;
+EXECUTE ps;
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+SET @@secondary_engine_cost_threshold = 100;
+EXECUTE ps;
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+SET @@secondary_engine_cost_threshold = 0;
+EXECUTE ps;
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+SET @@secondary_engine_cost_threshold = 100;
+EXECUTE ps;
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+DROP PREPARE ps;
+
+DROP TABLE t1;
+DROP VIEW v1;
+
+# Restore the original value of the threshold.
+SET @@secondary_engine_cost_threshold = @saved_threshold;
+SELECT @@secondary_engine_cost_threshold,
+       @@global.secondary_engine_cost_threshold;
+
+UNINSTALL PLUGIN mock;

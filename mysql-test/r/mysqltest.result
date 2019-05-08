@@ -232,18 +232,18 @@ mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Spurious text after `query` expression
 mysqltest: At line 1: Spurious text after `query` expression
 mysqltest: At line 2: Spurious text after `query` expression
-mysqltest: At line 1: Missing argument(s) to 'error'
-mysqltest: At line 1: Missing argument(s) to 'error'
+mysqltest: At line 1: Missing argument(s) to 'error' command.
+mysqltest: At line 1: Missing argument(s) to 'error' command.
 mysqltest: At line 1: The sqlstate definition must start with an uppercase S.
-mysqltest: At line 1: The error name definition must start with an uppercase E or C.
-mysqltest: At line 1: Invalid argument to error: '9eeeee', the errno may only consist of digits[0-9]
-mysqltest: At line 1: Invalid argument to error: '1sssss', the errno may only consist of digits[0-9]
+mysqltest: At line 1: The error name definition must start with an uppercase C or E.
+mysqltest: At line 1: Invalid argument '9eeeee' to 'error' command, the argument may consist of either symbolic error names or error codes.
+mysqltest: At line 1: Invalid argument '1sssss' to 'error' command, the argument may consist of either symbolic error names or error codes.
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
 mysqltest: At line 1: The sqlstate may only consist of digits[0-9] and _uppercase_ letters.
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
-mysqltest: At line 1: Unknown SQL error name 'E9999'
-mysqltest: At line 1: Invalid argument to error: '999e9', the errno may only consist of digits[0-9]
-mysqltest: At line 1: Invalid argument to error: '9b', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Unknown SQL error name 'E9999'.
+mysqltest: At line 1: Invalid argument '999e9' to 'error' command, the argument may consist of either symbolic error names or error codes.
+mysqltest: At line 1: Invalid argument '9b' to 'error' command, the argument may consist of either symbolic error names or error codes.
 mysqltest: At line 1: Too many errorcodes specified.
 DROP TABLE table_does_not_exist;
 ERROR 42S02: Unknown table 'test.table_does_not_exist'
@@ -1604,37 +1604,37 @@ mysqltest: At line 1: Invalid value '5abc' for retry argument given to copy_file
 mysqltest: At line 1: Invalid value '-5' for retry argument given to copy_file command.
 mysqltest: At line 1: Invalid value '?' for retry argument given to copy_file command.
 mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_file command.
-Interger value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to copy_file command.
+Integer value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to copy_file command.
 # Test the retry argument for copy_files_wildcard
 mysqltest: At line 1: Invalid value '1oo1' for retry argument given to copy_files_wildcard command.
 mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_files_wildcard command.
 mysqltest: At line 1: Invalid value ':' for retry argument given to copy_files_wildcard command.
 mysqltest: At line 1: Invalid value '-12' for retry argument given to copy_files_wildcard command.
-Interger value '2147483648000' is out of range. mysqltest: At line 1: Invalid value '2147483648000' for retry argument given to copy_files_wildcard command.
+Integer value '2147483648000' is out of range. mysqltest: At line 1: Invalid value '2147483648000' for retry argument given to copy_files_wildcard command.
 # Test the retry argument for move_file command
 mysqltest: At line 1: Invalid value '11a' for retry argument given to move_file command.
 mysqltest: At line 1: Invalid value 'aabb' for retry argument given to move_file command.
 mysqltest: At line 1: Invalid value '-1' for retry argument given to move_file command.
 mysqltest: At line 1: Invalid value '??' for retry argument given to move_file command.
-Interger value '21474836489' is out of range. mysqltest: At line 1: Invalid value '21474836489' for retry argument given to move_file command.
+Integer value '21474836489' is out of range. mysqltest: At line 1: Invalid value '21474836489' for retry argument given to move_file command.
 # Test the retry argument for file_exists command
 mysqltest: At line 1: Invalid value 'a10a' for retry argument given to file_exists command.
 mysqltest: At line 1: Invalid value 'ghghg' for retry argument given to file_exists command.
 mysqltest: At line 1: Invalid value '-5' for retry argument given to file_exists command.
 mysqltest: At line 1: Invalid value '!' for retry argument given to file_exists command.
-Interger value '21474836487' is out of range. mysqltest: At line 1: Invalid value '21474836487' for retry argument given to file_exists command.
+Integer value '21474836487' is out of range. mysqltest: At line 1: Invalid value '21474836487' for retry argument given to file_exists command.
 # Test the retry argument for remove_files_wildcard command
 mysqltest: At line 1: Invalid value 'blah' for retry argument given to remove_files_wildcard command.
 mysqltest: At line 1: Invalid value '-8' for retry argument given to remove_files_wildcard command.
 mysqltest: At line 1: Invalid value 'oo7' for retry argument given to remove_files_wildcard command.
 mysqltest: At line 1: Invalid value '?1' for retry argument given to remove_files_wildcard command.
-Interger value '21474836480' is out of range. mysqltest: At line 1: Invalid value '21474836480' for retry argument given to remove_files_wildcard command.
+Integer value '21474836480' is out of range. mysqltest: At line 1: Invalid value '21474836480' for retry argument given to remove_files_wildcard command.
 # Test invalid values of retry for remove_file command
 mysqltest: At line 1: Invalid value 'xyz' for retry argument given to remove_file command.
 mysqltest: At line 1: Invalid value '-10' for retry argument given to remove_file command.
 mysqltest: At line 1: Invalid value 'll11' for retry argument given to remove_file command.
 mysqltest: At line 1: Invalid value '?1?' for retry argument given to remove_file command.
-Interger value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to remove_file command.
+Integer value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to remove_file command.
 #
 # BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
 #
@@ -1665,3 +1665,403 @@ mysqltest: Test ended with test case execution disabled.
 SELECT 1 AS res;
 res
 1
+#
+# WL11832: MTR: Enhance [disable|enable]_warnings commands to
+#          disable or enable a specific list of warnings
+#
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (
+c1 DOUBLE NOT NULL AUTO_INCREMENT,
+c2 INT,
+c3 DECIMAL(2) UNSIGNED,
+c4 DECIMAL,
+PRIMARY KEY (c1)
+);
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+include/mtr.test
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+include/mtr.test
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+mysqltest: At line 1: Invalid argument '1264' to 'disable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Invalid argument 'ER_TRUNCATED_WRONG_VALUE,1264' to 'disable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Unknown SQL error name 'ERR_TRUNCATED_WRONG_VALUE'.
+mysqltest: At line 1: Invalid argument '1264' to 'enable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Invalid argument 'ER_TRUNCATED_WRONG_VALUE,1264' to 'enable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Unknown SQL error name 'ERR_TRUNCATED_WRONG_VALUE'.
+mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t2' didn't generate any of the expected warning(s) 'ER_TRUNCATED_WRONG_VALUE'.
+mysqltest: At line 1: Second argument to 'disable_warnings' command should always be "ONCE" keyword.
+mysqltest: At line 1: Second argument to 'enable_warnings' command should always be "ONCE" keyword.
+mysqltest: At line 1: Warning list argument to command 'disable_warnings' can't be an empty string.
+mysqltest: At line 1: Warning list argument to command 'enable_warnings' can't be an empty string.
+mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t_unknown' didn't generate any of the expected warning(s) 'ER_YES'.
+#
+# BUG#28218057: ENABLE_WARNINGS WORKS WITH "ONCE" WITH FIRST ARGUMENT
+#               OF WARNING LIST AS EMPTY
+#
+ER_NON_UNIQ_ERROR,ER_BAD_TABLE_ERROR
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+
+mysqltest: At line 12: Warning list argument to command 'enable_warnings' can't be an empty string.
+#
+# BUG#28759823: DISABLE/ENABLE_WARNINGS COMMANDS SHOULDN'T ALLOW COMMA
+#               AT THE END
+#
+mysqltest: At line 1: Invalid argument 'ER_YES,ER_NO,' to 'disable_warnings' command.
+mysqltest: At line 1: Invalid argument 'ER_YES,ER_NO,' to 'enable_warnings' command.
+#
+# BUG#28765320: REPEATED "--DISABLE_WARNINGS <WARN_1> ONCE" STATEMENT RESULTS
+#               --DISABLE_WARNINGS
+#
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (
+c1 DOUBLE NOT NULL AUTO_INCREMENT,
+c2 INT,
+c3 DECIMAL(2) UNSIGNED,
+c4 DECIMAL,
+PRIMARY KEY (c1)
+);
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1;
+#
+# Bug#28235844: REPLACE THE HENRY SPENCER REGEX LIBRARY WITH STD::REGEX
+#               IN MYSQLTEST
+#
+SELECT 'b#','#b';
+b#	#b
+b#	#b
+SELECT "?,?,?" as escape_chars;
+escape_chars
+?,?,?
+SELECT "parenthesis";
+parenthesis
+parenthesis
+SELECT "bracket";
+bracket
+bracket
+SELECT 0x00, 0xff;
+0x00	0xff
+nul	#
+SELECT 0x00, 0xff;
+0x00	0xff
+nul	#
+SELECT 0x00;
+0x00
+nul
+SELECT "#" as err;
+err
+#
+SELECT CONCAT('winpath','//');
+CONCAT('winpath','//')
+winpath/
+SELECT "mtr";
+#r
+#r
+SELECT "mtr";
+mtr
+mtr
+SELECT "mtr";
+m#
+m#
+SELECT "mtr";
+mtr
+mtr
+SELECT "#c", "abd";
+#c	abd
+#c	abd
+SELECT "abc", "#d";
+abc	#d
+abc	#d
+SELECT "many # form a sentence" as text;
+text
+many # form a sentence
+SELECT "many words #m a sentence" as text;
+text
+many words #m a sentence
+SELECT "#solute", "#cent";
+#solute	#cent
+#solute	#cent
+SELECT <digit> as num, "abc" as lc, "ABC" as uc;
+num	lc	uc
+<digit>	abc	<uppercase>
+SELECT 'a' as letter, 0x00 as nullchar, 0xff as nonprintable;
+letter	nullchar	nonprintable
+@	#	#
+#
+# BUG#28936083: MYSQLTEST.CC DOES NOT HANDLE MULTILINE SEND_EVAL CORRECTLY
+#
+SELECT 100 AS res;
+res
+100
+SELECT 100 AS res;
+res
+100
+SELECT 200 AS res;
+res
+200
+SELECT 100 AS res;;
+res
+100
+SELECT 100 AS res;
+res
+100
+SELECT 200 AS res;
+res
+200

@@ -1,0 +1,9 @@
+# restart: --skip-name-resolve --admin-address=::ffff:127.0.0.1 --admin_port=ADMIN_PORT
+# Checking ::ffff:127.0.0.1 ...
+mysqld is alive
+# Checking 127.0.0.1 ...
+mysqld is alive
+#
+# Starting mysqld in the regular mode...
+#
+# restart

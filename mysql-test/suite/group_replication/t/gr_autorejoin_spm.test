@@ -1,0 +1,179 @@
+################################################################################
+#
+# The auto-rejoin process is a mechanism that allows a server that left the
+# group due to flaky network (either on his side or on the other members) to
+# try to join again up to group_replication_autorejoin_tries number of times.
+#
+# This test shall verify that upon a member expel, if auto-rejoin is enabled,
+# the expelled member will try to rejoin the group up to
+# group_replication_autorejoin_tries number of times. It will also verify that,
+# if the rejoining member was a primary before being expelled, when that member
+# is successfully rejoined to the group, it will remain a secondary.
+#
+# Test:
+# 0) The test requires three servers (in single-primary mode).
+# 1) Expel the primary.
+# 2) Verify that the expelled member will try to rejoin the group the number of
+#    times it is configured in group_replication_autorejoin_tries sysvar.
+# 3) Verify that it manages to rejoin the group
+# 4) Verify that the newly rejoined member is no longer the primary.
+# 5) Cleanup.
+#
+################################################################################
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/linux.inc
+--source include/have_group_replication_plugin.inc
+#
+# We manually start the group because we need to set the rejoin timeout before
+# the START GROUP_REPLICATION command.
+#
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count = 3
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET sql_log_bin = 1;
+
+--source include/gr_autorejoin_monitoring.inc
+
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ####
+--echo # 1) Expel one of the members.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+# First, enable auto-rejoin
+SET GLOBAL group_replication_autorejoin_tries = 1;
+
+# Force expel on member 1
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--source include/gr_expel_member_from_group.inc
+
+--echo
+--echo ####
+--echo # 2) Verify that the expelled member will try to rejoin the group the
+--echo # number of it is configured in group_replication_autorejoin_tries
+--echo # sysvar.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+
+# Wait for the group to stabilize and find a new primary
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--source include/gr_find_a_primary.inc
+if (!$group_replication_found_primary_out_var)
+{
+  --die "Should have found a primary after member expel!"
+}
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+# Verify that auto-rejoin is currently running
+--let $assert_text = Auto-rejoin should be running
+--let $assert_cond = [SELECT IS_AUTOREJOIN_RUNNING()] = TRUE
+--source include/assert.inc
+
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+
+# Verify that it attempted one try
+--let $assert_text = We should have attempted 1 rejoin
+--let $assert_cond = [SELECT GET_NUMBER_RETRIES()] = 1
+--source include/assert.inc
+
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+# Verify that the auto-rejoin process has terminated
+--let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = FALSE
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo ####
+--echo # 3) Verify that it manages to rejoin the group.
+--echo ####
+--echo
+--let $group_replication_member_state = ONLINE
+--let $group_replication_member_id = $member_id
+--source include/gr_wait_for_member_state.inc
+
+--let $group_replication_number_of_members = 3
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 3
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 3
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo ####
+--echo # 4) Verify that the newly rejoined member is no longer the primary.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo ####
+--echo # 5) Cleanup.
+--echo ####
+--echo
+# Stop the GR plugin so that we leave super read-only mode and drop the auto-rejoin monitoring functions
+--source include/stop_group_replication.inc
+
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET @@GLOBAL.group_replication_autorejoin_tries = default;
+--source include/gr_end_autorejoin_monitoring.inc
+--source include/group_replication_end.inc

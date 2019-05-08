@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,14 +45,21 @@
 */
 #define EXTRA_ROW_INFO_LEN_OFFSET 0
 #define EXTRA_ROW_INFO_FORMAT_OFFSET 1
-#define EXTRA_ROW_INFO_HDR_BYTES 2
-#define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HDR_BYTES)
+#define EXTRA_ROW_INFO_HEADER_LENGTH 2
+#define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HEADER_LENGTH)
 
 #define ROWS_MAPID_OFFSET 0
 #define ROWS_FLAGS_OFFSET 6
 #define ROWS_VHLEN_OFFSET 8
-#define ROWS_V_TAG_LEN 1
-#define ROWS_V_EXTRAINFO_TAG 0
+#define EXTRA_ROW_INFO_TYPECODE_LENGTH 1
+#define EXTRA_ROW_PART_INFO_VALUE_LENGTH 2
+
+/**
+  This is the typecode defined for the different elements present in
+  the container Extra_row_info, this is different from the format information
+  stored inside extra_row_ndb_info at EXTRA_ROW_INFO_FORMAT_OFFSET.
+*/
+enum class enum_extra_row_info_typecode { NDB = 0, PART = 1 };
 
 namespace binary_log {
 /**
@@ -398,18 +405,21 @@ namespace binary_log {
   </tr>
   <tr>
     <td>SIGNEDNESS</td>
-    <td>signedness of numeric colums</td>
-    <td>For each numeric column, a bit indicates whether the numeric colunm has
-    unsigned flag. 1 means it is unsigned. The number of bytes needed for this
-  is int((column_count + 7) / 8). The order is same to the order of column_type
-    field.</td>
+    <td>signedness of numeric colums. This is included for all values of
+    binlog_row_metadata.</td>
+    <td>For each numeric column, a bit indicates whether the numeric
+    colunm has unsigned flag. 1 means it is unsigned. The number of
+    bytes needed for this is int((column_count + 7) / 8). The order is
+    the same as the order of column_type field.</td>
   </tr>
   <tr>
     <td>DEFAULT_CHARSET</td>
-    <td>Charsets of character columns. It has a default charset for the case
-    that most of character columns have same charset and the most used charset
-    is binlogged as default charset.Collation numbers are binlogged for
-    identifying charsets. They are stored in packed length format. </td>
+    <td>Charsets of character columns. It has a default charset for
+    the case that most of character columns have same charset and the
+    most used charset is binlogged as default charset.Collation
+    numbers are binlogged for identifying charsets. They are stored in
+    packed length format.  Either DEFAULT_CHARSET or COLUMN_CHARSET is
+    included for all values of binlog_row_metadata.</td>
     <td>Default charset's collation is logged first. The charsets which are not
     same to default charset are logged following default charset. They are
     logged as column index and charset collation number pair sequence. The
@@ -421,46 +431,79 @@ namespace binary_log {
     <td>COLUMN_CHARSET</td>
     <td>Charsets of character columns. For the case that most of columns have
     different charsets, this field is logged. It is never logged with
-    DEFAULT_CHARSET together.</td>
+    DEFAULT_CHARSET together.  Either DEFAULT_CHARSET or COLUMN_CHARSET is
+    included for all values of binlog_row_metadata.</td>
     <td>It is a collation number sequence for all character columns.</td>
   </tr>
   <tr>
     <td>COLUMN_NAME</td>
-    <td>Names of columns</td>
-    <td>A sequence of column names. For each column name, 1 byte string length
-    followed by a string without null terminator. </td>
+    <td>Names of columns. This is only included if
+    binlog_row_metadata=FULL.</td>
+    <td>A sequence of column names. For each column name, 1 byte for
+    the string length in bytes is followed by a string without null
+    terminator.</td>
   </tr>
   <tr>
     <td>SET_STR_VALUE</td>
-    <td>The string values of SET columns</td>
-    <td>For each SET column, a pack_length presents value count is followed by
-    a sequence of length and string pairs. length is pack_length and string
-    has no null terminator.</td>
+    <td>The string values of SET columns. This is only included if
+    binlog_row_metadata=FULL.</td>
+    <td>For each SET column, a pack_length representing the value
+    count is followed by a sequence of length and string pairs. length
+    is the byte count in pack_length format. The string has no null
+    terminator.</td>
   </tr>
   <tr>
     <td>ENUM_STR_VALUE</td>
-    <td>The string values is ENUM columns</td>
-    <td>Format is same to SET_STR_VALUE</td>
+    <td>The string values is ENUM columns. This is only included
+    if binlog_row_metadata=FULL.</td>
+    <td>The format is the same as SET_STR_VALUE.</td>
   </tr>
   <tr>
     <td>GEOMETRY_TYPE</td>
-    <td>The real type of geometry columns</td>
+    <td>The real type of geometry columns. This is only included
+    if binlog_row_metadata=FULL.</td>
     <td>A sequence of real type of geometry columns are stored in pack_length
     format. </td>
   </tr>
   <tr>
     <td>SIMPLE_PRIMARY_KEY</td>
-    <td>The primary key without any prefix</td>
+    <td>The primary key without any prefix. This is only included
+    if binlog_row_metadata=FULL and there is a primary key where every
+    key part covers an entire column.</td>
     <td>A sequence of column indexes. The indexes are stored in pack_length
     format.</td>
   </tr>
   <tr>
     <td>PRIMARY_KEY_WITH_PREFIX</td>
-    <td>The primary key with some prefix. It doesn't appear with
-    SIMPLE_PRIMARY_KEY together. </td>
+    <td>The primary key with some prefix. It doesn't appear together with
+    SIMPLE_PRIMARY_KEY. This is only included if
+    binlog_row_metadata=FULL and there is a primary key where some key
+    part covers a prefix of the column.</td>
     <td>A sequence of column index and prefix length pairs. Both
-    column index and prefix length are in pack_length format. It means
-    the whole value is used even if prefix length is 0.</td>
+    column index and prefix length are in pack_length format. Prefix length
+    0 means that the whole column value is used.</td>
+  </tr>
+  <tr>
+    <td>ENUM_AND_SET_DEFAULT_CHARSET</td>
+    <td>Charsets of ENUM and SET columns. It has the same layout as
+    DEFAULT_CHARSET.  If there are SET or ENUM columns and
+    binlog_row_metadata=FULL, exactly one of
+    ENUM_AND_SET_DEFAULT_CHARSET and ENUM_AND_SET_COLUMN_CHARSET
+    appears (the encoder chooses the representation that uses the
+    least amount of space).  Otherwise, none of them appears.</td>
+    <td>The same format as for DEFAULT_CHARSET, except it counts ENUM
+    and SET columns rather than character columns.</td>
+  </tr>
+  <tr>
+    <td>ENUM_AND_SET_COLUMN_CHARSET</td>
+    <td>Charsets of ENUM and SET columns. It has the same layout as
+    COLUMN_CHARSET.  If there are SET or ENUM columns and
+    binlog_row_metadata=FULL, exactly one of
+    ENUM_AND_SET_DEFAULT_CHARSET and ENUM_AND_SET_COLUMN_CHARSET
+    appears (the encoder chooses the representation that uses the
+    least amount of space).  Otherwise, none of them appears.</td>
+    <td>The same format as for COLUMN_CHARSET, except it counts ENUM
+    and SET columns rather than character columns.</td>
   </tr>
   </table>
 */
@@ -476,9 +519,11 @@ class Table_map_event : public Binary_log_event {
   typedef uint16_t flag_set;
 
   /**
-    DEFAULT_CHARSET and COLUMN_CHARSET don't appear together. They are just two
-    ways to pack character set information. When binlogging, it just log
-    character set in the way which occupy less storage.
+    DEFAULT_CHARSET and COLUMN_CHARSET don't appear together, and
+    ENUM_AND_SET_DEFAULT_CHARSET and ENUM_AND_SET_COLUMN_CHARSET don't
+    appear together. They are just alternative ways to pack character
+    set information. When binlogging, it logs character sets in the
+    way that occupies least storage.
 
     SIMPLE_PRIMARY_KEY and PRIMARY_KEY_WITH_PREFIX don't appear together.
     SIMPLE_PRIMARY_KEY is for the primary keys which only use whole values of
@@ -486,15 +531,27 @@ class Table_map_event : public Binary_log_event {
     for the primary keys which just use part value of pk columns.
    */
   enum Optional_metadata_field_type {
-    SIGNEDNESS = 1,   // UNSIGNED flag of numeric columns
-    DEFAULT_CHARSET,  // Default character set of string columns
-    COLUMN_CHARSET,   // Character set of string columns
+    SIGNEDNESS = 1,  // UNSIGNED flag of numeric columns
+    DEFAULT_CHARSET, /* Character set of string columns, optimized to
+                        minimize space when many columns have the
+                        same charset. */
+    COLUMN_CHARSET,  /* Character set of string columns, optimized to
+                        minimize space when columns have many
+                        different charsets. */
     COLUMN_NAME,
-    SET_STR_VALUE,           // String value of SET columns
-    ENUM_STR_VALUE,          // String value of ENUM columns
-    GEOMETRY_TYPE,           // Real type of geometry columns
-    SIMPLE_PRIMARY_KEY,      // Primary key without prefix
-    PRIMARY_KEY_WITH_PREFIX  // Primary key with prefix
+    SET_STR_VALUE,                // String value of SET columns
+    ENUM_STR_VALUE,               // String value of ENUM columns
+    GEOMETRY_TYPE,                // Real type of geometry columns
+    SIMPLE_PRIMARY_KEY,           // Primary key without prefix
+    PRIMARY_KEY_WITH_PREFIX,      // Primary key with prefix
+    ENUM_AND_SET_DEFAULT_CHARSET, /* Character set of enum and set
+                                     columns, optimized to minimize
+                                     space when many columns have the
+                                     same charset. */
+    ENUM_AND_SET_COLUMN_CHARSET,  /* Character set of enum and set
+                                     columns, optimized to minimize
+                                     space when many columns have the
+                                     same charset. */
   };
 
   /**
@@ -516,11 +573,16 @@ class Table_map_event : public Binary_log_event {
       std::vector<uint_pair> charset_pairs;
     };
 
-    // Content of DEFAULT_CHARSET field is converted into Default_charset.
+    // Contents of DEFAULT_CHARSET field are converted into Default_charset.
     Default_charset m_default_charset;
+    // Contents of ENUM_AND_SET_DEFAULT_CHARSET are converted into
+    // Default_charset.
+    Default_charset m_enum_and_set_default_charset;
     std::vector<bool> m_signedness;
-    // Character set number of every column
+    // Character set number of every string column
     std::vector<unsigned int> m_column_charset;
+    // Character set number of every ENUM or SET column.
+    std::vector<unsigned int> m_enum_and_set_column_charset;
     std::vector<std::string> m_column_name;
     // each str_vector stores values of one enum/set column
     std::vector<str_vector> m_enum_str_value;
@@ -541,6 +603,8 @@ class Table_map_event : public Binary_log_event {
      */
     Optional_metadata_fields(unsigned char *optional_metadata,
                              unsigned int optional_metadata_len);
+    // It is used to specify the validity of the deserialized structure
+    bool is_valid;
   };
 
   /**
@@ -692,9 +756,47 @@ class Table_map_event : public Binary_log_event {
   </tr>
 
   <tr>
-    <td>extra_row_data</td>
-    <td>unsigned char pointer</td>
-    <td>Pointer to extra row data if any. If non null, first byte is length</td>
+    <td>extra_row_info</td>
+    <td>An object of class Extra_row_info</td>
+    <td>The class Extra_row_info will be storing the information related
+        to m_extra_row_ndb_info and partition info (partition_id and
+        source_partition_id). At any given time a Rows_event can have both, one
+        or none of ndb_info and partition_info present as part of Rows_event.
+        In case both ndb_info and partition_info are present then below will
+        be the order in which they will be stored.
+
+        @verbatim
+        +----------+--------------------------------------+
+        |type_code |        extra_row_ndb_info            |
+        +--- ------+--------------------------------------+
+        | NDB      |Len of ndb_info |Format |ndb_data     |
+        | 1 byte   |1 byte          |1 byte |len - 2 byte |
+        +----------+----------------+-------+-------------+
+
+        In case of INSERT/DELETE
+        +-----------+----------------+
+        | type_code | partition_info |
+        +-----------+----------------+
+        |   PART    |  partition_id  |
+        | (1 byte)  |     2 byte     |
+        +-----------+----------------+
+
+        In case of UPDATE
+        +-----------+------------------------------------+
+        | type_code |        partition_info              |
+        +-----------+--------------+---------------------+
+        |   PART    | partition_id | source_partition_id |
+        | (1 byte)  |    2 byte    |       2 byte        |
+        +-----------+--------------+---------------------+
+
+        source_partition_id is used only in the case of Update_event
+        to log the partition_id of the source partition.
+
+        @endverbatim
+        This is the format for any information stored as extra_row_info.
+        type_code is not a part of the class Extra_row_info as it is a constant
+        values used at the time of serializing and decoding the event.
+   </td>
   </tr>
 
   <tr>
@@ -793,11 +895,9 @@ class Rows_event : public Binary_log_event {
       : Binary_log_event(type_arg),
         m_table_id(0),
         m_width(0),
-        m_extra_row_data(0),
         columns_before_image(0),
         columns_after_image(0),
         row(0) {}
-
   /**
     The constructor is responsible for decoding the event contained in
     the buffer.
@@ -835,13 +935,76 @@ class Rows_event : public Binary_log_event {
   uint32_t n_bits_len;   /** value determined by (m_width + 7) / 8 */
   uint16_t var_header_len;
 
-  unsigned char *m_extra_row_data;
-
   std::vector<uint8_t> columns_before_image;
   std::vector<uint8_t> columns_after_image;
   std::vector<uint8_t> row;
 
  public:
+  class Extra_row_info {
+   private:
+    /** partition_id for a row in a partitioned table */
+    int m_partition_id;
+    /**
+      It is the partition_id of the source partition in case
+      of Update_event, the target's partition_id is m_partition_id.
+      This variable is used only in case of Update_event.
+    */
+    int m_source_partition_id;
+    /** The extra row info provided by NDB */
+    unsigned char *m_extra_row_ndb_info;
+
+   public:
+    Extra_row_info()
+        : m_partition_id(UNDEFINED),
+          m_source_partition_id(UNDEFINED),
+          m_extra_row_ndb_info(nullptr) {}
+
+    Extra_row_info(const Extra_row_info &) = delete;
+
+    int get_partition_id() const { return m_partition_id; }
+    void set_partition_id(int partition_id) {
+      BAPI_ASSERT(partition_id <= 65535);
+      m_partition_id = partition_id;
+    }
+
+    int get_source_partition_id() const { return m_source_partition_id; }
+    void set_source_partition_id(int source_partition_id) {
+      BAPI_ASSERT(source_partition_id <= 65535);
+      m_source_partition_id = source_partition_id;
+    }
+
+    unsigned char *get_ndb_info() const { return m_extra_row_ndb_info; }
+    void set_ndb_info(const unsigned char *ndb_info, size_t len) {
+      BAPI_ASSERT(!have_ndb_info());
+      m_extra_row_ndb_info =
+          static_cast<unsigned char *>(bapi_malloc(len, 16 /* flags */));
+      std::copy(ndb_info, ndb_info + len, m_extra_row_ndb_info);
+    }
+    /**
+      Compares the extra_row_info in a Row event, it checks three things
+      1. The m_extra_row_ndb_info pointers. It compares their significant bytes.
+      2. Partition_id
+      3. source_partition_id
+
+      @return
+       true   all the above variables are same in the event and the one passed
+              in parameter.
+       false  Any of the above variable has a different value.
+    */
+    bool compare_extra_row_info(const unsigned char *ndb_info_arg,
+                                int part_id_arg, int source_part_id);
+
+    bool have_part() const { return m_partition_id != UNDEFINED; }
+
+    bool have_ndb_info() const { return m_extra_row_ndb_info != nullptr; }
+    size_t get_ndb_length();
+    size_t get_part_length();
+    ~Extra_row_info();
+
+    static const int UNDEFINED{INT_MAX};
+  };
+  Extra_row_info m_extra_row_info;
+
   unsigned long long get_table_id() const { return m_table_id.id(); }
 
   enum_flag get_flags() const { return static_cast<enum_flag>(m_flags); }

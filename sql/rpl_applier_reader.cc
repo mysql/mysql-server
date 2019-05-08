@@ -1,19 +1,27 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_applier_reader.h"
+#include "include/mutex_lock.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
@@ -76,7 +84,7 @@ Rpl_applier_reader::Rpl_applier_reader(Relay_log_info *rli)
     : m_relaylog_file_reader(
           opt_slave_sql_verify_checksum,
           std::max(slave_max_allowed_packet,
-                   opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER)),
+                   binlog_row_event_max_size + MAX_LOG_EVENT_HEADER)),
       m_rli(rli) {}
 
 Rpl_applier_reader::~Rpl_applier_reader() { close(); }
@@ -96,26 +104,31 @@ bool Rpl_applier_reader::open(const char **errmsg) {
                                   rli->get_group_relay_log_pos(), &fdle))
     goto err;
 
-  mysql_mutex_lock(&m_rli->data_lock);
-  if (fdle == nullptr)
-    rli->set_rli_description_event(new Format_description_log_event());
-  else
-    rli->set_rli_description_event(fdle);
+  {  // Begin context block for `m_rli->data_lock` mutex acquisition
+    MUTEX_LOCK(lock, &m_rli->data_lock);
+    bool is_fdle_allocated_here{fdle == nullptr};
+    if (is_fdle_allocated_here) {
+      fdle = new Format_description_log_event();
+    }
+    if (rli->set_rli_description_event(fdle)) {
+      if (is_fdle_allocated_here) delete fdle;
+      return true;  // Release acquired lock on `m_rli->data_lock`
+    }
 
-  /**
-     group_relay_log_name may be different from the one in index file. For
-     example group_relay_log_name includes a full path. But the one in index
-     file has relative path. So set group_relay_log_name to the one in index
-     file. It guarantes MYSQL_BIN_LOG::purge works well.
-  */
-  rli->set_group_relay_log_name(m_linfo.log_file_name);
-  rli->set_event_relay_log_pos(rli->get_group_relay_log_pos());
-  rli->set_event_relay_log_name(rli->get_group_relay_log_name());
-  if (relay_log_purge == 0 && rli->log_space_limit > 0) {
-    rli->log_space_limit = 0;
-    LogErr(WARNING_LEVEL, ER_RELAY_LOG_SPACE_LIMIT_DISABLED);
-  }
-  mysql_mutex_unlock(&m_rli->data_lock);
+    /**
+       group_relay_log_name may be different from the one in index file. For
+       example group_relay_log_name includes a full path. But the one in index
+       file has relative path. So set group_relay_log_name to the one in index
+       file. It guarantes MYSQL_BIN_LOG::purge works well.
+    */
+    rli->set_group_relay_log_name(m_linfo.log_file_name);
+    rli->set_event_relay_log_pos(rli->get_group_relay_log_pos());
+    rli->set_event_relay_log_name(rli->get_group_relay_log_name());
+    if (relay_log_purge == 0 && rli->log_space_limit > 0) {
+      rli->log_space_limit = 0;
+      LogErr(WARNING_LEVEL, ER_RELAY_LOG_SPACE_LIMIT_DISABLED);
+    }
+  }  // Release acquired lock on `m_rli->data_lock`
 
   m_reading_active_log = m_rli->relay_log.is_active(m_linfo.log_file_name);
   ret = false;

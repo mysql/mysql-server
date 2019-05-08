@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -170,7 +170,7 @@ const char *dict_process_sys_tablespaces(
     const rec_t *rec,  /*!< in: current SYS_TABLESPACES rec */
     space_id_t *space, /*!< out: space id */
     const char **name, /*!< out: tablespace name */
-    ulint *flags);     /*!< out: tablespace flags */
+    uint32_t *flags);  /*!< out: tablespace flags */
 /** Opens a tablespace for dict_load_table_one()
 @param[in,out]	table		A table that refers to the tablespace to open
 @param[in,out]	heap		A memory heap

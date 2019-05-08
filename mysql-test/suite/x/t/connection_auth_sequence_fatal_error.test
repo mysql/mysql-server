@@ -11,10 +11,11 @@ call mtr.add_suppression("Maximum number of authentication attempts reached");
 call mtr.add_suppression("Access denied for user .*");
 
 --write_file $MYSQL_TMP_DIR/auth_seq_simple.xpl
--->import ssl.macro
+-->import connection.macro
 
 newsession seq	-;
 quiet;
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 noquiet;
 
@@ -47,9 +48,10 @@ peerdisc 30000 30000;
 EOF
 
 --write_file $MYSQL_TMP_DIR/auth_seq_changle.xpl
--->import ssl.macro
+-->import connection.macro
 newsession seq	-;
 quiet;
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 noquiet;
 
@@ -103,9 +105,10 @@ peerdisc 30000 30000;
 EOF
 
 --write_file $MYSQL_TMP_DIR/auth_seq_three_different.xpl
--->import ssl.macro
+-->import connection.macro
 newsession seq	-;
 quiet;
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 noquiet;
 
@@ -153,6 +156,8 @@ peerdisc 30000 30000;
 EOF
 
 --write_file $MYSQL_TMP_DIR/auth_seq_invalid_msg.xpl
+-->import connection.macro
+callmacro Verify_its_xprotocol_connection;
 %MESSAGE_NAME% {
 	%MESSAGE_FIELD% : "not meaningful field payload"
 }

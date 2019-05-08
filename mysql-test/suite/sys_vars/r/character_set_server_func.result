@@ -22,7 +22,7 @@ CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP DATABASE db1;
 select @@character_set_database;
 @@character_set_database
@@ -35,7 +35,7 @@ CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP DATABASE db1;
 select @@character_set_database;
 @@character_set_database
@@ -51,7 +51,7 @@ CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP DATABASE db1;
 SELECT @@character_set_database;
 @@character_set_database
@@ -61,7 +61,7 @@ CREATE DATABASE db1 character set ascii;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET ascii */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP DATABASE db1;
 select @@character_set_database;
 @@character_set_database

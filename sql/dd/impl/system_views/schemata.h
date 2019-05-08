@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,8 @@ class Schemata : public System_view_impl<System_view_select_definition_impl> {
     FIELD_SCHEMA_NAME,
     FIELD_DEFAULT_CHARACTER_SET_NAME,
     FIELD_DEFAULT_COLLATION_NAME,
-    FIELD_SQL_PATH
+    FIELD_SQL_PATH,
+    FIELD_DEFAULT_ENCRYPTION
   };
 
   Schemata();

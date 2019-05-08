@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <memory>
 #include <new>
 
-#include "binary_log_types.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
@@ -73,8 +72,7 @@ bool Table_function::write_row() {
 
   if ((error = table->file->ha_write_row(table->record[0]))) {
     if (!table->file->is_ignorable_error(error) &&
-        create_ondisk_from_heap(thd, table, nullptr, nullptr, error, true,
-                                nullptr))
+        create_ondisk_from_heap(thd, table, error, true, nullptr))
       return true;  // Not a table_is_full error
   }
   return false;
@@ -82,7 +80,7 @@ bool Table_function::write_row() {
 
 void Table_function::empty_table() {
   DBUG_ASSERT(table->is_created());
-  table->file->ha_delete_all_rows();
+  (void)table->empty_result_table();
 }
 
 bool Table_function::init_args() {
@@ -104,6 +102,12 @@ Table_function_json::Table_function_json(THD *thd_arg, const char *alias,
       m_table_alias(alias),
       is_source_parsed(false),
       source(a) {}
+
+bool Table_function_json::walk(Item_processor processor, enum_walk walk,
+                               uchar *arg) {
+  // Only 'source' may reference columns of other tables; rest is literals.
+  return source->walk(processor, walk, arg);
+}
 
 List<Create_field> *Table_function_json::get_field_list() {
   // It's safe as Json_table_column is derived from Create_field
@@ -270,7 +274,6 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
   The function goes recursively, starting from the top NESTED PATH clause
   and going in the depth-first way, traverses the tree of columns.
 
-  @param thd       thread handler
   @param nest_idx  index of parent's element in the nesting data array
   @param parent    Parent of the NESTED PATH clause being initialized
 
@@ -279,7 +282,7 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
     true   an error occurred
 */
 
-bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
+bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
                                                     Json_table_column *parent) {
   List_iterator<Json_table_column> li(*parent->m_nested_columns);
   Json_table_column *col;
@@ -299,7 +302,6 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
     if (col->m_jtc_type != enum_jt_column::JTC_NESTED_PATH) {
       col->m_field_idx = m_vt_list.elements;
       m_vt_list.push_back(col);
-      col->create_length_to_internal_length();
       if (check_column_name(col->field_name)) {
         my_error(ER_WRONG_COLUMN_NAME, MYF(0), col->field_name);
         return true;
@@ -372,7 +374,7 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
         nested = col;
 
         if (parse_path(&path, false, &col->m_path_json) ||
-            init_json_table_col_lists(thd, nest_idx, col))
+            init_json_table_col_lists(nest_idx, col))
           return true;
         break;
       }
@@ -446,7 +448,7 @@ bool Table_function_json::init() {
   Json_table_column top({nullptr, 0}, m_columns);
   if (m_vt_list.elements == 0) {
     uint nest_idx = 0;
-    if (init_json_table_col_lists(thd, &nest_idx, &top)) return true;
+    if (init_json_table_col_lists(&nest_idx, &top)) return true;
     List_iterator<Json_table_column> li(m_vt_list);
 
     /*
@@ -665,8 +667,6 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
 }
 
 void Json_table_column::cleanup() {
-  // Restore original length as it was adjusted according to charset
-  length = char_length;
   // Reset paths and wrappers to free allocated memory.
   m_path_json = Json_path();
   if (m_on_empty == enum_jtc_on::JTO_DEFAULT)
@@ -788,6 +788,7 @@ bool Table_function_json::fill_json_table() {
 
 bool Table_function_json::fill_result_table() {
   String buf;
+  DBUG_ASSERT(!table->materialized);
   // reset table
   empty_table();
 
@@ -918,13 +919,13 @@ bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
 
 bool Table_function_json::print(String *str, enum_query_type query_type) {
   if (str->append(STRING_WITH_LEN("json_table("))) return true;
-  source->print(str, query_type);
+  source->print(thd, str, query_type);
   return (thd->is_error() || str->append(STRING_WITH_LEN(", ")) ||
           print_nested_path(m_columns->head(), str, query_type) ||
           str->append(')'));
 }
 
-table_map Table_function_json::used_tables() { return source->used_tables(); };
+table_map Table_function_json::used_tables() { return source->used_tables(); }
 
 void Table_function_json::do_cleanup() {
   source->cleanup();

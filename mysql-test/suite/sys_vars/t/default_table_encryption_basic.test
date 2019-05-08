@@ -1,0 +1,193 @@
+
+--echo # This file contains test cases to validate the behavior of system
+--echo # variables 'default_table_encryption' with various permissions a user
+--echo # can have.
+
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # VARIABLE USED BY NORMAL USER.
+--echo #
+
+--echo #
+--echo # SET default_table_encryption
+--echo #
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION default_table_encryption=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL default_table_encryption=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST default_table_encryption=true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY default_table_encryption=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH TABLE_ENCRYPTION_ADMIN privilege.
+--echo #
+
+connection default;
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET default_table_encryption
+--echo #
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION default_table_encryption=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL default_table_encryption=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST default_table_encryption=true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY default_table_encryption=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH SYSTEM_VARIABLES_ADMIN privilege.
+--echo #
+
+connection default;
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET default_table_encryption
+--echo #
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION default_table_encryption=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL default_table_encryption=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST default_table_encryption=true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY default_table_encryption=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH BOTH TABLE_ENCRYPTION_ADMIN and 
+--echo # SYSTEM_VARIABLES_ADMIN privilege.
+--echo #
+
+connection default;
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET default_table_encryption
+--echo #
+
+SET SESSION default_table_encryption=true;
+SELECT @@session.default_table_encryption = true;
+
+SET GLOBAL default_table_encryption=false;
+SELECT @@global.default_table_encryption = false;
+
+SET PERSIST default_table_encryption=true;
+SELECT @@global.default_table_encryption = true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY default_table_encryption=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH PERSIST_RO_VARIABLES_ADMIN,
+--echo # TABLE_ENCRYPTION_ADMIN && SYSTEM_VARIABLES_ADMIN privilege.
+--echo #
+
+connection default;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET default_table_encryption
+--echo #
+
+SET SESSION default_table_encryption=true;
+SELECT @@session.default_table_encryption = true;
+
+SET GLOBAL default_table_encryption=false;
+SELECT @@global.default_table_encryption = false;
+
+SET PERSIST default_table_encryption=true;
+SELECT @@global.default_table_encryption = true;
+
+SET PERSIST_ONLY default_table_encryption=false;
+SELECT @@global.default_table_encryption = true;
+
+--echo #
+--echo # Test changing the value to invalid value
+--echo #
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL default_table_encryption = -1;
+SELECT @@global.default_table_encryption;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL default_table_encryption = 100000000000;
+SELECT @@global.default_table_encryption;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL default_table_encryption = 10000.01;
+SELECT @@global.default_table_encryption;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.default_table_encryption = 'test';
+SELECT @@global.default_table_encryption;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.default_table_encryption = ' ';
+SELECT @@global.default_table_encryption;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH SUPER privilege.
+--echo #
+
+connection default;
+disconnect con1;
+REVOKE TABLE_ENCRYPTION_ADMIN, SYSTEM_VARIABLES_ADMIN,
+       PERSIST_RO_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+GRANT SUPER ON *.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET default_table_encryption
+--echo #
+
+SET SESSION default_table_encryption=true;
+SELECT @@session.default_table_encryption = true;
+
+SET GLOBAL default_table_encryption=false;
+SELECT @@global.default_table_encryption = false;
+
+SET PERSIST default_table_encryption=true;
+SELECT @@global.default_table_encryption = true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY default_table_encryption=true;
+
+connection default;
+disconnect con1;
+REVOKE SUPER ON *.* FROM u1@localhost;
+DROP USER u1@localhost;
+RESET PERSIST;
+SET GLOBAL default_table_encryption=default;

@@ -1,0 +1,169 @@
+## Test of general functionality of prepare statement
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_pipeline.xpl
+-->import assert_variable.macro
+-->quiet
+
+-->echo
+-->echo ## 1. Verify pipelining of single prepare-execute request
+-->echo #   a. prepare-execute
+-->echo #   b. prepare-execute-cursor_open
+-->echo ## 2. Verify pipelining of mixed prepare-execute requests
+-->echo #   a. prepare1-preapre2-execute1-execute2
+-->echo #   b. prepare1-preapre2-execute1-deallocate1-execute2-deallocate2
+
+-->title = 1.a. Verify pipelining of single prepare-execute request (prepeare-execute)
+echo # Pipeline Mysqlx.Prepare.Prepare;
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+echo # Pipeline Mysqlx.Prepare.Execute;
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+echo # Receive Mysqlx.Prepare.Prepare;
+-->recvok
+echo # Receive Mysqlx.Prepare.Execute;
+-->recvresult
+
+-->title = 1.b. Verify pipelining of single prepare-execute request (prepeare-execute-cursor_open)
+echo # Pipeline Mysqlx.Prepare.Prepare;
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 2"
+    }
+  }
+}
+echo # Pipeline Mysqlx.Prepare.Execute;
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+echo # Pipeline Mysqlx.Cursor.Open;
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+echo # Receive Mysqlx.Prepare.Prepare;
+-->recvok
+echo # Receive Mysqlx.Prepare.Execute;
+-->recvresult
+echo # Receive Mysqlx.Cursor.Open;
+-->recvresult
+
+-->title = 2.a. Verify pipelining of mixed prepare-execute request (prepeare1-prepeare2-execute1-execute2)
+echo # Pipeline Mysqlx.Prepare.Prepare;
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 3"
+    }
+  }
+}
+echo # Pipeline Mysqlx.Prepare.Prepare;
+Mysqlx.Prepare.Prepare {
+  stmt_id: 4
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 4"
+    }
+  }
+}
+echo # Pipeline Mysqlx.Prepare.Execute;
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+}
+echo # Pipeline Mysqlx.Prepare.Execute;
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+}
+echo # Receive Mysqlx.Prepare.Prepare;
+-->recvok
+echo # Receive Mysqlx.Prepare.Prepare;
+-->recvok
+echo # Receive Mysqlx.Prepare.Execute;
+-->recvresult
+echo # Receive Mysqlx.Prepare.Execute;
+-->recvresult
+
+-->title = 2.b. Verify pipelining of mixed prepare-execute request (prepeare1-prepeare2-execute1-deallocate1-execute2-deallocate2)
+echo # Pipeline Mysqlx.Prepare.Prepare;
+Mysqlx.Prepare.Prepare {
+  stmt_id: 5
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 5"
+    }
+  }
+}
+echo # Pipeline Mysqlx.Prepare.Prepare;
+Mysqlx.Prepare.Prepare {
+  stmt_id: 6
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 6"
+    }
+  }
+}
+echo # Pipeline Mysqlx.Prepare.Execute;
+Mysqlx.Prepare.Execute {
+  stmt_id: 5
+}
+echo # Pipeline Mysqlx.Prepare.Deallocate;
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 5
+}
+echo # Pipeline Mysqlx.Prepare.Execute;
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+}
+echo # Pipeline Mysqlx.Prepare.Deallocate;
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 6
+}
+echo # Receive Mysqlx.Prepare.Prepare;
+-->recvok
+echo # Receive Mysqlx.Prepare.Prepare;
+-->recvok
+echo # Receive Mysqlx.Prepare.Execute;
+-->recvresult
+echo # Receive Mysqlx.Prepare.Deallocate;
+-->recvok
+echo # Receive Mysqlx.Prepare.Execute;
+-->recvresult
+echo # Receive Mysqlx.Prepare.Deallocate;
+-->recvok
+
+EOF
+
+exec $MYSQLXTEST
+  -ux_root --password='' --schema test
+  --file=$MYSQL_TMP_DIR/prep_stmt_pipeline.xpl 2>&1;
+
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

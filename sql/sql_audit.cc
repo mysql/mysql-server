@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -955,6 +955,33 @@ int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
       thd, MYSQL_AUDIT_AUTHENTICATION_CLASS, subclass_name, &event));
 }
 
+int mysql_audit_notify(THD *thd, mysql_event_message_subclass_t subclass,
+                       const char *subclass_name, const char *component,
+                       size_t component_length, const char *producer,
+                       size_t producer_length, const char *message,
+                       size_t message_length,
+                       mysql_event_message_key_value_t *key_value_map,
+                       size_t key_value_map_length) {
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_MESSAGE_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
+
+  mysql_event_message event;
+
+  event.event_subclass = subclass;
+  event.component.str = component;
+  event.component.length = component_length;
+  event.producer.str = producer;
+  event.producer.length = producer_length;
+  event.message.str = message;
+  event.message.length = message_length;
+  event.key_value_map = key_value_map;
+  event.key_value_map_length = key_value_map_length;
+
+  return event_class_dispatch_error(thd, MYSQL_AUDIT_MESSAGE_CLASS,
+                                    subclass_name, &event);
+}
+
 /**
   Acquire plugin masks subscribing to the specified event of the specified
   class, passed by arg parameter. lookup_mask of the st_mysql_subscribe_event
@@ -997,15 +1024,23 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg) {
     return false;
   }
 
+  /* Prevent from adding the same plugin more than one time. */
+  if (!thd->audit_class_plugins.exists(plugin)) {
+    /* lock the plugin and add it to the list */
+    plugin = my_plugin_lock(NULL, &plugin);
+
+    /* The plugin could not be acquired. */
+    if (plugin == NULL) {
+      /* Add this plugin mask to non subscribed mask. */
+      add_audit_mask(evt->not_subscribed_mask, data->class_mask);
+      return false;
+    }
+
+    thd->audit_class_plugins.push_back(plugin);
+  }
+
   /* Copy subscription mask from the plugin into the array. */
   add_audit_mask(evt->subscribed_mask, data->class_mask);
-
-  /* Prevent from adding the same plugin more than one time. */
-  if (thd->audit_class_plugins.exists(plugin)) return false;
-
-  /* lock the plugin and add it to the list */
-  plugin = my_plugin_lock(NULL, &plugin);
-  thd->audit_class_plugins.push_back(plugin);
 
   return false;
 }
@@ -1373,4 +1408,18 @@ bool is_global_audit_mask_set() {
     if (mysql_global_audit_mask[i] != 0) return true;
   }
   return false;
+}
+
+size_t make_user_name(Security_context *sctx, char *buf) {
+  LEX_CSTRING sctx_user = sctx->user();
+  LEX_CSTRING sctx_host = sctx->host();
+  LEX_CSTRING sctx_ip = sctx->ip();
+  LEX_CSTRING sctx_priv_user = sctx->priv_user();
+  return static_cast<size_t>(
+      strxnmov(buf, MAX_USER_HOST_SIZE,
+               sctx_priv_user.str[0] ? sctx_priv_user.str : "", "[",
+               sctx_user.length ? sctx_user.str : "", "] @ ",
+               sctx_host.length ? sctx_host.str : "", " [",
+               sctx_ip.length ? sctx_ip.str : "", "]", NullS) -
+      buf);
 }

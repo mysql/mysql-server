@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <cstring>
@@ -40,6 +41,7 @@
 #include "sql/field.h"
 #include "sql/filesort.h"  // Filesort
 #include "sql/handler.h"
+#include "sql/item.h"
 #include "sql/mysqld.h"  // stage_executing
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
@@ -58,12 +60,16 @@
 #include "thr_lock.h"
 #include "varlen_sort.h"
 
-SortFileIndirectIterator::SortFileIndirectIterator(
-    THD *thd, TABLE *table, IO_CACHE *tempfile, bool request_cache,
-    bool ignore_not_found_rows, Item *pushed_condition, ha_rows *examined_rows)
+using std::string;
+using std::vector;
+
+SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
+                                                   IO_CACHE *tempfile,
+                                                   bool request_cache,
+                                                   bool ignore_not_found_rows,
+                                                   ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_io_cache(tempfile),
-      m_pushed_condition(pushed_condition),
       m_examined_rows(examined_rows),
       m_record(table->record[0]),
       m_ref_pos(table->file->ref),
@@ -79,12 +85,17 @@ SortFileIndirectIterator::~SortFileIndirectIterator() {
 }
 
 bool SortFileIndirectIterator::Init() {
-  if (!table()->file->inited) {
-    int error = table()->file->ha_rnd_init(0);
-    if (error) {
-      PrintError(error);
-      return true;
-    }
+  // The sort's source iterator could have initialized an index
+  // read, and it won't call end until it's destroyed (which we
+  // can't do before destroying SortingIterator, since we may need
+  // to scan/sort multiple times). Thus, as a small hack, we need
+  // to reset it here.
+  table()->file->ha_index_or_rnd_end();
+
+  int error = table()->file->ha_rnd_init(0);
+  if (error) {
+    PrintError(error);
+    return true;
   }
 
   /*
@@ -107,8 +118,6 @@ bool SortFileIndirectIterator::Init() {
   } else {
     m_using_cache = false;
   }
-
-  PushDownCondition(m_pushed_condition);
 
   DBUG_PRINT("info", ("using cache: %d", m_using_cache));
   return false;
@@ -248,6 +257,12 @@ int SortFileIndirectIterator::CachedRead() {
   }
 }
 
+vector<string> SortFileIndirectIterator::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return {string("Read sorted data: Row IDs from file, records from ") +
+          table()->alias};
+}
+
 template <bool Packed_addon_fields>
 SortFileIterator<Packed_addon_fields>::SortFileIterator(THD *thd, TABLE *table,
                                                         IO_CACHE *tempfile,
@@ -309,6 +324,13 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
+vector<string> SortFileIterator<Packed_addon_fields>::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return {string("Read sorted data from file (originally from ") +
+          table()->alias + ")"};
+}
+
+template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
     THD *thd, TABLE *table, Filesort_info *sort, Sort_result *sort_result,
     ha_rows *examined_rows)
@@ -362,13 +384,19 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
   return 0;
 }
 
+template <bool Packed_addon_fields>
+vector<string> SortBufferIterator<Packed_addon_fields>::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return {string("Read sorted data from memory (originally from ") +
+          table()->alias + ")"};
+}
+
 SortBufferIndirectIterator::SortBufferIndirectIterator(
     THD *thd, TABLE *table, Sort_result *sort_result,
-    bool ignore_not_found_rows, Item *pushed_condition, ha_rows *examined_rows)
+    bool ignore_not_found_rows, ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_sort_result(sort_result),
       m_ref_length(table->file->ref_length),
-      m_pushed_condition(pushed_condition),
       m_examined_rows(examined_rows),
       m_record(table->record[0]),
       m_ignore_not_found_rows(ignore_not_found_rows) {}
@@ -394,7 +422,6 @@ bool SortBufferIndirectIterator::Init() {
     PrintError(error);
     return true;
   }
-  PushDownCondition(m_pushed_condition);
   m_cache_pos = m_sort_result->sorted_result.get();
   m_cache_end =
       m_cache_pos + m_sort_result->found_records * table()->file->ref_length;
@@ -421,6 +448,12 @@ int SortBufferIndirectIterator::Read() {
       continue;
     return HandleError(tmp);
   }
+}
+
+vector<string> SortBufferIndirectIterator::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return {string("Read sorted data: Row IDs from memory, records from ") +
+          table()->alias};
 }
 
 SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
@@ -505,7 +538,7 @@ bool SortingIterator::Init() {
               SortFileIndirectIterator(thd(), table, m_sort_result.io_cache,
                                        /*request_cache=*/true,
                                        /*ignore_not_found_rows=*/false,
-                                       qep_tab->condition(), m_examined_rows));
+                                       m_examined_rows));
     }
     m_sort_result.io_cache =
         nullptr;  // The result iterator has taken ownership.
@@ -530,7 +563,6 @@ bool SortingIterator::Init() {
           new (&m_result_iterator_holder.sort_buffer_indirect)
               SortBufferIndirectIterator(thd(), table, &m_sort_result,
                                          /*ignore_not_found_rows=*/false,
-                                         qep_tab->condition(),
                                          m_examined_rows));
     }
   }
@@ -574,7 +606,7 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
       DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
       // Update ref value
       if (cp_buffer_from_ref(thd(), table, &qep_tab->ref()) &&
-          thd()->is_fatal_error)
+          thd()->is_fatal_error())
         return -1;  // out of memory
     }
   }
@@ -586,8 +618,6 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
       return -1;
   }
 
-  if (table->s->tmp_table)
-    table->file->info(HA_STATUS_VARIABLE);  // Get record count
   ha_rows found_rows, returned_rows;
   bool error = filesort(thd(), m_filesort, qep_tab->keep_current_rowid,
                         m_source_iterator.get(), &m_sort_result, &found_rows,
@@ -620,4 +650,37 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
     else
       field->unpack(field->ptr, buff + addonf->offset);
   }
+}
+
+vector<string> SortingIterator::DebugString() const {
+  string ret = "Sort: ";
+
+  bool first = true;
+  for (unsigned i = 0; i < m_filesort->sort_order_length(); ++i) {
+    if (first) {
+      first = false;
+    } else {
+      ret += ", ";
+    }
+
+    const st_sort_field *order = &m_filesort->sortorder[i];
+    if (order->item) {
+      ret += ItemToString(order->item);
+    } else {
+      ret += order->field->table->alias;
+      ret += ".";
+      ret += order->field->field_name;
+    }
+    if (order->reverse) {
+      ret += " DESC";
+    }
+  }
+  if (m_filesort->limit != HA_POS_ERROR) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), ", limit input to %llu row(s) per chunk",
+             m_filesort->limit);
+    ret += buf;
+  }
+
+  return {ret};
 }

@@ -49,7 +49,7 @@ ErrorPacket::ErrorPacket(uint8_t sequence_id, uint16_t err_code,
 ErrorPacket::ErrorPacket(const std::vector<uint8_t> &buffer,
                          Capabilities::Flags capabilities)
     : Packet(buffer, capabilities) {
-  parse_payload();
+  parse_payload();  // throws mysql_protocol::packet_error
 }
 
 static constexpr uint8_t kHashChar = 0x23;  // 0x23 == '#'

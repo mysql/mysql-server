@@ -46,30 +46,31 @@ class Insert_statement_builder_stub : public Insert_statement_builder {
   using Insert_statement_builder::add_upsert;
   using Insert_statement_builder::add_values;
   StrictMock<ngs::test::Mock_id_generator> mock_id_generator;
-  Insert_statement_builder::Document_id_list m_id_list;
-  Insert_statement_builder::Document_id_aggregator m_id_agg{&mock_id_generator,
-                                                            &m_id_list};
+  Document_id_aggregator m_id_agg{&mock_id_generator};
 };
+
+using Placeholder_id_list = Expression_generator::Placeholder_id_list;
 
 class Insert_statement_builder_test : public ::testing::Test {
  public:
-  void SetUp() {
+  Insert_statement_builder_stub &builder(
+      Expression_generator::Placeholder_id_list *ids = nullptr) {
     expr_gen.reset(new Expression_generator(&query, args, schema,
                                             is_table_data_model(msg)));
+    if (ids) expr_gen->set_placeholder_id_list(ids);
     stub.reset(new Insert_statement_builder_stub(expr_gen.get()));
-
     EXPECT_CALL(stub->mock_id_generator, generate(_))
         .WillRepeatedly(Return("0ff0"));
+    return *stub;
   }
 
-  Insert_statement_builder_stub &builder() { return *stub; }
-
   Insert_statement_builder::Insert msg;
-  Expression_generator::Args &args = *msg.mutable_args();
+  Expression_generator::Arg_list &args = *msg.mutable_args();
   Query_string_builder query;
   std::string schema;
   std::unique_ptr<Expression_generator> expr_gen;
   std::unique_ptr<Insert_statement_builder_stub> stub;
+  Placeholder_id_list placeholders;
 
   enum { k_dm_document = 0, k_dm_table = 1 };
 };
@@ -185,9 +186,7 @@ TEST_F(Insert_statement_builder_test, add_upsert) {
 }
 
 TEST_F(Insert_statement_builder_test, build_document) {
-  msg.set_data_model(Mysqlx::Crud::DOCUMENT);
-  *msg.mutable_collection() = Collection("xcoll", "xtest");
-  *msg.mutable_row() = Row_list{{k_doc_example1}, {k_doc_example2}};
+  msg = Insert({"xcoll", "xtest"}).row({{k_doc_example1}, {k_doc_example2}});
   ASSERT_NO_THROW(builder().build(msg));
   EXPECT_STREQ(
       "INSERT INTO `xtest`.`xcoll` (doc) "
@@ -196,11 +195,9 @@ TEST_F(Insert_statement_builder_test, build_document) {
 }
 
 TEST_F(Insert_statement_builder_test, build_table) {
-  msg.set_data_model(Mysqlx::Crud::TABLE);
-  *msg.mutable_collection() = Collection("xtable", "xtest");
-  *msg.mutable_projection() =
-      Column_projection_list{Column("one"), Column("two")};
-  *msg.mutable_row() = Row_list{{"first", "second"}};
+  msg = Insert({"xtable", "xtest"}, Mysqlx::Crud::TABLE)
+            .projection({{"one"}, {"two"}})
+            .row({{"first", "second"}});
   ASSERT_NO_THROW(builder().build(msg));
   EXPECT_STREQ(
       "INSERT INTO `xtest`.`xtable` (`one`,`two`) "
@@ -209,10 +206,9 @@ TEST_F(Insert_statement_builder_test, build_table) {
 }
 
 TEST_F(Insert_statement_builder_test, build_document_upsert) {
-  msg.set_data_model(Mysqlx::Crud::DOCUMENT);
-  msg.set_upsert(true);
-  *msg.mutable_collection() = Collection("xcoll", "xtest");
-  *msg.mutable_row() = Row_list{{k_doc_example1}, {k_doc_example2}};
+  msg = Insert({"xcoll", "xtest"})
+            .upsert(true)
+            .row({{k_doc_example1}, {k_doc_example2}});
   ASSERT_NO_THROW(builder().build(msg));
   EXPECT_STREQ(
       "INSERT INTO `xtest`.`xcoll` (doc) VALUES "
@@ -225,10 +221,9 @@ TEST_F(Insert_statement_builder_test, build_document_upsert) {
 }
 
 TEST_F(Insert_statement_builder_test, build_table_upsert) {
-  msg.set_data_model(Mysqlx::Crud::TABLE);
-  msg.set_upsert(true);
-  *msg.mutable_collection() = Collection("xcoll", "xtest");
-  *msg.mutable_row() = Row_list{{"first"}, {"second"}};
+  msg = Insert({"xtable", "xtest"}, Mysqlx::Crud::TABLE)
+            .upsert(true)
+            .row({{"first"}, {"second"}});
   ASSERT_THROW(builder().build(msg), ngs::Error_code);
 }
 
@@ -335,5 +330,77 @@ Param_add_document add_document_param[] = {
 INSTANTIATE_TEST_CASE_P(Insert_statement_builder_add_document,
                         Add_document_param_test,
                         testing::ValuesIn(add_document_param));
+
+struct Param_add_prep_stmt_document {
+  std::string expect_query;
+  Placeholder_id_list expect_placeholders;
+  Expr fields;
+};
+
+class Add_prep_stmt_document_param_test
+    : public Insert_statement_builder_test,
+      public ::testing::WithParamInterface<Param_add_prep_stmt_document> {};
+
+TEST_P(Add_prep_stmt_document_param_test, add_prep_stmt_document) {
+  const ParamType &param = GetParam();
+  ASSERT_NO_THROW(
+      builder(&placeholders).add_document(Field_list{param.fields}));
+  EXPECT_STREQ(param.expect_query.c_str(), query.get().c_str());
+  EXPECT_EQ(param.expect_placeholders, placeholders);
+}
+
+#define EXPECT_VALUE(val)                                                    \
+  "((SELECT JSON_INSERT(`_DERIVED_TABLE_`.`value`,'$._id',"                  \
+  "CONVERT(MYSQLX_GENERATE_DOCUMENT_ID(@@AUTO_INCREMENT_OFFSET,"             \
+  "@@AUTO_INCREMENT_INCREMENT,JSON_CONTAINS_PATH(`_DERIVED_TABLE_`.`value`," \
+  "'one','$._id')) USING utf8mb4)) "                                         \
+  "FROM (SELECT " val " AS `value`) AS `_DERIVED_TABLE_`))"
+
+Param_add_prep_stmt_document add_prep_stmt_document_param[] = {
+    {EXPECT_VALUE("'" EXPECT_DOC_EXAMPLE1 "'"), {}, k_doc_example1},
+    {EXPECT_VALUE("3.14"), {}, 3.14},
+    {EXPECT_VALUE("JSON_OBJECT('_id','abc1','one',1)"),
+     {},
+     Object{{"_id", "abc1"}, {"one", 1}}},
+    {EXPECT_VALUE("'" EXPECT_DOC_EXAMPLE1 "'"),
+     {},
+     Scalar{k_doc_example1, Expression_generator::CT_PLAIN}},
+    {EXPECT_VALUE("CAST('" EXPECT_DOC_EXAMPLE1 "' AS JSON)"),
+     {},
+     Scalar{k_doc_example1, Expression_generator::CT_JSON}},
+    {EXPECT_VALUE("'abc'"), {}, Scalar{"abc", Expression_generator::CT_XML}},
+    {EXPECT_VALUE("'" EXPECT_DOC_EXAMPLE_NO_ID "'"), {}, k_doc_example_no_id},
+    {EXPECT_VALUE("'{}'"), {}, "{}"},
+    {EXPECT_VALUE("JSON_OBJECT('tree',3)"), {}, Object{{"tree", 3}}},
+    {EXPECT_VALUE("JSON_OBJECT()"), {}, Object{}},
+    {EXPECT_VALUE("JSON_OBJECT('extra',JSON_OBJECT('_id','abc1','one',1))"),
+     {},
+     Object{{"extra", Object{{"_id", "abc1"}, {"one", 1}}}}},
+    {EXPECT_VALUE("JSON_OBJECT('extra','" EXPECT_DOC_EXAMPLE1 "')"),
+     {},
+     Object{{"extra", k_doc_example1}}},
+    {EXPECT_VALUE("'{\\\"extra\\\":" EXPECT_DOC_EXAMPLE2 "}'"),
+     {},
+     Scalar::String(std::string(R"({"extra":)") + k_doc_example2 + "}")},
+    {EXPECT_VALUE("'{\\\"_id\\\":\\\"abc3\\\","
+                  " \\\"extra\\\":" EXPECT_DOC_EXAMPLE2 "}'"),
+     {},
+     Scalar::String(std::string(R"({"_id":"abc3", "extra":)") + k_doc_example2 +
+                    "}")},
+    {EXPECT_VALUE("'{\\\"extra\\\":" EXPECT_DOC_EXAMPLE2
+                  ", \\\"_id\\\":\\\"abc3\\\"}'"),
+     {},
+     Scalar::String(std::string(R"({"extra":)") + k_doc_example2 +
+                    R"(, "_id":"abc3"})")},
+    {EXPECT_VALUE("?"), {0}, Placeholder(0)},
+    {EXPECT_VALUE("JSON_OBJECT('tree',?)"),
+     {0},
+     Object{{"tree", Placeholder(0)}}},
+};
+
+INSTANTIATE_TEST_CASE_P(Insert_statement_builder_add_prep_stmt_document,
+                        Add_prep_stmt_document_param_test,
+                        testing::ValuesIn(add_prep_stmt_document_param));
+
 }  // namespace test
 }  // namespace xpl

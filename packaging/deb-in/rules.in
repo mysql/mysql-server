@@ -50,7 +50,8 @@ override_dh_auto_configure:
 		-DWITH_INNODB_MEMCACHED=1 \
 		-DWITH_MECAB=system \
 		-DWITH_NUMA=ON \
-		-DCOMPILATION_COMMENT="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@" \
+		-DCOMPILATION_COMMENT="MySQL @DEB_PRODUCTNAMEC@ - @DEB_LICENSENAME@" \
+		-DCOMPILATION_COMMENT_SERVER="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@" \
 		-DINSTALL_LAYOUT=DEB \
 		-DREPRODUCIBLE_BUILD=OFF \
 		-DDEB_PRODUCT=@DEB_PRODUCT@ \
@@ -100,7 +101,7 @@ override_dh_installinit:
 	touch $@
 
 override_dh_install:
-	dh_install --list-missing \
+	dh_install --fail-missing \
 		-Xusr/bin/i_mysql_client_test \
 		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/mysql.server \
 		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE-test \

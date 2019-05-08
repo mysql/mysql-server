@@ -685,7 +685,7 @@ FLUSH STATUS;
 TRUNCATE TABLE t2;
 
 connection monitor;
---replace_regex /[0-9]*//
+--replace_regex /[0-9]+//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -711,7 +711,7 @@ FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION p1;
 
 connection monitor;
---replace_regex /[0-9]*//
+--replace_regex /[0-9]+//
 --source include/get_handler_status_counts.inc
 connection default;
 

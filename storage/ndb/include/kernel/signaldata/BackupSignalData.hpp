@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,7 @@ public:
   STATIC_CONST( SignalLength = 4 );
   STATIC_CONST( WAITCOMPLETED = 0x3 );
   STATIC_CONST( USE_UNDO_LOG = 0x4 );
+  STATIC_CONST( MT_BACKUP = 0x8);
 
 private:
   Uint32 senderData;
@@ -143,7 +144,8 @@ private:
     OutOfResources = 1303,
     SequenceFailure = 1304,
     BackupDefinitionNotImplemented = 1305,
-    CannotBackupDiskless = 1306
+    CannotBackupDiskless = 1306,
+    BackupDuringUpgradeUnsupported = 1329
   };
   Uint32 senderData;
   Uint32 errorCode;
@@ -246,11 +248,12 @@ class AbortBackupOrd {
    * Sender / Reciver
    */
   friend class Backup;
+  friend class BackupProxy;
   friend class MgmtSrvr;
 
   friend bool printABORT_BACKUP_ORD(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
   enum RequestType {
     ClientAbort = 1321,
@@ -271,6 +274,7 @@ private:
     Uint32 backupPtr;
     Uint32 senderData;
   };
+  Uint32 senderRef;
 };
 
 

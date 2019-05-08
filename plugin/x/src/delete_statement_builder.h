@@ -31,7 +31,7 @@ namespace xpl {
 
 class Delete_statement_builder : public Crud_statement_builder {
  public:
-  typedef ::Mysqlx::Crud::Delete Delete;
+  using Delete = ::Mysqlx::Crud::Delete;
 
   explicit Delete_statement_builder(const Expression_generator &gen)
       : Crud_statement_builder(gen) {}

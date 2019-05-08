@@ -33,10 +33,10 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/create_field.h"   // Create_field
 #include "sql/dd/dd.h"          // dd::get_dictionary
 #include "sql/dd/dictionary.h"  // dd::Dictionary::check_dd...
 #include "sql/derror.h"         // ER_THD
-#include "sql/field.h"          // Create_field
 #include "sql/item.h"           // Item_field
 #include "sql/item_func.h"      // Item_field
 #include "sql/sql_class.h"      // THD

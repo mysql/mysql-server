@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,6 +177,13 @@ mt_get_trp_receive_handle(unsigned instance);
 Uint32
 mt_get_recv_thread_idx(NodeId nodeId);
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+void mt_enable_global_variables(Uint32 self);
+void mt_disable_global_variables(Uint32 self);
+void mt_init_global_variables_ptr_instances(Uint32,void**,size_t);
+void mt_init_global_variables_uint32_ptr_instances(Uint32,void**,size_t);
+void mt_init_global_variables_uint32_instances(Uint32,void**,size_t);
+#endif
 
 #undef JAM_FILE_ID
 

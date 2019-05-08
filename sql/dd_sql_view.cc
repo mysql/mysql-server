@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"   // LEX
 #include "sql/sql_view.h"  // mysql_register_view
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE_LIST
 #include "sql/thd_raii.h"
@@ -102,7 +103,7 @@ class View_metadata_updater_context {
     m_thd->set_open_tables_state(&m_open_tables_state_backup);
 
     // Restore lex.
-    m_thd->lex->unit->cleanup(true);
+    m_thd->lex->unit->cleanup(m_thd, true);
     lex_end(m_thd->lex);
     delete static_cast<st_lex_local *>(m_thd->lex);
     m_thd->lex = m_saved_lex;
@@ -153,7 +154,7 @@ class View_metadata_updater_error_handler final
         break;
     }
     return is_view_error_handled();
-  };
+  }
 
   bool is_view_invalid() const { return m_sql_errno == ER_VIEW_INVALID; }
 
@@ -244,7 +245,8 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       if (vw_name == nullptr) DBUG_RETURN(true);
 
       vw->init_one_table(db_name, schema_name.length(), vw_name,
-                         view_name.length(), vw_name, TL_WRITE, MDL_EXCLUSIVE);
+                         view_name.length(), vw_name, TL_IGNORE, MDL_EXCLUSIVE);
+      vw->updating = true;
 
       views->push_back(vw);
       prepared_view_ids.insert(view_ids.at(idx));
@@ -493,9 +495,9 @@ static bool open_views_and_update_metadata(
         order->used_alias = false;  /// @see Item::print_for_order()
     }
     Sql_mode_parse_guard parse_guard(thd);
-    thd->lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
-    if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
-                              view_query.length(), false))
+    thd->lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
+    if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
+                           view_query.length()))
       DBUG_RETURN(true);
 
     // Update view metadata in the data-dictionary tables.
@@ -517,7 +519,7 @@ static bool open_views_and_update_metadata(
         res = trans_commit_stmt(thd) || trans_commit(thd);
     }
     if (res) {
-      view_lex->unit->cleanup(true);
+      view_lex->unit->cleanup(thd, true);
       lex_end(view_lex);
       thd->lex = org_lex;
       DBUG_RETURN(true);
@@ -525,7 +527,7 @@ static bool open_views_and_update_metadata(
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->get_db_name(),
                      view->get_table_name(), false);
 
-    view_lex->unit->cleanup(true);
+    view_lex->unit->cleanup(thd, true);
     lex_end(view_lex);
     thd->lex = org_lex;
   }
@@ -550,24 +552,22 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
                                            const char *name) {
   DBUG_ENTER("is_view_metadata_update_needed");
 
-  // Update view metadata for only non temporary user tables.
-  auto is_non_temp_user_table = [](THD *thd, const char *db, const char *name) {
-    LEX_STRING lex_db = {const_cast<char *>(db), strlen(db)};
-    LEX_STRING lex_name = {const_cast<char *>(name), strlen(name)};
-
-    if (dd::get_dictionary()->is_dd_schema_name(db) ||
-        get_table_category(lex_db, lex_name) != TABLE_CATEGORY_USER ||
-        find_temporary_table(thd, db, name))
-      return false;
-
-    return true;
+  /*
+    View metadata update is needed if table is not a temporary or dictionary
+    table.
+  */
+  auto is_non_dictionary_or_temp_table = [=]() {
+    bool is_tmp_table =
+        (thd->lex->sql_command == SQLCOM_CREATE_TABLE)
+            ? (thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
+            : (find_temporary_table(thd, db, name) != nullptr);
+    return (!is_tmp_table && !dd::get_dictionary()->is_dd_table_name(db, name));
   };
 
   bool retval = false;
   switch (thd->lex->sql_command) {
     case SQLCOM_CREATE_TABLE:
-      retval = is_non_temp_user_table(thd, db, name) &&
-               !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
+      retval = is_non_dictionary_or_temp_table();
       break;
     case SQLCOM_ALTER_TABLE: {
       DBUG_ASSERT(thd->lex->alter_info);
@@ -577,17 +577,17 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
           (Alter_info::ALTER_ADD_COLUMN | Alter_info::ALTER_DROP_COLUMN |
            Alter_info::ALTER_CHANGE_COLUMN | Alter_info::ALTER_RENAME |
            Alter_info::ALTER_OPTIONS | Alter_info::ALTER_CHANGE_COLUMN_DEFAULT);
-      retval = is_non_temp_user_table(thd, db, name) &&
+      retval = is_non_dictionary_or_temp_table() &&
                (thd->lex->alter_info->flags & alter_operations);
       break;
     }
     case SQLCOM_DROP_TABLE:
     case SQLCOM_RENAME_TABLE:
+    case SQLCOM_DROP_DB:
+      retval = is_non_dictionary_or_temp_table();
+      break;
     case SQLCOM_CREATE_VIEW:
     case SQLCOM_DROP_VIEW:
-    case SQLCOM_DROP_DB:
-      retval = is_non_temp_user_table(thd, db, name);
-      break;
     case SQLCOM_CREATE_SPFUNCTION:
     case SQLCOM_DROP_FUNCTION:
     case SQLCOM_INSTALL_PLUGIN:
@@ -735,8 +735,8 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   DBUG_RETURN(error);
 }
 
-void push_view_warning_or_error(THD *thd, const char *db,
-                                const char *view_name) {
+std::string push_view_warning_or_error(THD *thd, const char *db,
+                                       const char *view_name) {
   // Report error for "SHOW FIELDS/DESCRIBE" operations.
   if (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)
     my_error(ER_VIEW_INVALID, MYF(0), db, view_name);
@@ -744,4 +744,15 @@ void push_view_warning_or_error(THD *thd, const char *db,
     // Push invalid view warning.
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_VIEW_INVALID,
                         ER_THD(thd, ER_VIEW_INVALID), db, view_name);
+
+  /*
+     We can probably fetch the error message string from DA. The problem
+     is, the DA may not contain the condition if max_error_count is zero.
+     Even if max_error_count is non-zero, we have to fetch the last sql
+     condition from QA. Instead (as this is error handling code) to keep it
+     simple, we just prepare the error/warning string.
+   */
+  char err_message[MYSQL_ERRMSG_SIZE];
+  sprintf(err_message, ER_THD(thd, ER_VIEW_INVALID), db, view_name);
+  return std::string(err_message);
 }

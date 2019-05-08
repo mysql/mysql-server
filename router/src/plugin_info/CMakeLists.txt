@@ -20,22 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-FILE(GLOB_RECURSE sources ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc)
-INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/include)
-MYSQL_ADD_EXECUTABLE(mysqlrouter_plugin_info ${sources} COMPONENT Router)
 
-SET(common_libraries)
-IF(WIN32)
-  # we nedd harness for Path only on Windows
-  LIST(APPEND common_libraries harness-library)
-ENDIF()
-
-TARGET_LINK_LIBRARIES(mysqlrouter_plugin_info ${common_libraries}
-                      ${CMAKE_DL_LIBS})
-
-SET_TARGET_PROPERTIES(mysqlrouter_plugin_info PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-)
+ADD_SUBDIRECTORY(src/)
 
 IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_SUBDIRECTORY(tests/)

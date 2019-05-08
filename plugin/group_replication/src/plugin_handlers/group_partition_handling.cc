@@ -25,8 +25,10 @@
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/group_replication_priv.h>
 
+#include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 using std::string;
 
@@ -110,7 +112,7 @@ void Group_partition_handling::kill_transactions_and_leave() {
   notify_and_reset_ctx(ctx);
 
   bool set_read_mode = false;
-  Gcs_operations::enum_leave_state state = gcs_module->leave();
+  Gcs_operations::enum_leave_state state = gcs_module->leave(nullptr);
 
   longlong errcode = 0;
   longlong log_severity = WARNING_LEVEL;
@@ -134,6 +136,9 @@ void Group_partition_handling::kill_transactions_and_leave() {
   }
   LogPluginErr(log_severity, errcode);
 
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, timeout_on_unreachable);
+
   /*
     If true it means:
     1) The plugin is stopping and waiting on some transactions to finish.
@@ -150,10 +155,6 @@ void Group_partition_handling::kill_transactions_and_leave() {
   if (!already_locked) shared_stop_write_lock->release_write_lock();
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
-
-  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
-    abort_plugin_process("Fatal error during execution of Group Replication");
-  }
 
   DBUG_VOID_RETURN;
 }
@@ -281,6 +282,18 @@ int Group_partition_handling::partition_thread_handler() {
   if (!partition_handling_aborted) {
     partition_handling_terminated = true;
     kill_transactions_and_leave();
+
+    /*
+      Auto-rejoin should be attempted in the case of a leave due to loss of
+      majority (if the auto-rejoin process is enabled).
+    */
+    if (is_autorejoin_enabled()) {
+      autorejoin_module->start_autorejoin(get_number_of_autorejoin_tries(),
+                                          get_rejoin_timeout());
+      // Else we proceed according to group_replication_exit_state_action.
+    } else if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+      abort_plugin_process("Fatal error during execution of Group Replication");
+    }
   }
 
   mysql_mutex_lock(&run_lock);

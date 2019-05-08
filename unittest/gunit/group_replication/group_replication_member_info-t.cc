@@ -37,7 +37,7 @@ namespace gcs_member_info_unittest {
 
 class ClusterMemberInfoTest : public ::testing::Test {
  protected:
-  ClusterMemberInfoTest(){};
+  ClusterMemberInfoTest() {}
 
   virtual void SetUp() {
     string hostname("pc_hostname");
@@ -47,6 +47,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
     uint write_set_algorithm = 1;
     string executed_gtid("aaaa:1-10");
     uint lower_case_table_names = 0;
+    bool default_table_encryption = false;
     string retrieved_gtid("bbbb:1-10");
     ulonglong gtid_assignment_block_size = 9223372036854775807ULL;
     bool in_primary_mode = false;
@@ -65,7 +66,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
         local_member_plugin_version, gtid_assignment_block_size,
         Group_member_info::MEMBER_ROLE_PRIMARY, in_primary_mode,
         has_enforces_update_everywhere_checks, member_weight,
-        lower_case_table_names);
+        lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
     local_node->update_gtid_sets(executed_gtid, retrieved_gtid);
   }
 
@@ -82,7 +83,8 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest) {
   vector<uchar> *encoded = new vector<uchar>();
   local_node->encode(encoded);
 
-  Group_member_info decoded_local_node(&encoded->front(), encoded->size());
+  Group_member_info decoded_local_node(&encoded->front(), encoded->size(),
+                                       PSI_NOT_INSTRUMENTED);
 
   ASSERT_EQ(local_node->get_port(), decoded_local_node.get_port());
   ASSERT_EQ(local_node->get_hostname(), decoded_local_node.get_hostname());
@@ -110,7 +112,7 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest) {
 
 class ClusterMemberInfoManagerTest : public ::testing::Test {
  protected:
-  ClusterMemberInfoManagerTest(){};
+  ClusterMemberInfoManagerTest() {}
 
   virtual void SetUp() {
     string hostname("pc_hostname");
@@ -118,6 +120,7 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
     uint port = 4444;
     uint write_set_algorithm = 1;
     uint lower_case_table_names = 0;
+    bool default_table_encryption = false;
     uint plugin_version = 0x000400;
     gcs_member_id = new Gcs_member_identifier("stuff");
     ulonglong gtid_assignment_block_size = 9223372036854775807ULL;
@@ -135,9 +138,10 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
         local_member_plugin_version, gtid_assignment_block_size,
         Group_member_info::MEMBER_ROLE_SECONDARY, in_primary_mode,
         has_enforces_update_everywhere_checks, member_weight,
-        lower_case_table_names);
+        lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
 
-    cluster_member_mgr = new Group_member_info_manager(local_node);
+    cluster_member_mgr =
+        new Group_member_info_manager(local_node, PSI_NOT_INSTRUMENTED);
   }
 
   virtual void TearDown() {
@@ -158,6 +162,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
   uint port = 4444;
   uint write_set_algorithm = 1;
   uint lower_case_table_names = 0;
+  bool default_table_encryption = false;
   uint plugin_version = 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11");
@@ -176,7 +181,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
-      lower_case_table_names);
+      lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
   new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -301,6 +306,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   uint port = 4444;
   uint write_set_algorithm = 1;
   uint lower_case_table_names = 0;
+  bool default_table_encryption = false;
   uint plugin_version = 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11:12-14:16-20:22-30");
@@ -320,7 +326,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
-      lower_case_table_names);
+      lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
   new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -383,6 +389,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
             retrieved_local_info->get_member_weight());
   ASSERT_EQ(local_node->get_lower_case_table_names(),
             retrieved_local_info->get_lower_case_table_names());
+  ASSERT_EQ(local_node->get_default_table_encryption(),
+            retrieved_local_info->get_default_table_encryption());
 
   delete retrieved_local_info;
 }

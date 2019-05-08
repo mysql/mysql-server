@@ -1,22 +1,30 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef BINLOG_ISTREAM_INCLUDED
 #define BINLOG_ISTREAM_INCLUDED
 #include "my_sys.h"
 #include "sql/basic_istream.h"
+#include "sql/rpl_log_encryption.h"
 
 /**
    It defines the error types which could happen when reading binlog files or
@@ -58,7 +66,11 @@ class Binlog_read_error {
     // System IO error happened while reading the binlog magic
     HEADER_IO_FAILURE,
     // The binlog magic is incorrect
-    BAD_BINLOG_MAGIC
+    BAD_BINLOG_MAGIC,
+    INVALID_ENCRYPTION_HEADER,
+    CANNOT_GET_FILE_PASSWORD,
+    READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED,
+    ERROR_DECRYPTING_FILE
   };
 
   Binlog_read_error() {}
@@ -98,6 +110,45 @@ class Binlog_read_error {
 };
 
 /**
+  Seekable_istream with decryption feature. It can be setup into an stream
+  pipeline. In the pipeline, it decrypts the data from down stream and then
+  feeds the decrypted data into up stream.
+*/
+class Binlog_encryption_istream : public Basic_seekable_istream {
+ public:
+  ~Binlog_encryption_istream() override;
+
+  /**
+    Initialize the context used in the decryption stream.
+
+    @param[in] down_istream The down stream where the encrypted data is stored.
+    @param[in] binlog_read_error Binlog_encryption_istream doesn't own a
+                                 Binlog_read_error. So the caller should provide
+                                 one to it. When error happens, the error type
+                                 will be set into 'binlog_read_error'.
+
+    @retval false Succeed.
+    @retval true Error.
+  */
+  bool open(std::unique_ptr<Basic_seekable_istream> down_istream,
+            Binlog_read_error *binlog_read_error);
+  /**
+    Closes the stream. It also closes the down stream and the decryptor.
+  */
+  void close();
+
+  ssize_t read(unsigned char *buffer, size_t length) override;
+  bool seek(my_off_t offset) override;
+  my_off_t length() override;
+
+ private:
+  /* The decryptor cypher to decrypt the content read from down stream */
+  std::unique_ptr<Rpl_cipher> m_decryptor;
+  /* The down stream containing the encrypted content */
+  std::unique_ptr<Basic_seekable_istream> m_down_istream;
+};
+
+/**
    Base class of binlog input files. It is a logical binlog file which wraps
    and hides the detail of lower layer storage implementation. Binlog reader and
    other binlog code just uses this class to control real storage.
@@ -113,7 +164,7 @@ class Basic_binlog_ifile : public Basic_seekable_istream {
   Basic_binlog_ifile(Binlog_read_error *binlog_read_error);
   Basic_binlog_ifile(const Basic_binlog_ifile &) = delete;
   Basic_binlog_ifile &operator=(const Basic_binlog_ifile &) = delete;
-  virtual ~Basic_binlog_ifile();
+  ~Basic_binlog_ifile() override;
   /**
      Open a binlog file.
 
@@ -146,11 +197,8 @@ class Basic_binlog_ifile : public Basic_seekable_istream {
 
      @param[in] file_name  name of the binlog file which will be opened.
   */
-  virtual Basic_seekable_istream *open_file(const char *file_name) = 0;
-  /**
-     close the system layer file.
-  */
-  virtual void close_file() = 0;
+  virtual std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) = 0;
 
   /**
      It is convenient for caller to share a Binlog_read_error object between
@@ -166,12 +214,16 @@ class Basic_binlog_ifile : public Basic_seekable_istream {
   */
   my_off_t m_position = 0;
   /** It is the entry of the low level stream pipeline. */
-  Basic_seekable_istream *m_istream = nullptr;
+  std::unique_ptr<Basic_seekable_istream> m_istream;
 
   /**
      Read binlog magic from binlog file and check if it is valid binlog magic.
-     @retval false Its binlog magic is valid
-     @retval true Its binlog magic is invalid
+
+     This function also takes care of setting up any other stream layer (i.e.
+     encryption) when needed.
+
+     @retval false The high level stream layer was recognized as a binary log.
+     @retval true Failure identifying the high level stream layer.
   */
   bool read_binlog_magic();
 };
@@ -186,11 +238,8 @@ class Binlog_ifile : public Basic_binlog_ifile {
   using Basic_binlog_ifile::Basic_binlog_ifile;
 
  protected:
-  Basic_seekable_istream *open_file(const char *file_name) override;
-  void close_file() override;
-
- private:
-  IO_CACHE_istream m_ifile;
+  std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) override;
 };
 
 /**
@@ -201,11 +250,8 @@ class Relaylog_ifile : public Basic_binlog_ifile {
   using Basic_binlog_ifile::Basic_binlog_ifile;
 
  protected:
-  Basic_seekable_istream *open_file(const char *file_name) override;
-  void close_file() override;
-
- private:
-  IO_CACHE_istream m_ifile;
+  std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) override;
 };
 #endif
 

@@ -1,0 +1,15 @@
+SELECT COUNT(@@GLOBAL.binlog_rotate_encryption_master_key_at_startup);
+COUNT(@@GLOBAL.binlog_rotate_encryption_master_key_at_startup)
+1
+SELECT COUNT(@@SESSION.binlog_rotate_encryption_master_key_at_startup);
+ERROR HY000: Variable 'binlog_rotate_encryption_master_key_at_startup' is a GLOBAL variable
+SELECT VARIABLE_NAME FROM performance_schema.global_variables WHERE VARIABLE_NAME='binlog_rotate_encryption_master_key_at_startup';
+VARIABLE_NAME
+binlog_rotate_encryption_master_key_at_startup
+SELECT VARIABLE_NAME FROM performance_schema.session_variables WHERE VARIABLE_NAME='binlog_rotate_encryption_master_key_at_startup';
+VARIABLE_NAME
+binlog_rotate_encryption_master_key_at_startup
+SET GLOBAL binlog_rotate_encryption_master_key_at_startup= ON;
+ERROR HY000: Variable 'binlog_rotate_encryption_master_key_at_startup' is a read only variable
+SET GLOBAL binlog_rotate_encryption_master_key_at_startup= OFF;
+ERROR HY000: Variable 'binlog_rotate_encryption_master_key_at_startup' is a read only variable

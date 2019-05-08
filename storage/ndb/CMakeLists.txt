@@ -83,6 +83,9 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_schema_dist_table.cc
   ../../sql/ndb_fk_util.cpp
   ../../sql/ndb_schema_trans_guard.cc
+  ../../sql/ndb_create_helper.cc
+  ../../sql/ndb_apply_status_table.cc
+  ../../sql/ndb_metadata_change_monitor.cc
 )
 
 # Include directories used when building ha_ndbcluster
@@ -159,6 +162,13 @@ ELSE()
     MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
     SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
+  # Turn on build of NDB tests automatically for "-werror" builds
+  IF(PACKAGE_SUFFIX STREQUAL "-werror")
+    MESSAGE(STATUS "Building NDB test programs for \"-werror\" build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-werror\" build")
+    SET(WITH_NDBAPI_EXAMPLES ON)
+  ENDIF()
 ENDIF()
 
 OPTION(WITH_ERROR_INSERT
@@ -228,7 +238,9 @@ ELSE()
 ENDIF()
 OPTION(WITH_NDB_JAVA
   "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})
-IF(WITH_NDB_JAVA)
+IF(WITH_ASAN)
+  MESSAGE(STATUS "Skip building ClusterJ for ASAN builds")
+ELSEIF(WITH_NDB_JAVA)
   #
   # Check for Java and JDK needed by ndbjtie and clusterj
   #
@@ -241,7 +253,7 @@ IF(WITH_NDB_JAVA)
     MESSAGE(STATUS "Looking for Java in standard locations")
   ENDIF()
 
-  FIND_PACKAGE(Java 1.6 COMPONENTS Development)
+  FIND_PACKAGE(Java 1.8 COMPONENTS Development)
   IF(NOT JAVA_FOUND)
     IF(DEFINED ENV{JAVA_HOME})
       # Could not find Java in the specific location set by JAVA_HOME
@@ -268,10 +280,7 @@ IF(WITH_NDB_JAVA)
     ENDIF()
 
     # Search for version in specified order
-    SET(_preferred_versions
-       1.8
-       1.7
-       1.6)
+    SET(_preferred_versions 1.8)
 
     FOREACH(_version ${_preferred_versions})
       SET(_path ${_base_path}jdk${_version}${_bit_suffix})
@@ -327,7 +336,7 @@ IF(WITH_NDB_JAVA)
     "Enable the classpath for MySQL Cluster Java Connector")
 ELSE(WITH_NDB_JAVA)
   MESSAGE(STATUS "Excluding Cluster Java components")
-ENDIF(WITH_NDB_JAVA)
+ENDIF(WITH_ASAN)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(src)

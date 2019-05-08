@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <sys/types.h>
 #include <vector>
 
-#include "binary_log_types.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -343,7 +342,7 @@ class Item_func_geometry_type : public Item_str_ascii_func {
     set_data_type_string(15, default_charset());
     maybe_null = true;
     return false;
-  };
+  }
 };
 
 /**
@@ -786,7 +785,7 @@ class Item_func_pointfromgeohash : public Item_geometry_func {
   bool fix_fields(THD *thd, Item **ref) override;
   Field::geometry_type get_geometry_type() const override {
     return Field::GEOM_POINT;
-  };
+  }
 };
 
 class Item_func_spatial_decomp : public Item_geometry_func {
@@ -857,7 +856,7 @@ class Item_func_spatial_collection : public Item_geometry_func {
     for (unsigned int i = 0; i < arg_count; ++i) {
       if (args[i]->fixed && args[i]->data_type() != MYSQL_TYPE_GEOMETRY) {
         String str;
-        args[i]->print(&str, QT_NO_DATA_EXPANSION);
+        args[i]->print(thd, &str, QT_NO_DATA_EXPANSION);
         str.append('\0');
         my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "non geometric", str.ptr());
         return true;
@@ -900,8 +899,9 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
   }
 
   const char *func_name() const override;
-  void print(String *str, enum_query_type query_type) override {
-    Item_func::print(str, query_type);
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    Item_func::print(thd, str, query_type);
   }
   bool resolve_type(THD *) override {
     maybe_null = true;
@@ -977,8 +977,9 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     maybe_null = true;
     return false;
   }
-  void print(String *str, enum_query_type query_type) override {
-    Item_func::print(str, query_type);
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    Item_func::print(thd, str, query_type);
   }
   longlong val_int() override;
   bool is_null() override {
@@ -1653,7 +1654,8 @@ class Item_func_st_length : public Item_real_func {
   String value;
 
  public:
-  Item_func_st_length(const POS &pos, Item *a) : Item_real_func(pos, a) {}
+  Item_func_st_length(const POS &pos, PT_item_list *ilist)
+      : Item_real_func(pos, ilist) {}
   double val_real() override;
   const char *func_name() const override { return "st_length"; }
   bool resolve_type(THD *thd) override {

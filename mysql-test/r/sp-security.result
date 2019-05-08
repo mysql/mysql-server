@@ -3,6 +3,8 @@ delete from mysql.db where host='%';
 flush privileges;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set @orig_partial_revokes = @@global.partial_revokes;
+SET GLOBAL partial_revokes= OFF;
 use test;
 create user user1@localhost;
 create user ''@'%';
@@ -704,7 +706,7 @@ mysqltest_db	p1	f1
 # This privielge can be used for privilege escalation.
 connection default;
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
-GRANT SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
+GRANT SYSTEM_USER,SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
 connect  con1,localhost,u1,foo,;
 CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
 CALL p1();
@@ -739,3 +741,4 @@ flush privileges;
 drop table mysql.db_copy;
 SET GLOBAL sql_mode= @orig_sql_mode_global;
 SET SESSION sql_mode= @orig_sql_mode_session;
+SET GLOBAL partial_revokes = @orig_partial_revokes;

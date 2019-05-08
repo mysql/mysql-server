@@ -15,12 +15,18 @@ left join t1 on variable_name=test_name where test_name is null ORDER BY variabl
 There should be *no* variables listed below:
 activate_all_roles_on_login
 activate_all_roles_on_login
+binlog_encryption
+binlog_encryption
+binlog_rotate_encryption_master_key_at_startup
+binlog_rotate_encryption_master_key_at_startup
 cte_max_recursion_depth
 cte_max_recursion_depth
 default_collation_for_utf8mb4
 default_collation_for_utf8mb4
 disabled_storage_engines
 disabled_storage_engines
+group_replication_consistency
+group_replication_consistency
 innodb_dedicated_server
 innodb_dedicated_server
 innodb_log_spin_cpu_abs_lwm
@@ -33,6 +39,8 @@ keyring_operations
 keyring_operations
 mandatory_roles
 mandatory_roles
+partial_revokes
+partial_revokes
 password_require_current
 password_require_current
 regexp_stack_limit
@@ -42,6 +50,10 @@ regexp_time_limit
 resultset_metadata
 sql_require_primary_key
 sql_require_primary_key
+temptable_use_mmap
+temptable_use_mmap
+tls_ciphersuites
+tls_ciphersuites
 tls_version
 tls_version
 use_secondary_engine

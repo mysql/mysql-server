@@ -1,0 +1,512 @@
+--source include/have_ndb.inc
+
+##############################################
+# Test suite intended to endianness related issues
+
+
+
+##########################################
+# Bug #29010641
+#  FAILS TO HANDLE DIFFERENT ENDIANNESS FORMATS IN PUSHED JOIN KEYS
+#
+# A big endian platform specific bug (SPARC)
+#
+# Test pushed joins where Field values from a previous
+# InnoDb table is referred from the key of a child table
+# within the pushed join.
+# This introduce possible endianness problems, ...
+#
+# All test cases below use the same pattern:
+#  - A 3 table join, where the first table is an InnoDb table.
+#  - The 2 other tables are NDB cluster tables forming
+#    a pushed join.
+#  - The join key of the last (child-) table, refers a Field
+#    value from the InnoDb table.
+#
+# On big endian platforms, we may have different endianness
+# on the InnoDb and NDB cluster tables. This has to be correctly
+# handled when generating the NDB Cluster key from the InnoDb Field.
+# All endian sensitive data types, pluss some more, are checked below.
+#
+# NOTE: A big test case as lots of data types had to be tested.
+#########################################
+
+create table t1_innodb (
+  t1 tinyint,
+  t1u tinyint unsigned,
+  s1 smallint,
+  s1u smallint unsigned,
+  m1 mediumint,
+  m1u mediumint unsigned,
+  i1 int,
+  i1u int unsigned,
+  b1 bigint,
+  b1u bigint unsigned,
+  f1 float,
+  d1 double,
+  dec1 decimal(10,4),
+  dec2 decimal(10,2)
+) engine=innodb;
+
+insert into t1_innodb values (1,1,1,1,1,1,1,1,1,1,
+                              1234.5678, 9876.21,
+			      1234.5678, 9876.21);
+
+create table t1 (
+  t1 tinyint,
+  t1u tinyint unsigned,
+  s1 smallint,
+  s1u smallint unsigned,
+  m1 mediumint,
+  m1u mediumint unsigned,
+  i1 int,
+  i1u int unsigned,
+  b1 bigint,
+  b1u bigint unsigned,
+  f1 float,
+  d1 double,
+  dec1 decimal(10,4),
+  dec2 decimal(10,2)
+) engine=ndbcluster;
+
+insert into t1 values (1,1,1,1,1,1,1,1,1,1,
+                       1234.5678, 9876.21,
+                       1234.5678, 9876.21);
+
+# Disable BNL to encourage usage of pushed join
+set @@optimizer_switch='block_nested_loop=off';
+
+
+#######
+create index ix on t1(t1,t1u);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t1u = t1.t1u;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1u = t2.t1u and t3.t1 = t1.t1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(s1,s1u);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.s1 = t2.s1 and t3.s1u = t1.s1u;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.s1u = t2.s1u and t3.s1 = t1.s1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(m1,m1u);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.m1 = t2.m1 and t3.m1u = t1.m1u;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.m1u = t2.m1u and t3.m1 = t1.m1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(i1,i1u);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.i1 = t2.i1 and t3.i1u = t1.i1u;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.i1u = t2.i1u and t3.i1 = t1.i1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(b1,b1u);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.b1 = t2.b1 and t3.b1u = t1.b1u;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.b1u = t2.b1u and t3.b1 = t1.b1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(f1,d1);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.f1 = t2.f1 and t3.d1 = t1.d1;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.d1 = t2.d1 and t3.f1 = t1.f1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(dec1,dec2);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dec1 = t2.dec1 and t3.dec2 = t1.dec2;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dec2 = t2.dec2 and t3.dec1 = t1.dec1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+#######
+
+drop table t1;
+drop table t1_innodb;
+
+
+#############
+# Test character types
+#############
+
+create table t1_innodb (
+  c1 char,
+  c2 char(16),
+  vc1 varchar(32),
+  vc2 varchar(512)
+) engine=innodb;
+
+insert into t1_innodb values ('a', 'abc....xyz', 'abcdefgd12434545...xyc',
+  'A long varchar, not that long really...');
+
+
+create table t1 (
+  c1 char,
+  c2 char(16),
+  vc1 varchar(32),
+  vc2 varchar(512)
+) engine=ndbcluster;
+
+insert into t1 values ('a', 'abc....xyz', 'abcdefgd12434545...xyc',
+  'A long varchar, not that long really...');
+
+#######
+create index ix on t1(c1,c2);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.c1 = t2.c1 and t3.c2 = t1.c2;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.c2 = t2.c2 and t3.c1 = t1.c1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(vc1,vc2);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.vc1 = t2.vc1 and t3.vc2 = t1.vc2;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.vc2 = t2.vc2 and t3.vc1 = t1.vc1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+#######
+
+drop table t1;
+drop table t1_innodb;
+
+
+#############
+# Test temporal types
+#############
+
+create table t1_innodb (
+  y1 year,
+  y2 year(4),
+  d1 date,
+  d2 date,
+  t1 time,
+  t2 time(0),
+  t3 time(6),
+  dt1 datetime,
+  dt2 datetime(0),
+  dt3 datetime(6),
+  ts1 timestamp,
+  ts2 timestamp(0),
+  ts3 timestamp(6)
+) engine=innodb;
+
+insert into t1_innodb values (99, 2018, '2018-12-04', '2005-01-26',
+  '12:00:00', '11:59:59', '11:59:59.999',
+  '2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123',
+  '2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123'
+);
+
+create table t1 (
+  y1 year,
+  y2 year(4),
+  d1 date,
+  d2 date,
+  t1 time,
+  t2 time(0),
+  t3 time(6),
+  dt1 datetime,
+  dt2 datetime(0),
+  dt3 datetime(6),
+  ts1 timestamp,
+  ts2 timestamp(0),
+  ts3 timestamp(6)
+) engine=ndbcluster;
+
+insert into t1 values (99, 2018, '2018-12-04', '2005-01-26',
+  '12:00:00', '11:59:59', '11:59:59.999',
+  '2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123',
+  '2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123'
+);
+
+
+#######
+
+create index ix on t1(y1,y2);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.y1 = t2.y1 and t3.y2 = t1.y2;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.y2 = t2.y2 and t3.y1 = t1.y1;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(d1,d2);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.d1 = t2.d1 and t3.d2 = t1.d2;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(t1,t2,t3);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t2 = t1.t2;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t2 = t2.t2 and t3.t1 = t1.t1;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t2 = t2.t2 and t3.t3 = t1.t3;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(dt1,dt2,dt3);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt1 = t2.dt1 and t3.dt2 = t1.dt2;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt2 = t2.dt2 and t3.dt1 = t1.dt1;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt1 = t2.dt1 and t3.dt2 = t2.dt2 and t3.dt3 = t1.dt3;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+
+#######
+
+create index ix on t1(ts1,ts2,ts3);
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts1 = t2.ts1 and t3.ts2 = t1.ts2;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts2 = t2.ts2 and t3.ts1 = t1.ts1;
+
+eval explain $query;
+eval $query;
+
+let $query =
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts1 = t2.ts1 and t3.ts2 = t2.ts2 and t3.ts3 = t1.ts3;
+
+eval explain $query;
+eval $query;
+
+alter table t1 drop index ix;
+#######
+
+drop table t1;
+drop table t1_innodb;
+
+set @@optimizer_switch='block_nested_loop=default';
+
+##
+##
+## End large testcase for bug#29010641
+##
+##############################

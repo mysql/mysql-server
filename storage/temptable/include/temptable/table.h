@@ -29,7 +29,6 @@ TempTable Table declarations. */
 #include <cstddef>
 #include <functional>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -52,8 +51,8 @@ class Table {
   Table(const Table &) = delete;
   Table &operator=(const Table &) = delete;
 
-  Table(Table &&other);
-  Table &operator=(Table &&rhs);
+  Table(Table &&other) = delete;
+  Table &operator=(Table &&rhs) = delete;
 
   ~Table();
 
@@ -167,49 +166,7 @@ class Table {
   TABLE_SHARE *m_mysql_table_share;
 };
 
-/** A container for the list of the tables. Don't allocate memory for it from
- * the Allocator because the Allocator keeps one block for reuse and it is
- * only marked for reuse after all elements from it have been removed. This
- * container, being a global variable may allocate some memory and never free
- * it before its destructor is called at thread termination time. */
-typedef std::unordered_map<std::string, Table> Tables;
-
-/** A list of the tables that currently exist for this thread. */
-extern thread_local Tables tables;
-
 /* Implementation of inlined methods. */
-
-inline Table::Table(Table &&other) : m_rows(nullptr) {
-  *this = std::move(other);
-}
-
-inline Table &Table::operator=(Table &&rhs) {
-  m_rows = std::move(rhs.m_rows);
-
-  m_all_columns_are_fixed_size = rhs.m_all_columns_are_fixed_size;
-  rhs.m_all_columns_are_fixed_size = false;
-
-  m_indexes_are_enabled = rhs.m_indexes_are_enabled;
-  rhs.m_indexes_are_enabled = false;
-
-  m_mysql_row_length = rhs.m_mysql_row_length;
-  rhs.m_mysql_row_length = 0;
-
-  indexes_destroy();
-
-  m_columns = std::move(rhs.m_columns);
-
-  m_mysql_table_share = rhs.m_mysql_table_share;
-  rhs.m_mysql_table_share = nullptr;
-
-  m_index_entries = std::move(rhs.m_index_entries);
-
-  /* No need to move - these are only scratch pads
-   * used by methods. */
-  m_insert_undo.reserve(m_index_entries.size());
-
-  return *this;
-}
 
 inline const TABLE_SHARE *Table::mysql_table_share() const {
   return m_mysql_table_share;

@@ -25,19 +25,22 @@
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/udf_registration.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/udf/udf_communication_protocol.h"
 #include "plugin/group_replication/include/udf/udf_descriptor.h"
 #include "plugin/group_replication/include/udf/udf_multi_primary.h"
 #include "plugin/group_replication/include/udf/udf_single_primary.h"
 #include "plugin/group_replication/include/udf/udf_write_concurrency.h"
 
 /* The UDFs we will register. */
-static std::array<udf_descriptor, 5> udfs = {
+static std::array<udf_descriptor, 7> udfs = {
     {/* single primary */
      set_as_primary_udf(), switch_to_single_primary_udf(),
      /* multi primary */
      switch_to_multi_primary_udf(),
      /* write concurrency */
-     get_write_concurrency_udf(), set_write_concurrency_udf()}};
+     get_write_concurrency_udf(), set_write_concurrency_udf(),
+     /* group communication protocol */
+     get_communication_protocol_udf(), set_communication_protocol_udf()}};
 
 bool register_udfs() {
   bool error = false;

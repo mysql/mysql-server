@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +130,7 @@ extern bool flag_global_instrumentation;
 extern bool flag_thread_instrumentation;
 
 extern bool events_waits_history_long_full;
-extern PFS_ALIGNED PFS_cacheline_atomic_uint32 events_waits_history_long_index;
+extern PFS_cacheline_atomic_uint32 events_waits_history_long_index;
 extern PFS_events_waits *events_waits_history_long_array;
 extern ulong events_waits_history_long_size;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #include "sql/dd/types/routine.h"  // Routine
 
+struct MDL_key;
+
 namespace dd {
 
 class Procedure_impl;
@@ -43,7 +45,7 @@ class Procedure : virtual public Routine {
                               const String_type &name);
 
  public:
-  virtual ~Procedure(){};
+  virtual ~Procedure() {}
 
  public:
   /**
@@ -53,6 +55,11 @@ class Procedure : virtual public Routine {
     @return pointer to dynamically allocated copy
   */
   virtual Procedure *clone() const = 0;
+
+  static void create_mdl_key(const String_type &schema_name,
+                             const String_type &name, MDL_key *key) {
+    Routine::create_mdl_key(RT_PROCEDURE, schema_name, name, key);
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

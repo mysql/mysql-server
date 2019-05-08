@@ -1012,3 +1012,4 @@ drop table baseline;
 drop view frag_locks;
 
 drop table test.t1;
+--remove_file $NDB_TOOLS_OUTPUT

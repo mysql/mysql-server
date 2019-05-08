@@ -1,0 +1,29 @@
+--let $KEYRING_FILE_DATA_VALUE=keyring/perf_schema
+--let $KEYRING_FILE_LOCATION=$MYSQL_TMP_DIR/$KEYRING_FILE_DATA_VALUE
+
+--echo # Restart server with keyring_file plugin
+--error 0,1
+--remove_file $KEYRING_FILE_LOCATION
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN keyring_file.so
+--let $restart_parameters=restart:--early-plugin-load=$KEYRING_PLUGIN --loose-keyring_file_data=$KEYRING_FILE_LOCATION
+--source include/restart_mysqld.inc
+
+CREATE DATABASE WL_11543_PERF_SCHEMA_KEYRING;
+USE WL_11543_PERF_SCHEMA_KEYRING;
+
+SELECT count(*) FROM performance_schema.keyring_keys;
+
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB ENCRYPTION="Y";
+SELECT count(*) FROM performance_schema.keyring_keys;
+
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT count(*) FROM performance_schema.keyring_keys;
+
+--replace_column 1 SOME_KEY_ID
+SELECT * FROM performance_schema.keyring_keys;
+
+--echo # cleanup
+DROP TABLE t1;
+UNINSTALL PLUGIN keyring_file;
+DROP DATABASE WL_11543_PERF_SCHEMA_KEYRING;
+--remove_file $KEYRING_FILE_LOCATION

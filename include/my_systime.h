@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,42 +27,108 @@
 /**
   @file include/my_systime.h
   Defines for getting and processing the current system type programmatically.
-  Note that these are not monotonic. New code should probably use
-  std::chrono::steady_clock instead.
 */
 
-#include <time.h>
+#include <time.h>   // time_t, struct timespec (C11/C++17)
+#include <chrono>   // std::chrono::microseconds
+#include <cstdint>  // std::int64_t
+#include <limits>   // std::numeric_limits
+#include <thread>   // std::this_thread::wait_for
 
 #include "my_config.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>  // clock_gettime()
+#endif                 /* HAVE_SYS_TIME_H */
+
+using UTC_clock = std::chrono::system_clock;
+
+/* Bits for get_date timeflag */
+constexpr const int GETDATE_DATE_TIME = 1;
+constexpr const int GETDATE_SHORT_DATE = 2;
+constexpr const int GETDATE_HHMMSSTIME = 4;
+constexpr const int GETDATE_GMT = 8;
+constexpr const int GETDATE_FIXEDLENGTH = 16;
+constexpr const int GETDATE_T_DELIMITER = 32;
+constexpr const int GETDATE_SHORT_DATE_FULL_YEAR = 64;
+
+/**
+   Wait a given number of microseconds.
+
+   @param m_seconds number of microseconds to wait.
+*/
+inline void my_sleep(time_t m_seconds) {
+  std::this_thread::sleep_for(std::chrono::microseconds{m_seconds});
+}
 
 #ifdef _WIN32
 
 #include <windows.h>
 
-static inline void sleep(unsigned long seconds) { Sleep(seconds * 1000); }
-
 /****************************************************************************
 ** Replacements for localtime_r and gmtime_r
 ****************************************************************************/
 
-static inline struct tm *localtime_r(const time_t *timep, struct tm *tmp) {
+inline struct tm *localtime_r(const time_t *timep, struct tm *tmp) {
   localtime_s(tmp, timep);
   return tmp;
 }
 
-static inline struct tm *gmtime_r(const time_t *clock, struct tm *res) {
+inline struct tm *gmtime_r(const time_t *clock, struct tm *res) {
   gmtime_s(res, clock);
   return res;
 }
+
+/**
+   Sleep the given number of seconds. POSIX compatibility.
+
+   @param seconds number of seconds to wait
+*/
+inline void sleep(unsigned long seconds) {
+  std::this_thread::sleep_for(std::chrono::seconds{seconds});
+}
+
 #endif /* _WIN32 */
 
-ulonglong my_getsystime(void);
+/**
+  Get high-resolution time. Forwards to std::chrono.
 
-void set_timespec_nsec(struct timespec *abstime, ulonglong nsec);
+  @deprecated New code should use std::chrono directly.
 
-void set_timespec(struct timespec *abstime, ulonglong sec);
+  @return current high-resolution time in multiples of 100 nanoseconds.
+*/
+inline unsigned long long int my_getsystime() {
+#ifdef HAVE_CLOCK_GETTIME
+  // Performance regression testing showed this to be preferable
+  struct timespec tp;
+  clock_gettime(CLOCK_REALTIME, &tp);
+  return (static_cast<unsigned long long int>(tp.tv_sec) * 10000000 +
+          static_cast<unsigned long long int>(tp.tv_nsec) / 100);
+#else
+  return std::chrono::duration_cast<
+             std::chrono::duration<std::int64_t, std::ratio<1, 10000000>>>(
+             UTC_clock::now().time_since_epoch())
+      .count();
+#endif /* HAVE_CLOCK_GETTIME */
+}
+
+/**
+   The maximum timespec value used to represent "inifinity" (as when
+   requesting an "inifinite" timeout.
+ */
+constexpr const timespec TIMESPEC_POSINF = {
+    std::numeric_limits<decltype(timespec::tv_sec)>::max(), 999999999};
+
+/** Type alias to reduce chance of coversion errors on timeout values. */
+using Timeout_type = std::uint64_t;
+
+/** Value representing "infinite" timeout. */
+constexpr const Timeout_type TIMEOUT_INF =
+    std::numeric_limits<Timeout_type>::max() - 1;
+
+void set_timespec_nsec(struct timespec *abstime, Timeout_type nsec);
+void set_timespec(struct timespec *abstime, Timeout_type sec);
+timespec timespec_now();
 
 /**
    Compare two timespec structs.
@@ -71,7 +137,7 @@ void set_timespec(struct timespec *abstime, ulonglong sec);
    @retval -1 If ts1 ends before ts2.
    @retval  0 If ts1 is equal to ts2.
 */
-static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2) {
+inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2) {
   if (ts1->tv_sec > ts2->tv_sec ||
       (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
     return 1;
@@ -81,10 +147,54 @@ static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2) {
   return 0;
 }
 
-static inline ulonglong diff_timespec(struct timespec *ts1,
-                                      struct timespec *ts2) {
+/**
+   Calculate the diff between two timespec values.
+
+   @return difference in nanoseconds between ts1 and ts2
+*/
+inline unsigned long long int diff_timespec(struct timespec *ts1,
+                                            struct timespec *ts2) {
   return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL + ts1->tv_nsec -
          ts2->tv_nsec;
 }
+
+/**
+  Return current time. Takes an int argument
+  for backward compatibility. This argument is ignored.
+
+  @deprecated New code should use std::time() directly.
+
+  @retval current time.
+*/
+inline time_t my_time(int) { return time(nullptr); }
+
+/**
+  Return time in microseconds. Uses std::chrono::high_resolution_clock
+
+  @remark This function is to be used to measure performance in
+          micro seconds.
+
+  @deprecated New code should use std::chrono directly.
+
+  @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000
+  (UTC)
+*/
+inline unsigned long long int my_micro_time() {
+#ifdef _WIN32
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             UTC_clock::now().time_since_epoch())
+      .count();
+#else
+  struct timeval t;
+  /*
+  The following loop is here because gettimeofday may fail on some systems
+  */
+  while (gettimeofday(&t, nullptr) != 0) {
+  }
+  return (static_cast<unsigned long long int>(t.tv_sec) * 1000000 + t.tv_usec);
+#endif /* _WIN32 */
+}
+
+void get_date(char *to, int flag, time_t date);
 
 #endif  // MY_SYSTIME_INCLUDED

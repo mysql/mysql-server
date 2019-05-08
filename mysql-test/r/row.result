@@ -336,12 +336,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
+EXPLAIN
+-> Nested loop inner join
+    -> Index scan on t2 using PRIMARY
+    -> Single-row index lookup on t1 using PRIMARY (a=t2.a, b=t2.b)
+
 EXPLAIN SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	PRIMARY	PRIMARY	12	NULL	7	100.00	Using index
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b);
+EXPLAIN
+-> Nested loop inner join
+    -> Index scan on t2 using PRIMARY
+    -> Single-row index lookup on t1 using PRIMARY (a=t2.a, b=t2.b)
+
 SELECT * FROM t1,t2 WHERE t1.a=t2.a and t1.b=t2.b;
 a	b	a	b	c
 1	1	1	1	1
@@ -492,14 +504,13 @@ drop table t1,t2;
 #
 # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 #
-CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
+CREATE TABLE t1 (a TIME NOT NULL, b TINYINT);
 INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
 SELECT 1 FROM t1 WHERE ROW(a, b) >=
-ROW('1', (SELECT 1 FROM t1 WHERE a > 1234));
+ROW('1', (SELECT 1 FROM t1 WHERE a > '1234abc'));
 1
+Warnings:
+Warning	1292	Incorrect time value: '1234abc' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Bug #54190: Comparison to row subquery produces incorrect result

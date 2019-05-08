@@ -24,6 +24,7 @@
 
 #include "my_inttypes.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/my_host_application_signal.h"
 #include "plugin/group_replication/include/plugin.h"
 
 using std::vector;
@@ -40,7 +41,7 @@ Blocked_transaction_handler::~Blocked_transaction_handler() {
 void Blocked_transaction_handler::unblock_waiting_transactions() {
   mysql_mutex_lock(&unblocking_process_lock);
   vector<my_thread_id> waiting_threads;
-  certification_latch->get_all_waiting_keys(waiting_threads);
+  transactions_latch->get_all_waiting_keys(waiting_threads);
 
   if (!waiting_threads.empty()) {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS);
@@ -57,8 +58,10 @@ void Blocked_transaction_handler::unblock_waiting_transactions() {
     transaction_termination_ctx.m_generated_gtid = false;
     transaction_termination_ctx.m_sidno = -1;
     transaction_termination_ctx.m_gno = -1;
-    if (set_transaction_ctx(transaction_termination_ctx) ||
-        certification_latch->releaseTicket(thread_id)) {
+
+    int error = set_transaction_ctx(transaction_termination_ctx);
+    error += transactions_latch->releaseTicket(thread_id, true);
+    if (error) {
       // Nothing much we can do
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS); /* purecov: inspected */
@@ -87,8 +90,8 @@ void log_primary_member_details() {
 
 void abort_plugin_process(const char *message) {
   LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PLUGIN_ABORT, message);
-#if !defined(DBUG_OFF)
-  DBUG_SUICIDE();
-#endif
-  abort();
+  if (my_host_application_signal_shutdown(get_plugin_registry())) {
+    // If the shutdown failed then abort the server.
+    abort();
+  }
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,13 @@ mysql_session_track_get_first
 mysql_session_track_get_next
 mysql_reset_server_public_key
 mysql_result_metadata
+mysql_real_connect_nonblocking
+mysql_send_query_nonblocking
+mysql_real_query_nonblocking
+mysql_store_result_nonblocking
+mysql_next_result_nonblocking
+mysql_fetch_row_nonblocking
+mysql_free_result_nonblocking
 
 CACHE INTERNAL "Functions exported by client API"
 
@@ -174,11 +181,10 @@ SET(CLIENT_SOURCES
   ../sql/auth/sha2_password_common.cc
 )
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  ADD_COMPILE_FLAGS(
+  ADD_COMPILE_DEFINITIONS(
     ../sql-common/client_authentication.cc
-    COMPILE_FLAGS -DHAVE_OPENSSL_APPLINK_C
+    COMPILE_DEFINITIONS HAVE_OPENSSL_APPLINK_C
   )
 ENDIF()
 
@@ -203,7 +209,7 @@ ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(clientlib GenError)
 
 SET(LIBS_TO_MERGE
-  clientlib dbug strings vio mysys mysys_ssl
+  clientlib dbug mytime strings vio mysys mysys_ssl
   )
 SET(LIBS_TO_LINK ${LIBDL})
 
@@ -240,7 +246,7 @@ ADD_SUBDIRECTORY(authentication_ldap)
   
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
+TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
@@ -281,7 +287,7 @@ IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
     COMPONENT SharedLibraries)
-  TARGET_LINK_LIBRARIES(libmysql ${LIBS_TO_LINK})
+  TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
 
   IF(WIN32)
     # So that libmysql_api_test below can find the .dll
@@ -355,7 +361,9 @@ CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
 #
 MYSQL_ADD_EXECUTABLE(libmysql_api_test
   ${CMAKE_CURRENT_BINARY_DIR}/api_test.c SKIP_INSTALL)
+# Clang/UBSAN needs this on some platforms.
 SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
+
 IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
 ENDIF()

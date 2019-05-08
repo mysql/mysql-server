@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Copy data from a textfile to table */
-/* 2006-12 Erik Wetterberg : LOAD XML added */
+/* Copy data from a text file to table */
 
 #include "sql/sql_load.h"
 
@@ -432,7 +431,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           MY_RELATIVE_PATH | MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH);
     }
 
-    if ((thd->slave_thread &
+    if ((thd->system_thread &
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0) {
       Relay_log_info *rli = thd->rli_slave->get_c_rli();
 
@@ -561,7 +560,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           the destructor of read_info will call end_io_cache() which will flush
           read_info, so we will finally have this in the binlog:
 
-          Append_block # The last successfull block
+          Append_block # The last successful block
           Delete_file
           Append_block # The failing block
           which is nonsense.
@@ -778,6 +777,12 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
                            TRG_EVENT_INSERT, table->s->fields))
       DBUG_RETURN(true);
+
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) DBUG_RETURN(true);
+      // continue when IGNORE clause is used.
+      goto continue_loop;
+    }
 
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
@@ -998,6 +1003,12 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
     if (thd->is_error()) DBUG_RETURN(true);
 
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) DBUG_RETURN(true);
+      // continue when IGNORE clause is used.
+      goto continue_loop;
+    }
+
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
         read_info.next_line();
@@ -1159,6 +1170,12 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
                            TRG_EVENT_INSERT, table->s->fields))
       DBUG_RETURN(true);
+
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) DBUG_RETURN(true);
+      // continue when IGNORE clause is used.
+      goto continue_loop;
+    }
 
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:

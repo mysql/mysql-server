@@ -1,0 +1,32 @@
+--echo #
+--echo # Bug#28624707: MYSQL TRYING TO OFFLOAD QUERIES TO SECONDARY ENGINE
+--echo #               AFTER PLUGIN UNINSTALL
+--echo #
+
+--disable_query_log
+eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='MOCK';
+
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1);
+ALTER TABLE t SECONDARY_LOAD;
+
+--echo Should have "secondary engine" in the plan.
+ANALYZE TABLE t;
+EXPLAIN SELECT * FROM t;
+SELECT * FROM t;
+
+--echo # The plugin cannot be unloaded because there are still references
+--echo # to it (from the table cache). Will give a warning about that.
+UNINSTALL PLUGIN mock;
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='MOCK';
+
+--echo # Should not have "secondary engine" in the plan.
+EXPLAIN SELECT * FROM t;
+SELECT * FROM t;
+
+# Cleanup. The plugin is no longer referenced and will be uninstalled.
+DROP TABLE t;
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='MOCK';

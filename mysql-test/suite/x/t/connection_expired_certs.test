@@ -8,6 +8,10 @@
 call mtr.add_suppression("SSL_CTX_set_default_verify_paths failed");
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key");
 
+# OpenSSL >= 1.1.1 also fail early
+call mtr.add_suppression("SSL error: Unable to get certificate from");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error: Unable to get certificate");
+
 # Tests
 --write_file $MYSQL_TMP_DIR/expired_ssl_certs.tmp
 -->quiet

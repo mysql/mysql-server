@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef NDB_BITMAP_H
 #define NDB_BITMAP_H
+
+#include <string>
 
 #include "my_bitmap.h"
 
@@ -55,5 +57,12 @@ void ndb_bitmap_init(MY_BITMAP& bitmap,
   // Function never fails when called with a "buf" provided
   (void)bitmap_init(&bitmap, buf, num_bits, false);
 }
+
+/**
+ * @brief Return bitmap as hex formatted string
+ * @param bitmap The bitmap to format
+ * @return string representation of the bitmap
+ */
+std::string ndb_bitmap_to_hex_string(const MY_BITMAP* bitmap);
 
 #endif

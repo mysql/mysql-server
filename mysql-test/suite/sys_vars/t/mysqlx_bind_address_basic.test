@@ -27,7 +27,6 @@ WHERE VARIABLE_NAME='mysqlx_bind_address';
 SELECT COUNT(VARIABLE_VALUE)
 FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='mysqlx_bind_address';
---enable_warnings
 --echo 1 Expected
 ################################################################################
 #  Check if accessing variable with and without GLOBAL point to same variable  #

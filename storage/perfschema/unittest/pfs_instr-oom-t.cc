@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ static PSI_thread_service_t *initialize_performance_schema_helper(
   pfs_initialized = true;
 
   thread_service = (PSI_thread_service_t *)pfs_thread_bootstrap.get_interface(
-      PSI_THREAD_VERSION_1);
+      PSI_THREAD_VERSION_2);
   thread_service->register_thread("test", all_thread, 1);
   return (thread_service);
 }

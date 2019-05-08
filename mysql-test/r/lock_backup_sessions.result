@@ -76,7 +76,6 @@ connection default;
 disconnect con1;
 disconnect con2;
 disconnect con3;
-DROP TABLE IF EXISTS testtable_1;
 DROP USER 'user1'@'localhost';
 DROP USER 'user2'@'localhost';
 DROP USER 'user3'@'localhost';

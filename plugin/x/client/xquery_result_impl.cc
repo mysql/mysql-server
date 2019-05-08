@@ -196,17 +196,19 @@ bool Query_result::next_resultset(XError *out_error) {
   const bool is_end_result_msg = m_holder.is_one_of(
       {::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE,
        ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS,
-       ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS});
+       ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS,
+       ::Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED});
 
   if (!is_end_result_msg) {
     check_error(m_holder.read_until_expected_msg_received(
         {::Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK,
          ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE,
-         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS},
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS,
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS,
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED},
         {::Mysqlx::ServerMessages::NOTICE,
          ::Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA,
-         ::Mysqlx::ServerMessages::RESULTSET_ROW,
-         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS}));
+         ::Mysqlx::ServerMessages::RESULTSET_ROW}));
   }
 
   // Accept another series of
@@ -219,13 +221,18 @@ bool Query_result::next_resultset(XError *out_error) {
     return false;
   }
 
+  if (m_holder.is_one_of(
+          {::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS})) {
+    m_is_out_param_resultset = true;
+  }
+
   if (!m_holder.is_one_of({::Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA,
                            ::Mysqlx::ServerMessages::RESULTSET_ROW,
                            ::Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK})) {
     m_holder.clear_cached_message();
   }
 
-  read_stmt_ok();
+  check_if_stmt_ok();
 
   if (m_error) {
     if (nullptr != out_error) *out_error = m_error;
@@ -294,9 +301,11 @@ Handler_result Query_result::handle_notice(
   }
 }
 
-void Query_result::read_stmt_ok() {
-  if (!m_error && Mysqlx::ServerMessages::RESULTSET_FETCH_DONE ==
-                      m_holder.get_cached_message_id()) {
+void Query_result::check_if_stmt_ok() {
+  const auto message_id = m_holder.get_cached_message_id();
+  if (!m_error &&
+      (Mysqlx::ServerMessages::RESULTSET_FETCH_DONE == message_id ||
+       Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED == message_id)) {
     m_holder.clear_cached_message();
     check_error(m_holder.read_until_expected_msg_received(
         {Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK},
@@ -306,21 +315,6 @@ void Query_result::read_stmt_ok() {
   if (m_error) return;
 
   check_if_fetch_done();
-}
-
-XError Query_result::read_dump_out_params_or_resultset(
-    const XProtocol::Server_message_type_id msg_id,
-    std::unique_ptr<XProtocol::Message> &msg MY_ATTRIBUTE((unused))) {
-  switch (msg_id) {
-    case Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA:
-    case Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS:
-    case Mysqlx::ServerMessages::RESULTSET_ROW:
-    case Mysqlx::ServerMessages::NOTICE:
-      return {};
-
-    default:
-      return XError{CR_COMMANDS_OUT_OF_SYNC, ERR_MSG_UNEXPECTED};
-  }
 }
 
 const XQuery_result::Metadata &Query_result::get_metadata(XError *out_error) {
@@ -336,6 +330,11 @@ const XQuery_result::Metadata &Query_result::get_metadata(XError *out_error) {
   return m_metadata;
 }
 
+void Query_result::set_metadata(const Metadata &metadata) {
+  m_metadata = metadata;
+  m_read_metadata = false;
+}
+
 const XQuery_result::Warnings &Query_result::get_warnings() {
   return m_warnings;
 }
@@ -347,7 +346,7 @@ Query_result::Row_ptr Query_result::get_next_row_raw(XError *out_error) {
 
   read_if_needed_metadata();
   auto row = read_row();
-  read_stmt_ok();
+  check_if_stmt_ok();
 
   if (out_error) *out_error = m_error;
 
@@ -385,7 +384,8 @@ void Query_result::read_if_needed_metadata() {
          Mysqlx::ServerMessages::RESULTSET_ROW,
          Mysqlx::ServerMessages::RESULTSET_FETCH_DONE,
          Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS,
-         Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS},
+         Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS,
+         Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED},
         [this](const XProtocol::Server_message_type_id message_id,
                std::unique_ptr<XProtocol::Message> &message) -> XError {
           return read_metadata(message_id, message);
@@ -396,6 +396,17 @@ void Query_result::read_if_needed_metadata() {
 Query_result::Row_ptr Query_result::read_row() {
   std::unique_ptr<Mysqlx::Resultset::Row> row;
 
+  if (!m_holder.has_cached_message()) {
+    check_error(m_holder.read_until_expected_msg_received(
+        {::Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK,
+         ::Mysqlx::ServerMessages::RESULTSET_ROW,
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE,
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS,
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS,
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED},
+        {::Mysqlx::ServerMessages::NOTICE}));
+  }
+
   if (!m_error && Mysqlx::ServerMessages::RESULTSET_ROW ==
                       m_holder.get_cached_message_id()) {
     details::unique_ptr_cast(m_holder.m_message, row);
@@ -405,20 +416,9 @@ Query_result::Row_ptr Query_result::read_row() {
          ::Mysqlx::ServerMessages::RESULTSET_ROW,
          ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE,
          ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS,
-         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS},
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS,
+         ::Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED},
         {::Mysqlx::ServerMessages::NOTICE}));
-  }
-
-  if (!m_error &&
-      Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS ==
-          m_holder.get_cached_message_id()) {
-    check_error(m_holder.read_until_expected_msg_received(
-        {::Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK,
-         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE},
-        {::Mysqlx::ServerMessages::NOTICE,
-         ::Mysqlx::ServerMessages::RESULTSET_ROW,
-         ::Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA,
-         ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS}));
   }
 
   return row;
@@ -471,6 +471,10 @@ bool Query_result::check_if_fetch_done() {
   }
 
   return m_received_fetch_done;
+}
+
+bool Query_result::is_out_parameter_resultset() const {
+  return m_is_out_param_resultset;
 }
 
 }  // namespace xcl

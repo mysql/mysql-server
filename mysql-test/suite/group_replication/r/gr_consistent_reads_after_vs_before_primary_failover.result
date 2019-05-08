@@ -1,0 +1,83 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Create a table on the group.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error on session '.*' while waiting for its dependencies to complete commit.");
+call mtr.add_suppression("Error releasing transaction '.*' for execution on session '.*' after its dependencies did complete commit.");
+call mtr.add_suppression("Error waiting for group executed transactions commit on session '.*'.");
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+############################################################
+# 02. Lock table t1 on server3
+[connection server3]
+LOCK TABLE t1 READ;
+
+############################################################
+# 03. Perform a transaction T1 on server1 on table t1 with 'AFTER'
+[connection server1]
+SET @@SESSION.group_replication_consistency='AFTER';
+INSERT INTO t1 VALUES(11);
+[connection server_1]
+[connection server2]
+
+############################################################
+# 04. Try to query table t1 (Transaction T2) on server2, it
+#     will be blocked since T1 is prepared but not committed.
+[connection server2]
+SET @@SESSION.wait_timeout = 30;
+SET @@SESSION.group_replication_consistency= 'BEFORE';
+SELECT * FROM test.t1;
+[connection server_2]
+
+############################################################
+# 05. Crash server1. Ensure that server2 is elected as primary.
+[connection server_1]
+[connection server1]
+ERROR HY000: Lost connection to MySQL server during query
+[connection server_2]
+
+############################################################
+# 06. Unlock tables on server3. Check the transaction from
+#     server1 succeeds now.
+[connection server3]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+UNLOCK TABLES;
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+SET DEBUG_SYNC= "now SIGNAL signal.after_before_message_send_after_applier_prepare_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+include/assert.inc ['Table t1 must have 1 entry.']
+
+#############################################################
+# 07. Check that server2 has not applied T1.
+[connection server_2]
+
+############################################################
+# 08. Wait for T2 to timeout, only then T1 will be committed
+#     and externalized on server2.
+[connection server2]
+ERROR HY000: Error while waiting for group transactions commit on group_replication_consistency= 'BEFORE'.
+include/assert.inc ['Table t1 must have 1 entry.']
+
+############################################################
+# 9. Clean up.
+[connection server1]
+include/rpl_reconnect.inc
+include/assert.inc ['Table t1 must not have 1 entry.']
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

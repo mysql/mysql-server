@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,7 @@
   length records. A read isn't allowed to go over file-length. A read is ok
   if it ends at file-length and next read can try to read after file-length
   (and get a EOF-error).
-  Possibly use of asyncronic io.
-  macros for read and writes for faster io.
   Used instead of FILE when reading or writing whole files.
-  This will make mf_rec_cache obsolete.
   One can change info->pos_in_file to a higher value to skip bytes in file if
   also info->rc_pos is set to info->rc_end.
   If called through open_cached_file(), then the temporary file will

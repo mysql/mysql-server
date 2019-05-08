@@ -840,7 +840,7 @@ drop table if exists t1,t2;
 create table t1(a int not null, b int not null, primary key (a, b));
 --error ER_WRONG_FK_DEF
 create table t2(a int not null, b int not null, c int not null, primary key (a),
-foreign key fk_bug26104 (b,c) references t1(a));
+                constraint fk_bug26104 foreign key (b,c) references t1(a));
 drop table t1;
 
 # HANDLER_READ_KEY count differs when using ps protocol because of prepare
@@ -2081,5 +2081,82 @@ DROP USER subuser@localhost;
 SET GLOBAL sql_require_primary_key= OFF;
 
 
+--echo #
+--echo # Bug#28022129: NOW() DOESN?T HONOR NO_ZERO_DATE SQL_MODE
+--echo #
 
+SET @saved_mode= @@sql_mode;
+
+CREATE TABLE t1(fld1 int);
+
+--echo # NO_ZERO_DATE and STRICT SQL mode.
+
+CREATE TABLE t2 SELECT fld1, CURDATE() fld2 FROM t1;
+CREATE TABLE t3 AS SELECT now();
+
+--echo # With patch, zero date is not generated as default.
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+DROP TABLE t2, t3;
+
+SET SQL_MODE= "NO_ZERO_DATE";
+
+--echo # NO_ZERO_DATE SQL mode.
+CREATE TABLE t2 SELECT fld1, CURDATE() fld2 FROM t1;
+CREATE TABLE t3 AS SELECT now();
+
+--echo # Zero date is generated as default in non strict mode.
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+DROP TABLE t1, t2, t3;
+
+SET SQL_MODE= DEFAULT;
+
+--echo # Test cases added for coverage.
+
+CREATE TABLE t1(fld1 DATETIME NOT NULL DEFAULT '1111:11:11');
+
+--echo # CREATE TABLE..SELECT using fields of another table.
+CREATE TABLE t2 AS SELECT * FROM t1;
+--echo # Default value is copied from the source table column.
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1, t2;
+
+--echo # CREATE TABLE..SELECT based on trigger fields.
+CREATE TABLE t1 (fld1 INT, fld2 DATETIME DEFAULT '1211:1:1');
+
+DELIMITER |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+  CREATE TEMPORARY TABLE t2 AS SELECT NEW.fld1, NEW.fld2;
+END
+|
+DELIMITER ;|
+
+INSERT INTO t1 VALUES (1, '1111:11:11');
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1;
+DROP TEMPORARY TABLE t2;
+SET SQL_MODE= @saved_mode;
+
+--echo #
+--echo # Bug #29283055: CREATE TABLE IF NOT EXISTS .. SHOULD NOT ALWAYS
+--echo # FAIL ON SQL_REQUIRE_PRIMARY_KEY
+--echo #
+
+--echo # Create table without PK
+CREATE TABLE t1(i INT);
+
+SET SESSION sql_require_primary_key=1;
+
+--echo # This must not fail when t1 already exists, even if it does not have
+--echo # a pk
+CREATE TABLE IF NOT EXISTS t1(i INT);
+
+--echo # Cleanup
+SET SESSION sql_require_primary_key=DEFAULT;
+DROP TABLE t1;
 

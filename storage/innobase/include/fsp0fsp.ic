@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,7 @@ ibool fsp_descr_page(const page_id_t &page_id, const page_size_t &page_size) {
 @param[in]	flags	Tablespace flags
 @return true if compressed, false if not compressed */
 UNIV_INLINE
-bool fsp_flags_is_compressed(ulint flags) {
+bool fsp_flags_is_compressed(uint32_t flags) {
   return (FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
@@ -54,10 +54,10 @@ bool fsp_flags_is_compressed(ulint flags) {
 @param[in]	flags2	Second tablespace flags
 @return true the flags are compatible, false if not */
 UNIV_INLINE
-bool fsp_flags_are_equal(ulint flags1, ulint flags2) {
-  /* If either one of these flags is ULINT_UNDEFINED,
+bool fsp_flags_are_equal(uint32_t flags1, uint32_t flags2) {
+  /* If either one of these flags is UINT32_UNDEFINED,
   then they are not equal */
-  if (flags1 == ULINT_UNDEFINED || flags2 == ULINT_UNDEFINED) {
+  if (flags1 == UINT32_UNDEFINED || flags2 == UINT32_UNDEFINED) {
     return (false);
   }
 
@@ -84,12 +84,12 @@ the number of bit shifts from 512 to make that page size.
 @param[in]	page_size	compressed page size in bytes
 @return an ssize created from the page size provided. */
 UNIV_INLINE
-ulint page_size_to_ssize(ulint page_size) {
-  ulint ssize;
+uint32_t page_size_to_ssize(ulint page_size) {
+  uint32_t ssize;
 
-  for (ssize = UNIV_ZIP_SIZE_SHIFT_MIN; ((ulint)1 << ssize) < page_size;
-       ssize++) {
-  };
+  for (ssize = UNIV_ZIP_SIZE_SHIFT_MIN;
+       static_cast<uint32_t>(1 << ssize) < page_size; ssize++) {
+  }
 
   return (ssize - UNIV_ZIP_SIZE_SHIFT_MIN + 1);
 }
@@ -99,7 +99,7 @@ ulint page_size_to_ssize(ulint page_size) {
 @param[in]	page_size	page sizes in bytes and compression flag.
 @return tablespace flags after zip size is added */
 UNIV_INLINE
-ulint fsp_flags_set_zip_size(ulint flags, const page_size_t &page_size) {
+uint32_t fsp_flags_set_zip_size(uint32_t flags, const page_size_t &page_size) {
   if (!page_size.is_compressed()) {
     return (flags);
   }
@@ -110,7 +110,7 @@ ulint fsp_flags_set_zip_size(ulint flags, const page_size_t &page_size) {
   ut_ad(page_size.physical() <= UNIV_ZIP_SIZE_MAX);
   ut_ad(ut_is_2pow(page_size.physical()));
 
-  ulint ssize = page_size_to_ssize(page_size.physical());
+  uint32_t ssize = page_size_to_ssize(page_size.physical());
 
   ut_ad(ssize > 0);
   ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
@@ -127,7 +127,7 @@ ulint fsp_flags_set_zip_size(ulint flags, const page_size_t &page_size) {
 @param[in]	page_size	page sizes in bytes and compression flag.
 @return tablespace flags after page size is added */
 UNIV_INLINE
-ulint fsp_flags_set_page_size(ulint flags, const page_size_t &page_size) {
+uint32_t fsp_flags_set_page_size(uint32_t flags, const page_size_t &page_size) {
   /* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
   and UNIV_PAGE_SIZE */
   ut_ad(page_size.logical() >= UNIV_PAGE_SIZE_MIN);
@@ -143,7 +143,7 @@ ulint fsp_flags_set_page_size(ulint flags, const page_size_t &page_size) {
     ut_ad(0 == FSP_FLAGS_GET_PAGE_SSIZE(flags));
 
   } else {
-    ulint ssize = page_size_to_ssize(page_size.logical());
+    uint32_t ssize = page_size_to_ssize(page_size.logical());
 
     ut_ad(ssize);
     ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
@@ -165,15 +165,15 @@ ulint fsp_flags_set_page_size(ulint flags, const page_size_t &page_size) {
 @param[in]	is_encrypted	This tablespace is encrypted.
 @return tablespace flags after initialization */
 UNIV_INLINE
-ulint fsp_flags_init(const page_size_t &page_size, bool atomic_blobs,
-                     bool has_data_dir, bool is_shared, bool is_temporary,
-                     bool is_encrypted) {
+uint32_t fsp_flags_init(const page_size_t &page_size, bool atomic_blobs,
+                        bool has_data_dir, bool is_shared, bool is_temporary,
+                        bool is_encrypted) {
   ut_ad(page_size.physical() <= page_size.logical());
   ut_ad(!page_size.is_compressed() || atomic_blobs);
 
   /* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
   and UNIV_PAGE_SIZE, but zip_size may be 0 if not compressed. */
-  ulint flags = fsp_flags_set_page_size(0, page_size);
+  uint32_t flags = fsp_flags_set_page_size(0, page_size);
 
   if (atomic_blobs) {
     flags |= FSP_FLAGS_MASK_POST_ANTELOPE | FSP_FLAGS_MASK_ATOMIC_BLOBS;
@@ -295,7 +295,7 @@ inline bool fsp_is_inode_page(page_no_t page) {
 
   /* Number of all hard-coded DD table indexes. Please sync it with
   innodb_dd_table array. */
-  static const uint indexes = 95;
+  static const uint indexes = 98;
 
   /* Max page number for index root pages of hard-coded DD tables. */
   static const uint max_page_no =
@@ -319,7 +319,7 @@ The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
-inline bool fsp_flags_is_valid(ulint flags) {
+inline bool fsp_flags_is_valid(uint32_t flags) {
   bool post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
   ulint zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
   bool atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);

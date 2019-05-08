@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,19 @@
 #define DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "m_string.h"  // my_stpcpy
 #include "my_dbug.h"
-#include "sql/dd/impl/system_registry.h"           // System_tablespaces
+#include "sql/current_thd.h"
 #include "sql/dd/properties.h"                     // dd::tables::DD_properties
 #include "sql/dd/string_type.h"                    // dd::String_type
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/table.h"                    // dd::Table
 #include "sql/mysqld.h"                            // lower_case_table_names
-#include "sql/table.h"                             // MYSQL_TABLESPACE_NAME
+#include "sql/set_var.h"                           // sql_mode_quoted_string...
+#include "sql/system_variables.h"                  // MODE_LAST
 
 namespace dd {
 
@@ -134,7 +136,7 @@ class Object_table_definition_impl : public Object_table_definition {
           element_defs.find(it.second);
       DBUG_ASSERT(element_def != element_defs.end());
       element->set(key(Label::LABEL), it.first);
-      element->set_int32(key(Label::POSITION), it.second);
+      element->set(key(Label::POSITION), it.second);
       element->set(key(Label::DEFINITION), element_def->second);
 
       Stringstream_type ss;
@@ -150,16 +152,21 @@ class Object_table_definition_impl : public Object_table_definition {
     DBUG_ASSERT(element_defs != nullptr);
     std::unique_ptr<Properties> properties(
         Properties::parse_properties(prop_str));
-    for (Properties::Iterator it = properties->begin(); it != properties->end();
-         ++it) {
+    /*
+      We would normally use a range based loop here, but the developerstudio
+      compiler on Solaris does not handle this when the base collection has
+      pure virtual begin() and end() functions.
+    */
+    for (Properties::const_iterator it = properties->begin();
+         it != properties->end(); ++it) {
       String_type label;
       int pos = 0;
       String_type def;
       std::unique_ptr<Properties> element(
           Properties::parse_properties(it->second));
-      if (element->get(key(Label::LABEL), label) ||
-          element->get_int32(key(Label::POSITION), &pos) ||
-          element->get(key(Label::DEFINITION), def))
+      if (element->get(key(Label::LABEL), &label) ||
+          element->get(key(Label::POSITION), &pos) ||
+          element->get(key(Label::DEFINITION), &def))
         return true;
 
       add_element(pos, label, def, element_numbers, element_defs);
@@ -192,6 +199,21 @@ class Object_table_definition_impl : public Object_table_definition {
     if (lower_case_table_names == 0) return &my_charset_utf8_bin;
     return &my_charset_utf8_tolower_ci;
   }
+
+  /**
+    Get the collation which is used for the name field in the table.
+    Table collation UTF8_BIN is used when collation for the name field
+    is not specified. Tables using different collation must override this
+    method.
+
+    TODO: Changing table collation is not supporting during upgrade as of now.
+          To support this, static definition of this method should be avoided
+          and should provide a possibility to have different collations for
+          actual and target table definition.
+
+    @return Pointer to CHARSET_INFO.
+  */
+  static const CHARSET_INFO *name_collation() { return &my_charset_utf8_bin; }
 
   /**
     Convert to lowercase if lower_case_table_names == 2. This is needed
@@ -230,6 +252,17 @@ class Object_table_definition_impl : public Object_table_definition {
                  const String_type field_definition) {
     add_element(field_number, field_name, field_definition, &m_field_numbers,
                 &m_field_definitions);
+  }
+
+  void add_sql_mode_field(int field_number, const String_type &field_name) {
+    LEX_STRING sql_mode;
+    ulonglong all_sql_mode_mask = MODE_LAST - 1;
+    sql_mode_quoted_string_representation(current_thd, all_sql_mode_mask,
+                                          &sql_mode);
+    DBUG_ASSERT(sql_mode.str);
+    dd::String_type sql_modes_in_string(sql_mode.str, sql_mode.length);
+    add_field(field_number, field_name,
+              "sql_mode SET(" + sql_modes_in_string + ") NOT NULL");
   }
 
   virtual void add_index(int index_number, const String_type &index_name,
@@ -340,17 +373,17 @@ class Object_table_definition_impl : public Object_table_definition {
 
   virtual bool restore_from_properties(const Properties &table_def_properties) {
     String_type property_str;
-    if (table_def_properties.get(key(Label::NAME), m_table_name) ||
-        table_def_properties.get(key(Label::FIELDS), property_str) ||
+    if (table_def_properties.get(key(Label::NAME), &m_table_name) ||
+        table_def_properties.get(key(Label::FIELDS), &property_str) ||
         set_element_properties(property_str, &m_field_numbers,
                                &m_field_definitions) ||
-        table_def_properties.get(key(Label::INDEXES), property_str) ||
+        table_def_properties.get(key(Label::INDEXES), &property_str) ||
         set_element_properties(property_str, &m_index_numbers,
                                &m_index_definitions) ||
-        table_def_properties.get(key(Label::FOREIGN_KEYS), property_str) ||
+        table_def_properties.get(key(Label::FOREIGN_KEYS), &property_str) ||
         set_element_properties(property_str, &m_foreign_key_numbers,
                                &m_foreign_key_definitions) ||
-        table_def_properties.get(key(Label::OPTIONS), property_str) ||
+        table_def_properties.get(key(Label::OPTIONS), &property_str) ||
         set_element_properties(property_str, &m_option_numbers,
                                &m_option_definitions))
       return true;

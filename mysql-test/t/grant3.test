@@ -8,6 +8,9 @@ SET NAMES binary;
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set @orig_partial_revokes = @@global.partial_revokes;
+# Turn Off the partial_revokes to test with wildcard grants
+SET GLOBAL partial_revokes= OFF;
 
 connect (master,localhost,root,,);
 connection master;
@@ -213,7 +216,9 @@ DROP DATABASE temp;
 
 set GLOBAL sql_mode= @orig_sql_mode_global;
 set SESSION sql_mode= @orig_sql_mode_session;
-
+--disable_warnings
+SET GLOBAL partial_revokes = @orig_partial_revokes;
+--enable_warnings
 --echo End of 5.0 tests
 
 # Wait till we reached the initial number of concurrent sessions

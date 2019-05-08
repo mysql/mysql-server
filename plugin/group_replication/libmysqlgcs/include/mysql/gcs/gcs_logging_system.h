@@ -61,7 +61,7 @@
 */
 class Gcs_log_event {
  public:
-  explicit Gcs_log_event(){};
+  explicit Gcs_log_event() {}
 
   /**
     Set whether the content is ready to be consumed or not.

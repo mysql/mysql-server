@@ -21,9 +21,6 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#ifdef _WIN32
-#define NOMINMAX
-#endif
 
 #include "mysql_routing.h"
 #include "common.h"
@@ -53,6 +50,7 @@
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 
 #include <sys/types.h>
 
@@ -64,7 +62,6 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -159,8 +156,18 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
           string_format("Setting up TCP service using %s: %s",
                         context_.get_bind_address().str().c_str(), exc.what()));
     }
-    log_info("[%s] started: listening on %s", context_.get_name().c_str(),
-             context_.get_bind_address().str().c_str());
+
+    // routing strategy and mode are mutually-exclusive (mode is legacy)
+    if (routing_strategy_ != RoutingStrategy::kUndefined)
+      log_info("[%s] started: listening on %s, routing strategy = %s",
+               context_.get_name().c_str(),
+               context_.get_bind_address().str().c_str(),
+               get_routing_strategy_name(routing_strategy_).c_str());
+    else
+      log_info("[%s] started: listening on %s, routing mode = %s",
+               context_.get_name().c_str(),
+               context_.get_bind_address().str().c_str(),
+               get_access_mode_name(access_mode_).c_str());
   }
 #ifndef _WIN32
   if (context_.get_bind_named_socket().is_set()) {
@@ -238,7 +245,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
       get_routing_thread_name(context_.get_name(), "RtA")
           .c_str());  // "Rt Acceptor" would be too long :(
 
-  destination_->start();
+  destination_->start(env);
 
   auto allowed_nodes_changed = [&](const AllowedNodes &nodes,
                                    const std::string &reason) {
@@ -362,6 +369,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
                     context_.get_bind_named_socket().str().c_str());
       }
 
+      // TODO: creation of new element by [] is most-likely unneccessary
       if (context_.conn_error_counters_[in_addr_to_array(client_addr)] >=
           context_.max_connect_errors_) {
         std::string client_name, msg;

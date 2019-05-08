@@ -1,1 +1,1 @@
---bootstrap --lower_case_table_names=2
+--initialize --lower_case_table_names=2

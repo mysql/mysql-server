@@ -1,7 +1,7 @@
 #ifndef MYISAMPACK_INCLUDED
 #define MYISAMPACK_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,51 +62,50 @@ static inline int32 mi_sint4korr(const uchar *A) {
                  ((uint32)(A[1]) << 16) + ((uint32)(A[0]) << 24));
 }
 
-#define mi_sint8korr(A) ((longlong)mi_uint8korr(A))
-#define mi_uint2korr(A) \
-  ((uint16)(((uint16)(((uchar *)(A))[1])) + ((uint16)(((uchar *)(A))[0]) << 8)))
-#define mi_uint3korr(A)                            \
-  ((uint32)(((uint32)(((uchar *)(A))[2])) +        \
-            (((uint32)(((uchar *)(A))[1])) << 8) + \
-            (((uint32)(((uchar *)(A))[0])) << 16)))
-#define mi_uint4korr(A)                             \
-  ((uint32)(((uint32)(((uchar *)(A))[3])) +         \
-            (((uint32)(((uchar *)(A))[2])) << 8) +  \
-            (((uint32)(((uchar *)(A))[1])) << 16) + \
-            (((uint32)(((uchar *)(A))[0])) << 24)))
-#define mi_uint5korr(A)                                 \
-  ((ulonglong)(((uint32)(((uchar *)(A))[4])) +          \
-               (((uint32)(((uchar *)(A))[3])) << 8) +   \
-               (((uint32)(((uchar *)(A))[2])) << 16) +  \
-               (((uint32)(((uchar *)(A))[1])) << 24)) + \
-   (((ulonglong)(((uchar *)(A))[0])) << 32))
-#define mi_uint6korr(A)                                 \
-  ((ulonglong)(((uint32)(((uchar *)(A))[5])) +          \
-               (((uint32)(((uchar *)(A))[4])) << 8) +   \
-               (((uint32)(((uchar *)(A))[3])) << 16) +  \
-               (((uint32)(((uchar *)(A))[2])) << 24)) + \
-   (((ulonglong)(((uint32)(((uchar *)(A))[1])) +        \
-                 (((uint32)(((uchar *)(A))[0]) << 8)))) \
-    << 32))
-#define mi_uint7korr(A)                                  \
-  ((ulonglong)(((uint32)(((uchar *)(A))[6])) +           \
-               (((uint32)(((uchar *)(A))[5])) << 8) +    \
-               (((uint32)(((uchar *)(A))[4])) << 16) +   \
-               (((uint32)(((uchar *)(A))[3])) << 24)) +  \
-   (((ulonglong)(((uint32)(((uchar *)(A))[2])) +         \
-                 (((uint32)(((uchar *)(A))[1])) << 8) +  \
-                 (((uint32)(((uchar *)(A))[0])) << 16))) \
-    << 32))
-#define mi_uint8korr(A)                                  \
-  ((ulonglong)(((uint32)(((uchar *)(A))[7])) +           \
-               (((uint32)(((uchar *)(A))[6])) << 8) +    \
-               (((uint32)(((uchar *)(A))[5])) << 16) +   \
-               (((uint32)(((uchar *)(A))[4])) << 24)) +  \
-   (((ulonglong)(((uint32)(((uchar *)(A))[3])) +         \
-                 (((uint32)(((uchar *)(A))[2])) << 8) +  \
-                 (((uint32)(((uchar *)(A))[1])) << 16) + \
-                 (((uint32)(((uchar *)(A))[0])) << 24))) \
-    << 32))
+static inline uint16 mi_uint2korr(const uchar *A) {
+  return (uint16)((uint16)A[1]) + ((uint16)A[0] << 8);
+}
+
+static inline uint32 mi_uint3korr(const uchar *A) {
+  return (uint32)((uint32)A[2] + ((uint32)A[1] << 8) + ((uint32)A[0] << 16));
+}
+
+static inline uint32 mi_uint4korr(const uchar *A) {
+  return (uint32)((uint32)A[3] + ((uint32)A[2] << 8) + ((uint32)A[1] << 16) +
+                  ((uint32)A[0] << 24));
+}
+
+static inline ulonglong mi_uint5korr(const uchar *A) {
+  return (ulonglong)((uint32)A[4] + ((uint32)A[3] << 8) + ((uint32)A[2] << 16) +
+                     ((uint32)A[1] << 24)) +
+         ((ulonglong)A[0] << 32);
+}
+
+static inline ulonglong mi_uint6korr(const uchar *A) {
+  return (ulonglong)((uint32)A[5] + ((uint32)A[4] << 8) + ((uint32)A[3] << 16) +
+                     ((uint32)A[2] << 24)) +
+         (((ulonglong)((uint32)A[1] + ((uint32)A[0] << 8))) << 32);
+}
+
+static inline ulonglong mi_uint7korr(const uchar *A) {
+  return (ulonglong)((uint32)A[6] + ((uint32)A[5] << 8) + ((uint32)A[4] << 16) +
+                     ((uint32)A[3] << 24)) +
+         (((ulonglong)((uint32)A[2] + ((uint32)A[1] << 8) +
+                       ((uint32)A[0] << 16)))
+          << 32);
+}
+
+static inline ulonglong mi_uint8korr(const uchar *A) {
+  return (ulonglong)((uint32)A[7] + ((uint32)A[6] << 8) + ((uint32)A[5] << 16) +
+                     ((uint32)A[4] << 24)) +
+         (((ulonglong)((uint32)A[3] + ((uint32)A[2] << 8) +
+                       ((uint32)A[1] << 16) + ((uint32)A[0] << 24)))
+          << 32);
+}
+
+static inline longlong mi_sint8korr(const uchar *A) {
+  return (longlong)mi_uint8korr(A);
+}
 
 /* This one is for uniformity */
 #define mi_int1store(T, A) *((uchar *)(T)) = (uchar)(A)

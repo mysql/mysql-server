@@ -46,6 +46,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
+#define STRING_PORT_SIZE 6
+#define NR_GETADDRINFO_ATTEMPTS 10
+
 /**
  * Wrapper function which retries and checks errors from socket
  */
@@ -66,28 +69,37 @@ result xcom_checked_socket(int domain, int type, int protocol) {
 
 /**
  * Wrapper function which retries and checks errors from getaddrinfo
+ *
+ * We have observed that getaddrinfo returns EAI_AGAIN when called with an
+ * unresolvable hostname on systems using systemd-resolved for DNS resolution.
+ * Therefore, we only attempt to resolve nodename up to NR_GETADDRINFO_ATTEMPTS
+ * times, to avoid getting stuck in an infinite loop.
  */
 int checked_getaddrinfo(const char *nodename, const char *servname,
                         const struct addrinfo *hints, struct addrinfo **res) {
-  int errval = 0;
-  /** FIXME: Lookup IPv4 only for now */
+  int errval = EAI_AGAIN;
+
   struct addrinfo _hints;
   memset(&_hints, 0, sizeof(_hints));
-  _hints.ai_family = PF_INET;
+  _hints.ai_family = AF_UNSPEC;
+  _hints.ai_socktype = SOCK_STREAM;  // TCP stream sockets
   if (hints == NULL) hints = &_hints;
-  do {
+  for (int attempt_nr = 0;
+       errval == EAI_AGAIN && attempt_nr < NR_GETADDRINFO_ATTEMPTS;
+       attempt_nr++) {
     if (*res) {
       freeaddrinfo(*res);
       *res = NULL;
     }
     errval = getaddrinfo(nodename, servname, hints, res);
-  } while (errval == EAI_AGAIN);
+  }
 #if defined(EAI_NODATA) && EAI_NODATA != EAI_NONAME
   /* Solaris may return EAI_NODATA as well as EAI_NONAME */
-  if (errval && errval != EAI_NONAME && errval != EAI_NODATA) {
+  if (errval && errval != EAI_NONAME && errval != EAI_NODATA &&
+      errval != EAI_AGAIN) {
 #else
   /* FreeBSD has removed the definition of EAI_NODATA altogether. */
-  if (errval && errval != EAI_NONAME) {
+  if (errval && errval != EAI_NONAME && errval != EAI_AGAIN) {
 #endif
 #if !defined(_WIN32)
     DBGOUT(NUMEXP(errval); STREXP(gai_strerror(errval));
@@ -101,6 +113,18 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
   }
   assert((errval == 0 && *res) || (errval != 0 && *res == NULL));
   return errval;
+}
+
+/**
+ @brief Wrapper function to checked_getaddrinfo that accepts a numeric port
+ */
+int checked_getaddrinfo_port(const char *nodename, xcom_port port,
+                             const struct addrinfo *hints,
+                             struct addrinfo **res) {
+  char buffer[STRING_PORT_SIZE];
+  sprintf(buffer, "%d", port);
+
+  return checked_getaddrinfo(nodename, buffer, hints, res);
 }
 
 struct infonode;

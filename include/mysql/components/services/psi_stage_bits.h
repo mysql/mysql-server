@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,20 +69,6 @@ typedef struct PSI_stage_progress_v1 PSI_stage_progress_v1;
   This structure is used to register an instrumented stage.
 */
 struct PSI_stage_info_v1 {
-  /*
-    These constructors are no longer needed when we go to C++14, where
-    aggregate initialization is allowed on classes that have default
-    member initializers.
-  */
-  PSI_stage_info_v1() {}
-
-  PSI_stage_info_v1(PSI_stage_key key, const char *name, unsigned int flags,
-                    const char *documentation)
-      : m_key(key),
-        m_name(name),
-        m_flags(flags),
-        m_documentation(documentation) {}
-
   /** The registered stage key. */
   PSI_stage_key m_key{0};
   /** The name of the stage instrument to register. */

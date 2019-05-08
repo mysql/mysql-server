@@ -706,8 +706,6 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` 
 # Test end range changes
 DELETE FROM t2 WHERE a = 0;
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'UTC');
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 35
@@ -788,8 +786,6 @@ NULL	UTC
 2038-01-19 03:14:07	UTC
 # Test start range changes
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'UTC');
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 36
@@ -1205,8 +1201,6 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` 
 # Test end range changes
 DELETE FROM t2 WHERE a = 0;
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'Moscow');
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 35
@@ -1289,8 +1283,6 @@ NULL	UTC
 2038-01-19 06:14:07	UTC
 # Test start range changes
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'Moscow');
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 36

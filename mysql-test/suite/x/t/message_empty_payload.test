@@ -10,6 +10,16 @@
 -->peerdisc 2000 2000
 EOF
 
+--write_file $MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
+-->hexsend 00000000
+-->expecterror 5000
+-->recvtype Mysqlx.Error
+-->peerdisc 2000 2000
+EOF
+
+
 --write_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
 -->macro Verify_status	%VARIABLE_NAME%	%EXPECTED_VALUE%
 -->quiet
@@ -29,7 +39,7 @@ EOF
 SET GLOBAL mysqlx_connect_timeout = 300;
 
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp 2>&1
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp --no-auth 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp --no-auth 2>&1
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp 2>&1
 
 --let $wait_condition= SELECT variable_value = 2 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
@@ -38,5 +48,6 @@ SET GLOBAL mysqlx_connect_timeout = 300;
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 --remove_file $MYSQL_TMP_DIR/validate_empty_message.tmp
+--remove_file $MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp
 --remove_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
 --source include/xplugin_drop_user.inc

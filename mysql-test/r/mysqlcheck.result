@@ -39,8 +39,12 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 sys.sys_config                                     OK
-mtr.global_suppressions                            Table is already up to date
-mtr.test_suppressions                              Table is already up to date
+mtr.global_suppressions
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mtr.test_suppressions
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.columns_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK

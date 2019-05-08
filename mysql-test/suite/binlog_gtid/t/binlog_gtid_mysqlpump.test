@@ -67,3 +67,4 @@ RESET MASTER;
 --echo ==== Clean up ====
 
 DROP TABLE t1;
+--remove_file $MYSQL_TMP_DIR/mysql$name.sql

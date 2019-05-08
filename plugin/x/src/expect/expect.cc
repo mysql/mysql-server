@@ -28,7 +28,7 @@
 #include <string>
 #include <utility>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/expect/expect_condition.h"
 #include "plugin/x/src/expect/expect_condition_docid.h"
 #include "plugin/x/src/expect/expect_condition_field.h"

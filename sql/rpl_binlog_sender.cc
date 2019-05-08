@@ -63,6 +63,7 @@
 #include "sql/system_variables.h"
 #include "sql_string.h"
 #include "typelib.h"
+#include "unsafe_string_append.h"
 
 #ifndef DBUG_OFF
 static uint binlog_dump_count = 0;
@@ -256,7 +257,7 @@ void Binlog_sender::run() {
 
   unsigned int max_event_size =
       std::max(m_thd->variables.max_allowed_packet,
-               opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER);
+               binlog_row_event_max_size + MAX_LOG_EVENT_HEADER);
   File_reader reader(opt_master_verify_checksum, max_event_size);
   my_off_t start_pos = m_start_pos;
   const char *log_file = m_linfo.log_file_name;
@@ -928,8 +929,8 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags,
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
-  m_packet.length(0);        // size of the content
-  m_packet.qs_append('\0');  // Set this as an OK packet
+  m_packet.length(0);          // size of the content
+  qs_append('\0', &m_packet);  // Set this as an OK packet
 
   /* reserve and set default header */
   if (m_observe_transmission &&

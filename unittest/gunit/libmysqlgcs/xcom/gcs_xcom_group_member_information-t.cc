@@ -41,7 +41,7 @@ namespace gcs_parameters_unittest {
 
 class GcsNodeAddressTest : public GcsBaseTest {
  protected:
-  GcsNodeAddressTest(){};
+  GcsNodeAddressTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };
@@ -88,6 +88,7 @@ TEST_F(GcsNodeAddressTest, TestNodeAddress) {
   ASSERT_EQ(invalid_addr_1.get_member_address(), address);
   ASSERT_EQ(invalid_addr_1.get_member_ip(), hostname);
   ASSERT_EQ(invalid_addr_1.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_1.is_valid());
   rep = invalid_addr_1.get_member_representation();
   ASSERT_EQ(*rep, address);
   delete rep;
@@ -95,7 +96,7 @@ TEST_F(GcsNodeAddressTest, TestNodeAddress) {
   /*
     Check address "127.0.0.1:".
   */
-  hostname = "127.0.0.1";
+  hostname = "";
   port = 0;
   address = "127.0.0.1:";
   Gcs_xcom_node_address invalid_addr_2(address);
@@ -103,6 +104,7 @@ TEST_F(GcsNodeAddressTest, TestNodeAddress) {
   ASSERT_EQ(invalid_addr_2.get_member_address(), address);
   ASSERT_EQ(invalid_addr_2.get_member_ip(), hostname);
   ASSERT_EQ(invalid_addr_2.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_2.is_valid());
   rep = invalid_addr_2.get_member_representation();
   ASSERT_EQ(*rep, address);
   delete rep;
@@ -110,7 +112,7 @@ TEST_F(GcsNodeAddressTest, TestNodeAddress) {
   /*
     Check address "127.0.0.1:invalid".
   */
-  hostname = "127.0.0.1";
+  hostname = "";
   port = 0;
   address = "127.0.0.1:invalid";
   Gcs_xcom_node_address invalid_addr_3(address);
@@ -118,14 +120,144 @@ TEST_F(GcsNodeAddressTest, TestNodeAddress) {
   ASSERT_EQ(invalid_addr_3.get_member_address(), address);
   ASSERT_EQ(invalid_addr_3.get_member_ip(), hostname);
   ASSERT_EQ(invalid_addr_3.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_3.is_valid());
   rep = invalid_addr_3.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+}
+
+TEST_F(GcsNodeAddressTest, TestNodeAddressV6) {
+  /*
+    Check address "[::1]:1030".
+  */
+  std::string hostname = "::1";
+  xcom_port port = 1030;
+  std::string address = "[::1]:1030";
+  Gcs_xcom_node_address local_addr_2(address);
+
+  ASSERT_EQ(local_addr_2.get_member_address(), address);
+  ASSERT_EQ(local_addr_2.get_member_ip(), hostname);
+  ASSERT_EQ(local_addr_2.get_member_port(), port);
+  std::string *rep = local_addr_2.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+
+  /*
+    Check address "[::1]".
+  */
+  hostname = "";
+  port = 0;
+  address = "[::1]";
+  Gcs_xcom_node_address invalid_addr_1(address);
+
+  ASSERT_EQ(invalid_addr_1.get_member_address(), address);
+  ASSERT_EQ(invalid_addr_1.get_member_ip(), hostname);
+  ASSERT_EQ(invalid_addr_1.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_1.is_valid());
+  rep = invalid_addr_1.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+
+  /*
+    Check address "[::1]:".
+  */
+  hostname = "";
+  port = 0;
+  address = "[::1]:";
+  Gcs_xcom_node_address invalid_addr_2(address);
+
+  ASSERT_EQ(invalid_addr_2.get_member_address(), address);
+  ASSERT_EQ(invalid_addr_2.get_member_ip(), hostname);
+  ASSERT_EQ(invalid_addr_2.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_2.is_valid());
+  rep = invalid_addr_2.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+
+  /*
+    Check address "[::1:1]:".
+  */
+  hostname = "";
+  port = 0;
+  address = "[::1:1]:";
+  Gcs_xcom_node_address invalid_addr_3(address);
+
+  ASSERT_EQ(invalid_addr_3.get_member_address(), address);
+  ASSERT_EQ(invalid_addr_3.get_member_ip(), hostname);
+  ASSERT_EQ(invalid_addr_3.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_3.is_valid());
+  rep = invalid_addr_3.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+
+  /*
+    Check address "::1".
+  */
+  hostname = "";
+  port = 0;
+  address = "::1";
+  Gcs_xcom_node_address invalid_addr_4(address);
+
+  ASSERT_EQ(invalid_addr_4.get_member_address(), address);
+  ASSERT_EQ(invalid_addr_4.get_member_ip(), hostname);
+  ASSERT_EQ(invalid_addr_4.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_4.is_valid());
+  rep = invalid_addr_4.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+
+  /*
+    Check address "[::1".
+  */
+  hostname = "";
+  port = 0;
+  address = "[::1";
+  Gcs_xcom_node_address invalid_addr_5(address);
+
+  ASSERT_EQ(invalid_addr_5.get_member_address(), address);
+  ASSERT_EQ(invalid_addr_5.get_member_ip(), hostname);
+  ASSERT_EQ(invalid_addr_5.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_5.is_valid());
+  rep = invalid_addr_5.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+
+  /*
+  Check address "::1]".
+  */
+  hostname = "";
+  port = 0;
+  address = "2606:b400:85c:1048:221:f6ff:fe2e:972b]:10301";
+  Gcs_xcom_node_address invalid_addr_6(address);
+
+  ASSERT_EQ(invalid_addr_6.get_member_address(), address);
+  ASSERT_EQ(invalid_addr_6.get_member_ip(), hostname);
+  ASSERT_EQ(invalid_addr_6.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_6.is_valid());
+  rep = invalid_addr_6.get_member_representation();
+  ASSERT_EQ(*rep, address);
+  delete rep;
+
+  /*
+  Check address "[hostname]".
+  */
+  hostname = "";
+  port = 0;
+  address = "[hostname]:10301";
+  Gcs_xcom_node_address invalid_addr_7(address);
+
+  ASSERT_EQ(invalid_addr_7.get_member_address(), address);
+  ASSERT_EQ(invalid_addr_7.get_member_ip(), hostname);
+  ASSERT_EQ(invalid_addr_7.get_member_port(), port);
+  ASSERT_FALSE(invalid_addr_7.is_valid());
+  rep = invalid_addr_7.get_member_representation();
   ASSERT_EQ(*rep, address);
   delete rep;
 }
 
 class GcsUUIDTest : public GcsBaseTest {
  protected:
-  GcsUUIDTest(){};
+  GcsUUIDTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };
@@ -175,7 +307,7 @@ TEST_F(GcsUUIDTest, TestGcsUUID) {
 
 class GcsNodeInformationTest : public GcsBaseTest {
  protected:
-  GcsNodeInformationTest(){};
+  GcsNodeInformationTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };
@@ -262,7 +394,7 @@ TEST_F(GcsNodeInformationTest, TestGcsNodeInformation) {
 
 class GcsNodesTest : public GcsBaseTest {
  protected:
-  GcsNodesTest(){};
+  GcsNodesTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };

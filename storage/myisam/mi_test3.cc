@@ -23,6 +23,7 @@
 /* Test av locking */
 
 #include <sys/types.h>
+#include "my_byteorder.h"
 #include "myisam.h"
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>

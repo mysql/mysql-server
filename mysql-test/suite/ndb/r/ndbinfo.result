@@ -132,7 +132,7 @@ SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
   WHERE t.table_id = c.table_id AND
     t.table_id in (1,2,3,4,5,6);
 COUNT(*)
-47
+49
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -1042,16 +1042,20 @@ union
 select sum(hash_index_l2pmap_alloc_bytes) as l2p_sum, 'ACC' as block 
 from ndbinfo.ndb$frag_mem_use;
 
+
 select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
 where pool_name='Index memory';
 used_bytes - hash_index_alloc_bytes
 0
 
 select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  into @diff
   from pool_sum, frag_sum 
   where pool_name='Data memory';
-used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+select @diff;
+@diff
 0
+
 
 select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
   where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
@@ -1341,7 +1345,7 @@ conc_qd_frag_scans	0
 tot_commits	6
 explain select count(*) from t1 where d<10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	#	ALL	ix1	NULL	NULL	NULL	100	33.33	Using where with pushed condition (`ndbinfo`.`t1`.`d` < 10)
+1	SIMPLE	t1	#	ALL	ix1	NULL	NULL	NULL	100	33.33	Using pushed condition (`ndbinfo`.`t1`.`d` < 10)
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t1` where (`ndbinfo`.`t1`.`d` < 10)
 select count(*) from t1 where d<10;
@@ -1350,7 +1354,7 @@ count(*)
 
 explain select count(*) from t1 where b=1 and a<10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	#	range	PRIMARY	PRIMARY	8	NULL	3	100.00	Using where with pushed condition ((`ndbinfo`.`t1`.`b` = 1) and (`ndbinfo`.`t1`.`a` < 10)); Using MRR
+1	SIMPLE	t1	#	range	PRIMARY	PRIMARY	8	NULL	3	100.00	Using pushed condition ((`ndbinfo`.`t1`.`b` = 1) and (`ndbinfo`.`t1`.`a` < 10)); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t1` where ((`ndbinfo`.`t1`.`b` = 1) and (`ndbinfo`.`t1`.`a` < 10))
 select count(*) from t1 where b=1 and a<10;
@@ -1515,7 +1519,7 @@ from t2 as tx, t2 as ty
 where tx.a in (1,3,5)
 and ty.a = tx.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	#	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`ndbinfo`.`tx`.`a` in (1,3,5)) and (`ndbinfo`.`tx`.`b` is not null)); Using MRR
+1	SIMPLE	tx	#	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Parent of 2 pushed join@1; Using pushed condition ((`ndbinfo`.`tx`.`a` in (1,3,5)) and (`ndbinfo`.`tx`.`b` is not null)); Using MRR
 1	SIMPLE	ty	#	eq_ref	PRIMARY	PRIMARY	4	ndbinfo.tx.b	1	100.00	Child of 'tx' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t2` `tx` join `ndbinfo`.`t2` `ty` where ((`ndbinfo`.`ty`.`a` = `ndbinfo`.`tx`.`b`) and (`ndbinfo`.`tx`.`a` in (1,3,5)))
@@ -1567,10 +1571,10 @@ new.tot_key_updates - old.tot_key_updates	0
 new.tot_key_writes - old.tot_key_writes	0
 new.tot_key_deletes - old.tot_key_deletes	0
 new.tot_key_refs - old.tot_key_refs	1
-new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	1
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	2
 new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes	20
-new.tot_key_prog_bytes - old.tot_key_prog_bytes	0
-new.tot_key_inst_exec - old.tot_key_inst_exec	0
+new.tot_key_prog_bytes - old.tot_key_prog_bytes	168
+new.tot_key_inst_exec - old.tot_key_inst_exec	7
 new.tot_key_bytes_returned - old.tot_key_bytes_returned	56
 new.tot_frag_scans - old.tot_frag_scans	0
 new.tot_scan_rows_examined - old.tot_scan_rows_examined	0

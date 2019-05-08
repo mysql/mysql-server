@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <cmath>
 
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

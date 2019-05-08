@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,6 +170,15 @@ bool Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   }
   DBUG_ASSERT(schema != nullptr);  // Must exist if event exists.
 
+  /*
+    If definer has the SYSTEM_USER privilege then invoker can alter event
+    only if latter also has same privilege.
+  */
+  Security_context *sctx = thd->security_context();
+  Auth_id definer(event->definer_user().c_str(), event->definer_host().c_str());
+  if (sctx->can_operate_with(definer, consts::system_user, true))
+    DBUG_RETURN(true);
+
   // Update Event in the data dictionary with altered event object attributes.
   bool ret = dd::update_event(
       thd, event, *schema, new_schema, new_name != nullptr ? new_name->str : "",
@@ -228,6 +237,15 @@ bool Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                         ER_THD(thd, ER_SP_DOES_NOT_EXIST), "Event", name.str);
     DBUG_RETURN(false);
   }
+  /*
+    If definer has the SYSTEM_USER privilege then invoker can drop event
+    only if latter also has same privilege.
+  */
+  Auth_id definer(event_ptr->definer_user().c_str(),
+                  event_ptr->definer_host().c_str());
+  Security_context *sctx = thd->security_context();
+  if (sctx->can_operate_with(definer, consts::system_user, true))
+    DBUG_RETURN(true);
 
   *event_exists = true;
   DBUG_RETURN(thd->dd_client()->drop(event_ptr));

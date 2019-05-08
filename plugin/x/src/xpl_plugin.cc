@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,29 +65,6 @@ void check_exit_hook() {
   }
 }
 
-xpl::Client_ptr get_client_by_thd(xpl::Server::Server_ptr &server, THD *thd) {
-  struct Client_check_handler_thd {
-    Client_check_handler_thd(THD *thd) : m_thd(thd) {}
-
-    bool operator()(ngs::Client_ptr &client) {
-      xpl::Client *xpl_client = (xpl::Client *)client.get();
-
-      return xpl_client->is_handler_thd(m_thd);
-    }
-
-    THD *m_thd;
-  } client_check_thd(thd);
-
-  std::vector<ngs::Client_ptr> clients;
-  (*server)->server().get_client_list().get_all_clients(clients);
-
-  std::vector<ngs::Client_ptr>::iterator i =
-      std::find_if(clients.begin(), clients.end(), client_check_thd);
-  if (clients.end() != i) return ngs::dynamic_pointer_cast<xpl::Client>(*i);
-
-  return xpl::Client_ptr();
-}
-
 template <void (xpl::Client::*method)(SHOW_VAR *)>
 int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   var->type = SHOW_UNDEF;
@@ -96,7 +73,8 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    auto client = std::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
 
     if (client) ((*client).*method)(var);
   }
@@ -112,11 +90,12 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    auto client = std::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
 
     if (client) {
       ReturnType result =
-          (ngs::Ssl_session_options(&client->connection()).*method)();
+          (xpl::Ssl_session_options(&client->connection()).*method)();
       mysqld::xpl_show_var(var).assign(result);
     }
   }
@@ -173,7 +152,8 @@ int common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    auto client = std::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
 
     if (client) {
       // Status can be queried from different thread than client is bound to.
@@ -228,7 +208,8 @@ void thd_variable(THD *thd, SYS_VAR *sys_var, void *tgt, const void *save) {
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
 
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    xpl::Client_ptr client = std::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
     if (client) ((*client).*method)(*static_cast<Copy_type *>(tgt));
 
     // We should store the variables values so that they can be set when new
@@ -365,12 +346,14 @@ static MYSQL_SYSVAR_STR(socket, xpl::Plugin_system_variables::socket,
                         "X Plugin's unix socket for local connection.", NULL,
                         NULL, NULL);
 
-static MYSQL_SYSVAR_STR(bind_address,
-                        xpl::Plugin_system_variables::bind_address,
-                        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG |
-                            PLUGIN_VAR_MEMALLOC,
-                        "Address to which X Plugin should bind the TCP socket.",
-                        NULL, NULL, "*");
+static MYSQL_SYSVAR_STR(
+    bind_address, xpl::Plugin_system_variables::bind_address,
+    PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
+    "Address to which X Plugin should bind the TCP socket optionally "
+    "followed by a network namespace delimited with /. "
+    "E.g., the string value 127.0.0.1/red specifies to listen on "
+    "IP address 127.0.0.1 from the network namespace 'red'.",
+    NULL, NULL, "*");
 
 static MYSQL_SYSVAR_UINT(
     port_open_timeout, xpl::Plugin_system_variables::port_open_timeout,
@@ -420,6 +403,13 @@ static MYSQL_SYSVAR_UINT(
     NULL, &xpl::Plugin_system_variables::update_func<uint32_t>, 0, 0,
     std::numeric_limits<uint16_t>::max(), 0);
 
+static MYSQL_SYSVAR_BOOL(
+    enable_hello_notice, xpl::Plugin_system_variables::m_enable_hello_notice,
+    PLUGIN_VAR_OPCMDARG,
+    "Hello notice is a X Protocol message send by the server after connection "
+    "establishment, using this variable it can be disabled",
+    NULL, &xpl::Plugin_system_variables::update_func<bool>, true);
+
 static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(port),
     MYSQL_SYSVAR(max_connections),
@@ -442,6 +432,7 @@ static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(read_timeout),
     MYSQL_SYSVAR(write_timeout),
     MYSQL_SYSVAR(document_id_unique_prefix),
+    MYSQL_SYSVAR(enable_hello_notice),
     NULL};
 
 #define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                 \
@@ -510,6 +501,18 @@ static SHOW_VAR xpl_plugin_status[] = {
         "crud_modify_view", ngs::Common_status_variables::m_crud_modify_view),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "crud_drop_view", ngs::Common_status_variables::m_crud_drop_view),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "prep_prepare", ngs::Common_status_variables::m_prep_prepare),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "prep_execute", ngs::Common_status_variables::m_prep_execute),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "prep_deallocate", ngs::Common_status_variables::m_prep_deallocate),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "cursor_open", ngs::Common_status_variables::m_cursor_open),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "cursor_close", ngs::Common_status_variables::m_cursor_close),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "cursor_fetch", ngs::Common_status_variables::m_cursor_fetch),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "expect_open", ngs::Common_status_variables::m_expect_open),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(

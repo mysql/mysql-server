@@ -113,7 +113,7 @@ End of 5.0 tests
 create database mysql_TEST;
 show create database mysql_TEST;
 Database	Create Database
-mysql_TEST	CREATE DATABASE `mysql_TEST` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+mysql_TEST	CREATE DATABASE `mysql_TEST` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysql_TEST;
 End of 6.0 tests
 #

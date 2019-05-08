@@ -862,3 +862,27 @@ INSERT INTO t (a) VALUES (32767),(-1);
 --error ER_DATA_OUT_OF_RANGE
 SELECT * FROM t WHERE a>-19106 AND a-0x4d;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#27954073 ASSERTION FAILED: !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+--echo #
+
+# Row-based binary logging adds all columns to TABLE::write_set,
+# masking the problem, so we turn it off:
+
+SET BINLOG_FORMAT=STATEMENT;
+
+CREATE TABLE t(
+ a INT,
+ b INT GENERATED ALWAYS AS (0) VIRTUAL NOT NULL,
+ KEY (a)
+) ENGINE=INNODB PARTITION BY KEY(b) PARTITIONS 2;
+
+INSERT INTO t(a) VALUES(1),(1),(1),(1);
+
+# This used to cause the assertion failure:
+DELETE FROM t WHERE a=1;
+
+DROP TABLE t;
+
+SET BINLOG_FORMAT=DEFAULT;

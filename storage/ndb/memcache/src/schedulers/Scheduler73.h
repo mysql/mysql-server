@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ class Scheduler73::Global : public GlobalConfigManager {
 
 public:
   Global(int);
-  ~Global() {};
+  ~Global() {}
   void init(const scheduler_options *options);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
@@ -146,10 +146,10 @@ private:
 
 class Scheduler73::Worker : public Scheduler {
 public:
-  Worker() {};
+  Worker() {}
   ~Worker();
   void init(int threadnum, const scheduler_options *options);
-  void attach_thread(thread_identifier *) {};
+  void attach_thread(thread_identifier *) {}
   ENGINE_ERROR_CODE schedule(workitem *);
   void prepare(NdbTransaction *, NdbTransaction::ExecType, NdbAsynchCallback, 
                workitem *, prepare_flags);

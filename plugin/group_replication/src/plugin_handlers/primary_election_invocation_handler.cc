@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,16 +21,26 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
+#include "plugin/group_replication/include/hold_transactions.h"
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
-Primary_election_handler::Primary_election_handler()
+Primary_election_handler::Primary_election_handler(
+    ulong components_stop_timeout)
     : election_process_running(false) {
   mysql_mutex_init(key_GR_LOCK_primary_election_running_flag, &flag_lock,
                    MY_MUTEX_INIT_FAST);
+  primary_election_handler.set_stop_wait_timeout(components_stop_timeout);
+  secondary_election_handler.set_stop_wait_timeout(components_stop_timeout);
 }
 
 Primary_election_handler::~Primary_election_handler() {
   mysql_mutex_destroy(&flag_lock);
+}
+
+void Primary_election_handler::set_stop_wait_timeout(ulong timeout) {
+  primary_election_handler.set_stop_wait_timeout(timeout);
+  secondary_election_handler.set_stop_wait_timeout(timeout);
 }
 
 bool Primary_election_handler::is_an_election_running() {
@@ -218,6 +228,8 @@ int Primary_election_handler::internal_primary_election(
   group_member_mgr->update_primary_member_flag(true);
 
   if (!local_member_info->get_uuid().compare(primary_to_elect)) {
+    hold_transactions->enable();
+    register_transaction_observer();
     primary_election_handler.launch_primary_election_process(
         mode, primary_to_elect, members_info);
   } else {
@@ -432,3 +444,53 @@ void sort_members_for_election(
     std::sort(all_members_info->begin(), lowest_version_end,
               Group_member_info::comparator_group_member_uuid);
 }
+
+void Primary_election_handler::register_transaction_observer() {
+  group_transaction_observation_manager->register_transaction_observer(this);
+}
+
+void Primary_election_handler::unregister_transaction_observer() {
+  group_transaction_observation_manager->unregister_transaction_observer(this);
+}
+
+int Primary_election_handler::before_transaction_begin(
+    my_thread_id, ulong gr_consistency, ulong hold_timeout,
+    enum_rpl_channel_type channel_type) {
+  DBUG_ENTER("Primary_election_handler::before_transaction_begin");
+
+  if (GR_RECOVERY_CHANNEL == channel_type ||
+      GR_APPLIER_CHANNEL == channel_type) {
+    DBUG_RETURN(0);
+  }
+
+  const enum_group_replication_consistency_level consistency_level =
+      static_cast<enum_group_replication_consistency_level>(gr_consistency);
+
+  if (consistency_level ==
+          GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
+      consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
+    DBUG_RETURN(
+        hold_transactions->wait_until_primary_failover_complete(hold_timeout));
+  }
+
+  DBUG_RETURN(0);
+}
+
+/*
+  These methods are necessary to fulfil the Group_transaction_listener
+  interface.
+*/
+/* purecov: begin inspected */
+int Primary_election_handler::before_commit(
+    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
+  return 0;
+}
+int Primary_election_handler::before_rollback(
+    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
+  return 0;
+}
+int Primary_election_handler::after_rollback(my_thread_id) { return 0; }
+int Primary_election_handler::after_commit(my_thread_id, rpl_sidno, rpl_gno) {
+  return 0;
+}
+/* purecov: end */

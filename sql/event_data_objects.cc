@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -455,7 +455,8 @@ bool Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
 */
 static my_time_t add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
                               interval_type scale, Interval interval) {
-  if (date_add_interval(ltime, scale, interval)) return 0;
+  if (date_add_interval_with_warn(current_thd, ltime, scale, interval))
+    return 0;
 
   bool not_used;
   return time_zone->TIME_to_gmt_sec(ltime, &not_used);
@@ -557,7 +558,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   if (seconds) {
     longlong seconds_diff;
     long microsec_diff;
-    bool negative = calc_time_diff(&local_now, &local_start, 1, &seconds_diff,
+    bool negative = calc_time_diff(local_now, local_start, 1, &seconds_diff,
                                    &microsec_diff);
     if (!negative) {
       /*
@@ -895,7 +896,7 @@ static void append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
   */
   MYSQL_TIME time;
   time_zone->gmt_sec_to_TIME(&time, secs);
-  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff, 0));
+  buf->append(dtime_buff, my_datetime_to_str(time, dtime_buff, 0));
   buf->append(STRING_WITH_LEN("'"));
 }
 
@@ -911,7 +912,7 @@ static void append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
 
 */
 
-int Event_timed::get_create_event(THD *thd, String *buf) {
+int Event_timed::get_create_event(const THD *thd, String *buf) {
   char tmp_buf[2 * STRING_BUFFER_USUAL_SIZE];
   String expr_buf(tmp_buf, sizeof(tmp_buf), system_charset_info);
   expr_buf.length(0);
@@ -933,7 +934,7 @@ int Event_timed::get_create_event(THD *thd, String *buf) {
     buf->append(STRING_WITH_LEN(" ON SCHEDULE EVERY "));
     buf->append(expr_buf);
     buf->append(' ');
-    LEX_STRING *ival = &interval_type_to_name[m_interval];
+    const LEX_STRING *ival = &interval_type_to_name[m_interval];
     buf->append(ival->str, ival->length);
 
     if (!m_starts_null)
@@ -1008,7 +1009,7 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
 
   sp_sql->append(m_definition.str, m_definition.length);
 
-  DBUG_RETURN(thd->is_fatal_error);
+  DBUG_RETURN(thd->is_fatal_error());
 }
 
 /**
@@ -1057,6 +1058,15 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     goto end;
   }
 
+  /*
+    In case the definer user has SYSTEM_USER privilege then make THD
+    non-killable through the users who do not have SYSTEM_USER privilege,
+    OR vice-versa.
+    Note - Do not forget to reset the flag after the saved security context is
+           restored.
+  */
+  if (save_sctx) set_system_user_flag(thd);
+
   if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, 0, 0)) {
     /*
       This aspect of behavior is defined in the worklog,
@@ -1093,7 +1103,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     thd->m_statement_psi = NULL;
     if (parse_sql(thd, &parser_state, m_creation_ctx)) {
       LogErr(ERROR_LEVEL, ER_EVENT_ERROR_DURING_COMPILATION,
-             thd->is_fatal_error ? "fatal " : "", m_schema_name.str,
+             thd->is_fatal_error() ? "fatal " : "", m_schema_name.str,
              m_event_name.str);
       thd->m_digest = parent_digest;
       thd->m_statement_psi = parent_locker;
@@ -1130,7 +1140,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   }
 
 end:
-  if (drop && !thd->is_fatal_error) {
+  if (drop && !thd->is_fatal_error()) {
     /*
       We must do it here since here we're under the right authentication
       ID of the event definer.
@@ -1178,8 +1188,14 @@ end:
       thd->security_context()->set_master_access(saved_master_access);
     }
   }
-  if (save_sctx) event_sctx.restore_security_context(thd, save_sctx);
-  thd->lex->unit->cleanup(true);
+
+  if (save_sctx) {
+    event_sctx.restore_security_context(thd, save_sctx);
+    /* Restore the original value in THD */
+    set_system_user_flag(thd);
+  }
+
+  thd->lex->unit->cleanup(thd, true);
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */

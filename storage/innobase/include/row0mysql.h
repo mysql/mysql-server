@@ -38,16 +38,51 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "btr0pcur.h"
 #include "data0data.h"
-#include "dict0dd.h"
+#include "data0type.h"
+#include "db0err.h"
 #include "dict0types.h"
+#include "fts0fts.h"
+#include "gis0type.h"
 #include "lob0undo.h"
+#include "lock0types.h"
+#include "mem0mem.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "que0types.h"
+#include "rem0types.h"
 #include "row0types.h"
 #include "sess0sess.h"
 #include "sql_cmd.h"
 #include "trx0types.h"
+#include "univ.i"
+
+class THD;
+class ha_innobase;
+class innodb_session_t;
+namespace dd {
+class Table;
+}
+struct TABLE;
+struct btr_pcur_t;
+struct dfield_t;
+struct dict_field_t;
+struct dict_foreign_t;
+struct dict_index_t;
+struct dict_table_t;
+struct dict_v_col_t;
+struct dtuple_t;
+struct ins_node_t;
+struct mtr_t;
+struct que_fork_t;
+struct que_thr_t;
+struct trx_t;
+struct upd_node_t;
+struct upd_t;
 
 #ifndef UNIV_HOTBACKUP
 extern ibool row_rollback_on_timeout;
@@ -354,15 +389,12 @@ dberr_t row_mysql_lock_table(
     const char *op_info) /*!< in: string for trx->op_info */
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Drop a single-table tablespace as part of dropping or renaming a table.
+/** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
 @param[in]	space_id	Tablespace ID
-@param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
 @return error code or DB_SUCCESS */
-dberr_t row_drop_single_table_tablespace(space_id_t space_id,
-                                         const char *tablename,
-                                         const char *filepath);
+dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath);
 
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
@@ -421,19 +453,18 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Scans an index for either COOUNT(*) or CHECK TABLE.
- If CHECK TABLE; Checks that the index contains entries in an ascending order,
- unique constraint is not broken, and calculates the number of index entries
- in the read view of the current transaction.
- @return DB_SUCCESS or other error */
-dberr_t row_scan_index_for_mysql(
-    row_prebuilt_t *prebuilt,  /*!< in: prebuilt struct
-                               in MySQL handle */
-    const dict_index_t *index, /*!< in: index */
-    bool check_keys,           /*!< in: true=check for mis-
-                               ordered or duplicate records,
-                               false=count the rows only */
-    ulint *n_rows)             /*!< out: number of entries
-                               seen in the consistent read */
+If CHECK TABLE; Checks that the index contains entries in an ascending order,
+unique constraint is not broken, and calculates the number of index entries
+in the read view of the current transaction.
+@param[in,out]  prebuilt    Prebuilt struct in MySQL handle.
+@param[in,out]  index       Index to scan.
+@param[in]      n_threads   Number of threads to use for the scan
+@param[in]      check_keys  True if called form check table.
+@param[out]     n_rows      Number of entries seen in the consistent read.
+@return DB_SUCCESS or other error */
+dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
+                                 size_t n_threads, bool check_keys,
+                                 ulint *n_rows)
     MY_ATTRIBUTE((warn_unused_result));
 /** Initialize this module */
 void row_mysql_init(void);
@@ -809,7 +840,7 @@ struct SysIndexCallback {
   /** Callback method
   @param mtr current mini transaction
   @param pcur persistent cursor. */
-  virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) throw() = 0;
+  virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) noexcept = 0;
 };
 
 /** Get the computed value by supplying the base column values.

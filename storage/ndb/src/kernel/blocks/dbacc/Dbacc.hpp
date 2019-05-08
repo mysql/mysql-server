@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -237,6 +237,8 @@ class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
 
 public:
+  void prepare_scan_ctx(Uint32 scanPtrI);
+
 // State values
 enum State {
   FREEFRAG = 0,
@@ -304,21 +306,6 @@ struct Page8 {
 }; /* p2c: size = 8192 bytes */
   typedef Ptr<Page8> Page8Ptr;
 
-struct Page8SLinkMethods
-{
-  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
-  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
-  static void setPrev(Page8& /* item */, Uint32 /* prev */) { /* no op for single linked list */ }
-};
-
-struct ContainerPageLinkMethods
-{
-  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
-  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
-  static Uint32 getPrev(Page8 const& item) { return item.word32[Page8::PREV_PAGE]; }
-  static void setPrev(Page8& item, Uint32 prev) { item.word32[Page8::PREV_PAGE] = prev; }
-};
-
 struct Page32
 {
   enum { MAGIC = 0x17283482 };
@@ -373,10 +360,10 @@ private:
   Page32_pool& m_page_pool;
 };
 
-typedef SLCFifoList<Page8_pool,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoList<Page8_pool,Page8,Page8SLinkMethods> LocalPage8List;
-typedef DLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> ContainerPageList;
-typedef LocalDLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> LocalContainerPageList;
+typedef SLCFifoList<Page8_pool, IA_Page8> Page8List;
+typedef LocalSLCFifoList<Page8_pool, IA_Page8> LocalPage8List;
+typedef DLCFifoList<Page8_pool, IA_Page8> ContainerPageList;
+typedef LocalDLCFifoList<Page8_pool, IA_Page8> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
@@ -574,7 +561,7 @@ struct Fragmentrec {
 
       m_wait_ok_millis     = 0;
       m_wait_fail_millis   = 0;
-    };
+    }
 
     // req_start_imm_ok
     // A request was immediately granted (No contention)
@@ -707,7 +694,7 @@ struct Operationrec {
   Uint32 userptr;
   Uint16 elementContainer;
   Uint16 tupkeylen;
-  Uint32 xfrmtupkeylen;
+  Uint32 m_scanOpDeleteCountOpRef;
   Uint32 userblockref;
   enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
@@ -725,6 +712,8 @@ struct Operationrec {
     ,OP_COMMIT_DELETE_CHECK = 0x00400
     ,OP_INSERT_IS_DONE      = 0x00800
     ,OP_ELEMENT_DISAPPEARED = 0x01000
+    ,OP_PENDING_ABORT       = 0x02000
+
     
     ,OP_STATE_MASK          = 0xF0000
     ,OP_STATE_IDLE          = 0xF0000
@@ -831,6 +820,8 @@ public:
   // Get the size of the linear hash map in bytes.
   Uint64 getLinHashByteSize(Uint32 fragId) const;
 
+  bool checkOpPendingAbort(Uint32 accConnectPtr) const;
+
 private:
   BLOCK_DEFINES(Dbacc);
 
@@ -864,9 +855,12 @@ private:
   void execDBINFO_SCANREQ(Signal *signal);
 
   // Statement blocks
-  void commitDeleteCheck() const;
-  void report_dealloc(Signal* signal, const Operationrec* opPtrP);
-  
+  void commitDeleteCheck(Signal* signal);
+  void report_pending_dealloc(Signal* signal,
+                              Operationrec* opPtrP,
+                              const Operationrec* countOpPtrP);
+  void trigger_dealloc(Signal* signal, const Operationrec* opPtrP);
+
   typedef void * RootfragmentrecPtr;
   void initRootFragPageZero(FragmentrecPtr, Page8Ptr) const;
   void initFragAdd(Signal*, FragmentrecPtr) const;
@@ -924,6 +918,7 @@ private:
   void placeSerialQueue(OperationrecPtr lockOwner, OperationrecPtr op) const;
   void abortSerieQueueOperation(Signal* signal, OperationrecPtr op);  
   void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);
+  void mark_pending_abort(OperationrecPtr abortingOp, Uint32 nextParallelOp);
   
   void expandcontainer(Page8Ptr pageptr, Uint32 conidx);
   void shrinkcontainer(Page8Ptr pageptr,

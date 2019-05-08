@@ -25,7 +25,6 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
@@ -48,7 +47,6 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
@@ -71,7 +69,6 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc

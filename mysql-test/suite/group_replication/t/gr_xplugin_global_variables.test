@@ -168,10 +168,10 @@ SET GLOBAL group_replication_flow_control_certifier_threshold= 50000;
 SET GLOBAL group_replication_flow_control_mode= "DISABLED";
 SET GLOBAL group_replication_force_members= "";
 SET GLOBAL group_replication_group_name= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
-SET GLOBAL group_replication_group_seeds= CONCAT("127.0.0.1:",%XCOM_PORT%);
+SET GLOBAL group_replication_group_seeds= CONCAT("localhost:",%XCOM_PORT%);
 SET GLOBAL group_replication_gtid_assignment_block_size= 2;
 SET GLOBAL group_replication_ip_whitelist= "AUTOMATIC";
-SET GLOBAL group_replication_local_address= CONCAT("127.0.0.1:",%XCOM_PORT%);
+SET GLOBAL group_replication_local_address= CONCAT("localhost:",%XCOM_PORT%);
 SET GLOBAL group_replication_poll_spin_loops= 10;
 SET GLOBAL group_replication_recovery_complete_at= TRANSACTIONS_CERTIFIED;
 SET GLOBAL group_replication_recovery_reconnect_interval= 20;
@@ -244,7 +244,7 @@ EOF
 --source include/assert.inc
 
 --let $assert_text= group_replication_group_seeds is 127.0.0.1:xcom_port
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_group_seeds]" = "127.0.0.1:$xcom_port"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_group_seeds]" = "localhost:$xcom_port"
 --source include/assert.inc
 
 --let $assert_text= group_replication_gtid_assignment_block_size is 2
@@ -256,7 +256,7 @@ EOF
 --source include/assert.inc
 
 --let $assert_text= group_replication_local_address is 127.0.0.1:xcom_port
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_local_address]" = "127.0.0.1:$xcom_port"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_local_address]" = "localhost:$xcom_port"
 --source include/assert.inc
 
 --let $assert_text= group_replication_recovery_complete_at is TRANSACTIONS_CERTIFIED

@@ -11,14 +11,17 @@ drop table if exists t1;
 
 create table t1 (a int check (a>0));
 insert into t1 values (1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
 insert into t1 values (0);
 drop table t1;
 create table t1 (a int, b int, check (a>b));
 insert into t1 values (1,0);
+--error ER_CHECK_CONSTRAINT_VIOLATED
 insert into t1 values (0,1);
 drop table t1;
 create table t1 (a int ,b int, constraint abc check (a>b));
 insert into t1 values (1,0);
+--error ER_CHECK_CONSTRAINT_VIOLATED
 insert into t1 values (0,1);
 drop table t1;
 create table t1 (a int null);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,7 +200,7 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
       goto end;
     }
     entry->key = (char *)(entry + 1);
-    memcpy((char *)entry->key, (char *)key, length);
+    memcpy(entry->key, key, length);
     entry->length = length;
     entry->data = data;
     /* Link entry to list */

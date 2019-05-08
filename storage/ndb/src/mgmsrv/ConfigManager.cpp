@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,6 +249,7 @@ ConfigManager::find_nodeid_from_config(void)
     return 0;
   }
 
+  delete conf;
   return found_nodeid;
 }
 
@@ -627,7 +628,8 @@ check_no_dynamic_ports_in_config(const Config* config)
   ConfigIter iter(config, CFG_SECTION_CONNECTION);
 
   for(;iter.valid();iter.next()) {
-    Uint32 n1, n2;
+    Uint32 n1 = 0;
+    Uint32 n2 = 0;
     require(iter.get(CFG_CONNECTION_NODE_1, &n1) == 0 &&
             iter.get(CFG_CONNECTION_NODE_2, &n2) == 0);
 

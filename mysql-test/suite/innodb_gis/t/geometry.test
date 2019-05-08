@@ -17,7 +17,7 @@ SET innodb_strict_mode=OFF;
 # Turn on the geometry data print.
 SET SESSION debug="+d,row_print_geometry_data";
 
-SHOW VARIABLES LIKE '%engine%';
+SHOW VARIABLES LIKE '%storage_engine%';
 
 #
 # Spatial objects

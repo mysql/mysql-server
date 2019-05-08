@@ -81,6 +81,19 @@ bool MySQLRoutingContext::block_client_host(
   return blocked;
 }
 
+void MySQLRoutingContext::clear_error_counter(
+    const ClientIpArray &client_ip_array, const std::string &client_ip_str) {
+  std::lock_guard<std::mutex> lock(mutex_conn_errors_);
+
+  auto it = conn_error_counters_.find(client_ip_array);
+  if (it != conn_error_counters_.end() && it->second > 0) {
+    log_info(
+        "[%s] resetting connection error counter for %s from %zu back to 0",
+        name_.c_str(), client_ip_str.c_str(), it->second);
+    it->second = 0;
+  }
+}
+
 const std::vector<ClientIpArray> MySQLRoutingContext::get_blocked_client_hosts()
     const {
   std::lock_guard<std::mutex> lock(mutex_conn_errors_);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,14 @@
 #include <vector>
 
 #include "base64.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_messages/transaction_message.h"
+#include "plugin/group_replication/include/plugin_messages/transaction_with_guarantee_message.h"
 #include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
 #include "plugin/group_replication/include/sql_service/sql_command_test.h"
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
@@ -186,29 +190,36 @@ int group_replication_trans_before_commit(Trans_param *param) {
     lock below.
   */
   Replication_thread_api channel_interface;
-  if (channel_interface.is_own_event_applier(param->thread_id,
-                                             "group_replication_applier")) {
+  if (GR_APPLIER_CHANNEL == param->rpl_channel_type) {
     // If plugin is stopping, there is no point in update the statistics.
     bool fail_to_lock = shared_plugin_stop_lock->try_grab_read_lock();
     if (!fail_to_lock) {
-      if (local_member_info->get_recovery_status() ==
-          Group_member_info::MEMBER_ONLINE) {
+      const Group_member_info::Group_member_status member_status =
+          local_member_info->get_recovery_status();
+      if (Group_member_info::MEMBER_ONLINE == member_status) {
         applier_module->get_pipeline_stats_member_collector()
             ->decrement_transactions_waiting_apply();
         applier_module->get_pipeline_stats_member_collector()
             ->increment_transactions_applied();
-      } else if (local_member_info->get_recovery_status() ==
-                 Group_member_info::MEMBER_IN_RECOVERY) {
+      } else if (Group_member_info::MEMBER_IN_RECOVERY == member_status) {
         applier_module->get_pipeline_stats_member_collector()
             ->increment_transactions_applied_during_recovery();
       }
       shared_plugin_stop_lock->release_read_lock();
+
+      if ((Group_member_info::MEMBER_ONLINE == member_status ||
+           Group_member_info::MEMBER_IN_RECOVERY == member_status) &&
+          transaction_consistency_manager->after_applier_prepare(
+              param->gtid_info.sidno, param->gtid_info.gno, param->thread_id,
+              member_status)) {
+        DBUG_RETURN(1); /* purecov: inspected */
+      }
     }
 
     DBUG_RETURN(0);
   }
-  if (channel_interface.is_own_event_applier(param->thread_id,
-                                             "group_replication_recovery")) {
+
+  if (GR_RECOVERY_CHANNEL == param->rpl_channel_type) {
     DBUG_RETURN(0);
   }
 
@@ -269,11 +280,11 @@ int group_replication_trans_before_commit(Trans_param *param) {
 
   Transaction_context_log_event *tcle = NULL;
 
-  // Todo optimize for memory (IO-cache's buf to start with, if not enough then
-  // trans mem-root) to avoid New message create/delete and/or its implicit
-  // MessageBuffer.
-  Transaction_message transaction_msg;
+  const enum_group_replication_consistency_level consistency_level =
+      static_cast<enum_group_replication_consistency_level>(
+          param->group_replication_consistency);
 
+  Transaction_message_interface *transaction_msg = NULL;
   enum enum_gcs_error send_error = GCS_OK;
 
   // Binlog cache.
@@ -364,8 +375,29 @@ int group_replication_trans_before_commit(Trans_param *param) {
     }
   }
 
+  /*
+    The BEFORE consistency can be used on groups with members that
+    do not support GROUP_REPLICATION_CONSISTENCY_BEFORE. In order to
+    allow that, after the wait is done on the transaction begin on
+    the local member, we broadcast the transaction as a normal
+    transaction that all versions do understand.
+  */
+  if (consistency_level < GROUP_REPLICATION_CONSISTENCY_AFTER) {
+    transaction_msg = new Transaction_message();
+  } else {
+    transaction_msg = new Transaction_with_guarantee_message(consistency_level);
+  }
+
   // serialize transaction context into a transaction message.
-  binary_event_serialize(tcle, &transaction_msg);
+  // There is a chance you encounter an OOM in Transaction_message::write()
+  // here, so we take care accordingly.
+  try {
+    binary_event_serialize(tcle, transaction_msg);
+  } catch (const std::bad_alloc &) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
+    error = pre_wait_error;
+    goto err;
+  }
 
   if (*(param->original_commit_timestamp) == UNDEFINED_COMMIT_TIMESTAMP) {
     /*
@@ -376,20 +408,41 @@ int group_replication_trans_before_commit(Trans_param *param) {
     *(param->original_commit_timestamp) = my_micro_time();
   }  // otherwise the transaction did not originate in this server
 
+  *(param->immediate_server_version) = do_server_version_int(::server_version);
+  if (*(param->original_server_version) == UNDEFINED_SERVER_VERSION) {
+    /*
+     Assume that this transaction is original from this server and update status
+     variable so that it won't be re-defined when this GTID is written to the
+     binlog
+    */
+    *(param->original_server_version) = do_server_version_int(::server_version);
+    DBUG_EXECUTE_IF("gr_fixed_server_version",
+                    *(param->original_server_version) = 777777;);
+  }  // otherwise the transaction did not originate in this server
+
   // Notice the GTID of atomic DDL is written to the trans cache as well.
-  gle = new Gtid_log_event(param->server_id, is_dml || param->is_atomic_ddl, 0,
-                           1, may_have_sbr_stmts,
-                           *(param->original_commit_timestamp), 0,
-                           gtid_specification);
+  gle = new Gtid_log_event(
+      param->server_id, is_dml || param->is_atomic_ddl, 0, 1,
+      may_have_sbr_stmts, *(param->original_commit_timestamp), 0,
+      gtid_specification, *(param->original_server_version),
+      *(param->immediate_server_version));
   /*
     GR does not support event checksumming. If GR start to support event
     checksumming, the calculation below should take the checksum payload into
     account.
   */
   gle->set_trx_length_by_cache_size(cache_log_position);
-  binary_event_serialize(gle, &transaction_msg);
+  // There is a chance you encounter an OOM in Transaction_message::write()
+  // here, so we take care accordingly.
+  try {
+    binary_event_serialize(gle, transaction_msg);
+  } catch (const std::bad_alloc &) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
+    error = pre_wait_error;
+    goto err;
+  }
 
-  transaction_size = cache_log_position + transaction_msg.length();
+  transaction_size = cache_log_position + transaction_msg->length();
   if (is_dml && transaction_size_limit &&
       transaction_size > transaction_size_limit) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_SIZE_EXCEEDS_LIMIT,
@@ -399,17 +452,24 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
   // Copy binlog cache content to buffer.
-  if (cache_log->copy_to(&transaction_msg)) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED,
-                 param->thread_id);
+  // There is a chance you encounter an OOM in Transaction_message::write()
+  // here, so we take care accordingly.
+  try {
+    if (cache_log->copy_to(transaction_msg)) {
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED,
+                   param->thread_id);
+      error = pre_wait_error;
+      goto err;
+      /* purecov: end */
+    }
+  } catch (const std::bad_alloc &) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
     error = pre_wait_error;
     goto err;
-    /* purecov: end */
   }
 
-  DBUG_ASSERT(certification_latch != NULL);
-  if (certification_latch->registerTicket(param->thread_id)) {
+  if (transactions_latch->registerTicket(param->thread_id)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_FAILED_TO_REGISTER_TRANS_OUTCOME_NOTIFICTION,
@@ -438,7 +498,8 @@ int group_replication_trans_before_commit(Trans_param *param) {
   applier_module->get_flow_control_module()->do_wait();
 
   // Broadcast the Transaction Message
-  send_error = gcs_module->send_message(transaction_msg);
+  send_error = gcs_module->send_message(*transaction_msg);
+
   if (send_error == GCS_MESSAGE_TOO_BIG) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_TOO_LONG_BROADCASTING_TRANS_FAILED,
@@ -457,8 +518,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
 
   shared_plugin_stop_lock->release_read_lock();
 
-  DBUG_ASSERT(certification_latch != NULL);
-  if (certification_latch->waitTicket(param->thread_id)) {
+  if (transactions_latch->waitTicket(param->thread_id)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_ERROR_WHILE_WAITING_FOR_CONFLICT_DETECTION,
@@ -471,14 +531,16 @@ int group_replication_trans_before_commit(Trans_param *param) {
 err:
   delete gle;
   delete tcle;
+  delete transaction_msg;
 
   if (error) {
+    /* purecov: begin inspected */
     if (error == pre_wait_error) shared_plugin_stop_lock->release_read_lock();
 
-    DBUG_ASSERT(certification_latch != NULL);
     // Release and remove certification latch ticket.
-    certification_latch->releaseTicket(param->thread_id);
-    certification_latch->waitTicket(param->thread_id);
+    transactions_latch->releaseTicket(param->thread_id);
+    transactions_latch->waitTicket(param->thread_id);
+    /* purecov: end */
   }
 
   DBUG_EXECUTE_IF("group_replication_after_before_commit_hook", {
@@ -495,7 +557,6 @@ int group_replication_trans_before_rollback(Trans_param *) {
 
 int group_replication_trans_after_commit(Trans_param *param) {
   DBUG_ENTER("group_replication_trans_after_commit");
-
   int error = 0;
 
   /**
@@ -517,7 +578,8 @@ int group_replication_trans_after_commit(Trans_param *param) {
       group_transaction_observation_manager->get_all_observers();
   for (Group_transaction_listener *transaction_observer :
        *transaction_observers) {
-    transaction_observer->after_commit(param->thread_id);
+    transaction_observer->after_commit(param->thread_id, param->gtid_info.sidno,
+                                       param->gtid_info.gno);
   }
   group_transaction_observation_manager->unlock_observer_list();
   DBUG_RETURN(error);
@@ -549,6 +611,33 @@ int group_replication_trans_after_rollback(Trans_param *param) {
   DBUG_RETURN(error);
 }
 
+int group_replication_trans_begin(Trans_param *param, int &out) {
+  DBUG_ENTER("group_replication_trans_begin");
+
+  /*
+    If the plugin is not running, before begin should return success.
+    If there are no observers, we also don't care
+  */
+  if (!plugin_is_group_replication_running() ||
+      !group_transaction_observation_manager->is_any_observer_present()) {
+    DBUG_RETURN(0);
+  }
+
+  group_transaction_observation_manager->read_lock_observer_list();
+  std::list<Group_transaction_listener *> *transaction_observers =
+      group_transaction_observation_manager->get_all_observers();
+  for (Group_transaction_listener *transaction_observer :
+       *transaction_observers) {
+    out = transaction_observer->before_transaction_begin(
+        param->thread_id, param->group_replication_consistency,
+        param->hold_timeout, param->rpl_channel_type);
+    if (out) break;
+  }
+  group_transaction_observation_manager->unlock_observer_list();
+
+  DBUG_RETURN(0);
+}
+
 Trans_observer trans_observer = {
     sizeof(Trans_observer),
 
@@ -557,44 +646,5 @@ Trans_observer trans_observer = {
     group_replication_trans_before_rollback,
     group_replication_trans_after_commit,
     group_replication_trans_after_rollback,
+    group_replication_trans_begin,
 };
-
-// Transaction Message implementation
-
-Transaction_message::Transaction_message()
-    : Plugin_gcs_message(CT_TRANSACTION_MESSAGE) {}
-
-Transaction_message::~Transaction_message() {}
-
-bool Transaction_message::write(const unsigned char *buffer, my_off_t length) {
-  data.insert(data.end(), buffer, buffer + length);
-  return false;
-}
-
-my_off_t Transaction_message::length() { return data.size(); }
-
-void Transaction_message::encode_payload(
-    std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Transaction_message::encode_payload");
-
-  encode_payload_item_type_and_length(buffer, PIT_TRANSACTION_DATA,
-                                      data.size());
-  buffer->insert(buffer->end(), data.begin(), data.end());
-
-  DBUG_VOID_RETURN;
-}
-
-void Transaction_message::decode_payload(const unsigned char *buffer,
-                                         const unsigned char *) {
-  DBUG_ENTER("Transaction_message::decode_payload");
-  const unsigned char *slider = buffer;
-  uint16 payload_item_type = 0;
-  unsigned long long payload_item_length = 0;
-
-  decode_payload_item_type_and_length(&slider, &payload_item_type,
-                                      &payload_item_length);
-  data.clear();
-  data.insert(data.end(), slider, slider + payload_item_length);
-
-  DBUG_VOID_RETURN;
-}

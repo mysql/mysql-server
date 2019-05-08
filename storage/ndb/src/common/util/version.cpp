@@ -102,6 +102,7 @@ struct NdbUpGradeCompatible {
 };
 
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(8,0,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 8.0 */
   { MAKE_VERSION(7,6,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 7.6 */
   { MAKE_VERSION(7,5,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 7.5 */
   { MAKE_VERSION(7,4,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 7.4 */
@@ -395,20 +396,6 @@ TAPTEST(ndb_version)
            mysql_major, mysql_minor, mysql_build);
     printf(" NDB version(Y.Y.Y): %u.%u.%u\n",
            NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD);
-
-    /* Check that MySQL and NDB version are not the same */
-    if (NDB_MYSQL_VERSION_MAJOR == NDB_VERSION_MAJOR &&
-        NDB_MYSQL_VERSION_MINOR == NDB_VERSION_MINOR &&
-        NDB_MYSQL_VERSION_BUILD == NDB_VERSION_BUILD)
-    {
-      /*
-        Building a MySQL Server with NDB set to same version
-        is most likely an error, not so severe
-        though -> print warning
-      */
-      printf("WARNING: The NDB version is set to same version as MySQL, "
-             "this is most likelky a configuration error!!\n\n");
-    }
   }
 
   /* ndbPrintVersion */
@@ -460,6 +447,14 @@ TAPTEST(ndb_version)
   OK(MYSQL_VERSION_ID == (NDB_MYSQL_VERSION_MAJOR * 10000 +
                           NDB_MYSQL_VERSION_MINOR * 100 +
                           NDB_MYSQL_VERSION_BUILD));
+
+  /* Check that this node is compatible with 8.0.13 API and data nodes */
+  printf("Testing compatibility\n");
+  Uint32 ver8013 = ndbMakeVersion(8,0,13);
+  int c1 = ndbCompatible_ndb_api(NDB_VERSION, ver8013);
+  int c2 = ndbCompatible_api_ndb(NDB_VERSION, ver8013);
+  OK(c1 == 1);
+  OK(c2 == 1);
 
   return 1; // OK
 }

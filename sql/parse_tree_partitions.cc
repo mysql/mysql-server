@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,11 +38,12 @@
 #include "sql_string.h"
 
 Partition_parse_context::Partition_parse_context(
-    THD *thd, partition_info *part_info, partition_element *current_partition,
-    partition_element *curr_part_elem, bool is_add_or_reorganize_partition)
-    : Parse_context(thd, thd->lex->current_select()),
-      Parser_partition_info(part_info, current_partition, curr_part_elem, NULL,
-                            0),
+    THD *thd_arg, partition_info *part_info_arg,
+    partition_element *current_partition_arg,
+    partition_element *curr_part_elem_arg, bool is_add_or_reorganize_partition)
+    : Parse_context(thd_arg, thd_arg->lex->current_select()),
+      Parser_partition_info(part_info_arg, current_partition_arg,
+                            curr_part_elem_arg, nullptr, 0),
       is_add_or_reorganize_partition(is_add_or_reorganize_partition) {}
 
 bool PT_subpartition::contextualize(Partition_parse_context *pc) {

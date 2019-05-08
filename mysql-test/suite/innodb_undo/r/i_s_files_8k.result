@@ -2,7 +2,6 @@
 # WL7943 Implement INFORMATION_SCHEMA.FILES
 #
 # Mysqld is initialized in this test with with:
-# --innodb_undo_tablespaces=16
 # --innodb_rollback_segments=1
 # --bootstrap --innodb_page_size=8k
 SET default_storage_engine=InnoDB;
@@ -126,4 +125,3 @@ AUTOEXTEND_SIZE	1048576
 #
 DROP TABLE t1;
 DROP PROCEDURE populate_t1;
-# restart: --innodb_undo_tablespaces=2

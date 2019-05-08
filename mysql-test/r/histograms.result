@@ -2086,13 +2086,7 @@ Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` < '')
 EXPLAIN SELECT * FROM t1 WHERE col2 < "";
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-Warnings:
-Warning	1292	Incorrect date value: '' for column 'col2' at row 1
-Warning	1292	Incorrect datetime value: ''
-Warning	1292	Incorrect datetime value: ''
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col2` < '')
+ERROR HY000: Incorrect DATE value: ''
 DROP TABLE t1;
 CREATE TABLE tbl_int (col1 INT);
 INSERT INTO tbl_int VALUES (1), (2), (2), (2), (3), (6), (8), (8), (NULL), (NULL);
@@ -2591,7 +2585,7 @@ EXPLAIN SELECT * FROM tbl_float WHERE col > 0.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.0)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0)
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
@@ -2641,7 +2635,7 @@ EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.0)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0)
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
@@ -2691,7 +2685,7 @@ EXPLAIN SELECT * FROM tbl_float WHERE col = 0.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.0)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0)
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
@@ -2741,7 +2735,7 @@ EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.0)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0)
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
@@ -2791,7 +2785,7 @@ EXPLAIN SELECT * FROM tbl_float WHERE col < 0.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.0)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0)
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
@@ -2841,7 +2835,7 @@ EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.0)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0)
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where

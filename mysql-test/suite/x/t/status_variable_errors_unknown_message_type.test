@@ -8,6 +8,8 @@
 --let $xtest_file_session= $MYSQL_TMP_DIR/unknown_message_type_session.tmp
 --write_file $xtest_file_session
 -->quiet
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 -->binparse %MSG% Mysqlx.Session.AuthenticateStart {
     mech_name: "MYSQL41"
 }
@@ -32,7 +34,8 @@ EOF
 --let $xtest_file_connection= $MYSQL_TMP_DIR/unknown_message_type_connection.tmp
 --write_file $xtest_file_connection
 -->quiet
-
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 -->binparse %MSG% Mysqlx.Connection.CapabilitiesGet {
 }
 

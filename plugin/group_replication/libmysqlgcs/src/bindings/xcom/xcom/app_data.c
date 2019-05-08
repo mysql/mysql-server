@@ -26,6 +26,7 @@
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/checked_data.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
@@ -152,6 +153,8 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
   char *str = NULL;
   app_data_ptr p = 0;
   if (0 != a) {
+    bool copied = false;
+
     p = new_app_data();
     p->unique_id = a->unique_id;
     p->lsn = a->lsn;
@@ -180,16 +183,9 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
         break;
       /* purecov: end */
       case app_type:
-        p->body.app_u_u.data.data_val =
-            calloc((size_t)a->body.app_u_u.data.data_len, sizeof(char));
-        if (p->body.app_u_u.data.data_val == NULL) {
-          p->body.app_u_u.data.data_len = 0;
-          G_ERROR("Memory allocation failed.");
-          break;
-        }
-        p->body.app_u_u.data.data_len = a->body.app_u_u.data.data_len;
-        memcpy(p->body.app_u_u.data.data_val, a->body.app_u_u.data.data_val,
-               (size_t)a->body.app_u_u.data.data_len);
+        copied =
+            copy_checked_data(&p->body.app_u_u.data, &a->body.app_u_u.data);
+        if (!copied) G_ERROR("Memory allocation failed.");
         break;
       case query_type:
         break;

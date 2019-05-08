@@ -54,7 +54,7 @@ a
 10
 SHOW CREATE DATABASE test;
 Database	Create Database
-test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 COMMIT;
 # Cleanup
 # Switch to connection default and close connections con1, con2, con3

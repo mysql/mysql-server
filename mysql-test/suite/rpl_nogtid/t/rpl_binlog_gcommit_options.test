@@ -56,4 +56,7 @@ connection master;
 DROP TABLE t;
 --source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
+
+--let $rpl_only_running_threads = 1;
+--source include/rpl_end.inc
 echo # End of tests;

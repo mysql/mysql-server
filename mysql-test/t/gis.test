@@ -3712,7 +3712,7 @@ DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
 CREATE TABLE t1 (a DECIMAL(54,20));
 INSERT INTO t1 VALUES (0);
 
---error ER_GIS_INVALID_DATA
+--error ER_ILLEGAL_VALUE_FOR_TYPE
 SELECT (SELECT MULTILINESTRING(d.a, d.a, d.a) FROM t1)
 FROM t1 AS d GROUP BY d.a;
 
@@ -4180,3 +4180,27 @@ DROP TABLE t1, t2;
 --echo #
 --error ER_GIS_INVALID_DATA
 DO ST_ASWKB(JSON_UNQUOTE(JSON_SET('{"a":""}', '$', '')));
+
+--echo #
+--echo # Bug #29047811 ASSERTION FAILED:
+--echo #               CURRENT_THD->IS_ERROR(), SQL\ITEM_GEOFUNC.CC, LINE 5358
+--echo #
+CREATE TABLE t(a INT PRIMARY KEY) ENGINE=INNODB
+PARTITION BY KEY(a) PARTITIONS 10;
+--error ER_LONGITUDE_OUT_OF_RANGE
+INSERT t(a) VALUES(
+is_uuid(
+   st_distance_sphere(
+    multipoint(
+     point(-6682,10942),
+     point(-6033,-22659),
+     point(-14161,-22192),
+     point(3074,1.717753e+308),
+     point(-12593,562949953421315)
+    ),
+    point(2051,8192)
+   )
+)
+);
+
+DROP TABLE t;

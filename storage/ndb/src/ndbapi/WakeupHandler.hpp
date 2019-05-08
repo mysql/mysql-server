@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class WakeupHandler
 public:
   virtual void notifyTransactionCompleted(Ndb* from) = 0;
   virtual void notifyWakeup() = 0;
-  virtual ~WakeupHandler() {};
+  virtual ~WakeupHandler() {}
 };
 
 class MultiNdbWakeupHandler : public WakeupHandler

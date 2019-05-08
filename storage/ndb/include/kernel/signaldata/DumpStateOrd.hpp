@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,6 +111,7 @@ public:
     NdbfsDumpAllFiles = 401,
     NdbfsDumpOpenFiles = 402,
     NdbfsDumpIdleFiles = 403,
+    NdbfsDumpRequests = 406,
     CmvmiSchedulerExecutionTimer = 502,
     CmvmiRealtimeScheduler = 503,
     CmvmiExecuteLockCPU = 504,
@@ -151,6 +152,8 @@ public:
     TcDumpOneTcConnectRec = 2516,
     TcDumpSetOfTcConnectRec = 2517,
     TcDumpPoolLevels = 2555,
+    TcSetTransientPoolMaxSize = 2556,
+    TcResetTransientPoolMaxSize = 2557,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,

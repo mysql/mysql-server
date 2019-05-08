@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <NdbOut.hpp>
+#include <my_systime.h>  // my_micro_time
 
 /**
  * Trick to be able to use ERROR_INSERTED macro inside DynArr256 and
@@ -810,7 +811,7 @@ DynArr256Pool::getInfo() const
   info.nodes_per_page = 30;
   
   return info;
-};
+}
 
 #ifdef UNIT_TEST
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -208,7 +208,7 @@ SET(GTEST_LIBRARIES gmock gtest)
 
 ADD_LIBRARY(gmock_main STATIC ${GMOCK_SOURCE_DIR}/src/gmock_main.cc)
 ADD_LIBRARY(gtest_main STATIC ${GTEST_SOURCE_DIR}/src/gtest_main.cc)
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET_TARGET_PROPERTIES(gtest_main gmock_main
     PROPERTIES
     COMPILE_FLAGS "-Wno-undef -Wno-conversion")
@@ -222,18 +222,11 @@ SET(DISABLE_PSI_DEFINITIONS
   "DISABLE_PSI_RWLOCK"
   "DISABLE_PSI_STAGE"
   )
-SET(DISABLE_PSI_OPTIONS
-  "-DDISABLE_PSI_COND"
-  "-DDISABLE_PSI_FILE"
-  "-DDISABLE_PSI_METADATA"
-  "-DDISABLE_PSI_MUTEX"
-  "-DDISABLE_PSI_RWLOCK"
-  "-DDISABLE_PSI_STAGE"
-  )
 
+
+MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  SYSTEM ${ICU_INCLUDE_DIRS}
 )
 
 # main-wrapper libraries (with tap-compatible option).
@@ -286,8 +279,6 @@ ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
 ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
   alignment
@@ -315,11 +306,13 @@ SET(TESTS
   mysys_base64
   mysys_lf
   mysys_my_b_vprintf
+  mysys_my_getopt
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_symlink
+  mysys_my_time
   mysys_my_write
   mysys_my_read
   mysys_pathfuncs
@@ -330,6 +323,7 @@ SET(TESTS
   prealloced_array
   priority_queue
   record_buffer
+  rpl_cipher
   sql_class_header
   sql_list
   sql_plist
@@ -349,8 +343,9 @@ SET(TESTS
   val_int_compare
   varlen_sort
   collation_loader
+  my_rcu_lock
   )
- 
+
 IF(WIN32)
   LIST(APPEND TESTS win_tests)
 ENDIF()
@@ -379,6 +374,7 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   gis_area
+  gis_distance
   gis_geometries
   gis_is_simple
   gis_isvalid
@@ -406,6 +402,7 @@ SET(SERVER_TESTS
   json_path
   locking_clause_syntax
   locking_service
+  log_timestamp
   log_throttle
   make_sortkey
   mdl_sync
@@ -444,6 +441,7 @@ ENDFOREACH()
 SET(SQL_GUNIT_LIB_SOURCE 
   ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
   ${CMAKE_SOURCE_DIR}/sql/mdl.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/sql_list.cc
   ${CMAKE_SOURCE_DIR}/sql/stateless_allocator.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
@@ -488,12 +486,10 @@ IF (MERGE_UNITTESTS)
 
   SET(ADD_MERGE_LARGE_TESTS 1)
   IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-    IF(${CC_MINOR_VERSION} EQUAL 15)
-      MESSAGE(WARNING
-        "Likely link failure for this compiler, skipping merge_large_tests-t")
-      SET_PROPERTY(TARGET merge_large_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-      UNSET(ADD_MERGE_LARGE_TESTS)
-    ENDIF()
+    MESSAGE(WARNING
+      "Likely link failure for this compiler, skipping merge_large_tests-t")
+    SET_PROPERTY(TARGET merge_large_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+    UNSET(ADD_MERGE_LARGE_TESTS)
   ENDIF()
   IF(ADD_MERGE_LARGE_TESTS)
     ADD_TEST(merge_large_tests
@@ -509,7 +505,8 @@ ENDIF()
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
-  ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
+  ADD_COMPILE_DEFINITIONS(${test}-t.cc
+    COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
   IF(NOT MERGE_UNITTESTS)
@@ -550,6 +547,7 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
 ENDFOREACH()
 
+ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
 ADD_SUBDIRECTORY(components/mysql_server)

@@ -84,9 +84,9 @@ enum dberr_t {
                                from a table failed */
   DB_NO_SAVEPOINT,             /*!< no savepoint exists with the given
                                name */
-  DB_TABLESPACE_EXISTS,        /*!< we cannot create a new single-table
-                               tablespace because a file of the same
-                               name already exists */
+  DB_TABLESPACE_EXISTS,        /*!< cannot create a new tablespace
+                               because a file of the same name or
+                               tablespace ID already exists */
   DB_TABLESPACE_DELETED,       /*!< tablespace was deleted or is
                                being dropped right now */
   DB_TABLESPACE_NOT_FOUND,     /*!< Attempt to delete a tablespace
@@ -187,6 +187,9 @@ enum dberr_t {
   DB_INVALID_ENCRYPTION_META, /*!< Invalid encrytion metadata in
                               page 0. */
 
+  /** Incomplete cloned directory */
+  DB_ABORT_INCOMPLETE_CLONE,
+
   /* The following are partial failure codes */
   DB_FAIL = 1000,
   DB_OVERFLOW,
@@ -194,6 +197,7 @@ enum dberr_t {
   DB_STRONG_FAIL,
   DB_ZIP_OVERFLOW,
   DB_RECORD_NOT_FOUND = 1500,
+  DB_END_OF_BLOCK,
   DB_END_OF_INDEX,
   DB_NOT_FOUND, /*!< Generic error code for "Not found"
                 type of errors */

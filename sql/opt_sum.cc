@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -219,76 +219,109 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 }
 
 /**
-  Substitutes constants for some COUNT(), MIN() and MAX() functions.
+  Substitute constants for some COUNT(), MIN() and MAX() functions
+  in an aggregated (implicitly grouped) query
 
-  @param[in]  thd                   thread handler
-  @param[in]  tables                list of leaves of join table tree
-  @param[in]  all_fields            All fields to be returned
-  @param[in]  conds                 WHERE clause
-  @param[out] select_count          Set to true when COUNT is delayed to
-                                    execution phase
+  @param[in]  thd               thread handler
+  @param[in]  select            query block
+  @param[in]  all_fields        All fields to be returned
+  @param[in]  conds             WHERE clause
+  @param[out] decision          outcome for successful execution
+               = AGGR_REGULAR   regular execution required
+               = AGGR_COMPLETE  values available
+               = AGGR_DELAYED   execution with ha_records() required
+               = AGGR_EMPTY     source tables empty,
+                                aggregates are NULL or zero (for COUNT)
 
-  @note
-    This function is only called for queries with aggregate functions and no
-    GROUP BY part. This means that the result set shall contain a single
-    row only
+  @returns false if success, true if error
 
-  @retval
-    0                    no errors
-  @retval
-    1                    if all items were resolved
-  @retval
-    HA_ERR_KEY_NOT_FOUND on impossible conditions
-  @retval
-    HA_ERR_... if a deadlock or a lock wait timeout happens, for example
-  @retval
-    ER_...     e.g. ER_SUBQUERY_NO_1_ROW
+  This function is called for queries with aggregate functions and no
+  GROUP BY, thus the result set will contain a single row only.
+
+  First, the function will analyze the source tables and WHERE clause to see
+  whether the query qualifies for optimization. If not, the decision
+  AGGR_REGULAR is returned.
+
+  Second, the function walks over all expressions in the SELECT list.
+  If the expression can be optimized with a storage engine operation that
+  is O(1) (MIN or MAX) or O(0) (instant COUNT), the value is looked up
+  and inserted in the value buffer, and the corresponding Item is marked
+  as being const.
+  If the expression is a COUNT operation that can be evaluated
+  efficiently by the storage manager (but still O(N)), indicated with
+  HA_COUNT_ROWS_INSTANT, it will be marked as such.
+
+  When all SELECT list expressions have been processed, there are four
+  possible outcomes:
+
+  - An empty result from the source tables is indicated, and the
+    output state is AGGR_EMPTY. Notice that the result of aggregation
+    is still one row, filled with zero for COUNT operations and NULL
+    values for all other expressions.
+
+  - All expressions have been given values, indicated with output state
+    AGGR_COMPLETE.
+
+  - All expressions have been given values, except for one or more COUNT
+    operations that will be evaluated in execution. This is indicated
+    with AGGR_DELAYED.
+
+  - Some expressions must be evaluated as part of a regular execution,
+    indicated with AGGR_REGULAR. Notice that some of the expressions
+    may have been given values and are marked as const, but no expressions
+    will be candidates for delayed execution.
 */
 
-int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
-                  Item *conds, bool *select_count) {
-  List_iterator_fast<Item> it(all_fields);
-  int const_result = 1;
+bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
+                               List<Item> &all_fields, Item *conds,
+                               aggregate_evaluated *decision) {
+  DBUG_ENTER("optimize_aggregated_query");
+
+  // True means at least one aggregate must be calculated by regular execution
+  bool aggr_impossible = false;
+  // True means COUNT expressions will be calculated by ha_records()
+  // storage engine operations during execution phase
+  bool aggr_delayed = false;
   bool recalc_const_item = false;
-  ulonglong count = 1;
-  bool is_exact_count = true, tables_filled = true;
-  table_map removed_tables = 0, outer_tables = 0, used_tables = 0;
-  Item *item;
+  // Calculated row count, valid only if have_exact_count is true.
+  ulonglong row_count = 1;
+  // True when all tables have an exact count
+  bool have_exact_count = true;
+  // True if all tables have contents and can be read
+  bool tables_filled = true;
+  // The set of tables optimized for MIN or MAX
+  table_map removed_tables = 0;
+  // The set of inner tables of outer join(s)
+  table_map inner_tables = 0;
+  // The set of tables in the join, excluding the inner tables of outer join
+  table_map used_tables = 0;
+
+  TABLE_LIST *tables = select->leaf_tables;
+
   int error;
 
-  /*
-    This is a local flag that indicates that ha_records() can be called in the
-    execute phase only. The actual decision is recorded in join->select_count.
-
-    Note: If a single table in the table-list can't optimize the tables away,
-          then all tables will be will read in the execution phase
-          (i.e. end_send_count).
-
-    Example: SELECT COUNT(*) FROM t_myisam, t_innodb;
-  */
+  *decision = AGGR_REGULAR;  // Default return value
+  // Local flag that indicates that ha_records() can be called in the
+  // execution phase only.
   bool delay_ha_records_to_exec_phase = false;
-
-  DBUG_ENTER("opt_sum_query");
 
   const table_map where_tables = conds ? conds->used_tables() : 0;
   /*
-    opt_sum_query() happens at optimization. A subquery is optimized once but
-    executed possibly multiple times.
+    A subquery is optimized once but executed possibly multiple times.
     If the value of the set function depends on the join's emptiness (like
     MIN() does), and the join's emptiness depends on the outer row, we cannot
     mark the set function as constant:
    */
-  if (where_tables & OUTER_REF_TABLE_BIT) DBUG_RETURN(0);
+  if (where_tables & OUTER_REF_TABLE_BIT) DBUG_RETURN(false);
 
   /*
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
   */
   for (TABLE_LIST *tl = tables; tl; tl = tl->next_leaf) {
-    if (tl->join_cond_optim() || tl->outer_join_nest())
-    /* Don't replace expression on a table that is part of an outer join */
-    {
-      outer_tables |= tl->map();
+    // Don't replace expression on a table that is part of an outer join
+    if (tl->is_inner_table_of_outer_join()) {
+      inner_tables |= tl->map();
 
       /*
         We can't optimise LEFT JOIN in cases where the WHERE condition
@@ -296,7 +329,7 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
           SELECT MAX(t1.a) FROM t1 LEFT JOIN t2 join-condition
           WHERE t2.field IS NULL;
       */
-      if (tl->map() & where_tables) DBUG_RETURN(0);
+      if (tl->map() & where_tables) DBUG_RETURN(false);
     } else
       used_tables |= tl->map();
 
@@ -317,16 +350,21 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
       error = tl->fetch_number_of_rows();
       if (error) {
         tl->table->file->print_error(error, MYF(ME_FATALERROR));
-        DBUG_RETURN(error);
+        DBUG_RETURN(true);
       }
-      count *= tl->table->file->stats.records;
+      row_count *= tl->table->file->stats.records;
     } else {
-      delay_ha_records_to_exec_phase |=
-          (MY_TEST(!(table_flags & HA_COUNT_ROWS_INSTANT)) ||
-           tl->table->force_index);
+      /*
+        Note: If at least one of the tables can't be optimized,
+              then all tables will be read in the execution phase
+              (i.e. end_send_count).
 
-      is_exact_count = false;
-      count = 1;  // ensure count != 0
+        Example: SELECT COUNT(*) FROM t_myisam, t_innodb;
+      */
+      delay_ha_records_to_exec_phase |=
+          !(table_flags & HA_COUNT_ROWS_INSTANT) || tl->table->force_index;
+
+      have_exact_count = false;
     }
   }
 
@@ -335,35 +373,38 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
     COUNT(), MIN() and MAX() with constants (if possible).
   */
 
+  List_iterator_fast<Item> it(all_fields);
+  Item *item;
   while ((item = it++)) {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function) {
       if (item->used_tables() & OUTER_REF_TABLE_BIT) {
-        const_result = 0;
+        aggr_impossible = true;
         continue;
       }
-      Item_sum *item_sum = (((Item_sum *)item));
+      Item_sum *item_sum = down_cast<Item_sum *>(item);
       switch (item_sum->sum_func()) {
-        case Item_sum::COUNT_FUNC:
+        case Item_sum::COUNT_FUNC: {
+          Item_sum_count *item_count = down_cast<Item_sum_count *>(item_sum);
           /*
             If the expr in COUNT(expr) can never be null we can change this
             to the number of rows in the tables if this number is exact and
-            there are no outer joins.
+            there are no outer joins nor semi-joins.
           */
-          if (!conds && !((Item_sum_count *)item)->get_arg(0)->maybe_null &&
-              !outer_tables && tables_filled) {
+          if (conds == nullptr && !item_count->get_arg(0)->maybe_null &&
+              !inner_tables && !select->has_sj_nests && tables_filled) {
             if (delay_ha_records_to_exec_phase) {
-              *select_count = true;
-              const_result = 0;
+              aggr_delayed = true;
             } else {
-              if (!is_exact_count) {
-                if ((count = get_exact_record_count(tables)) == ULLONG_MAX) {
+              if (!have_exact_count) {
+                row_count = get_exact_record_count(tables);
+                if (row_count == ULLONG_MAX) {
                   /*
                     Error from handler in counting rows. Don't optimize count()
                   */
-                  const_result = 0;
+                  aggr_impossible = true;
                   continue;
                 }
-                is_exact_count = 1;  // count is now exact
+                have_exact_count = true;  // count is now exact
               }
             }
           }
@@ -380,27 +421,29 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
                   still only be done once.
           */
           else if (tables->next_leaf == NULL &&  // 1
-                   conds && conds->type() == Item::FUNC_ITEM &&
-                   ((Item_func *)conds)->functype() ==
+                   conds != nullptr && conds->type() == Item::FUNC_ITEM &&
+                   down_cast<Item_func *>(conds)->functype() ==
                        Item_func::FT_FUNC &&  // 2
                    (tables->table->file->ha_table_flags() &
-                    HA_CAN_FULLTEXT_EXT) &&                            // 3
-                   !((Item_sum_count *)item)->get_arg(0)->maybe_null)  // 4
+                    HA_CAN_FULLTEXT_EXT) &&              // 3
+                   !item_count->get_arg(0)->maybe_null)  // 4
           {
-            Item_func_match *fts_item = static_cast<Item_func_match *>(conds);
+            Item_func_match *fts_item = down_cast<Item_func_match *>(conds);
             fts_item->get_master()->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR,
                                               false);
             if (fts_item->init_search(thd)) break;
-            count = fts_item->get_count();
+            row_count = fts_item->get_count();
+            have_exact_count = true;
           } else
-            const_result = 0;
+            aggr_impossible = true;
 
           // See comment above for get_exact_record_count()
-          if (!thd->lex->is_explain() && const_result == 1) {
-            ((Item_sum_count *)item)->make_const((longlong)count);
+          if (!thd->lex->is_explain() && !aggr_impossible && !aggr_delayed) {
+            item_count->make_const((longlong)row_count);
             recalc_const_item = true;
           }
           break;
+        }
         case Item_sum::MIN_FUNC:
         case Item_sum::MAX_FUNC: {
           int is_max = (item_sum->sum_func() == Item_sum::MAX_FUNC);
@@ -409,19 +452,19 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
             parts of the key is found in the COND, then we can use
             indexes to find the key.
           */
-          Item *expr = item_sum->get_arg(0);
-          if (expr->real_item()->type() == Item::FIELD_ITEM) {
+          Item *expr = item_sum->get_arg(0)->real_item();
+          if (expr->type() == Item::FIELD_ITEM) {
             uchar key_buff[MAX_KEY_LENGTH];
             TABLE_REF ref;
             uint range_fl, prefix_len;
 
             ref.key_buff = key_buff;
-            Item_field *item_field = (Item_field *)(expr->real_item());
+            Item_field *item_field = down_cast<Item_field *>(expr);
             TABLE *table = item_field->field->table;
 
             /*
               We must not have accessed this table instance yet, because
-              it must be private to this subquery, as we already ensured
+              it must be private to this query block, as we already ensured
               that OUTER_REF_TABLE_BIT is not set.
             */
             DBUG_ASSERT(!table->file->inited);
@@ -439,16 +482,16 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
               Type of range for the key part for this field will be
               returned in range_fl.
             */
-            if ((outer_tables & item_field->table_ref->map()) ||
+            if ((inner_tables & item_field->table_ref->map()) ||
                 !find_key_for_maxmin(is_max, &ref, item_field, conds, &range_fl,
                                      &prefix_len)) {
-              const_result = 0;
+              aggr_impossible = true;
               break;
             }
             if ((error = table->file->ha_index_init((uint)ref.key, 1))) {
               table->file->print_error(error, MYF(0));
               table->set_keyread(false);
-              DBUG_RETURN(error);
+              DBUG_RETURN(true);
             }
 
             /*
@@ -472,9 +515,8 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
             /*
               Set table row status to "not started" unconditionally.  This will
               prepare the table for regular access in the join execution
-              machinery if the opt_sum_query() optimization is aborted and
-              cannot be used.  The row status does not affect column values read
-              into record[0].
+              machinery if this optimization is aborted and cannot be used.
+              The row status does not affect column values read into record[0].
             */
             table->set_not_started();
 
@@ -487,14 +529,17 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
             table->set_keyread(false);
             table->file->ha_index_end();
             if (error) {
-              if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
-                DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);  // No rows matching WHERE
+              if (error == HA_ERR_KEY_NOT_FOUND ||
+                  error == HA_ERR_END_OF_FILE) {
+                *decision = AGGR_EMPTY;
+                DBUG_RETURN(false);  // No rows matching WHERE
+              }
               /* HA_ERR_LOCK_DEADLOCK or some other error */
               table->file->print_error(error, MYF(0));
-              DBUG_RETURN(error);
+              DBUG_RETURN(true);
             }
             removed_tables |= item_field->table_ref->map();
-          } else if (!expr->const_item() || conds || !is_exact_count) {
+          } else if (!expr->const_item() || conds || !have_exact_count) {
             /*
               We get here if the aggregate function is not based on a field.
               Example: "SELECT MAX(1) FROM table ..."
@@ -510,82 +555,51 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
                  - the storage engine does not provide exact count, which means
                    that it doesn't know whether there are any rows.
             */
-            const_result = 0;
+            aggr_impossible = true;
             break;
           }
           item_sum->set_aggregator(item_sum->has_with_distinct()
                                        ? Aggregator::DISTINCT_AGGREGATOR
                                        : Aggregator::SIMPLE_AGGREGATOR);
           /*
-            If count == 0 (so is_exact_count == true) and
-            there're no outer joins, set to NULL,
+            If row_count == 0 and there are no outer joins, set to NULL,
             otherwise set to the constant value.
           */
-          if (!count && !outer_tables) {
+          if (have_exact_count && row_count == 0 && !inner_tables) {
             item_sum->aggregator_clear();
             // Mark the aggregated value as based on no rows
             item->no_rows_in_result();
           } else
             item_sum->reset_and_add();
           item_sum->make_const();
-          recalc_const_item = 1;
+          recalc_const_item = true;
           break;
         }
         default:
-          const_result = 0;
+          aggr_impossible = true;
           break;
       }
-    } else if (const_result) {
+    } else if (!aggr_impossible) {
       if (recalc_const_item) item->update_used_tables();
-      if (!item->const_item()) const_result = 0;
+      if (!item->const_item()) aggr_impossible = true;
     }
   }
 
-  if (thd->is_error()) DBUG_RETURN(thd->get_stmt_da()->mysql_errno());
+  if (thd->is_error()) DBUG_RETURN(true);
 
   /*
-    To use end_send_count, each field should be either a COUNT(*) or
-    a const item. If not, shift to table/index scan.
-
-    CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY,
-                  c2 INT NOT NULL,
-                  c3 char(20),
-                  KEY c3_idx(c3)) ENGINE=INNODB;
-
-    Example 1: Shouldn't use end_send_count because there is no index on
-               column c2 and will require a table scan.
-    SELECT MIN(c2), COUNT(*) FROM t1;
-
-    Example 2: Shouldn't use end_send_count because column c2 is not a constant.
-    set sql_mode='';
-    SELECT c2, COUNT(*) FROM t1;
-
-    Example 3: Can use end_send_count because there is an index on column c3
-               and that part of the query has been completed with call to
-               get_index_min_value(), i.e. MIN(c2) is retrieved in
-               opt_sum_query (this function) and is considered a const value.
-    SELECT MIN(c3), COUNT(*) FROM t1;
-  */
-  if (*select_count) {
-    it.rewind();
-    while ((item = it++)) {
-      bool is_count_item =
-          (item->type() == Item::SUM_FUNC_ITEM &&
-           (((Item_sum *)item))->sum_func() == Item_sum::COUNT_FUNC);
-      if (!is_count_item) *select_count &= item->const_item();
-    }
-  }
-
-  /*
-    If we have a where clause, we can only ignore searching in the
-    tables if MIN/MAX optimisation replaced all used tables
+    With a where clause, only ignore searching in the tables if MIN/MAX
+    optimisation replaced all used tables.
     We do not use replaced values in case of:
     SELECT MIN(key) FROM table_1, empty_table
     removed_tables is != 0 if we have used MIN() or MAX().
   */
   if (removed_tables && used_tables != removed_tables)
-    const_result = 0;  // We didn't remove all tables
-  DBUG_RETURN(const_result);
+    aggr_impossible = true;  // We didn't remove all tables
+
+  *decision = aggr_impossible ? AGGR_REGULAR
+                              : aggr_delayed ? AGGR_DELAYED : AGGR_COMPLETE;
+  DBUG_RETURN(false);
 }
 
 /**

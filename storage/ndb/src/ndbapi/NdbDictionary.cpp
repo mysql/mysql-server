@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1160,6 +1160,18 @@ bool
 NdbDictionary::Table::getFullyReplicated() const
 {
   return m_impl.m_fully_replicated;
+}
+
+void
+NdbDictionary::Table::setRowChecksum(Uint32 val)
+{
+  m_impl.m_row_checksum = val;
+}
+
+Uint32
+NdbDictionary::Table::getRowChecksum()
+{
+  return m_impl.m_row_checksum;
 }
 
 /*****************************************************************
@@ -3551,7 +3563,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       break;
     }
     case NdbDictionary::Column::Mediumunsigned:
-      out << (const Uint32) uint3korr(val_p);
+      out << (static_cast<Uint32>(uint3korr(val_p)));
       break;
     case NdbDictionary::Column::Smallunsigned:
       out << *((const Uint16*) val);
@@ -3820,7 +3832,7 @@ NdbDictionary::NdbDataPrintFormat::NdbDataPrintFormat()
   null_string= "[NULL]";
   hex_format= 0;
 }
-NdbDictionary::NdbDataPrintFormat::~NdbDataPrintFormat() {};
+NdbDictionary::NdbDataPrintFormat::~NdbDataPrintFormat() {}
 
 
 NdbOut&

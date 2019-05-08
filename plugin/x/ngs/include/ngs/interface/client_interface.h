@@ -27,8 +27,10 @@
 
 #include "plugin/x/ngs/include/ngs/interface/session_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+
+class THD;
 
 namespace ngs {
 
@@ -74,7 +76,7 @@ class Client_interface {
   virtual int client_port() const = 0;
 
   virtual void reset_accept_time() = 0;
-  virtual chrono::time_point get_accept_time() const = 0;
+  virtual xpl::chrono::Time_point get_accept_time() const = 0;
   virtual Client_state get_state() const = 0;
   virtual bool supports_expired_passwords() const = 0;
 
@@ -86,14 +88,20 @@ class Client_interface {
   virtual void set_wait_timeout(const uint32_t) = 0;
 
   virtual Session_interface *session() = 0;
-  virtual ngs::shared_ptr<ngs::Session_interface> session_smart_ptr() = 0;
+  virtual std::shared_ptr<Session_interface> session_smart_ptr() const = 0;
 
- public:
   virtual void on_session_reset(Session_interface &s) = 0;
   virtual void on_session_close(Session_interface &s) = 0;
   virtual void on_session_auth_success(Session_interface &s) = 0;
 
   virtual void disconnect_and_trigger_close() = 0;
+
+  virtual bool is_handler_thd(const THD *thd) const = 0;
+
+  virtual void get_capabilities(
+      const Mysqlx::Connection::CapabilitiesGet &msg) = 0;
+  virtual void set_capabilities(
+      const Mysqlx::Connection::CapabilitiesSet &msg) = 0;
 };
 
 }  // namespace ngs

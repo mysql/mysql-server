@@ -62,7 +62,7 @@ class Mysql_connection_options : public Composite_options_provider,
     /**
       Applies option values to MYSQL connection structure.
      */
-    void apply_for_connection(MYSQL *connection);
+    bool apply_for_connection(MYSQL *connection);
 
    private:
     Nullable<std::string> m_ssl_mode_string;

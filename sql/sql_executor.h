@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,21 +30,19 @@
 
 #include <string.h>
 #include <sys/types.h>
-#include <memory>
 
-#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "sql/item.h"
-#include "sql/records.h"  // READ_RECORD
-#include "sql/row_iterator.h"
+#include "sql/records.h"    // READ_RECORD
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
 
+class CacheInvalidatorIterator;
 class Field;
 class Field_longlong;
 class Filesort;
@@ -55,9 +53,7 @@ class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
 struct CACHE_FIELD;
-struct MI_COLUMNDEF;
 struct POSITION;
-struct st_join_table;
 template <class T>
 class List;
 
@@ -149,13 +145,6 @@ class SJ_TMP_TABLE {
   /* The temporary table itself (NULL means not created yet) */
   TABLE *tmp_table;
 
-  /*
-    These are the members we got from temptable creation code. We'll need
-    them if we'll need to convert table from HEAP to MyISAM/Maria.
-  */
-  MI_COLUMNDEF *start_recinfo;
-  MI_COLUMNDEF *recinfo;
-
   /* Pointer to next table (next->start_idx > this->end_idx) */
   SJ_TMP_TABLE *next;
   /* Calc hash instead of too long key */
@@ -217,14 +206,14 @@ class QEP_operation {
   */
   QEP_TAB *qep_tab;
 
-  QEP_operation() : qep_tab(NULL){};
-  QEP_operation(QEP_TAB *qep_tab_arg) : qep_tab(qep_tab_arg){};
-  virtual ~QEP_operation(){};
+  QEP_operation() : qep_tab(NULL) {}
+  QEP_operation(QEP_TAB *qep_tab_arg) : qep_tab(qep_tab_arg) {}
+  virtual ~QEP_operation() {}
   virtual enum_op_type type() = 0;
   /**
     Initialize operation's internal state.  Called once per query execution.
   */
-  virtual int init() { return 0; };
+  virtual int init() { return 0; }
   /**
     Put a new record into the operation's buffer
     @return
@@ -238,7 +227,7 @@ class QEP_operation {
   /**
     Internal state cleanup.
   */
-  virtual void mem_free(){};
+  virtual void mem_free() {}
 };
 
 /**
@@ -265,9 +254,9 @@ class QEP_operation {
 class QEP_tmp_table : public QEP_operation {
  public:
   QEP_tmp_table(QEP_TAB *qep_tab_arg)
-      : QEP_operation(qep_tab_arg), write_func(NULL){};
+      : QEP_operation(qep_tab_arg), write_func(NULL) {}
   enum_op_type type() { return OT_TMP_TABLE; }
-  enum_nested_loop_state put_record() { return put_record(false); };
+  enum_nested_loop_state put_record() { return put_record(false); }
   /*
     Send the result of operation further (to a next operation/client)
     This function is called after all records were put into the buffer
@@ -280,6 +269,7 @@ class QEP_tmp_table : public QEP_operation {
   void set_write_func(Next_select_func new_write_func) {
     write_func = new_write_func;
   }
+  Next_select_func get_write_func() const { return write_func; }
 
  private:
   /** Write function that would be used for saving records in tmp table. */
@@ -333,19 +323,36 @@ enum Copy_func_type {
   */
   CFT_WF_USES_ONLY_ONE_ROW,
   /**
+    In first windowing step, copies non-window functions which do not rely on
+    window functions, i.e. those that have Item::has_wf() == false.
+  */
+  CFT_HAS_NO_WF,
+  /**
     In final windowing step, copies all non-wf functions. Must be called after
     all wfs have been evaluated, as non-wf functions may reference wf,
     e.g. 1+RANK.
   */
-  CFT_NON_WF,
+  CFT_HAS_WF,
   /**
     Copies all window functions.
   */
-  CFT_WF
+  CFT_WF,
+  /**
+    Copies all items that are expressions containing aggregates, but are not
+    themselves aggregates. Such expressions are typically split into their
+    constituent parts during setup_fields(), such that the parts that are
+    _not_ aggregates are replaced by Item_refs that point into a slice.
+    See AggregateIterator::Read() for more details.
+   */
+  CFT_DEPENDING_ON_AGGREGATE
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
                 Copy_func_type type = CFT_ALL);
+
+// Combines copy_fields() and copy_funcs().
+bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
+                           Copy_func_type type = CFT_ALL);
 
 /**
   Copy the lookup key into the table ref's key buffer.
@@ -427,7 +434,8 @@ class QEP_TAB : public QEP_shared_owner {
         m_quick_optim(NULL),
         m_keyread_optim(false),
         m_reversed_access(false),
-        m_fetched_rows(0) {}
+        m_fetched_rows(0),
+        lateral_derived_tables_depend_on_me(0) {}
 
   /// Initializes the object from a JOIN_TAB
   void init(JOIN_TAB *jt);
@@ -468,6 +476,12 @@ class QEP_TAB : public QEP_shared_owner {
   bool finishes_weedout() const { return check_weed_out_table; }
 
   bool prepare_scan();
+
+  /**
+     Instructs each lateral derived table depending on this QEP_TAB, to
+     rematerialize itself before emitting rows.
+  */
+  void refresh_lateral();
 
   /**
     A helper function that allocates appropriate join cache object and
@@ -515,7 +529,7 @@ class QEP_TAB : public QEP_shared_owner {
   /// @return the index used for a table in a QEP
   uint effective_index() const;
 
-  bool pfs_batch_update(JOIN *join);
+  bool pfs_batch_update(JOIN *join) const;
 
  public:
   /// Pointer to table reference
@@ -602,6 +616,11 @@ class QEP_TAB : public QEP_shared_owner {
   /** true <=> remove duplicates on this table. */
   bool needs_duplicate_removal = false;
 
+  // If we have a query of the type SELECT DISTINCT t1.* FROM t1 JOIN t2
+  // ON ..., (ie., we join in one or more tables that we don't actually
+  // read any columns from), we can stop scanning t2 as soon as we see the
+  // first row. This pattern seems to be a workaround for lack of semijoins
+  // in older versions of MySQL.
   bool not_used_in_distinct;
 
   /// Index condition for BKA access join
@@ -665,6 +684,18 @@ class QEP_TAB : public QEP_shared_owner {
   */
   ha_rows m_fetched_rows;
 
+  /**
+     Maps of all lateral derived tables which should be refreshed when
+     execution reads a new row from this table.
+     @note that if a LDT depends on t1 and t2, and t2 is after t1 in the plan,
+     then only t2::lateral_derived_tables_depend_on_me gets the map of the
+     LDT, for efficiency (less useless calls to QEP_TAB::refresh_lateral())
+     and clarity in EXPLAIN.
+  */
+  table_map lateral_derived_tables_depend_on_me;
+
+  Mem_root_array<const CacheInvalidatorIterator *> *invalidators = nullptr;
+
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined
 };
@@ -690,6 +721,30 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
+void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 bool set_record_buffer(const QEP_TAB *tab);
+bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
+void init_tmptable_sum_functions(Item_sum **func_ptr);
+bool update_sum_func(Item_sum **func_ptr);
+void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
+
+/*
+  If a condition cannot be applied right away, for instance because it is a
+  WHERE condition and we're on the right side of an outer join, we have to
+  return it up so that it can be applied on a higher recursion level.
+  This structure represents such a condition.
+ */
+struct PendingCondition {
+  Item *cond;
+  int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
+};
+
+unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
+    unique_ptr_destroy_only<RowIterator> iterator,
+    const std::vector<Item *> &conditions, THD *thd);
+
+void SplitConditions(Item *condition,
+                     std::vector<Item *> *predicates_below_join,
+                     std::vector<PendingCondition> *predicates_above_join);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -330,4 +330,5 @@ static struct st_service_ref list_of_services[] = {
     {"mysql_keyring_service", VERSION_mysql_keyring_service,
      &mysql_keyring_handler},
     {"plugin_registry_service", VERSION_plugin_registry_service,
-     &plugin_registry_handler}};
+     &plugin_registry_handler},
+};

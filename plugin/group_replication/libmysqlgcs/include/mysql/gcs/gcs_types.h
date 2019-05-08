@@ -121,4 +121,28 @@ class Gcs_interface_parameters {
   std::map<std::string, std::string> parameters;
 };
 
+/**
+ The GCS protocol versions.
+ */
+enum class Gcs_protocol_version : unsigned short {
+  /* Unknown version that shall not be used. */
+  UNKNOWN = 0,
+  V1 = 1,
+  V2 = 2,
+  /* Define the highest known version. */
+  HIGHEST_KNOWN = V2,
+  /* Currently used in test cases. */
+  V3 = 3,
+  V4 = 4,
+  V5 = 5,
+  /*
+   No valid version number can appear after this one. If a version number is to
+   be added, this value needs to be incremented and the lowest version number
+   available be assigned to the new version.
+
+   Remember also to set HIGHEST_KNOWN to the newly created version number.
+  */
+  MAXIMUM = 5
+};
+
 #endif /* GCS_TYPES_INCLUDED */

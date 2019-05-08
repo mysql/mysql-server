@@ -87,4 +87,54 @@ connection default;
 DROP TABLE t1;
 disconnect con1;
 disconnect con2;
+#
+# Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+#                Even trigger names are case and accent insensitive. Test case to verify
+#                MDL locking with the case and accent insensitive trigger names.
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (f1 INT);
+# Case 1: Test case to verify MDL locking from concurrent SHOW CREATE TRIGGER
+#         and DROP TRIGGER operation with case and accent insensitive trigger
+#         name.
+CREATE TRIGGER cafe BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_trigger SIGNAL locked WAIT_FOR continue';
+SHOW CREATE TRIGGER CaFé;;
+# At this point SHARED lock is acquired on the trigger.
+CONNECT  con1, localhost, root;
+SET DEBUG_SYNC='now WAIT_FOR locked';
+DROP TRIGGER CAFE;;
+# DROP TRIGGER requires EXCLUSIVE lock on the trigger. DROP is blocked
+# until SHARED lock on the trigger is released.
+CONNECT  con2, localhost, root;
+SET DEBUG_SYNC='now SIGNAL continue';
+connection default;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+cafe	#	#	#	#	#	#
+connection con1;
+# Case 2: Test case to verify MDL locking from concurrent DROP TRIGGER and
+#         SHOW CREATE TRIGGER operation with case and accent insensitive
+#         trigger name.
+connection default;
+CREATE TRIGGER cafe BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_trigger SIGNAL locked WAIT_FOR continue';
+DROP TRIGGER CAFE;;
+# At this point EXCLUSIVE lock is acquired on the trigger.
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR locked';
+SHOW CREATE TRIGGER CaFé;;
+# SHOW CREATE TRIGGER requires SHARED lock on the trigger. Statement is blocked
+# until EXCLUSIVE lock on the trigger is released.
+connection con2;
+SET DEBUG_SYNC='now SIGNAL continue';
+connection default;
+connection con1;
+ERROR HY000: Trigger does not exist
+connection default;
+disconnect con1;
+disconnect con2;
+DROP TABLE t1;
+SET NAMES default;
 SET @@session.lock_wait_timeout= @start_session_value;

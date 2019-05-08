@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -394,7 +394,8 @@ match(const NdbDictionary::Index * parent,
 
   for (unsigned i = 0; i < parent->getNoOfColumns(); i++)
   {
-    if (parent->getColumn(i)->getType() != childCandidate->getColumn(i)->getType())
+    if (strcmp(parent->getColumn(i)->getName(),
+               childCandidate->getColumn(i)->getName()) != 0)
       return false;
   }
 
@@ -1611,7 +1612,7 @@ TESTCASE("AbortWithSlowChildScans",
   INITIALIZER(runAbortWithSlowChildScans);
   FINALIZER(runCleanupTable);
 }
-NDBT_TESTSUITE_END(testFK);
+NDBT_TESTSUITE_END(testFK)
 
 int
 main(int argc, const char** argv)

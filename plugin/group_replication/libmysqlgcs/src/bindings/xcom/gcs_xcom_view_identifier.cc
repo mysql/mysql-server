@@ -47,8 +47,6 @@ void Gcs_xcom_view_identifier::increment_by_one() {
   init(fixed_part, monotonic_part);
 }
 
-Gcs_xcom_view_identifier::~Gcs_xcom_view_identifier() {}
-
 const std::string &Gcs_xcom_view_identifier::get_representation() const {
   return representation;
 }

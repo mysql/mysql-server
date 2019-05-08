@@ -22,6 +22,9 @@
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
+
 Election_member_info::Election_member_info(const std::string uuid,
                                            const Member_version &version,
                                            bool is_primary)
@@ -66,13 +69,14 @@ bool send_message(Plugin_gcs_message *message) {
   return false;
 }
 
-void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
+void kill_transactions_and_leave_on_election_error(std::string &err_msg,
+                                                   ulong stop_wait_timeout) {
   DBUG_ENTER("kill_transactions_and_leave_on_election_error");
 
   // Action errors might have expelled the member already
   if (Group_member_info::MEMBER_ERROR ==
       local_member_info->get_recovery_status()) {
-    return;
+    DBUG_VOID_RETURN;
   }
 
   Notification_context ctx;
@@ -100,15 +104,18 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
   notify_and_reset_ctx(ctx);
 
   bool set_read_mode = false;
-  if (view_change_notifier != NULL &&
-      !view_change_notifier->is_view_modification_ongoing()) {
-    view_change_notifier->start_view_modification();
-  }
-  Gcs_operations::enum_leave_state state = gcs_module->leave();
+
+  Plugin_gcs_view_modification_notifier view_change_notifier;
+  view_change_notifier.start_view_modification();
+  Gcs_operations::enum_leave_state leave_state =
+      gcs_module->leave(&view_change_notifier);
+
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
 
   longlong errcode = 0;
   longlong log_severity = WARNING_LEVEL;
-  switch (state) {
+  switch (leave_state) {
     case Gcs_operations::ERROR_WHEN_LEAVING:
       errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP; /* purecov:
                                                                     inspected */
@@ -146,15 +153,17 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
 
-  if (view_change_notifier != NULL) {
+  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
+      Gcs_operations::ALREADY_LEFT != leave_state) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier->wait_for_view_modification()) {
+    if (view_change_notifier.wait_for_view_modification()) {
       LogPluginErr(
           WARNING_LEVEL,
           ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN); /* purecov:
                                                                     inspected */
     }
   }
+  gcs_module->remove_view_notifer(&view_change_notifier);
 
   if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
     std::string error_message(

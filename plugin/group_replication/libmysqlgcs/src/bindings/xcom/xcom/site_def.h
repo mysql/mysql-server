@@ -51,6 +51,7 @@ uint32_t get_group_id(site_def const *site);
 static uint32_t const null_id = 0;
 node_no get_maxnodes(site_def const *site);
 node_no get_nodeno(site_def const *site);
+node_no find_nodeno(site_def const *site, const char *name);
 node_no get_prev_maxnodes();
 node_no get_prev_nodeno();
 site_def const *find_site_def(synode_no synode);

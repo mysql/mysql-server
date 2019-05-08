@@ -1,0 +1,73 @@
+--source include/have_plugin_interface.inc
+let PLUGIN_AUTH_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$PLUGIN_AUTH_OPT')`;
+--echo ------------------------------------------------------------------------
+--echo # Setup
+--disable_query_log
+--disable_warnings
+let $saved_partial_revokes = `SELECT @@global.partial_revokes`;
+SET GLOBAL partial_revokes= ON;
+--enable_warnings
+--enable_query_log
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(c1 int);
+INSERT INTO db1.t1 VALUES (1), (2), (3);
+
+--echo ------------------------------------------------------------------------
+--echo # Case: - Connecting user has sufficient privileges
+--echo #       - Effective user does not have required privileges
+# Connecting user has sufficient privileges
+CREATE USER qa_test_3_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_3_dest';
+GRANT SELECT ON *.* TO qa_test_3_user;
+# Effective user has partial revokes
+CREATE USER qa_test_3_dest IDENTIFIED BY 'dest_passwd';
+GRANT SELECT ON *.* TO qa_test_3_dest;
+REVOKE SELECT ON db1.* FROM qa_test_3_dest;
+GRANT PROXY ON qa_test_3_dest TO qa_test_3_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user\G" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user\G" 2>&1
+
+# Following should throw error because effective user does not have sufficient
+# privileges and connecting user's privileges are not considered in case of a
+# proxy grant.
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest -e "SELECT COUNT(*) FROM db1.t1\G" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest -e "SELECT COUNT(*) FROM db1.t1\G" 2>&1
+
+DROP USER qa_test_3_dest, qa_test_3_user;
+
+--echo ------------------------------------------------------------------------
+--echo # Case: - Connecting user does not have required privileges
+--echo #       - Effective user has sufficient privileges
+# Connecting user has partial revokes
+CREATE USER qa_test_4_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_4_dest';
+GRANT SELECT ON *.* TO qa_test_4_user;
+REVOKE SELECT ON db1.* FROM qa_test_4_user;
+# Effective user has sufficient privileges
+CREATE USER qa_test_4_dest IDENTIFIED BY 'dest_passwd';
+GRANT SELECT ON *.* TO qa_test_4_dest;
+GRANT PROXY ON qa_test_4_dest TO qa_test_4_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user\G" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user\G" 2>&1
+
+# Following should work because effective user has sufficient privileges and
+# connecting user's privileges are not considered in case of a proxy grant
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest -e "SELECT COUNT(*) FROM db1.t1;" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest -e "SELECT COUNT(*) FROM db1.t1;" 2>&1
+
+DROP USER qa_test_4_dest, qa_test_4_user;
+
+--echo ------------------------------------------------------------------------
+--echo # Cleanup
+
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+--disable_query_log
+--disable_warnings
+eval SET GLOBAL partial_revokes = $saved_partial_revokes;
+--enable_warnings
+--enable_query_log
+
+--echo ------------------------------------------------------------------------

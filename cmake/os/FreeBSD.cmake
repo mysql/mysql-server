@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,16 @@
 
 INCLUDE(CheckCSourceRuns)
 
-# We require at least Clang 3.4.
+# We require at least Clang 4.0.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CHECK_C_SOURCE_RUNS("
       int main()
       {
-        return (__clang_major__ < 3) ||
-               (__clang_major__ == 3 && __clang_minor__ < 4);
+        return (__clang_major__ < 4);
       }" HAVE_SUPPORTED_CLANG_VERSION)
     IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 3.4 or newer is required!")
+      MESSAGE(FATAL_ERROR "Clang 4.0 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

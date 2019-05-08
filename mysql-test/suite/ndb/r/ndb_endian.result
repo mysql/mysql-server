@@ -1,0 +1,610 @@
+create table t1_innodb (
+t1 tinyint,
+t1u tinyint unsigned,
+s1 smallint,
+s1u smallint unsigned,
+m1 mediumint,
+m1u mediumint unsigned,
+i1 int,
+i1u int unsigned,
+b1 bigint,
+b1u bigint unsigned,
+f1 float,
+d1 double,
+dec1 decimal(10,4),
+dec2 decimal(10,2)
+) engine=innodb;
+insert into t1_innodb values (1,1,1,1,1,1,1,1,1,1,
+1234.5678, 9876.21,
+1234.5678, 9876.21);
+create table t1 (
+t1 tinyint,
+t1u tinyint unsigned,
+s1 smallint,
+s1u smallint unsigned,
+m1 mediumint,
+m1u mediumint unsigned,
+i1 int,
+i1u int unsigned,
+b1 bigint,
+b1u bigint unsigned,
+f1 float,
+d1 double,
+dec1 decimal(10,4),
+dec2 decimal(10,2)
+) engine=ndbcluster;
+insert into t1 values (1,1,1,1,1,1,1,1,1,1,
+1234.5678, 9876.21,
+1234.5678, 9876.21);
+set @@optimizer_switch='block_nested_loop=off';
+create index ix on t1(t1,t1u);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t1u = t1.t1u;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	2	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`t1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	4	test.t2.t1,test.t1.t1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`t1u` = `test`.`t1`.`t1u`) and (`test`.`t3`.`t1` = `test`.`t2`.`t1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t1u = t1.t1u;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1u = t2.t1u and t3.t1 = t1.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`t1u` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	4	test.t1.t1,test.t2.t1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`t1` = `test`.`t1`.`t1`) and (`test`.`t3`.`t1u` = `test`.`t2`.`t1u`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1u = t2.t1u and t3.t1 = t1.t1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(s1,s1u);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.s1 = t2.s1 and t3.s1u = t1.s1u;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	3	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`s1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	6	test.t2.s1,test.t1.s1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`s1u` = `test`.`t1`.`s1u`) and (`test`.`t3`.`s1` = `test`.`t2`.`s1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.s1 = t2.s1 and t3.s1u = t1.s1u;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.s1u = t2.s1u and t3.s1 = t1.s1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`s1u` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	6	test.t1.s1,test.t2.s1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`s1` = `test`.`t1`.`s1`) and (`test`.`t3`.`s1u` = `test`.`t2`.`s1u`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.s1u = t2.s1u and t3.s1 = t1.s1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(m1,m1u);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.m1 = t2.m1 and t3.m1u = t1.m1u;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	4	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`m1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	8	test.t2.m1,test.t1.m1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`m1u` = `test`.`t1`.`m1u`) and (`test`.`t3`.`m1` = `test`.`t2`.`m1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.m1 = t2.m1 and t3.m1u = t1.m1u;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.m1u = t2.m1u and t3.m1 = t1.m1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`m1u` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	8	test.t1.m1,test.t2.m1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`m1` = `test`.`t1`.`m1`) and (`test`.`t3`.`m1u` = `test`.`t2`.`m1u`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.m1u = t2.m1u and t3.m1 = t1.m1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(i1,i1u);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.i1 = t2.i1 and t3.i1u = t1.i1u;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	5	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`i1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	test.t2.i1,test.t1.i1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`i1u` = `test`.`t1`.`i1u`) and (`test`.`t3`.`i1` = `test`.`t2`.`i1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.i1 = t2.i1 and t3.i1u = t1.i1u;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.i1u = t2.i1u and t3.i1 = t1.i1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`i1u` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	test.t1.i1,test.t2.i1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`i1` = `test`.`t1`.`i1`) and (`test`.`t3`.`i1u` = `test`.`t2`.`i1u`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.i1u = t2.i1u and t3.i1 = t1.i1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(b1,b1u);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.b1 = t2.b1 and t3.b1u = t1.b1u;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	9	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`b1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	18	test.t2.b1,test.t1.b1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`b1u` = `test`.`t1`.`b1u`) and (`test`.`t3`.`b1` = `test`.`t2`.`b1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.b1 = t2.b1 and t3.b1u = t1.b1u;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.b1u = t2.b1u and t3.b1 = t1.b1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`b1u` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	18	test.t1.b1,test.t2.b1u	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`b1` = `test`.`t1`.`b1`) and (`test`.`t3`.`b1u` = `test`.`t2`.`b1u`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.b1u = t2.b1u and t3.b1 = t1.b1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(f1,d1);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.f1 = t2.f1 and t3.d1 = t1.d1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	5	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`f1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	14	test.t2.f1,test.t1.d1	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`d1` = `test`.`t1`.`d1`) and (`test`.`t3`.`f1` = `test`.`t2`.`f1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.f1 = t2.f1 and t3.d1 = t1.d1;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.d1 = t2.d1 and t3.f1 = t1.f1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`d1` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	14	test.t1.f1,test.t2.d1	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`f1` = `test`.`t1`.`f1`) and (`test`.`t3`.`d1` = `test`.`t2`.`d1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.d1 = t2.d1 and t3.f1 = t1.f1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(dec1,dec2);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dec1 = t2.dec1 and t3.dec2 = t1.dec2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	6	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`dec1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	12	test.t2.dec1,test.t1.dec2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`dec2` = `test`.`t1`.`dec2`) and (`test`.`t3`.`dec1` = `test`.`t2`.`dec1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dec1 = t2.dec1 and t3.dec2 = t1.dec2;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dec2 = t2.dec2 and t3.dec1 = t1.dec1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`dec2` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	12	test.t1.dec1,test.t2.dec2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`dec1` = `test`.`t1`.`dec1`) and (`test`.`t3`.`dec2` = `test`.`t2`.`dec2`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dec2 = t2.dec2 and t3.dec1 = t1.dec1;
+count(*)
+1
+alter table t1 drop index ix;
+drop table t1;
+drop table t1_innodb;
+create table t1_innodb (
+c1 char,
+c2 char(16),
+vc1 varchar(32),
+vc2 varchar(512)
+) engine=innodb;
+insert into t1_innodb values ('a', 'abc....xyz', 'abcdefgd12434545...xyc',
+'A long varchar, not that long really...');
+create table t1 (
+c1 char,
+c2 char(16),
+vc1 varchar(32),
+vc2 varchar(512)
+) engine=ndbcluster;
+insert into t1 values ('a', 'abc....xyz', 'abcdefgd12434545...xyc',
+'A long varchar, not that long really...');
+create index ix on t1(c1,c2);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.c1 = t2.c1 and t3.c2 = t1.c2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	5	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`c1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	70	test.t2.c1,test.t1.c2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`c2` = `test`.`t1`.`c2`) and (`test`.`t3`.`c1` = `test`.`t2`.`c1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.c1 = t2.c1 and t3.c2 = t1.c2;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.c2 = t2.c2 and t3.c1 = t1.c1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`c2` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	70	test.t1.c1,test.t2.c2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`c1` = `test`.`t1`.`c1`) and (`test`.`t3`.`c2` = `test`.`t2`.`c2`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.c2 = t2.c2 and t3.c1 = t1.c1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(vc1,vc2);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.vc1 = t2.vc1 and t3.vc2 = t1.vc2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	131	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`vc1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	2182	test.t2.vc1,test.t1.vc2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`vc2` = `test`.`t1`.`vc2`) and (`test`.`t3`.`vc1` = `test`.`t2`.`vc1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.vc1 = t2.vc1 and t3.vc2 = t1.vc2;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.vc2 = t2.vc2 and t3.vc1 = t1.vc1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`vc2` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	2182	test.t1.vc1,test.t2.vc2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`vc1` = `test`.`t1`.`vc1`) and (`test`.`t3`.`vc2` = `test`.`t2`.`vc2`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.vc2 = t2.vc2 and t3.vc1 = t1.vc1;
+count(*)
+1
+alter table t1 drop index ix;
+drop table t1;
+drop table t1_innodb;
+create table t1_innodb (
+y1 year,
+y2 year(4),
+d1 date,
+d2 date,
+t1 time,
+t2 time(0),
+t3 time(6),
+dt1 datetime,
+dt2 datetime(0),
+dt3 datetime(6),
+ts1 timestamp,
+ts2 timestamp(0),
+ts3 timestamp(6)
+) engine=innodb;
+insert into t1_innodb values (99, 2018, '2018-12-04', '2005-01-26',
+'12:00:00', '11:59:59', '11:59:59.999',
+'2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123',
+'2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123'
+);
+create table t1 (
+y1 year,
+y2 year(4),
+d1 date,
+d2 date,
+t1 time,
+t2 time(0),
+t3 time(6),
+dt1 datetime,
+dt2 datetime(0),
+dt3 datetime(6),
+ts1 timestamp,
+ts2 timestamp(0),
+ts3 timestamp(6)
+) engine=ndbcluster;
+insert into t1 values (99, 2018, '2018-12-04', '2005-01-26',
+'12:00:00', '11:59:59', '11:59:59.999',
+'2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123',
+'2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123'
+);
+create index ix on t1(y1,y2);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.y1 = t2.y1 and t3.y2 = t1.y2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	2	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`y1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	4	test.t2.y1,test.t1.y2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`y2` = `test`.`t1`.`y2`) and (`test`.`t3`.`y1` = `test`.`t2`.`y1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.y1 = t2.y1 and t3.y2 = t1.y2;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.y2 = t2.y2 and t3.y1 = t1.y1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`y2` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	4	test.t1.y1,test.t2.y2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`y1` = `test`.`t1`.`y1`) and (`test`.`t3`.`y2` = `test`.`t2`.`y2`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.y2 = t2.y2 and t3.y1 = t1.y1;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(d1,d2);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.d1 = t2.d1 and t3.d2 = t1.d2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	4	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`d1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	8	test.t2.d1,test.t1.d2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`d2` = `test`.`t1`.`d2`) and (`test`.`t3`.`d1` = `test`.`t2`.`d1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.d1 = t2.d1 and t3.d2 = t1.d2;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(t1,t2,t3);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t2 = t1.t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	4	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`t1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	8	test.t2.t1,test.t1.t2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`t2` = `test`.`t1`.`t2`) and (`test`.`t3`.`t1` = `test`.`t2`.`t1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t2 = t1.t2;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t2 = t2.t2 and t3.t1 = t1.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`t2` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	8	test.t1.t1,test.t2.t2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`t1` = `test`.`t1`.`t1`) and (`test`.`t3`.`t2` = `test`.`t2`.`t2`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t2 = t2.t2 and t3.t1 = t1.t1;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t2 = t2.t2 and t3.t3 = t1.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	4	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition ((`test`.`t2`.`t1` is not null) and (`test`.`t2`.`t2` is not null)); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	15	test.t2.t1,test.t2.t2,test.t1.t3	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`t3` = `test`.`t1`.`t3`) and (`test`.`t3`.`t2` = `test`.`t2`.`t2`) and (`test`.`t3`.`t1` = `test`.`t2`.`t1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.t1 = t2.t1 and t3.t2 = t2.t2 and t3.t3 = t1.t3;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(dt1,dt2,dt3);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt1 = t2.dt1 and t3.dt2 = t1.dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	6	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`dt1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	12	test.t2.dt1,test.t1.dt2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`dt2` = `test`.`t1`.`dt2`) and (`test`.`t3`.`dt1` = `test`.`t2`.`dt1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt1 = t2.dt1 and t3.dt2 = t1.dt2;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt2 = t2.dt2 and t3.dt1 = t1.dt1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`dt2` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	12	test.t1.dt1,test.t2.dt2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`dt1` = `test`.`t1`.`dt1`) and (`test`.`t3`.`dt2` = `test`.`t2`.`dt2`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt2 = t2.dt2 and t3.dt1 = t1.dt1;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt1 = t2.dt1 and t3.dt2 = t2.dt2 and t3.dt3 = t1.dt3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	6	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition ((`test`.`t2`.`dt1` is not null) and (`test`.`t2`.`dt2` is not null)); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	21	test.t2.dt1,test.t2.dt2,test.t1.dt3	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`dt3` = `test`.`t1`.`dt3`) and (`test`.`t3`.`dt2` = `test`.`t2`.`dt2`) and (`test`.`t3`.`dt1` = `test`.`t2`.`dt1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.dt1 = t2.dt1 and t3.dt2 = t2.dt2 and t3.dt3 = t1.dt3;
+count(*)
+1
+alter table t1 drop index ix;
+create index ix on t1(ts1,ts2,ts3);
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts1 = t2.ts1 and t3.ts2 = t1.ts2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	5	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`ts1` is not null); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	test.t2.ts1,test.t1.ts2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`ts2` = `test`.`t1`.`ts2`) and (`test`.`t3`.`ts1` = `test`.`t2`.`ts1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts1 = t2.ts1 and t3.ts2 = t1.ts2;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts2 = t2.ts2 and t3.ts1 = t1.ts1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`ts2` is not null)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	test.t1.ts1,test.t2.ts2	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`ts1` = `test`.`t1`.`ts1`) and (`test`.`t3`.`ts2` = `test`.`t2`.`ts2`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts2 = t2.ts2 and t3.ts1 = t1.ts1;
+count(*)
+1
+explain select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts1 = t2.ts1 and t3.ts2 = t2.ts2 and t3.ts3 = t1.ts3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	ix	ix	5	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition ((`test`.`t2`.`ts1` is not null) and (`test`.`t2`.`ts2` is not null)); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	18	test.t2.ts1,test.t2.ts2,test.t1.ts3	2	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1_innodb` `t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`ts3` = `test`.`t1`.`ts3`) and (`test`.`t3`.`ts2` = `test`.`t2`.`ts2`) and (`test`.`t3`.`ts1` = `test`.`t2`.`ts1`))
+select count(*)
+from t1_innodb as t1
+straight_join t1 as t2
+straight_join t1 as t3 on t3.ts1 = t2.ts1 and t3.ts2 = t2.ts2 and t3.ts3 = t1.ts3;
+count(*)
+1
+alter table t1 drop index ix;
+drop table t1;
+drop table t1_innodb;
+set @@optimizer_switch='block_nested_loop=default';

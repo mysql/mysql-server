@@ -46,8 +46,6 @@ class Resource_group_impl : public Entity_object_impl, public Resource_group {
   Resource_group_impl();
   Resource_group_impl(const Resource_group_impl &);
 
-  virtual ~Resource_group_impl() {}
-
  public:
   const Object_table &object_table() const override;
   static void register_tables(Open_dictionary_tables_ctx *otx);

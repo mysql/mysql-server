@@ -1,0 +1,130 @@
+###############################################################################
+#
+# When a primary being elected is applying backlog and it fails, changing to
+# ERROR state, then the statements will be aborted. The hook will retrieve
+# error for all connections until STOP GROUP_REPLICATION is executed
+#
+# Test:
+#   0. This test requires two servers on single primary mode
+#   1. Server1 bootstrap the group
+#   2. Start GR on server2
+#   3. Stop the applier sql thread, will make primary election fail
+#   4. Execute action to set server2 as new primary
+#   5. Server2 will fail (applier thread stopped), leave the group and set
+#      ERROR state
+#   6. Confirm server2 is on ERROR state
+#   7. Statement executed will be aborted, server is on state ERROR
+#   8. Stop GR on server2
+#   9. After GR is stopped is possible to execute statement
+#  10. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Server1 bootstrap the group
+
+--source include/start_and_bootstrap_group_replication.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The appointed primary for election left the group, this operation will be aborted and if present the old primary member will be re-elected.");
+set session sql_log_bin=1;
+
+--echo
+--echo # 2. Start GR on server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("A critical error occurred during the local execution of this action. The member will now leave the group.");
+call mtr.add_suppression("The member will now leave the group as its configuration may have diverged.");
+set session sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 3. Stop the applier sql thread, will make primary election fail
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 4. Execute action to set server2 as new primary
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid MEMBER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--echo
+--echo # 5. Server2 will fail (applier thread stopped), leave the group and set
+--echo #    ERROR state
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 6. Confirm server2 is on ERROR state
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 7. Statement executed will be aborted, server is on state ERROR
+
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+
+--replace_result $server2_uuid MEMBER2_UUID
+--error ER_GR_HOLD_MEMBER_STATUS_ERROR
+--eval SELECT group_replication_set_as_primary("$server2_uuid");
+
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+--echo
+--echo # 8. Stop GR on server2
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 9. After GR is stopped is possible to execute statement
+
+SET SESSION sql_log_bin= 0;
+CREATE TABLE test.t1 (a int primary key);
+
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo # 10. Cleanup
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Failed switch to server2 as primary due applier stopped
+
+--error ER_GRP_RPL_UDF_ERROR
+--reap
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

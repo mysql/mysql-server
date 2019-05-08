@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -75,24 +75,28 @@ void init_test_logger(
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();
   mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
-  mysql_harness::Config config;
+  std::unique_ptr<mysql_harness::LoaderConfig> config(
+      new mysql_harness::LoaderConfig(mysql_harness::Config::allow_keys));
+  config->add(mysql_harness::logging::kConfigSectionLogger);
+  config->get(mysql_harness::logging::kConfigSectionLogger, "")
+      .add(mysql_harness::logging::kConfigOptionLogLevel, "debug");
 
-  // NOTE: See where g_HACK_default_log_level is set in production code to
-  // understand the hack. One day we will want to revert to something analogous
-  // to what we had before. Original code looked like this:
-  //   config.set_default(mysql_harness::logging::kConfigOptionLogLevel,
-  //   "debug");
-  mysql_harness::logging::g_HACK_default_log_level = "debug";
+  mysql_harness::DIM::instance().set_Config(
+      [&]() { return config.release(); },
+      std::default_delete<mysql_harness::LoaderConfig>());
 
   std::list<std::string> log_domains(additional_log_domains.begin(),
                                      additional_log_domains.end());
   log_domains.push_back(mysql_harness::logging::kMainLogger);
 
   mysql_harness::logging::clear_registry(registry);
-  mysql_harness::logging::init_loggers(registry, config, log_domains,
-                                       mysql_harness::logging::kMainLogger);
-  mysql_harness::logging::create_main_logfile_handler(registry, log_filename,
-                                                      log_folder, true);
+  mysql_harness::logging::create_module_loggers(
+      registry,
+      mysql_harness::logging::get_default_log_level(
+          mysql_harness::DIM::instance().get_Config()),
+      log_domains, mysql_harness::logging::kMainLogger);
+  mysql_harness::logging::create_main_log_handler(registry, log_filename,
+                                                  log_folder, true);
 
   registry.set_ready();
 }

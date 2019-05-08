@@ -401,16 +401,20 @@ struct z_first_page_t {
 
   void init_index_entries();
 
-  /** Find a fragment page, that has space to store len bytes of data.
-  If necessary, allocate a new fragment page.
+  /** Allocate a fragment of the given size.  This involves finding a
+  fragment page, that has space to store len bytes of data. If necessary,
+  allocate a new fragment page.
   @param[in]	bulk		true if it is bulk operation
                                   (OPCODE_INSERT_BULK), false otherwise.
   @param[in]	len		length of data to be stored in
                                   fragment page.
   @param[out]	frag_page	the fragment page with the needed
                                   free space.
-  @return	a reference to the fragment page. */
-  z_frag_entry_t find_frag_page(bool bulk, ulint len, z_frag_page_t &frag_page);
+  @param[out]   entry           fragment page entry representing frag_page.
+  @return fragment identifier within the fragment page.
+  @return FRAG_ID_NULL if fragment could not be allocated. */
+  frag_id_t alloc_fragment(bool bulk, ulint len, z_frag_page_t &frag_page,
+                           z_frag_entry_t &entry);
 
   /** Allocate one index entry.  If there is no free index entry,
   allocate an index page (a page full of z_index_entry_t objects)
@@ -498,6 +502,6 @@ inline std::ostream &operator<<(std::ostream &out, const z_first_page_t &obj) {
   return (obj.print(out));
 }
 
-}; /* namespace lob */
+} /* namespace lob */
 
 #endif /* zlob0first_h */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,12 @@
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/udf_registration_types.h"
-#include "scope_guard.h"
+#include "mysql_com.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/info_schema/show.h"      // build_show_...
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type::BASE_TABLE
-#include "sql/derror.h"                   // ER_THD
-#include "sql/error_handler.h"
+#include "sql/dd/types/column.h"
+#include "sql/derror.h"  // ER_THD
 #include "sql/gis/srid.h"
 #include "sql/item_timefunc.h"
 #include "sql/key_spec.h"
@@ -46,7 +47,8 @@
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_partitions.h"  // PT_partition
 #include "sql/query_options.h"
-#include "sql/sp.h"        // sp_add_used_routine
+#include "sql/sp.h"  // sp_add_used_routine
+#include "sql/sp_head.h"
 #include "sql/sp_instr.h"  // sp_instr_set
 #include "sql/sp_pcontext.h"
 #include "sql/sql_base.h"  // find_temporary_table
@@ -61,7 +63,6 @@
 #include "sql/sql_select.h"  // Sql_cmd_select...
 #include "sql/sql_update.h"  // Sql_cmd_update...
 #include "sql/system_variables.h"
-#include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 
@@ -80,7 +81,7 @@ bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
   cs2 =
       opt_charset ? opt_charset : global_system_variables.character_set_client;
   set_var_collation_client *var;
-  var = new (*THR_MALLOC) set_var_collation_client(
+  var = new (thd->mem_root) set_var_collation_client(
       flags, cs2, thd->variables.collation_database, cs2);
   if (var == NULL) return true;
   lex->var_list.push_back(var);
@@ -130,7 +131,7 @@ bool PT_set_names::contextualize(Parse_context *pc) {
       cs3 = cs2;
   }
   set_var_collation_client *var;
-  var = new (*THR_MALLOC) set_var_collation_client(flags, cs3, cs3, cs3);
+  var = new (thd->mem_root) set_var_collation_client(flags, cs3, cs3, cs3);
   if (var == NULL) return true;
   lex->var_list.push_back(var);
   return false;
@@ -401,7 +402,7 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
       responsible for destruction of the LEX-object.
     */
 
-    sp_instr_set *i = new (*THR_MALLOC)
+    sp_instr_set *i = new (thd->mem_root)
         sp_instr_set(sp->instructions(), lex, spv->offset, opt_expr, expr_query,
                      true);  // The instruction owns its lex.
 
@@ -441,8 +442,9 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   // Current password is specified through the REPLACE clause hence set the flag
   if (current_password != nullptr) user->uses_replace_clause = true;
 
-  var = new (*THR_MALLOC) set_var_password(
-      user, const_cast<char *>(password), const_cast<char *>(current_password));
+  var = new (thd->mem_root) set_var_password(
+      user, const_cast<char *>(password), const_cast<char *>(current_password),
+      retain_current_password);
 
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of memory
@@ -476,8 +478,9 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
                                    (LEX_STRING *)&sctx_priv_host);
   if (!user) return true;
 
-  set_var_password *var = new (*THR_MALLOC) set_var_password(
-      user, const_cast<char *>(password), const_cast<char *>(current_password));
+  set_var_password *var = new (thd->mem_root) set_var_password(
+      user, const_cast<char *>(password), const_cast<char *>(current_password),
+      retain_current_password);
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of Memory
   }
@@ -636,8 +639,8 @@ bool PT_delete::add_table(Parse_context *pc, Table_ident *table) {
   const enum_mdl_type mdl_type = (opt_delete_options & DELETE_LOW_PRIORITY)
                                      ? MDL_SHARED_WRITE_LOW_PRIO
                                      : MDL_SHARED_WRITE;
-  return !pc->select->add_table_to_list(pc->thd, table, NULL, table_opts,
-                                        lock_type, mdl_type, NULL,
+  return !pc->select->add_table_to_list(pc->thd, table, opt_table_alias,
+                                        table_opts, lock_type, mdl_type, NULL,
                                         opt_use_partition);
 }
 
@@ -1010,10 +1013,11 @@ bool PT_table_factor_function::contextualize(Parse_context *pc) {
   return false;
 }
 
-PT_derived_table::PT_derived_table(PT_subquery *subquery,
+PT_derived_table::PT_derived_table(bool lateral, PT_subquery *subquery,
                                    const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
-    : m_subquery(subquery),
+    : m_lateral(lateral),
+      m_subquery(subquery),
       m_table_alias(table_alias.str),
       column_names(*column_names) {
   m_subquery->m_is_derived_table = true;
@@ -1025,7 +1029,23 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
   outer_select->parsing_place = CTX_DERIVED;
   DBUG_ASSERT(outer_select->linkage != GLOBAL_OPTIONS_TYPE);
 
+  /*
+    Determine the first outer context to try for the derived table:
+    - if lateral: context of query which owns the FROM i.e. outer_select
+    - if not lateral: context of query outer to query which owns the FROM.
+    This is just a preliminary decision. Name resolution
+    {Item_field,Item_ref}::fix_fields() may use or ignore this outer context
+    depending on where the derived table is placed in it.
+  */
+  if (!m_lateral)
+    pc->thd->lex->push_context(
+        outer_select->master_unit()->outer_select()
+            ? &outer_select->master_unit()->outer_select()->context
+            : nullptr);
+
   if (m_subquery->contextualize(pc)) return true;
+
+  if (!m_lateral) pc->thd->lex->pop_context();
 
   outer_select->parsing_place = CTX_NONE;
 
@@ -1033,13 +1053,17 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
 
   SELECT_LEX_UNIT *unit = pc->select->first_inner_unit();
   pc->select = outer_select;
-  Table_ident *ti = new (*THR_MALLOC) Table_ident(unit);
+  Table_ident *ti = new (pc->thd->mem_root) Table_ident(unit);
   if (ti == NULL) return true;
 
   value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias, 0, TL_READ,
                                         MDL_SHARED_READ);
   if (value == NULL) return true;
   if (column_names.size()) value->set_derived_column_names(&column_names);
+  if (m_lateral) {
+    // Mark the unit as LATERAL, by turning on one bit in the map:
+    value->derived_unit()->m_lateral_deps = OUTER_REF_TABLE_BIT;
+  }
   if (pc->select->add_joined_table(value)) return true;
 
   return false;
@@ -1252,16 +1276,19 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
   lex->key_create_info = default_key_create_info;
 
   /*
-    If defined, the CONSTRAINT symbol value is used.
-    Otherwise, the FOREIGN KEY index_name value is used.
+    If present name from the CONSTRAINT clause is used as name of generated
+    supporting index (which is created in cases when there is no explicitly
+    created supporting index). Otherwise, the FOREIGN KEY index_name value
+    is used. If both are missing name of generated supporting index is
+    automatically produced.
   */
-  const LEX_CSTRING used_name = to_lex_cstring(
+  const LEX_CSTRING key_name = to_lex_cstring(
       m_constraint_name.str ? m_constraint_name
                             : m_key_name.str ? m_key_name : NULL_STR);
 
-  if (used_name.str && check_string_char_length(used_name, "", NAME_CHAR_LEN,
-                                                system_charset_info, 1)) {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), used_name.str);
+  if (key_name.str && check_string_char_length(key_name, "", NAME_CHAR_LEN,
+                                               system_charset_info, 1)) {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), key_name.str);
     return true;
   }
 
@@ -1276,17 +1303,25 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
     }
   }
 
-  Key_spec *foreign_key = new (pc->mem_root)
-      Foreign_key_spec(pc->mem_root, used_name, cols, db, orig_db, table_name,
-                       m_referenced_table->table, m_ref_list, m_fk_delete_opt,
-                       m_fk_update_opt, m_fk_match_option);
+  /*
+    We always use value from CONSTRAINT clause as a foreign key name.
+    If it is not present we use generated name as a foreign key name
+    (i.e. we ignore value from FOREIGN KEY index_name part).
+
+    Validity of m_constraint_name has been already checked by the code
+    above that handles supporting index name.
+  */
+  Key_spec *foreign_key = new (pc->mem_root) Foreign_key_spec(
+      pc->mem_root, to_lex_cstring(m_constraint_name), cols, db, orig_db,
+      table_name, m_referenced_table->table, m_ref_list, m_fk_delete_opt,
+      m_fk_update_opt, m_fk_match_option);
   if (foreign_key == NULL || pc->alter_info->key_list.push_back(foreign_key))
     return true;
   /* Only used for ALTER TABLE. Ignored otherwise. */
   pc->alter_info->flags |= Alter_info::ADD_FOREIGN_KEY;
 
   Key_spec *key =
-      new (pc->mem_root) Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, used_name,
+      new (pc->mem_root) Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, key_name,
                                   &default_key_create_info, true, true, cols);
   if (key == NULL || pc->alter_info->key_list.push_back(key)) return true;
 
@@ -1315,12 +1350,15 @@ PT_common_table_expr::PT_common_table_expr(
       m_subq_node(subq_node),
       m_column_names(*column_names),
       m_postparse(mem_root) {
-  if (lower_case_table_names && m_name.length)
+  if (lower_case_table_names && m_name.length) {
     // Lowercase name, as in SELECT_LEX::add_table_to_list()
     m_name.length = my_casedn_str(files_charset_info, m_name.str);
+  }
+  m_postparse.name = m_name;
 }
 
-void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type) {
+void PT_with_clause::print(const THD *thd, String *str,
+                           enum_query_type query_type) {
   size_t len1 = str->length();
   str->append("with ");
   if (m_recursive) str->append("recursive ");
@@ -1338,7 +1376,7 @@ void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type) {
     str->append(" ");
 }
 
-void PT_common_table_expr::print(THD *thd, String *str,
+void PT_common_table_expr::print(const THD *thd, String *str,
                                  enum_query_type query_type) {
   size_t len = str->length();
   append_identifier(thd, str, m_name.str, m_name.length);
@@ -1367,7 +1405,7 @@ void PT_common_table_expr::print(THD *thd, String *str,
         // If 2+ references exist, show the one which is shown in EXPLAIN
         tl->query_block_id_for_explain() == tl->query_block_id()) {
       str->append('(');
-      tl->derived_unit()->print(str, query_type);
+      tl->derived_unit()->print(thd, str, query_type);
       str->append(')');
       found = true;
       break;
@@ -1480,17 +1518,16 @@ bool PT_create_table_default_charset::contextualize(
 }
 
 bool set_default_collation(HA_CREATE_INFO *create_info,
-                           const CHARSET_INFO *value) {
-  DBUG_ASSERT(value != nullptr);
+                           const CHARSET_INFO *collation) {
+  DBUG_ASSERT(collation != nullptr);
+  DBUG_ASSERT(
+      (create_info->default_table_charset == nullptr) ==
+      ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) == 0));
 
-  if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
-      create_info->default_table_charset &&
-      !(value = merge_charset_and_collation(create_info->default_table_charset,
-                                            value))) {
+  if (merge_charset_and_collation(create_info->default_table_charset, collation,
+                                  &create_info->default_table_charset)) {
     return true;
   }
-
-  create_info->default_table_charset = value;
   create_info->used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
   create_info->used_fields |= HA_CREATE_USED_DEFAULT_COLLATE;
   return false;
@@ -1545,7 +1582,8 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
       field_def->interval_list, field_def->charset,
       field_def->has_explicit_collation, field_def->uint_geom_type,
       field_def->gcol_info, field_def->default_val_info, opt_place,
-      field_def->m_srid, dd::Column::enum_hidden_type::HT_VISIBLE);
+      field_def->m_srid, field_def->check_const_spec_list,
+      dd::Column::enum_hidden_type::HT_VISIBLE);
 }
 
 Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
@@ -1791,8 +1829,6 @@ Sql_cmd *PT_show_keys::make_cmd(THD *thd) {
 
 bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
   if (super::contextualize(pc) || m_field_def->contextualize(pc)) return true;
-  if (m_field_def->default_value)
-    pc->alter_info->flags |= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
   pc->alter_info->flags |= m_field_def->alter_info_flags;
   return pc->alter_info->add_field(
       pc->thd, &m_new_name, m_field_def->type, m_field_def->length,
@@ -1801,7 +1837,7 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
       m_field_def->interval_list, m_field_def->charset,
       m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
       m_field_def->gcol_info, m_field_def->default_val_info, m_opt_place,
-      m_field_def->m_srid, dd::Column::enum_hidden_type::HT_VISIBLE);
+      m_field_def->m_srid, nullptr, dd::Column::enum_hidden_type::HT_VISIBLE);
 }
 
 bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {
@@ -2292,9 +2328,12 @@ Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
-  const CHARSET_INFO *cs = m_type->get_charset()
-                               ? m_type->get_charset()
-                               : global_system_variables.character_set_results;
+  const CHARSET_INFO *cs;
+  if (merge_charset_and_collation(m_type->get_charset(), m_collation, &cs))
+    return true;
+  if (cs == nullptr) {
+    cs = pc->thd->variables.collation_connection;
+  }
 
   m_column.init(pc->thd,
                 m_name,                        // Alias
@@ -2307,8 +2346,8 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 &EMPTY_STR,                    // Comment
                 nullptr,                       // Change
                 m_type->get_interval_list(),   // Interval list
-                cs,                            // Charset
-                false,                         // No "COLLATE" clause
+                cs,                            // Charset & collation
+                m_collation != nullptr,        // Has "COLLATE" clause
                 m_type->get_uint_geom_type(),  // Geom type
                 nullptr,                       // Gcol_info
                 nullptr,                       // Default gen expression
@@ -2353,6 +2392,9 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       break;
     case Explain_format_type::JSON:
       lex->explain_format = new (thd->mem_root) Explain_format_JSON;
+      break;
+    case Explain_format_type::TREE:
+      lex->explain_format = new (thd->mem_root) Explain_format_tree;
       break;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM

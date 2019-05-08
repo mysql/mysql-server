@@ -67,9 +67,18 @@ eval $query;
 
 ALTER TABLE group_by_test2 ADD UNIQUE INDEX (cat);
 eval $query;
+
+# The same query with ROLLUP would be wrong:
+# indeed, it would then be a UNION with a 2nd member where 'cat' is
+# NULL; in that case, which value should 'name' have? In MySQL's
+# implementation it gets the last seen value before 'cat' was
+# switched to NULL, which is non-deterministic and useless.
+# In other words, even if 'cat' determines 'name', it doesn't when
+# it's an artificial NULL.
 --error ER_WRONG_FIELD_WITH_GROUP
 eval $query WITH ROLLUP;
 --echo # Expressions of group columns are ok:
+# when 'cat' is made NULL, length(cat) is deterministic.
 SELECT
  cat,
 length(cat),
@@ -1181,3 +1190,15 @@ GROUP BY t1.b;
 DROP TABLE t1, t2, t3;
 
 DROP FUNCTION show_json_object;
+
+--echo #
+--echo # Bug#29006668 UNEXPECTED ERROR: "ORDER BY CLAUSE IS NOT IN GROUP BY CLAUSE" WITH ROLLUP
+--echo #
+
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (-1),(2),(1);
+SELECT ABS(i) AS a FROM t GROUP BY abs(i)             ORDER BY a + 1;
+SELECT ABS(i) AS a FROM t GROUP BY abs(i) WITH ROLLUP ORDER BY a + 1;
+SELECT ABS(i) AS a FROM t GROUP BY a                  ORDER BY a + 1;
+SELECT ABS(i) AS a FROM t GROUP BY a      WITH ROLLUP ORDER BY a + 1;
+DROP TABLE t;

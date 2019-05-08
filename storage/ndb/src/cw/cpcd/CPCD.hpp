@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,16 +88,16 @@ class CPCD {
     RequestStatus() {
       m_status = OK;
       m_errorstring[0] = '\0';
-    };
+    }
 
     /** @brief Sets an errorcode and a printable message */
     void err(enum RequestStatusCode, const char *);
 
     /** @brief Returns the error message */
-    char *getErrMsg() { return m_errorstring; };
+    char *getErrMsg() { return m_errorstring; }
 
     /** @brief Returns the error code */
-    enum RequestStatusCode getStatus() { return m_status; };
+    enum RequestStatusCode getStatus() { return m_status; }
 
    private:
     enum RequestStatusCode m_status;
@@ -146,6 +146,10 @@ class CPCD {
      *  @return The pid number
      */
     int readPid();
+
+    /** @brief Returns operating system process identifier */
+
+    int getPid();
 
     /**
      *  @brief Writes the pid from stable storage
@@ -254,6 +258,9 @@ class CPCD {
 
     /** @brief Status of the process */
     enum ProcessStatus m_status;
+
+    /** @brief Status of the process before it's status is logged */
+    enum ProcessStatus m_previous_monitored_status;
 
     /** @bried Indicator that process should be removed when STOPPED */
     bool m_remove_on_stopped;

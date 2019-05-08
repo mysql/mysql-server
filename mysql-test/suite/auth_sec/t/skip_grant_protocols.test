@@ -7,7 +7,6 @@
 --source suite/auth_sec/include/skip_grant_protocols.inc
 
 --disable_ps_protocol
---disable_warnings
 --enable_connect_log
 
 --echo # Restart server with --skip-grant-tables option and new datadir

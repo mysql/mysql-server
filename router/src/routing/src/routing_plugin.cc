@@ -35,6 +35,7 @@
 #include <atomic>
 #include <iostream>
 #include <mutex>
+#include <stdexcept>
 #include <vector>
 
 using mysql_harness::AppInfo;

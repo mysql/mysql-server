@@ -28,6 +28,7 @@
 
 #include <cstring>
 #include <sstream>
+#include <stdexcept>
 #include <streambuf>
 #ifndef _WIN32
 #include <unistd.h>
@@ -140,8 +141,8 @@ TEST_F(ConsoleOutputTestX, ConfigurationFileList) {
 
 TEST_F(ConsoleOutputTestX, BasicUsage) {
   std::vector<std::string> options{
-      "[-V|--version]",
-      "[-?|--help]",
+      "(-V|--version)",
+      "(-?|--help)",
       "[-c|--config=<path>]",
       "[-a|--extra-config=<path>]",
   };

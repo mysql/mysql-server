@@ -315,7 +315,7 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   EXPECT_CALL(*mock_socket_operations_, getpeername(_, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
                       Return(0)));
-  ;
+
   EXPECT_CALL(*mock_socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 

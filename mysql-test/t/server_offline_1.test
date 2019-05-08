@@ -100,4 +100,3 @@ DROP USER 'user3'@'localhost';
 
 --echo # Restoring the original values.
 SET @@global.offline_mode = @global_saved_tmp;
-

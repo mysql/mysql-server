@@ -757,8 +757,8 @@ DROP TABLE t1, t2, t3;
 create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam; 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat';
+-- error ER_FEATURE_UNSUPPORTED
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
@@ -2297,3 +2297,181 @@ SET parser_max_mem_size = 10000000; # minimum allowed value
 --eval CREATE PROCEDURE p() SELECT 1 FROM (SELECT '$s') a
 --enable_query_log
 SET parser_max_mem_size = default;
+
+--echo #
+--echo # Bug #28968848: SIMPLIFY MYSQL_YYABORT
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1 () wrong syntax;
+
+--echo #
+--echo # Bug #25220656: THE "PERSIST" EXTENSION IS A RESERVED KEYWORD
+--echo #
+
+# PERSIST and PERSIST_ONLY are not reserved words any more:
+
+SELECT 1 AS PERSIST, 2 AS PERSIST_ONLY;
+
+# Negative checks for non-reserved words not allowed as role names:
+
+--error ER_PARSE_ERROR
+CREATE ROLE EVENT;
+--error ER_PARSE_ERROR
+CREATE ROLE FILE;
+--error ER_PARSE_ERROR
+CREATE ROLE NONE;
+--error ER_PARSE_ERROR
+CREATE ROLE PROCESS;
+--error ER_PARSE_ERROR
+CREATE ROLE PROXY;
+--error ER_PARSE_ERROR
+CREATE ROLE RELOAD;
+--error ER_PARSE_ERROR
+CREATE ROLE REPLICATION;
+--error ER_PARSE_ERROR
+CREATE ROLE RESOURCE;
+--error ER_PARSE_ERROR
+CREATE ROLE SUPER;
+
+# Negative checks for non-reserved words not allowed as system variable names:
+
+--error ER_PARSE_ERROR
+SET GLOBAL = DEFAULT;
+--error ER_PARSE_ERROR
+SET LOCAL = DEFAULT;
+--error ER_PARSE_ERROR
+SET PERSIST = DEFAULT;
+--error ER_PARSE_ERROR
+SET PERSIST_ONLY = DEFAULT;
+--error ER_PARSE_ERROR
+SET SESSION = DEFAULT;
+--echo #
+--echo # Bug#29033659: SOME NON-RESERVED WORDS CAN'T BE USED AS SP LABELS
+--echo #
+
+DELIMITER |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  ACCOUNT: LOOP RETURN 1; END LOOP;
+  ALWAYS: LOOP RETURN 1; END LOOP;
+  BACKUP: LOOP RETURN 1; END LOOP;
+  CLOSE: LOOP RETURN 1; END LOOP;
+  FORMAT: LOOP RETURN 1; END LOOP;
+  GROUP_REPLICATION: LOOP RETURN 1; END LOOP;
+  HOST: LOOP RETURN 1; END LOOP;
+  INVISIBLE: LOOP RETURN 1; END LOOP;
+  OPEN: LOOP RETURN 1; END LOOP;
+  OPTIONS: LOOP RETURN 1; END LOOP;
+  OWNER: LOOP RETURN 1; END LOOP;
+  PARSER: LOOP RETURN 1; END LOOP;
+  PORT: LOOP RETURN 1; END LOOP;
+  REMOVE: LOOP RETURN 1; END LOOP;
+  RESTORE: LOOP RETURN 1; END LOOP;
+  ROLE: LOOP RETURN 1; END LOOP;
+  SECONDARY: LOOP RETURN 1; END LOOP;
+  SECONDARY_ENGINE: LOOP RETURN 1; END LOOP;
+  SECONDARY_LOAD: LOOP RETURN 1; END LOOP;
+  SECONDARY_UNLOAD: LOOP RETURN 1; END LOOP;
+  SECURITY: LOOP RETURN 1; END LOOP;
+  SERVER: LOOP RETURN 1; END LOOP;
+  SOCKET: LOOP RETURN 1; END LOOP;
+  SONAME: LOOP RETURN 1; END LOOP;
+  UPGRADE: LOOP RETURN 1; END LOOP;
+  VISIBLE: LOOP RETURN 1; END LOOP;
+  WRAPPER: LOOP RETURN 1; END LOOP;
+END|
+
+DELIMITER ;|
+
+DROP FUNCTION f1;
+
+--echo #
+--echo # Bug#29205289: PARSER ACCEPTS UNDOCUMENTED SYNTAX: `... = TABLE_ALIAS`
+--echo #
+
+CREATE TABLE t1 (i INT);
+--error ER_PARSE_ERROR
+LOCK TABLES t1=a READ;
+--error ER_PARSE_ERROR
+HANDLER t1 OPEN=a;
+--error ER_PARSE_ERROR
+SELECT * FROM t1=a;
+--error ER_PARSE_ERROR
+SELECT * FROM (SELECT 1)=a;
+--error ER_PARSE_ERROR
+SELECT * FROM t1 JOIN t1=a;
+--error ER_PARSE_ERROR
+UPDATE t1=a SET i=0;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #22320942: ODBC OUTER JOIN ESCAPE SEQUENCE SYNTAX IS BROKEN
+--echo #
+
+CREATE TEMPORARY TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+
+SELECT * FROM { OJ t1 LEFT JOIN t2 ON TRUE };
+
+--error ER_PARSE_ERROR
+SELECT * FROM { `OJ` t1 LEFT JOIN t2 ON TRUE };
+
+--error ER_PARSE_ERROR
+SELECT * FROM { random_identifier t1 LEFT JOIN t2 ON TRUE };
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #28997518: "COLLATE X GENERATED ALWAYS ... COLLATE Y": X HAS
+--echo #                 A PRIORITY OVER Y
+--echo #
+
+# Even compatible multiple COLLATE clauses should fail:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  COLLATE ascii_bin
+);
+
+# Incompatible COLLATE clauses should fail with the same error message:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t2 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  COLLATE ascii_general_ci
+);
+
+# Multiple COLLATE clauses mixed with other column attributes should fail too:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t3 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  NOT NULL
+  COLLATE ascii_bin
+);
+
+# Multiple COLLATE clauses should fail in gcol definitions (syntax 1):
+
+--error ER_PARSE_ERROR
+CREATE TABLE t3 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  GENERATED ALWAYS AS(NULL)
+  COLLATE ascii_bin
+);
+
+# Multiple COLLATE clauses should fail in gcol definitions (syntax 2):
+
+--error ER_PARSE_ERROR
+CREATE TABLE t4 (
+  x VARCHAR(10)
+  GENERATED ALWAYS AS(NULL)
+  COLLATE ascii_bin
+  COLLATE ascii_bin
+);

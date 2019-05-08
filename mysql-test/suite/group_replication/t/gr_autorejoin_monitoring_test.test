@@ -1,0 +1,231 @@
+################################################################################
+#
+# The auto-rejoin process is a mechanism that allows a server that left the
+# group due to flaky network (either on his side or on the other members) to
+# try to join again up to group_replication_autorejoin_tries number of times.
+#
+# This test shall verify that the auto-rejoin process is monitorable through
+# thread stage events, i.e. it will verify that it is possible to:
+#   * Observe that an auto-rejoin is running or not
+#   * See the number of retries being attempted
+#   * Infer the time remaining for the next retry
+#   * See the timestamp of the last retry
+#   * See the number of times the auto-rejoin process was triggered
+#
+# Test:
+# 0) The test requires three servers.
+# 1) Provoke a member expel.
+# 2) Verify that the auto-rejoin process is ongoing.
+# 2.1) Verify that we can see the number of retries being incremented until
+#      depleted.
+# 2.2) Verify that we can infer the time remaining until the next retry.
+# 3) Verify that we see the timestamp of the last auto-rejoin process.
+# 4) Verify that we can see the number of times the auto-rejoin process was
+#    run.
+# 5) Cleanup.
+#
+################################################################################
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/linux.inc
+#
+# We'll need to verify the remaining time between each retry and, with valgrind,
+# we may easily go over our estimated time, so we have to disable this test
+# from running in valgrind jobs.
+#
+--source include/not_valgrind.inc
+#
+# We manually start the group because we need to set the rejoin timeout before
+# the START GROUP_REPLICATION command.
+#
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count = 3
+--source include/group_replication.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("Unable to read the server value for the super_read_only variable");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET sql_log_bin = 1;
+
+--source include/gr_autorejoin_monitoring.inc
+
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_long_retry';
+SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ####
+--echo # 1) Provoke a member expel.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+# First, enable auto-rejoin
+SET GLOBAL group_replication_autorejoin_tries = 3;
+
+#
+# Save timestamp before we start the auto-rejoin process, so we can validate the
+# time it took.
+#
+--let $timestamp_before_autorejoin = `SELECT UNIX_TIMESTAMP()`
+
+# Force expel on member 1
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--source include/gr_expel_member_from_group.inc
+
+--echo
+--echo ####
+--echo # 2) Verify that the auto-rejoin process is ongoing.
+--echo ####
+--echo
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+
+# Verify that it is currently running
+--let $assert_text = Auto-rejoin should be running
+--let $assert_cond = [SELECT IS_AUTOREJOIN_RUNNING()] = TRUE
+--source include/assert.inc
+
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+
+#
+# We go through each retry to observe the retry counter and remaining time being
+# updated
+#
+--let $num_retries = 1
+while ($num_retries <= 3)
+{
+  SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+
+  # Verify that it is currently running
+  --let $assert_text = Auto-rejoin should be running
+  --let $assert_cond = [SELECT IS_AUTOREJOIN_RUNNING()] = TRUE
+  --source include/assert.inc
+
+
+  --let $assert_text= super_read_only should be enabled
+  --let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+  --source include/assert.inc
+
+  --echo
+  --echo ####
+  --echo # 2.1) Verify that we can see the number of retries being incremented
+  --echo # until depleted.
+  --echo ####
+  --echo
+  --let $assert_text = We should have attempted $num_retries rejoins
+  --let $assert_cond = [SELECT GET_NUMBER_RETRIES()] = $num_retries
+  --source include/assert.inc
+
+  --echo
+  --echo ####
+  --echo # 2.2) Verify that we can infer the time remaining until the next
+  --echo # retry.
+  --echo ####
+  --echo
+  # Basically the remaining time for the next retry should be under 5 minutes
+  # Note that even though in production we sleep for 5 minutes, for testing
+  # purposes we lower that number to 1 minute.
+  --let $assert_text = Time remaining should be less than 5 mins
+  --let $assert_cond = [SELECT GET_TIME_UNTIL_NEXT_RETRY(60)] <= 60
+  --source include/assert.inc
+
+  # Unblock rejoin loop
+  SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+  --inc $num_retries
+}
+
+# Verify that the auto-rejoin process has terminated
+--let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = FALSE
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo ####
+--echo # 3) Verify that we see the timestamp of the last auto-rejoin process.
+--echo ####
+--echo
+--let $last_autorejoin_time = `SELECT GET_LAST_AUTOREJOIN()`
+
+#
+# We set an upper bound for execution time comprising of the number of retries
+# times the sleep interval and add a small overhead factor
+#
+--let $num_retries = 3
+--let $sleep_interval = 60
+--let $overhead = $sleep_interval
+
+#
+# Then we calculate the time we are expecting the auto-rejoin process to run, so
+# that we can validate if the auto-rejoin process execution time deviates from
+# this expected interval.
+#
+--expr $expected_spent_time = $num_retries * $sleep_interval
+--expr $expected_time_delta = $timestamp_before_autorejoin + $expected_spent_time
+--expr $actual_time_delta = $last_autorejoin_time - $timestamp_before_autorejoin
+--expr $max_time = $expected_time_delta + $overhead
+
+# If it deviates too much (i.e. more than the overhead), we fail the test.
+if ($actual_time_delta > $max_time)
+{
+  --echo The auto-rejoin process took longer than expected or its timestamp is wrong
+  --die
+}
+
+--echo
+--echo ####
+--echo # 4) Verify that we can see the number of times the auto-rejoin process
+--echo # was run.
+--echo ####
+--echo
+# We should have already one auto-rejoin there
+--let $assert_text = There should only be one auto-rejoin process triggered
+--let $assert_cond = [SELECT GET_COUNT_AUTOREJOIN()] = 1
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin';
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_rejoin_long_retry';
+
+#
+# Reset GR so that the member returns to a clean slate and disables
+# super_read_only mode
+#
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo ####
+--echo # 5) Cleanup.
+--echo ####
+--echo
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET GLOBAL group_replication_autorejoin_tries = default;
+--source include/gr_end_autorejoin_monitoring.inc
+--source include/group_replication_end.inc

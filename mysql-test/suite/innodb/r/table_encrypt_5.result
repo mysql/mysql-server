@@ -709,9 +709,10 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
-# restart without --early-plugin-load and keyring_file_data
-# AND explicitly install plugin to access old table
-# restart: 
+# restart without --early-plugin-load (still need to provide with
+# keyring_file_data otherwise it would point to default location which might be
+# non-writable to mtr). Instead explicitly install plugin to access old table
+# restart: --loose-keyring_file_data=MYSQL_TMP_DIR/mydummy_keyring
 # Install keyring plugin
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 # Set keyring_file_data as old file so as to access old tables

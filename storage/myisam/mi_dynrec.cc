@@ -35,12 +35,14 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "sql/field.h"
 #include "storage/myisam/myisam_sys.h"
 #include "storage/myisam/myisamdef.h"
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +38,11 @@
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"                 // dd::table_storage_engine
+#include "sql/dd/properties.h"               // dd::Properties
 #include "sql/dd/types/abstract_table.h"     // dd::Abstract_table
 #include "sql/dd/types/table.h"              // dd::Table
 #include "sql/dd_sql_view.h"                 // View_metadata_updater
+#include "sql/derror.h"                      // ER_THD
 #include "sql/handler.h"
 #include "sql/log.h"          // query_logger
 #include "sql/mysqld.h"       // lower_case_table_names
@@ -625,6 +627,43 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       */
       DBUG_ASSERT(!(*int_commit_done) || fk_invalidator->is_empty());
 
+      // Find if table uses general tablespace and is it encrypted.
+      bool is_general_tablespace = false;
+      bool is_table_encrypted = false;
+      dd::Encrypt_result new_er =
+          dd::is_tablespace_encrypted(thd, *from_table, &is_general_tablespace);
+      if (new_er.error) {
+        DBUG_RETURN(true);
+      }
+      is_table_encrypted = new_er.value;
+      if (!is_general_tablespace &&
+          from_table->options().exists("encrypt_type")) {
+        dd::String_type et;
+        (void)from_table->options().get("encrypt_type", &et);
+        DBUG_ASSERT(et.empty() == false);
+        is_table_encrypted = is_encrypted(et);
+      }
+
+      /*
+        Check if we are allowed to move the table, if destination schema
+        is changed and its default encryption differs from tables
+        encryption type.
+      */
+      if (from_schema->id() != to_schema->id() &&
+          to_schema->default_encryption() != is_table_encrypted) {
+        if (opt_table_encryption_privilege_check) {
+          if (check_table_encryption_admin_access(thd)) {
+            my_error(ER_CANNOT_SET_TABLE_ENCRYPTION, MYF(0));
+            DBUG_RETURN(true);
+          }
+        } else if (to_schema->default_encryption() && !is_table_encrypted) {
+          push_warning_printf(
+              thd, Sql_condition::SL_WARNING,
+              WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+              ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB), "");
+        }
+      }
+
       /*
         Obtain exclusive metadata lock on all tables being referenced by the
         old table, since these tables must be invalidated to force a cache miss
@@ -698,6 +737,10 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
           DBUG_RETURN(true);
         }
       }
+
+      if (lock_check_constraint_names_for_rename(thd, ren_table->db, old_alias,
+                                                 from_table, new_db, new_alias))
+        DBUG_RETURN(true);
 
       /*
         We commit changes to data-dictionary immediately after renaming

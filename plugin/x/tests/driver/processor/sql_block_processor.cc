@@ -33,6 +33,7 @@
 #include "plugin/x/tests/driver/common/utils_mysql_parsing.h"
 #include "plugin/x/tests/driver/connector/result_fetcher.h"
 #include "plugin/x/tests/driver/connector/warning.h"
+#include "plugin/x/tests/driver/processor/variable_names.h"
 
 Block_processor::Result Sql_block_processor::feed(std::istream &input,
                                                   const char *linebuf) {
@@ -84,6 +85,9 @@ int Sql_block_processor::run_sql_batch(xcl::XSession *conn,
   std::stack<std::string> input_context_stack;
   std::string sql = sql_batch;
 
+  m_context->m_variables->set(k_variable_result_rows_affected, "0");
+  m_context->m_variables->set(k_variable_result_last_insert_id, "0");
+
   m_context->m_variables->replace(&sql);
 
   shcore::mysql::splitter::determineStatementRanges(
@@ -109,6 +113,9 @@ int Sql_block_processor::run_sql_batch(xcl::XSession *conn,
       }
 
       do {
+        if (result->is_out_params()) {
+          m_context->print("Output parameters:\n");
+        }
         std::stringstream s;
         s << (result.get());
         if (m_context->m_options.m_show_query_result) {
@@ -124,14 +131,20 @@ int Sql_block_processor::run_sql_batch(xcl::XSession *conn,
         throw error;
       }
 
-      if (m_context->m_options.m_show_query_result) {
-        const int64_t affected_rows = result->affected_rows();
+      const auto affected_rows = result->affected_rows();
+      const auto insert_id = result->last_insert_id();
 
+      m_context->m_variables->set(k_variable_result_rows_affected,
+                                  std::to_string(affected_rows));
+      m_context->m_variables->set(k_variable_result_last_insert_id,
+                                  std::to_string(insert_id));
+
+      if (m_context->m_options.m_show_query_result) {
         if (affected_rows >= 0)
           m_context->print(affected_rows, " rows affected\n");
 
-        if (result->last_insert_id() > 0)
-          m_context->print("last insert id: ", result->last_insert_id(), "\n");
+        if (insert_id > 0)
+          m_context->print("last insert id: ", insert_id, "\n");
 
         if (!result->info_message().empty())
           m_context->print(result->info_message(), "\n");

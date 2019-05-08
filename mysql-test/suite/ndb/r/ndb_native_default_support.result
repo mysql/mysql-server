@@ -3,8 +3,6 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 set sql_mode=(select replace(@@sql_mode,'NO_ZERO_DATE',''));
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-DROP TABLE IF EXISTS t1,bit1;
-DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
 ***************************************************************
@@ -122,14 +120,10 @@ i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
 ********************************************************
 * The tables with default values BACKUP and RESTORE test
 ********************************************************
-DROP TABLE IF EXISTS t1, bit1;
+DROP TABLE t1, bit1;
 ********************************************************
 * Begin to restore data from backup 
 ********************************************************
-SHOW TABLES;
-Tables_in_mysqltest
-bit1
-t1
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -159,14 +153,14 @@ j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
 f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
 d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
 d2 Double NOT NULL AT=FIXED ST=MEMORY
-ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaa"
-vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "bbb"
+ch Char(76;utf8mb4_0900_ai_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaa"
+vch Varchar(76;utf8mb4_0900_ai_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "bbb"
 b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x63636300000000000000000000000000000000
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
-text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
-ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
+text1 Text(256,2000,0;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
+timestamp_c Timestamp2(0) NULL AT=FIXED ST=MEMORY
+ch2 Char(120;utf8mb4_0900_ai_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 PRIMARY(i) - OrderedIndex
@@ -233,15 +227,11 @@ i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
 21	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
 22	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
 99	6	6.6	8.8	0	restore	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
-DROP TABLE IF EXISTS t1, bit1;
-SHOW TABLES;
-Tables_in_mysqltest
-bit1
-t1
+DROP TABLE t1, bit1;
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 WHERE i >= (SELECT MAX(i) FROM t1) ORDER BY i;
 i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
 MAX_VALUE	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
-DROP TABLE IF EXISTS t1, bit1;
+DROP TABLE t1, bit1;
 DROP DATABASE mysqltest;
 ******************************************************************************
 * Restore the backup from 6.3 or 6.4, which don't support native default value
@@ -323,10 +313,6 @@ PRIMARY(pk) - OrderedIndex
 NDBT_ProgramExit: 0 - OK
 
 USE test;
-SHOW TABLES;
-Tables_in_test
-bit1
-t1
 SHOW CREATE TABLE bit1;
 Table	Create Table
 bit1	CREATE TABLE `bit1` (
@@ -339,93 +325,18 @@ bit1	CREATE TABLE `bit1` (
   PRIMARY KEY (`pk`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
-i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
-1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-10	10	10	10	10	nnnnn	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
-11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+ERROR 42S02: Table 'test.t1' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
+Error	1146	Table 'test.t1' doesn't exist
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
 pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
 1	111	101	110	11	101011
 2	101	101	110	111	101011
-ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6,
-CHANGE COLUMN f f FLOAT NOT NULL DEFAULT 6.6,
-CHANGE COLUMN d d DOUBLE DEFAULT 8.8
-PARTITION BY KEY () PARTITIONS 2;
-Warnings:
-Note	1880	TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
-  `j` int(11) DEFAULT '6',
-  `f` float NOT NULL DEFAULT '6.6',
-  `d` double DEFAULT '8.8',
-  `d2` double NOT NULL,
-  `ch` char(19) DEFAULT 'aaa',
-  `vch` varchar(19) DEFAULT 'bbb',
-  `b` binary(19) DEFAULT 'ccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
-  `vb` varbinary(19) DEFAULT 'ddd',
-  `blob1` blob,
-  `text1` text,
-  `timestamp_c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`i`)
-) ENGINE=ndbcluster AUTO_INCREMENT=12 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY ()
-PARTITIONS 2 */
--- t1 --
-Version: Any
-Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: no
-Number of attributes: 12
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 1
-PartitionCount: 2
-FragmentCount: 2
-PartitionBalance: SPECIFIC
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-Table options:
-HashMap: DEFAULT-HASHMAP-3840-2
--- Attributes --
-i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
-f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
-d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
-d2 Double NOT NULL AT=FIXED ST=MEMORY
-ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaa"
-vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "bbb"
-b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x63636300000000000000000000000000000000
-vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
-blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
-text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
--- Indexes -- 
-PRIMARY KEY(i) - UniqueHashIndex
-PRIMARY(i) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
-INSERT INTO t1 VALUES();
-UPDATE t1 SET ch = "RESTORE FROM 6.3" WHERE i = 12;
-REPLACE INTO t1(i, j, ch) VALUES(20, 20, "RESTORE FROM 6.3");
-SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
-i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
-1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-10	10	10	10	10	nnnnn	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
-11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-12	6	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-20	20	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
 INSERT INTO bit1 VALUES();
 UPDATE bit1 SET b5=b'1111111' WHERE pk = 1;
 REPLACE INTO bit1(pk, b3) VALUES(6, B'110011');
@@ -435,17 +346,7 @@ pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
 2	101	101	110	111	101011
 3	111	101	110	11	101011
 6	111	101	110011	11	101011
-INSERT INTO t1(i, ch) VALUES(99, "native default support");
-SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
-i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
-1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-10	10	10	10	10	nnnnn	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
-11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-12	6	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-20	20	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-99	6	6.6	8.8	0	native default supp	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
-DROP TABLE IF EXISTS t1, bit1;
+DROP TABLE bit1;
 *************************************************************
 * Test adding a unique index to a column with a default value
 *************************************************************
@@ -515,7 +416,7 @@ i	j	f	d
 *************************************************************
 ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
-DROP TABLE IF EXISTS t2;
+DROP TABLE t2;
 **************************************************************
 * Test not null-after-defaults example that failed previously
 **************************************************************
@@ -550,7 +451,7 @@ HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
-c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+c Char(4;utf8mb4_0900_ai_ci) NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -598,13 +499,13 @@ HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
-c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
-d Varchar(6;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Daniel"
-e Char(3;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "Stu"
+c Char(4;utf8mb4_0900_ai_ci) NOT NULL AT=FIXED ST=MEMORY
+d Varchar(24;utf8mb4_0900_ai_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Daniel"
+e Char(12;utf8mb4_0900_ai_ci) NULL AT=FIXED ST=MEMORY DEFAULT "Stu"
 f Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x01"
 g Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x05"
 h Char(1;binary) NOT NULL AT=FIXED ST=MEMORY
-i Char(2;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "66"
+i Char(8;utf8mb4_0900_ai_ci) NULL AT=FIXED ST=MEMORY DEFAULT "66"
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -627,7 +528,7 @@ t1	CREATE TABLE `t1` (
   `b` binary(10) DEFAULT 'ABC\0EFGHIJ',
   `c` varbinary(100) DEFAULT 'ABC\0EFGHIJ',
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- t1 --
@@ -677,9 +578,9 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -707,7 +608,7 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -728,9 +629,9 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -758,7 +659,7 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -779,9 +680,9 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -809,7 +710,7 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -831,10 +732,10 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -862,7 +763,7 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 0
 c Int NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -888,9 +789,9 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `b` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -918,7 +819,7 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -939,9 +840,9 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
+  `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -969,7 +870,7 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -991,10 +892,10 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
-  `c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
+  `c` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1022,8 +923,8 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1045,10 +946,10 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
-  `c` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
+  `c` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1076,8 +977,8 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1087,7 +988,7 @@ NDBT_ProgramExit: 0 - OK
 INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
 a	b	c
-1	1977-06-23 00:00:01	0000-00-00 00:00:00
+1	1977-06-23 00:00:01	NULL
 UPDATE variant SET b=20100603000001;
 SELECT * from variant;
 a	b	c
@@ -1103,10 +1004,10 @@ SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
-  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
-  `c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
+  `c` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1134,8 +1035,8 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1158,7 +1059,7 @@ variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
   `b` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1209,7 +1110,7 @@ variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
   `b` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1260,7 +1161,7 @@ variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
   `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1311,7 +1212,7 @@ variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1364,7 +1265,7 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1420,7 +1321,7 @@ variant	CREATE TABLE `variant` (
   `a` int(11) NOT NULL,
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 -- variant --
@@ -1623,7 +1524,6 @@ set @save_sql_mode = @@session.sql_mode;
 set sql_mode=STRICT_TRANS_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 fid smallint(6) unsigned NOT NULL DEFAULT '0',
 f01 text NOT NULL,
@@ -1635,7 +1535,6 @@ ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'f03' can't have a default valu
 set sql_mode=@save_sql_mode;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 fid smallint(6) unsigned NOT NULL DEFAULT '0',
 f01 text NOT NULL,
@@ -1651,7 +1550,7 @@ t1	CREATE TABLE `t1` (
   `f02` varchar(255) NOT NULL DEFAULT '',
   `f03` text NOT NULL,
   PRIMARY KEY (`fid`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1(fid) value(100);
 Warnings:
 Warning	1364	Field 'f01' doesn't have a default value

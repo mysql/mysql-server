@@ -477,7 +477,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1 and 1)) join `test`.`t4` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1)) join `test`.`t4` where 1
 EXPLAIN SELECT /*+ JOIN_ORDER(t2, t1, t4)  */ 1  FROM t1
 JOIN t2 ON 1
 RIGHT JOIN t3 ON 1
@@ -488,7 +488,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t1`,`t4`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1 and 1)) join `test`.`t4` where 1
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t1`,`t4`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1)) join `test`.`t4` where 1
 EXPLAIN SELECT /*+ JOIN_ORDER(t4, t1, t2)  */ 1  FROM t1
 JOIN t2 ON 1
 RIGHT JOIN t3 ON 1
@@ -499,7 +499,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t4`,`t1`,`t2`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1 and 1)) join `test`.`t4` where 1
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t4`,`t1`,`t2`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1)) join `test`.`t4` where 1
 EXPLAIN SELECT /*+ JOIN_ORDER(t3, t4)  */ 1  FROM t1
 JOIN t2 ON 1
 RIGHT JOIN t3 ON 1
@@ -510,7 +510,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t4`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1 and 1)) join `test`.`t4` where 1
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t4`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1)) join `test`.`t4` where 1
 EXPLAIN SELECT /*+ JOIN_ORDER(t4, t3)  */ 1  FROM t1
 JOIN t2 ON 1
 RIGHT JOIN t3 ON 1
@@ -521,7 +521,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t4`,`t3`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1 and 1)) join `test`.`t4` where 1
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t4`,`t3`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1)) join `test`.`t4` where 1
 EXPLAIN SELECT /*+ JOIN_SUFFIX(t1)  */ 1  FROM t1
 JOIN t2 ON 1
 RIGHT JOIN t3 ON 1
@@ -532,7 +532,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t1`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1 and 1)) join `test`.`t4` where 1
+Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t1`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1)) join `test`.`t4` where 1
 EXPLAIN SELECT /*+ JOIN_SUFFIX(t2, t1)  */ 1  FROM t1
 JOIN t2 ON 1
 RIGHT JOIN t3 ON 1
@@ -543,7 +543,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t2`,`t1`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1 and 1)) join `test`.`t4` where 1
+Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t2`,`t1`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((1)) join `test`.`t4` where 1
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1
 (
@@ -564,11 +564,11 @@ RIGHT OUTER JOIN t2 ON (ta1.f1 = t2.f1)
 WHERE (9) IN (SELECT f1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
+1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(ta2)
 Warnings:
-Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
+Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`))) where (`test`.`t3`.`f1` = 9)
 # Applicable hint
 EXPLAIN DELETE /*+ JOIN_PREFIX(t2, t3, ta2) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -577,10 +577,10 @@ WHERE (9) IN (SELECT f1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t2)
-1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
+1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
 Warnings:
-Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta2`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
+Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta2`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`))) where (`test`.`t3`.`f1` = 9)
 # Applicable hint
 EXPLAIN DELETE /*+ JOIN_PREFIX(t2, t3, ta1, ta2) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -589,10 +589,10 @@ WHERE (9) IN (SELECT f1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t2)
-1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
+1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
-Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta1`,`ta2`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
+Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta1`,`ta2`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`))) where (`test`.`t3`.`f1` = 9)
 # Applicable hint
 EXPLAIN DELETE /*+ JOIN_PREFIX(t2, t3, ta2, ta1) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -601,10 +601,10 @@ WHERE (9) IN (SELECT f1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t2)
-1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
+1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
 Warnings:
-Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta2`,`ta1`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
+Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta2`,`ta1`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`))) where (`test`.`t3`.`f1` = 9)
 # Hint should be ignored
 EXPLAIN DELETE /*+ JOIN_SUFFIX(ta2, t3, ta1) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -612,11 +612,11 @@ RIGHT OUTER JOIN t2 ON (ta1.f1 = t2.f1)
 WHERE (9) IN (SELECT f1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
+1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(ta2)
 Warnings:
-Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
+Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`))) where (`test`.`t3`.`f1` = 9)
 # Both hints are ignored
 EXPLAIN DELETE /*+ JOIN_PREFIX(ta1, t2, t3) JOIN_SUFFIX(t3, ta2) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -624,11 +624,11 @@ RIGHT OUTER JOIN t2 ON (ta1.f1 = t2.f1)
 WHERE (9) IN (SELECT f1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
+1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(ta2)
 Warnings:
-Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
+Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`))) where (`test`.`t3`.`f1` = 9)
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(f1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1);

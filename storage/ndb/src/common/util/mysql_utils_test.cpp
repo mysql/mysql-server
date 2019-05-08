@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -255,7 +255,7 @@ int test_charset_map()
     lengths[1] = 4;
     CharsetMap::RecodeStatus rr3 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_too_small);
-    printf("Recode Test 3 - too-small buffer: %d %d %d \"%s\" => \"%s\" \n",
+    printf("Recode Test 3 - too-small buffer: %d %d %d \"%s\" => \"%.4s\" \n",
            rr3, lengths[0], lengths[1], my_word_latin1, result_buff_too_small);
     CHECK(rr3 == CharsetMap::RECODE_BUFF_TOO_SMALL);
     CHECK(lengths[0] == 3);

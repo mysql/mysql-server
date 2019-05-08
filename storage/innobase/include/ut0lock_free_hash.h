@@ -659,12 +659,12 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     const ulint n_search = m_n_search;
     const ulint n_search_iterations = m_n_search_iterations;
 
-    ib::info() << "Lock free hash usage stats:";
-    ib::info() << "number of searches: " << n_search;
-    ib::info() << "number of search iterations: " << n_search_iterations;
+    ib::info info(ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS);
+    info << "Lock free hash usage stats: number of searches=" << n_search
+         << ", number of search iterations=" << n_search_iterations;
     if (n_search != 0) {
-      ib::info() << "average iterations per search: "
-                 << (double)n_search_iterations / n_search;
+      info << "average iterations per search: "
+           << (double)n_search_iterations / n_search;
     }
   }
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */

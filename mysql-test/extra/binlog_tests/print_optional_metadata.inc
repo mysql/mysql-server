@@ -16,7 +16,7 @@ if ($stop_position)
 --exec $MYSQL_BINLOG -F --print-table-metadata $_stop_position_opt $binlog_file > $output_file
 
 
---let $grep_pattern= # Columns
+--let $grep_pattern= # (?:Columns\(| {8})
 --let $grep_file= $output_file
 --source include/grep_pattern.inc
 

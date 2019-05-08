@@ -80,6 +80,7 @@ Database: information_schema
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CHECK_CONSTRAINTS                     |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLLATIONS                            |
 | COLUMN_PRIVILEGES                     |
@@ -134,6 +135,7 @@ Database: information_schema
 | SCHEMATA                              |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
+| ST_UNITS_OF_MEASURE                   |
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
@@ -150,6 +152,7 @@ Database: INFORMATION_SCHEMA
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CHECK_CONSTRAINTS                     |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLLATIONS                            |
 | COLUMN_PRIVILEGES                     |
@@ -204,6 +207,7 @@ Database: INFORMATION_SCHEMA
 | SCHEMATA                              |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
+| ST_UNITS_OF_MEASURE                   |
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |

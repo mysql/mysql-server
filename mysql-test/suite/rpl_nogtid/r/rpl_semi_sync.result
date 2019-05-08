@@ -249,6 +249,7 @@ Rpl_semi_sync_master_yes_tx	0
 show master logs;
 Log_name	master-bin.000001
 File_size	#
+Encrypted	#
 show variables like 'rpl_semi_sync_master_enabled';
 Variable_name	Value
 rpl_semi_sync_master_enabled	ON

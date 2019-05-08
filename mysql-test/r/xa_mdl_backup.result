@@ -293,8 +293,8 @@ connection default;
 # restart:--log_error_verbosity=1 --performance-schema-instrument='wait/lock/metadata/sql/mdl=1'
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 object_type	object_schema	object_name	lock_type	lock_duration	lock_status
-TABLE	test	t2	SHARED_WRITE	TRANSACTION	GRANTED
 TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+TABLE	test	t2	SHARED_WRITE	TRANSACTION	GRANTED
 SHOW TABLES;
 Tables_in_test
 t1

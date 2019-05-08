@@ -633,3 +633,23 @@ SET @@sql_mode= @org_mode;
 --echo
 --echo #End of Test for Bug#12601974
 
+--echo
+--echo Bug#28546855 EXECUTE STATEMENT HAVE TO CHECK STRICT_TRANS_TABLES MODE
+--echo
+SELECT '\''; # restore Emacs SQL mode font lock sanity
+SET SQL_MODE=DEFAULT;
+CREATE TABLE test(id INT, count DOUBLE);
+INSERT INTO test VALUES (1,0), (2,0);
+--echo always worked
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE test SET count = count + 1 WHERE id = '1invalid';
+PREPARE stmt FROM 'UPDATE test SET count = count + 1 WHERE id = ?';
+SET @a = '1invalid';
+--echo failed to give an error
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE stmt USING @a;
+SET SQL_MODE='';
+EXECUTE stmt USING @a;
+SELECT * FROM test;
+SET SQL_MODE=DEFAULT;
+DROP TABLE test;

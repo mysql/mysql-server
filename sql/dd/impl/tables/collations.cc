@@ -53,13 +53,20 @@ const Collations &Collations::instance() {
 
 ///////////////////////////////////////////////////////////////////////////
 
+const CHARSET_INFO *Collations::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Collations::Collations() {
   m_target_def.set_table_name("collations");
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_CHARACTER_SET_ID, "FIELD_CHARACTER_SET_ID",
                          "character_set_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_IS_COMPILED, "FIELD_IS_COMPILED",
@@ -175,7 +182,7 @@ Collation *Collations::create_entity_object(const Raw_record &) const {
 
 bool Collations::update_object_key(Global_name_key *key,
                                    const String_type &collation_name) {
-  key->update(FIELD_NAME, collation_name);
+  key->update(FIELD_NAME, collation_name, name_collation());
   return false;
 }
 

@@ -30,19 +30,19 @@ a	b	c	d
 7	Initial data 7	7	7
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld1:	txt
-mysqld1:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld1:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld1:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld2:	txt
-mysqld2:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld2:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld2:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld3:	txt
-mysqld3:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld3:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld3:	### UPDATE `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld4:	txt
-mysqld4:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld4:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld4:	### UPDATE `test`.`t1`
 SET ndb_log_exclusive_reads= 0;
 Test 2: Testing logging of unique index reads
@@ -60,19 +60,19 @@ a	b	c	d
 7	Initial data 7	7	7
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld1:	txt
-mysqld1:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld1:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld1:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld2:	txt
-mysqld2:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld2:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld2:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld3:	txt
-mysqld3:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld3:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld3:	### UPDATE `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld4:	txt
-mysqld4:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld4:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld4:	### UPDATE `test`.`t1`
 SET ndb_log_exclusive_reads= 0;
 Test 3: Testing logging of ordered index scans
@@ -90,19 +90,19 @@ a	b	c	d
 7	Initial data 7	7	7
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld1:	txt
-mysqld1:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld1:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld1:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld2:	txt
-mysqld2:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld2:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld2:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld3:	txt
-mysqld3:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld3:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld3:	### UPDATE `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld4:	txt
-mysqld4:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld4:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld4:	### UPDATE `test`.`t1`
 SET ndb_log_exclusive_reads= 0;
 Test 4: Testing logging of table scans
@@ -120,19 +120,19 @@ a	b	c	d
 7	Initial data 7	7	7
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld1:	txt
-mysqld1:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld1:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld1:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
 mysqld2:	txt
-mysqld2:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld2:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld2:	### INSERT INTO `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld3:	txt
-mysqld3:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld3:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld3:	### UPDATE `test`.`t1`
 "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
 mysqld4:	txt
-mysqld4:	### Extra row data format: 0, len: 4 :0x02000400
+mysqld4:	### Extra row ndb info: data_format: 0, len: 4, data: 0x02000400
 mysqld4:	### UPDATE `test`.`t1`
 SET ndb_log_exclusive_reads= 0;
 drop table test.synch, test.t1;

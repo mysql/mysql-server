@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,6 @@ IF(HAVE_JAVA)
 
   # the native path to the JVM
   FILE(TO_NATIVE_PATH "${Java_JAVA_EXECUTABLE}" Java_JAVA_EXECUTABLE_PATH)
-
-  # the JVM arch option when loading native libraries
-  IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
-    SET(Java_JAVA_ARCH_OPT "-d32")
-  ELSE()
-    SET(Java_JAVA_ARCH_OPT "-d64")
-  ENDIF()
 
 ENDIF(HAVE_JAVA)
 

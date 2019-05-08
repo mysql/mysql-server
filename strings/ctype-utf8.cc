@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,8 +26,7 @@
    Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA 02110-1301  USA */
 
-/* UTF8 according RFC 2279 */
-/* Written by Alexander Barkov <bar@udm.net> */
+// UTF-8, as defined in RFC 2279.
 
 #include "my_config.h"
 
@@ -5579,13 +5578,13 @@ static size_t my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
-                              size_t slen, ulong *n1, ulong *n2) {
+                              size_t slen, uint64 *n1, uint64 *n2) {
   my_wc_t wc;
   int res;
   const uchar *e = s + slen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -5596,7 +5595,7 @@ static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
   tmp1 = *n1;
   tmp2 = *n2;
 
-  while ((s < e) && (res = my_mb_wc_utf8(&wc, (uchar *)s, (uchar *)e)) > 0) {
+  while ((s < e) && (res = my_mb_wc_utf8(&wc, s, e)) > 0) {
     my_tosort_unicode(uni_plane, &wc, cs->state);
     tmp1 ^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
     tmp2 += 3;
@@ -5900,7 +5899,9 @@ static size_t my_well_formed_len_utf8(const CHARSET_INFO *, const char *b,
   while (pos) {
     int mb_len;
 
-    if ((mb_len = my_valid_mbcharlen_utf8mb3((uchar *)b, (uchar *)e)) <= 0) {
+    if ((mb_len = my_valid_mbcharlen_utf8mb3(pointer_cast<const uchar *>(b),
+                                             pointer_cast<const uchar *>(e))) <=
+        0) {
       *error = b < e ? 1 : 0;
       break;
     }
@@ -7563,13 +7564,13 @@ static size_t my_caseup_utf8mb4(const CHARSET_INFO *cs, char *src,
 }
 
 static void my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, ulong *n1, ulong *n2) {
+                                 size_t slen, uint64 *n1, uint64 *n2) {
   my_wc_t wc;
   int res;
   const uchar *e = s + slen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
   uint ch;
 
   /*
@@ -7581,7 +7582,7 @@ static void my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s,
   tmp1 = *n1;
   tmp2 = *n2;
 
-  while ((res = my_mb_wc_utf8mb4(&wc, (uchar *)s, (uchar *)e)) > 0) {
+  while ((res = my_mb_wc_utf8mb4(&wc, s, e)) > 0) {
     my_tosort_unicode(uni_plane, &wc, cs->state);
 
     ch = (wc & 0xFF);
@@ -7890,7 +7891,8 @@ static size_t my_well_formed_len_utf8mb4(const CHARSET_INFO *cs, const char *b,
   while (pos) {
     int mb_len;
 
-    if ((mb_len = my_valid_mbcharlen_utf8mb4(cs, (uchar *)b, (uchar *)e)) <=
+    if ((mb_len = my_valid_mbcharlen_utf8mb4(cs, pointer_cast<const uchar *>(b),
+                                             pointer_cast<const uchar *>(e))) <=
         0) {
       *error = b < e ? 1 : 0;
       break;

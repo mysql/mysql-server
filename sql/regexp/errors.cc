@@ -54,6 +54,11 @@ struct UErrorCodeHash {
 std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     // ICU Error code                 MySQL error code
     {U_ILLEGAL_ARGUMENT_ERROR, ER_REGEXP_ILLEGAL_ARGUMENT},
+
+    // Recent versions of ICU are returning "Incorrect Unicode property".
+    // Map it to the same as the more generic U_ILLEGAL_ARGUMENT_ERROR.
+    {U_REGEX_PROPERTY_SYNTAX, ER_REGEXP_ILLEGAL_ARGUMENT},
+
     {U_INDEX_OUTOFBOUNDS_ERROR, ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR},
     {U_BUFFER_OVERFLOW_ERROR, ER_REGEXP_BUFFER_OVERFLOW},
     {U_REGEX_INTERNAL_ERROR, ER_REGEXP_INTERNAL_ERROR},

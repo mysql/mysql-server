@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ static void test_oom() {
       &data_lock_boot, &system_boot);
   ok(rc == 0, "init ok");
   thread_service =
-      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
+      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_2);
 
   PSI_thread_key thread_key_1;
   PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", 0, 0, ""}};

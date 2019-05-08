@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,21 @@
 #ifndef XCOM_BASE_H
 #define XCOM_BASE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_input_request.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
@@ -104,6 +111,11 @@ site_def const *get_proposer_site();
 synode_no get_current_message();
 void start_run_tasks();
 
+int is_node_v4_reachable(char *node_address);
+int is_node_v4_reachable_with_info(struct addrinfo *retrieved_addr_info);
+int are_we_allowed_to_upgrade_to_v6(app_data_ptr a);
+struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved);
+
 #define RESET_CLIENT_MSG              \
   if (ep->client_msg) {               \
     msg_link_delete(&ep->client_msg); \
@@ -113,7 +125,7 @@ void start_run_tasks();
 
 #define XAPP ep->p->learner.msg->a
 
-#define FIND_MAX (CACHED / 10)
+#define FIND_MAX (MIN_LENGTH / 10)
 
 /* Set type and object pointer */
 #define PLP msg->payload.manager_message_payload_u
@@ -154,6 +166,8 @@ struct add_args {
 };
 typedef struct add_args add_args;
 
+synode_no xcom_get_last_removed_from_cache();
+
 void xcom_add_node(char *addr, xcom_port port, node_list *nl);
 
 xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs);
@@ -164,7 +178,8 @@ void send_client_add_node(char *srv, xcom_port port, node_list *nl);
 void send_client_remove_node(char *srv, xcom_port port, node_list *nl);
 
 typedef void (*xcom_data_receiver)(synode_no message_id, node_set nodes,
-                                   u_int size, char *data);
+                                   u_int size, synode_no last_removed,
+                                   char *data);
 void set_xcom_data_receiver(xcom_data_receiver x);
 
 typedef void (*xcom_local_view_receiver)(synode_no message_id, node_set nodes);
@@ -198,6 +213,20 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
                                     uint32_t group_id);
 app_data_ptr init_set_event_horizon_msg(app_data *a, uint32_t group_id,
                                         xcom_event_horizon event_horizon);
+app_data_ptr init_set_cache_size_msg(app_data *a, uint64_t cache_limit);
+app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id);
+app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size);
+app_data_ptr init_terminate_command(app_data *a);
+
+/* Hook the logic to pop from the input channel. */
+typedef xcom_input_request_ptr (*xcom_input_try_pop_cb)(void);
+void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop);
+/* Create a connection to the input channel's signalling socket. */
+bool xcom_input_new_signal_connection(void);
+/* Signal that the input channel has commands. */
+bool xcom_input_signal(void);
+/* Destroy the connection to the input channel's signalling socket. */
+void xcom_input_free_signal_connection(void);
 
 /*
  Registers a callback that is called right after
@@ -206,7 +235,7 @@ app_data_ptr init_set_event_horizon_msg(app_data *a, uint32_t group_id,
 typedef int (*xcom_socket_accept_cb)(int fd, site_def const *config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
-connection_descriptor *xcom_open_client_connection(char *server,
+connection_descriptor *xcom_open_client_connection(const char *server,
                                                    xcom_port port);
 int xcom_close_client_connection(connection_descriptor *connection);
 
@@ -236,6 +265,146 @@ int xcom_client_set_event_horizon(connection_descriptor *fd, uint32_t group_id,
 int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);
+int xcom_client_get_synode_app_data(connection_descriptor *const fd,
+                                    uint32_t group_id,
+                                    synode_no_array *const synodes,
+                                    synode_app_data_array *const reply);
+int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
+                                  int force);
+
+struct pax_machine;
+typedef struct pax_machine pax_machine;
+
+/**
+ * Initializes the message @c msg to go through a 3-phase, regular Paxos.
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param msg Message to send
+ * @param msgno Synode where @c msg will be proposed
+ * @param msg_type The type of the message, e.g. normal or no_op
+ */
+void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
+                     synode_no msgno, pax_msg_type msg_type);
+/**
+ * Initializes the message @c p as a Prepare message, as in the message for
+ * Phase 1 (a) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param p The message to send
+ */
+void init_prepare_msg(pax_msg *p);
+/**
+ * Initializes the message @c p as a Prepare message for a no-op, as in the
+ * message for Phase 1 (a) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param p The no-op message to send
+ * @retval @c p
+ */
+pax_msg *create_noop(pax_msg *p);
+/**
+ * Process the incoming Prepare message from a Proposer, as in the message for
+ * Phase 1 (a) of the Paxos protocol.
+ * Executed by Acceptors.
+ *
+ * @param p Paxos instance
+ * @param pm Incoming Prepare message
+ * @retval pax_msg* the reply to send to the Proposer (as in the Phase 1 (b)
+ * message of the Paxos protocol) if the Acceptor accepts the Prepare
+ * @retval NULL otherwise
+ */
+pax_msg *handle_simple_prepare(pax_machine *p, pax_msg *pm, synode_no synode);
+/**
+ * Process the incoming acknowledge from an Acceptor to a sent Prepare, as in
+ * the message for Phase 1 (b) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param m Incoming message
+ * @retval TRUE if a majority of Acceptors replied to the Proposer's Prepare
+ * @retval FALSE otherwise
+ */
+bool_t handle_simple_ack_prepare(site_def const *site, pax_machine *p,
+                                 pax_msg *m);
+/**
+ * Initializes the proposer's message to go through a 2-phase Paxos on the
+ * proposer's reserved ballot (0,_).
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ */
+void prepare_push_2p(site_def const *site, pax_machine *p);
+/**
+ * Initializes the message @c p as an Accept message, as in the message for
+ * Phase 2 (a) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param p The message to send
+ */
+void init_propose_msg(pax_msg *p);
+/**
+ * Process the incoming Accept from a Proposer, as in the message for
+ * Phase 2 (a) of the Paxos protocol.
+ * Executed by Acceptors.
+ *
+ * @param p Paxos instance
+ * @param m Incoming Accept message
+ * @param synode Synode of the Paxos instance/Accept message
+ * @retval pax_msg* the reply to send to the Proposer (as in the Phase 2 (b)
+ * message of the Paxos protocol) if the Acceptor accepts the Accept
+ * @retval NULL otherwise
+ */
+pax_msg *handle_simple_accept(pax_machine *p, pax_msg *m, synode_no synode);
+/**
+ * Process the incoming acknowledge from an Acceptor to a sent Accept, as in the
+ * message for Phase 2 (b) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param m Incoming message
+ * @retval pax_msg* the Learn message to send to Leaners if a majority of
+ * Acceptors replied to the Proposer's Accept
+ * @retval NULL otherwise
+ */
+pax_msg *handle_simple_ack_accept(site_def const *site, pax_machine *p,
+                                  pax_msg *m);
+/**
+ * Process the incoming tiny, i.e. without the learned value, Learn message.
+ * Executed by Learners.
+ *
+ * @param site XCom configuration
+ * @param pm Paxos instance
+ * @param p Incoming message
+ */
+void handle_tiny_learn(site_def const *site, pax_machine *pm, pax_msg *p);
+/**
+ * Process the incoming Learn message.
+ * Executed by Learners.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param m Incoming message
+ */
+void handle_learn(site_def const *site, pax_machine *p, pax_msg *m);
+/**
+ * @retval 1 if the value for the Paxos instance @c *p has been learned
+ * @retval 0 otherwise
+ */
+int pm_finished(pax_machine *p);
+/** @returns true if we should process the incomding need_boot_op message @p. */
+bool should_handle_boot(site_def const *site, pax_msg *p);
+/**
+ * Initializes the message @c p as a need_boot_op message.
+ *
+ * @param p The message to send
+ * @param identity The unique incarnation identifier of this XCom instance
+ */
+void init_need_boot_op(pax_msg *p, node_address *identity);
 
 static inline char *strerr_msg(char *buf, size_t len, int nr) {
 #if defined(_WIN32)
@@ -260,6 +429,8 @@ void set_max_synode_from_unified_boot(synode_no unified_boot_synode);
     G_TRACE("%f %s:%d", seconds(), __FILE__, __LINE__);     \
     G_DEBUG("new state %s", s);                             \
   } while (0)
+
+int pm_finished(pax_machine *p);
 
 #ifdef __cplusplus
 }

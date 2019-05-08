@@ -27,7 +27,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 
 #ifdef GetMessage
 #undef GetMessage
@@ -124,7 +124,7 @@ bool Field_path_extractor::get_index(bool *out_has_index,
       return false;
     }
 
-    *out_index = ngs::stoi(index_str);
+    *out_index = std::stoi(index_str);
   }
 
   *out_has_index = has_index;
@@ -184,25 +184,25 @@ static std::string messages_field_to_text(const Message &message,
 
   switch (fd->cpp_type()) {
     case FieldDescriptor::CPPTYPE_INT32:
-      return ngs::to_string(reflection->GetInt32(message, fd));
+      return xpl::to_string(reflection->GetInt32(message, fd));
 
     case FieldDescriptor::CPPTYPE_UINT32:
-      return ngs::to_string(reflection->GetUInt32(message, fd));
+      return xpl::to_string(reflection->GetUInt32(message, fd));
 
     case FieldDescriptor::CPPTYPE_INT64:
-      return ngs::to_string(reflection->GetInt64(message, fd));
+      return xpl::to_string(reflection->GetInt64(message, fd));
 
     case FieldDescriptor::CPPTYPE_UINT64:
-      return ngs::to_string(reflection->GetUInt64(message, fd));
+      return xpl::to_string(reflection->GetUInt64(message, fd));
 
     case FieldDescriptor::CPPTYPE_DOUBLE:
-      return ngs::to_string(reflection->GetDouble(message, fd));
+      return xpl::to_string(reflection->GetDouble(message, fd));
 
     case FieldDescriptor::CPPTYPE_FLOAT:
-      return ngs::to_string(reflection->GetFloat(message, fd));
+      return xpl::to_string(reflection->GetFloat(message, fd));
 
     case FieldDescriptor::CPPTYPE_BOOL:
-      return ngs::to_string(reflection->GetBool(message, fd));
+      return xpl::to_string(reflection->GetBool(message, fd));
 
     case FieldDescriptor::CPPTYPE_ENUM:
       return reflection->GetEnum(message, fd)->name();
@@ -225,25 +225,25 @@ static std::string messages_repeated_field_to_text(const Message &message,
 
   switch (fd->cpp_type()) {
     case FieldDescriptor::CPPTYPE_INT32:
-      return ngs::to_string(reflection->GetRepeatedInt32(message, fd, index));
+      return xpl::to_string(reflection->GetRepeatedInt32(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_UINT32:
-      return ngs::to_string(reflection->GetRepeatedUInt32(message, fd, index));
+      return xpl::to_string(reflection->GetRepeatedUInt32(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_INT64:
-      return ngs::to_string(reflection->GetRepeatedInt64(message, fd, index));
+      return xpl::to_string(reflection->GetRepeatedInt64(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_UINT64:
-      return ngs::to_string(reflection->GetRepeatedUInt64(message, fd, index));
+      return xpl::to_string(reflection->GetRepeatedUInt64(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_DOUBLE:
-      return ngs::to_string(reflection->GetRepeatedDouble(message, fd, index));
+      return xpl::to_string(reflection->GetRepeatedDouble(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_FLOAT:
-      return ngs::to_string(reflection->GetRepeatedFloat(message, fd, index));
+      return xpl::to_string(reflection->GetRepeatedFloat(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_BOOL:
-      return ngs::to_string(reflection->GetRepeatedBool(message, fd, index));
+      return xpl::to_string(reflection->GetRepeatedBool(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_ENUM:
       return reflection->GetRepeatedEnum(message, fd, index)->name();
@@ -383,7 +383,7 @@ std::string message_to_text(const Message &message,
           throw std::logic_error("Elements '" + expected_field.m_name +
                                  "' index out of boundary "
                                  "(size of the array is " +
-                                 ngs::to_string(field_array_elements) + ")");
+                                 xpl::to_string(field_array_elements) + ")");
         }
 
         msg = &reflection->GetRepeatedMessage(*msg, field_descriptor,

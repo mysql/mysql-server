@@ -1366,18 +1366,14 @@ ok
 .
 #---------- START COLLECTION TESTING----------#
 .
-RUN DROP SCHEMA if EXISTS mysqlxplugin_coll
-
-0 rows affected
 RUN CREATE SCHEMA mysqlxplugin_coll
 
 1 rows affected
 RUN USE mysqlxplugin_coll
 
 0 rows affected
-RUN CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
 
-0 rows affected
+command ok
 Insert a row into a Document column
 send Mysqlx.Crud.Insert {
   collection {

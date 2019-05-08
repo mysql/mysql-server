@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
+
+#include <limits.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif
@@ -46,6 +48,7 @@
 #include <unistd.h>
 #endif
 #include <algorithm>
+#include <atomic>
 #include <new>
 #include <utility>
 
@@ -56,12 +59,14 @@
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/channel_info.h"               // Channel_info
 #include "sql/conn_handler/init_net_server_extension.h"  // init_net_server_extension
 #include "sql/log.h"
-#include "sql/mysqld.h"     // key_socket_tcpip
+#include "sql/mysqld.h"  // key_socket_tcpip
+#include "sql/net_ns.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "violite.h"  // Vio
@@ -78,12 +83,30 @@ extern "C" {
 #include <tcpd.h>
 #endif
 #endif
+#include "connection_handler_manager.h"
 
 using std::max;
 
-ulong Mysqld_socket_listener::connection_errors_select = 0;
-ulong Mysqld_socket_listener::connection_errors_accept = 0;
-ulong Mysqld_socket_listener::connection_errors_tcpwrap = 0;
+/** Number of connection errors when selecting on the listening port */
+static std::atomic<ulong> connection_errors_select{0};
+
+/** Number of connection errors when accepting sockets in the listening port. */
+static std::atomic<ulong> connection_errors_accept{0};
+
+/** Number of connection errors from TCP wrappers. */
+static std::atomic<ulong> connection_errors_tcpwrap{0};
+
+ulong get_connection_errors_select() { return connection_errors_select.load(); }
+
+ulong get_connection_errors_accept() { return connection_errors_accept.load(); }
+
+ulong get_connection_errors_tcpwrap() {
+  return connection_errors_tcpwrap.load();
+}
+
+#ifdef HAVE_LIBWRAP
+static const char *libwrap_name;
+#endif
 
 ///////////////////////////////////////////////////////////////////////////
 // Channel_info_local_socket implementation
@@ -149,6 +172,17 @@ class Channel_info_local_socket : public Channel_info {
 class Channel_info_tcpip_socket : public Channel_info {
   // connect socket object
   MYSQL_SOCKET m_connect_sock;
+  /*
+    Flag specifying whether a connection is admin connection or
+    ordinary connection.
+  */
+  bool m_is_admin_conn;
+#ifdef HAVE_SETNS
+  /*
+    Network namespace associated with the socket.
+  */
+  std::string m_network_namespace;
+#endif
 
  protected:
   virtual Vio *create_and_init_vio() const {
@@ -159,6 +193,13 @@ class Channel_info_tcpip_socket : public Channel_info {
       vio->signal_mask = mysqld_signal_mask;
     }
 #endif
+
+#ifdef HAVE_SETNS
+    strncpy(vio->network_namespace, m_network_namespace.c_str(),
+            sizeof(vio->network_namespace) - 1);
+    vio->network_namespace[sizeof(vio->network_namespace) - 1] = '\0';
+#endif
+
     return vio;
   }
 
@@ -167,14 +208,19 @@ class Channel_info_tcpip_socket : public Channel_info {
     Constructor that sets the connect socket.
 
     @param connect_socket set connect socket descriptor.
+    @param is_admin_conn  flag specifying whether a connection is admin
+                          connection.
   */
-  Channel_info_tcpip_socket(MYSQL_SOCKET connect_socket)
-      : m_connect_sock(connect_socket) {}
+  Channel_info_tcpip_socket(MYSQL_SOCKET connect_socket, bool is_admin_conn)
+      : m_connect_sock(connect_socket), m_is_admin_conn(is_admin_conn) {}
 
   virtual THD *create_thd() {
     THD *thd = Channel_info::create_thd();
 
-    if (thd != NULL) init_net_server_extension(thd);
+    if (thd != NULL) {
+      thd->set_admin_connection(m_is_admin_conn);
+      init_net_server_extension(thd);
+    }
     return thd;
   }
 
@@ -185,6 +231,19 @@ class Channel_info_tcpip_socket : public Channel_info {
     mysql_socket_shutdown(m_connect_sock, SHUT_RDWR);
     mysql_socket_close(m_connect_sock);
   }
+
+  virtual bool is_admin_connection() const { return m_is_admin_conn; }
+
+#ifdef HAVE_SETNS
+  /**
+    Set a network namespace for channel.
+
+    @param network_namespace  Network namespace associated with a channel.
+  */
+  void set_network_namespace(const std::string &network_namespace) {
+    m_network_namespace = network_namespace;
+  }
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -213,8 +272,9 @@ const char *ipv6_all_addresses = "::";
   the get_listener_socket that setup a TCP listener socket to listen.
 */
 class TCP_socket {
-  std::string m_bind_addr_str;  // IP address as string.
-  uint m_tcp_port;              // TCP port to bind to
+  std::string m_bind_addr_str;      // IP address as string.
+  std::string m_network_namespace;  // Network namespace if specified
+  uint m_tcp_port;                  // TCP port to bind to
   uint m_backlog;       // Backlog length for queue of pending connections.
   uint m_port_timeout;  // Port timeout
 
@@ -257,13 +317,15 @@ class TCP_socket {
     events.
 
     @param  bind_addr_str  ip address as string value.
+    @param  network_namespace_str  network namespace as string value
     @param  tcp_port  tcp port number.
     @param  backlog backlog specifying length of pending connection queue.
     @param  port_timeout port timeout value
   */
-  TCP_socket(std::string bind_addr_str, uint tcp_port, uint backlog,
-             uint port_timeout)
+  TCP_socket(std::string bind_addr_str, std::string network_namespace_str,
+             uint tcp_port, uint backlog, uint port_timeout)
       : m_bind_addr_str(bind_addr_str),
+        m_network_namespace(network_namespace_str),
         m_tcp_port(tcp_port),
         m_backlog(backlog),
         m_port_timeout(port_timeout) {}
@@ -291,7 +353,18 @@ class TCP_socket {
     char port_buf[NI_MAXSERV];
     snprintf(port_buf, NI_MAXSERV, "%d", m_tcp_port);
 
-    if (native_strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0) {
+    if (!m_network_namespace.empty()) {
+#ifdef HAVE_SETNS
+      if (set_network_namespace(m_network_namespace))
+        return MYSQL_INVALID_SOCKET;
+#else
+      LogErr(ERROR_LEVEL, ER_NETWORK_NAMESPACES_NOT_SUPPORTED);
+      return MYSQL_INVALID_SOCKET;
+#endif
+    }
+
+    if (native_strcasecmp(m_bind_addr_str.c_str(), MY_BIND_ALL_ADDRESSES) ==
+        0) {
       /*
         That's the case when bind-address is set to a special value ('*'),
         meaning "bind to all available IP addresses". If the box supports
@@ -333,6 +406,10 @@ class TCP_socket {
           LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
 #endif
           LogErr(ERROR_LEVEL, ER_CONN_TCP_CANT_RESOLVE_HOSTNAME);
+#ifdef HAVE_SETNS
+          if (!m_network_namespace.empty())
+            (void)restore_original_network_namespace();
+#endif
           return MYSQL_INVALID_SOCKET;
         }
 
@@ -350,6 +427,11 @@ class TCP_socket {
         LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
 #endif
         LogErr(ERROR_LEVEL, ER_CONN_TCP_CANT_RESOLVE_HOSTNAME);
+#ifdef HAVE_SETNS
+        if (!m_network_namespace.empty())
+          (void)restore_original_network_namespace();
+#endif
+
         return MYSQL_INVALID_SOCKET;
       }
 
@@ -381,10 +463,16 @@ class TCP_socket {
     */
 
     struct addrinfo *a = nullptr;
+
     MYSQL_SOCKET listener_socket = create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET)
       listener_socket = create_socket(ai, AF_INET6, &a);
+
+#ifdef HAVE_SETNS
+    if (!m_network_namespace.empty() && restore_original_network_namespace())
+      return MYSQL_INVALID_SOCKET;
+#endif
 
     // Report user-error if we failed to create a socket.
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET) {
@@ -716,33 +804,449 @@ bool Unix_socket::create_lockfile() {
 ///////////////////////////////////////////////////////////////////////////
 
 Mysqld_socket_listener::Mysqld_socket_listener(
-    const std::list<std::string> &bind_addresses, uint tcp_port, uint backlog,
-    uint port_timeout, std::string unix_sockname)
+    const std::list<Bind_address_info> &bind_addresses, uint tcp_port,
+    const Bind_address_info &admin_bind_addr, uint admin_tcp_port,
+    bool use_separate_thread_for_admin, uint backlog, uint port_timeout,
+    std::string unix_sockname)
     : m_bind_addresses(bind_addresses),
+      m_admin_bind_address(admin_bind_addr),
       m_tcp_port(tcp_port),
+      m_admin_tcp_port(admin_tcp_port),
+      m_use_separate_thread_for_admin(use_separate_thread_for_admin),
       m_backlog(backlog),
       m_port_timeout(port_timeout),
       m_unix_sockname(unix_sockname),
       m_unlink_sockname(false),
-      m_error_count(0) {
+      m_admin_interface_listen_socket(mysql_socket_invalid()) {
 #ifdef HAVE_LIBWRAP
-  m_deny_severity = LOG_WARNING;
-  m_libwrap_name = my_progname + dirname_length(my_progname);
-  if (!opt_log_syslog_enable) openlog(m_libwrap_name, LOG_PID, LOG_AUTH);
+  /*
+    Set up syslog parameters on behalf of the TCP-wrappers.
+    The loadable component that logs server errors to syslog
+    may re-open it with user-defined attributes (logging of
+    PIDS / ident) later, but we establish a sensible baseline
+    here in case that log-sink is not used. Note that the
+    wrapper is hard-coded to use LOG_AUTH in the syslog()
+    call below, which lets the wrapper log to a different
+    facility than the rest of the server (the facility of
+    which defaults to LOG_DAEMON and is user-configurable)
+    if desired.
+  */
+  libwrap_name = my_progname + dirname_length(my_progname);
+  openlog(libwrap_name, LOG_PID, LOG_AUTH);
 #endif /* HAVE_LIBWRAP */
 }
 
+void Mysqld_socket_listener::add_socket_to_listener(
+    MYSQL_SOCKET listen_socket) {
+  mysql_socket_set_thread_owner(listen_socket);
+
+#ifdef HAVE_POLL
+  m_poll_info.m_fds.emplace_back(
+      pollfd{mysql_socket_getfd(listen_socket), POLLIN, 0});
+  m_poll_info.m_pfs_fds.push_back(listen_socket);
+#else   // HAVE_POLL
+  FD_SET(mysql_socket_getfd(listen_socket), &m_select_info.m_client_fds);
+  if ((uint)mysql_socket_getfd(listen_socket) >
+      m_select_info.m_max_used_connection)
+    m_select_info.m_max_used_connection = mysql_socket_getfd(listen_socket);
+#endif  // HAVE_POLL
+}
+
+void Mysqld_socket_listener::setup_connection_events(
+    const socket_map_t &socket_map) {
+#ifdef HAVE_POLL
+  const socket_map_t::size_type total_number_of_addresses_to_bind =
+      socket_map.size();
+  m_poll_info.m_fds.reserve(total_number_of_addresses_to_bind);
+  m_poll_info.m_pfs_fds.reserve(total_number_of_addresses_to_bind);
+#endif
+
+  for (const auto &element : socket_map) add_socket_to_listener(element.first);
+}
+
+/**
+  Accept a new connection on a ready listening socket.
+
+  @param listen_sock  Listening socket ready to accept a new connection
+  @param [out] connect_sock  Socket corresponding to a new accepted connection
+
+  @return operation result
+    @retval true on error
+    @retval false on success
+*/
+static bool accept_connection(MYSQL_SOCKET listen_sock,
+                              MYSQL_SOCKET *connect_sock) {
+  struct sockaddr_storage c_addr;
+  for (uint retry = 0; retry < MAX_ACCEPT_RETRY; retry++) {
+    socket_len_t length = sizeof(struct sockaddr_storage);
+    *connect_sock =
+        mysql_socket_accept(key_socket_client_connection, listen_sock,
+                            (struct sockaddr *)(&c_addr), &length);
+    if (mysql_socket_getfd(*connect_sock) != INVALID_SOCKET ||
+        (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
+      break;
+  }
+  if (mysql_socket_getfd(*connect_sock) == INVALID_SOCKET) {
+    /*
+      accept(2) failed on the listening port, after many retries.
+      There is not much details to report about the client,
+      increment the server global status variable.
+    */
+
+    if ((connection_errors_accept++ & 255) == 0) {  // This can happen often
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, msg_buff);
+#else
+      LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, strerror(errno));
+#endif
+    }
+    if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
+      sleep(1);  // Give other threads some time
+    return true;
+  }
+
+  return false;
+}
+
+#ifdef HAVE_LIBWRAP
+/**
+  Ask TCP wrapper whether an accepted connection is allowed.
+
+  @param connect_sock  Socket corresponding to accepted connection
+
+  @return operation result
+    @retval true  connection is prohibited by TCP wrapper's policy
+    @retval false  connection is allowed by TCP wrapper's policy
+*/
+bool check_connection_refused_by_tcp_wrapper(MYSQL_SOCKET connect_sock) {
+  struct request_info req;
+  signal(SIGCHLD, SIG_DFL);
+  request_init(&req, RQ_DAEMON, libwrap_name, RQ_FILE,
+               mysql_socket_getfd(connect_sock), NULL);
+  fromhost(&req);
+
+  if (!hosts_access(&req)) {
+    /*
+      This may be stupid but refuse() includes an exit(0)
+      which we surely don't want...
+      clean_exit() - same stupid thing ...
+
+      We're using syslog() here instead of my_syslog()
+      as this lets us pass in a facility that may differ
+      from that used by the error logging component.
+      This is unproblematic as TCP-wrapper is unix specific,
+      anyway.
+    */
+    syslog(LOG_AUTH | LOG_WARNING, "refused connect from %s",
+           eval_client(&req));
+
+#ifdef HAVE_LIBWRAP_PROTOTYPES
+    // Some distros have patched tcpd.h to have proper prototypes
+    if (req.sink) (req.sink)(req.fd);
+#else
+    // Some distros have not patched tcpd.h
+    if (req.sink) ((void (*)(int))req.sink)(req.fd);
+#endif
+    /*
+      The connection was refused by TCP wrappers.
+      There are no details (by client IP) available to update the host_cache.
+    */
+    mysql_socket_shutdown(connect_sock, SHUT_RDWR);
+    mysql_socket_close(connect_sock);
+
+    connection_errors_tcpwrap++;
+    return true;
+  }
+
+  return false;
+}
+#endif  // HAVE_LIBWRAP
+
+static my_thread_handle admin_socket_thread_id;
+static my_thread_attr_t admin_socket_thread_attrib;
+static bool admin_thread_started = false;
+
+static mysql_mutex_t LOCK_start_admin_thread;
+static mysql_cond_t COND_start_admin_thread;
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_start_admin_thread;
+static PSI_cond_key key_COND_start_admin_thread;
+
+static PSI_mutex_info admin_socket_thread_mutexes[] = {
+    {&key_LOCK_start_admin_thread, "LOCK_start_admin_thread",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+
+static PSI_cond_info admin_socket_thread_conds[] = {
+    {&key_COND_start_admin_thread, "COND_start_admin_thread",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+
+static inline void init_psi_keys(void) {
+  const char *category = "sql";
+  int count = array_elements(admin_socket_thread_mutexes);
+  mysql_mutex_register(category, admin_socket_thread_mutexes, count);
+
+  count = array_elements(admin_socket_thread_conds);
+  mysql_cond_register(category, admin_socket_thread_conds, count);
+}
+#endif
+
+/**
+  Signal to a spawning thread that spawned thread has been started.
+*/
+static inline void mark_admin_thread_started() {
+  mysql_mutex_lock(&LOCK_start_admin_thread);
+  admin_thread_started = true;
+  mysql_cond_signal(&COND_start_admin_thread);
+  mysql_mutex_unlock(&LOCK_start_admin_thread);
+}
+
+/**
+  Wait until admin thread has started execution.
+*/
+static inline void wait_for_admin_thread_started() {
+  mysql_mutex_lock(&LOCK_start_admin_thread);
+  while (!admin_thread_started)
+    mysql_cond_wait(&COND_start_admin_thread, &LOCK_start_admin_thread);
+  mysql_mutex_unlock(&LOCK_start_admin_thread);
+}
+
+/**
+  Listen to admin interface and accept incoming connection on it.
+  This function is run in a separate thread.
+
+  @param admin_socket  pointer to a socket for listening to admin interface
+  @param network_namespace_for_listening_socket  network namespace associated
+                                                 with the socket
+  @return operation result. false on success, true on error
+*/
+static bool handle_admin_socket(
+    MYSQL_SOCKET admin_socket
+#ifdef HAVE_SETNS
+    ,
+    const std::string &network_namespace_for_listening_socket
+#endif
+) {
+  mark_admin_thread_started();
+
+#ifdef HAVE_POLL
+  static const int NUMBER_OF_POLLED_FDS = 1;
+  struct pollfd fds[NUMBER_OF_POLLED_FDS] = {
+      {mysql_socket_getfd(admin_socket), POLLIN, 0}};
+#else
+  fd_set client_fds;
+  FD_ZERO(&client_fds);
+  FD_SET(mysql_socket_getfd(admin_socket), &client_fds);
+  int max_used_connection = mysql_socket_getfd(admin_socket);
+#endif
+
+  while (!connection_events_loop_aborted()) {
+#ifdef HAVE_POLL
+    int retval = poll(fds, NUMBER_OF_POLLED_FDS, -1);
+#else
+    fd_set read_fds = client_fds;
+    int retval = select(max_used_connection, &read_fds, 0, 0, 0);
+#endif
+
+    if (retval < 0 && socket_errno != SOCKET_EINTR) {
+      /*
+        select(2)/poll(2) failed on the listening port.
+        There is not much details to report about the client,
+        increment the server global status variable.
+      */
+      ++connection_errors_select;
+      if (!select_errors++ && !connection_events_loop_aborted())
+        LogErr(ERROR_LEVEL, ER_CONN_SOCKET_SELECT_FAILED, socket_errno);
+    }
+
+    if (retval < 0) return true;
+
+    if (connection_events_loop_aborted()) return false;
+
+#ifdef HAVE_SETNS
+    /*
+      If a network namespace is specified for a listening socket then set this
+      network namespace as active before call to accept().
+      It is not clear from manuals whether a socket returned by a call to
+      accept() borrows a network namespace from a server socket used for
+      accepting a new connection. For that reason, assign a network namespace
+      explicitly before calling accept().
+    */
+    if (!network_namespace_for_listening_socket.empty() &&
+        set_network_namespace(network_namespace_for_listening_socket))
+      return true;
+#endif
+
+    MYSQL_SOCKET connect_sock;
+    bool accept_retval = accept_connection(admin_socket, &connect_sock);
+
+#ifdef HAVE_SETNS
+    if (!network_namespace_for_listening_socket.empty() &&
+        restore_original_network_namespace())
+      return true;
+#endif
+
+    if (accept_retval) continue;
+
+#ifdef HAVE_LIBWRAP
+    if (check_connection_refused_by_tcp_wrapper(connect_sock)) return true;
+#endif  // HAVE_LIBWRAP
+
+    Channel_info_tcpip_socket *channel_info =
+        new (std::nothrow) Channel_info_tcpip_socket(connect_sock, true);
+    if (channel_info == nullptr) {
+      (void)mysql_socket_shutdown(connect_sock, SHUT_RDWR);
+      (void)mysql_socket_close(connect_sock);
+      connection_errors_internal++;
+      return true;
+    }
+
+#ifdef HAVE_SETNS
+    if (!network_namespace_for_listening_socket.empty())
+      channel_info->set_network_namespace(
+          network_namespace_for_listening_socket);
+#endif
+
+    Connection_handler_manager *mgr =
+        Connection_handler_manager::get_instance();
+
+    if (channel_info != nullptr) mgr->process_new_connection(channel_info);
+  }
+
+  return false;
+}
+
+using admin_thread_arg_t = std::pair<MYSQL_SOCKET, std::string>;
+
+/**
+  Initialize thread's internal structures, run thread loop,
+  deinitialize thread's internal structure on thread exit.
+
+  @param arg  pointer to a socket for listening to admin interface
+*/
+extern "C" void *admin_socket_thread(void *arg) {
+  my_thread_init();
+
+  std::unique_ptr<admin_thread_arg_t> arg_for_admin_socket_thread(
+      (admin_thread_arg_t *)arg);
+
+  (void)handle_admin_socket(arg_for_admin_socket_thread->first
+#ifdef HAVE_SETNS
+                            ,
+                            arg_for_admin_socket_thread->second
+#endif
+  );
+
+  my_thread_end();
+  my_thread_exit(0);
+
+  return nullptr;
+}
+
+/**
+  Initialize context required for running a thread handling connection requests
+  on admin interface. Such context include mutex LOCK_start_admin_thread,
+  condition variable COND_start_admin_thread and attributes used for thread
+  spawning.
+*/
+static inline void initialize_thread_context() {
+#ifdef HAVE_PSI_INTERFACE
+  init_psi_keys();
+#endif
+
+  mysql_mutex_init(key_LOCK_start_admin_thread, &LOCK_start_admin_thread,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_start_admin_thread, &COND_start_admin_thread);
+
+  (void)my_thread_attr_init(&admin_socket_thread_attrib);
+  my_thread_attr_setdetachstate(&admin_socket_thread_attrib,
+                                MY_THREAD_CREATE_JOINABLE);
+#ifndef _WIN32
+  pthread_attr_setscope(&admin_socket_thread_attrib, PTHREAD_SCOPE_SYSTEM);
+#endif
+}
+
+/**
+  Spawn a thread for handling incoming connections request on admin interface.
+
+  @param admin_socket  A socket to listen corresponding admin interface.
+  @param network_namespace Network namespace to use for communicating
+                           via admin socket
+  @return Operation result. false on success, true on failure.
+*/
+static inline bool spawn_admin_thread(MYSQL_SOCKET admin_socket,
+                                      const std::string &network_namespace) {
+  initialize_thread_context();
+
+  admin_thread_arg_t *arg_for_admin_socket_thread =
+      new (std::nothrow) admin_thread_arg_t(admin_socket, network_namespace);
+
+  if (arg_for_admin_socket_thread == nullptr) return true;
+
+  int ret = mysql_thread_create(
+      key_thread_handle_con_admin_sockets, &admin_socket_thread_id,
+      &admin_socket_thread_attrib, admin_socket_thread,
+      (void *)arg_for_admin_socket_thread);
+
+  (void)my_thread_attr_destroy(&admin_socket_thread_attrib);
+
+  if (ret) {
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_ADMIN_THREAD, errno);
+    return true;
+  }
+
+  wait_for_admin_thread_started();
+
+  return false;
+}
+
 bool Mysqld_socket_listener::setup_listener() {
+  /*
+    It's matter to add a socket for admin connection listener firstly,
+    before listening sockets for other connection types be added.
+    It is done in order to check availability of new incoming connection
+    on admin interface with higher priority than on other interfaces..
+  */
+  if (!m_admin_bind_address.address.empty()) {
+    TCP_socket tcp_socket(m_admin_bind_address.address,
+                          m_admin_bind_address.network_namespace,
+                          m_admin_tcp_port, m_backlog, m_port_timeout);
+
+    MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
+    if (mysql_socket.fd == INVALID_SOCKET) return true;
+
+    m_admin_interface_listen_socket = mysql_socket;
+
+    if (m_use_separate_thread_for_admin) {
+      if (spawn_admin_thread(m_admin_interface_listen_socket,
+                             m_admin_bind_address.network_namespace))
+        return true;
+    } else {
+      Socket_attr s(Socket_type::TCP_SOCKET,
+                    m_admin_bind_address.network_namespace);
+      m_socket_map.insert(
+          std::pair<MYSQL_SOCKET, Socket_attr>(mysql_socket, s));
+    }
+  }
+
   // Setup tcp socket listener
   if (m_tcp_port) {
-    for (const auto &bind_address : m_bind_addresses) {
-      TCP_socket tcp_socket(bind_address, m_tcp_port, m_backlog,
-                            m_port_timeout);
+    for (const auto &bind_address_info : m_bind_addresses) {
+      TCP_socket tcp_socket(bind_address_info.address,
+                            bind_address_info.network_namespace, m_tcp_port,
+                            m_backlog, m_port_timeout);
 
       MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
       if (mysql_socket.fd == INVALID_SOCKET) return true;
 
-      m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
+      Socket_attr s(Socket_type::TCP_SOCKET,
+                    bind_address_info.network_namespace);
+      m_socket_map.insert(
+          std::pair<MYSQL_SOCKET, Socket_attr>(mysql_socket, s));
     }
   }
 #if defined(HAVE_SYS_UN_H)
@@ -753,34 +1257,71 @@ bool Mysqld_socket_listener::setup_listener() {
     MYSQL_SOCKET mysql_socket = unix_socket.get_listener_socket();
     if (mysql_socket.fd == INVALID_SOCKET) return true;
 
-    m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, true));
+    m_socket_map.insert(std::pair<MYSQL_SOCKET, Socket_attr>(
+        mysql_socket, Socket_attr(Socket_type::UNIX_SOCKET)));
     m_unlink_sockname = true;
   }
 #endif /* HAVE_SYS_UN_H */
 
-    // Setup for connection events for poll or select
-#ifdef HAVE_POLL
-  const socket_map_t::size_type total_number_of_addresses_to_bind =
-      m_socket_map.size();
-  m_poll_info.m_fds.reserve(total_number_of_addresses_to_bind);
-  m_poll_info.m_pfs_fds.reserve(total_number_of_addresses_to_bind);
-#endif
-  for (socket_map_iterator_t sock_map_iter = m_socket_map.begin();
-       sock_map_iter != m_socket_map.end(); ++sock_map_iter) {
-    MYSQL_SOCKET listen_socket = sock_map_iter->first;
-    mysql_socket_set_thread_owner(listen_socket);
-#ifdef HAVE_POLL
-    m_poll_info.m_fds.emplace_back(
-        pollfd{mysql_socket_getfd(listen_socket), POLLIN, 0});
-    m_poll_info.m_pfs_fds.push_back(listen_socket);
-#else   // HAVE_POLL
-    FD_SET(mysql_socket_getfd(listen_socket), &m_select_info.m_client_fds);
-    if ((uint)mysql_socket_getfd(listen_socket) >
-        m_select_info.m_max_used_connection)
-      m_select_info.m_max_used_connection = mysql_socket_getfd(listen_socket);
-#endif  // HAVE_POLL
-  }
+  setup_connection_events(m_socket_map);
+
   return false;
+}
+
+MYSQL_SOCKET Mysqld_socket_listener::get_ready_socket(
+    bool *is_unix_socket, bool *is_admin_socket) const {
+/*
+  In case admin interface was set up, then first check whether an admin socket
+  ready to accept a new connection. Doing this way provides higher priority
+  to admin interface over other listeners.
+*/
+#ifdef HAVE_POLL
+  uint start_index = 0;
+
+  if (!m_admin_bind_address.address.empty() &&
+      !m_use_separate_thread_for_admin) {
+    if (m_poll_info.m_fds[0].revents & POLLIN) {
+      *is_unix_socket = false;
+      *is_admin_socket = true;
+      return m_admin_interface_listen_socket;
+    } else
+      start_index = 1;
+  }
+
+  *is_admin_socket = false;
+  for (uint i = start_index; i < m_socket_map.size(); ++i) {
+    if (m_poll_info.m_fds[i].revents & POLLIN) {
+      MYSQL_SOCKET listen_sock = m_poll_info.m_pfs_fds[i];
+      *is_unix_socket = m_socket_map.at(listen_sock).m_socket_type ==
+                        Socket_type::UNIX_SOCKET;
+      return listen_sock;
+    }
+  }
+
+#else  // HAVE_POLL
+  if (!m_admin_bind_address.address.empty() &&
+      !m_use_separate_thread_for_admin &&
+      FD_ISSET(mysql_socket_getfd(m_admin_interface_listen_socket),
+               &m_select_info.m_read_fds)) {
+    *is_unix_socket = false;
+    *is_admin_socket = true;
+    return m_admin_interface_listen_socket;
+  }
+
+  *is_admin_socket = false;
+  for (socket_map_const_iterator_t sock_map_const_iter = m_socket_map.cbegin();
+       sock_map_const_iter != m_socket_map.cend(); ++sock_map_const_iter) {
+    if (FD_ISSET(mysql_socket_getfd(sock_map_const_iter->first),
+                 &m_select_info.m_read_fds)) {
+      *is_unix_socket =
+          sock_map_const_iter->second.m_socket_type == Socket_type::UNIX_SOCKET;
+      return sock_map_const_iter->first;
+    }
+  }
+
+#endif  // HAVE_POLL
+
+  return MYSQL_INVALID_SOCKET;
 }
 
 Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
@@ -798,7 +1339,7 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
       There is not much details to report about the client,
       increment the server global status variable.
     */
-    connection_errors_select++;
+    ++connection_errors_select;
     if (!select_errors++ && !connection_events_loop_aborted())
       LogErr(ERROR_LEVEL, ER_CONN_SOCKET_SELECT_FAILED, socket_errno);
   }
@@ -806,96 +1347,51 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
   if (retval < 0 || connection_events_loop_aborted()) return NULL;
 
   /* Is this a new connection request ? */
-  MYSQL_SOCKET listen_sock = MYSQL_INVALID_SOCKET;
-  bool is_unix_socket = false;
-#ifdef HAVE_POLL
-  for (uint i = 0; i < m_socket_map.size(); ++i) {
-    if (m_poll_info.m_fds[i].revents & POLLIN) {
-      listen_sock = m_poll_info.m_pfs_fds[i];
-      is_unix_socket = m_socket_map[listen_sock];
-      break;
-    }
-  }
-#else   // HAVE_POLL
-  for (socket_map_iterator_t sock_map_iter = m_socket_map.begin();
-       sock_map_iter != m_socket_map.end(); ++sock_map_iter) {
-    if (FD_ISSET(mysql_socket_getfd(sock_map_iter->first),
-                 &m_select_info.m_read_fds)) {
-      listen_sock = sock_map_iter->first;
-      is_unix_socket = sock_map_iter->second;
-      break;
-    }
-  }
-#endif  // HAVE_POLL
+  bool is_unix_socket = false, is_admin_sock;
+  MYSQL_SOCKET listen_sock = get_ready_socket(&is_unix_socket, &is_admin_sock);
+  /*
+    When poll/select returns control flow then at least one ready server socket
+    must exist. Check that get_ready_socket() returns a valid socket.
+  */
+  DBUG_ASSERT(mysql_socket_getfd(listen_sock) != INVALID_SOCKET);
 
   MYSQL_SOCKET connect_sock;
-  struct sockaddr_storage cAddr;
-  for (uint retry = 0; retry < MAX_ACCEPT_RETRY; retry++) {
-    socket_len_t length = sizeof(struct sockaddr_storage);
-    connect_sock =
-        mysql_socket_accept(key_socket_client_connection, listen_sock,
-                            (struct sockaddr *)(&cAddr), &length);
-    if (mysql_socket_getfd(connect_sock) != INVALID_SOCKET ||
-        (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
-      break;
+#ifdef HAVE_SETNS
+  /*
+    If a network namespace is specified for a listening socket then set this
+    network namespace as active before call to accept().
+    It is not clear from manuals whether a socket returned by a call to
+    accept() borrows a network namespace from a server socket used for
+    accepting a new connection. For that reason, assign a network namespace
+    explicitly before calling accept().
+  */
+  std::string network_namespace_for_listening_socket;
+  if (!is_unix_socket) {
+    network_namespace_for_listening_socket =
+        m_socket_map.at(listen_sock).m_network_namespace;
+    if (!network_namespace_for_listening_socket.empty() &&
+        set_network_namespace(network_namespace_for_listening_socket))
+      return nullptr;
   }
-  if (mysql_socket_getfd(connect_sock) == INVALID_SOCKET) {
-    /*
-      accept(2) failed on the listening port, after many retries.
-      There is not much details to report about the client,
-      increment the server global status variable.
-    */
-    connection_errors_accept++;
-    if ((m_error_count++ & 255) == 0) {  // This can happen often
-#ifdef _WIN32
-      Socket_error_message_buf msg_buff;
-      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
-                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
-                    sizeof(msg_buff), NULL);
-      LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, msg_buff);
-#else
-      LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, strerror(errno));
 #endif
-    }
-    if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
-      sleep(1);  // Give other threads some time
-    return NULL;
+  if (accept_connection(listen_sock, &connect_sock)) {
+#ifdef HAVE_SETNS
+    if (!network_namespace_for_listening_socket.empty())
+      (void)restore_original_network_namespace();
+#endif
+    return nullptr;
   }
+
+#ifdef HAVE_SETNS
+  if (!network_namespace_for_listening_socket.empty() &&
+      restore_original_network_namespace())
+    return nullptr;
+#endif
 
 #ifdef HAVE_LIBWRAP
-  if (!is_unix_socket) {
-    struct request_info req;
-    signal(SIGCHLD, SIG_DFL);
-    request_init(&req, RQ_DAEMON, m_libwrap_name, RQ_FILE,
-                 mysql_socket_getfd(connect_sock), NULL);
-    fromhost(&req);
-
-    if (!hosts_access(&req)) {
-      /*
-        This may be stupid but refuse() includes an exit(0)
-        which we surely don't want...
-        clean_exit() - same stupid thing ...
-      */
-      syslog(LOG_AUTH | m_deny_severity, "refused connect from %s",
-             eval_client(&req));
-
-#ifdef HAVE_LIBWRAP_PROTOTYPES
-      // Some distros have patched tcpd.h to have proper prototypes
-      if (req.sink) (req.sink)(req.fd);
-#else
-      // Some distros have not patched tcpd.h
-      if (req.sink) ((void (*)(int))req.sink)(req.fd);
-#endif
-      /*
-        The connection was refused by TCP wrappers.
-        There are no details (by client IP) available to update the host_cache.
-      */
-      mysql_socket_shutdown(connect_sock, SHUT_RDWR);
-      mysql_socket_close(connect_sock);
-
-      connection_errors_tcpwrap++;
-      return NULL;
-    }
+  if (!is_unix_socket &&
+      check_connection_refused_by_tcp_wrapper(connect_sock)) {
+    return nullptr;
   }
 #endif  // HAVE_LIBWRAP
 
@@ -903,7 +1399,8 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
   if (is_unix_socket)
     channel_info = new (std::nothrow) Channel_info_local_socket(connect_sock);
   else
-    channel_info = new (std::nothrow) Channel_info_tcpip_socket(connect_sock);
+    channel_info = new (std::nothrow)
+        Channel_info_tcpip_socket(connect_sock, is_admin_sock);
   if (channel_info == NULL) {
     (void)mysql_socket_shutdown(connect_sock, SHUT_RDWR);
     (void)mysql_socket_close(connect_sock);
@@ -911,14 +1408,49 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
     return NULL;
   }
 
+#ifdef HAVE_SETNS
+  if (!is_unix_socket && !network_namespace_for_listening_socket.empty())
+    static_cast<Channel_info_tcpip_socket *>(channel_info)
+        ->set_network_namespace(network_namespace_for_listening_socket);
+#endif
   return channel_info;
 }
 
 void Mysqld_socket_listener::close_listener() {
-  for (socket_map_iterator_t sock_map_iter = m_socket_map.begin();
-       sock_map_iter != m_socket_map.end(); ++sock_map_iter) {
-    (void)mysql_socket_shutdown(sock_map_iter->first, SHUT_RDWR);
-    (void)mysql_socket_close(sock_map_iter->first);
+  for (socket_map_const_iterator_t sock_map_const_iter = m_socket_map.cbegin();
+       sock_map_const_iter != m_socket_map.cend(); ++sock_map_const_iter) {
+    (void)mysql_socket_shutdown(sock_map_const_iter->first, SHUT_RDWR);
+    (void)mysql_socket_close(sock_map_const_iter->first);
+  }
+
+  /*
+    In case a separate thread was spawned to handle incoming connection
+    requests on admin interface, a socket corresponding to an admin interface
+    being listened is not included in the m_socket_map. Instead, this socket
+    referenced by the data member m_admin_interface_listen_socket.
+  */
+  if (m_use_separate_thread_for_admin) {
+#ifdef _WIN32
+    /*
+      For Windows, first close the socket referenced by the data member
+      m_admin_interface_listen_socket. It results in return from select()
+      API call running from a separate thread.
+    */
+    (void)mysql_socket_close(m_admin_interface_listen_socket);
+    my_thread_join(&admin_socket_thread_id, nullptr);
+#else
+    // First, finish listening thread.
+    pthread_kill(admin_socket_thread_id.thread, SIGUSR1);
+    my_thread_join(&admin_socket_thread_id, nullptr);
+    /*
+      After a thread listening on admin interface finished, it is safe
+      to close listening socket.
+    */
+    (void)mysql_socket_close(m_admin_interface_listen_socket);
+#endif
+
+    mysql_mutex_destroy(&LOCK_start_admin_thread);
+    mysql_cond_destroy(&COND_start_admin_thread);
   }
 
 #if defined(HAVE_SYS_UN_H)
@@ -929,5 +1461,10 @@ void Mysqld_socket_listener::close_listener() {
   }
 #endif
 
+#ifdef HAVE_SETNS
+  release_network_namespace_resources();
+#endif
+
   m_socket_map.clear();
+  m_bind_addresses.clear();
 }

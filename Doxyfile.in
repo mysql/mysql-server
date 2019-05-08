@@ -367,7 +367,7 @@ TOC_INCLUDE_HEADINGS   = 0
 # globally by setting AUTOLINK_SUPPORT to NO.
 # The default value is: YES.
 
-AUTOLINK_SUPPORT       = YES
+AUTOLINK_SUPPORT       = NO
 
 # If you use STL classes (i.e. std::string, std::vector, etc.) but do not want
 # to include (a tag file for) the STL sources as input, then you should set this
@@ -860,6 +860,7 @@ INPUT                  = ./client \
                          ./plugin/audit_null \
                          ./plugin/auth \
                          ./plugin/daemon_example \
+                         ./plugin/ddl_rewriter \
                          ./plugin/fulltext \
                          ./plugin/innodb_memcached \
                          ./plugin/password_validation \
@@ -981,6 +982,7 @@ EXCLUDE_SYMLINKS       = NO
 
 EXCLUDE_PATTERNS       = */include/boost*/* \
                          */include/mysql/psi/psi_abi*.h \
+                         */router/src/*/tests/* \
                          */sql/*ndb*.h \
                          */sql/*ndb*.cc \
                          */unittest/* \

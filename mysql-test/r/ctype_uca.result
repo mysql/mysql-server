@@ -6202,8 +6202,8 @@ ii	2	ii	2	II	2
 İİ	4	ii	2	İİ	4
 II	2	ii	2	II	2
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf8 collate utf8_turkish_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -6218,8 +6218,8 @@ ii	2	ii	2	İİ	4
 İİ	4	ii	2	İİ	4
 II	2	ıı	4	II	2
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
 CREATE TABLE t1 (
 c1 text character set ucs2 collate ucs2_polish_ci NOT NULL
@@ -7520,7 +7520,9 @@ DROP TABLE t1;
 # Bug #16204175 : COLLATION NAME MISSING FROM LOG MESSAGES
 #                 ABOUT LDML DEFINITION PROBLEMS
 #
-# restart
+#
+# Restart the server with a collation with invalid grammar rules.
+# restart:--character-sets-dir=MYSQL_TEST_DIR/std_data/bug16204175/
 # Check whether the new collation is loaded after restart
 SHOW COLLATION LIKE 'utf8_test';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
@@ -7531,7 +7533,9 @@ ERROR HY000: Unknown collation: 'utf8_test'
 # Below error is caused as a result of this test. The error message
 # contains collation name which is added as a part of the fix.
 call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
-# restart
+#
+# Restart server with original character sets dir:
+# restart:--character-sets-dir=MYSQL_CHARSETSDIR
 #
 # End of 5.6 tests
 #
@@ -7549,3 +7553,33 @@ f1
 é
 DROP TABLE t1;
 SET NAMES DEFAULT;
+#
+# Bug #27578340: INCONSISTENT RESULTS FOR SELECTS FROM TABLE WITH CHAR(N) COLUMN
+#                AND NO_PAD COLLATION
+#
+CREATE TABLE t1 (
+f1 CHAR(20) COLLATE utf8mb4_0900_ai_ci  # A NO PAD collation.
+);
+INSERT INTO t1 VALUES ('ABC  ');
+INSERT INTO t1 VALUES ('XYZ');
+INSERT INTO t1 VALUES ('XYZ ');
+INSERT INTO t1 VALUES ('ABC ');
+#
+# We should get the same results with and without an index.
+# The former should match both XYZ values, the latter should match nothing.
+# This is because CHAR conceptually never stores trailing spaces (in MySQL).
+#
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+CONCAT(f1, '|')
+XYZ|
+XYZ|
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+CONCAT(f1, '|')
+CREATE INDEX f1_index ON t1 ( f1 );
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+CONCAT(f1, '|')
+XYZ|
+XYZ|
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+CONCAT(f1, '|')
+DROP TABLE t1;

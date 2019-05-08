@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -118,6 +118,11 @@ TEST_F(Xcl_protocol_impl_error_tests, execute_close) {
   ASSERT_STREQ(expected_error_txt, out_error.what());
 
   ASSERT_EQ(nullptr, m_sut->execute_delete(Mysqlx::Crud::Delete(), &out_error));
+  ASSERT_EQ(expected_error_code, out_error.error());
+  ASSERT_STREQ(expected_error_txt, out_error.what());
+
+  ASSERT_EQ(nullptr,
+            m_sut->execute_prep_stmt(Mysqlx::Prepare::Execute(), &out_error));
   ASSERT_EQ(expected_error_code, out_error.error());
   ASSERT_STREQ(expected_error_txt, out_error.what());
 

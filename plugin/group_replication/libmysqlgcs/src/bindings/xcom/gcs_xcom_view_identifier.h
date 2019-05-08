@@ -34,7 +34,7 @@ class Gcs_xcom_view_identifier : public Gcs_view_identifier {
   explicit Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
                                     uint32_t monotonic_part_arg);
 
-  virtual ~Gcs_xcom_view_identifier();
+  Gcs_xcom_view_identifier(const Gcs_xcom_view_identifier &) = default;
 
   uint64_t get_fixed_part() const { return fixed_part; }
 

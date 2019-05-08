@@ -1502,7 +1502,7 @@ if ($test_foreign_keys)
                   FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
   --error ER_WRONG_FK_DEF
   CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
-                  FOREIGN KEY f1 (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+                  CONSTRAINT f1 FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
   CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
                   CONSTRAINT c1 FOREIGN KEY f1 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
                   CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION,

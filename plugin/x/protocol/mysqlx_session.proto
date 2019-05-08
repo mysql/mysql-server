@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -90,9 +90,13 @@ message AuthenticateOk {
 }
 
 // reset the current session
+// param keep_open: if is true the session will be reset, but stays authenticated.
+//       otherwise, the session will be closed and needs to be authenticated again.
 //
 // :Returns: :protobuf:msg:`Mysqlx::Ok`
 message Reset {
+  optional bool keep_open = 1 [ default = false ];
+
   option (client_message_id) = SESS_RESET; // comment_out_if PROTOBUF_LITE
 }
 

@@ -23,12 +23,14 @@
 */
 
 #include "plugin_config.h"
+#include "mysql/harness/string_utils.h"
 #include "mysql_routing.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"
 
 #include <algorithm>
 #include <exception>
+#include <stdexcept>
 #include <vector>
 
 #include "mysqlrouter/utils.h"
@@ -225,7 +227,7 @@ string RoutingPluginConfig::get_option_destinations(
   } catch (URIError &) {
     char delimiter = ',';
 
-    mysqlrouter::trim(value);
+    mysql_harness::trim(value);
     if (value.back() == delimiter || value.front() == delimiter) {
       throw invalid_argument(
           get_log_prefix(option) +
@@ -236,7 +238,7 @@ string RoutingPluginConfig::get_option_destinations(
     std::string part;
     std::pair<std::string, uint16_t> info;
     while (std::getline(ss, part, delimiter)) {
-      mysqlrouter::trim(part);
+      mysql_harness::trim(part);
       if (part.empty()) {
         throw invalid_argument(
             get_log_prefix(option) +

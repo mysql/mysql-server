@@ -190,6 +190,17 @@ ulint innobase_get_at_most_n_mbchars(
     ulint data_len,   /*!< in: length of the string in bytes */
     const char *str); /*!< in: character string */
 
+/** Checks sys_vars and determines if allocator should mark
+large memory segments with MADV_DONTDUMP
+@return true iff @@global.core_file AND
+NOT @@global.innodb_buffer_pool_in_core_file */
+bool innobase_should_madvise_buf_pool();
+
+/** Make sure that core file will not be generated, as generating a core file
+might violate our promise to not dump buffer pool data, and/or might dump not
+the expected memory pages due to failure in using madvise */
+void innobase_disable_core_dump();
+
 /** Returns the lock wait timeout for the current connection.
  @return the lock wait timeout, in seconds */
 ulong thd_lock_wait_timeout(THD *thd); /*!< in: thread handle, or NULL to query

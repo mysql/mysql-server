@@ -1,0 +1,202 @@
+# ==== Purpose ====
+#
+# Test the server behaviour when `mysql.gtid_executed` is read-only and the
+# binary log has to be rotated.
+#
+# ==== Requirements ====
+#
+# R1. If `mysql.gtid_executed` table is read-only and binlog rotation is
+#     triggered by any other means than `max_binlog_size` being reached, the
+#     server should:
+#     1) Log a warning to the server.
+#     2) send an error to the client, if rotate was triggered by the execution
+#        of a statement.
+#     3) Keep logging to the currently opened binary log.
+#
+# R2. If `mysql.gtid_executed` table is read-only, `binlog_error_action` is
+#     `IGNORE_ERROR` and binlog rotation is triggered by `max_binlog_size` being
+#     reached, the server should:
+#     1) Log an error to the server log.
+#     2) Send an error to the client, if rotate was triggered by the execution
+#        of a statement.
+#     3) Stop binary logging for the all duration of the server current
+#        execution process.
+#
+# R3. If `mysql.gtid_executed` table is read-only, `binlog_error_action` is
+#     `ABORT_SERVER` and binlog rotation is triggered by `max_binlog_size` being
+#     reached, the server should:
+#     1) Log an error to the server log.
+#     2) Send an error to the client, if rotate was triggered by the execution
+#        of a statement.
+#     3) Abort the current server execution process.
+#
+# ==== Implementation ====
+#
+# TC1. Table `mysql.gtid_executed` read-only & rotate not triggered by
+#      `max_binlog_size`
+# --------------------------------------------------------------------
+# 1) Add `DEBUG` sync point, `gtid_executed_readonly` to simulate
+#    `mysql.gtid_executed` read-only behaviour.
+# 2) Execute `FLUSH BINARY LOGS` and expect failure with
+#    `ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY`.
+# 3) Assert that binary log didn't rotate.
+# 4) Assert that an error was logged to the server log.
+#
+# TC2. Table `mysql.gtid_executed` read-only & rotate triggered by
+#      `max_binlog_size` & `binlog_error_action` is `IGNORE_ERROR`
+# ----------------------------------------------------------------
+# 1) Add `DEBUG` sync point, `gtid_executed_readonly` to simulate
+#    `mysql.gtid_executed` read-only behaviour.
+# 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
+#    `max_binlog_size` limit was reached.
+# 3) Execute `FLUSH BINARY LOGS` and expect failure with
+#    `ER_RPL_GTID_TABLE_CANNOT_OPEN`.
+# 4) Assert that binary log didn't rotate.
+# 5) Assert that an error was logged to the server log.
+#
+# TC3. Table `mysql.gtid_executed` read-only & rotate triggered by
+#      `max_binlog_size` & `binlog_error_action` is `ABORT_SERVER`
+# ----------------------------------------------------------------
+# 1) Add `DEBUG` sync point, `gtid_executed_readonly` to simulate
+#    `mysql.gtid_executed` read-only behaviour.
+# 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
+#    `max_binlog_size` limit was reached.
+# 3) Execute `FLUSH BINARY LOGS` and expect failure with
+#    `ER_BINLOG_LOGGING_IMPOSSIBLE`.
+# 4) Assert that binary log didn't rotate.
+# 5) Assert that an error was logged to the server log.
+#
+# ==== References ====
+#
+# BUG#29111514 FLUSHING BINARY LOGS WITH GTID LEADS TO AN OOM ERROR
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+
+--let $initial_debug = "`SELECT @@DEBUG`"
+--let $initial_error_action = `SELECT @@binlog_error_action`
+--let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.1/data/*binlog*.0*
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog_gtid.binlog_gtid_table_readonly
+--let $assert_count = 1
+
+--echo #
+--echo # TC1. Table `mysql.gtid_executed` read-only & rotate not triggered by `max_binlog_size`
+--echo #
+
+# 1) Add `DEBUG` sync point, `gtid_executed_readonly` to simulate
+#    `mysql.gtid_executed` read-only behaviour.
+SET DEBUG = "d,gtid_executed_readonly";
+
+CALL mtr.add_suppression("Unable to create a new binlog file.");
+CALL mtr.add_suppression(".Turning logging off for the whole duration of the MySQL server process.");
+CALL mtr.add_suppression(".Gtid table is not ready to be used.");
+
+# 2) Execute `FLUSH BINARY LOGS` and expect failure with
+#    `ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY`.
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_before_flush = $log_file_max_number
+
+--error ER_RPL_GTID_TABLE_CANNOT_OPEN
+FLUSH BINARY LOGS;
+
+# 3) Assert that binary log didn't rotate.
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_after_flush = $log_file_max_number
+--let $assert_text = 'FLUSH BINARY LOGS' failed to rotate binlog
+--let $assert_cond = $max_log_file_before_flush = $max_log_file_after_flush
+--source include/assert.inc
+
+# 4) Assert that an error was logged to the server log.
+--let $assert_select = Unable to create a new binlog file
+--let $assert_text = ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY found in server log
+--source include/assert_grep.inc
+
+--echo #
+--echo # TC2. Table `mysql.gtid_executed` read-only & rotate triggered by `max_binlog_size` & `binlog_error_action` is `IGNORE_ERROR`
+--echo #
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+
+# 1) Add `DEBUG` sync point, `gtid_executed_readonly` to simulate
+#    `mysql.gtid_executed` read-only behaviour.
+# 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
+#    `max_binlog_size` limit was reached.
+SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
+
+# 3) Execute `FLUSH BINARY LOGS` and expect failure with
+#    `ER_RPL_GTID_TABLE_CANNOT_OPEN`.
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_before_flush = $log_file_max_number
+
+--error ER_RPL_GTID_TABLE_CANNOT_OPEN
+FLUSH BINARY LOGS;
+
+# 4) Assert that binary log didn't rotate.
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_after_flush = $log_file_max_number
+--let $assert_text = 'FLUSH BINARY LOGS' failed to rotate binlog
+--let $assert_cond = $max_log_file_before_flush = $max_log_file_after_flush
+--source include/assert.inc
+
+# 5) Assert that an error was logged to the server log.
+--let $assert_select = Turning logging off for the whole duration of the MySQL server process
+--let $assert_text = ER_BINLOG_CANT_OPEN_FOR_LOGGING found in server log
+--source include/assert_grep.inc
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # TC3. Table `mysql.gtid_executed` read-only & rotate triggered by `max_binlog_size` & `binlog_error_action` is `ABORT_SERVER`
+--echo #
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+
+CALL mtr.add_suppression("Unable to create a new binlog file.");
+CALL mtr.add_suppression(".Turning logging off for the whole duration of the MySQL server process.");
+CALL mtr.add_suppression(".Gtid table is not ready to be used.");
+CALL mtr.add_suppression(".");
+
+# 1) Add `DEBUG` sync point, `gtid_executed_readonly` to simulate
+#    `mysql.gtid_executed` read-only behaviour.
+# 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
+#    `max_binlog_size` limit was reached.
+SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_before_flush = $log_file_max_number
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# 3) Execute `FLUSH BINARY LOGS` and expect failure with
+#    `ER_BINLOG_LOGGING_IMPOSSIBLE`.
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH BINARY LOGS;
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# 4) Assert that binary log didn't rotate.
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_after_flush = $log_file_max_number
+--let $offset = 1
+--expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset
+--let $assert_text = 'FLUSH BINARY LOGS' failed to rotate binlog but as the server restarts, the binary log is rotated
+--let $assert_cond = $max_log_file_after_flush = $expected_max_log_file_after_flush
+--source include/assert.inc
+
+# 5) Assert that an error was logged to the server log.
+--let $assert_select = Table 'mysql.gtid_executed' cannot be opened., while rotating the binlog. Aborting the server
+--let $assert_text = ER_BINLOG_LOGGING_IMPOSSIBLE found in server log
+--source include/assert_grep.inc
+
+# Clean up
+--replace_result $initial_debug INITIAL_DEBUG
+--eval SET DEBUG = $initial_debug
+--replace_result $initial_error_action INITIAL_ERROR_ACTION
+--eval SET GLOBAL binlog_error_action = $initial_error_action

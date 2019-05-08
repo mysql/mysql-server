@@ -320,10 +320,23 @@ INSERT INTO dd_published_schema
     '3ae447b4c0b3d3575978bad87c6d8b47de6066a28d408d2ba563fb7b84f6fdfa');
 INSERT INTO dd_published_schema
   VALUES ('80013', 0,
-    '973c2bec9f4774db4ffc780f5152e87c8f136f76369216221c3d697742f18ecb');
+    '2839a06b849f7f622b51ddc9ad8c8b73d8d8437a930ddbdc7224e76ab0ea65c5');
 INSERT INTO dd_published_schema
   VALUES ('80013', 1,
-    'f956a32223dfde57567be5d427f73765e0c235f560a8f22074dbabc694acefe8');
+    'cabd11189d82dd3f93c9affa5a998d684f8ed617848d9787a38ba098472bae02');
+INSERT INTO dd_published_schema
+  VALUES ('80014', 0,
+    'a1602dbb8a2af87654c3880adb8dfb977d2f0fab6e3a54d8b44f5ceff7782959');
+INSERT INTO dd_published_schema
+  VALUES ('80014', 1,
+    'cc5651651505fe0a4ebccb74d82e6fcd9555a4bd29478e21637c95da98f4537c');
+# Note: DD version 80015 was never published, it's similar to 80014.
+INSERT INTO dd_published_schema
+  VALUES('80016', 0,
+    '53c96d1a123e9b4370aef8e9f0d0396860f78f7dd0b8e6ce89faa9c3fddd1da6');
+INSERT INTO dd_published_schema
+  VALUES('80016', 1,
+    '4dfe903c56e29601504a494bcc881055115b2f5d32cee32462708c233f5e1434');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),

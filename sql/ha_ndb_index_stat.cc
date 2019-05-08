@@ -1434,6 +1434,15 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     */
     ndb_index_stat_force_update(st, false);
 
+    /*
+      If the index has an unsupported length,
+      remove it from the list and stop monitoring
+    */
+    if (st->is->getNdbError().code == NdbIndexStat::InvalidKeySize)
+    {
+      ndb_index_stat_free(st);
+    }
+
     mysql_cond_broadcast(&ndb_index_stat_thread.stat_cond);
     mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 

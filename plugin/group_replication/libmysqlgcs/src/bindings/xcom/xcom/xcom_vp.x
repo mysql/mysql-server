@@ -131,7 +131,8 @@ enum cargo_type {
   x_terminate_and_exit,
   set_cache_limit,
   get_event_horizon_type,
-  set_event_horizon_type
+  set_event_horizon_type,
+  get_synode_app_data_type
 };
 
 typedef node_no node_no_array<NSERVERS>;
@@ -197,6 +198,8 @@ union app_u switch(cargo_type c_t){
    void;
  case set_event_horizon_type:
    xcom_event_horizon event_horizon;
+ case get_synode_app_data_type:
+   synode_no_array synodes;
  default:
    void;
 };
@@ -408,10 +411,39 @@ struct pax_msg_1_4{
   xcom_event_horizon event_horizon; /* Group's event horizon */
  };
 
+struct synode_app_data {
+   synode_no synode;
+   checked_data data;
+};
+typedef synode_app_data synode_app_data_array<MAX_SYNODE_ARRAY>;
+
+struct pax_msg_1_6{
+  node_no to;             /* To node */
+  node_no from;           /* From node */
+  uint32_t group_id; /* Unique ID shared by our group */
+  synode_no max_synode; /* Gossip about the max real synode */
+  start_t start_type; /* Boot or recovery? */
+  ballot reply_to;    /* Reply to which ballot */
+  ballot proposal;    /* Proposal number */
+  pax_op op;          /* Opcode: prepare, propose, learn, etc */
+  synode_no synode;   /* The message number */
+  pax_msg_type msg_type; /* normal, noop, or multi_noop */
+  bit_set *receivers;
+  app_data *a;      /* Payload */
+  snapshot *snap;	/* Snapshot if op == snapshot_op */
+  gcs_snapshot *gcs_snap; /* gcs_snapshot if op == gcs_snapshot_op */
+  client_reply_code cli_err;
+  bool force_delivery; /* Deliver this message even if we do not have majority */
+  int32_t refcnt;
+  synode_no delivered_msg; /* Gossip about the last delivered message */
+  xcom_event_horizon event_horizon; /* Group's event horizon */
+  synode_app_data_array requested_synode_app_data; /* The decided data for the requested synodes */
+ };
+
 
 %#ifndef PAX_MSG_TYPEDEF
 %#define PAX_MSG_TYPEDEF
-%typedef pax_msg_1_4 pax_msg;
+%typedef pax_msg_1_6 pax_msg;
 %extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
 %#endif
 

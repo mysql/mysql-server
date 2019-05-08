@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class Tablespace_file_impl;
 
 namespace tables {
 class Tablespace_files;
-};
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -47,7 +47,7 @@ class Tablespace_file : virtual public Weak_object {
   typedef tables::Tablespace_files DD_table;
 
  public:
-  virtual ~Tablespace_file(){};
+  virtual ~Tablespace_file() {}
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
@@ -69,8 +69,7 @@ class Tablespace_file : virtual public Weak_object {
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(
-      const String_type &se_private_data_raw) = 0;
+  virtual bool set_se_private_data(const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // tablespace.

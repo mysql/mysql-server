@@ -36,10 +36,10 @@
 class Replication_thread_api {
  public:
   Replication_thread_api(const char *channel_interface)
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface){};
+      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface) {}
 
   Replication_thread_api()
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(NULL){};
+      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(NULL) {}
 
   ~Replication_thread_api() {}
 
@@ -298,6 +298,22 @@ class Replication_thread_api {
       @retval false If relaylog does not contain partial transaction.
   */
   bool is_partial_transaction_on_relay_log();
+
+  /**
+    Interface to Channel Service Interface channel_stop_all method.
+    Stops all the running channel threads according to the given options.
+
+    @param threads_to_stop      The types of threads to be stopped
+    @param timeout              The max time in which the thread should stop
+    @param ecode                The error message code
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  static int rpl_channel_stop_all(
+      int threads_to_stop, long timeout,
+      int ecode = ER_GRP_RPL_ERROR_STOPPING_CHANNELS);
 
  private:
   ulong stop_wait_timeout;

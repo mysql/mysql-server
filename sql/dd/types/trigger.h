@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,9 @@
 #include "sql/dd/sdi_fwd.h"              // dd::Sdi_wcontext
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
+struct MDL_key;
+struct CHARSET_INFO;
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -41,7 +44,7 @@ class Trigger_impl;
 
 namespace tables {
 class Triggers;
-};
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -57,7 +60,7 @@ class Trigger : virtual public Entity_object {
   enum class enum_action_timing { AT_BEFORE = 1, AT_AFTER };
 
  public:
-  virtual ~Trigger(){};
+  virtual ~Trigger() {}
 
   /////////////////////////////////////////////////////////////////////////
   // schema.
@@ -146,6 +149,10 @@ class Trigger : virtual public Entity_object {
 
   virtual Object_id schema_collation_id() const = 0;
   virtual void set_schema_collation_id(Object_id schema_collation_id) = 0;
+
+  static void create_mdl_key(const String_type &schema_name,
+                             const String_type &name, MDL_key *key);
+  static const CHARSET_INFO *name_collation();
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
 
 namespace xpl {
 
@@ -40,9 +40,9 @@ class Listener_factory : public ngs::Listener_factory_interface {
       const uint32 backlog);
 
   ngs::Listener_interface_ptr create_tcp_socket_listener(
-      std::string &bind_address, const unsigned short port,
-      const uint32 port_open_timeout, ngs::Socket_events_interface &event,
-      const uint32 backlog);
+      std::string &bind_address, const std::string &network_namespace,
+      const unsigned short port, const uint32 port_open_timeout,
+      ngs::Socket_events_interface &event, const uint32 backlog);
 
  private:
   ngs::Operations_factory_interface::Shared_ptr m_operations_factory;

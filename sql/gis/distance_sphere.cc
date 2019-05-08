@@ -88,42 +88,42 @@ double Distance_sphere::eval(const Cartesian_point *g1,
   Geographic_point rg1 = reinterpret_as_degrees(*g1);
   Geographic_point rg2 = reinterpret_as_degrees(*g2);
   return eval(&rg1, &rg2);
-};
+}
 
 double Distance_sphere::eval(const Cartesian_point *g1,
                              const Cartesian_multipoint *g2) const {
   // Distance is commutative.
   return eval(g2, g1);
-};
+}
 
 double Distance_sphere::eval(const Cartesian_multipoint *g1,
                              const Cartesian_point *g2) const {
   Geographic_multipoint rg1 = reinterpret_as_degrees(*g1);
   Geographic_point rg2 = reinterpret_as_degrees(*g2);
   return eval(&rg1, &rg2);
-};
+}
 
 double Distance_sphere::eval(const Cartesian_multipoint *g1,
                              const Cartesian_multipoint *g2) const {
   Geographic_multipoint rg1 = reinterpret_as_degrees(*g1);
   Geographic_multipoint rg2 = reinterpret_as_degrees(*g2);
   return eval(&rg1, &rg2);
-};
+}
 
 double Distance_sphere::eval(const Geographic_point *g1,
                              const Geographic_point *g2) const {
   return bg::distance(*g1, *g2, m_strategy);
-};
+}
 
 double Distance_sphere::eval(const Geographic_point *g1,
                              const Geographic_multipoint *g2) const {
   return bg::distance(*g1, *g2, m_strategy);
-};
+}
 
 double Distance_sphere::eval(const Geographic_multipoint *g1,
                              const Geographic_point *g2) const {
   return bg::distance(*g1, *g2, m_strategy);
-};
+}
 
 double Distance_sphere::eval(const Geographic_multipoint *g1,
                              const Geographic_multipoint *g2) const {
@@ -135,7 +135,7 @@ double Distance_sphere::eval(const Geographic_multipoint *g1,
     if (d < minimum) minimum = d;
   }
   return minimum;
-};
+}
 
 double Distance_sphere::eval(const Geometry *g1, const Geometry *g2) const {
   throw not_implemented_exception::for_non_projected(*g1, *g2);

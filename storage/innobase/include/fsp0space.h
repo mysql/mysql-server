@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -122,14 +122,14 @@ class Tablespace {
 
   /** Set the tablespace flags
   @param[in]	fsp_flags	tablespace flags */
-  void set_flags(ulint fsp_flags) {
+  void set_flags(uint32_t fsp_flags) {
     ut_ad(fsp_flags_is_valid(fsp_flags));
     m_flags = fsp_flags;
   }
 
   /** Get the tablespace flags
   @return m_flags tablespace flags */
-  ulint flags() const { return (m_flags); }
+  uint32_t flags() const { return (m_flags); }
 
   /** Set Ignore Read Only Status for tablespace.
   @param[in]	read_only_status	read only status indicator */
@@ -204,7 +204,7 @@ class Tablespace {
   char *m_path;
 
   /** Tablespace flags */
-  ulint m_flags;
+  uint32_t m_flags;
 
  protected:
   /** Ignore server read only configuration for this tablespace. */

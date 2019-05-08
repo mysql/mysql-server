@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "sql/my_decimal.h"  // my_decimal
 #include "sql/sql_time.h"    // my_time_compare
 #include "sql_string.h"      // String
+#include "unittest/gunit/benchmark.h"
 
 namespace value_map_unittest {
 
@@ -229,11 +230,9 @@ TEST_F(ValueMapTest, MysqlTimeValueMap) {
   EXPECT_EQ(value_map.size(), 3U);
 
   // Check that data is sorted
-  EXPECT_EQ(my_time_compare(&time3, &value_map.begin()->first), 0);
-  EXPECT_EQ(my_time_compare(&time1, &std::next(value_map.begin(), 1)->first),
-            0);
-  EXPECT_EQ(my_time_compare(&time2, &std::next(value_map.begin(), 2)->first),
-            0);
+  EXPECT_EQ(my_time_compare(time3, value_map.begin()->first), 0);
+  EXPECT_EQ(my_time_compare(time1, std::next(value_map.begin(), 1)->first), 0);
+  EXPECT_EQ(my_time_compare(time2, std::next(value_map.begin(), 2)->first), 0);
 
   // Check that the counts are correct
   EXPECT_EQ(value_map.begin()->second, 3U);
@@ -334,5 +333,108 @@ TEST_F(ValueMapTest, LongLongValueMapExtended) {
     std::advance(previous, 1);
   }
 }
+
+/*
+  A microbenchmark that estimates how long it takes to insert a given number of
+  uniformly distributed integer values into a Value_map.
+*/
+static void benchmark_insertion_integer(size_t num_iterations,
+                                        longlong min_value,
+                                        longlong max_value) {
+  const int values_to_add = 2000;
+  StopBenchmarkTiming();
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<longlong> dis(min_value, max_value);
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    histograms::Value_map<longlong> value_map(
+        &my_charset_numeric, histograms::Value_map_type::INT, 1.0);
+
+    for (int j = 0; j < values_to_add; ++j) {
+      EXPECT_FALSE(value_map.add_values(dis(gen), 1));
+    }
+  }
+
+  StopBenchmarkTiming();
+}
+
+/*
+  A microbenchmark that estimates how long it takes to insert a given number of
+  random string values into a Value_map.
+*/
+static void benchmark_insertion_string(size_t num_iterations,
+                                       int min_string_length,
+                                       int max_string_length) {
+  const int values_to_add = 2000;
+  StopBenchmarkTiming();
+
+  std::string characters(
+      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<size_t> random_character_dis(0,
+                                                             characters.size());
+  std::uniform_int_distribution<int> string_length_dis(min_string_length,
+                                                       max_string_length);
+
+  StartBenchmarkTiming();
+
+  String str;
+  str.set_charset(&my_charset_utf8mb4_0900_ai_ci);
+  str.reserve(max_string_length);
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    histograms::Value_map<String> value_map(&my_charset_utf8mb4_0900_ai_ci,
+                                            histograms::Value_map_type::STRING,
+                                            1.0);
+
+    for (int j = 0; j < values_to_add; ++j) {
+      str.length(0);
+
+      const int string_length = string_length_dis(gen);
+      for (int i = 0; i < string_length; ++i) {
+        str.append(characters[random_character_dis(gen)]);
+      }
+
+      EXPECT_FALSE(value_map.add_values(str, 1));
+    }
+  }
+
+  StopBenchmarkTiming();
+}
+
+static void BM_ValueMapInsertionIntSmallRange(size_t num_iterations) {
+  // Test a scenario where we have many duplicate values.
+  benchmark_insertion_integer(num_iterations, 0, 20);
+}
+BENCHMARK(BM_ValueMapInsertionIntSmallRange)
+
+static void BM_ValueMapInsertionIntMediumRange(size_t num_iterations) {
+  // Test a scenario where we get a medium amount of duplicate values.
+  // On average, each value has approx 2 duplicate values (int range from 0 to
+  // 1000, and 2000 values are generated).
+  benchmark_insertion_integer(num_iterations, 0, 1000);
+}
+BENCHMARK(BM_ValueMapInsertionIntMediumRange)
+
+static void BM_ValueMapInsertionIntLargeRange(size_t num_iterations) {
+  // Test a scenario where we most likely only have unique values.
+  benchmark_insertion_integer(num_iterations, 0, 100000);
+}
+BENCHMARK(BM_ValueMapInsertionIntLargeRange)
+
+static void BM_ValueMapInsertionString(size_t num_iterations) {
+  // This test will insert 2000 random string values into a Value_map, and we
+  // have 62 characters to choose from. With a string length of 3, we get a
+  // total of approx 238000 possible strings. That means we most likely will
+  // insert only unique values into the Value_map.
+  benchmark_insertion_string(num_iterations, 1, 3);
+}
+BENCHMARK(BM_ValueMapInsertionString)
 
 }  // namespace value_map_unittest

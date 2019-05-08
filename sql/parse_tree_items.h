@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -322,8 +322,8 @@ class PTI_text_literal_text_string : public PTI_text_literal {
 
  public:
   PTI_text_literal_text_string(const POS &pos, bool is_7bit_arg,
-                               const LEX_STRING &literal)
-      : super(pos, is_7bit_arg, literal) {}
+                               const LEX_STRING &literal_arg)
+      : super(pos, is_7bit_arg, literal_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res) {
     if (super::itemize(pc, res)) return true;
@@ -354,8 +354,8 @@ class PTI_text_literal_nchar_string : public PTI_text_literal {
 
  public:
   PTI_text_literal_nchar_string(const POS &pos, bool is_7bit_arg,
-                                const LEX_STRING &literal)
-      : super(pos, is_7bit_arg, literal) {}
+                                const LEX_STRING &literal_arg)
+      : super(pos, is_7bit_arg, literal_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
 };
@@ -368,8 +368,8 @@ class PTI_text_literal_underscore_charset : public PTI_text_literal {
  public:
   PTI_text_literal_underscore_charset(const POS &pos, bool is_7bit_arg,
                                       const CHARSET_INFO *cs_arg,
-                                      const LEX_STRING &literal)
-      : super(pos, is_7bit_arg, literal), cs(cs_arg) {}
+                                      const LEX_STRING &literal_arg)
+      : super(pos, is_7bit_arg, literal_arg), cs(cs_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res) {
     if (super::itemize(pc, res)) return true;
@@ -675,23 +675,27 @@ class PTI_odbc_date : public Parse_tree_item {
       SELECT {ts'2001-01-01 10:20:30'};
     */
     if (expr->type() == Item::STRING_ITEM &&
-        expr->collation.repertoire == MY_REPERTOIRE_ASCII &&
-        expr->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4) {
-      enum_field_types type = MYSQL_TYPE_STRING;
-      ErrConvString str(&expr->str_value);
-      LEX_STRING *ls = &ident;
-      if (ls->length == 1) {
-        if (ls->str[0] == 'd') /* {d'2001-01-01'} */
-          type = MYSQL_TYPE_DATE;
-        else if (ls->str[0] == 't') /* {t'10:20:30'} */
-          type = MYSQL_TYPE_TIME;
-      } else if (ls->length == 2) /* {ts'2001-01-01 10:20:30'} */
-      {
-        if (ls->str[0] == 't' && ls->str[1] == 's') type = MYSQL_TYPE_DATETIME;
+        expr->collation.repertoire == MY_REPERTOIRE_ASCII) {
+      String buf;
+      String *tmp_str = expr->val_str(&buf);
+      if (tmp_str->length() < MAX_DATE_STRING_REP_LENGTH * 4) {
+        enum_field_types type = MYSQL_TYPE_STRING;
+        ErrConvString str(tmp_str);
+        LEX_STRING *ls = &ident;
+        if (ls->length == 1) {
+          if (ls->str[0] == 'd') /* {d'2001-01-01'} */
+            type = MYSQL_TYPE_DATE;
+          else if (ls->str[0] == 't') /* {t'10:20:30'} */
+            type = MYSQL_TYPE_TIME;
+        } else if (ls->length == 2) /* {ts'2001-01-01 10:20:30'} */
+        {
+          if (ls->str[0] == 't' && ls->str[1] == 's')
+            type = MYSQL_TYPE_DATETIME;
+        }
+        if (type != MYSQL_TYPE_STRING)
+          *res = create_temporal_literal(pc->thd, str.ptr(), str.length(),
+                                         system_charset_info, type, false);
       }
-      if (type != MYSQL_TYPE_STRING)
-        *res = create_temporal_literal(pc->thd, str.ptr(), str.length(),
-                                       system_charset_info, type, false);
     }
     if (*res == NULL) *res = expr;
     return false;

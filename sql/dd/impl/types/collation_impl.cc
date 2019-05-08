@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld_error.h"               // ER_*
-#include "sql/dd/impl/bootstrap_ctx.h"  // DD_bootstrap_ctx
+#include "mysqld_error.h"                         // ER_*
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
 #include "sql/dd/impl/raw/object_keys.h"
 #include "sql/dd/impl/raw/raw_record.h"     // Raw_record
 #include "sql/dd/impl/tables/collations.h"  // Collations
@@ -63,7 +63,7 @@ bool Collation_impl::restore_attributes(const Raw_record &r) {
     If we read this from a DD from before 80012, when the type was changed,
     we need to read it as a string.
   */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
           bootstrap::DD_VERSION_80012)) {
     if (r.read_str(Collations::FIELD_PAD_ATTRIBUTE) == String_type("PAD SPACE"))
       m_pad_attribute = PA_PAD_SPACE;
@@ -91,7 +91,7 @@ bool Collation_impl::store_attributes(Raw_record *r) {
     If we store this into a DD from before 80012, when the type was changed,
     we need to store it as a string.
   */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
           bootstrap::DD_VERSION_80012)) {
     String_type pad_str[] = {"", "PAD SPACE", "NO PAD"};
     err |= r->store(Collations::FIELD_PAD_ATTRIBUTE, pad_str[m_pad_attribute]);

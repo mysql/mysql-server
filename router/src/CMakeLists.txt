@@ -22,6 +22,7 @@
 
 ADD_SUBDIRECTORY(harness)
 ADD_SUBDIRECTORY(http)
+ADD_SUBDIRECTORY(json_schema_embedder)
 ADD_SUBDIRECTORY(keepalive)
 ADD_SUBDIRECTORY(metadata_cache)
 ADD_SUBDIRECTORY(mock_server)
@@ -29,4 +30,3 @@ ADD_SUBDIRECTORY(mysql_protocol)
 ADD_SUBDIRECTORY(plugin_info)
 ADD_SUBDIRECTORY(router)
 ADD_SUBDIRECTORY(routing)
-ADD_SUBDIRECTORY(syslog)

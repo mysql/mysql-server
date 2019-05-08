@@ -26,6 +26,7 @@
 #include <mysql/group_replication_priv.h>
 #include <stddef.h>
 
+#include "mutex_lock.h"
 #include "my_dbug.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
@@ -142,7 +143,7 @@ int Delayed_initialization_thread::initialization_thread_handler() {
 
   if (server_engine_initialized()) {
     // Protect this delayed start against other start/stop requests
-    Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
+    MUTEX_LOCK(lock, get_plugin_running_lock());
 
     plugin_is_setting_read_mode = true;
 

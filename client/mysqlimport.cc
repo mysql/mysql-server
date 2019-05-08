@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,8 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "print_version.h"
+#include "thr_cond.h"
+#include "thr_mutex.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -414,7 +416,10 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
   if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
   if (opt_local_file)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_file);
-  SSL_SET_OPTIONS(mysql);
+  if (SSL_SET_OPTIONS(mysql)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    return 0;
+  }
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
   if (opt_bind_addr) mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);

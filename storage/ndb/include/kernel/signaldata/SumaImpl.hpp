@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -592,6 +592,7 @@ struct SumaContinueB
     ,HANDOVER_WAIT_TIMEOUT = 9
     ,WAIT_SCAN_TAB_REQ = 10
     ,WAIT_GET_FRAGMENT = 11
+    ,SEND_SUB_GCP_COMPLETE_REP = 12
   };
 };
 

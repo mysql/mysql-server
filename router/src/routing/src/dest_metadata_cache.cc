@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,14 @@
 #include <chrono>
 #include <iostream>
 #include <set>
+#include <stdexcept>
 #ifndef _WIN32
 #include <netdb.h>
 #include <netinet/tcp.h>
 #endif
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/plugin.h"
 #include "mysqlrouter/utils.h"
 #include "tcp_address.h"
 
@@ -49,7 +51,7 @@ using std::runtime_error;
 using metadata_cache::ManagedInstance;
 IMPORT_LOG_FUNCTIONS()
 
-// if client wants a primary and there's none, we can wait up to this amount of
+// if client wants a PRIMARY and there's none, we can wait up to this amount of
 // seconds until giving up and disconnecting the client
 // TODO: possibly this should be made into a configurable option
 static const int kPrimaryFailoverTimeout = 10;
@@ -66,14 +68,14 @@ DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
     throw runtime_error("Missing 'role' in routing destination specification");
 
   const std::string name = uri.at("role");
-  std::string name_lc = name;
-  std::transform(name.begin(), name.end(), name_lc.begin(), ::tolower);
+  std::string name_uc = name;
+  std::transform(name.begin(), name.end(), name_uc.begin(), ::toupper);
 
-  if (name_lc == "primary")
+  if (name_uc == "PRIMARY")
     return DestMetadataCacheGroup::ServerRole::Primary;
-  else if (name_lc == "secondary")
+  else if (name_uc == "SECONDARY")
     return DestMetadataCacheGroup::ServerRole::Secondary;
-  else if (name_lc == "primary_and_secondary")
+  else if (name_uc == "PRIMARY_AND_SECONDARY")
     return DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary;
 
   throw std::runtime_error("Invalid server role in metadata cache routing '" +
@@ -84,11 +86,11 @@ std::string get_server_role_name(
     const DestMetadataCacheGroup::ServerRole role) {
   switch (role) {
     case DestMetadataCacheGroup::ServerRole::Primary:
-      return "primary";
+      return "PRIMARY";
     case DestMetadataCacheGroup::ServerRole::Secondary:
-      return "secondary";
+      return "SECONDARY";
     case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
-      return "primary_and_secondary";
+      return "PRIMARY_AND_SECONDARY";
   }
 
   return "unknown";
@@ -196,7 +198,6 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
       cache_name_(metadata_cache),
       ha_replicaset_(replicaset),
       uri_query_(query),
-      current_pos_(0),
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
       server_role_(get_server_role_from_uri(query)),
@@ -213,11 +214,6 @@ DestMetadataCacheGroup::AvailableDestinations
 DestMetadataCacheGroup::get_available(
     const metadata_cache::LookupResult &managed_servers,
     bool for_new_connections) {
-  // TODO: this is a workaround. We should do it in the init() but currently
-  // there is no way to check if metadata_cache is initialized so we postpone it
-  // to first connection request
-  subscribe_for_metadata_cache_changes();
-
   DestMetadataCacheGroup::AvailableDestinations result;
 
   bool primary_fallback{false};
@@ -232,7 +228,6 @@ DestMetadataCacheGroup::get_available(
 
     primary_fallback = secondary == managed_servers_vec.end();
   }
-
   // if we are gathering the nodes for the decision about keeping existing
   // connections we look also at the disconnect_on_promoted_to_primary_ setting
   // if set to 'no' we need to allow primaries for role=SECONDARY
@@ -359,13 +354,10 @@ void DestMetadataCacheGroup::init() {
 }
 
 void DestMetadataCacheGroup::subscribe_for_metadata_cache_changes() {
-  std::lock_guard<std::mutex> lock(
-      subscribed_for_metadata_cache_changes_mutex_);
-  if (subscribed_for_metadata_cache_changes_) return;
-  subscribed_for_metadata_cache_changes_ = true;
   using namespace std::placeholders;
 
   cache_api_->add_listener(ha_replicaset_, this);
+  subscribed_for_metadata_cache_changes_ = true;
 }
 
 DestMetadataCacheGroup::~DestMetadataCacheGroup() {
@@ -398,7 +390,6 @@ size_t DestMetadataCacheGroup::get_next_server(
     default:
       assert(0);
       // impossible we verify this in init()
-      ;
   }
 
   return result;
@@ -415,7 +406,7 @@ int DestMetadataCacheGroup::get_server_socket(
         log_warning(
             "No available servers found for '%s' %s routing",
             ha_replicaset_.c_str(),
-            server_role_ == ServerRole::Primary ? "primary" : "secondary");
+            server_role_ == ServerRole::Primary ? "PRIMARY" : "SECONDARY");
         return -1;
       }
 
@@ -477,4 +468,15 @@ void DestMetadataCacheGroup::notify(
     const metadata_cache::LookupResult &instances,
     const bool md_servers_reachable) noexcept {
   on_instances_change(instances, md_servers_reachable);
+}
+
+void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
+  // before using metadata-cache we need to wait for it to be initialized
+  while (!cache_api_->is_initialized() && (!env || is_running(env))) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  if (!env || is_running(env)) {
+    subscribe_for_metadata_cache_changes();
+  }
 }

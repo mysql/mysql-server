@@ -98,6 +98,8 @@ typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
 typedef void (*set_statement_text_v1_t)(struct PSI_statement_locker *locker,
                                         const char *text,
                                         unsigned int text_len);
+typedef void (*set_statement_query_id_t)(struct PSI_statement_locker *locker,
+                                         unsigned long long query_id);
 typedef void (*set_statement_lock_time_t)(struct PSI_statement_locker *locker,
                                           unsigned long long lock_time);
 typedef void (*set_statement_rows_sent_t)(struct PSI_statement_locker *locker,
@@ -172,11 +174,15 @@ struct PSI_statement_bootstrap {
 };
 typedef struct PSI_statement_bootstrap PSI_statement_bootstrap;
 struct PSI_statement_service_v1 {
+  void * this_interface_is_obsolete;
+};
+struct PSI_statement_service_v2 {
   register_statement_v1_t register_statement;
   get_thread_statement_locker_v1_t get_thread_statement_locker;
   refine_statement_v1_t refine_statement;
   start_statement_v1_t start_statement;
   set_statement_text_v1_t set_statement_text;
+  set_statement_query_id_t set_statement_query_id;
   set_statement_lock_time_t set_statement_lock_time;
   set_statement_rows_sent_t set_statement_rows_sent;
   set_statement_rows_examined_t set_statement_rows_examined;
@@ -207,5 +213,5 @@ struct PSI_statement_service_v1 {
   end_sp_v1_t end_sp;
   drop_sp_v1_t drop_sp;
 };
-typedef struct PSI_statement_service_v1 PSI_statement_service_t;
+typedef struct PSI_statement_service_v2 PSI_statement_service_t;
 extern PSI_statement_service_t *psi_statement_service;

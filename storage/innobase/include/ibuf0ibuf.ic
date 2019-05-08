@@ -279,8 +279,8 @@ void ibuf_update_free_bits_if_full(
       ibuf_index_page_calc_free_bits(block->page.size.physical(), max_ins_size);
 
   if (max_ins_size >= increase) {
-    static_assert(ULINT32_UNDEFINED > UNIV_PAGE_SIZE_MAX,
-                  "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX");
+    static_assert(UINT32_UNDEFINED > UNIV_PAGE_SIZE_MAX,
+                  "UINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX");
 
     after = ibuf_index_page_calc_free_bits(block->page.size.physical(),
                                            max_ins_size - increase);

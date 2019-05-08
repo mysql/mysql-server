@@ -1,0 +1,36 @@
+#==== Purpose ====
+#
+# Verify that there is no crash in the server while executing the command
+# INSERT..SELECT..LIMIT on a partitioned table in binlog_format='mixed'.
+#
+# ==== Implementation ====
+#
+# 1. Create a partitioned table 'employees' and insert a row in it.
+# 2. Create a non-partitioned table t1 and insert a row in it.
+# 3. Execute the command INSERT..SELECT..LIMIT on partition table
+#    employees.
+# 4. Execute SHOW BINLOG EVENTS command to ensure the server didn't crash.
+# 5. Clean up.
+#
+# ==== References ====
+#
+# Bug#29170679:ASSERT FAILURE IN EXECUTING INSERT..SELECT..LIMIT STMT IN PARTITION TABLE IN MBR
+
+# Run this test in mixed mode as that is where the crash is seen.
+--source include/have_binlog_format_mixed.inc
+
+RESET MASTER;
+
+CREATE TABLE employees (store_id INT NOT NULL) PARTITION BY RANGE (store_id)
+( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+INSERT INTO employees VALUES (5);
+
+CREATE TABLE t1 (m INT);
+INSERT INTO t1 VALUES (9);
+INSERT INTO employees SELECT 5 FROM t1 LIMIT 3;
+--source include/show_binlog_events.inc
+
+#Cleanup
+DROP TABLE employees;
+DROP TABLE t1;

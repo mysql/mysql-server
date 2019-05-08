@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,8 @@ class Mem_root_array_YY {
     for (size_t ix = 0; ix < m_size; ++ix) {
       Element_type *new_p = &array[ix];
       Element_type *old_p = &m_array[ix];
-      ::new (new_p) Element_type(*old_p);  // Copy into new location.
+      ::new (new_p)
+          Element_type(std::move(*old_p));  // Copy or move into new location.
       if (!has_trivial_destructor)
         old_p->~Element_type();  // Destroy the old element.
     }
@@ -192,6 +193,25 @@ class Mem_root_array_YY {
       return true;
     Element_type *p = &m_array[m_size++];
     ::new (p) Element_type(element);
+    return false;
+  }
+
+  /**
+    Adds a new element at the end of the array, after its current last
+    element. The content of this new element is initialized by moving
+    the input element.
+
+    @param  element Object to move.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool push_back(Element_type &&element) {
+    const size_t min_capacity = 20;
+    const size_t expansion_factor = 2;
+    if (0 == m_capacity && reserve(min_capacity)) return true;
+    if (m_size == m_capacity && reserve(m_capacity * expansion_factor))
+      return true;
+    Element_type *p = &m_array[m_size++];
+    ::new (p) Element_type(std::move(element));
     return false;
   }
 
@@ -224,11 +244,30 @@ class Mem_root_array_YY {
     Notice that this function changes the actual content of the
     container by inserting or erasing elements from it.
    */
-  void resize(size_t n, const value_type &val = value_type()) {
+  void resize(size_t n, const value_type &val) {
     if (n == m_size) return;
     if (n > m_size) {
       if (!reserve(n)) {
         while (n != m_size) push_back(val);
+      }
+      return;
+    }
+    if (!has_trivial_destructor) {
+      while (n != m_size) pop_back();
+    }
+    m_size = n;
+  }
+
+  /**
+    Same as resize(size_t, const value_type &val), but default-constructs
+    the new elements. This allows one to resize containers even if
+    value_type is not copy-constructible.
+   */
+  void resize(size_t n) {
+    if (n == m_size) return;
+    if (n > m_size) {
+      if (!reserve(n)) {
+        while (n != m_size) push_back(value_type());
       }
       return;
     }
@@ -292,6 +331,47 @@ class Mem_root_array_YY {
     return begin() + idx;
   }
 
+  /**
+    Removes a single element from the array by value.
+    The removed element is destroyed.  This effectively reduces the
+    container size by one.
+    Note that if there are multiple elements having the same
+    value, only the first element is removed.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+
+    We use std::copy to move objects, hence Element_type must be
+    assignable.
+
+    @retval number of elements removed, 0 or 1.
+  */
+  size_t erase_value(const value_type &val) {
+    iterator position = std::find(begin(), end(), val);
+    if (position != end()) {
+      erase(position);
+      return 1;
+    }
+    return 0;  // Not found
+  }
+
+  /**
+    Removes a single element from the array.
+    The removed element is destroyed.
+    This effectively reduces the container size by one.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+
+    We use std::copy to move objects, hence Element_type must be assignable.
+  */
+  iterator erase(iterator position) {
+    DBUG_ASSERT(position != end());
+    if (position + 1 != end()) std::copy(position + 1, end(), position);
+    this->pop_back();
+    return position;
+  }
+
   size_t capacity() const { return m_capacity; }
   size_t element_size() const { return sizeof(Element_type); }
   bool empty() const { return size() == 0; }
@@ -324,8 +404,13 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
   typedef typename super::const_iterator const_iterator;
 
   explicit Mem_root_array(MEM_ROOT *root) { super::init(root); }
-  Mem_root_array(MEM_ROOT *root, size_t n,
-                 const value_type &val = value_type()) {
+
+  Mem_root_array(MEM_ROOT *root, size_t n) {
+    super::init(root);
+    super::resize(n);
+  }
+
+  Mem_root_array(MEM_ROOT *root, size_t n, const value_type &val) {
     super::init(root);
     super::resize(n, val);
   }

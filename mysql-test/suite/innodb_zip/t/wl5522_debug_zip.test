@@ -33,7 +33,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED;
 INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 

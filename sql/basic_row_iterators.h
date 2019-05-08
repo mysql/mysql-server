@@ -63,16 +63,17 @@ class TableScanIterator final : public TableRowIterator {
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
-                    Item *pushed_condition, ha_rows *examined_rows);
-  ~TableScanIterator();
+                    ha_rows *examined_rows);
+  ~TableScanIterator() override;
 
   bool Init() override;
   int Read() override;
 
+  std::vector<std::string> DebugString() const override;
+
  private:
   uchar *const m_record;
   QEP_TAB *const m_qep_tab;
-  Item *const m_pushed_condition;
   ha_rows *const m_examined_rows;
 };
 
@@ -93,19 +94,18 @@ class IndexScanIterator final : public TableRowIterator {
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order,
-                    QEP_TAB *qep_tab, Item *pushed_condition,
-                    ha_rows *examined_rows);
-  ~IndexScanIterator();
+                    QEP_TAB *qep_tab, ha_rows *examined_rows);
+  ~IndexScanIterator() override;
 
   bool Init() override;
   int Read() override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   uchar *const m_record;
   const int m_idx;
   const bool m_use_order;
   QEP_TAB *const m_qep_tab;
-  Item *const m_pushed_condition;
   ha_rows *const m_examined_rows;
   bool m_first = true;
 };
@@ -131,17 +131,16 @@ class IndexRangeScanIterator final : public TableRowIterator {
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick,
-                         QEP_TAB *qep_tab, Item *pushed_condition,
-                         ha_rows *examined_rows);
+                         QEP_TAB *qep_tab, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
   QUICK_SELECT_I *const m_quick;
   QEP_TAB *const m_qep_tab;
-  Item *const m_pushed_condition;
   ha_rows *const m_examined_rows;
 };
 
@@ -170,10 +169,11 @@ class SortBufferIterator final : public TableRowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
                      Sort_result *sort_result, ha_rows *examined_rows);
-  ~SortBufferIterator();
+  ~SortBufferIterator() override;
 
   bool Init() override;
   int Read() override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
@@ -205,16 +205,16 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortBufferIndirectIterator(THD *thd, TABLE *table, Sort_result *sort_result,
-                             bool ignore_not_found_rows, Item *pushed_condition,
+                             bool ignore_not_found_rows,
                              ha_rows *examined_rows);
-  ~SortBufferIndirectIterator();
+  ~SortBufferIndirectIterator() override;
   bool Init() override;
   int Read() override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   Sort_result *const m_sort_result;
   const uint m_ref_length;
-  Item *const m_pushed_condition;
   ha_rows *const m_examined_rows;
   uchar *m_record = nullptr;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr;
@@ -235,10 +235,11 @@ class SortFileIterator final : public TableRowIterator {
   // Takes ownership of tempfile.
   SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                    Filesort_info *sort, ha_rows *examined_rows);
-  ~SortFileIterator();
+  ~SortFileIterator() override;
 
   bool Init() override { return false; }
   int Read() override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   uchar *const m_rec_buf;
@@ -266,11 +267,12 @@ class SortFileIndirectIterator final : public TableRowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                            bool request_cache, bool ignore_not_found_rows,
-                           Item *pushed_condition, ha_rows *examined_rows);
-  ~SortFileIndirectIterator();
+                           ha_rows *examined_rows);
+  ~SortFileIndirectIterator() override;
 
   bool Init() override;
   int Read() override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   bool InitCache();
@@ -278,7 +280,6 @@ class SortFileIndirectIterator final : public TableRowIterator {
   int UncachedRead();
 
   IO_CACHE *m_io_cache = nullptr;
-  Item *const m_pushed_condition;
   ha_rows *const m_examined_rows;
   uchar *m_record = nullptr;
   uchar *m_ref_pos = nullptr; /* pointer to form->refpos */
@@ -298,6 +299,45 @@ class SortFileIndirectIterator final : public TableRowIterator {
   unique_ptr_my_free<uchar[]> m_cache;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr,
         *m_read_positions = nullptr;
+};
+
+// Used when the plan is const, ie. is known to contain a single row
+// (and all values have been read in advance, so we don't need to read
+// a single table).
+class FakeSingleRowIterator final : public RowIterator {
+ public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  FakeSingleRowIterator(THD *thd, ha_rows *examined_rows)
+      : RowIterator(thd), m_examined_rows(examined_rows) {}
+
+  bool Init() override {
+    m_has_row = true;
+    return false;
+  }
+
+  int Read() override {
+    if (m_has_row) {
+      m_has_row = false;
+      if (m_examined_rows != nullptr) {
+        ++*m_examined_rows;
+      }
+      return 0;
+    } else {
+      return -1;
+    }
+  }
+
+  std::vector<std::string> DebugString() const override {
+    return {"Rows fetched before execution"};
+  }
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  bool m_has_row;
+  ha_rows *const m_examined_rows;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

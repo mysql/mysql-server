@@ -1,0 +1,11 @@
+insert into t_big_metadata(i,j) values (1,101) , (2,102) , (3,103) ;
+delete from t_big_metadata where i = 2;
+select i,j from t_big_metadata where i = 1;
+i	j
+1	101
+alter table t_big_metadata add index(j), algorithm=inplace;
+alter table t_big_metadata drop column c8, add column k int, algorithm=copy;
+select i,j,k from t_big_metadata where j < 103;
+i	j	k
+1	101	NULL
+drop table t_big_metadata;

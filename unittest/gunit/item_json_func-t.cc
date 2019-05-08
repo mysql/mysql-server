@@ -733,7 +733,7 @@ static void BM_JsonSearch(size_t num_iterations) {
   StopBenchmarkTiming();
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonSearch);
+BENCHMARK(BM_JsonSearch)
 
 /**
   Microbenchmark which tests the performance of the JSON_SEARCH
@@ -782,6 +782,6 @@ static void BM_JsonSearch_Wildcard(size_t num_iterations) {
   StopBenchmarkTiming();
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonSearch_Wildcard);
+BENCHMARK(BM_JsonSearch_Wildcard)
 
 }  // namespace item_json_func_unittest

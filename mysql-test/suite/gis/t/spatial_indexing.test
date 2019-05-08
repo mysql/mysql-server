@@ -11,9 +11,6 @@ USE test;
 ############################################################################################
 # POINT: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_point_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_point_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
 NOT NULL SRID 0,spatial index (g) ) engine=myisam;
@@ -28,17 +25,11 @@ while ($i)
 select count(g) from gis_point_with_spatial_index where ST_AsText(g) like "%100 10%";
 select ST_AsText(g) from gis_point_with_spatial_index where ST_AsText(g) like "%100 10%";
 
---disable_warnings
-DROP TABLE IF EXISTS gis_point_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_point_with_spatial_index;
 
 ############################################################################################
 # LINESTRING: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_line_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_line_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
@@ -53,18 +44,11 @@ while ($i)
 select count(g) from gis_line_with_spatial_index where ST_AsText(g) like "%100 10%";
 select ST_AsText(g) from gis_line_with_spatial_index where ST_AsText(g) like "%100 10%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_line_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_line_with_spatial_index;
 
 ############################################################################################
 # POLYGON: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_polygon_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_polygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
@@ -79,18 +63,11 @@ while ($i)
 select count(g) from gis_polygon_with_spatial_index where ST_AsText(g) like "%10 10%";
 select ST_AsText(g) from gis_polygon_with_spatial_index where ST_AsText(g) like "%10 10%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_polygon_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_polygon_with_spatial_index;
 
 ############################################################################################
 # MULTIPOINT: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_multipoint_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_multipoint_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
@@ -105,18 +82,11 @@ while ($i)
 select count(g) from gis_multipoint_with_spatial_index where ST_AsText(g) like "%10 10%";
 select ST_AsText(g) from gis_multipoint_with_spatial_index where ST_AsText(g) like "%10 10%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_multipoint_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_multipoint_with_spatial_index;
 
 ############################################################################################
 # MULTILINE: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_multiline_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_multiline_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
@@ -131,18 +101,11 @@ while ($i)
 select count(g) from gis_multiline_with_spatial_index where ST_AsText(g) like "%10 0%";
 select ST_AsText(g) from gis_multiline_with_spatial_index where ST_AsText(g) like "%10 0%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_multiline_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_multiline_with_spatial_index;
 
 ############################################################################################
 # MULTIPOLYGON: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_multipolygon_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_multipolygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
@@ -159,18 +122,11 @@ select ST_AsText(g) from gis_multipolygon_with_spatial_index where ST_AsText(g) 
 select count(g) from gis_multipolygon_with_spatial_index where ST_AsText(g) like "%84 0%";
 select ST_AsText(g) from gis_multipolygon_with_spatial_index where ST_AsText(g) like "%84 0%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_multipolygon_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_multipolygon_with_spatial_index;
 
 ############################################################################################
 # GEOMETRY COLLECTION: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_geometrycollection_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_geometrycollection_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
@@ -185,18 +141,11 @@ while ($i)
 select count(g) from gis_geometrycollection_with_spatial_index where ST_AsText(g) like "%10 10%";
 select ST_AsText(g) from gis_geometrycollection_with_spatial_index where ST_AsText(g) like "%10 10%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_geometrycollection_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_geometrycollection_with_spatial_index;
 
 ############################################################################################
 # GEOMETRY COLLECTION: Check indexes for spatial data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_geometry_with_spatial_index;
---enable_warnings
 
 CREATE TABLE gis_geometry_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
@@ -211,19 +160,12 @@ while ($i)
 select count(g) from gis_geometry_with_spatial_index where ST_AsText(g) like "%10 10%";
 select ST_AsText(g) from gis_geometry_with_spatial_index where ST_AsText(g) like "%10 10%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_geometry_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_geometry_with_spatial_index;
 
 ############################################################################################
 # Check indexes for spatial data and normal data on same table with spatial index
 ############################################################################################
-#Create some data for point table
---disable_warnings
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
---enable_warnings
+# Create some data for point table
 
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
 NOT NULL SRID 0,spatial index (g) ) engine=myisam;
@@ -238,10 +180,7 @@ while ($i)
 select count(g) from gis_point_and_int_with_spatial_index where ST_AsText(g) like "%100 10%";
 select ST_AsText(g) from gis_point_and_int_with_spatial_index where ST_AsText(g) like "%100 10%";
 
---disable_warnings
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
---enable_warnings
-
+DROP TABLE gis_point_and_int_with_spatial_index;
 
 ############################################################################################
 # Check indexes for spatial data and normal data on same table with spatial index
@@ -250,7 +189,6 @@ CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
---disable_warnings
 INSERT INTO gis_point_and_int_with_spatial_index VALUES
 (101, ST_PointFromText('POINT(10 10)'),1),
 (102, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))),21),
@@ -276,11 +214,7 @@ CREATE INDEX a ON gis_point_and_int_with_spatial_index (a) ;
 select count(g) from gis_point_and_int_with_spatial_index  where a like "%3%";
 select ST_AsText(g) from gis_point_and_int_with_spatial_index  where a like "%3%";
 
---disable_warnings
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
---enable_warnings
-
-
+DROP TABLE gis_point_and_int_with_spatial_index;
 
 ############################################################################################
 #POINT: Check indexes for spatial data and normal data on same table with spatial index
@@ -289,7 +223,6 @@ CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY
 NOT NULL SRID 0, a int,  index (a) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
---disable_warnings
 INSERT INTO gis_point_and_int_with_spatial_index VALUES
 (101, ST_PointFromText('POINT(10 10)'),1),
 (102, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))),21),
@@ -315,22 +248,15 @@ SELECT COUNT(a) FROM gis_point_and_int_with_spatial_index  WHERE ST_AsText(g) LI
 #create a spatial index on a non existing column
 #CREATE SPATIAL INDEX g ON gis_point_and_int_with_spatial_index (b);
 
---disable_warnings
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index ;
---enable_warnings
-
+DROP TABLE gis_point_and_int_with_spatial_index ;
 
 ############################################################################################
 #LINESTRING: Check indexes for spatial data and normal data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
---enable_warnings
 CREATE TABLE gis_linestring_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
---disable_warnings
 INSERT INTO gis_linestring_and_int_with_spatial_index VALUES
 (201,ST_LineFromText('LINESTRING(0 0,0 10,10 0)'),1),
 (202,ST_LineFromText('LINESTRING(1 1,1 10,10 20)'),2),
@@ -340,7 +266,6 @@ INSERT INTO gis_linestring_and_int_with_spatial_index VALUES
 select count(g) from gis_linestring_and_int_with_spatial_index  where ST_AsText(g) like "%0%";
 select count(a) from gis_linestring_and_int_with_spatial_index  where ST_AsText(g) like "%0%";
 select count(a) from gis_linestring_and_int_with_spatial_index  where ST_AsText(g) like "%10 10%";
-
 
 #drop the spatial index
 ALTER TABLE gis_linestring_and_int_with_spatial_index DROP INDEX g;
@@ -357,23 +282,15 @@ CREATE SPATIAL INDEX g ON gis_linestring_and_int_with_spatial_index (g) ;
 #check the index created on a
 SELECT COUNT(g) FROM gis_linestring_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%2%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
---enable_warnings
-
+DROP TABLE gis_linestring_and_int_with_spatial_index ;
 
 ############################################################################################
 #MULTILINE: Check indexes for spatial data and normal data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
---enable_warnings
 CREATE TABLE gis_multilinestring_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g MULTILINESTRING 
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
---disable_warnings
 INSERT INTO gis_multilinestring_and_int_with_spatial_index VALUES
 (300,ST_MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))'),1),
 (301,ST_MultiLineStringFromText('MULTILINESTRING((130 48,180 21,10 90),(916 0,516 2373223,816 48))'),1),
@@ -399,23 +316,15 @@ CREATE SPATIAL INDEX g ON gis_multilinestring_and_int_with_spatial_index (g) ;
 #check the index created on a
 SELECT COUNT(g) FROM gis_multilinestring_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%48%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
---enable_warnings
-
+DROP TABLE gis_multilinestring_and_int_with_spatial_index ;
 
 ############################################################################################
 #POLYGON: Check indexes for spatial data and normal data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
---enable_warnings
 CREATE TABLE gis_polygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g POLYGON
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
---disable_warnings
 INSERT INTO gis_polygon_and_int_with_spatial_index VALUES
 (300,ST_PolygonFromText('POLYGON((183670 10,2470 10,20 249380,10 254760,183670 10))'),12),
 (301,ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))'),2),
@@ -442,23 +351,15 @@ CREATE SPATIAL INDEX g ON gis_polygon_and_int_with_spatial_index (g) ;
 #check the index created on a
 SELECT COUNT(g) FROM gis_polygon_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%48%";
 
-
---disable_warnings
-DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
---enable_warnings
-
+DROP TABLE gis_polygon_and_int_with_spatial_index ;
 
 ############################################################################################
 #MULTIPOLYGON: Check indexes for spatial data and normal data on same table with spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
---enable_warnings
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g multiPOLYGON
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
---disable_warnings
 INSERT INTO gis_multipolygon_and_int_with_spatial_index VALUES
 (1,ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'),1),
 (2,ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,864 0,8984 42,28 26),(2 18,66 348345723,73 9,48 6,2 18)),((519 18,67 18,348345767 13,59 13,519 18)))'),1),
@@ -488,9 +389,7 @@ SELECT COUNT(g) FROM gis_multipolygon_and_int_with_spatial_index  WHERE ST_AsTex
 ############################################################################################
 #Some erors around spatial index
 ############################################################################################
---disable_warnings
-DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
---enable_warnings
+DROP TABLE gis_multipolygon_and_int_with_spatial_index ;
 --error ER_SPATIAL_UNIQUE_INDEX
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON PRIMARY KEY, a int) engine=myisam;
 
@@ -507,7 +406,6 @@ CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER PRIMARY K
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
---disable_warnings
 INSERT INTO gis_multipolygon_and_int_with_spatial_index VALUES
 (1,ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'),1),
 (2,ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,864 0,8984 42,28 26),(2 18,66 348345723,73 9,48 6,2 18)),((519 18,67 18,348345767 13,59 13,519 18)))'),1),
@@ -539,8 +437,7 @@ CREATE SPATIAL INDEX g ON gis_multipolygon_and_int_with_spatial_index (g) ;
 #check the index created on a
 SELECT COUNT(g) FROM gis_multipolygon_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%18%";
 
---disable_warnings
-DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
+DROP TABLE gis_multipolygon_and_int_with_spatial_index ;
 
 --echo #
 --echo # Bug #21087676 FORBID BUILDING NON-SPATIAL INDEX ON GEOMETRY COLUMNS

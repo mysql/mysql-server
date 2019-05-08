@@ -10,6 +10,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("read failed");
 call mtr.add_suppression("This member could not reach a majority of the members for more than.*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");

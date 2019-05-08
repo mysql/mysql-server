@@ -105,6 +105,8 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 
 bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
                    rtr_mbr_t *b) {
+  // These points should not have initialized values at this point,
+  // which are min == DBL_MAX and max == -DBL_MAX.
   DBUG_ASSERT(a->xmin <= a->xmax && a->ymin <= a->ymax);
   DBUG_ASSERT(b->xmin <= b->xmax && b->ymin <= b->ymax);
 

@@ -354,7 +354,6 @@ use mysqltest;
 create table t1 (a int);
 insert into t1 values (1);
 create table t2 (s1 int);
-drop function if exists f2;
 create function f2 () returns int begin declare v int; select s1 from t2
 into v; return v; end//
 create algorithm=TEMPTABLE view v1 as select f2() from t1;
@@ -392,7 +391,6 @@ use mysqltest;
 create table t1 (a int);
 insert into t1 values (1);
 create table t2 (s1 int);
-drop function if exists f2;
 create function f2 () returns int begin declare v int; select s1 from t2
 into v; return v; end//
 grant select on t1 to mysqltest_1@localhost;
@@ -1468,7 +1466,6 @@ USE test;
 #
 # Bug#47734: Assertion failed: ! is_set() when locking a view with non-existing definer
 #
-DROP VIEW IF EXISTS v1;
 CREATE DEFINER=`unknown`@`unknown` SQL SECURITY DEFINER VIEW v1 AS SELECT 1;
 Warnings:
 Note	1449	The user specified as a definer ('unknown'@'unknown') does not exist
@@ -1481,7 +1478,6 @@ DROP VIEW v1;
 #
 # Check that we correctly handle privileges for various combinations
 # of INVOKER and DEFINER-security views using each other.
-DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
 USE mysqltest1;
 CREATE TABLE t1 (i INT);

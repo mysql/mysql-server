@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,9 +63,8 @@ class Schema_impl : public Entity_object_impl, public Schema {
   Schema_impl()
       : m_created(0),
         m_last_altered(0),
+        m_default_encryption(enum_encryption_type::ET_NO),
         m_default_collation_id(INVALID_OBJECT_ID) {}
-
-  virtual ~Schema_impl() {}
 
  public:
   virtual const Object_table &object_table() const;
@@ -89,6 +88,19 @@ class Schema_impl : public Entity_object_impl, public Schema {
 
   virtual void set_default_collation_id(Object_id default_collation_id) {
     m_default_collation_id = default_collation_id;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Default encryption.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool default_encryption() const {
+    return m_default_encryption == enum_encryption_type::ET_YES;
+  }
+
+  virtual void set_default_encryption(bool default_encryption) {
+    m_default_encryption = default_encryption ? enum_encryption_type::ET_YES
+                                              : enum_encryption_type::ET_NO;
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -147,9 +159,10 @@ class Schema_impl : public Entity_object_impl, public Schema {
     sprintf(outbuf,
             "SCHEMA OBJECT: id= {OID: %lld}, name= %s, "
             "collation_id={OID: %lld},"
-            "m_created= %llu, m_last_altered= %llu",
+            "m_created= %llu, m_last_altered= %llu,"
+            "m_default_encryption= %d",
             id(), name().c_str(), m_default_collation_id, m_created,
-            m_last_altered);
+            m_last_altered, static_cast<int>(m_default_encryption));
     outb = String_type(outbuf);
   }
 
@@ -157,6 +170,7 @@ class Schema_impl : public Entity_object_impl, public Schema {
   // Fields
   ulonglong m_created;
   ulonglong m_last_altered;
+  enum_encryption_type m_default_encryption;
 
   // References to other objects
   Object_id m_default_collation_id;

@@ -1381,7 +1381,7 @@ void _db_dump_(uint _line_, const char *keyword, const unsigned char *memory,
 
     pos = 0;
     while (length-- > 0) {
-      uint tmp = *((unsigned char *)memory++);
+      uint tmp = *(memory++);
       if ((pos += 3) >= 80) {
         fputc('\n', cs->stack->out_file);
         pos = 3;

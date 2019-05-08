@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,10 @@
 
 #include "storage/perfschema/table_log_status.h"
 
+#include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
+#include "sql/field.h"
 #include "sql/log_resource.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_msr.h"  // channel_map

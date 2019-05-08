@@ -1,0 +1,187 @@
+################################################################################
+#
+# The auto-rejoin process is a mechanism that allows a server that left the
+# group due to flaky network (either on his side or on the other members) to
+# try to join again up to group_replication_autorejoin_tries number of times.
+#
+# This test shall verify that the group_replication_autorejoin_tries sysvar
+# behaves as required, i.e. has a well-defined domain of possible values, can
+# enable or disable the auto-rejoin process and can be updated while the plugin
+# is running.
+#
+# Test:
+# 0) The test requires three servers.
+# 1) Verify that the default is 0.
+# 2) Verify that only positive values are accepted.
+# 3) Verify that when it is 0, the auto-rejoin process isn't run.
+# 4) Verify that when it is greater than 0, the auto-rejoin process is run.
+# 5) Verify that you can't update the group_replication_autorejoin_tries sysvar
+#    when an auto-rejoin is ongoing.
+# 6) Cleanup.
+#
+################################################################################
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/linux.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count = 3
+--source include/group_replication.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("\\[GCS\\] The member has left the group but the new view will not be installed*");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET sql_log_bin = 1;
+
+--source include/gr_autorejoin_monitoring.inc
+
+--echo
+--echo ####
+--echo # 1) Verify that the default is 0.
+--echo ####
+--echo
+SET @@GLOBAL.group_replication_autorejoin_tries = default;
+--let $assert_text = The default of group_replication_autorejoin_tries should be 0
+--let $assert_cond = [SELECT @@GLOBAL.group_replication_autorejoin_tries] = 0
+--source include/assert.inc
+
+--echo
+--echo ####
+--echo # 2) Verify that only positive values are accepted.
+--echo ####
+--echo
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_autorejoin_tries = 0.5;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_autorejoin_tries = "string";
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_autorejoin_tries = on;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_autorejoin_tries = -1;
+SET GLOBAL group_replication_autorejoin_tries = 2016;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_autorejoin_tries = 2017;
+
+--echo
+--echo ####
+--echo # 3) Verify that when it is 0, the auto-rejoin process isn't run.
+--echo ####
+--echo
+SET GLOBAL group_replication_autorejoin_tries = 0;
+
+# Force an expel on member 2
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--source include/gr_expel_member_from_group.inc
+
+# Verify that no auto-rejoin process was run
+--let $assert_text = Auto-rejoin should not have been executed
+--let $assert_cond = [SELECT GET_COUNT_AUTOREJOIN()] = 0
+--source include/assert.inc
+
+--echo
+--echo ####
+--echo # 4) Verify that when it is greater than 0, the auto-rejoin process is
+--echo # run.
+--echo ####
+--echo
+--source include/stop_group_replication.inc
+
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+
+--source include/start_group_replication.inc
+SET GLOBAL group_replication_autorejoin_tries = 3;
+
+
+# Force an expel on member 2
+--source include/gr_expel_member_from_group.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+
+# Verify that it is currently running
+--let $assert_text = Auto-rejoin should be running
+--let $assert_cond = [SELECT IS_AUTOREJOIN_RUNNING()] = TRUE
+--source include/assert.inc
+
+--echo
+--echo ####
+--echo # 5) Verify that you can't update the group_replication_autorejoin_tries
+--echo # sysvar when an auto-rejoin is ongoing.
+--echo ####
+--echo
+--error ER_GRP_RPL_STARTED_AUTO_REJOIN
+SET GLOBAL group_replication_autorejoin_tries = 1;
+
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+
+# Reset GR so we stop the auto-rejoin and leave super_read_only mode
+--source include/stop_group_replication.inc
+
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
+
+--source include/start_group_replication.inc
+
+#
+# Verify that you can update the group_replication_autorejoin_tries sysvar when
+# the auto-rejoin is not running.
+#
+SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+SET GLOBAL group_replication_autorejoin_tries = 2;
+
+--source include/gr_expel_member_from_group.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+
+# Verify that it is currently running
+--let $assert_text = Auto-rejoin should be running
+--let $assert_cond = [SELECT IS_AUTOREJOIN_RUNNING()] = TRUE
+--source include/assert.inc
+
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+
+# Verify that it attempted one try
+--let $assert_text = We should have attempted 1 rejoin
+--let $assert_cond = [SELECT GET_NUMBER_RETRIES()] = 1
+--source include/assert.inc
+
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+#
+# Now we remove the group_replication_fail_rejoin debug sync point so that the
+# rejoin is completed with success and we can cleanup the test.
+#
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+SET @@GLOBAL.DEBUG='-d,group_replication_fail_rejoin';
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+# Verify that the auto-rejoin process has terminated
+--let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = FALSE
+--source include/wait_condition_or_abort.inc
+
+# The member should have rejoined successfully
+--let $group_replication_member_state = ONLINE
+--let $group_replication_member_id = $member_id
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo ####
+--echo # 6) Cleanup.
+--echo ####
+--echo
+--source include/gr_end_autorejoin_monitoring.inc
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET GLOBAL group_replication_autorejoin_tries = default;
+--source include/group_replication_end.inc

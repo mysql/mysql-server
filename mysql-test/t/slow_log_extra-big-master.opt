@@ -1,0 +1,1 @@
+--innodb_file_per_table --innodb_buffer_pool_size=20M --slow-query-log=1 --long-query-time=1 --log-slow-extra=1

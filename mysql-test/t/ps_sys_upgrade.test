@@ -2,31 +2,23 @@
 -- source include/big_test.inc
 #Memory checks will be done by ASAN builds, valgrind timeout on this test.
 --source include/not_valgrind.inc
--- source include/mysql_upgrade_preparation.inc
 
 --echo #
 --echo # Upgrading of sys schema tests
 --echo #
 
+CALL mtr.add_suppression('Found \\d+ sys .*, but expected \\d+. Re-installing the sys schema.');
 # Save a copy of the user/tables_priv tables, to restore later
 # Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
 --let $backup= 1
 --source include/backup_tables_priv_and_users.inc
 
---echo # Remove the sys schema, and check the --skip-sys-schema option
+--echo # Remove the sys schema
 DROP DATABASE sys;
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force
-SHOW DATABASES;
-
 --echo # Now run it normally, to ensure the sys schema is created
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 SHOW DATABASES;
 
 --echo # Now drop procedures and make sure re-install is done
@@ -34,8 +26,9 @@ DROP PROCEDURE sys.ps_setup_save;
 DROP PROCEDURE sys.ps_setup_reload_saved;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
 
 --echo # Now drop functions and make sure re-install is done
@@ -43,8 +36,9 @@ DROP FUNCTION sys.format_bytes;
 DROP FUNCTION sys.format_time;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
 
 --echo # Now drop views and make sure re-install is done
@@ -52,11 +46,12 @@ DROP VIEW sys.host_summary;
 DROP VIEW sys.processlist;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'VIEW' ORDER BY TABLE_NAME;
 
 --echo # Now drop triggers and make sure re-install is done
@@ -64,16 +59,18 @@ DROP TRIGGER sys.sys_config_insert_set_user;
 DROP TRIGGER sys.sys_config_update_set_user;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
 
 --echo # Now drop the sys_config table and make sure re-install is done
 DROP TABLE sys.sys_config;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
 
 --echo #
@@ -83,9 +80,10 @@ SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND 
 
 --echo # First downgrade all tables with user name columnd to 5.6
 
-SET @orig_sql_mode= @@sql_mode;
+CALL mtr.add_suppression("'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.");
 SET sql_mode= (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 SET sql_mode= (SELECT replace(@@sql_mode,'STRICT_TRANS_TABLES',''));
+--let $new_sql_mode= `SELECT @@sql_mode`
 CREATE TABLE mysql.db_backup SELECT * FROM mysql.db;
 
 ALTER TABLE mysql.tables_priv
@@ -115,10 +113,9 @@ CALL mtr.add_suppression("Cannot load from .* The table is probably corrupted");
 --enable_query_log
 
 --echo # Tables with user name column downgraded to 5.6, now run mysql_upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE --sql-mode=$new_sql_mode
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 # Restore the saved contents of mysql.user and mysql.tables_priv
 --let $restore= 1
@@ -129,7 +126,9 @@ TRUNCATE TABLE mysql.db;
 INSERT INTO mysql.db SELECT * FROM mysql.db_backup;
 DROP TABLE mysql.db_backup;
 
-SET sql_mode= @orig_sql_mode;
+# Restart server with default mtr settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
 
 --source include/mysql_upgrade_cleanup.inc
 

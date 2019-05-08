@@ -1,0 +1,1050 @@
+--source include/have_debug_sync.inc
+
+--echo # Bug #27491839  INNODB: ASSERTION FAILURE:
+--echo #                LOCK0LOCK.CC:NNN:!LOCK_REC_OTHER_TRX_HOLDS_EXPL( LOCK
+
+# Save the original settings, to be restored at the end of test
+  SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+# Make sure that transactions will not finish prematurely
+  SET @@global.innodb_lock_wait_timeout = 100000;
+
+--echo # Scenario 1
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# This scenario reproduces the original problem, which was that a transaction
+# was considered to hold implicit lock on a secondary index entry, even if
+# it has not modified any column affecting this secondary index.
+# 1. C1 obtains S lock on secondary index only for id=1
+# 2. C2 modifies row with id=1, by changing c2, which does not affect
+#    secondary index, and thus it should not be considered to hold an
+#    implicit lock on secondary index. Also, this does not require C2
+#    to pay any attention to C1's lock on secondary index.
+# 3. C1 tries to get X lock on the same row, which as one of the steps
+#    checks if C2 has implicit lock (and the bug causes it to believe
+#    that C2 holds it) and if so, then if there is some trx holding an
+#    explicit lock (and it turns out that C1 already has the S lock).
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=1 FOR SHARE;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=1;
+
+--connection C1
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=1 FOR UPDATE;
+
+--connection C2
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  ROLLBACK;
+
+--connection C1
+  --reap
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+
+--echo # Scenario 2
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# This scenario is dual to Scenario 1 in some sense, as it deals with delete
+# marked entries in secondary index.
+# It is similar to Scenario 1 in that a bad implementation could wrongly
+# conclude that modifying an unrelated field makes the transaction an implicit
+# lock owner.
+# This scenario proves that the bug in the original code was not simply in
+# negating the result of row_vers_non_vc_index_entry_match.
+# 1. `default` modifies row with id=1, by setting c1 to 55,
+#    so that that entry with v1=1 becomes delete marked
+# 2. C1 obtains S lock on secondary index only for v1=1
+# 3. C2 modifies row with id=1, by changing c2, which does not affect
+#    secondary index, and thus it should not be considered to hold an
+#    implicit lock on secondary index. Also, this does not require C2
+#    to pay any attention to C1's lock on secondary index.
+# 4. C1 tries to get X lock on the same row, which as one of the steps
+#    checks if C2 has implicit lock (and the bug causes it to believe
+#    that C2 holds it) and if so, then if there is some trx holding an
+#    explicit lock (and it turns out that C1 already has the S lock).
+
+  UPDATE t1 SET c1=55 WHERE id=1;
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=1 FOR SHARE;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=1;
+
+--connection C1
+  SELECT 1 FROM t1 WHERE v1=1 FOR UPDATE;
+  ROLLBACK;
+
+--connection C2
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 3
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# This is not a very difficult scenario, but one needed to verify that a
+# DELETE operation is logged to undo log without UPD_NODE_NO_ORD_CHANGE flag
+# and thus virtual column fields can be retrieved from undo log.
+# This is one of the core assumptions for the fix to this bug.
+# 1. C1 DELETEs record with id=1, and thus should hold implicit lock
+#       on secondary index for v1=1.
+# 2. C2 performs a SELECT 1 FROM t1 WHERE v1=1 FOR SHARE, and should wait
+# 3. C1 commits
+# 4. C2 should see empty result
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  DELETE FROM t1 WHERE id=1;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=1 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4
+
+# In this scenario we check the last possible path for missing virtual
+# columns information: the one where secondary row is not delete marked,
+# and previous version of primary index row is also not delete marked in
+# which case we should withold with deciding if there is an implicit lock
+# until we check trx_id.
+# There are many subscenarios.
+
+--echo # Scenario 4a
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# In 4a we have a case where the previous version is made by active trx,
+# and there are no older versions, because it started with INSERT.
+# In such case it should own implicit lock.
+# 1. C1 INSERTS new row with id=2 v1=2
+# 2. C1 UPDATES unrelated column c2, so that previous_version is INSERT
+# 3. C2 does SELECT 1 FROM t1 WHERE v1=2 FOR SHARE and has to wait
+# 4. C1 commits
+# 5. C2 sees the new row
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=2 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4b
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# In 4b, again the previous version is made by active trx, and there exists
+# an even older version, which was not made by active trx and also matches
+# so in this case there is no implicit lock.
+# 1. default INSERTs id=1,v1=2
+# 2. C1 UPDATEs unrelated field c2
+# 3. C1 UPDATEs unrelated field c2 again
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=2 FOR SHARE and does not have to wait
+# 5. C2 COMMITS
+# 6. C1 COMMITS
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=2;
+  UPDATE t1 SET c2=42 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=2 FOR SHARE;
+  COMMIT;
+
+--connection C1
+  COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4c
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# In 4c, the previous version is made by active trx, there is an older version,
+# also made by trx_id but does not match the secondary index, thus
+# there is an implicit lock
+# 1. C1 INSERTs id=2 v1=2
+# 2. C1 UPDATEs c1 (and thus v1) to 10 for id=2
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=10 FOR SHARE and has to wait
+# 5. C1 COMMITS
+# 6. C2 sees the new row
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+  UPDATE t1 SET c1=10 WHERE id=2;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=10 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4d
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# In 4d, the previous version is made by active trx, there is an older version,
+# which was not made by trx_id, and does not match secondary index, thus
+# there is an implicit lock.
+# 1. default INSERTs id=2 v1=2
+# 2. C1 UPDATEs c1 (and thus v1) to 10 for id=2
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=10 FOR SHARE and has to wait
+# 5. C1 COMMITS
+# 6. C2 sees the new row
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c1=10 WHERE id=2;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=10 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4e
+
+--source suite/innodb/include/prepare_secondary_index_on_virtual.inc
+
+# In 4e, the previous version is not made by trx_id, so we conclude, that
+# there is no implicit lock
+# 1. default INSERTs id=2,v1=2
+# 2. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=2 FOR SHARE and does not have to wait
+# 5. C2 COMMITS
+# 6. C1 COMMITS
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=2 FOR SHARE;
+  COMMIT;
+
+--connection C1
+  COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+
+
+#
+# We will now run through same scenarios as above, but this time we will not use
+# any virtual columns: we will use c1 in place of v1, just to see if the code
+# which handles regular secondary columns has same observable behavior as the
+# code which handles virtual columns
+#
+
+
+
+--echo # Scenario 1
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# This scenario reproduces the original problem, which was that a transaction
+# was considered to hold implicit lock on a secondary index entry, even if
+# it has not modified any column affecting this secondary index.
+# 1. C1 obtains S lock on secondary index only for id=1
+# 2. C2 modifies row with id=1, by changing c2, which does not affect
+#    secondary index, and thus it should not be considered to hold an
+#    implicit lock on secondary index. Also, this does not require C2
+#    to pay any attention to C1's lock on secondary index.
+# 3. C1 tries to get X lock on the same row, which as one of the steps
+#    checks if C2 has implicit lock (and the bug causes it to believe
+#    that C2 holds it) and if so, then if there is some trx holding an
+#    explicit lock (and it turns out that C1 already has the S lock).
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE c1=1 FOR SHARE;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=1;
+
+--connection C1
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE c1=1 FOR UPDATE;
+
+--connection C2
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  ROLLBACK;
+
+--connection C1
+  --reap
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+
+--echo # Scenario 2
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# This scenario is dual to Scenario 1 in some sense, as it deals with delete
+# marked entries in secondary index.
+# It is similar to Scenario 1 in that a bad implementation could wrongly
+# conclude that modifying an unrelated field makes the transaction an implicit
+# lock owner.
+# This scenario proves that the bug in the original code was not simply in
+# negating the result of row_vers_non_vc_index_entry_match.
+# 1. `default` modifies row with id=1, by setting c1 to 55,
+#    so that that entry with c1=1 becomes delete marked
+# 2. C1 obtains S lock on secondary index only for c1=1
+# 3. C2 modifies row with id=1, by changing c2, which does not affect
+#    secondary index, and thus it should not be considered to hold an
+#    implicit lock on secondary index. Also, this does not require C2
+#    to pay any attention to C1's lock on secondary index.
+# 4. C1 tries to get X lock on the same row, which as one of the steps
+#    checks if C2 has implicit lock (and the bug causes it to believe
+#    that C2 holds it) and if so, then if there is some trx holding an
+#    explicit lock (and it turns out that C1 already has the S lock).
+
+  UPDATE t1 SET c1=55 WHERE id=1;
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE c1=1 FOR SHARE;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=1;
+
+--connection C1
+  SELECT 1 FROM t1 WHERE c1=1 FOR UPDATE;
+  ROLLBACK;
+
+--connection C2
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 3
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# This is not a very difficult scenario, and it makes more sense
+# for virtual colum version of this test which can be found above.
+# 1. C1 DELETEs record with id=1, and thus should hold implicit lock
+#       on secondary index for c1=1.
+# 2. C2 performs a SELECT 1 FROM t1 WHERE c1=1 FOR SHARE, and should wait
+# 3. C1 commits
+# 4. C2 should see empty result
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  DELETE FROM t1 WHERE id=1;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE c1=1 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4
+
+# In this scenario we check the last possible path - the one where secondary
+# row is not delete marked, and previous version of primary index row is also
+# not delete marked in which case we should withold with deciding if there is an
+# implicit lock until we check trx_id.
+# There are many subscenarios.
+
+--echo # Scenario 4a
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# In 4a we have a case where the previous version is made by active trx,
+# and there are no older versions, because it started with INSERT.
+# In such case it should own implicit lock.
+# 1. C1 INSERTS new row with id=2 c1=2
+# 2. C1 UPDATES unrelated column c2, so that previous_version is INSERT
+# 3. C2 does SELECT 1 FROM t1 WHERE c1=2 FOR SHARE and has to wait
+# 4. C1 commits
+# 5. C2 sees the new row
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE c1=2 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4b
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# In 4b, again the previous version is made by active trx, and there exists
+# an even older version, which was not made by active trx and also matches
+# so in this case there is no implicit lock.
+# 1. default INSERTs id=1,c1=2
+# 2. C1 UPDATEs unrelated field c2
+# 3. C1 UPDATEs unrelated field c2 again
+# 4. C2 does SELECT 1 FROM t1 WHERE c1=2 FOR SHARE and does not have to wait
+# 5. C2 COMMITS
+# 6. C1 COMMITS
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=2;
+  UPDATE t1 SET c2=42 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE c1=2 FOR SHARE;
+  COMMIT;
+
+--connection C1
+  COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4c
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# In 4c, the previous version is made by active trx, there is an older version,
+# also made by trx_id but does not match the secondary index, thus
+# there is an implicit lock
+# 1. C1 INSERTs id=2 c1=2
+# 2. C1 UPDATEs c1 to 10 for id=2
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE c1=10 FOR SHARE and has to wait
+# 5. C1 COMMITS
+# 6. C2 sees the new row
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+  UPDATE t1 SET c1=10 WHERE id=2;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE c1=10 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4d
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# In 4d, the previous version is made by active trx, there is an older version,
+# which was not made by trx_id, and does not match secondary index, thus
+# there is an implicit lock.
+# 1. default INSERTs id=2 c1=2
+# 2. C1 UPDATEs c1 to 10 for id=2
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE c1=10 FOR SHARE and has to wait
+# 5. C1 COMMITS
+# 6. C2 sees the new row
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c1=10 WHERE id=2;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE c1=10 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4e
+
+--source suite/innodb/include/prepare_secondary_index.inc
+
+# In 4e, the previous version is not made by trx_id, so we conclude, that
+# there is no implicit lock
+# 1. default INSERTs id=2,c1=2
+# 2. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE c1=2 FOR SHARE and does not have to wait
+# 5. C2 COMMITS
+# 6. C1 COMMITS
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE c1=2 FOR SHARE;
+  COMMIT;
+
+--connection C1
+  COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+
+
+#
+# We go through all scenarios one more time, but this time, there exists a
+# separate secondary index on c2, so changes to c2 cause undo logging of columns
+# - in particular virtual columns.
+# As we have separate cases in code for the lack of virtual columns information
+# in the undo log, this is an interesting case.
+# In case of scenario 4b, we now have two separate versions of it,
+# where 4b' is the same as 4b except that one of the updates changes column
+# c3, which does not take part in any secondary index at all.
+#
+
+--echo # Scenario 1
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# This scenario reproduces the original problem, which was that a transaction
+# was considered to hold implicit lock on a secondary index entry, even if
+# it has not modified any column affecting this secondary index.
+# 1. C1 obtains S lock on secondary index only for id=1
+# 2. C2 modifies row with id=1, by changing c2, which does not affect
+#    secondary index, and thus it should not be considered to hold an
+#    implicit lock on secondary index. Also, this does not require C2
+#    to pay any attention to C1's lock on secondary index.
+# 3. C1 tries to get X lock on the same row, which as one of the steps
+#    checks if C2 has implicit lock (and the bug causes it to believe
+#    that C2 holds it) and if so, then if there is some trx holding an
+#    explicit lock (and it turns out that C1 already has the S lock).
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=1 FOR SHARE;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=1;
+
+--connection C1
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=1 FOR UPDATE;
+
+--connection C2
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  ROLLBACK;
+
+--connection C1
+  --reap
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+
+--echo # Scenario 2
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# This scenario is dual to Scenario 1 in some sense, as it deals with delete
+# marked entries in secondary index.
+# It is similar to Scenario 1 in that a bad implementation could wrongly
+# conclude that modifying an unrelated field makes the transaction an implicit
+# lock owner.
+# This scenario proves that the bug in the original code was not simply in
+# negating the result of row_vers_non_vc_index_entry_match.
+# 1. `default` modifies row with id=1, by setting c1 to 55,
+#    so that that entry with v1=1 becomes delete marked
+# 2. C1 obtains S lock on secondary index only for v1=1
+# 3. C2 modifies row with id=1, by changing c2, which does not affect
+#    secondary index, and thus it should not be considered to hold an
+#    implicit lock on secondary index. Also, this does not require C2
+#    to pay any attention to C1's lock on secondary index.
+# 4. C1 tries to get X lock on the same row, which as one of the steps
+#    checks if C2 has implicit lock (and the bug causes it to believe
+#    that C2 holds it) and if so, then if there is some trx holding an
+#    explicit lock (and it turns out that C1 already has the S lock).
+
+  UPDATE t1 SET c1=55 WHERE id=1;
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=1 FOR SHARE;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=1;
+
+--connection C1
+  SELECT 1 FROM t1 WHERE v1=1 FOR UPDATE;
+  ROLLBACK;
+
+--connection C2
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 2b
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# This scenario is similar to 2, but we perform not one, but two UPDATES
+# in C2, one of them on a totally unrelated column c3, just to check if the
+# algorithm correctly handles missing vrow information
+
+  UPDATE t1 SET c1=55 WHERE id=1;
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=1 FOR SHARE;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c3=13 WHERE id=1;
+  UPDATE t1 SET c2=13 WHERE id=1;
+
+--connection C1
+  SELECT 1 FROM t1 WHERE v1=1 FOR UPDATE;
+  ROLLBACK;
+
+--connection C2
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 3
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# This is not a very difficult scenario, but one needed to verify that a
+# DELETE operation is logged to undo log without UPD_NODE_NO_ORD_CHANGE flag
+# and thus virtual column fields can be retrieved from undo log.
+# This is one of the core assumptions for the fix to this bug.
+# 1. C1 DELETEs record with id=1, and thus should hold implicit lock
+#       on secondary index for v1=1.
+# 2. C2 performs a SELECT 1 FROM t1 WHERE v1=1 FOR SHARE, and should wait
+# 3. C1 commits
+# 4. C2 should see empty result
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  DELETE FROM t1 WHERE id=1;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=1 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4
+
+# In this scenario we check the last possible path for missing virtual
+# columns information: the one where secondary row is not delete marked,
+# and previous version of primary index row is also not delete marked in
+# which case we should withold with deciding if there is an implicit lock
+# until we check trx_id.
+# There are many subscenarios.
+
+--echo # Scenario 4a
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# In 4a we have a case where the previous version is made by active trx,
+# and there are no older versions, because it started with INSERT.
+# In such case it should own implicit lock.
+# 1. C1 INSERTS new row with id=2 v1=2
+# 2. C1 UPDATES unrelated column c2, so that previous_version is INSERT
+# 3. C2 does SELECT 1 FROM t1 WHERE v1=2 FOR SHARE and has to wait
+# 4. C1 commits
+# 5. C2 sees the new row
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=2 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4b
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# In 4b, again the previous version is made by active trx, and there exists
+# an even older version, which was not made by active trx and also matches
+# so in this case there is no implicit lock.
+# 1. default INSERTs id=1,v1=2
+# 2. C1 UPDATEs unrelated field c2
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=2 FOR SHARE and does not have to wait
+# 5. C2 COMMITS
+# 6. C1 COMMITS
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=2;
+  UPDATE t1 SET c2=42 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=2 FOR SHARE;
+  COMMIT;
+
+--connection C1
+  COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4b-prime
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# In 4b, again the previous version is made by active trx, and there exists
+# an even older version, which was not made by active trx and also matches
+# so in this case there is no implicit lock.
+# 1. default INSERTs id=1,v1=2
+# 2. C1 UPDATEs unrelated field c3
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=2 FOR SHARE and does not have to wait
+# 5. C2 COMMITS
+# 6. C1 COMMITS
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c3=13 WHERE id=2;
+  UPDATE t1 SET c2=42 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=2 FOR SHARE;
+  COMMIT;
+
+--connection C1
+  COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4c
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# In 4c, the previous version is made by active trx, there is an older version,
+# also made by trx_id but does not match the secondary index, thus
+# there is an implicit lock
+# 1. C1 INSERTs id=2 v1=2
+# 2. C1 UPDATEs c1 (and thus v1) to 10 for id=2
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=10 FOR SHARE and has to wait
+# 5. C1 COMMITS
+# 6. C2 sees the new row
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+  UPDATE t1 SET c1=10 WHERE id=2;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=10 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4d
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# In 4d, the previous version is made by active trx, there is an older version,
+# which was not made by trx_id, and does not match secondary index, thus
+# there is an implicit lock.
+# 1. default INSERTs id=2 v1=2
+# 2. C1 UPDATEs c1 (and thus v1) to 10 for id=2
+# 3. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=10 FOR SHARE and has to wait
+# 5. C1 COMMITS
+# 6. C2 sees the new row
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c1=10 WHERE id=2;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c1_will_wait';
+  --send SELECT 1 FROM t1 WHERE v1=10 FOR SHARE
+
+--connection C1
+  SET DEBUG_SYNC='now WAIT_FOR c1_will_wait';
+  COMMIT;
+
+--connection C2
+  --reap
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+--echo # Scenario 4e
+
+--source suite/innodb/include/prepare_secondary_indexs_on_virtual_and_normal.inc
+
+# In 4e, the previous version is not made by trx_id, so we conclude, that
+# there is no implicit lock
+# 1. default INSERTs id=2,v1=2
+# 2. C1 UPDATEs unrelated field c2
+# 4. C2 does SELECT 1 FROM t1 WHERE v1=2 FOR SHARE and does not have to wait
+# 5. C2 COMMITS
+# 6. C1 COMMITS
+
+  INSERT INTO t1 (id,c1,c2) VALUES (2,2,2);
+
+--connect (C1, localhost, root,,)
+  BEGIN;
+  UPDATE t1 SET c2=13 WHERE id=2;
+
+--connect (C2, localhost, root,,)
+  BEGIN;
+  SELECT 1 FROM t1 WHERE v1=2 FOR SHARE;
+  COMMIT;
+
+--connection C1
+  COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+
+--source suite/innodb/include/cleanup_secondary_index.inc
+
+
+
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;

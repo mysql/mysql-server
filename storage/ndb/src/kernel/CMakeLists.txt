@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ IF(WIN32)
   # Add the resource files for logging to event log
   SET(NDBD_EXTRA_SRC
     ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/message.rc
-    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin)
+    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/MSG00001.bin)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndbd

@@ -59,8 +59,11 @@ class Group_action_coordinator : public Group_event_observer {
     END_ACTION_MESSAGE_FLAG_END = 2,      // The enum end
   };
 
-  /** The group coordinator constructor  */
-  Group_action_coordinator();
+  /**
+    The group coordinator constructor
+    @param[in] components_stop_timeout  the timeout when waiting on shutdown
+  */
+  Group_action_coordinator(ulong components_stop_timeout);
 
   /** The group coordinator destructor  */
   ~Group_action_coordinator();
@@ -120,6 +123,21 @@ class Group_action_coordinator : public Group_event_observer {
     @return
   */
   int execute_group_action_handler();
+
+  /**
+    Sets the component stop timeout.
+
+    @param[in]  timeout      the timeout
+  */
+  void set_stop_wait_timeout(ulong timeout);
+
+#ifndef DBUG_OFF
+  /**
+    Flag for cases where we don't have debug execution tools
+    Can be an enum if other cases emerge
+  */
+  bool failure_debug_flag;
+#endif
 
  private:
   // The listeners for group events
@@ -218,6 +236,8 @@ class Group_action_coordinator : public Group_event_observer {
 
   /**
     Internal method that contains the logic for leaving and killing transactions
+
+    @param error_msg error to log in case an action error is not present
   */
   void kill_transactions_and_leave();
 
@@ -260,6 +280,9 @@ class Group_action_coordinator : public Group_event_observer {
   /** The flag to avoid action starts post stop */
   bool coordinator_terminating;
 
+  /** If we propose an action but the coordinator ends before it starts*/
+  bool action_cancelled_on_termination;
+
   /** Is this member leaving */
   bool member_leaving_group;
 
@@ -277,6 +300,9 @@ class Group_action_coordinator : public Group_event_observer {
 
   /** If the group action execution method is being executed */
   bool is_group_action_being_executed;
+
+  /* Component stop timeout on shutdown */
+  ulong stop_wait_timeout;
 
   // run conditions and locks
   /** The thread handle for the group action process */

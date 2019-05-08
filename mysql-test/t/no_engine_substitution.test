@@ -5,9 +5,6 @@
 --echo #               DOCUMENTED
 --echo #
 
-CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
-CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
-
 --echo # Started the server by disabling InnoDB using system variable 'disabled_storage_engines'
 SELECT @@disabled_storage_engines;
 SET DEFAULT_STORAGE_ENGINE= MyISAM;

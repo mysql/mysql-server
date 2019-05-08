@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -169,9 +169,8 @@ class System_variable {
   System_variable(THD *target_thd, const SHOW_VAR *show_var,
                   enum_var_type query_scope);
   System_variable(THD *target_thd, const SHOW_VAR *show_var);
-  ~System_variable() {}
 
-  bool is_null() const { return !m_initialized; };
+  bool is_null() const { return !m_initialized; }
 
  public:
   const char *m_name;
@@ -217,9 +216,7 @@ class Status_variable {
   Status_variable(const SHOW_VAR *show_var, System_status_var *status_array,
                   enum_var_type query_scope);
 
-  ~Status_variable() {}
-
-  bool is_null() const { return !m_initialized; };
+  bool is_null() const { return !m_initialized; }
 
  public:
   const char *m_name;

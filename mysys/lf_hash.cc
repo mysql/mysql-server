@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"
+#include "template_utils.h"
 
 LF_REQUIRE_PINS(3)
 
@@ -149,8 +150,7 @@ retry:
       if (cur_hashnr >= hashnr) {
         int r = 1;
         if (cur_hashnr > hashnr ||
-            (r = my_strnncoll(cs, (uchar *)cur_key, cur_keylen, (uchar *)key,
-                              keylen)) >= 0) {
+            (r = my_strnncoll(cs, cur_key, cur_keylen, key, keylen)) >= 0) {
           return !r;
         }
       }
@@ -412,7 +412,7 @@ static int initialize_bucket(LF_HASH *, std::atomic<LF_SLIST *> *, uint,
 */
 static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
                                    size_t length) {
-  ulong nr1 = 1, nr2 = 4;
+  uint64 nr1 = 1, nr2 = 4;
   hash->charset->coll->hash_sort(hash->charset, key, length, &nr1, &nr2);
   return (uint)nr1;
 }
@@ -543,7 +543,8 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data) {
 */
 int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen) {
   std::atomic<LF_SLIST *> *el;
-  uint bucket, hashnr = calc_hash(hash, (uchar *)key, keylen);
+  uint bucket,
+      hashnr = calc_hash(hash, pointer_cast<const uchar *>(key), keylen);
 
   bucket = hashnr % hash->size;
   el = static_cast<std::atomic<LF_SLIST *> *>(
@@ -561,8 +562,8 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen) {
       unlikely(initialize_bucket(hash, el, bucket, pins))) {
     return -1;
   }
-  if (ldelete(el, hash->charset, my_reverse_bits(hashnr) | 1, (uchar *)key,
-              keylen, pins)) {
+  if (ldelete(el, hash->charset, my_reverse_bits(hashnr) | 1,
+              pointer_cast<const uchar *>(key), keylen, pins)) {
     return 1;
   }
   --hash->count;
@@ -597,7 +598,8 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
                      uint keylen) {
   std::atomic<LF_SLIST *> *el;
   LF_SLIST *found;
-  uint bucket, hashnr = calc_hash(hash, (uchar *)key, keylen);
+  uint bucket,
+      hashnr = calc_hash(hash, pointer_cast<const uchar *>(key), keylen);
 
   bucket = hashnr % hash->size;
   el = static_cast<std::atomic<LF_SLIST *> *>(
@@ -610,7 +612,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
     return MY_LF_ERRPTR;
   }
   found = my_lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
-                     (uchar *)key, keylen, pins);
+                     pointer_cast<const uchar *>(key), keylen, pins);
   return found ? found + 1 : 0;
 }
 
@@ -707,7 +709,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
   return res ? cursor.curr + 1 : 0;
 }
 
-static const uchar *dummy_key = (uchar *)"";
+static const uchar *dummy_key = pointer_cast<const uchar *>("");
 
 /*
   RETURN

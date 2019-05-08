@@ -1765,6 +1765,7 @@ SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
 
+eval explain format=tree $query_some;  # Tests FORMAT=tree for AlternativeIterator.
 eval explain $query_some;
 eval explain $query_any;
 eval explain $query_in;

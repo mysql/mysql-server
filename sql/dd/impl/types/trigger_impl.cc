@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,12 @@
 #include "my_user.h"  // parse_user
 #include "mysql_com.h"
 #include "mysqld_error.h"                  // ER_*
+#include "sql/dd/dd_utility.h"             // normalize_string
 #include "sql/dd/impl/raw/raw_record.h"    // Raw_record
+#include "sql/dd/impl/tables/schemata.h"   // Schemata::name_collation
 #include "sql/dd/impl/tables/triggers.h"   // Triggers
 #include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/dd/impl/utils.h"             // is_string_in_lowercase
 #include "sql/dd/string_type.h"            // dd::String_type
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
@@ -229,6 +232,35 @@ const Object_table &Trigger_impl::object_table() const {
 
 void Trigger_impl::register_tables(Open_dictionary_tables_ctx *otx) {
   otx->add_table<Triggers>();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Trigger::create_mdl_key(const String_type &schema_name,
+                             const String_type &name, MDL_key *mdl_key) {
+#ifndef DEBUG_OFF
+  // Make sure schema name is lowercased when lower_case_table_names == 2.
+  if (lower_case_table_names == 2)
+    DBUG_ASSERT(is_string_in_lowercase(schema_name,
+                                       tables::Schemata::name_collation()));
+#endif
+
+  /*
+    Normalize the trigger name so that key comparison for case and accent
+    insensitive trigger names yields the correct result.
+  */
+  char normalized_name[NAME_CHAR_LEN * 2];
+  size_t len = normalize_string(DD_table::name_collation(), name,
+                                normalized_name, sizeof(normalized_name));
+
+  mdl_key->mdl_key_init(MDL_key::TRIGGER, schema_name.c_str(), normalized_name,
+                        len, name.c_str());
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+const CHARSET_INFO *Trigger::name_collation() {
+  return DD_table::name_collation();
 }
 
 ///////////////////////////////////////////////////////////////////////////

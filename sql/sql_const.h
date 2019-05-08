@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,8 +106,10 @@
   element, such as a random function or a non-deterministic function.
   Expressions containing this bit cannot be evaluated once and then cached,
   they must be evaluated at latest possible point.
+  MAX_TABLES_FOR_SIZE adds the pseudo bits and is used for sizing purposes only.
 */
-#define MAX_TABLES (sizeof(table_map) * 8 - 3) /* Max tables in join */
+#define MAX_TABLES_FOR_SIZE (sizeof(table_map) * 8)  ///< Use for sizing ONLY
+#define MAX_TABLES (MAX_TABLES_FOR_SIZE - 3)         ///< Max tables in join
 #define INNER_TABLE_BIT (((table_map)1) << (MAX_TABLES + 0))
 #define OUTER_REF_TABLE_BIT (((table_map)1) << (MAX_TABLES + 1))
 #define RAND_TABLE_BIT (((table_map)1) << (MAX_TABLES + 2))
@@ -428,5 +430,26 @@ enum enum_resolution_type {
   RESOLVED_WITH_NO_ALIAS,
   RESOLVED_IGNORING_ALIAS
 };
+
+/// Enumeration for {Item,SELECT_LEX[_UNIT],Table_function}::walk
+enum class enum_walk {
+  PREFIX = 0x01,
+  POSTFIX = 0x02,
+  SUBQUERY = 0x04,
+  SUBQUERY_PREFIX = 0x05,  // Combine prefix and subquery traversal
+  SUBQUERY_POSTFIX = 0x06  // Combine postfix and subquery traversal
+};
+
+inline enum_walk operator|(enum_walk lhs, enum_walk rhs) {
+  return enum_walk(int(lhs) | int(rhs));
+}
+
+inline bool operator&(enum_walk lhs, enum_walk rhs) {
+  return (int(lhs) & int(rhs)) != 0;
+}
+
+class Item;
+/// Processor type for {Item,SELECT_LEX[_UNIT],Table_function}::walk
+typedef bool (Item::*Item_processor)(uchar *arg);
 
 #endif /* SQL_CONST_INCLUDED */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1171,7 +1171,7 @@ void getTextSubscriptionStatus(QQQQ)
   case(1): // SubscriptionStatus::DISCONNECTED
     BaseString::snprintf(m_text, m_text_len,
                          "Disconnecting node %u because it has "
-                         "exceeded MaxBufferedEpochs (%u > %u), epoch %u/%u",
+                         "exceeded MaxBufferedEpochs (%u >= %u), epoch %u/%u",
                          theData[2],
                          theData[5],
                          theData[6],

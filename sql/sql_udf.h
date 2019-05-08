@@ -1,7 +1,7 @@
 #ifndef SQL_UDF_INCLUDED
 #define SQL_UDF_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,11 @@ class udf_handler {
         initialized(0),
         not_original(0) {}
   ~udf_handler();
+  udf_handler(const udf_handler &) = default;
+  udf_handler(udf_handler &&) = default;
+  udf_handler &operator=(const udf_handler &) = default;
+  udf_handler &operator=(udf_handler &&) = default;
+
   const char *name() const { return u_d ? u_d->name.str : "?"; }
   Item_result result_type() const {
     return (Item_result)(u_d ? (u_d->returns) : STRING_RESULT);

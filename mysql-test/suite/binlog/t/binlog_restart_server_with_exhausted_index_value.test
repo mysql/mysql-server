@@ -1,0 +1,118 @@
+# ==== Purpose ====
+#
+# Verify that the server aborts with errors regardless of the value of
+# binlog_error_action while restarting it with exhausted binlog index value.
+#
+# ==== Implementation ====
+#
+# 1. Manually update the index file to make the next binary log file
+#    be created with an exhausted binlog index value.
+# 2. Shutdown the server.
+# 3. Start the server with --binlog_error_action=IGNORE_ERROR/ABORT_SERVER.
+# 4. Verify that the server aborts with errors.
+# 5. Start the server after removing the binary log with exhausted index value.
+# 6. Clean up.
+# 7. Clean all configuration changes after running the test.
+#
+# ==== References ====
+#
+# Bug#28995220 SEGFAULT DURING SERVER START IF BINLOG INDEX VALUES ARE EXHAUSTED
+# Bug#28980788 RESET MASTER TO ALLOWS INVALID INPUT WITHOUT ERROR'S, CAN LEAD
+#               TO SERVER HALTS
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+--source include/not_windows.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/have_log_bin.inc
+
+call mtr.add_suppression("Log filename extension number exhausted: 2147483647. Please fix this by archiving old logs and updating the index files.");
+call mtr.add_suppression("Can't generate a unique log-filename .*");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to generate new file name.");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
+
+--write_file $MYSQLTEST_VARDIR/tmp/binlog_restart_server_with_exhausted_index_value.inc PROCEDURE
+  if ($server_params == '')
+  {
+    --die !!!ERROR IN TEST: you must set $server_params
+  }
+  if ($error_log == '')
+  {
+    --die !!!ERROR IN TEST: you must set $error_log
+  }
+  --let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_params
+  --error 1
+  --exec $mysqld
+  # The server start aborts. Count should be 1 for all the below errors.
+  --let $grep_pattern=Aborting
+  --let $grep_file=$error_log
+  --let $grep_output=print_count
+  --source include/grep_pattern.inc
+
+  --let $grep_pattern=MYSQL_BIN_LOG::open failed to generate new file name.
+  --let $grep_file=$error_log
+  --let $grep_output=print_count
+  --source include/grep_pattern.inc
+
+  --let $grep_pattern=Can't generate a unique log-filename .*
+  --let $grep_file=$error_log
+  --let $grep_output=print_count
+  --source include/grep_pattern.inc
+
+  --let $grep_pattern=Log filename extension number exhausted: 2147483647. Please fix this by archiving old logs and updating the index files.
+  --let $grep_file=$error_log
+  --let $grep_output=print_count
+  --source include/grep_pattern.inc
+#END OF
+PROCEDURE
+
+# Clear the existing binlogs
+RESET MASTER;
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $mysqld_datadir= `SELECT @@global.datadir`
+--let $index_file= `SELECT @@global.log_bin_index`
+
+# Shutdown the server and manually update the index file to make
+# the next binary log file be created with an exhausted binlog index value.
+--source include/shutdown_mysqld.inc
+--remove_file $index_file
+--write_file $index_file
+./binlog.2147483646
+EOF
+--move_file $mysqld_datadir/$binlog_file $mysqld_datadir/binlog.2147483646
+
+# Restart the server
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $error_log= $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
+
+# Verify that FLUSH BINARY LOGS after the exhaustion of binlog index values
+# causes the server to abort.
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH BINARY LOGS;
+
+--let $server_params= --binlog_error_action=IGNORE_ERROR
+--source $MYSQLTEST_VARDIR/tmp/binlog_restart_server_with_exhausted_index_value.inc
+
+--let $server_params= --binlog_error_action=ABORT_SERVER
+--source $MYSQLTEST_VARDIR/tmp/binlog_restart_server_with_exhausted_index_value.inc
+
+# Start the server after removing the binary log with exhausted index value.
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/binlog.index
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/binlog.2147483646
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/binlog.2147483647
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc
+# Clean up.
+--let $server_params=
+--let $error_log=
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_restart_server_with_exhausted_index_value.inc
+
+# Clean all configuration changes after running the test.
+--source include/force_restart.inc

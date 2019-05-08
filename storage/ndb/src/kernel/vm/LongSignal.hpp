@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,7 @@ extern SectionSegmentPool g_sectionSegmentPool;
 class SegmentUtils
 {
 public:
-  virtual ~SegmentUtils() {};
+  virtual ~SegmentUtils() {}
 
   /* 'Provider interface' */
   /* Low level ops needed to build tools */
@@ -150,9 +150,10 @@ Uint32* getLastWordPtr(Uint32 id);
 bool verifySection(Uint32 firstIVal, 
                    SectionSegmentPool& thePool= g_sectionSegmentPool);
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 void
-append(DataBuffer<sz,Pool>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
+append(DataBuffer<sz, Pool, Type_id>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool)
+{
   Uint32 len = ptr.sz;
   while(len > SectionSegment::DataLength){
     dst.append(ptr.p->theData, SectionSegment::DataLength);

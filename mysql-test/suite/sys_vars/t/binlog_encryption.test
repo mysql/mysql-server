@@ -1,0 +1,137 @@
+###############################################################################
+# Variable Name: binlog_encryption
+# Scope: global
+# Access Type: dynamic
+# Data Type: boolean
+#
+# Description: Test case for checking the behavior of dynamic system variable
+#              "binlog_encryption", specifically regarding:
+#              - Scope & access type
+#              - Valid & default value
+#              - Invalid values
+#              - Required privileges
+#
+# Reference: WL#10957
+###############################################################################
+
+# Save initial value
+--let $saved_binlog_encryption= `SELECT @@global.binlog_encryption`
+
+#
+# Scope: Global only
+#
+SELECT COUNT(@@GLOBAL.binlog_encryption);
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.binlog_encryption);
+
+--disable_warnings
+SELECT VARIABLE_NAME FROM performance_schema.global_variables WHERE VARIABLE_NAME='binlog_encryption';
+SELECT VARIABLE_NAME FROM performance_schema.session_variables WHERE VARIABLE_NAME='binlog_encryption';
+--enable_warnings
+
+#
+# Access Type: Dynamic
+#
+SET GLOBAL binlog_encryption= ON;
+--let $assert_text= 'binlog_encryption is a dynamic variable'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+#
+# Valid values and Default value
+#
+SET GLOBAL binlog_encryption= OFF;
+--let $assert_text= 'binlog_encryption should be OFF'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+SET GLOBAL binlog_encryption= ON;
+--let $assert_text= 'binlog_encryption should be ON'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+SET GLOBAL binlog_encryption= 0;
+--let $assert_text= 'binlog_encryption should be OFF'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+SET GLOBAL binlog_encryption= 1;
+--let $assert_text= 'binlog_encryption should be ON'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+SET GLOBAL binlog_encryption= DEFAULT;
+--let $assert_text= 'binlog_encryption should be OFF'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+#
+# Invalid values
+#
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_encryption= NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_encryption= '';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_encryption= -1;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL binlog_encryption= 1.0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_encryption= 'GARBAGE';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_encryption= 2;
+
+--echo Expect value still set to "OFF"
+SELECT @@global.binlog_encryption;
+
+#
+# Privileges
+#
+
+CREATE USER user1;
+--connect(conn_user1,localhost,user1,,)
+
+--Error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL binlog_encryption=ON;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO user1@'%';
+--connection conn_user1
+# SYSTEM_VARIABLES_ADMIN is not enough
+--Error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL binlog_encryption=ON;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+
+--connection default
+GRANT BINLOG_ENCRYPTION_ADMIN ON *.* TO user1@'%';
+--connection conn_user1
+SET GLOBAL binlog_encryption=ON;
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+
+--connection default
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM user1@'%';
+--connection conn_user1
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# BINLOG_ENCRYPTION_ADMIN is not enough
+--Error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL binlog_encryption=OFF;
+--connection default
+REVOKE BINLOG_ENCRYPTION_ADMIN ON *.* FROM user1@'%';
+
+--connection default
+--disconnect conn_user1
+DROP USER user1;
+
+# Clean up
+--disable_query_log
+--eval SET GLOBAL binlog_encryption= $saved_binlog_encryption
+--enable_query_log

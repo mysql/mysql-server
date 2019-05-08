@@ -1,3 +1,4 @@
+--disable_warnings ER_WRONG_VALUE_FOR_TYPE
 SELECT is_ipv4(inet_ntoa('1'));
 SELECT is_ipv6(inet_ntoa('1'));
 SELECT inet6_aton(inet_ntoa('1'));
@@ -14,3 +15,4 @@ SELECT inet6_aton(soundex('a'));
 
 let $charset=`select @@character_set_client`;
 eval do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using $charset)));
+--enable_warnings ER_WRONG_VALUE_FOR_TYPE

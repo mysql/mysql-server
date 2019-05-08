@@ -5,7 +5,7 @@ COUNT(@@GLOBAL.ssl_cert)
 1 Expected
 '#---------------------BS_STVARS_047_02----------------------#'
 SET @@GLOBAL.ssl_cert=1;
-ERROR HY000: Variable 'ssl_cert' is a read only variable
+ERROR 42000: Incorrect argument type to variable 'ssl_cert'
 Expected error 'Read only variable'
 SELECT COUNT(@@GLOBAL.ssl_cert);
 COUNT(@@GLOBAL.ssl_cert)

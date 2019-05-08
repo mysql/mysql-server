@@ -50,5 +50,6 @@ DROP DATABASE db2;
 --remove_file $MYSQLTEST_VARDIR/load_bug12982188.txt
 
 --sync_slave_with_master
---source include/stop_slave.inc
 SET @@global.slave_parallel_workers= @save_slave_parallel_workers;
+
+--source include/rpl_end.inc

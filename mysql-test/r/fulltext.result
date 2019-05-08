@@ -12,6 +12,11 @@ SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	1	a	1	a	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
 t1	1	a	2	b	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
+EXPLAIN FORMAT=tree select * from t1 where MATCH(a,b) AGAINST ("collections");
+EXPLAIN
+-> Filter: (match t1.a,t1.b against ('collections'))
+    -> Indexed full text search on t1 using a (a='collections')
+
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Only MyISAM tables	support collections
@@ -52,7 +57,7 @@ a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUERY EXPANSION)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH QUERY EXPANSION)' at line 1
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where

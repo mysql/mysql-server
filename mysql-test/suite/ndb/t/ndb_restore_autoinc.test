@@ -1,0 +1,262 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--echo Show preservation of autoincrement values via ndb_restore
+--echo Cover some variants including :
+--echo   - Basic restore
+--echo   - Keyless table use case
+--echo   - Restore via a staging table
+--echo   - Restore with no data
+--echo ----------------------------------------
+--echo 1.  Create tables and add some data
+--echo ----------------------------------------
+use test;
+create table boring (
+  a tinyint auto_increment primary key,
+  b int
+) engine=ndb;
+
+--echo Expect next == 7
+insert into boring (b) values (1), (2), (3), (4), (5), (6);
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+
+create table boring_keyless (
+  a int
+) engine=ndb;
+
+--echo Expect next == 5
+insert into boring_keyless values (1), (2), (3), (4);
+
+
+create table empty_default (
+  a mediumint primary key auto_increment,
+  b int
+) engine=ndb;
+
+--echo Expect next == 1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+
+create table empty_specific (
+  a mediumint primary key auto_increment,
+  b int
+) engine=ndb auto_increment=73;
+
+--echo Expect next == 73
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+
+create table big_varchars (
+  a bigint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+insert into big_varchars (b) values (repeat('ILBJC', 400));
+insert into big_varchars (b) values (repeat('ILBJC', 400));
+insert into big_varchars (b) values (repeat('ILBJC', 400));
+insert into big_varchars (b) values (repeat('ILBJC', 400));
+insert into big_varchars (b) values (repeat('ILBJC', 400));
+
+--echo Expect next == 6
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+
+# TODO
+#   Show widening / narrowing of auto-increment column
+#   Auto-inc as part of secondary key
+
+
+--echo ----------------------------------------
+--echo 2.  Take a backup
+--echo ----------------------------------------
+
+--source include/ndb_backup.inc
+
+drop table big_varchars;
+drop table empty_specific;
+drop table empty_default;
+drop table boring_keyless;
+drop table boring;
+
+--echo ----------------------------------------
+--echo 3.  Manually re-create schema via MySQLD with some changes
+--echo ----------------------------------------
+
+--echo Avoid any accidental tableid line-up
+create table filler1(a int primary key) engine=ndb;
+create table filler2(a int primary key) engine=ndb;
+create table filler3(a int primary key) engine=ndb;
+create table filler4(a int primary key) engine=ndb;
+create table filler5(a int primary key) engine=ndb;
+create table filler6(a int primary key) engine=ndb;
+create table filler7(a int primary key) engine=ndb;
+create table filler8(a int primary key) engine=ndb;
+
+--echo big_varchars table now has a text column
+--echo testing staging area transform
+create table big_varchars (
+  a bigint auto_increment primary key,
+  b text
+) engine=ndb;
+
+create table boring (
+  a tinyint auto_increment primary key,
+  b int
+) engine=ndb;
+
+create table boring_keyless (
+  a int
+) engine=ndb;
+
+create table empty_default (
+  a mediumint primary key auto_increment,
+  b int
+) engine=ndb;
+
+--echo Expect next == 1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+
+create table empty_specific (
+  a mediumint primary key auto_increment,
+  b int
+) engine=ndb auto_increment=73;
+
+--echo Expect next == 73
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+
+--echo ----------------------------------------
+--echo 4.  Restore data
+--echo ----------------------------------------
+
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo ----------------------------------------
+--echo 5.  Check autoincrement info
+--echo ----------------------------------------
+
+--echo Expect 7
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+
+--echo Expect 1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+
+--echo Expect 73
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+
+--echo Expect 6
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+
+--echo ----------------------------------------
+--echo 6.  Test via inserts
+--echo ----------------------------------------
+
+insert into boring (b) values (99);
+--echo Expect 7
+select max(a) from boring;
+
+insert into boring_keyless values (99);
+select * from boring_keyless order by a;
+
+insert into empty_default (b) values (99);
+--echo Expect 1,99
+select * from empty_default;
+
+insert into empty_specific (b) values (99);
+--echo Expect 73,99
+select * from empty_specific;
+
+insert into big_varchars(b) values (repeat('IMBJC', 400));
+--echo Expect 6
+select max(a) from big_varchars;
+
+--echo ----------------------------------------
+--echo 7.  Cleanup
+--echo ----------------------------------------
+
+drop table boring;
+drop table boring_keyless;
+drop table empty_default;
+drop table empty_specific;
+drop table big_varchars;
+drop table filler1, filler2, filler3, filler4;
+drop table filler5, filler6, filler7, filler8;
+
+--echo ----------------------------------------
+--echo 8.  Use ndb_restore metadata restore
+--echo ----------------------------------------
+
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -m --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+
+--echo ----------------------------------------
+--echo 9.  Check autoincrement info
+--echo ----------------------------------------
+
+--echo With just NdbApi metadata restored, auto_increment values are set to default values
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+
+--echo ----------------------------------------
+--echo 10.  Restore data
+--echo ----------------------------------------
+
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+
+--echo ----------------------------------------
+--echo 11.  Check autoincrement info
+--echo ----------------------------------------
+
+--echo Expect 7
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+
+--echo Expect 1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+
+--echo Expect 73
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+
+--echo Expect 6
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+
+--echo ----------------------------------------
+--echo 6.  Test via inserts
+--echo ----------------------------------------
+
+insert into boring (b) values (99);
+--echo Expect 7
+select max(a) from boring;
+
+insert into boring_keyless values (99);
+select * from boring_keyless order by a;
+
+insert into empty_default (b) values (99);
+--echo Expect 1,99
+select * from empty_default;
+
+insert into empty_specific (b) values (99);
+--echo Expect 73,99
+select * from empty_specific;
+
+insert into big_varchars(b) values (repeat('IMBJC', 400));
+--echo Expect 6
+select max(a) from big_varchars;
+
+--echo ----------------------------------------
+--echo 7.  Cleanup
+--echo ----------------------------------------
+
+
+drop table boring;
+drop table boring_keyless;
+drop table empty_default;
+drop table empty_specific;
+drop table big_varchars;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

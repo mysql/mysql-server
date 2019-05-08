@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,17 +25,15 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"              // strmake_root
 #include "sql/dd/properties.h"   // dd::Properties
 #include "sql/dd/string_type.h"  // dd::String_type
-
-struct MEM_ROOT;
 
 namespace dd {
 
@@ -70,195 +68,171 @@ namespace dd {
   Additional key=value pairs may be added by means of the set function,
   which takes a string argument that is assumed to be unescaped.
 
-  Further comments can be found in the file properties_impl.cc where most
-  of the functions are implemented. Please also refer to the comments in the
-  file properties.h where the interface is defined; the functions in the
-  interface are commented there.
+  Please also refer to the comments in the file properties.h where the
+  interface is defined; the functions in the interface are commented there.
 */
 
 class Properties_impl : public Properties {
- public:
-  static Properties *parse_properties(const String_type &raw_properties);
+ private:
+  /* Map containing the actual key-value pairs. */
+  Properties::Map m_map;
+
+  /* Set containing the valid keys. An empty set means any key is valid. */
+  std::set<String_type> m_keys;
 
  public:
-  Properties_impl();
+  Properties_impl() = default;
+
+  /* Constructor accepting a set of valid keys. */
+  Properties_impl(const std::set<String_type> &keys) : m_keys(keys) {}
 
   virtual const Properties_impl *impl() const { return this; }
 
-  virtual Properties::Iterator begin() { return m_map->begin(); }
+  virtual iterator begin() { return m_map.begin(); }
 
-  /* purecov: begin inspected */
-  virtual Properties::Const_iterator begin() const { return m_map->begin(); }
-  /* purecov: end */
+  virtual const_iterator begin() const { return m_map.begin(); }
 
-  virtual Properties::Iterator end() { return m_map->end(); }
+  virtual iterator end() { return m_map.end(); }
 
-  /* purecov: begin inspected */
-  virtual Properties::Const_iterator end() const { return m_map->end(); }
-  /* purecov: end */
+  virtual const_iterator end() const { return m_map.end(); }
 
-  virtual size_type size() const { return m_map->size(); }
+  virtual size_type size() const { return m_map.size(); }
 
-  virtual bool empty() const { return m_map->empty(); }
+  virtual bool empty() const { return m_map.empty(); }
 
-  /* purecov: begin deadcode */
-  virtual void clear() { return m_map->clear(); }
-  /* purecov: end */
+  virtual void clear() { return m_map.clear(); }
+
+  virtual bool valid_key(const String_type &key) const {
+    return (m_keys.empty() || m_keys.find(key) != m_keys.end());
+  }
 
   virtual bool exists(const String_type &key) const {
-    return m_map->find(key) != m_map->end();
+    return m_map.find(key) != m_map.end();
   }
 
   virtual bool remove(const String_type &key) {
-    Properties::Iterator it = m_map->find(key);
+    iterator it = m_map.find(key);
 
-    if (it == m_map->end()) return true;
+    if (it == m_map.end()) return true;
 
-    m_map->erase(it);
+    m_map.erase(it);
     return false;
   }
 
+  /**
+    Iterate over all entries in the private hash table. For each
+    key value pair, escape both key and value, and append the strings
+    to the result. Use '=' to separate key and value, and use ';'
+    to separate pairs.
+
+    Invalid keys are not included in the output. However, there should
+    never be a situation where invalid keys are present, so we just assert
+    that the keys are valid.
+
+    @return string containing all escaped key value pairs
+  */
   virtual const String_type raw_string() const;
 
-  /*
-    The following methods value(), value_cstr(), get*() assert '
-    if the key supplied does not exist. OR if the value could not
-    be converted to desired numeric value.
+  /**
+    Get the string value for a given key.
 
-    If these functions assert, that means that there is something
-    wrong in the code and needs to be fixed. DD user should
-    invoke these function after making sure that such a key
-    exists.
+    Return true if the operation fails, i.e., if the key does not exist
+    or if the key is invalid. Assert that the key exists in debug builds.
+
+    @param      key   key to lookup the value for
+    @param[out] value string value
+    @return           Operation outcome, false if success, otherwise true
   */
+  virtual bool get(const String_type &key, String_type *value) const;
 
-  virtual const String_type &value(const String_type &key) const {
-    Properties::Const_iterator it = m_map->find(key);
-    if (it == m_map->end()) {
-      // Key not present.
-      DBUG_ASSERT(false); /* purecov: inspected */
-      return Properties_impl::EMPTY_STR;
+  /**
+    Set the key/value. If the key is invalid, a warning is written
+    to the error log. Assert that the key exists in debug builds.
+
+    @param  key    Key to set.
+    @param  value  Value to set.
+    @return        Operation outcome, false if success, otherwise true
+  */
+  virtual bool set(const String_type &key, const String_type &value);
+
+  /**
+    Insert key/value pairs from a different property object.
+
+    The set of valid keys is not copied, instead, the existing
+    set in the destination object is used to ignore all invalid
+    keys.
+
+    @param properties  Source object.
+
+    @retval  Operation outcome, false if no error, otherwise true.
+  */
+  virtual bool insert_values(const Properties &properties);
+
+  /**
+    Insert key/value pairs from a string.
+
+    Parse the string and add key/value pairs to this object.
+    The existing set of valid keys in the destination object
+    is used to ignore all invalid keys.
+
+    @param  raw_string  String to be parsed.
+
+    @retval  Operation outcome, false if no error, otherwise true.
+  */
+  virtual bool insert_values(const String_type &raw_string);
+
+#ifdef EXTRA_CODE_FOR_UNIT_TESTING
+  /**
+    Extend the set of valid keys after the property object is
+    created. This can be used e.g. for the SE private data.
+
+    @pre     There must be a set of valid keys already, or the
+             map of key-value pairs must be empty. Otherwise,
+             we risk making existing keys invalid, thus hiding
+             their values.
+
+    @param   keys    Set of additional keys to insert into
+                     the set of valid keys.
+  */
+  void add_valid_keys(const std::set<String_type> &keys) {
+    DBUG_ASSERT(!m_keys.empty() || m_map.empty());
+    m_keys.insert(keys.begin(), keys.end());
+  }
+
+  /**
+    Remove the set of valid keys after the property object is
+    created. Convenience method used by unit tests.
+  */
+  void clear_valid_keys() { m_keys.clear(); }
+
+  /**
+    Get valid key at a certain index.
+
+    If the key set is empty, return a string representation of
+    the index is returned. If the index is out of bounds, return
+    the last key.
+
+    @note    This is needed by unit tests to fill in
+             random key/value pairs without breaking the
+             check for valid keys.
+
+    @param   index  Index at which to get the valid key.
+
+    @retval  Key at the given index, a string containing the index,
+             or the last key.
+  */
+  const String_type valid_key_at(size_t index) const {
+    if (m_keys.empty()) {
+      Stringstream_type ostream;
+      ostream << index;
+      return ostream.str();
     }
-
-    return it->second;
-  }
-
-  virtual const char *value_cstr(const String_type &key) const {
-    return value(key).c_str();
-  }
-
-  virtual bool get(const String_type &key, String_type &value) const {
-    if (exists(key)) {
-      value = this->value(key);
-      return false;
+    if (m_keys.size() <= index) {
+      return *std::next(m_keys.begin(), m_keys.size() - 1);
     }
-    return true;
+    return *std::next(m_keys.begin(), index);
   }
-
-  virtual bool get(const String_type &key, LEX_STRING &value,
-                   MEM_ROOT *mem_root) const {
-    if (exists(key)) {
-      String_type str = this->value(key);
-      value.length = str.length();
-      value.str = (char *)strmake_root(mem_root, str.c_str(), str.length());
-      return false;
-    }
-    return true;
-  }
-
-  virtual bool get_int64(const String_type &key, int64 *value) const {
-    String_type str = this->value(key);
-
-    if (to_int64(str, value)) {
-      DBUG_ASSERT(false); /* purecov: inspected */
-      return true;
-    }
-
-    return false;
-  }
-
-  virtual bool get_uint64(const String_type &key, uint64 *value) const {
-    String_type str = this->value(key);
-
-    if (to_uint64(str, value)) {
-      DBUG_ASSERT(false); /* purecov: inspected */
-      return true;
-    }
-
-    return false;
-  }
-
-  virtual bool get_int32(const String_type &key, int32 *value) const {
-    String_type str = this->value(key);
-
-    if (to_int32(str, value)) {
-      DBUG_ASSERT(false); /* purecov: inspected */
-      return true;
-    }
-
-    return false;
-  }
-
-  virtual bool get_uint32(const String_type &key, uint32 *value) const {
-    String_type str = this->value(key);
-
-    if (to_uint32(str, value)) {
-      DBUG_ASSERT(false); /* purecov: inspected */
-      return true;
-    }
-
-    return false;
-  }
-
-  virtual bool get_bool(const String_type &key, bool *value) const {
-    String_type str = this->value(key);
-
-    if (to_bool(str, value)) {
-      DBUG_ASSERT(false); /* purecov: inspected */
-      return true;
-    }
-
-    return false;
-  }
-
-  // Set with implicit conversion from primitive types to string
-
-  virtual void set(const String_type &key, const String_type &value) {
-    if (key != "") (*m_map)[key] = value;
-  }
-
-  virtual void set_int64(const String_type &key, int64 value) {
-    set(key, from_int64(value));
-  }
-
-  virtual void set_uint64(const String_type &key, uint64 value) {
-    set(key, from_uint64(value));
-  }
-
-  virtual void set_int32(const String_type &key, int32 value) {
-    set(key, from_int32(value));
-  }
-
-  virtual void set_uint32(const String_type &key, uint32 value) {
-    set(key, from_uint32(value));
-  }
-
-  virtual void set_bool(const String_type &key, bool value) {
-    set(key, from_bool(value));
-  }
-
-  virtual Properties &assign(const Properties &properties) {
-    // The precondition is that this object is empty
-    DBUG_ASSERT(empty());
-    // Deep copy the m_map.
-    *m_map = *(properties.impl()->m_map);
-    return *this;
-  }
-
- private:
-  static const String_type EMPTY_STR;
-
- private:
-  std::unique_ptr<Properties::Map> m_map;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////

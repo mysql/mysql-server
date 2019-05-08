@@ -25,9 +25,10 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_INTERFACE_H_
 
+#include <memory>
+
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 
 namespace ngs {
@@ -49,10 +50,10 @@ class Server_interface {
   virtual void get_authentication_mechanisms(
       std::vector<std::string> &auth_mech, Client_interface &client) = 0;
 
-  virtual ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
+  virtual std::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
   virtual Authentication_interface_ptr get_auth_handler(
       const std::string &name, Session_interface *session) = 0;
-  virtual ngs::shared_ptr<Protocol_config> get_config() const = 0;
+  virtual std::shared_ptr<Protocol_config> get_config() const = 0;
 
   virtual Document_id_generator_interface &get_document_id_generator()
       const = 0;
@@ -61,7 +62,7 @@ class Server_interface {
 
   virtual Ssl_context_interface *ssl_context() const = 0;
 
-  virtual ngs::shared_ptr<Session_interface> create_session(
+  virtual std::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,
       const int session_id) = 0;
 

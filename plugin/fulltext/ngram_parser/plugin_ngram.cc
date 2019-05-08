@@ -24,6 +24,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/plugin.h"
 #include "storage/innobase/include/fts0tokenize.h"
 
 /* We are following InnoDB coding guidelines. */

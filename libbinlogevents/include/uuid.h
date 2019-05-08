@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,9 @@ struct Uuid {
     memcpy(bytes, data, BYTE_LENGTH);
   }
   /// Copies the given UUID object to this UUID.
-  void copy_from(const Uuid &data) { copy_from((unsigned char *)data.bytes); }
+  void copy_from(const Uuid &data) {
+    copy_from(pointer_cast<const unsigned char *>(data.bytes));
+  }
   /// Copies the given UUID object to this UUID.
   void copy_to(unsigned char *data) const { memcpy(data, bytes, BYTE_LENGTH); }
   /// Returns true if this UUID is equal the given UUID.

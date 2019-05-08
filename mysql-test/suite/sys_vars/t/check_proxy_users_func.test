@@ -63,4 +63,3 @@ DROP USER sameea;
 SET global check_proxy_users = @default_check_proxy_users;
 
 --disable_info
---enable_warnings

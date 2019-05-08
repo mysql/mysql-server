@@ -4,9 +4,9 @@ ALTER RESOURCE GROUP test VCPU=0;
 ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
 DROP RESOURCE GROUP test;
 ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
-SET RESOURCE GROUP test TO 4;
+SET RESOURCE GROUP test FOR 4;
 ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
-SET RESOURCE GROUP test TO (4,5);
+SET RESOURCE GROUP test FOR 4,5;
 ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
 SET RESOURCE GROUP test;
 ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).

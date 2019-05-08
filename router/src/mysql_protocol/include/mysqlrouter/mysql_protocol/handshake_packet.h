@@ -26,6 +26,8 @@
 #define MYSQLROUTER_MYSQL_PROTOCOL_HANDSHAKE_PACKET_INCLUDED
 
 #include <memory>
+#include <stdexcept>
+
 #include "base_packet.h"
 
 // GCC 4.8.4 requires all classes to be forward-declared before being used with
@@ -227,7 +229,13 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
 
   class MYSQL_PROTOCOL_API Parser {
    public:
+    Parser() = default;
+    // disable copy as it isn't needed right now. Feel free to enable
+    // must be explicitly defined though.
+    explicit Parser(const Parser &) = delete;
+    Parser &operator=(const Parser &) = delete;
     virtual ~Parser() = default;
+
     virtual void parse(Capabilities::Flags server_capabilities) = 0;
 
     // debug tools

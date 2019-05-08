@@ -33,8 +33,6 @@
 #include <unistd.h>
 #else
 #define USE_STD_REGEX
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #include <direct.h>
 #include <io.h>
 #include <stdio.h>
@@ -50,6 +48,8 @@
 
 #include "dim.h"
 #include "keyring/keyring_manager.h"
+#include "mysql_session.h"
+#include "mysqlrouter/rest_client.h"
 #include "mysqlrouter/utils.h"
 #include "process_launcher.h"
 #include "random_generator.h"
@@ -57,6 +57,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iterator>
+#include <stdexcept>
 #include <system_error>
 #include <thread>
 
@@ -97,15 +98,35 @@ int close_socket(SOCKET sock) { return closesocket(sock); }
 
 }  // namespace
 
+/*static*/
+void RouterComponentTest::init_keyring(
+    std::map<std::string, std::string> &default_section,
+    const std::string &keyring_dir,
+    const std::string &user /*= "mysql_router1_user"*/,
+    const std::string &password /*= "root"*/) {
+  // init keyring
+  const std::string masterkey_file = Path(keyring_dir).join("master.key").str();
+  const std::string keyring_file = Path(keyring_dir).join("keyring").str();
+  mysql_harness::init_keyring(keyring_file, masterkey_file, true);
+  mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+  keyring->store(user, "password", password);
+  mysql_harness::flush_keyring();
+  mysql_harness::reset_keyring();
+
+  // add relevant config settings to [DEFAULT] section
+  default_section["keyring_path"] = keyring_file;
+  default_section["master_key_path"] = masterkey_file;
+}
+
 RouterComponentTest::RouterComponentTest()
     : data_dir_(COMPONENT_TEST_DATA_DIR),
       logging_dir_(RouterComponentTest::get_tmp_dir("log")) {}
 
 RouterComponentTest::~RouterComponentTest() { purge_dir(logging_dir_.str()); }
 
-void RouterComponentTest::SetUp() {
+void RouterComponentTest::init() {
   using mysql_harness::Path;
-  ;
+
   if (origin_dir_.str().empty()) {
     throw std::runtime_error("Origin dir not set");
   }
@@ -159,20 +180,17 @@ RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
 
 static std::vector<std::string> build_exec_args(
     const std::string &mysqlrouter_exec, bool with_sudo) {
-  const std::string sudo_cmd = "sudo";
-  const std::string sudo_args = "--non-interactive";
-  const std::string valgrind_cmd = "valgrind";
-  const std::string valgrind_args = "--error-exitcode=1 --quiet";
   std::vector<std::string> args;
 
   if (with_sudo) {
-    args.emplace_back(sudo_cmd);
-    args.emplace_back(sudo_args);
+    args.emplace_back("sudo");
+    args.emplace_back("--non-interactive");
   }
 
   if (getenv("WITH_VALGRIND")) {
-    args.emplace_back(valgrind_cmd);
-    args.emplace_back(valgrind_args);
+    args.emplace_back("valgrind");
+    args.emplace_back("--error-exitcode=1");
+    args.emplace_back("--quiet");
   }
 
   args.emplace_back(mysqlrouter_exec);
@@ -561,23 +579,24 @@ std::string RouterComponentTest::make_DEFAULT_section(
                : "";
   };
 
-  return params ? std::string("[DEFAULT]\n") + l("logging_folder") +
-                      l("plugin_folder") + l("runtime_folder") +
-                      l("config_folder") + l("data_folder") +
-                      l("keyring_path") + l("master_key_path") +
-                      l("master_key_reader") + l("master_key_writer") + "\n"
-                : std::string("[DEFAULT]\n") +
-                      "logging_folder = " + logging_dir_.str() + "\n" +
-                      "plugin_folder = " + plugin_dir_.str() + "\n" +
-                      "runtime_folder = " + origin_dir_.str() + "\n" +
-                      "config_folder = " + origin_dir_.str() + "\n" +
-                      "data_folder = " + origin_dir_.str() + "\n\n";
+  return params
+             ? std::string("[DEFAULT]\n") + l("logging_folder") +
+                   l("plugin_folder") + l("runtime_folder") +
+                   l("config_folder") + l("data_folder") + l("keyring_path") +
+                   l("master_key_path") + l("master_key_reader") +
+                   l("master_key_writer") + l("dynamic_state") + "\n"
+             : std::string("[DEFAULT]\n") +
+                   "logging_folder = " + logging_dir_.str() + "\n" +
+                   "plugin_folder = " + plugin_dir_.str() + "\n" +
+                   "runtime_folder = " + origin_dir_.str() + "\n" +
+                   "config_folder = " + origin_dir_.str() + "\n" +
+                   "data_folder = " + origin_dir_.str() + "\n\n";
 }
 
 std::string RouterComponentTest::create_config_file(
-    const std::string &content,
-    const std::map<std::string, std::string> *params,
-    const std::string &directory, const std::string &name) const {
+    const std::string &directory, const std::string &sections,
+    const std::map<std::string, std::string> *default_section,
+    const std::string &name) const {
   Path file_path = Path(directory).join(name);
   std::ofstream ofs_config(file_path.str());
 
@@ -586,8 +605,8 @@ std::string RouterComponentTest::create_config_file(
         std::runtime_error("Could not create config file " + file_path.str()));
   }
 
-  ofs_config << make_DEFAULT_section(params);
-  ofs_config << content << std::endl;
+  ofs_config << make_DEFAULT_section(default_section);
+  ofs_config << sections << std::endl;
   ofs_config.close();
 
   return file_path.str();
@@ -644,7 +663,9 @@ bool RouterComponentTest::real_find_in_file(
   std::string line;
   while (std::getline(in_file, line)) {
     cur_pos = in_file.tellg();
-    if (predicate(line)) return true;
+    if (predicate(line)) {
+      return true;
+    }
   }
 
   return false;
@@ -652,16 +673,64 @@ bool RouterComponentTest::real_find_in_file(
 
 std::string RouterComponentTest::get_router_log_output(
     const std::string &file_name, const std::string &file_path) {
-  std::ifstream in_file;
   const std::string path = file_path.empty() ? logging_dir_.str() : file_path;
-  Path file(path + "/" + file_name);
+
+  return get_file_output(file_name, path);
+}
+
+std::string RouterComponentTest::get_file_output(const std::string &file_name,
+                                                 const std::string &file_path) {
+  return get_file_output(file_path + "/" + file_name);
+}
+
+std::string RouterComponentTest::get_file_output(const std::string &file_name) {
+  Path file(file_name);
+  std::ifstream in_file;
   in_file.open(file.c_str(), std::ifstream::in);
   if (!in_file) {
-    return "Could not open log file " + file.str() + " for reading.";
+    return "Could not open file " + file.str() + " for reading.";
   }
 
   std::string result((std::istreambuf_iterator<char>(in_file)),
                      std::istreambuf_iterator<char>());
 
   return result;
+}
+
+void RouterComponentTest::connect_client_and_query_port(unsigned router_port,
+                                                        std::string &out_port,
+                                                        bool should_fail) {
+  using mysqlrouter::MySQLSession;
+  MySQLSession client;
+
+  if (should_fail) {
+    try {
+      client.connect("127.0.0.1", router_port, "username", "password", "", "");
+    } catch (const std::exception &exc) {
+      if (std::string(exc.what()).find("Error connecting to MySQL server") !=
+          std::string::npos) {
+        out_port = "";
+        return;
+      } else
+        throw;
+    }
+    throw std::runtime_error(
+        "connect_client_and_query_port: did not fail as expected");
+
+  } else {
+    client.connect("127.0.0.1", router_port, "username", "password", "", "");
+  }
+
+  std::unique_ptr<MySQLSession::ResultRow> result{
+      client.query_one("select @@port")};
+  if (nullptr == result.get()) {
+    throw std::runtime_error(
+        "connect_client_and_query_port: error querying the port");
+  }
+  if (1u != result->size()) {
+    throw std::runtime_error(
+        "connect_client_and_query_port: wrong number of columns returned " +
+        std::to_string(result->size()));
+  }
+  out_port = std::string((*result)[0]);
 }

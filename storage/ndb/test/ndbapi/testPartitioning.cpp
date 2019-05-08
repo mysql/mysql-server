@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,7 +337,7 @@ create_dist_table(Ndb* pNdb,
     }
   } while (0);
   return 0;
-};
+}
 
 static int
 run_create_table(NDBT_Context* ctx, NDBT_Step* step)
@@ -857,7 +857,7 @@ load_dist_table(Ndb* pNdb, int records, int parts)
   free(buf);
   
   return NDBT_OK;
-};
+}
 
 struct PartInfo
 {
@@ -873,7 +873,7 @@ public:
   void* ptr;
   
   Ap(void* _ptr) : ptr(_ptr)
-    {};
+    {}
   ~Ap()
     {
       if (ptr != 0)
@@ -1392,7 +1392,7 @@ TESTCASE("startTransactionHint_orderedIndex_mrr_userDefined",
   INITIALIZER(run_drop_dist_table);
 }
 
-NDBT_TESTSUITE_END(testPartitioning);
+NDBT_TESTSUITE_END(testPartitioning)
 
 int main(int argc, const char** argv){
   ndb_init();

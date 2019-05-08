@@ -30,66 +30,65 @@
 /* This class represents a buffer of binary data, where you can append
  * data at the end, and later read the entire bunch.
  * It will take care of the hairy details of realloc()ing the space
- * for you
+ * for you.
  */
 class UtilBuffer {
 public:
-  UtilBuffer() { data = NULL; len = 0; alloc_size = 0; };
-  ~UtilBuffer() { if(data) free(data); data = NULL; len = 0; alloc_size = 0; };
+  UtilBuffer() : data(nullptr), len(0), alloc_size(0) { }
+  ~UtilBuffer() { free(data); }
 
-
-  int reallocate(size_t newsize) {
-    if(newsize < len) {
-      errno = EINVAL;
-      return -1;
-    }
-    void *newdata;
-    if((newdata = realloc(data, newsize)) == NULL) {
-      errno = ENOMEM;
-      return -1;
-    }
-    alloc_size = newsize;
-    data = newdata;
-    return 0;
-  };
-
+  /* Grow buffer to specified length.
+     On success, returns 0. On failure, returns -1 and sets errno.
+  */
   int grow(size_t l) {
     if(l > alloc_size)
       return reallocate(l);
     return 0;
-  };
+  }
 
+  /* Append to current data.
+     On success, returns 0. On failure, returns -1 and sets errno.
+  */
   int append(const void *d, size_t l) {
     if (likely(l > 0))
     {
-      if (unlikely(d == NULL))
+      if (unlikely(d == nullptr))
       {
         errno = EINVAL;
         return -1;
       }
-      const int ret = grow(len+l);
-      if (unlikely(ret != 0))
-        return ret;
-      
-      memcpy((char *)data+len, d, l);
-      len += l;
+
+      void * pos = append(l);
+      if(pos == nullptr)
+      {
+        return -1;
+      }
+
+      memcpy(pos, d, l);
     }
     return 0;
-  };
+  }
 
+  /* Append to current data.
+     Returns pointer where data of length l can be written.
+     On failure, returns nullptr and sets errno.
+  */
   void * append(size_t l){
     if(grow(len+l) != 0)
-      return 0;
+      return nullptr;
 
     void * ret = (char*)data+len;
     len += l;
     return ret;
   }
   
+  /* Free the current buffer memory, and assign new content.
+     On success, returns 0. On failure, returns -1 and sets errno.
+  */
   int assign(const void * d, size_t l) {
     /* Free the old data only after copying, in case d==data. */
     void *old_data= data;
-    data = NULL;
+    data = nullptr;
     len = 0;
     alloc_size = 0;
     int ret= append(d, l);
@@ -98,6 +97,7 @@ public:
     return ret;
   }
 
+  /* Truncate contents to 0 length without freeing buffer memory. */
   void clear() {
     len = 0;
   }
@@ -124,7 +124,24 @@ public:
     }
     return ret;
   }
+
 private:
+
+  int reallocate(size_t newsize) {
+    if(newsize < len) {
+      errno = EINVAL;
+      return -1;
+    }
+    void *newdata;
+    if((newdata = realloc(data, newsize)) == NULL) {
+      errno = ENOMEM;
+      return -1;
+    }
+    alloc_size = newsize;
+    data = newdata;
+    return 0;
+  }
+
   void *data;          /* Pointer to data storage */
   size_t len;          /* Size of the stored data */
   size_t alloc_size;   /* Size of the allocated space,

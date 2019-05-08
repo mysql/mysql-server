@@ -109,7 +109,7 @@ const uint SNAPSHOT_DEF_BLOCK_SIZE_POW2 = 6;
 For 16k page size, maximum block size is 64M. */
 const uint SNAPSHOT_MAX_BLOCK_SIZE_POW2 = 12;
 
-/** Sleep time while waiting for other clone/task during state change */
+/** Sleep time in microseconds while waiting for other clone/task */
 const uint SNAPSHOT_STATE_CHANGE_SLEEP = 100 * 1000;
 
 /** Dynamic database snapshot: Holds metadata and handle to data */
@@ -134,16 +134,23 @@ class Clone_Snapshot {
   @return array index */
   uint get_index() { return (m_snapshot_arr_idx); }
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
   /** Get performance schema accounting object used to monitor stage
   progress.
   @return PFS stage object */
   Clone_Monitor &get_clone_monitor() { return (m_monitor); }
-#endif
 
   /** Get snapshot heap used for allocation during clone.
   @return heap */
-  mem_heap_t *get_heap() { return (m_snapshot_heap); }
+  mem_heap_t *lock_heap() {
+    mutex_enter(&m_snapshot_mutex);
+    return (m_snapshot_heap);
+  }
+
+  /* Release snapshot heap */
+  void release_heap(mem_heap_t *&heap) {
+    heap = nullptr;
+    mutex_exit(&m_snapshot_mutex);
+  }
 
   /** Get snapshot state
   @return state */
@@ -173,9 +180,17 @@ class Clone_Snapshot {
     return (ret_len);
   }
 
+  using File_Cbk_Func = std::function<int(Clone_File_Meta *)>;
+
+  /** Iterate through all files in current state
+  @param[in]	func	callback function
+  @return error code */
+  int iterate_files(File_Cbk_Func &&func);
+
   /** Fill state descriptor from snapshot
+  @param[in]	do_estimate	estimate data bytes to transfer
   @param[out]	state_desc	snapshot state descriptor */
-  void get_state_info(Clone_Desc_State *state_desc);
+  void get_state_info(bool do_estimate, Clone_Desc_State *state_desc);
 
   /** Set state information during apply
   @param[in]	state_desc	snapshot state descriptor */
@@ -187,25 +202,30 @@ class Clone_Snapshot {
 
   /** Try to attach to snapshot
   @param[in]	hdl_type	copy, apply
+  @param[in]	pfs_monitor	enable PFS monitoring
   @return true if successfully attached */
-  bool attach(Clone_Handle_Type hdl_type);
+  bool attach(Clone_Handle_Type hdl_type, bool pfs_monitor);
 
   /** Detach from snapshot
   @return number of clones attached */
   uint detach();
 
   /** Start transition to new state
+  @param[in]	state_desc	descriptor for next state
   @param[in]	new_state	state to move for apply
   @param[in]	temp_buffer	buffer used for collecting page IDs
   @param[in]	temp_buffer_len	buffer length
   @param[out]	pending_clones	clones yet to transit to next state
   @return error code */
-  dberr_t change_state(Snapshot_State new_state, byte *temp_buffer,
-                       uint temp_buffer_len, uint &pending_clones);
+  int change_state(Clone_Desc_State *state_desc, Snapshot_State new_state,
+                   byte *temp_buffer, uint temp_buffer_len,
+                   uint &pending_clones);
 
   /** Check if transition is complete
+  @param[in]	new_state	new state after transition
+  @param[in]	exit_on_wait	exit from transition if needs to wait
   @return number of clones yet to transit to next state */
-  uint check_state(Snapshot_State new_state);
+  uint check_state(Snapshot_State new_state, bool exit_on_wait);
 
   /* Don't allow to attach new clone - Not supported
   void stop_attach_new_clone()
@@ -217,8 +237,16 @@ class Clone_Snapshot {
   /** Add file metadata entry at destination
   @param[in,out]	file_desc	if there, set to current descriptor
   @param[in]	data_dir	destination data directory
+  @param[in]	desc_create	create if doesn't exist
+  @param[out]	desc_exists	descriptor already exists
   @return error code */
-  dberr_t add_file_from_desc(Clone_File_Meta *&file_desc, const char *data_dir);
+  int get_file_from_desc(Clone_File_Meta *&file_desc, const char *data_dir,
+                         bool desc_create, bool &desc_exists);
+
+  /** Add file descriptor to file list
+  @param[in,out]	file_desc	current file descriptor
+  @return true, if it is the last file. */
+  bool add_file_from_desc(Clone_File_Meta *&file_desc);
 
   /** Extract file information from node and add to snapshot
   @param[in]	node	file node
@@ -229,15 +257,15 @@ class Clone_Snapshot {
   @param[in]	space_id	page tablespace
   @param[in]	page_num	page number within tablespace
   @return error code */
-  dberr_t add_page(ib_uint32_t space_id, ib_uint32_t page_num);
+  int add_page(ib_uint32_t space_id, ib_uint32_t page_num);
 
   /** Add redo file to snapshot
   @param[in]	file_name	file name
   @param[in]	file_size	file size in bytes
   @param[in]	file_offset	start offset
   @return error code. */
-  dberr_t add_redo_file(char *file_name, ib_uint64_t file_size,
-                        ib_uint64_t file_offset);
+  int add_redo_file(char *file_name, ib_uint64_t file_size,
+                    ib_uint64_t file_offset);
 
   /** Get file metadata by index for current state
   @param[in]	index	file index
@@ -252,13 +280,17 @@ class Clone_Snapshot {
   @param[out]	data_buf	data buffer or NULL if transfer from file
   @param[out]	data_size	size of data in bytes
   @return error code */
-  dberr_t get_next_block(uint chunk_num, uint &block_num,
-                         Clone_File_Meta *file_meta, ib_uint64_t &data_offset,
-                         byte *&data_buf, uint &data_size);
+  int get_next_block(uint chunk_num, uint &block_num,
+                     Clone_File_Meta *file_meta, ib_uint64_t &data_offset,
+                     byte *&data_buf, uint &data_size);
 
   /** Update snapshot block size based on caller's buffer size
   @param[in]	buff_size	buffer size for clone transfer */
   void update_block_size(uint buff_size);
+
+  /** Check if copy snapshot
+  @return true if snapshot is for copy */
+  bool is_copy() const { return (m_snapshot_handle_type == CLONE_HDL_COPY); }
 
   /** Update file size when file is extended during page copy
   @param[in]	file_index	current file index
@@ -273,33 +305,43 @@ class Clone_Snapshot {
     return (m_snapshot_next_state != CLONE_SNAPSHOT_NONE);
   }
 
-  /** Check if copy snapshot
-  @return true if snapshot is for copy */
-  bool is_copy() { return (m_snapshot_handle_type == CLONE_HDL_COPY); }
-
   /** Initialize current state
+  @param[in]	state_desc	descriptor for the state
   @param[in]	temp_buffer	buffer used during page copy initialize
   @param[in]	temp_buffer_len	buffer length
   @return error code */
-  dberr_t init_state(byte *temp_buffer, uint temp_buffer_len);
+  int init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
+                 uint temp_buffer_len);
 
   /** Initialize snapshot state for file copy
   @return error code */
-  dberr_t init_file_copy();
+  int init_file_copy();
 
   /** Initialize snapshot state for page copy
   @param[in]	page_buffer	temporary buffer to copy page IDs
   @param[in]	page_buffer_len	buffer length
   @return error code */
-  dberr_t init_page_copy(byte *page_buffer, uint page_buffer_len);
+  int init_page_copy(byte *page_buffer, uint page_buffer_len);
 
   /** Initialize snapshot state for redo copy
   @return error code */
-  dberr_t init_redo_copy();
+  int init_redo_copy();
 
-  /** Extend files after copying pages, if needed
+  /** Initialize state while applying cloned data
+  @param[in]	state_desc	snapshot state descriptor
   @return error code */
-  dberr_t extend_files();
+  int init_apply_state(Clone_Desc_State *state_desc);
+
+  /** Extend and flush files after copying data
+  @param[in]	is_redo	if true flush redo, otherwise data
+  @return error code */
+  int extend_and_flush_files(bool is_redo);
+
+  /** Create file descriptor and add to current file list
+  @param[in]	data_dir	destination data directory
+  @param[in,out]	file_desc	file descriptor
+  @return error code */
+  int create_desc(const char *data_dir, Clone_File_Meta *&file_desc);
 
   /** Get file metadata for current chunk
   @param[in]	file_vector	clone file vector
@@ -318,9 +360,8 @@ class Clone_Snapshot {
   @param[out]	data_buf	page data
   @param[out]	data_size	page data size
   @return error code */
-  dberr_t get_next_page(uint chunk_num, uint &block_num,
-                        Clone_File_Meta *file_meta, ib_uint64_t &data_offset,
-                        byte *&data_buf, uint &data_size);
+  int get_next_page(uint chunk_num, uint &block_num, Clone_File_Meta *file_meta,
+                    ib_uint64_t &data_offset, byte *&data_buf, uint &data_size);
 
   /** Get page from buffer pool and make ready for write
   @param[in]	page_id		page ID chunk
@@ -328,9 +369,8 @@ class Clone_Snapshot {
   @param[out]	page_data	data page
   @param[out]	data_size	page size in bytes
   @return error code */
-  dberr_t get_page_for_write(const page_id_t &page_id,
-                             const page_size_t &page_size, byte *&page_data,
-                             uint &data_size);
+  int get_page_for_write(const page_id_t &page_id, const page_size_t &page_size,
+                         byte *&page_data, uint &data_size);
 
   /** Build file metadata entry
   @param[in]	file_name	name of the file
@@ -345,7 +385,7 @@ class Clone_Snapshot {
 
   /** Add buffer pool dump file to the file list
   @return error code */
-  dberr_t add_buf_pool_file();
+  int add_buf_pool_file();
 
   /** Add file to snapshot
   @param[in]	name		file name
@@ -353,8 +393,8 @@ class Clone_Snapshot {
   @param[in]	space_id	tablespace id
   @param[in]	copy_name	copy the file name or use reference
   @return error code. */
-  dberr_t add_file(const char *name, ib_uint64_t size_bytes, ulint space_id,
-                   bool copy_name);
+  int add_file(const char *name, ib_uint64_t size_bytes, ulint space_id,
+               bool copy_name);
 
   /** Get chunk size
   @return chunk size in pages */
@@ -504,10 +544,11 @@ class Clone_Snapshot {
   /** Total number of redo data chunks */
   uint m_num_redo_chunks;
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
+  /** Enable PFS monitoring */
+  bool m_enable_pfs;
+
   /** Performance Schema accounting object to monitor stage progess */
   Clone_Monitor m_monitor;
-#endif
 };
 
 #endif /* CLONE_SNAPSHOT_INCLUDE */

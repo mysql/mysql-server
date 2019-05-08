@@ -1,0 +1,393 @@
+# ==== Purpose ====
+#
+# This script aims at testing read and truncate operations on encrypted binary
+# log files, as well as related error conditions.
+#
+# Part 1: At server startup, truncate incomplete binary log file
+#
+# The test case will make an encrypted binary log file the last one, forcing
+# recovery checks to evaluate it (see file details below).
+#
+# Before allowing a successful recover, failures to access the encrypted file
+# will be simulated playing with the keyring file and using debug
+# instrumentation. The simulations are the same as sections 4.1 and 4.2.
+#
+# After the attempts with simulated failures, the server will be restarted and
+# become operational again.
+#
+# This will ensure that the server is able to read from the encrypted binary
+# log file on binary log recovery and also is able to open the encrypted file
+# for writing (as no key need to be generated) to clear
+# LOG_EVENT_BINLOG_IN_USE_F flag on it and also to truncate it in the end of
+# the last complete transaction.
+#
+# Part 2: Show binlog events/Show binary logs
+#
+# This will ensure that the server is able to decrypt and access an encrypted
+# binary log file from user requests.
+#
+# It will also ensure that the server is able to show which binary log files
+# are encrypted or not.
+#
+# Part 3: Replicate to a slave server
+#
+# This will ensure that the master is able to replicate from an encrypted
+# binary log file to a slave. It will read from the encrypted binary log file
+# but will replicate its content as a plain binary log events stream (without
+# encryption) to the slave.
+#
+# Part 4: Errors
+#
+# Part 4.1: Simulate errors using debug instrumentation
+#
+# 4.1.1 Use an encryption key that cannot decode the file password
+#
+# By corrupting the encryption key using debug instrumentation, the server
+# shall not be able to recognize the binary log data stream as the decrypted
+# content will not match the original binary log data stream.
+#
+# The remaining simulated errors shall throw replication logs encryption
+# specific errors.
+#
+# 4.1.2 Invalid key type returned by keyring.
+# 4.1.3 Invalid key size returned by keyring.
+# 4.1.4 Unable to read the encrypted header version.
+# 4.1.5 Unsupported encrypted header version.
+# 4.1.6 Read out of header boundaries.
+# 4.1.7 Header contains an unsupported field type.
+# 4.1.8 Header is missing the key ID.
+# 4.1.9 Header is missing the encrypted password.
+# 4.1.10 Header is missing the IV.
+# 4.1.11 Incomplete encryption header.
+#
+# Part 4.2: Use a keyring file without the encryption key
+#
+# After replacing the keyring file with an empty keyring file, the server shall
+# throw an error when requested to access the encrypted binary log file.
+#
+# Part 4.3: Uninstall the keyring from the master
+#
+# After uninstalling the keyring_file plug-in, the server shall throw an error
+# when requested to access the encrypted binary log file.
+#
+# Part 5: mysqlbinlog is unable to dump encrypted binary logs
+#
+# Request mysqlbinlog to dump the content of the encrypted binary log file
+# and parse the output asserting that the expected error message was thrown.
+#
+#
+# This test case rely in two previously generated files:
+#
+# encrypted binary log file
+# -------------------------
+
+# It was encrypted by a server using V1 encryption.
+#
+# The server that generated it was running with GTID_MODE = OFF, executed the
+# following statements that were logged into the file:
+# - CREATE TABLE t1 (c1 INT PRIMARY KEY);
+# - INSERT INTO t1 (c1) VALUES (1, 2, 3);
+# - INSERT INTO t1 (c1) VALUES (4, 5, 6);
+# - DROP TABLE t1;
+#
+# The file was copied before binary log rotation, so it still has FD's
+# LOG_EVENT_BINLOG_IN_USE_F flag set, and it was manually truncated in the
+# middle of the Query event with the "DROP TABLE t1:" statement.
+#
+# Once recovered, the master shall clear the LOG_EVENT_BINLOG_IN_USE_F flag and
+# truncate the file in the end of last complete transaction.
+#
+# keyring original file
+# ---------------------
+#
+# This is the keyring file where the server that created the above mentioned
+# binary log file stored the encryption key that shall be used to decrypt the
+# file password.
+#
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#10957: Binary log encryption at rest
+#
+
+# This test case is binary log format agnostic
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--let $keyring_file= $MYSQL_TMP_DIR/keyring_master
+--let $keyring_original_file= $MYSQL_TEST_DIR/std_data/rpl_nogtid_encryption_keyring_master
+--let $encrypted_binlog_file= $MYSQL_TEST_DIR/std_data/rpl_nogtid_encryption_master-bin.000002
+--let $MASTER_DATADIR= `select @@datadir`
+# Makes the index file to contain two files (we will replace the second one
+# by a previously generated encrypted binary log file.
+FLUSH LOCAL LOGS;
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $assert_text= Master status shall point to master-bin.000002
+--let $assert_cond= "$binlog_file" = "master-bin.000002"
+--source include/assert.inc
+--let $binlog_file_path= $MASTER_DATADIR/$binlog_file
+
+# Stop the master server
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+--connection slave
+# Replace the binary log file
+--remove_file $binlog_file_path
+--copy_file $encrypted_binlog_file $binlog_file_path
+
+--echo # Part 1
+--let $point= 0
+--let $master_error_log=$MYSQL_TMP_DIR/master.err
+--let $keyring_parameters=$KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_file
+while ($point < 13)
+{
+  --inc $point
+  --let $rpl_server_parameters= $keyring_parameters --log-error=$master_error_log
+  if ($point == 1)
+  {
+    # Using a keyring key without the key to access the file
+    --let $rpl_server_parameters= --log-error=$master_error_log
+    --let $debug=
+    --let $error_message=Cannot get file password for encrypted replication log file
+  }
+  if ($point == 2)
+  {
+    # Using a keyring key without the key to access the file
+    --let $debug=
+    --let $error_message=Cannot get file password for encrypted replication log file
+  }
+  if ($point == 3)
+  {
+    # Corrupting the encryption key (plain binlog stream magic is not recognized)
+    --let $debug=--debug=d,corrupt_replication_encryption_key
+    --let $error_message=Binlog has bad magic number
+  }
+  if ($point == 4)
+  {
+    # Corrupting the encryption key type
+    --let $debug=--debug=d,corrupt_replication_encryption_key_type
+    --let $error_message=Fetched an invalid key from keyring
+  }
+  if ($point == 5)
+  {
+    # Corrupting the encryption key size
+    --let $debug=--debug=d,corrupt_replication_encryption_key_size
+    --let $error_message=Fetched an invalid key from keyring
+  }
+  if ($point == 6)
+  {
+    # Corrupt the encrypted header version
+    --let $debug=--debug=d,corrupt_encrypted_header_version
+    --let $error_message=Unable to determine encryption header version
+  }
+  if ($point == 7)
+  {
+    # Force an unsupported encryption header version
+    --let $debug=--debug=d,force_encrypted_header_version_2
+    --let $error_message=Unsupported encryption header version
+  }
+  if ($point == 8)
+  {
+    # Force a header with fields over the header size
+    --let $debug=--debug=d,corrupt_encryption_header_read_above_header_size
+    --let $error_message=Header is corrupted
+  }
+  if ($point == 9)
+  {
+    # Force a header with an unknown field type
+    --let $debug=--debug=d,corrupt_encryption_header_unknown_field_type
+    --let $error_message=Unknown field type
+  }
+  if ($point == 10)
+  {
+    # Force a header without a key ID
+    --let $debug=--debug=d,corrupt_encryption_header_missing_key_id
+    --let $error_message=Header is missing the replication encryption key ID
+  }
+  if ($point == 11)
+  {
+    # Force a header without password
+    --let $debug=--debug=d,corrupt_encryption_header_missing_password
+    --let $error_message=Header is missing the encrypted password
+  }
+  if ($point == 12)
+  {
+    # Force a header without IV
+    --let $debug=--debug=d,corrupt_encryption_header_missing_iv
+    --let $error_message=Header is missing the IV
+  }
+  if ($point == 13)
+  {
+    # Force an incomplete (< 512 bytes) encryption header
+    --let $debug=--debug=d,force_incomplete_encryption_header
+    --let $error_message=Header is incomplete
+  }
+  --echo Try to restart the master with debug instrumentation
+  --error 0,1
+  --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.1 $rpl_server_parameters $debug
+  --let $assert_file= $master_error_log
+  --let $assert_text= Server reported: $error_message
+  --let $assert_select= $error_message
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --let $assert_text= Server failed to initialize binary log for recovery
+  --let $assert_select= Can.t init tc log
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --let $assert_text= Server aborted to start
+  --let $assert_select= Server.*Aborting
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --remove_file $master_error_log
+  if ($point == 2)
+  {
+    # Copy the keyring file
+    --remove_file $keyring_file
+    --copy_file $keyring_original_file $keyring_file
+  }
+}
+
+# Restart the server
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= $keyring_parameters
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--connection master
+
+--echo # Part 2
+--let $assert_text= 1st binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 1]" = "No"
+--source include/assert.inc
+--let $assert_text= 2nd binary log is encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "Yes"
+--source include/assert.inc
+--let $assert_text= 3rd binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "No"
+--source include/assert.inc
+--let $binlog_file= master-bin.000002
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo # Part 3
+# Start slave threads so it can sync with master
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $assert_text= Slave shall have t1 with a 6 rows on it
+--let $assert_cond= [SELECT COUNT(*) AS t1_rows FROM t1, t1_rows, 1] = 6
+--source include/assert.inc
+# Slave cleanup
+DROP TABLE t1;
+--source include/stop_slave.inc
+
+--echo # Part 4
+--source include/rpl_connection_master.inc
+
+--echo # Part 4.1
+--echo # Part 4.1.1
+--let $debug_point= corrupt_replication_encryption_key
+--source include/add_debug_point.inc
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.2
+--let $debug_point= corrupt_replication_encryption_key_type
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.3
+--let $debug_point= corrupt_replication_encryption_key_size
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.4
+--let $debug_point= corrupt_encrypted_header_version
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.5
+--let $debug_point= force_encrypted_header_version_2
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.6
+--let $debug_point= corrupt_encryption_header_read_above_header_size
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.7
+--let $debug_point= corrupt_encryption_header_unknown_field_type
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.8
+--let $debug_point= corrupt_encryption_header_missing_key_id
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.9
+--let $debug_point= corrupt_encryption_header_missing_password
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.10
+--let $debug_point= corrupt_encryption_header_missing_iv
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.11
+--let $debug_point= force_incomplete_encryption_header
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+
+--echo # Part 4.2
+UNINSTALL PLUGIN keyring_file;
+# Stop the master server
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+# Remove the keyring file to create a new empty one
+--remove_file $keyring_file
+# Restart the server
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_file
+--source include/rpl_start_server.inc
+--error ER_RPL_ENCRYPTION_KEY_NOT_FOUND
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+
+--echo # Part 4.3
+UNINSTALL PLUGIN keyring_file;
+--error ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+
+--echo # Part 5
+--let $output_file= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.log
+--let $error_file= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.err
+--error 1
+--exec $MYSQL_BINLOG -F $binlog_file_path > $output_file 2> $error_file
+--let $assert_text= mysqlbinlog reported it does not support reading encrypted log files
+--let $assert_file= $error_file
+--let $assert_count= 1
+--let $assert_select= Reading encrypted log files directly is not supported
+--source include/assert_grep.inc
+--remove_file $output_file
+--remove_file $error_file
+
+# Cleanup
+--remove_file $keyring_file
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_end.inc

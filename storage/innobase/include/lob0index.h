@@ -449,6 +449,6 @@ inline std::ostream &operator<<(std::ostream &out, const index_entry_t &obj) {
   return (obj.print(out));
 }
 
-}; /* namespace lob */
+} /* namespace lob */
 
 #endif /* lob0index_h */

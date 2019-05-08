@@ -619,10 +619,10 @@ c	a
 UPDATE t SET b='xyz';
 DO (SELECT @c1:= c FROM t);
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DO (SELECT (@c2:= c) - a FROM t);
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT @c2 - @c1;
 @c2 - @c1
 0
@@ -884,3 +884,16 @@ INSERT INTO t (a) VALUES (32767),(-1);
 SELECT * FROM t WHERE a>-19106 AND a-0x4d;
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(`test`.`t`.`a` - 0x4d)'
 DROP TABLE t;
+#
+# Bug#27954073 ASSERTION FAILED: !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+#
+SET BINLOG_FORMAT=STATEMENT;
+CREATE TABLE t(
+a INT,
+b INT GENERATED ALWAYS AS (0) VIRTUAL NOT NULL,
+KEY (a)
+) ENGINE=INNODB PARTITION BY KEY(b) PARTITIONS 2;
+INSERT INTO t(a) VALUES(1),(1),(1),(1);
+DELETE FROM t WHERE a=1;
+DROP TABLE t;
+SET BINLOG_FORMAT=DEFAULT;

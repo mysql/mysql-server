@@ -45,7 +45,7 @@ class FileLogHandler : public LogHandler
 {
 public:
 
-  virtual const char* handler_type() {return "FILE"; };
+  virtual const char* handler_type() {return "FILE"; }
 
   /**
    * Creates a new file handler with the specified filename, 
@@ -77,7 +77,7 @@ public:
   virtual bool getParams(BaseString &config);
 
   virtual off_t getCurrentSize();
-  virtual off_t getMaxSize() { return m_maxFileSize; };
+  virtual off_t getMaxSize() { return m_maxFileSize; }
 
 protected:	
   virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,

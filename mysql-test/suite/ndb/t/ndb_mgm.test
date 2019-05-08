@@ -260,3 +260,4 @@ exec $mgm_cmd -e "ABORT BACKUP 1000000000000000000";
 --exec $mgm_cmd -e "prompt test-prompt>";
 --exec $mgm_cmd -e "prompt"
 -- source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

@@ -20,7 +20,6 @@ DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p2;
 DROP PROCEDURE IF EXISTS test.p3;
 
-
 # Begin test section 1 
 # Create user user1 with no particular access rights
 CREATE USER user1@localhost;
@@ -70,6 +69,7 @@ DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP USER user1@localhost;
 --source include/sync_slave_sql_with_master.inc
+--enable_warnings
 
 # End of 5.0 test case
 

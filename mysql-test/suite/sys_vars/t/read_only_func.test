@@ -147,4 +147,3 @@ DROP TABLE t2;
 SET global read_only = @default_read_only;
 
 --disable_info
---enable_warnings

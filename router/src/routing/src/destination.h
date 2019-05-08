@@ -37,11 +37,16 @@
 #include <thread>
 #include <vector>
 
+#include "my_compiler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
 #include "tcp_address.h"
 IMPORT_LOG_FUNCTIONS()
+
+namespace mysql_harness {
+class PluginFuncEnv;
+}
 
 using AllowedNodes = std::vector<mysql_harness::TCPAddress>;
 // first argument is the new set of the allowed nodes
@@ -205,8 +210,10 @@ class RouteDestination : public DestinationNodesStateNotifier {
 
   /** @brief Start the destination threads (if any)
    *
+   * @param env pointer to the PluginFuncEnv object
    */
-  virtual void start() {}
+  virtual void start(
+      const mysql_harness::PluginFuncEnv *env MY_ATTRIBUTE((unused))) {}
 
   AddrVector::iterator begin() { return destinations_.begin(); }
 

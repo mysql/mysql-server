@@ -8,7 +8,6 @@
 # Remove myisam partitioned tables. There are used for negative testing.
 # start mysqld on the 5.7 datadir
 # restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
-# Execute mysql_upgrade
 SELECT * FROM test.t_compressed;
 c1	c2
 SHOW CREATE TABLE test.t_compressed;

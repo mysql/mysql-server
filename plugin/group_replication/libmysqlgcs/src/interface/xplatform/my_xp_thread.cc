@@ -42,7 +42,7 @@ int My_xp_thread_server::create(PSI_thread_key key MY_ATTRIBUTE((unused)),
                                 const native_thread_attr_t *attr,
                                 native_start_routine func, void *arg) {
   return mysql_thread_create(key, m_thread_handle, attr, func, arg);
-};
+}
 
 int My_xp_thread_server::create_detached(
     PSI_thread_key key MY_ATTRIBUTE((unused)), native_thread_attr_t *attr,
@@ -63,7 +63,7 @@ int My_xp_thread_server::create_detached(
   if (using_my_attr) My_xp_thread_util::attr_destroy(&my_attr);
 
   return ret_status;
-};
+}
 
 int My_xp_thread_server::join(void **value_ptr) {
   return my_thread_join(m_thread_handle, value_ptr);

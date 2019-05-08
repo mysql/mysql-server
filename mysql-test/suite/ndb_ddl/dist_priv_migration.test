@@ -1,0 +1,113 @@
+--source include/have_debug.inc
+--source connect.inc
+
+--echo *** TEST CASE 1 ***
+--echo *** Positive test that a table named mtr__acl_test_table exhibits
+--echo *** the special behavior used for upgrading ACL tables into 8.0
+
+--connection mysqld1
+--echo At MySQL Server 1
+# This test relies on a special hard-coded table name mysql.mtr__acl_test_table
+USE mysql;
+CREATE TABLE mtr__acl_test_table (i int not null primary key, j int)
+  ENGINE=ndb;
+
+# Populate the table with some data
+INSERT INTO mtr__acl_test_table values(1,2);
+INSERT INTO mtr__acl_test_table values(2,3);
+INSERT INTO mtr__acl_test_table values(3,4);
+
+# Test the "NDB to InnoDB" upgrade migration of WL#12711
+#
+# On one server, migrate the table to InnoDB
+ALTER TABLE mtr__acl_test_table ENGINE=InnoDB;
+
+# The data still exists
+SELECT * FROM mtr__acl_test_table ORDER BY i;
+
+# The table is in InnoDB
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_name='mtr__acl_test_table';
+
+# From a different MySQL server, we see the server still existing in NDB
+--connection mysqld2
+--echo At MySQL Server 2
+
+USE mysql;
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_name='mtr__acl_test_table';
+
+# And the original data remains
+SELECT * FROM mtr__acl_test_table ORDER BY i;
+
+# Add a record:
+INSERT INTO mtr__acl_test_table values(4,5);
+
+# From mysqld1 where the table is in InnoDB the new record does not appear
+--connection mysqld1
+--echo At MySQL Server 1
+SELECT * FROM mtr__acl_test_table ORDER BY i;
+
+--connection mysqld3
+--echo At MySQL Server 3 also migrate the table to InnoDB
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_name='mtr__acl_test_table';
+ALTER TABLE mysql.mtr__acl_test_table ENGINE=InnoDB;
+
+--connection mysqld2
+--echo At MySQL Server 2, DROP the NDB table:
+
+DROP TABLE mysql.mtr__acl_test_table;
+
+--connection mysqld4
+--echo At MySQL Server 4, Confirm that the NDB table has been dropped
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_name='mtr__acl_test_table';
+
+# Back at mysqld1 the InnoDB table still exists
+--connection mysqld1
+--echo At MySQL Server 1
+SELECT COUNT(*) FROM mtr__acl_test_table;
+
+# Finally drop the InnoDB table
+DROP TABLE mtr__acl_test_table;
+
+--connection mysqld3
+--echo At MySQL Server 3 Drop the local InnoDB table
+DROP TABLE mysql.mtr__acl_test_table;
+
+
+--echo *** TEST CASE 2 ***
+--echo *** Negative test that a table *not* named mtr__acl_test_table
+--echo *** does not exhibit the special behavior
+
+--connection mysqld1
+
+CREATE TABLE mtr__acl_test_table_2 (i int not null primary key, j int)
+  ENGINE=ndb;
+
+# Populate the table with some data
+INSERT INTO mtr__acl_test_table_2 values(1,2);
+INSERT INTO mtr__acl_test_table_2 values(2,3);
+INSERT INTO mtr__acl_test_table_2 values(3,4);
+
+# This ALTER TABLE changes the table to a *local* InnoDB table.
+# It will be dropped from NDB
+ALTER TABLE mtr__acl_test_table_2 ENGINE=InnoDB;
+
+SELECT * FROM mtr__acl_test_table_2 ORDER BY i;
+
+# The table is in InnoDB
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_name='mtr__acl_test_table_2';
+
+--connection mysqld2
+--echo At MySQL 2 we expect the table does not exist
+SELECT count(*) FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_name='mtr__acl_test_table_2';
+
+--connection mysqld1
+--echo Back at mysqld1 drop the negative test table
+DROP TABLE mtr__acl_test_table_2;
+
+

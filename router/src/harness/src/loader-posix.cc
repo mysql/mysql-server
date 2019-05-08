@@ -24,6 +24,8 @@
 
 #include "mysql/harness/loader.h"
 
+#include "my_config.h"
+
 #include "mysql/harness/filesystem.h"
 
 #include "exception.h"
@@ -52,6 +54,12 @@
 #define USE_DLCLOSE 0
 #endif
 
+// dlopen/dlclose work differently on Alpine
+#if defined(LINUX_ALPINE)
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+#endif
+
 namespace mysql_harness {
 
 ////////////////////////////////////////////////////////////////
@@ -70,7 +78,7 @@ class Loader::PluginInfo::Impl {
   ~Impl();
 
   Path path;
-  void *handle;
+  void *handle{nullptr};
 };
 
 Loader::PluginInfo::Impl::Impl(const std::string &plugin_folder,

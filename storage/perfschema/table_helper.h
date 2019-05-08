@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/json_dom.h"
 #include "storage/perfschema/digest.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_digest.h"
@@ -60,6 +59,7 @@ struct PFS_prepared_stmt;
 struct PFS_metadata_lock;
 struct PFS_setup_actor;
 struct PFS_setup_object;
+class Json_wrapper;
 
 /**
   @file storage/perfschema/table_helper.h
@@ -92,6 +92,8 @@ void set_field_utiny(Field *f, ulong value);
 */
 long get_field_tiny(Field *f);
 
+ulong get_field_utiny(Field *f);
+
 /**
   Helper, assign a value to a @c short field.
   @param f the field to set
@@ -112,6 +114,8 @@ void set_field_ushort(Field *f, ulong value);
   @return the field value
 */
 long get_field_short(Field *f);
+
+ulong get_field_ushort(Field *f);
 
 /**
   Helper, assign a value to a @c medium field.
@@ -134,6 +138,8 @@ void set_field_umedium(Field *f, ulong value);
 */
 long get_field_medium(Field *f);
 
+ulong get_field_umedium(Field *f);
+
 /**
   Helper, assign a value to a @c long field.
   @param f the field to set
@@ -155,6 +161,8 @@ void set_field_ulong(Field *f, ulong value);
 */
 long get_field_long(Field *f);
 
+ulong get_field_ulong(Field *f);
+
 /**
   Helper, assign a value to a @c longlong field.
   @param f the field to set
@@ -168,6 +176,8 @@ void set_field_longlong(Field *f, longlong value);
   @param value the value to assign
 */
 void set_field_ulonglong(Field *f, ulonglong value);
+
+longlong get_field_longlong(Field *f);
 
 /**
   Helper, read a value from an @c ulonglong field.
@@ -266,7 +276,7 @@ void set_field_varchar_utf8(Field *f, const char *str);
   @param str the string to assign
   @param len the length of the string to assign
 */
-void set_field_varchar_utf8(Field *f, const char *str, uint len);
+void set_field_varchar_utf8(Field *f, const char *str, size_t len);
 
 /**
   Helper, read a value from a @code varchar utf8 @endcode field.
@@ -603,11 +613,11 @@ struct PFS_object_row {
   /** Column SCHEMA_NAME. */
   char m_schema_name[NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  size_t m_schema_name_length;
   /** Column OBJECT_NAME. */
   char m_object_name[NAME_LEN];
   /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  size_t m_object_name_length;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
@@ -625,15 +635,15 @@ struct PFS_column_row {
   /** Column SCHEMA_NAME. */
   char m_schema_name[NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  size_t m_schema_name_length;
   /** Column OBJECT_NAME. */
   char m_object_name[NAME_LEN];
   /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  size_t m_object_name_length;
   /** Column OBJECT_NAME. */
   char m_column_name[NAME_LEN];
   /** Length in bytes of @c m_column_name. */
-  uint m_column_name_length;
+  size_t m_column_name_length;
 
   /** Build a row from a memory buffer. */
   int make_row(const MDL_key *pfs);
@@ -648,7 +658,7 @@ struct PFS_index_row {
   /** Column INDEX_NAME. */
   char m_index_name[NAME_LEN];
   /** Length in bytes of @c m_index_name. */
-  uint m_index_name_length;
+  size_t m_index_name_length;
 
   /** Build a row from a memory buffer. */
   int make_index_name(PFS_table_share_index *pfs_index, uint table_index);
@@ -1167,15 +1177,49 @@ class PFS_key_ulong : public PFS_engine_key {
 
   virtual ~PFS_key_ulong() {}
 
+  static enum ha_rkey_function stateless_read(PFS_key_reader &reader,
+                                              enum ha_rkey_function find_flag,
+                                              bool &is_null, ulong *key_value) {
+    return reader.read_ulong(find_flag, is_null, key_value);
+  }
+
   virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     m_find_flag = reader.read_ulong(find_flag, m_is_null, &m_key_value);
   }
+
+  static bool stateless_match(bool record_null, ulong record_value,
+                              bool m_is_null, ulong m_key_value,
+                              enum ha_rkey_function find_flag);
 
  protected:
   bool do_match(bool record_null, ulong record_value);
 
  private:
   ulong m_key_value;
+};
+
+class PFS_key_longlong : public PFS_engine_key {
+ public:
+  PFS_key_longlong(const char *name) : PFS_engine_key(name), m_key_value(0) {}
+
+  virtual ~PFS_key_longlong() {}
+
+  virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
+    m_find_flag = reader.read_longlong(find_flag, m_is_null, &m_key_value);
+  }
+
+  static bool stateless_match(bool record_null, longlong record_value,
+                              bool m_is_null, longlong m_key_value,
+                              enum ha_rkey_function find_flag);
+
+ protected:
+  bool do_match(bool record_null, longlong record_value) {
+    return stateless_match(record_null, record_value, m_is_null, m_key_value,
+                           m_find_flag);
+  }
+
+ private:
+  longlong m_key_value;
 };
 
 class PFS_key_ulonglong : public PFS_engine_key {
@@ -1187,6 +1231,10 @@ class PFS_key_ulonglong : public PFS_engine_key {
   virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     m_find_flag = reader.read_ulonglong(find_flag, m_is_null, &m_key_value);
   }
+
+  static bool stateless_match(bool record_null, ulonglong record_value,
+                              bool m_is_null, ulonglong m_key_value,
+                              enum ha_rkey_function find_flag);
 
  protected:
   bool do_match(bool record_null, ulonglong record_value);

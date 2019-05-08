@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>  // unique_ptr
 #include <new>
@@ -33,11 +34,12 @@
 #include <utility>
 #include <vector>
 
-#include "binary_log_types.h"  // enum_field_types
+#include "field_types.h"  // enum_field_types
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql_time.h"            // MYSQL_TIME
 #include "prealloced_array.h"      // Prealloced_array
 #include "sql/json_binary.h"       // json_binary::Value
@@ -82,8 +84,8 @@ using Json_object_ptr = std::unique_ptr<Json_object>;
   building a DOM unless we really need one.
 
   The file defines two sets of classes: a) The Json_dom hierarchy and
-  b) Json_wrapper and its companion class Json_wrapper_object_iterator.
-  For both sets, arrays are traversed using an operator[].
+  b) Json_wrapper and its companion classes Json_wrapper_object_iterator and
+  Json_object_wrapper. For both sets, arrays are traversed using an operator[].
 */
 
 /**
@@ -192,17 +194,17 @@ class Json_dom {
     not be allocated (in which case my_error() will have been called
     with the appropriate error message)
   */
-  void *operator new(size_t size, const std::nothrow_t &) throw();
+  void *operator new(size_t size, const std::nothrow_t &) noexcept;
 
   /**
     Deallocate the space used by a Json_dom object.
   */
-  void operator delete(void *ptr) throw();
+  void operator delete(void *ptr) noexcept;
 
   /**
     Nothrow delete.
   */
-  void operator delete(void *ptr, const std::nothrow_t &)throw();
+  void operator delete(void *ptr, const std::nothrow_t &)noexcept;
 
   /**
     Get the parent dom to which this dom is attached.
@@ -348,9 +350,16 @@ class Json_dom {
   the same length. The ordering is ascending. This ordering was chosen
   for speed of look-up. See usage in Json_object_map.
 */
-struct Json_key_comparator
-    : std::binary_function<std::string, std::string, bool> {
+struct Json_key_comparator {
   bool operator()(const std::string &key1, const std::string &key2) const;
+  bool operator()(const MYSQL_LEX_CSTRING &key1, const std::string &key2) const;
+  bool operator()(const std::string &key1, const MYSQL_LEX_CSTRING &key2) const;
+  // is_transparent must be defined in order to make std::map::find() accept
+  // keys that are of a different type than the key_type of the map. In
+  // particular, this is needed to make it possible to call find() with
+  // MYSQL_LEX_CSTRING arguments and not only std::string arguments. It only has
+  // to be defined, it doesn't matter which type it is set to.
+  using is_transparent = void;
 };
 
 /**
@@ -445,6 +454,7 @@ class Json_object : public Json_dom {
     @return the value associated with the key, or NULL if the key is not found
   */
   Json_dom *get(const std::string &key) const;
+  Json_dom *get(const MYSQL_LEX_CSTRING &key) const;
 
   /**
     Remove the child element addressed by key. The removed child is deleted.
@@ -1083,44 +1093,6 @@ bool double_quote(const char *cptr, size_t length, String *buf);
 */
 Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right);
 
-class Json_wrapper_object_iterator {
- private:
-  bool m_is_dom;  //!< if true, we iterate over a DOM, else a binary object
-
-  // only used for Json_dom
-  Json_object::const_iterator m_iter;
-  Json_object::const_iterator m_end;
-
-  // only used for json_binary::Value
-  size_t m_element_count;
-  size_t m_curr_element;
-  const json_binary::Value *m_value;
-
- public:
-  /**
-    @param[in] obj  the JSON object to iterate over
-  */
-  explicit Json_wrapper_object_iterator(const Json_object *obj);
-  /**
-    @param[in]  value must contain a JSON object at the top level.
-  */
-  Json_wrapper_object_iterator(const json_binary::Value *value);
-  ~Json_wrapper_object_iterator() {}
-
-  bool empty() const;  //!< Returns true of no more elements
-  void next();         //!< Advances iterator to next element
-
-  /**
-    Get the current element as a pair: the first part is the element key,
-    the second part is the element's value. If the underlying object is
-    a DOM, the returned wrapper for the element will hold an alias for
-    the element DOM, that is, no copy of the DOM will be taken. In other
-    words, the ownership of the element DOM still resides with whoever owns
-    the DOM of which the element is part.
-  */
-  std::pair<const std::string, Json_wrapper> elt() const;
-};
-
 /**
   How Json_wrapper would handle coercion error
 */
@@ -1268,11 +1240,31 @@ class Json_wrapper {
     wrapper. If this wrapper originally held a value, it is now converted
     to hold (and eventually release) the DOM version.
 
-    @param thd current session
+    @param thd current session (can be nullptr if is_dom() returns true)
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
   Json_dom *to_dom(const THD *thd);
 
+  /**
+    Gets a pointer to the wrapped Json_dom object, if this wrapper holds a DOM.
+    If is_dom() returns false, the result of calling this function is undefined.
+  */
+  const Json_dom *get_dom() const {
+    DBUG_ASSERT(m_is_dom);
+    return m_dom_value;
+  }
+
+  /**
+    Gets the wrapped json_binary::Value object, if this wrapper holds a binary
+    JSON value. If is_dom() returns true, the result of calling this function is
+    undefined.
+  */
+  const json_binary::Value &get_binary_value() const {
+    DBUG_ASSERT(!m_is_dom);
+    return m_value;
+  }
+
+#ifdef MYSQL_SERVER
   /**
     Get the wrapped contents in DOM form. Same as to_dom(), except it returns
     a clone of the original DOM instead of the actual, internal DOM tree.
@@ -1280,9 +1272,7 @@ class Json_wrapper {
     @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-#ifdef MYSQL_SERVER
   Json_dom_ptr clone_dom(const THD *thd) const;
-#endif
 
   /**
     Get the wrapped contents in binary value form.
@@ -1292,7 +1282,6 @@ class Json_wrapper {
     @retval false on success
     @retval true  on error
   */
-#ifdef MYSQL_SERVER
   bool to_binary(const THD *thd, String *str) const;
 #endif
 
@@ -1370,15 +1359,6 @@ class Json_wrapper {
   enum_field_types field_type() const;
 
   /**
-    If this wrapper holds a JSON object, return an iterator over the
-    elements.  Valid for J_OBJECT.  Calling this method if the type is
-    not J_OBJECT will give undefined results.
-
-    @return the iterator
-  */
-  Json_wrapper_object_iterator object_iterator() const;
-
-  /**
     If this wrapper holds a JSON array, get an array value by indexing
     into the array. Valid for J_ARRAY.  Calling this method if the type is
     not J_ARRAY will give undefined results.
@@ -1397,7 +1377,7 @@ class Json_wrapper {
     @return The member value. If there is no member with the specified
     name, a value with type Json_dom::J_ERROR is returned.
   */
-  Json_wrapper lookup(const std::string &key) const;
+  Json_wrapper lookup(const MYSQL_LEX_CSTRING &key) const;
 
   /**
     Get a pointer to the data of a JSON string or JSON opaque value.
@@ -1652,7 +1632,7 @@ class Json_wrapper {
 
     @param[in]  hash_val  An initial hash value.
   */
-  ulonglong make_hash_key(ulonglong *hash_val);
+  ulonglong make_hash_key(ulonglong *hash_val) const;
 
   /**
     Calculate the amount of unused space inside a JSON binary value.
@@ -1717,6 +1697,106 @@ class Json_wrapper {
   */
   bool binary_remove(const Field_json *field, const Json_seekable_path &path,
                      String *result, bool *found_path);
+};
+
+/**
+  Class that iterates over all members of a JSON object that is wrapped in a
+  Json_wrapper instance.
+*/
+class Json_wrapper_object_iterator {
+ public:
+  // Type aliases required by ForwardIterator.
+  using value_type = std::pair<MYSQL_LEX_CSTRING, Json_wrapper>;
+  using reference = const value_type &;
+  using pointer = const value_type *;
+  using difference_type = ptrdiff_t;
+  using iterator_category = std::forward_iterator_tag;
+
+  /**
+    Creates an iterator that iterates over all members of the given
+    Json_wrapper, if it wraps a JSON object. If the wrapper does not wrap a JSON
+    object, the result is undefined.
+
+    @param wrapper the Json_wrapper to iterate over
+    @param begin   true to construct an iterator that points to the first member
+                   of the object, false to construct a past-the-end iterator
+  */
+  Json_wrapper_object_iterator(const Json_wrapper &wrapper, bool begin);
+
+  /// Forward iterators must be default constructible.
+  Json_wrapper_object_iterator() = default;
+
+  /// Advances the iterator to the next element.
+  Json_wrapper_object_iterator &operator++() {
+    if (is_dom())
+      ++m_iter;
+    else
+      ++m_current_element_index;
+    m_current_member_initialized = false;
+    return *this;
+  }
+
+  /**
+    Advances the iterator to the next element and returns an iterator that
+    points to the current element (post-increment operator).
+  */
+  Json_wrapper_object_iterator operator++(int) {
+    Json_wrapper_object_iterator copy = *this;
+    ++(*this);
+    return copy;
+  }
+
+  /// Checks two iterators for equality.
+  bool operator==(const Json_wrapper_object_iterator &other) const {
+    return is_dom() ? m_iter == other.m_iter
+                    : m_current_element_index == other.m_current_element_index;
+  }
+
+  /// Checks two iterators for inequality.
+  bool operator!=(const Json_wrapper_object_iterator &other) const {
+    return !(*this == other);
+  }
+
+  pointer operator->() {
+    if (!m_current_member_initialized) initialize_current_member();
+    return &m_current_member;
+  }
+
+  reference operator*() { return *this->operator->(); }
+
+ private:
+  /// Pair holding the key and value of the member pointed to by the iterator.
+  value_type m_current_member;
+  /// True if #m_current_member is initialized.
+  bool m_current_member_initialized{false};
+  /// The binary JSON object being iterated over, or nullptr for DOMs.
+  const json_binary::Value *m_binary_value;
+  /// The index of the current member in the binary JSON object.
+  size_t m_current_element_index;
+  /// Iterator pointing to the current member in the JSON DOM object.
+  Json_object::const_iterator m_iter;
+  /// Returns true if iterating over a DOM.
+  bool is_dom() const { return m_binary_value == nullptr; }
+  /// Fill #m_current_member with the key and value of the current member.
+  void initialize_current_member();
+};
+
+/**
+  A wrapper over a JSON object which provides an interface that can be iterated
+  over with a for-each loop.
+*/
+class Json_object_wrapper {
+ public:
+  using const_iterator = Json_wrapper_object_iterator;
+  explicit Json_object_wrapper(const Json_wrapper &wrapper)
+      : m_wrapper(wrapper) {}
+  const_iterator cbegin() const { return const_iterator(m_wrapper, true); }
+  const_iterator cend() const { return const_iterator(m_wrapper, false); }
+  const_iterator begin() const { return cbegin(); }
+  const_iterator end() const { return cend(); }
+
+ private:
+  const Json_wrapper &m_wrapper;
 };
 
 /**

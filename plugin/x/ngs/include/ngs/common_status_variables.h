@@ -77,6 +77,16 @@ class Common_status_variables {
   Variable m_crud_create_view;
   Variable m_crud_modify_view;
   Variable m_crud_drop_view;
+  Variable m_prep_prepare;
+  Variable m_prep_execute;
+  Variable m_prep_deallocate;
+  Variable m_cursor_open;
+  Variable m_cursor_close;
+  Variable m_cursor_fetch;
+
+ protected:
+  // Used by Global_status_variables::reset().
+  Common_status_variables &operator=(const Common_status_variables &) = default;
 
  private:
   Common_status_variables(const Common_status_variables &);

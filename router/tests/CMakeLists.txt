@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,20 +25,28 @@ INCLUDE_DIRECTORIES(SYSTEM ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(helpers
   ${PROJECT_SOURCE_DIR}/src/harness/include
   ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
+  ${PROJECT_SOURCE_DIR}/src/http/include/
   )
 
 SET(helper_sources
-  helpers/router_test_helpers.cc
+  helpers/filesystem_utils.cc
+  helpers/gtest_testname.cc
   helpers/mysql_session_replayer.cc
   helpers/router_component_test.cc
-  helpers/tcp_port_pool.cc
+  helpers/router_component_system_layout.cc
+  helpers/router_test_helpers.cc
   helpers/script_generator.cc
+  helpers/tcp_port_pool.cc
 )
 
 IF(WIN32)
   LIST(APPEND helper_sources helpers/cmd_exec-windows.cc)
 ELSE()
   LIST(APPEND helper_sources helpers/cmd_exec.cc)
+ENDIF()
+
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
 ENDIF()
 
 ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})

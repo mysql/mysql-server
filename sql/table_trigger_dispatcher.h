@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,12 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
                            const char *db_name, const char *table_name);
 
   bool check_n_load(THD *thd, const dd::Table &table);
+
+  /*
+   During upgrade from 5.7, we need to use the trigger chains to fix
+   the trigger order.
+  */
+  bool reorder_57_list(MEM_ROOT *mem_root, List<Trigger> *triggers);
 
  private:
   Table_trigger_dispatcher(TABLE *subject_table);

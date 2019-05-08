@@ -1,0 +1,77 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+include/start_and_bootstrap_group_replication.inc
+
+# 1. Enable debug point that run an assert if command will be put on
+#    hold
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,launch_hook_trans_begin_assert_if_hold';
+
+# 2. Validate SQL command SHOW will not block
+SHOW GLOBAL VARIABLES LIKE 'group_replication_consistency';
+Variable_name	Value
+group_replication_consistency	EVENTUAL
+
+# 3. Validate SQL command SET will not block
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+# 4. Validate SQL command DO will not block
+DO SLEEP(1);
+
+# 5. Validate SQL command EMPTY will not block
+
+# 6. Validate SQL command USE will not block
+USE test;
+
+# 7. Validate SQL command SELECT to performance_schema will not block
+SELECT COUNT(*) from performance_schema.replication_group_members;
+COUNT(*)
+1
+
+# 8. Validate SQL command SELECT to table PROCESSLIST from database
+#    infoschema will not block
+SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
+COUNT(*)=0
+1
+
+# 9. Validate SQL command SELECT from database syschema will not block
+SELECT COUNT(*)=1 FROM sys.version;
+COUNT(*)=1
+1
+
+# 10. Validate SQL command SELECT that don't use tables will not block
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+GROUP_REPLICATION_GROUP_NAME:1
+
+# 11. Validate SQL command RESET PERSIST will not block
+RESET PERSIST;
+
+# 12. Validate SQL command STOP GROUP_REPLICATION will not block
+STOP GROUP_REPLICATION;
+
+# 13. Reconnect server1 to group
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,launch_hook_trans_begin_assert_if_hold';
+include/start_and_bootstrap_group_replication.inc
+
+# 14. Validate SQL command SHUTDOWN will not block
+SET @@GLOBAL.DEBUG= '+d,launch_hook_trans_begin_assert_if_hold';
+SHUTDOWN;
+include/rpl_reconnect.inc
+
+# 15. Cleanup
+SET @@GLOBAL.DEBUG= '-d,launch_hook_trans_begin_assert_if_hold';
+SET GLOBAL group_replication_group_name= "GROUP_NAME";
+SET GLOBAL group_replication_local_address= "GROUP_LOCAL_ADDRESS2";
+SET GLOBAL group_replication_group_seeds= "GROUP_SEEDS_SERVER2";
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;;
+SET GLOBAL group_replication_single_primary_mode= TRUE;;
+SET @@SESSION.group_replication_consistency= DEFAULT;
+include/group_replication_end.inc

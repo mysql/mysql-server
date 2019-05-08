@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -276,23 +276,23 @@ dberr_t btr_root_adjust_on_import(
     page_is_compact_format = page_is_comp(page) > 0;
 
     /* Check if the page format and table format agree. */
-    if (page_is_compact_format != dict_table_is_comp(table)) {
+    if (page_is_compact_format != !!dict_table_is_comp(table)) {
       err = DB_CORRUPTION;
     } else {
       /* Check that the table flags and the tablespace
       flags match. */
-      ulint flags = dict_tf_to_fsp_flags(table->flags);
-      ulint fsp_flags = fil_space_get_flags(table->space);
+      uint32_t flags = dict_tf_to_fsp_flags(table->flags);
+      uint32_t fsp_flags = fil_space_get_flags(table->space);
 
       /* We remove SDI flag from space flags temporarily for
       comparison because the space flags derived from table
       flags will not have SDI flag */
-      fsp_flags &= ~FSP_FLAGS_MASK_SDI;
+      fsp_flags_unset_sdi(fsp_flags);
 
       /* As encryption is not a table property, we don't keep
       any encryption property related flag in table. Thus
       exclude encryption flag as well. */
-      fsp_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+      fsp_flags_unset_encryption(fsp_flags);
 
       err = fsp_flags_are_equal(flags, fsp_flags) ? DB_SUCCESS : DB_CORRUPTION;
     }
@@ -2014,8 +2014,8 @@ void btr_insert_on_non_leaf_level_func(
 /** Attaches the halves of an index page on the appropriate level in an
  index tree. */
 static void btr_attach_half_pages(
-    ulint flags,            /*!< in: undo logging and
-                            locking flags */
+    uint32_t flags,         /*!< in: undo logging and
+                         locking flags */
     dict_index_t *index,    /*!< in: the index tree */
     buf_block_t *block,     /*!< in/out: page to be split */
     const rec_t *split_rec, /*!< in: first record on upper
@@ -2188,7 +2188,7 @@ of a page.
 @return	inserted record (first record on the right sibling page);
         the cursor will be positioned on the page infimum
 @retval	NULL if the operation was not performed */
-static rec_t *btr_insert_into_right_sibling(ulint flags, btr_cur_t *cursor,
+static rec_t *btr_insert_into_right_sibling(uint32_t flags, btr_cur_t *cursor,
                                             ulint **offsets, mem_heap_t *heap,
                                             const dtuple_t *tuple, ulint n_ext,
                                             mtr_t *mtr) {
@@ -4737,12 +4737,12 @@ dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked) {
   fsp_sdi_write_root_to_page(page, page_size, sdi_root_page_num, &mtr);
 
   /* Space flags from memory */
-  ulint fsp_flags = space->flags;
+  uint32_t fsp_flags = space->flags;
 
   ut_ad(mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS) ==
         fsp_flags);
 
-  fsp_flags = FSP_FLAGS_SET_SDI(fsp_flags);
+  fsp_flags_set_sdi(fsp_flags);
   mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, fsp_flags,
                    MLOG_4BYTES, &mtr);
 

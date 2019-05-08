@@ -442,6 +442,17 @@ static inline node_no _get_nodeno(site_def const *site) {
 node_no get_nodeno(site_def const *site) { return _get_nodeno(site); }
 /* purecov: end */
 
+node_no find_nodeno(site_def const *site, const char *address) {
+  uint32_t i;
+  G_TRACE("find_nodeno: Node to find: %s", address);
+  for (i = 0; i < site->nodes.node_list_len; i++) {
+    G_TRACE("find_nodeno: Node %d: %s", i,
+            site->nodes.node_list_val[i].address);
+    if (strcmp(site->nodes.node_list_val[i].address, address) == 0) return i;
+  }
+  return VOID_NODE_NO;
+}
+
 node_no get_prev_nodeno() { return _get_nodeno(_get_prev_site_def()); }
 
 /* Find the maximum config number known on this node */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef SQL_HA_NDBCLUSTER_COND_INCLUDED
+#define SQL_HA_NDBCLUSTER_COND_INCLUDED
+
 /*
   This file defines the data structures used by engine condition pushdown in
   the NDB Cluster handler
 */
 
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "sql/sql_list.h"
 
 class Item;
 struct key_range;
 struct TABLE;
-class Ndb_cond;
-class Ndb_cond_stack;
+class Ndb_item;
 
 class ha_ndbcluster_cond
 {
@@ -42,27 +45,48 @@ public:
   ~ha_ndbcluster_cond();
 
   const Item *cond_push(const Item *cond, 
-                        TABLE *table, const NdbDictionary::Table *ndb_table);
-  void cond_pop();
+                        TABLE *table, const NdbDictionary::Table *ndb_table,
+                        bool other_tbls_ok,
+                        Item *&pushed_cond);
+
   void cond_clear();
-  int generate_scan_filter(NdbInterpretedCode* code, 
-                           NdbScanOperation::ScanOptions* options) const;
-  int generate_scan_filter_from_cond(NdbScanFilter& filter) const;
-  int generate_scan_filter_from_key(NdbInterpretedCode* code,
-                                    NdbScanOperation::ScanOptions* options,
+  int generate_scan_filter_from_cond(NdbScanFilter& filter);
+
+  static
+  int generate_scan_filter_from_key(NdbScanFilter& filter,
                                     const class KEY* key_info,
                                     const key_range *start_key,
-                                    const key_range *end_key) const;
-private:
-  bool serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
-                      TABLE *table,
-                      const NdbDictionary::Table *ndb_table) const;
-  int build_scan_filter_predicate(Ndb_cond* &cond, 
-                                  NdbScanFilter* filter,
-                                  bool negated= false) const;
-  int build_scan_filter_group(Ndb_cond* &cond, 
-                              NdbScanFilter* filter) const;
-  int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter) const;
+                                    const key_range *end_key);
 
-  Ndb_cond_stack *m_cond_stack;
+  void set_condition(const Item *cond);
+  bool check_condition() const
+  {
+    return (m_unpushed_cond == nullptr || eval_condition());
+  }
+
+  static void add_read_set(TABLE *table, const Item *cond);
+  void add_read_set(TABLE *table)
+  {
+    add_read_set(table, m_unpushed_cond);
+  }
+
+private:
+  int build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
+                                  NdbScanFilter* filter,
+                                  bool negated) const;
+  int build_scan_filter_group(List_iterator<Ndb_item> &cond,
+                              NdbScanFilter* filter,
+                              bool negated) const;
+
+  bool eval_condition() const;
+
+  List<Ndb_item> m_ndb_cond;   //The serialized pushed condition
+
+  /**
+   * Stores condition which can't be pushed to NDB, need to be evaluated by
+   * ha_ndbcluster before returning rows.
+   */
+  const Item *m_unpushed_cond;
 };
+
+#endif

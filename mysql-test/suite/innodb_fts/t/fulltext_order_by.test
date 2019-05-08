@@ -128,6 +128,7 @@ where
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
 
+--error ER_TABLE_CANT_HANDLE_FT
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -145,11 +146,12 @@ order by
   match(betreff) against ('+abc' in boolean mode) desc;
 
 # BUG#11869 part2: used table type doesn't support FULLTEXT indexes error
+--error ER_TABLE_CANT_HANDLE_FT
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc' in boolean mode) desc;
 
---error ER_FT_MATCHING_KEY_NOT_FOUND
+--error ER_TABLE_CANT_HANDLE_FT
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc') desc;
@@ -165,3 +167,78 @@ order by match(betreff) against ('+abc' in boolean mode) desc;
 drop table t1,t2,t3;
 
 # End of 4.1 tests
+
+--echo #
+--echo # Bug#28940361 QUERY AGAINST FULL TEXT INDEX WITH ORDER BY SILENTLY FAILS
+--echo #
+
+# Restart the server with a small sort buffer
+--let $restart_parameters = restart: --sort-buffer-size=32768
+--source include/restart_mysqld.inc
+
+--echo # Test with explicit FTS index
+--disable_warnings
+CREATE TABLE t_fts (
+   FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+   c0000 longtext CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+   FULLTEXT KEY i0000 (c0000)
+);
+--enable_warnings
+
+INSERT INTO t_fts(c0000) VALUES
+  ('1537001596'), ('1537001596'), ('1537000966'), ('1537000966'), ('1537001075'),
+  ('1537001075'), ('1537000596'), ('1537000596'), ('1537000633'), ('1537000633'),
+  ('1537001651'), ('1537001651'), ('1537000604'), ('1537000604'), ('1537000064'),
+  ('1537000064'), ('1536999311'), ('1536999311'), ('1537001654'), ('1537001654'),
+  ('1537000338'), ('1537000338'), ('1537000463'), ('1537000463'), ('1537001269'),
+  ('1537001269'), ('1537001271'), ('1537001271'), ('1537001129'), ('1537001129'),
+  ('1537001706'), ('1537001706'), ('1537001455'), ('1537001455'), ('1536999158'),
+  ('1536999158'), ('1536999904'), ('1536999904'), ('1537001553'), ('1537001553'),
+  ('1537002066'), ('1537002066'), ('1537001451'), ('1537001451'), ('1537000484'),
+  ('1537000484'), ('1537001365'), ('1537001365'), ('1536999200'), ('1536999200'),
+  ('1537001994'), ('1537001994'), ('1536999319'), ('1536999319'), ('1537001730'),
+  ('1537001730'), ('1537001144'), ('1537001144'), ('1537001152'), ('1537001152'),
+  ('1537001376'), ('1537001376'), ('1537001692'), ('1537001692'), ('1537002082'),
+  ('1537002082'), ('1537000926'), ('1537000926'), ('1537000606'), ('1537000606');
+
+SELECT c0000 , c0000 FROM t_fts WHERE
+  MATCH( c0000 ) AGAINST ( '15370*' IN BOOLEAN MODE) ORDER BY c0000;
+SELECT c0000 , c0000 FROM t_fts WHERE
+  MATCH( c0000 ) AGAINST ( '1537000*' IN BOOLEAN MODE) ORDER BY c0000;
+
+DROP TABLE t_fts;
+
+--echo # Test with implicit FTS index
+--disable_warnings
+CREATE TABLE t_nofts (
+   c0000 longtext CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+   FULLTEXT KEY i0000 (c0000)
+);
+--enable_warnings
+
+INSERT INTO t_nofts(c0000) VALUES
+  ('1537001596'), ('1537001596'), ('1537000966'), ('1537000966'), ('1537001075'),
+  ('1537001075'), ('1537000596'), ('1537000596'), ('1537000633'), ('1537000633'),
+  ('1537001651'), ('1537001651'), ('1537000604'), ('1537000604'), ('1537000064'),
+  ('1537000064'), ('1536999311'), ('1536999311'), ('1537001654'), ('1537001654'),
+  ('1537000338'), ('1537000338'), ('1537000463'), ('1537000463'), ('1537001269'),
+  ('1537001269'), ('1537001271'), ('1537001271'), ('1537001129'), ('1537001129'),
+  ('1537001706'), ('1537001706'), ('1537001455'), ('1537001455'), ('1536999158'),
+  ('1536999158'), ('1536999904'), ('1536999904'), ('1537001553'), ('1537001553'),
+  ('1537002066'), ('1537002066'), ('1537001451'), ('1537001451'), ('1537000484'),
+  ('1537000484'), ('1537001365'), ('1537001365'), ('1536999200'), ('1536999200'),
+  ('1537001994'), ('1537001994'), ('1536999319'), ('1536999319'), ('1537001730'),
+  ('1537001730'), ('1537001144'), ('1537001144'), ('1537001152'), ('1537001152'),
+  ('1537001376'), ('1537001376'), ('1537001692'), ('1537001692'), ('1537002082'),
+  ('1537002082'), ('1537000926'), ('1537000926'), ('1537000606'), ('1537000606');
+
+SELECT c0000 , c0000 FROM t_nofts WHERE
+  MATCH( c0000 ) AGAINST ( '15370*' IN BOOLEAN MODE) ORDER BY c0000;
+SELECT c0000 , c0000 FROM t_nofts WHERE
+  MATCH( c0000 ) AGAINST ( '1537000*' IN BOOLEAN MODE) ORDER BY c0000;
+
+DROP TABLE t_nofts;
+
+# Restart server with default settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

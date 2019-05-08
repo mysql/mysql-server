@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -426,7 +426,10 @@ static int dbConnect(char *host, char *user, char *passwd) {
   }
   mysql_init(&mysql_connection);
   if (opt_compress) mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
-  SSL_SET_OPTIONS(&mysql_connection);
+  if (SSL_SET_OPTIONS(&mysql_connection)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    DBUG_RETURN(1);
+  }
   if (opt_protocol)
     mysql_options(&mysql_connection, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
   if (opt_bind_addr)

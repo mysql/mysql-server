@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,13 +54,13 @@ static const char* create_sql[] = {
     "   name varchar(255),"
     "   port int unsigned,"
     "   unique(name, port)"
-    ") engine = myisam;",
+    ") engine = innodb;",
 
     "create table cluster ("
     "   id int primary key,"
     "   name varchar(255),"
     "   unique(name)"
-    "   ) engine = myisam;",
+    "   ) engine = innodb;",
 
     "create table process ("
     "  id int primary key,"
@@ -72,20 +72,20 @@ static const char* create_sql[] = {
     "    not null,"
     "  name varchar(255),"
     "  state enum ('starting', 'started', 'stopping', 'stopped') not null"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     "create table options ("
     "  id int primary key,"
     "  process_id int not null,"
     "  name varchar(255) not null,"
     "  value varchar(255) not null"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     "create table repl ("
     "  id int auto_increment primary key,"
     "  master_id int not null,"
     "  slave_id int not null"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     "create table command ("
     "  id int auto_increment primary key,"
@@ -93,7 +93,7 @@ static const char* create_sql[] = {
     "  cmd int not null,"
     "  process_id int not null,"
     "  process_args varchar(255) default NULL"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     0};
 
@@ -173,7 +173,8 @@ bool connect_mysqld(atrt_process& proc) {
     return false;
   }
 
-  for (size_t i = 0; i < 20; i++) {
+  const unsigned int retries = 20;
+  for (size_t i = 0; i < retries; i++) {
     if (port) {
       mysql_protocol_type val = MYSQL_PROTOCOL_TCP;
       mysql_options(&proc.m_mysql, MYSQL_OPT_PROTOCOL, &val);
@@ -183,14 +184,15 @@ bool connect_mysqld(atrt_process& proc) {
                            0)) {
       return true;
     }
+    g_logger.warning("Failed to connect: %s", mysql_error(&proc.m_mysql));
     g_logger.info("Retrying connect to %s:%u 3s",
                   proc.m_host->m_hostname.c_str(), atoi(port));
     NdbSleep_SecSleep(3);
   }
 
-  g_logger.error("Failed to connect to mysqld err: >%s< >%s:%u:%s<",
-                 mysql_error(&proc.m_mysql), proc.m_host->m_hostname.c_str(),
-                 port ? atoi(port) : 0, socket ? socket : "<null>");
+  g_logger.error("Giving up attempt to connect to Host: %s; Port: %u;"
+                 "Socket: %s after %d retries", proc.m_host->m_hostname.c_str(),
+                 port ? atoi(port) : 0, socket ? socket : "<null>",retries);
   return false;
 }
 

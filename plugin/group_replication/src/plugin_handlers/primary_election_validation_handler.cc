@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_validation_handler.h"
+
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_messages/group_validation_message.h"
 
 int send_validation_message(Group_validation_message *message) {
@@ -307,8 +309,8 @@ int Primary_election_validation_handler::before_message_handling(
   Plugin_gcs_message::enum_cargo_type message_type = message.get_cargo_type();
 
   if (message_type == Plugin_gcs_message::CT_GROUP_VALIDATION_MESSAGE) {
-    const Group_validation_message group_validation_message =
-        (const Group_validation_message &)message;
+    const Group_validation_message &group_validation_message =
+        down_cast<const Group_validation_message &>(message);
 
     std::map<const std::string, Election_member_info *>::iterator map_it;
     map_it = group_members_info.find(message_origin);

@@ -28,7 +28,7 @@ SET(PLUGIN_INFO_SOURCES
 
 SET(include_dirs
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/
-  ${CMAKE_SOURCE_DIR}/src/harness/include
+  ${PROJECT_SOURCE_DIR}/tests/
 )
 
 IF(NOT WIN32)
@@ -37,7 +37,7 @@ ELSE()
   ADD_LIBRARY(plugin_info_tests STATIC ${PLUGIN_INFO_SOURCES})
 ENDIF()
 
-TARGET_LINK_LIBRARIES(plugin_info_tests harness-library)
+TARGET_LINK_LIBRARIES(plugin_info_tests harness-library router_lib)
 
 SET_TARGET_PROPERTIES(plugin_info_tests PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory

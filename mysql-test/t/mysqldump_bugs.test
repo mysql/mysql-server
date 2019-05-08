@@ -29,6 +29,21 @@ INSERT INTO `b28380961.p2` VALUES (1),(2),(3),(4);
 DROP TABLE `b28380961.p2`;
 
 
+--echo #
+--echo # Bug #28373001: MYSQLDUMP --SKIP-CREATE-OPTIONS FAILS ON MYSQL 8.0 SERVER
+--echo #
+
+--echo # Put some data in
+CREATE TABLE b28373001 (a INT);
+INSERT INTO b28373001 VALUES (1), (2), (3), (4);
+
+--echo # Tes: must pass
+--exec $MYSQL_DUMP --skip-create-options --compact test b28373001
+
+--echo # Cleanup
+DROP TABLE b28373001;
+
+
 --echo # End of 8.0 tests
 
 # Wait till we reached the initial number of concurrent sessions

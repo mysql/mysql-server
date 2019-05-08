@@ -25,10 +25,48 @@
 --let $_tmp= `SELECT SUBSTRING('$_include_file_enabled_warnings', 1, 1)`
 --let $_include_file_enabled_warnings= `SELECT SUBSTRING('$_include_file_enabled_warnings', 2)`
 if ($_tmp) {
-  --enable_warnings
+  if ($_tmp != $ENABLE_WARNINGS) {
+    # Enable all the disabled warnings
+    --enable_warnings
+  }
 }
+
 if (!$_tmp) {
-  --disable_warnings
+  if ($_include_file_disable_warnings_list) {
+    --let $_include_file_disable_warnings = `SELECT SUBSTRING('$_include_file_disable_warnings_list', 1, LOCATE('|', '$_include_file_disable_warnings_list') - 1)`
+    --let $_include_file_disable_warnings_list = `SELECT SUBSTRING('$_include_file_disable_warnings_list', LOCATE('|', '$_include_file_disable_warnings_list') + 1)`
+
+    # Check if there exist any disabled warnings
+    if ($_include_file_disable_warnings) {
+      # Disabled warnings are present, enable all the warings if $ENABLE_WARNINGS
+      # is not set and then disable only the warnings present in disabld warning list.
+      if (!$ENABLE_WARNINGS) {
+        --enable_warnings
+      }
+      --disable_warnings $_include_file_disable_warnings
+    }
+
+    if (!$_include_file_disable_warnings) {
+      # No disabled warnings exist, check if any enabled warnings present
+      --let $_include_file_enable_warnings = `SELECT SUBSTRING('$_include_file_enable_warnings_list', 1, LOCATE('|', '$_include_file_enable_warnings_list') - 1)`
+      --let $_include_file_enable_warnings_list = `SELECT SUBSTRING('$_include_file_enable_warnings_list', LOCATE('|', '$_include_file_enable_warnings_list') + 1)`
+
+      if ($_include_file_enable_warnings) {
+        # Enabled warnings exist, disable all the warnings first if $ENABLE_WARNINGS
+        # is set and then enable only the warnings present in enabled warnings list.
+        if ($ENABLE_WARNINGS) {
+          --disable_warnings
+        }
+        --enable_warnings $_include_file_enable_warnings
+      }
+
+      if (!$_include_file_enable_warnings) {
+        # There exist no disabled or enabled warnings, disable all
+        # the warnings.
+        --disable_warnings
+      }
+    }
+  }
 }
 
 --let $_tmp= `SELECT SUBSTRING('$_include_file_enabled_query_log', 1, 1)`
@@ -74,6 +112,6 @@ if (!$skip_restore_connection)
 if ($rpl_debug)
 {
   --echo $_include_file_indent==== END include/$include_filename ====
-  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLED_WARNINGS' qlog='$ENABLED_QUERY_LOG' rlog='$ENABLED_RESULT_LOG' aborterr='$ENABLED_ABORT_ON_ERROR'
+  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLE_WARNINGS' qlog='$ENABLE_QUERY_LOG' rlog='$ENABLE_RESULT_LOG' aborterr='$ENABLE_ABORT_ON_ERROR'
 }
 --let $include_filename=

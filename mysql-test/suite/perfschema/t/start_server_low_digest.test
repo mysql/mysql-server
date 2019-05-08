@@ -5,6 +5,9 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
+# X plugin might increase counter thread_id_increment
+source include/xplugin_wait_for_interfaces.inc;
+
 USE performance_schema;
 truncate table events_statements_history_long;
 

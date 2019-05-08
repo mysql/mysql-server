@@ -59,7 +59,7 @@ EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` = 3))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 count(*)
@@ -77,7 +77,7 @@ EXPLAIN SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` = 3))
 FLUSH STATUS;
 SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 pk_2
@@ -99,7 +99,7 @@ EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 count(*)
@@ -117,7 +117,7 @@ EXPLAIN SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
 SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 pk_1	pk_2
@@ -143,7 +143,7 @@ EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	k1	k1	6	const	#	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f1` = '2000-01-03')
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00')
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MIN(pk_1)
@@ -161,7 +161,7 @@ EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MIN(pk_1)
@@ -179,7 +179,7 @@ EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	k1	k1	6	const	#	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where (`test`.`t1`.`f1` = '2000-01-03')
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where (`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00')
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MAX(pk_1)
@@ -197,7 +197,7 @@ EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MAX(pk_1)
@@ -261,7 +261,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	6	const	#	100.00	Using index
 1	SIMPLE	t2	NULL	ref	PRIMARY,k1	PRIMARY	4	test.t1.pk_1	#	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`pk_1` = `test`.`t1`.`pk_1`) and (`test`.`t2`.`f1` = '2000-01-03') and (`test`.`t1`.`f1` = '2000-01-03'))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`pk_1` = `test`.`t1`.`pk_1`) and (`test`.`t2`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00'))
 FLUSH STATUS;
 SELECT count(*) FROM t1 AS t1 JOIN t1 AS t2
 ON t2.pk_1 = t1.pk_1 WHERE t1.f1 = '2000-01-03' AND t2.f1 = '2000-01-03';
@@ -278,13 +278,21 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 #
 # Optimization of sorting
+# Also verifies FORMAT=tree for reverse ref access.
 #
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	20.00	Using where; Backward index scan
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3)) order by `test`.`t1`.`pk_2` desc limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` = 3)) order by `test`.`t1`.`pk_2` desc limit 5
+EXPLAIN FORMAT=tree SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
+ORDER BY pk_2 DESC LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)
+    -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')
+        -> Index lookup on t1 using PRIMARY (pk_1=3; iterate backwards)
+
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
@@ -305,7 +313,7 @@ ORDER BY pk_2 DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5)) order by `test`.`t1`.`pk_2` desc limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = TIMESTAMP'2000-01-03 00:00:00') and (`test`.`t1`.`pk_1` between 3 and 5)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;

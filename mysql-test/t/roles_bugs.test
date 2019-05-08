@@ -1,3 +1,6 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --echo #
 --echo # Bug #24843257: CURRENT_ROLE(), ROLES_GRAPHML() RETURN VALUE
 --echo #   HAS INCORRECT CHARACTER SET
@@ -25,3 +28,35 @@ SELECT CHARSET(ROLES_GRAPHML()) = @@character_set_system;
 SET ROLE DEFAULT;
 REVOKE r1 FROM root@localhost;
 DROP ROLE r1;
+
+
+--echo #
+--echo # Bug #28953158: DROP ROLE USERNAME SHOULD BE REJECTED
+--echo #
+
+CREATE USER uu@localhost, u1@localhost;
+CREATE ROLE r1;
+GRANT CREATE ROLE, DROP ROLE ON *.* TO uu@localhost;
+connect(con1,localhost,uu,,);
+SHOW GRANTS;
+--echo # connected as uu
+--echo # test result: must fail
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP USER u1@localhost;
+--echo # test result: must fail
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP ROLE u1@localhost;
+--echo # test result: must pass
+DROP ROLE r1;
+
+--echo # Cleanup
+--echo # connection default
+connection default;
+disconnect con1;
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+DROP USER uu@localhost, u1@localhost;
+
+
+--echo # End of 8.0 tests

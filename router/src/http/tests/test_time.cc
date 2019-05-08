@@ -22,13 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
+#include <ctime>  // time_t
 
 #include "mysqlrouter/http_client.h"
-
-#ifdef _WIN32
-#include <WinSock2.h>
-#endif
 
 class HttpTimeParsesTest : public ::testing::Test,
                            public ::testing::WithParamInterface<

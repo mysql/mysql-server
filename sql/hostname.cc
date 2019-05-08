@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,10 @@
 #include "my_config.h"
 
 #include "map_helpers.h"
+#include "mutex_lock.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "my_systime.h"  // my_micro_time()
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
@@ -166,13 +168,22 @@ static mysql_mutex_t hostname_cache_mutex;
 static bool hostname_cache_mutex_inited = false;
 
 void hostname_cache_refresh() {
+  mysql_mutex_assert_not_owner(&hostname_cache_mutex);
+
+  MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
   hostname_cache_by_ip->clear();
   hostname_cache_lru->clear();
 }
 
-uint hostname_cache_size() { return hostname_cache_max_size; }
+uint hostname_cache_size() {
+  mysql_mutex_assert_owner(&hostname_cache_mutex);
+  return hostname_cache_max_size;
+}
 
 void hostname_cache_resize(uint size) {
+  mysql_mutex_assert_not_owner(&hostname_cache_mutex);
+
+  MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
   hostname_cache_by_ip->clear();
   hostname_cache_lru->clear();
   hostname_cache_max_size = size;
@@ -204,19 +215,30 @@ void hostname_cache_free() {
   }
 }
 
-void hostname_cache_lock() { mysql_mutex_lock(&hostname_cache_mutex); }
+void hostname_cache_lock() {
+  mysql_mutex_assert_not_owner(&hostname_cache_mutex);
+  mysql_mutex_lock(&hostname_cache_mutex);
+}
 
-void hostname_cache_unlock() { mysql_mutex_unlock(&hostname_cache_mutex); }
+void hostname_cache_unlock() {
+  mysql_mutex_assert_owner(&hostname_cache_mutex);
+  mysql_mutex_unlock(&hostname_cache_mutex);
+}
 
 list<unique_ptr<Host_entry>>::iterator hostname_cache_begin() {
+  mysql_mutex_assert_owner(&hostname_cache_mutex);
   return hostname_cache_lru->begin();
 }
 
 list<unique_ptr<Host_entry>>::iterator hostname_cache_end() {
+  mysql_mutex_assert_owner(&hostname_cache_mutex);
+
   return hostname_cache_lru->end();
 }
 
 static inline Host_entry *hostname_cache_search(const char *ip_string) {
+  mysql_mutex_assert_owner(&hostname_cache_mutex);
+
   auto it = hostname_cache_by_ip->find(ip_string);
   if (it == hostname_cache_by_ip->end()) return nullptr;
 
@@ -231,6 +253,8 @@ static void add_hostname_impl(const char *ip_string, const char *hostname,
                               ulonglong now) {
   Host_entry *entry;
   bool need_add = false;
+
+  mysql_mutex_assert_owner(&hostname_cache_mutex);
 
   entry = hostname_cache_search(ip_string);
 
@@ -306,25 +330,26 @@ static void add_hostname_impl(const char *ip_string, const char *hostname,
 
 static void add_hostname(const char *ip_string, const char *hostname,
                          bool validated, Host_errors *errors) {
+  mysql_mutex_assert_not_owner(&hostname_cache_mutex);
+
   if (specialflag & SPECIAL_NO_HOST_CACHE) return;
 
   ulonglong now = my_micro_time();
 
-  mysql_mutex_lock(&hostname_cache_mutex);
-
+  MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
   add_hostname_impl(ip_string, hostname, validated, errors, now);
-
-  mysql_mutex_unlock(&hostname_cache_mutex);
 
   return;
 }
 
 void inc_host_errors(const char *ip_string, Host_errors *errors) {
+  mysql_mutex_assert_not_owner(&hostname_cache_mutex);
+
   if (!ip_string) return;
 
   ulonglong now = my_micro_time();
 
-  mysql_mutex_lock(&hostname_cache_mutex);
+  MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
 
   Host_entry *entry = hostname_cache_search(ip_string);
 
@@ -337,20 +362,18 @@ void inc_host_errors(const char *ip_string, Host_errors *errors) {
     entry->m_errors.aggregate(errors);
     entry->set_error_timestamps(now);
   }
-
-  mysql_mutex_unlock(&hostname_cache_mutex);
 }
 
 void reset_host_connect_errors(const char *ip_string) {
+  mysql_mutex_assert_not_owner(&hostname_cache_mutex);
+
   if (!ip_string) return;
 
-  mysql_mutex_lock(&hostname_cache_mutex);
+  MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
 
   Host_entry *entry = hostname_cache_search(ip_string);
 
   if (entry) entry->m_errors.clear_connect_errors();
-
-  mysql_mutex_unlock(&hostname_cache_mutex);
 }
 
 static inline bool is_ip_loopback(const struct sockaddr *ip) {
@@ -421,6 +444,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   int err_code;
   Host_errors errors;
 
+  mysql_mutex_assert_not_owner(&hostname_cache_mutex);
+
   DBUG_ENTER("ip_to_hostname");
   DBUG_PRINT("info",
              ("IP address: '%s'; family: %d.", ip_string, (int)ip->sa_family));
@@ -445,7 +470,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   if (!(specialflag & SPECIAL_NO_HOST_CACHE)) {
     ulonglong now = my_micro_time();
 
-    mysql_mutex_lock(&hostname_cache_mutex);
+    MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
 
     Host_entry *entry = hostname_cache_search(ip_string);
 
@@ -456,7 +481,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
       if (entry->m_errors.m_connect >= max_connect_errors) {
         entry->m_errors.m_host_blocked++;
         entry->set_error_timestamps(now);
-        mysql_mutex_unlock(&hostname_cache_mutex);
         DBUG_RETURN(RC_BLOCKED_HOST);
       }
 
@@ -474,13 +498,9 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
                             "Hostname: '%s'",
                             ip_string, (*hostname ? *hostname : "null")));
 
-        mysql_mutex_unlock(&hostname_cache_mutex);
-
         DBUG_RETURN(0);
       }
     }
-
-    mysql_mutex_unlock(&hostname_cache_mutex);
   }
 
   /*

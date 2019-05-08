@@ -4,6 +4,7 @@
 #  innodb_dedicated_server = OFF        #
 #  innodb_buffer_pool_size = default    #
 #  innodb_log_file_size    = default    #
+#  innodb_log_files_in_group = default  #
 #########################################
 INNODB_DEDICATED_SERVER
 OFF
@@ -12,12 +13,13 @@ BUFFER_POOL_SIZE_IN_MB
 LOG_FILE_SIZE_IN_MB
 48
 
-#########################################
-# RESTART 1                             #
-#  innodb_dedicated_server = ON         #
-#  innodb_buffer_pool_size = autoscaled #
-#  innodb_log_file_size    = autoscaled #
-#########################################
+##########################################
+# RESTART 1                              #
+#  innodb_dedicated_server = ON          #
+#  innodb_buffer_pool_size = autoscaled  #
+#  innodb_log_file_size    = autoscaled  #
+#  innodb_log_files_in_group = autoscaled#
+##########################################
 # restart: --innodb_dedicated_server=ON
 INNODB_DEDICATED_SERVER
 ON
@@ -28,12 +30,13 @@ ON
 @final_log_file_size_result
 1
 
-#########################################
-# RESTART 2                             #
-#  innodb_dedicated_server = ON         #
-#  innodb_buffer_pool_size = explicit   #
-#  innodb_log_file_size    = autoscaled #
-#########################################
+##########################################
+# RESTART 2                              #
+#  innodb_dedicated_server = ON          #
+#  innodb_buffer_pool_size = explicit    #
+#  innodb_log_file_size    = autoscaled  #
+#  innodb_log_files_in_group = autoscaled#
+##########################################
 # restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M
 INNODB_DEDICATED_SERVER
 ON
@@ -45,12 +48,13 @@ BUFFER_POOL_SIZE_IN_MB
 # Make sure that the warnings are present in server log.
 Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
 
-#########################################
-# RESTART 3                             #
-#  innodb_dedicated_server = ON         #
-#  innodb_buffer_pool_size = autoscaled #
-#  innodb_log_file_size    = explicit   #
-#########################################
+##########################################
+# RESTART 3                              #
+#  innodb_dedicated_server = ON          #
+#  innodb_buffer_pool_size = autoscaled  #
+#  innodb_log_file_size    = explicit    #
+#  innodb_log_files_in_group = autoscaled#
+##########################################
 # restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M
 INNODB_DEDICATED_SERVER
 ON
@@ -59,15 +63,18 @@ ON
 1
 LOG_FILE_SIZE_IN_MB
 50
+LOG_FILES_IN_GROUP
+9
 # Make sure that the warnings are present in server log.
 Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size" found
 
-#########################################
-# RESTART 4                             #
-#  innodb_dedicated_server = ON         #
-#  innodb_buffer_pool_size = explicit   #
-#  innodb_log_file_size    = explicit   #
-#########################################
+##########################################
+# RESTART 4                              #
+#  innodb_dedicated_server = ON          #
+#  innodb_buffer_pool_size = explicit    #
+#  innodb_log_file_size    = explicit    #
+#  innodb_log_files_in_group = autoscaled#
+##########################################
 # restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M
 INNODB_DEDICATED_SERVER
 ON
@@ -75,6 +82,8 @@ BUFFER_POOL_SIZE_IN_MB
 256
 LOG_FILE_SIZE_IN_MB
 50
+LOG_FILES_IN_GROUP
+8
 # Make sure that the warnings are present in server log.
 Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
 Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size" found

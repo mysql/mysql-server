@@ -30,6 +30,7 @@
 
 #include <map>
 #include <memory>
+#include <stdexcept>
 
 // routing's destination_* and the metadata-cache plugin itself
 // may work on the cache in parallel.
@@ -67,8 +68,8 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
 /**
  * Initialize the metadata cache.
  *
- * @param bootstrap_servers The initial set of servers that contain the server
- *                          topology metadata.
+ * @param group_replication_id id of the replication group
+ * @param metadata_servers The list of cluster metadata servers
  * @param user The user name used to connect to the metadata servers.
  * @param password The password used to connect to the metadata servers.
  * @param ttl The ttl for the contents of the cache
@@ -81,7 +82,8 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
  */
 void MetadataCacheAPI::cache_init(
-    const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
+    const std::string &group_replication_id,
+    const std::vector<mysql_harness::TCPAddress> &metadata_servers,
     const std::string &user, const std::string &password,
     std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
     const std::string &cluster_name, int connect_timeout, int read_timeout,
@@ -89,10 +91,19 @@ void MetadataCacheAPI::cache_init(
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
   g_metadata_cache.reset(
-      new MetadataCache(bootstrap_servers,
+      new MetadataCache(group_replication_id, metadata_servers,
                         get_instance(user, password, connect_timeout,
                                      read_timeout, 1, ttl, ssl_options),
                         ttl, ssl_options, cluster_name, thread_stack_size));
+
+  is_initialized_ = true;
+}
+
+/**
+ * Start the metadata cache
+ */
+void MetadataCacheAPI::cache_start() {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
   g_metadata_cache->start();
 }
 

@@ -1,0 +1,500 @@
+## Test of general functionality of prepare statement
+
+## Preamble
+--source include/no_ps_protocol.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_sundries.xpl
+-->import assert_variable.macro
+-->quiet
+
+-->echo
+-->echo ## 1. Verify prep-stat status variables that are set to zero
+-->echo ## 2. Prepare statement
+-->echo #   a. fails in case when invalid data are supplied
+-->echo #   b. success for valid data with one placeholder
+-->echo ## 3. Execute prepared statement
+-->echo #   a. success for execute with one parameter
+-->echo #   b. success for execute with two parameters (more than needed)
+-->echo #   c. fails when no parameter was supplied
+-->echo #   d. fails when parameter of invalid type was supplied
+-->echo #   e. fails when using invalid ID for prepared-statmenent
+-->echo ## 4. Deallocate prepared statement
+-->echo #   a. success when using ID that was prepared
+-->echo #   b. fails when using ID that was already deallocated
+-->echo #   c. fails when using ID that was never prepared
+-->echo ## 5. Mixed tests
+-->echo #   a. prepare-deallocate, reuse the same ID in next prepare
+-->echo #   b. prepare two times same statement, show that previous stmt was deallocated
+-->echo #   c. prepare-execute-deallocate confirm that next execute with deallocated-id is going to fail
+-->echo #   d. prepare-execute stmt that returns NULL
+-->echo ## 6. Assert status variables for new session, they should be at zero
+-->echo ## 7. Assert that prep-statment id is local in context of session
+-->echo ## 8. Assert that prep-execute-statment id is local in context of session
+
+-->title = 1. Prep-stmt variables are set to zero
+
+-->macro Assert_status_variables_required_by_the_test
+callmacro Assert_status_variable	Mysqlx_prep_prepare	0;
+callmacro Assert_status_variable	Mysqlx_prep_execute	0;
+callmacro Assert_status_variable	Mysqlx_prep_deallocate	0;
+-->endmacro
+
+-->callmacro Assert_status_variables_required_by_the_test
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+-->callmacro Assert_status_variable	Com_stmt_prepare	0
+-->callmacro Assert_status_variable	Com_stmt_execute	0
+-->callmacro Assert_status_variable	Com_stmt_fetch	0
+-->callmacro Assert_status_variable	Com_stmt_close	0
+
+-->title = 2.a. Malformed stmt for prepare
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 102
+  stmt: {
+    type: FIND
+    find: {
+      collection { name: "xtable" schema: "nonexistent" }
+      data_model: TABLE
+      projection {
+        source {
+          type: LITERAL literal {
+            type: V_OCTETS v_octets {
+              value: "1"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recverror ER_BAD_DB_ERROR
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	1
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+
+
+-->title = 2.b. Correct stmt
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: FIND
+    find: {
+      collection { name: "xtable" schema: "xtest" }
+      data_model: TABLE
+      projection {
+        source {
+          type: FUNC_CALL function_call {
+            name {
+              name: "count"
+            }
+            param {
+              type: LITERAL literal {
+                type: V_OCTETS v_octets {
+                  value: "*"
+                }
+              }
+            }
+          }
+        }
+      }
+      criteria {
+        type: OPERATOR operator {
+          name: "like"
+          param {
+            type: IDENT identifier {
+              name: 'phrase'
+            }
+          }
+          param {
+            type: PLACEHOLDER position: 0
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	2
+-->callmacro Assert_status_variable	Prepared_stmt_count	1
+
+
+-->title = 3.a. Correct stmt execute
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "%"
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	1
+
+
+-->title = 3.b. Correct stmt execute (more than one expected args)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Alice%"
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "123"
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	2
+
+
+-->title = 3.c. Wrong stmt execute (no arg)
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+-->expecterror ER_X_PREPARED_EXECUTE_ARGUMENT_CONSISTENCY
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	3
+
+-->title = 3.d. Correct stmt executed, still argument type is invalid (only scalar is supported)
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: ARRAY
+    array {
+    }
+  }
+}
+-->expecterror ER_X_PREPARED_EXECUTE_ARGUMENT_NOT_SUPPORTED
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	4
+
+
+-->title = 3.e. Wrong stmt execute (wrong id)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 42
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Bob%"
+      }
+    }
+  }
+}
+-->expecterror ER_X_BAD_STATEMENT_ID
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	5
+
+
+-->title = 4.a. Correct stmt close
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 1
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	1
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+
+-->title = 4.b. Wrong stmt close (bad id) / try to close second time
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 1
+}
+-->recverror ER_X_BAD_STATEMENT_ID
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	2
+
+
+-->title = 4.c. Wrong stmt close (bad id)
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 77
+}
+-->recverror ER_X_BAD_STATEMENT_ID
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	3
+
+-->title = 5.a. Reuse deallocated ID
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	1
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 2
+}
+-->recvok
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 2"
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	1
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+-->recvtovar %DATA%
+-->assert_eq 2	%DATA%
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 2
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+
+-->title = 5.b. Reuse ID which deallocates previous one
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+-->recvok
+-->callmacro Assert_status_variable	Prepared_stmt_count	1
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 3"
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	1
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+}
+-->recvtovar %DATA1%
+-->assert_eq 3	%DATA1%
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 3
+}
+-->recvok
+
+-->title = 5.c. prepare-execute-deallocate confirm that next execute with deallocated-id is going to fail
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+}
+-->recverror ER_X_BAD_STATEMENT_ID
+
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+
+-->title = 5.d. prepare-execute stmt that returns NULL
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 4
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "SELECT NULL"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 4
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+
+## Test send six Mysqlx.Prepare.Deallocate messages, still one of them failed.
+-->callmacro Assert_status_variable	Com_stmt_close	6
+## Test send six Mysqlx.Prepare.Prepare messages, all requests were successful.
+-->callmacro Assert_status_variable	Com_stmt_prepare	7
+## Test send six Mysqlx.Prepare.Execute messages, still two of them failed.
+-->callmacro Assert_status_variable	Com_stmt_execute	5
+## Test didn't send a Mysqlx.Prepare.Fetch message.
+-->callmacro Assert_status_variable	Com_stmt_fetch	0
+
+-->title = 6. Assert status variables for new session, they should be at zero
+-->newsession s1	x_root
+-->callmacro Assert_status_variables_required_by_the_test
+
+-->title = 7. Assert that prep-statment id is local in context of session
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+-->recvok
+-->closesession
+-->newsession s2	x_root
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+-->expecterror ER_X_BAD_STATEMENT_ID
+-->recvresult
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+-->recvok
+
+-->title = 8. Assert that prep-execute-statment id is local in context of session
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+-->recvok
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+-->recvresult
+-->closesession
+-->newsession s2	x_root
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+-->expecterror ER_X_BAD_STATEMENT_ID
+-->recvresult
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+-->recvok
+EOF
+
+# This test verifies global status variables
+# which can't be reset by SQL.
+# A restart is going to force, all status variables
+# to be set to zero.
+--source include/restart_mysqld.inc
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+CREATE TABLE xtable (phrase VARCHAR(30));
+INSERT INTO xtable (phrase) VALUES ('Alice has a cat');
+INSERT INTO xtable (phrase) VALUES ('Bob has a dog');
+
+
+exec $MYSQLXTEST
+  -ux_root --password='' --schema=xtest
+  --file=$MYSQL_TMP_DIR/prep_stmt_sundries.xpl 2>&1;
+
+# Ensure that all connections are closed, after that we can proceed
+# with Prepared_stmt_count status variables assertion
+#
+let $wait_for_status_variable = 'Mysqlx_connections_closed';
+let $wait_for_status_value = 4;
+source ../include/wait_for_status_variables.inc;
+
+--echo
+--echo ## Assert global X Plugin status variables
+--let $assert_text= Global plugin status Mysqlx_prep_prepare must match number of send Mysqlx.Prepare.Prepare messages
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Mysqlx_prep_prepare", Value, 1] = 11
+--source include/assert.inc
+
+--let $assert_text= Global plugin status Mysqlx_prep_execute must match number of send Mysqlx.Prepare.Execute messages
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Mysqlx_prep_execute", Value, 1] = 12
+--source include/assert.inc
+
+--let $assert_text= Global plugin status Mysqlx_prep_deallocate must match number of send Mysqlx.Prepare.Deallocate messages
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Mysqlx_prep_deallocate", Value, 1] = 7
+--source include/assert.inc
+
+
+--echo
+--echo ## Assert global server status variables
+--let $assert_text= Global system status Prepared_stmt_count must be set to zero, all prep-stmt must be deallocated.
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Prepared_stmt_count", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= Global system status Com_stmt_prepare must be set to zero, all prep-stmt must be deallocated.
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_prepare", Value, 1] = 11
+--source include/assert.inc
+
+--let $assert_text= Global system status Com_stmt_execute must be set to zero, all prep-stmt must be deallocated.
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_execute", Value, 1] = 6
+--source include/assert.inc
+
+--let $assert_text= Global system status Com_stmt_fetch must be set to zero, all prep-stmt must be deallocated.
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_fetch", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= Global system status Com_stmt_close must be set to zero, all prep-stmt must be deallocated.
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_close", Value, 1] = 7
+--source include/assert.inc
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

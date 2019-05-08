@@ -1,0 +1,32 @@
+## Following macros are defined in this file:
+#
+# * Session_reset_keep_open
+# * Session_reset
+# * Session_reset_empty
+# * Session_close
+#
+
+-->macro Session_reset_keep_open
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->endmacro
+
+
+-->macro Session_reset
+Mysqlx.Session.Reset {
+  keep_open:false
+}
+-->endmacro
+
+
+-->macro Session_reset_empty
+Mysqlx.Session.Reset {
+}
+-->endmacro
+
+
+-->macro Session_close
+Mysqlx.Session.Close {
+}
+-->endmacro

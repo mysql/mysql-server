@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,12 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
   if (!in_ctx) return true;
 
   try {
-    thd->set_security_context(reinterpret_cast<Security_context *>(in_ctx));
+    Security_context *in_sctx = reinterpret_cast<Security_context *>(in_ctx);
+    if (in_sctx) {
+      thd->set_security_context(in_sctx);
+      // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
+      set_system_user_flag(thd);
+    }
     return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -306,15 +311,19 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
     } else if (!strcmp(name, "privilege_super")) {
       char value = *(char *)pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | (SUPER_ACL));
+        ctx->set_master_access(ctx->master_access() | (SUPER_ACL),
+                               ctx->restrictions());
       else
-        ctx->set_master_access(ctx->master_access() & ~(SUPER_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(SUPER_ACL),
+                               ctx->restrictions());
     } else if (!strcmp(name, "privilege_execute")) {
       char value = *(char *)pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
+        ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL),
+                               ctx->restrictions());
       else
-        ctx->set_master_access(ctx->master_access() & ~(EXECUTE_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(EXECUTE_ACL),
+                               ctx->restrictions());
     } else
       return true; /* invalid option */
     return false;

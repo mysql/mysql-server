@@ -1622,9 +1622,9 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 INSERT IGNORE INTO t1 SELECT * FROM t1;
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-Warning	1264	Out of range value for column 'a' at row 4
+Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
 SELECT * FROM t1;
 a
 0000-00-00

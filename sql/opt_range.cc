@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@
 #include <queue>
 #include <set>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
@@ -2201,7 +2201,18 @@ int QUICK_ROR_UNION_SELECT::reset() {
   if (!scans_inited) {
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     while ((quick = it++)) {
-      if (quick->init_ror_merged_scan(false)) DBUG_RETURN(1);
+      /*
+        Use mem_root of this "QUICK" as using the statement mem_root
+        might result in too many allocations when combined with
+        dynamic range access where range optimizer is invoked many times
+        for a single statement.
+      */
+      THD *thd = quick->head->in_use;
+      MEM_ROOT *saved_root = thd->mem_root;
+      thd->mem_root = &alloc;
+      error = quick->init_ror_merged_scan(false);
+      thd->mem_root = saved_root;
+      if (error) DBUG_RETURN(1);
     }
     scans_inited = true;
   }
@@ -2537,9 +2548,9 @@ class TABLE_READ_PLAN {
                                      MEM_ROOT *parent_alloc = NULL) = 0;
 
   /* Table read plans are allocated on MEM_ROOT and are never deleted */
-  static void *operator new(
-      size_t size, MEM_ROOT *mem_root,
-      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return alloc_root(mem_root, size);
   }
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
@@ -2547,7 +2558,7 @@ class TABLE_READ_PLAN {
     TRASH(ptr, size);
   }
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* Never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* Never called */
   }
   virtual ~TABLE_READ_PLAN() {} /* Remove gcc warning */
 
@@ -3030,9 +3041,13 @@ static int fill_used_fields_bitmap(PARAM *param) {
       interesting_order The sort order the range access method must be able
                         to provide. Three-value logic: asc/desc/don't care
       needed_reg        this info is used in make_join_select() even if there is
-  no quick! quick[out]        Calculated QUICK, or NULL NOTES Updates the
-  following: needed_reg - Bits for keys with may be used if all prev regs are
-  read
+                        no quick.
+      quick[out]        Calculated QUICK, or NULL.
+      ignore_table_scan Disregard table scan while looking for range.
+
+  NOTES
+    Updates the following:
+      needed_reg - Bits for keys with may be used if all prev regs are read
 
     In the table struct the following information is updated:
       quick_keys           - Which keys can be used
@@ -3089,7 +3104,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
                       ha_rows limit, bool force_quick_range,
                       const enum_order interesting_order,
                       const QEP_shared_owner *tab, Item *cond,
-                      Key_map *needed_reg, QUICK_SELECT_I **quick) {
+                      Key_map *needed_reg, QUICK_SELECT_I **quick,
+                      bool ignore_table_scan) {
   DBUG_ENTER("test_quick_select");
 
   *quick = NULL;
@@ -3123,7 +3139,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
   Cost_estimate cost_est = head->file->table_scan_cost();
   cost_est.add_io(1.1);
   cost_est.add_cpu(scan_time);
-  if (head->force_index) {
+  if (ignore_table_scan) {
     scan_time = DBL_MAX;
     cost_est.set_max_cost();
   }
@@ -3448,8 +3464,13 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
     thd->mem_root = param.old_root;
 
-    /* If we got a read plan, create a quick select from it. */
-    if (best_trp) {
+    /*
+      If we got a read plan, create a quick select from it.
+
+      Only create a quick select if the storage engine supports using indexes
+      for access.
+    */
+    if (best_trp && (head->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
       QUICK_SELECT_I *qck;
       records = best_trp->records;
       if (!(qck = best_trp->make_quick(&param, true)) || qck->init())
@@ -6237,7 +6258,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
 
     Field *field = static_cast<Item_field *>(predicand)->field;
 
-    if (op->array && op->array->result_type() != ROW_RESULT) {
+    if (op->array && !op->array->is_row_result()) {
       /*
         We get here for conditions on the form "t.key NOT IN (c1, c2, ...)",
         where c{i} are constants. Our goal is to produce a SEL_TREE that
@@ -6275,18 +6296,15 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
           op->array->used_count > NOT_IN_IGNORE_THRESHOLD)
         return NULL;
 
-      MEM_ROOT *tmp_root = param->mem_root;
-      param->thd->mem_root = param->old_root;
       /*
         Create one Item_type constant object. We'll need it as
         get_mm_parts only accepts constant values wrapped in Item_Type
         objects.
-        We create the Item on param->mem_root which points to
+        We create the Item on param->old_root which points to
         per-statement mem_root (while thd->mem_root is currently pointing
         to mem_root local to range optimizer).
       */
-      Item *value_item = op->array->create_item();
-      param->thd->mem_root = tmp_root;
+      Item_basic_constant *value_item = op->array->create_item(param->old_root);
 
       if (!value_item) return NULL;
 
@@ -10976,7 +10994,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
                                      uint used_key_parts_arg)
     : QUICK_RANGE_SELECT(*q),
       rev_it(rev_ranges),
-      used_key_parts(used_key_parts_arg) {
+      m_used_key_parts(used_key_parts_arg) {
   QUICK_RANGE *r;
   /*
     Use default MRR implementation for reverse scans. No table engine
@@ -11030,11 +11048,12 @@ int QUICK_SELECT_DESC::get_next() {
   for (;;) {
     int result;
     if (last_range) {  // Already read through key
-      result = ((last_range->flag & EQ_RANGE &&
-                 used_key_parts <= head->key_info[index].user_defined_key_parts)
-                    ? file->ha_index_next_same(record, last_range->min_key,
-                                               last_range->min_length)
-                    : file->ha_index_prev(record));
+      result =
+          ((last_range->flag & EQ_RANGE &&
+            m_used_key_parts <= head->key_info[index].user_defined_key_parts)
+               ? file->ha_index_next_same(record, last_range->min_key,
+                                          last_range->min_length)
+               : file->ha_index_prev(record));
       if (!result) {
         if (cmp_prev(*rev_it.ref()) == 0) DBUG_RETURN(0);
       } else if (result != HA_ERR_END_OF_FILE)
@@ -11047,7 +11066,7 @@ int QUICK_SELECT_DESC::get_next() {
     // Case where we can avoid descending scan, see comment above
     const bool eqrange_all_keyparts =
         (last_range->flag & EQ_RANGE) &&
-        (used_key_parts <= head->key_info[index].user_defined_key_parts);
+        (m_used_key_parts <= head->key_info[index].user_defined_key_parts);
 
     /*
       If we have pushed an index condition (ICP) and this quick select
@@ -11103,7 +11122,7 @@ int QUICK_SELECT_DESC::get_next() {
       DBUG_ASSERT(
           last_range->flag & NEAR_MAX ||
           (last_range->flag & EQ_RANGE &&
-           used_key_parts > head->key_info[index].user_defined_key_parts) ||
+           m_used_key_parts > head->key_info[index].user_defined_key_parts) ||
           range_reads_after_key(last_range));
       result = file->ha_index_read_map(
           record, last_range->max_key, last_range->max_keypart_map,
@@ -11898,7 +11917,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
 
         /* Check if cur_part is referenced in the WHERE clause. */
         if (join->where_cond->walk(&Item::find_item_in_field_list_processor,
-                                   Item::WALK_SUBQUERY_POSTFIX,
+                                   enum_walk::SUBQUERY_POSTFIX,
                                    (uchar *)key_part_range)) {
           cause = "keypart_reference_from_where_clause";
           goto next_index;

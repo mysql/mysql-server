@@ -24,15 +24,16 @@ SELECT DISTINCT name FROM performance_schema.threads WHERE name
 LIKE 'thread/mysqlx/%' ORDER BY name;
 
 SELECT DISTINCT name FROM performance_schema.mutex_instances WHERE name 
-LIKE 'wait/synch/mutex/mysqlx/%' ORDER BY name;
+LIKE 'wait/synch/mutex/mysqlx/%' AND name NOT LIKE '%unix%' ORDER BY name;
 
 SELECT DISTINCT name FROM performance_schema.cond_instances WHERE name 
-LIKE 'wait/synch/cond/mysqlx/%' ORDER BY name;
+LIKE 'wait/synch/cond/mysqlx/%' AND name NOT LIKE '%unix%' ORDER BY name;
 
 SELECT DISTINCT name FROM performance_schema.rwlock_instances WHERE name 
-LIKE 'wait/synch/rwlock/mysqlx/%' ORDER BY name;
+LIKE 'wait/synch/rwlock/mysqlx/%' AND name NOT LIKE '%unix%' ORDER BY name;
 
-SELECT * FROM performance_schema.setup_instruments WHERE name like '%mysqlx%';
+SELECT * FROM performance_schema.setup_instruments WHERE name like '%mysqlx%'
+AND name NOT LIKE '%unix%';
 
 
 # Threads Table Functional Scenario
@@ -462,7 +463,7 @@ Mysqlx.Crud.Find {
         param {
           type: IDENT
           identifier {
-            name: "name"
+           name: "name"
           }
         }
       }
@@ -472,18 +473,43 @@ Mysqlx.Crud.Find {
   criteria {
     type: OPERATOR
     operator {
-      name: "like"
+      name: "&&"
       param {
-        type: IDENT
-        identifier {
-          name: "name"
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              name: "name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+               type: V_OCTETS
+               v_octets {value:"%mysqlx%"}
+            }
+          }
         }
       }
       param {
-        type: LITERAL
-        literal {
-           type: V_OCTETS
-           v_octets {value:"%mysqlx%"}
+        type: OPERATOR
+        operator {
+          name: "not_like"
+          param {
+            type: IDENT
+            identifier {
+              name: "name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+               type: V_OCTETS
+               v_octets {value:"%unix%"}
+            }
+          }
         }
       }
     }
@@ -492,7 +518,7 @@ Mysqlx.Crud.Find {
     expr {
       type: IDENT
       identifier {
-  		name: "name"
+      name: "name"
       }
     }
   }
@@ -515,7 +541,7 @@ Mysqlx.Crud.Find {
         param {
           type: IDENT
           identifier {
-            name: "name"
+           name: "name"
           }
         }
       }
@@ -525,18 +551,43 @@ Mysqlx.Crud.Find {
   criteria {
     type: OPERATOR
     operator {
-      name: "like"
+      name: "&&"
       param {
-        type: IDENT
-        identifier {
-          name: "name"
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              name: "name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+               type: V_OCTETS
+               v_octets {value:"%mysqlx%"}
+            }
+          }
         }
       }
       param {
-        type: LITERAL
-        literal {
-          type: V_OCTETS
-          v_octets {value:"%mysqlx%"}
+        type: OPERATOR
+        operator {
+          name: "not_like"
+          param {
+            type: IDENT
+            identifier {
+              name: "name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+               type: V_OCTETS
+               v_octets {value:"%unix%"}
+            }
+          }
         }
       }
     }
@@ -545,7 +596,7 @@ Mysqlx.Crud.Find {
     expr {
       type: IDENT
       identifier {
-  		name: "name"
+      name: "name"
       }
     }
   }
@@ -568,7 +619,7 @@ Mysqlx.Crud.Find {
         param {
           type: IDENT
           identifier {
-            name: "name"
+           name: "name"
           }
         }
       }
@@ -578,18 +629,43 @@ Mysqlx.Crud.Find {
   criteria {
     type: OPERATOR
     operator {
-      name: "like"
+      name: "&&"
       param {
-        type: IDENT
-        identifier {
-          name: "name"
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              name: "name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+               type: V_OCTETS
+               v_octets {value:"%mysqlx%"}
+            }
+          }
         }
       }
       param {
-        type: LITERAL
-        literal {
-          type: V_OCTETS
-          v_octets {value:"%mysqlx%"}
+        type: OPERATOR
+        operator {
+          name: "not_like"
+          param {
+            type: IDENT
+            identifier {
+              name: "name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+               type: V_OCTETS
+               v_octets {value:"%unix%"}
+            }
+          }
         }
       }
     }
@@ -598,7 +674,7 @@ Mysqlx.Crud.Find {
     expr {
       type: IDENT
       identifier {
-  		name: "name"
+      name: "name"
       }
     }
   }

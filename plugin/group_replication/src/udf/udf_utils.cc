@@ -26,6 +26,8 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "sql/auth/auth_acls.h"
 
+std::atomic<int> UDF_counter::number_udfs_running(0);
+
 privilege_result user_has_gr_admin_privilege() {
   THD *thd = current_thd;
   privilege_result result = privilege_result::error();
@@ -60,6 +62,7 @@ privilege_result user_has_gr_admin_privilege() {
             STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
       } else {
         /* purecov: begin inspected */
+        mysql_plugin_registry_release(plugin_registry);
         goto end;
         /* purecov: end */
       }
@@ -101,16 +104,35 @@ void log_privilege_status_result(privilege_result const &privilege,
 }
 
 bool member_online_with_majority() {
-  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
+  if (!plugin_is_group_replication_running()) return false;
+
   bool const not_online = local_member_info == nullptr ||
                           local_member_info->get_recovery_status() !=
                               Group_member_info::MEMBER_ONLINE;
   bool const on_partition = group_partition_handler != nullptr &&
                             group_partition_handler->is_member_on_partition();
-  if (!plugin_is_group_replication_running() || not_online || on_partition) {
+  if (not_online || on_partition) {
     return false;
   }
   return true;
+}
+
+bool group_contains_unreachable_member() {
+  if (group_member_mgr) {
+    if (group_member_mgr->is_unreachable_member_present()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool group_contains_recovering_member() {
+  if (group_member_mgr) {
+    if (group_member_mgr->is_recovering_member_present()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void log_group_action_result_message(Group_action_diagnostics *result_area,
@@ -159,4 +181,27 @@ bool check_locked_tables(char *message) {
     return false;
   }
   return true;
+}
+
+bool group_contains_member_older_than(
+    Member_version const &min_required_version) {
+  bool constexpr OLDER_MEMBER_EXISTS = true;
+  bool constexpr ALL_MEMBERS_OK = false;
+  bool result = OLDER_MEMBER_EXISTS;
+
+  std::vector<Group_member_info *> *members =
+      group_member_mgr->get_all_members();
+  auto it =
+      std::find_if(members->begin(), members->end(),
+                   [&min_required_version](Group_member_info *member) {
+                     return member->get_member_version() < min_required_version;
+                   });
+
+  result = (it == members->end() ? ALL_MEMBERS_OK : OLDER_MEMBER_EXISTS);
+
+  // Cleanup.
+  for (auto *member : *members) delete member;
+  delete members;
+
+  return result;
 }

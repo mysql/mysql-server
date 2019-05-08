@@ -563,6 +563,18 @@ void rec_offs_make_valid(
   offsets[2] = (ulint)rec;
   offsets[3] = (ulint)index;
 }
+
+/** Check if the given two record offsets are identical.
+@param[in]  offsets1  field offsets of a record
+@param[in]  offsets2  field offsets of a record
+@return true if they are identical, false otherwise. */
+bool rec_offs_cmp(ulint *offsets1, ulint *offsets2);
+
+/** Print the record offsets.
+@param[in]    out         the output stream to which offsets are printed.
+@param[in]    offsets     the field offsets of the record.
+@return the output stream. */
+std::ostream &rec_offs_print(std::ostream &out, const ulint *offsets);
 #else
 #define rec_offs_make_valid(rec, index, offsets) ((void)0)
 #endif /* UNIV_DEBUG */
@@ -861,4 +873,5 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
 
   return (mach_read_from_2(rec - (REC_N_OLD_EXTRA_BYTES + 2 * n + 2)));
 }
+
 #endif

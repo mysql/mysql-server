@@ -1,0 +1,51 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+include/assert.inc [The first relay log is encrypted using first master key]
+[connection master]
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+# Part 1: fail_to_decrypt_file_password
+# Adding debug point 'fail_to_decrypt_file_password' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to re-encrypt log file './slave-relay-bin.000002': failed to decrypt the file password. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_decrypt_file_password' from @@GLOBAL.debug
+include/assert.inc [The before relay log is encrypted using current master key with key id: 2]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+include/assert.inc [The after relay log is encrypted using rotated master key with key id: 3]
+include/assert.inc [The before relay log is re-encrypted using rotated master key with key id: 3]
+include/assert.inc [The first relay log is re-encrypted using rotated master key with key id: 3]
+# Part 2: fail_to_open_log_file
+# Adding debug point 'fail_to_open_log_file' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to open log file './slave-relay-bin.000004'. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_open_log_file' from @@GLOBAL.debug
+include/assert.inc [The before relay log is encrypted using current master key with key id: 4]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+include/assert.inc [The after relay log is encrypted using rotated master key with key id: 5]
+include/assert.inc [The before relay log is re-encrypted using rotated master key with key id: 5]
+include/assert.inc [The first relay log is re-encrypted using rotated master key with key id: 5]
+# Part 3: fail_to_open_index_file
+# Adding debug point 'fail_to_open_index_file' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: I/O error reading index file './slave-relay-bin.index'. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_open_index_file' from @@GLOBAL.debug
+include/assert.inc [The before relay log is encrypted using current master key with key id: 6]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+include/assert.inc [The after relay log is encrypted using rotated master key with key id: 7]
+include/assert.inc [The before relay log is re-encrypted using rotated master key with key id: 7]
+include/assert.inc [The first relay log is re-encrypted using rotated master key with key id: 7]
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,0 +1,113 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+####
+# 0) The test requires three servers.
+####
+
+[connection server2]
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("\\[GCS\\] The member has left the group but the new view will not be installed*");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET sql_log_bin = 1;
+include/gr_autorejoin_monitoring.inc
+
+####
+# 1) Verify that the default is 0.
+####
+
+SET @@GLOBAL.group_replication_autorejoin_tries = default;
+include/assert.inc [The default of group_replication_autorejoin_tries should be 0]
+
+####
+# 2) Verify that only positive values are accepted.
+####
+
+SET GLOBAL group_replication_autorejoin_tries = 0.5;
+ERROR 42000: Incorrect argument type to variable 'group_replication_autorejoin_tries'
+SET GLOBAL group_replication_autorejoin_tries = "string";
+ERROR 42000: Incorrect argument type to variable 'group_replication_autorejoin_tries'
+SET GLOBAL group_replication_autorejoin_tries = on;
+ERROR 42000: Incorrect argument type to variable 'group_replication_autorejoin_tries'
+SET GLOBAL group_replication_autorejoin_tries = -1;
+ERROR 42000: Variable 'group_replication_autorejoin_tries' can't be set to the value of '-1'
+SET GLOBAL group_replication_autorejoin_tries = 2016;
+SET GLOBAL group_replication_autorejoin_tries = 2017;
+ERROR 42000: Variable 'group_replication_autorejoin_tries' can't be set to the value of '2017'
+
+####
+# 3) Verify that when it is 0, the auto-rejoin process isn't run.
+####
+
+SET GLOBAL group_replication_autorejoin_tries = 0;
+include/gr_expel_member_from_group.inc
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+include/assert.inc [Auto-rejoin should not have been executed]
+
+####
+# 4) Verify that when it is greater than 0, the auto-rejoin process is
+# run.
+####
+
+include/stop_group_replication.inc
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+include/start_group_replication.inc
+SET GLOBAL group_replication_autorejoin_tries = 3;
+include/gr_expel_member_from_group.inc
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+include/assert.inc [Auto-rejoin should be running]
+
+####
+# 5) Verify that you can't update the group_replication_autorejoin_tries
+# sysvar when an auto-rejoin is ongoing.
+####
+
+SET GLOBAL group_replication_autorejoin_tries = 1;
+ERROR HY000: Cannot update the number of auto-rejoin retry attempts when an auto-rejoin process is already running.
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
+include/start_group_replication.inc
+SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+SET GLOBAL group_replication_autorejoin_tries = 2;
+include/gr_expel_member_from_group.inc
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+include/assert.inc [super_read_only should be enabled]
+include/assert.inc [We should have attempted 1 rejoin]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+SET @@GLOBAL.DEBUG='-d,group_replication_fail_rejoin';
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+include/gr_wait_for_member_state.inc
+
+####
+# 6) Cleanup.
+####
+
+include/gr_end_autorejoin_monitoring.inc
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET GLOBAL group_replication_autorejoin_tries = default;
+include/group_replication_end.inc

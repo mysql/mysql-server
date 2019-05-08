@@ -1,0 +1,837 @@
+# This test changes undo related settings both at runtime, between restarts,
+# and also after crashes.
+# Note that innodb_undo_tablespaces is now fixed at 2 so only
+# innodb_rollback_segments is tested here.
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+SET GLOBAL innodb_monitor_enable='module_buffer_page';
+SET GLOBAL innodb_monitor_enable='trx_rseg_current_size';
+#
+# Create tables and check the default values.
+#
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1 (a INT, b TEXT) TABLESPACE=`ts1`;
+CREATE TABLE t2 (a INT, b TEXT) TABLESPACE=`innodb_system`;
+CREATE TABLE t3 (a INT, b TEXT) TABLESPACE=`innodb_file_per_table`;
+# Connection 1
+INSERT INTO t1 VALUES (1, repeat('a',15));
+INSERT INTO t2 VALUES (1, repeat('a',15));
+INSERT INTO t3 VALUES (1, repeat('a',15));
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+1
+# Connection 2
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+1
+XA START 'x1';
+INSERT INTO t1 VALUES (101, repeat('x1 ',5));
+INSERT INTO t2 VALUES (101, repeat('x1 ',5));
+INSERT INTO t3 VALUES (101, repeat('x1 ',5));
+# Connection default
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	1
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	2
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	0
+Innodb_undo_tablespaces_active	2
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+#
+# Change number of UNDO tablespaces from 2 to 3 while online.
+#
+CREATE UNDO TABLESPACE `undo_003` ADD DATAFILE 'undo_003.ibu';
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	1
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	3
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	1
+Innodb_undo_tablespaces_active	3
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+# Connection 1
+BEGIN;
+INSERT INTO t1 VALUES (2, repeat('b',15));
+INSERT INTO t2 VALUES (2, repeat('b',15));
+INSERT INTO t3 VALUES (2, repeat('b',15));
+# Connection 2
+XA END 'x1';
+XA PREPARE 'x1';
+XA COMMIT 'x1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+101	x1 x1 x1 x1 x1 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+2
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+2
+XA START 'x2';
+INSERT INTO t1 VALUES (102, repeat('x2 ',5));
+INSERT INTO t2 VALUES (102, repeat('x2 ',5));
+INSERT INTO t3 VALUES (102, repeat('x2 ',5));
+XA END 'x2';
+# Connection default
+#
+# Change number of UNDO tablespaces from 3 to 4 while online.
+# Change number of Rollback Segments from 1 to 4 while online.
+#
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	1
+SET GLOBAL innodb_rollback_segments=4;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	4
+CREATE UNDO TABLESPACE `undo_004` ADD DATAFILE 'undo_004.ibu';
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	4
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	2
+Innodb_undo_tablespaces_active	4
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+undo_004	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+101	x1 x1 x1 x1 x1 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+2
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+2
+# Connection 1
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+101	x1 x1 x1 x1 x1 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+3
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+3
+INSERT INTO t1 VALUES (3, repeat('c',15));
+INSERT INTO t2 VALUES (3, repeat('c',15));
+INSERT INTO t3 VALUES (3, repeat('c',15));
+# Connection 2
+XA PREPARE 'x2';
+XA COMMIT 'x2';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+5
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+5
+XA START 'x3';
+INSERT INTO t1 VALUES (103, repeat('x3 ',5));
+INSERT INTO t2 VALUES (103, repeat('x3 ',5));
+INSERT INTO t3 VALUES (103, repeat('x3 ',5));
+XA END 'x3';
+XA PREPARE 'x3';
+XA COMMIT 'x3';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+6
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+6
+# Connection default
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+6
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+6
+#
+# Change number of active UNDO tablespaces from 4 to 2 while online.
+# Change number of Rollback Segments from 4 to 2 while online.
+#
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	4
+SET GLOBAL innodb_rollback_segments=2;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	2
+ALTER UNDO TABLESPACE `undo_003` SET INACTIVE;
+ALTER UNDO TABLESPACE `undo_004` SET INACTIVE;
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	4
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	2
+Innodb_undo_tablespaces_active	2
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	empty
+undo_004	Undo	Undo	empty
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+INSERT INTO t1 VALUES (4, repeat('d',15));
+INSERT INTO t2 VALUES (4, repeat('d',15));
+INSERT INTO t3 VALUES (4, repeat('d',15));
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+7
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+7
+#
+# Change number of UNDO tablespaces from 2 to 5 while online.
+# Change number of Rollback Segments from 2 to 5 while online.
+#
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	2
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	4
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	2
+Innodb_undo_tablespaces_active	2
+SET GLOBAL innodb_rollback_segments=5;
+ALTER UNDO TABLESPACE `undo_003` SET ACTIVE;
+ALTER UNDO TABLESPACE `undo_004` SET ACTIVE;
+CREATE UNDO TABLESPACE `undo_005` ADD DATAFILE 'undo_005.ibu';
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	5
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	5
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	3
+Innodb_undo_tablespaces_active	5
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+undo_004	Undo	Undo	active
+undo_005	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+# Connection 1
+INSERT INTO t1 VALUES (5, repeat('e',15));
+INSERT INTO t2 VALUES (5, repeat('e',15));
+INSERT INTO t3 VALUES (5, repeat('e',15));
+# Connection default
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+8
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+8
+#
+# Shutdown mysqld cleanly.
+# Delete one of the implicit UNDO tablespaces.
+# Change number of Rollback Segments from 5 to 6 while offline.
+# Restart mysqld with these larger settings.
+#
+# restart: --innodb_rollback_segments=6
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	6
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	5
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	3
+Innodb_undo_tablespaces_active	5
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+undo_004	Undo	Undo	active
+undo_005	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+#
+# Shutdown mysqld cleanly.
+# Change number of Rollback Segments from 6 to 4 while offline.
+# Restart mysqld with these smaller settings.
+#
+ALTER UNDO TABLESPACE `undo_003` SET INACTIVE;
+# restart: --innodb_rollback_segments=4
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	4
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	5
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	3
+Innodb_undo_tablespaces_active	4
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	empty
+undo_004	Undo	Undo	active
+undo_005	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+#
+# Kill and restart mysqld with one less active undo tablespace
+# and less rollback segments=2.
+#
+ALTER UNDO TABLESPACE `undo_004` SET INACTIVE;
+# Connection 1
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+8
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+8
+BEGIN;
+INSERT INTO t1  VALUES (6, repeat('f',15));
+INSERT INTO t2  VALUES (6, repeat('f',15));
+INSERT INTO t3  VALUES (6, repeat('f',15));
+# Connection default
+# Kill and restart: --innodb_rollback_segments=2
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	2
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	5
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	3
+Innodb_undo_tablespaces_active	3
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	empty
+undo_004	Undo	Undo	empty
+undo_005	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+8
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+8
+#
+# Kill and restart mysqld with more undo tablespaces=6 and more rollback segments=7.
+#
+# Connection 1
+BEGIN;
+INSERT INTO t1  VALUES (7, repeat('g',15));
+INSERT INTO t2  VALUES (7, repeat('g',15));
+INSERT INTO t3  VALUES (7, repeat('g',15));
+# Connection default
+ALTER UNDO TABLESPACE `undo_003` SET ACTIVE;
+ALTER UNDO TABLESPACE `undo_004` SET ACTIVE;
+CREATE UNDO TABLESPACE `undo_006` ADD DATAFILE 'undo_006.ibu';
+SHOW WARNINGS;
+Level	Code	Message
+# Kill and restart: --innodb_rollback_segments=7
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	7
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	6
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	4
+Innodb_undo_tablespaces_active	6
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+undo_004	Undo	Undo	active
+undo_005	Undo	Undo	active
+undo_006	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+undo_006	UNDO LOG	./undo_006.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+undo_006.ibu
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+8
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+8
+#
+# Restart mysqld in read-only mode with more rollback segments=8.
+#
+# Connection 1
+INSERT INTO t1  VALUES (8, repeat('h',15));
+INSERT INTO t2  VALUES (8, repeat('h',15));
+INSERT INTO t3  VALUES (8, repeat('h',15));
+# Connection default
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+8	hhhhhhhhhhhhhhh
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+9
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+9
+# restart: --innodb_read_only  --innodb_rollback_segments=8
+CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
+ERROR HY000: Table 'tablespaces' is read only
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	7
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	6
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	4
+Innodb_undo_tablespaces_active	6
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+undo_004	Undo	Undo	active
+undo_005	Undo	Undo	active
+undo_006	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+undo_006	UNDO LOG	./undo_006.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+undo_006.ibu
+SET GLOBAL innodb_rollback_segments=8;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	7
+SET GLOBAL innodb_rollback_segments=3;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	7
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+8	hhhhhhhhhhhhhhh
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+9
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+9
+#
+# Restart mysqld in force_recovery mode with more rollback segments=8.
+#
+# restart: --innodb_force_recovery=1 --innodb_rollback_segments=8
+CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
+ERROR HY000: Changes to undo tablespaces are not allowed in force_recovery mode
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	6
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	4
+Innodb_undo_tablespaces_active	6
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+undo_004	Undo	Undo	active
+undo_005	Undo	Undo	active
+undo_006	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+undo_006	UNDO LOG	./undo_006.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+undo_006.ibu
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	7
+SET GLOBAL innodb_rollback_segments=8;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	7
+SET GLOBAL innodb_rollback_segments=3;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	7
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+8	hhhhhhhhhhhhhhh
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+9
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+9
+#
+# Use SET PERSIST to change rollback segments=11
+# and make some undo logs that must be rolled back on restart.
+#
+# restart: --innodb_rollback_segments=8
+BEGIN;
+INSERT INTO t1  VALUES (9, repeat('i',15));
+INSERT INTO t2  VALUES (9, repeat('i',15));
+INSERT INTO t3  VALUES (9, repeat('i',15));
+SET PERSIST innodb_rollback_segments=11;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	11
+INSERT INTO t1  VALUES (10, repeat('j',15));
+INSERT INTO t2  VALUES (10, repeat('j',15));
+INSERT INTO t3  VALUES (10, repeat('j',15));
+#
+# Restart in normal mode with default undo tablespaces and rollback segments.
+# The persisted settings will be set just after startup.
+#
+# restart
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	11
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	6
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	4
+Innodb_undo_tablespaces_active	6
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%undo%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE	STATE
+innodb_undo_001	Undo	Undo	active
+innodb_undo_002	Undo	Undo	active
+undo_003	Undo	Undo	active
+undo_004	Undo	Undo	active
+undo_005	Undo	Undo	active
+undo_006	Undo	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+undo_006	UNDO LOG	./undo_006.ibu
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003.ibu
+undo_004.ibu
+undo_005.ibu
+undo_006.ibu
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+8	hhhhhhhhhhhhhhh
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+9
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+9
+INSERT INTO t1  VALUES (11, repeat('k',15));
+INSERT INTO t2  VALUES (11, repeat('k',15));
+INSERT INTO t3  VALUES (11, repeat('k',15));
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	aaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbb
+3	ccccccccccccccc
+4	ddddddddddddddd
+5	eeeeeeeeeeeeeee
+8	hhhhhhhhhhhhhhh
+11	kkkkkkkkkkkkkkk
+101	x1 x1 x1 x1 x1 
+102	x2 x2 x2 x2 x2 
+103	x3 x3 x3 x3 x3 
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+10
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+10
+#
+# Cleanup
+#
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLESPACE ts1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+DROP UNDO TABLESPACE undo_005;
+DROP UNDO TABLESPACE undo_006;
+SET PERSIST innodb_rollback_segments=default;
+SET GLOBAL innodb_fast_shutdown=0;
+# restart: --innodb_rollback_segments=1

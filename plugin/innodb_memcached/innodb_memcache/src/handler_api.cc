@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "plugin/innodb_memcached/innodb_memcache/include/innodb_config.h"
 #include "sql/binlog.h"
 #include "sql/current_thd.h"
+#include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/lock.h"

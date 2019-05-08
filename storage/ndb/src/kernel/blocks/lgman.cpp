@@ -742,8 +742,8 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
 
 #ifdef ERROR_INSERT
   Uint32 disk_data_format = 1;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISK_DATA_FORMAT,
-                                        &disk_data_format));
+ ndb_mgm_get_int_parameter(p, CFG_DB_DISK_DATA_FORMAT,
+                           &disk_data_format);
   g_v2 = (disk_data_format == 1);
 #endif
   Pool_context pc;
@@ -3184,6 +3184,10 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
       page_v2->m_unused[3] = 0;
       page_v2->m_unused[4] = 0;
       page_v2->m_unused[5] = 0;
+      Uint32 pos = page_v2->m_words_used;
+      Uint32 *record = get_undo_data_ptr((Uint32*)page_v2, ptr, jamBuffer()) + (pos - 1);
+      Uint32 len = (*record) & 0xFFFF;
+      ndbrequire(pos >= len);
     }
   }
 
@@ -5199,7 +5203,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
 
   Uint32 page_position = pageP->m_words_used;
   bool ignore_page = false;
-  bool new_page;
+  bool new_page = false;
 
   if (page_position == pos)
   {

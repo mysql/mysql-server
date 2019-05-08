@@ -27,8 +27,8 @@ INSERT INTO d2.t VALUES (3, 'T4');
 INSERT INTO d1.t VALUES (2, 'T5');
 [connection slave1]
 # Now d1.t has two rows and d2.t has one row.
-[connection slave]
 CALL mtr.add_suppression("Recovery from master pos");
+[connection slave]
 # Kill the server
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --sync_master_info=1 --relay-log-recovery=1]
 After restart gaps should be filled.
@@ -65,8 +65,8 @@ INSERT INTO d2.t VALUES (3, 'T4');
 INSERT INTO d1.t VALUES (2, 'T5');
 [connection slave1]
 # Now d1.t has two rows and d2.t has one row.
-[connection slave]
 CALL mtr.add_suppression("Recovery from master pos");
+[connection slave]
 # Kill the server
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=TRUE --sync_master_info=1 --relay-log-recovery=1]
 After restart gaps should be filled.

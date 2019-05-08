@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -195,8 +195,13 @@ sub copytree {
 # Set the path of files in case of out of source builds.
 sub get_bld_path {
   my $path = shift;
+  # If path is relative to an out of source build mysql-test.
   if (!(-e $path) and ($ENV{MTR_BINDIR})) {
     $path = "$ENV{MTR_BINDIR}/mysql-test/$path";
+  }
+  # If path is relative to the source tree mysql-test.
+  elsif (!File::Spec->file_name_is_absolute($path) and (-e $path)) {
+    $path = "$::glob_mysql_test_dir/$path";
   }
   return $path;
 }

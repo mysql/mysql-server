@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,17 +38,20 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <memory>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
+#include "sql/row_iterator.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -56,14 +59,14 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
-#include "sql/sql_select.h"     // Key_use
-#include "sql/sql_tmp_table.h"  // enum_tmpfile_windowing_action
+#include "sql/sql_select.h"  // Key_use
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "template_utils.h"
 
 class COND_EQUAL;
 class Item_sum;
+class Opt_trace_context;
 class Window;
 struct MYSQL_LOCK;
 
@@ -184,6 +187,7 @@ class JOIN {
         qep_tab(NULL),
         best_ref(NULL),
         map2table(NULL),
+        map2qep_tab(NULL),
         sort_by_table(NULL),
         tables(0),
         primary_tables(0),
@@ -199,6 +203,7 @@ class JOIN {
         // Inner tables may always be considered to be constant:
         const_table_map(INNER_TABLE_BIT),
         found_const_table_map(INNER_TABLE_BIT),
+        deps_of_remaining_lateral_derived_tables(0),
         send_records(0),
         found_records(0),
         examined_rows(0),
@@ -231,6 +236,7 @@ class JOIN {
         m_ordered_index_usage(ORDERED_INDEX_VOID),
         skip_sort_order(false),
         need_tmp_before_win(false),
+        has_lateral(false),
         keyuse_array(thd->mem_root),
         all_fields(select->all_fields),
         fields_list(select->fields_list),
@@ -303,7 +309,8 @@ class JOIN {
     The optimizer reorders best_ref.
   */
   JOIN_TAB **best_ref;
-  JOIN_TAB **map2table;  ///< mapping between table indexes and JOIN_TABs
+  JOIN_TAB **map2table;   ///< mapping between table indexes and JOIN_TABs
+  QEP_TAB **map2qep_tab;  ///< mapping between table indexes and QEB_TABs
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
@@ -367,6 +374,13 @@ class JOIN {
      rest of execution (a NULL-complemented row will be used).
   */
   table_map found_const_table_map;
+  /**
+     Used in some loops which scan the JOIN's tables: it is the bitmap of all
+     tables which are dependencies of lateral derived tables which the loop
+     has not yet processed.
+  */
+  table_map deps_of_remaining_lateral_derived_tables;
+
   /* Number of records produced after join + group operation */
   ha_rows send_records;
   ha_rows found_records;
@@ -482,6 +496,9 @@ class JOIN {
   */
   bool need_tmp_before_win;
 
+  /// If JOIN has lateral derived tables (is set at start of planning)
+  bool has_lateral;
+
   /// Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
 
@@ -578,8 +595,8 @@ class JOIN {
   Item *having_for_explain;  ///< Saved optimized HAVING for EXPLAIN
   /**
     Pointer set to select_lex->get_table_list() at the start of
-    optimization. May be changed (to NULL) only if opt_sum_query() optimizes
-    tables away.
+    optimization. May be changed (to NULL) only if optimize_aggregated_query()
+    optimizes tables away.
   */
   TABLE_LIST *tables_list;
   COND_EQUAL *cond_equal;
@@ -776,7 +793,7 @@ class JOIN {
                                       List<Item> &fields);
   bool rollup_send_data(uint idx);
   bool rollup_write_data(uint idx, QEP_TAB *qep_tab);
-  void remove_subq_pushed_predicates();
+  bool finalize_table_conditions();
   /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
@@ -806,7 +823,6 @@ class JOIN {
             select_lex->having_value != Item::COND_FALSE);
   }
 
-  bool cache_const_exprs();
   bool generate_derived_keys();
   void finalize_derived_keys();
   bool get_best_combination();
@@ -816,6 +832,10 @@ class JOIN {
                             bool force_stable_sort = false);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
+  void recalculate_deps_of_remaining_lateral_derived_tables(
+      table_map plan_tables, uint idx);
+  bool clear_corr_derived_tmp_tables();
+
   void mark_const_table(JOIN_TAB *table, Key_use *key);
   /// State of execution plan. Currently used only for EXPLAIN
   enum enum_plan_state {
@@ -872,6 +892,19 @@ class JOIN {
     }
   }
 
+  /**
+    Handle offloading of query parts to the underlying engines, when
+    such is supported by their implementation.
+
+    @returns 0 if success, 1 if error
+  */
+  int push_to_engines();
+
+  RowIterator *root_iterator() const { return m_root_iterator.get(); }
+  unique_ptr_destroy_only<RowIterator> release_root_iterator() {
+    return move(m_root_iterator);
+  }
+
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN
   bool executed;   ///< Set by exec(), reset by reset()
@@ -881,10 +914,11 @@ class JOIN {
 
  public:
   /*
-    When join->select_count is set, tables will not be optimized away. The call
-    to records() will be delayed until the execution phase and the counting
-    will be done on an index of Optimizer's choice. This flag will be set in
-    opt_sum_query. The index will be decided in find_shortest_key().
+    When join->select_count is set, tables will not be optimized away.
+    The call to records() will be delayed until the execution phase and
+    the counting will be done on an index of Optimizer's choice.
+    The index will be decided in find_shortest_key(), called from
+    optimize_aggregated_query().
   */
   bool select_count;
 
@@ -1058,6 +1092,21 @@ class JOIN {
   void test_skip_sort();
 
   bool alloc_indirection_slices();
+
+  /**
+    If possible, convert the executor structures to a set of row iterators,
+    storing the result in m_root_iterator. If not, m_root_iterator will remain
+    nullptr.
+   */
+  void create_iterators();
+
+  /**
+    An iterator you can read from to get all records for this query.
+
+    May be nullptr even after create_iterators() if the current query
+    is not supported by the iterator executor.
+   */
+  unique_ptr_destroy_only<RowIterator> m_root_iterator;
 };
 
 /**
@@ -1097,7 +1146,8 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value);
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
                    List<TABLE_LIST> *join_list, Item::cond_result *cond_value);
-Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
+Item *substitute_for_best_equal_field(THD *thd, Item *cond,
+                                      COND_EQUAL *cond_equal,
                                       JOIN_TAB **table_join_idx);
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
@@ -1126,5 +1176,90 @@ inline bool field_time_cmp_date(const Field *f, const Item *v) {
 
 bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
                    ORDER *group_list, ORDER *order);
+
+/// RAII class to manage JOIN::deps_of_remaining_lateral_derived_tables
+class Deps_of_remaining_lateral_derived_tables {
+  JOIN *join;
+  table_map saved;
+  /// All lateral tables not part of this map should be ignored
+  table_map plan_tables;
+
+ public:
+  /**
+     Constructor.
+     @param j                the JOIN
+     @param plan_tables_arg  @see
+                             JOIN::deps_of_remaining_lateral_derived_tables
+  */
+  Deps_of_remaining_lateral_derived_tables(JOIN *j, table_map plan_tables_arg)
+      : join(j),
+        saved(join->deps_of_remaining_lateral_derived_tables),
+        plan_tables(plan_tables_arg) {}
+  ~Deps_of_remaining_lateral_derived_tables() { restore(); }
+  void restore() { join->deps_of_remaining_lateral_derived_tables = saved; }
+  void assert_unchanged() {
+    DBUG_ASSERT(join->deps_of_remaining_lateral_derived_tables == saved);
+  }
+  void recalculate(uint next_idx) {
+    if (join->has_lateral)
+      /*
+        No cur_tab given, so assume we start from a place in the plan which
+        may be backward or forward compared to where we were before:
+        recalculate.
+      */
+      join->recalculate_deps_of_remaining_lateral_derived_tables(plan_tables,
+                                                                 next_idx);
+  }
+
+  void recalculate(JOIN_TAB *cur_tab, uint next_idx) {
+    /*
+      We have just added cur_tab to the plan; if it's not lateral, the map
+      doesn't change, no need to recalculate it.
+    */
+    if (join->has_lateral && cur_tab->table_ref->is_derived() &&
+        cur_tab->table_ref->derived_unit()->m_lateral_deps)
+      recalculate(next_idx);
+  }
+  void init() {
+    // Normally done once in a run of JOIN::optimize().
+    if (join->has_lateral) {
+      recalculate(join->const_tables);
+      // Forget stale value:
+      saved = join->deps_of_remaining_lateral_derived_tables;
+    }
+  }
+};
+
+/**
+  Estimates how many times a subquery will be executed as part of a
+  query execution. If it is a cacheable subquery, the estimate tells
+  how many times the subquery will be executed if it is not cached.
+
+  @param[in]     subquery  the Item that represents the subquery
+  @param[in,out] trace     optimizer trace context
+
+  @return the number of times the subquery is expected to be executed
+*/
+double calculate_subquery_executions(const Item_subselect *subquery,
+                                     Opt_trace_context *trace);
+
+/**
+  Class which presents a view of the current candidate table order for a JOIN.
+*/
+class Candidate_table_order {
+ public:
+  Candidate_table_order(const JOIN *join) : m_join(join) {}
+
+  /// Returns the number of tables in the candidate plan.
+  size_t size() const { return m_join->tables; }
+
+  /// Returns the table reference at the given position in the candidate plan.
+  const TABLE_LIST *table_ref(size_t position) const {
+    return m_join->positions[position].table->table_ref;
+  }
+
+ private:
+  const JOIN *const m_join;
+};
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

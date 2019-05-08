@@ -47,6 +47,7 @@
 #if defined(_WIN32)
 #include "mysys/mysys_priv.h"
 #endif
+#include "mysql/service_mysql_alloc.h"
 
 #ifndef MAIN
 

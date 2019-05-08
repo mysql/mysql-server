@@ -115,8 +115,6 @@ class Stateless_allocator {
   template <class U>
   Stateless_allocator &operator=(const Stateless_allocator_type<U> &) {}
 
-  ~Stateless_allocator() = default;
-
   pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
     if (n == 0) return NULL;
     if (n > max_size()) throw std::bad_alloc();

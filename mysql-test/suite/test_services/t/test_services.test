@@ -42,14 +42,14 @@ UNINSTALL PLUGIN test_services;
 
 SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 
---disable_warnings
-
 --echo ------ Service: LogPluginErr ----------------------------
 if ($run_log_message_test) {
    CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
+   --disable_warnings ER_WARN_TOO_MANY_RECORDS
    --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
    eval LOAD DATA LOCAL INFILE '$server_log' INTO TABLE t1
         FIELDS TERMINATED BY ' [';
+   --enable_warnings ER_WARN_TOO_MANY_RECORDS
    SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services %';
    DROP TABLE IF EXISTS t1;
 }

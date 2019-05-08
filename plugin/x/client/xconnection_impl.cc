@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,21 +28,27 @@
 #include "plugin/x/client/xconnection_impl.h"
 
 #include "my_config.h"
+#include "my_dbug.h"
 
 #include <errno.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #include <cassert>
+#include <chrono>
+#include <future>
 #include <limits>
 #include <sstream>
 #include <string>
 
 #include "errmsg.h"
+#include "my_macros.h"
+#include "scope_guard.h"
+
 #include "plugin/x/client/xconnection_config.h"
 #include "plugin/x/client/xssl_config.h"
 #include "plugin/x/generated/mysqlx_error.h"
-#include "scope_guard.h"
+#include "sql/net_ns.h"
 
 #ifndef WIN32
 #include <netdb.h>
@@ -269,14 +275,12 @@ XError Connection_impl::connect_to_localhost(const std::string &unix_socket) {
 XError Connection_impl::connect(const std::string &host, const uint16_t port,
                                 const Internet_protocol ip_mode) {
   m_connection_type = Connection_type::Tcp;
-  struct addrinfo *res_lst, hints, *t_res;
-  int gai_errno;
-  char port_buf[NI_MAXSERV];
-
   m_hostname = host;
 
+  char port_buf[NI_MAXSERV];
   snprintf(port_buf, NI_MAXSERV, "%d", port);
 
+  addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
@@ -287,18 +291,64 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
   else if (Internet_protocol::V4 == ip_mode)
     hints.ai_family = AF_INET;
 
-  gai_errno = getaddrinfo(host.c_str(), port_buf, &hints, &res_lst);
-  if (gai_errno != 0)
+  auto addr_future =
+      std::async(std::launch::async, [&host, &port_buf, &hints]() {
+        auto addr_cleanup = [](addrinfo *addr) {
+          if (addr) freeaddrinfo(addr);
+        };
+        std::shared_ptr<addrinfo> result_list(nullptr, addr_cleanup);
+        addrinfo *temp_res_lst;
+        auto gai_errno =
+            getaddrinfo(host.c_str(), port_buf, &hints, &temp_res_lst);
+        if (gai_errno == 0) result_list.reset(temp_res_lst, addr_cleanup);
+        return result_list;
+      });
+
+  const auto timeout = m_context->m_connection_config.m_timeout_session_connect;
+  const auto delay = std::chrono::milliseconds(
+      timeout > 0 ? timeout : std::numeric_limits<std::int32_t>::max());
+  if (addr_future.wait_for(delay) == std::future_status::timeout) {
+    return XError(CR_X_SESSION_CONNECT_TIMEOUT,
+                  "Session_connect_timeout limit exceeded");
+  }
+
+  auto resolved_addr_list_ptr = addr_future.get();
+  if (!resolved_addr_list_ptr)
     return XError(CR_UNKNOWN_HOST, "No such host is known '" + host + "'");
 
   XError error;
-  for (t_res = res_lst; t_res; t_res = t_res->ai_next) {
+  const auto &ns = m_context->m_connection_config.m_network_namespace;
+  if (!ns.empty()) {
+#ifdef HAVE_SETNS
+    if (set_network_namespace(ns)) {
+      return XError(CR_SOCKET_CREATE_ERROR,
+                    "Failed to set active network namespace " + ns);
+    }
+#else
+    return XError(CR_SOCKET_CREATE_ERROR,
+                  "Network namespace not supported by the platform");
+#endif
+  }
+  for (const auto *t_res = resolved_addr_list_ptr.get(); t_res;
+       t_res = t_res->ai_next) {
     error = connect(reinterpret_cast<sockaddr *>(t_res->ai_addr),
                     t_res->ai_addrlen);
 
     if (!error) break;
   }
-  freeaddrinfo(res_lst);
+
+#ifdef HAVE_SETNS
+  if (!ns.empty() && restore_original_network_namespace() && !error) {
+    /*
+      Report about error during restoring network namespace only
+      in case an error not happened on connecting to a server.
+      In other words, error got during establishing a connection
+      has higher priority.
+    */
+    return XError(CR_SOCKET_CREATE_ERROR,
+                  "Fails to restore original network namespace " + ns);
+  }
+#endif
 
   if (error) {
     std::string error_description = error.what();
@@ -325,7 +375,7 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
 
   auto vio = vio_new(s, type, 0);
   auto error =
-      vio_socket_connect(vio, addr, static_cast<socklen_t>(addr_size),
+      vio_socket_connect(vio, addr, static_cast<socklen_t>(addr_size), false,
                          details::make_vio_timeout(
                              m_context->m_connection_config.m_timeout_connect));
 
@@ -340,10 +390,12 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   // Enable TCP_NODELAY
   vio_fastsend(m_vio);
 
-  set_read_timeout(details::make_vio_timeout(
-      m_context->m_connection_config.m_timeout_read / 1000));
+  const auto read_timeout = m_context->m_connection_config.m_timeout_read;
+  set_read_timeout(
+      details::make_vio_timeout((read_timeout < 0) ? -1 : read_timeout / 1000));
+  const auto write_timeout = m_context->m_connection_config.m_timeout_write;
   set_write_timeout(details::make_vio_timeout(
-      m_context->m_connection_config.m_timeout_write / 1000));
+      (write_timeout < 0) ? -1 : write_timeout / 1000));
 
   return XError();
 }
@@ -391,12 +443,6 @@ XError Connection_impl::get_ssl_init_error(const int init_error_id) {
                 sslGetErrString((enum_ssl_init_error)init_error_id));
 }
 
-#ifdef _WIN32
-#define SOCKET_ERROR_WIN_OR_POSIX(W, P) W
-#else
-#define SOCKET_ERROR_WIN_OR_POSIX(W, P) P
-#endif  // _WIN32
-
 #ifdef HAVE_WOLFSSL
 
 #ifdef SOCKET_EPIPE
@@ -409,9 +455,8 @@ XError Connection_impl::get_ssl_init_error(const int init_error_id) {
 
 #endif  // HAVE_WOLFSSL
 
-#define SOCKET_EPIPE SOCKET_ERROR_WIN_OR_POSIX(ERROR_BROKEN_PIPE, EPIPE)
-#define SOCKET_ECONNABORTED \
-  SOCKET_ERROR_WIN_OR_POSIX(WSAECONNABORTED, ECONNABORTED)
+#define SOCKET_EPIPE IF_WIN(ERROR_BROKEN_PIPE, EPIPE)
+#define SOCKET_ECONNABORTED IF_WIN(WSAECONNABORTED, ECONNABORTED)
 
 XError Connection_impl::get_socket_error(const int error_id) {
   switch (error_id) {
@@ -509,7 +554,7 @@ XError Connection_impl::activate_tls() {
       details::null_when_empty(m_context->m_ssl_config.m_cert),
       details::null_when_empty(m_context->m_ssl_config.m_ca),
       details::null_when_empty(m_context->m_ssl_config.m_ca_path),
-      details::null_when_empty(m_context->m_ssl_config.m_cipher),
+      details::null_when_empty(m_context->m_ssl_config.m_cipher), NULL,
       &m_ssl_init_error,
       details::null_when_empty(m_context->m_ssl_config.m_crl),
       details::null_when_empty(m_context->m_ssl_config.m_crl_path),
@@ -520,7 +565,7 @@ XError Connection_impl::activate_tls() {
   // When mode it set to Ssl_config::Mode_ssl_verify_ca
   // then lower layers are going to verify it
   unsigned long error;  // NOLINT
-  if (0 != sslconnect(m_vioSslFd, m_vio, 60, &error)) {
+  if (0 != sslconnect(m_vioSslFd, m_vio, 60, &error, nullptr)) {
     return get_ssl_error(error);
   }
 

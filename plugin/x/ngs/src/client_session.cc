@@ -26,7 +26,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include "my_sys.h"
+#include "include/my_sys.h"
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
@@ -37,25 +37,25 @@
 #include "plugin/x/ngs/include/ngs/ngs_error.h"
 
 #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
-using namespace ngs;
+namespace ngs {
 
 // Code below this line is executed from the network thread
 // ------------------------------------------------------------------------------------------------
 
-Session::Session(Client_interface &client, Protocol_encoder_interface *proto,
+Session::Session(Client_interface *client, Protocol_encoder_interface *proto,
                  const Session_id session_id)
     : m_client(client),  // don't hold a real reference to the parent to avoid
                          // circular reference
       m_encoder(proto),
       m_auth_handler(),
-      m_state(Authenticating),
-      m_state_before_close(Authenticating),
+      m_state(k_authenticating),
+      m_state_before_close(k_authenticating),
       m_id(session_id),
       m_thread_pending(0),
       m_thread_active(0) {
-  log_debug("%s.%i: New session allocated by client", client.client_id(),
+  log_debug("%s.%i: New session allocated by client", client->client_id(),
             session_id);
 
 #ifndef WIN32
@@ -64,15 +64,15 @@ Session::Session(Client_interface &client, Protocol_encoder_interface *proto,
 }
 
 Session::~Session() {
-  log_debug("%s: Delete session", m_client.client_id());
+  log_debug("%s: Delete session", m_client->client_id());
   check_thread();
 }
 
 void Session::on_close(const bool update_old_state) {
-  if (m_state != Closing) {
+  if (m_state != k_closing) {
     if (update_old_state) m_state_before_close = m_state;
-    m_state = Closing;
-    m_client.on_session_close(*this);
+    m_state = k_closing;
+    m_client->on_session_close(*this);
   }
 }
 
@@ -83,9 +83,9 @@ void Session::on_close(const bool update_old_state) {
 // If message is handled, ownership of the object is passed on (and should be
 // deleted by the callee)
 bool Session::handle_message(ngs::Message_request &command) {
-  if (m_state == Authenticating) {
+  if (m_state == k_authenticating) {
     return handle_auth_message(command);
-  } else if (m_state == Ready) {
+  } else if (m_state == k_ready) {
     // handle session commands
     return handle_ready_message(command);
   }
@@ -93,11 +93,11 @@ bool Session::handle_message(ngs::Message_request &command) {
   return false;
 }
 
-bool Session::handle_ready_message(ngs::Message_request &command) {
+bool Session::handle_ready_message(Message_request &command) {
   switch (command.get_message_type()) {
     case Mysqlx::ClientMessages::SESS_CLOSE:
-      m_encoder->send_ok("bye!");
-      on_close(true);
+      m_state = k_closing;
+      m_client->on_session_reset(*this);
       return true;
 
     case Mysqlx::ClientMessages::CON_CLOSE:
@@ -105,11 +105,17 @@ bool Session::handle_ready_message(ngs::Message_request &command) {
       on_close(true);
       return true;
 
-    case Mysqlx::ClientMessages::SESS_RESET:
-      // session reset
-      m_state = Closing;
-      m_client.on_session_reset(*this);
+    case Mysqlx::ClientMessages::SESS_RESET: {
+      const auto &msg =
+          static_cast<const Mysqlx::Session::Reset &>(*command.get_message());
+      if (msg.has_keep_open() && msg.keep_open()) {
+        on_reset();
+        return true;
+      }
+      m_state = k_closing;
+      m_client->on_session_reset(*this);
       return true;
+    }
   }
   return false;
 }
@@ -118,10 +124,10 @@ void Session::stop_auth() {
   m_auth_handler.reset();
 
   // request termination
-  m_client.on_session_close(*this);
+  m_client->on_session_close(*this);
 }
 
-bool Session::handle_auth_message(ngs::Message_request &command) {
+bool Session::handle_auth_message(Message_request &command) {
   Authentication_interface::Response r;
   int8_t type = command.get_message_type();
 
@@ -132,17 +138,17 @@ bool Session::handle_auth_message(ngs::Message_request &command) {
             *command.get_message());
 
     log_debug("%s.%u: Login attempt: mechanism=%s auth_data=%s",
-              m_client.client_id(), m_id, authm.mech_name().c_str(),
+              m_client->client_id(), m_id, authm.mech_name().c_str(),
               authm.auth_data().c_str());
 
     m_auth_handler =
-        m_client.server().get_auth_handler(authm.mech_name(), this);
+        m_client->server().get_auth_handler(authm.mech_name(), this);
     if (!m_auth_handler.get()) {
-      log_debug("%s.%u: Invalid authentication method %s", m_client.client_id(),
-                m_id, authm.mech_name().c_str());
-      m_encoder->send_init_error(ngs::Fatal(ER_NOT_SUPPORTED_AUTH_MODE,
-                                            "Invalid authentication method %s",
-                                            authm.mech_name().c_str()));
+      log_debug("%s.%u: Invalid authentication method %s",
+                m_client->client_id(), m_id, authm.mech_name().c_str());
+      m_encoder->send_init_error(Fatal(ER_NOT_SUPPORTED_AUTH_MODE,
+                                       "Invalid authentication method %s",
+                                       authm.mech_name().c_str()));
       stop_auth();
       return true;
     } else {
@@ -160,8 +166,8 @@ bool Session::handle_auth_message(ngs::Message_request &command) {
     m_encoder->get_protocol_monitor().on_error_unknown_msg_type();
     log_debug(
         "%s: Unexpected message of type %i received during authentication",
-        m_client.client_id(), type);
-    m_encoder->send_init_error(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
+        m_client->client_id(), type);
+    m_encoder->send_init_error(Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
     stop_auth();
     return false;
   }
@@ -184,10 +190,10 @@ bool Session::handle_auth_message(ngs::Message_request &command) {
 
 void Session::on_auth_success(
     const Authentication_interface::Response &response) {
-  log_debug("%s.%u: Login succeeded", m_client.client_id(), m_id);
+  log_debug("%s.%u: Login succeeded", m_client->client_id(), m_id);
   m_auth_handler.reset();
-  m_state = Ready;
-  m_client.on_session_auth_success(*this);
+  m_state = k_ready;
+  m_client->on_session_auth_success(*this);
   m_encoder->send_auth_ok(response.data);  // send it last, so that
                                            // on_auth_success() can send session
                                            // specific notices
@@ -196,7 +202,7 @@ void Session::on_auth_success(
 
 void Session::on_auth_failure(
     const Authentication_interface::Response &response) {
-  log_debug("%s.%u: Unsuccessful authentication attempt", m_client.client_id(),
+  log_debug("%s.%u: Unsuccessful authentication attempt", m_client->client_id(),
             m_id);
   m_failed_auth_count++;
 
@@ -204,7 +210,7 @@ void Session::on_auth_failure(
 
   if (can_forward_error_code_to_client(response.error_code)) {
     error_send_back_to_user =
-        ngs::Error(response.error_code, "%s", response.data.c_str());
+        Error(response.error_code, "%s", response.data.c_str());
   }
 
   error_send_back_to_user.severity =
@@ -215,7 +221,7 @@ void Session::on_auth_failure(
   // It is possible to use different auth methods therefore we should not
   // stop authentication in such case.
   if (!can_authenticate_again()) {
-    log_info(ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED, m_client.client_id(), m_id);
+    log_info(ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED, m_client->client_id(), m_id);
     stop_auth();
   }
 
@@ -229,8 +235,8 @@ Error_code Session::get_authentication_access_denied_error() const {
                                       : my_get_err_msg(ER_NO);
   std::string username = authentication_info.m_tried_account_name;
   std::string hostname = client().client_hostname_or_address();
-  auto result = ngs::SQLError(ER_ACCESS_DENIED_ERROR, username.c_str(),
-                              hostname.c_str(), is_using_password);
+  auto result = SQLError(ER_ACCESS_DENIED_ERROR, username.c_str(),
+                         hostname.c_str(), is_using_password);
 
   if (can_authenticate_again())
     log_debug("Try to authenticate again, got: %s", result.message.c_str());
@@ -252,3 +258,4 @@ bool Session::can_forward_error_code_to_client(const int error_code) {
 bool Session::can_authenticate_again() const {
   return m_failed_auth_count < k_max_auth_attempts;
 }
+}  // namespace ngs

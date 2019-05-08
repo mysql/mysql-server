@@ -1,0 +1,30 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+
+use test;
+create table test.t1 (a int primary key, b int) engine=ndb;
+insert into test.t1 values (1,1), (2,2), (3,3), (4,4);
+
+--echo Set TC Transaction Inactive Timeout to 5s
+--disable_result_log
+--exec $NDB_MGM -e "ALL DUMP 2508 5000"
+--enable_result_log
+
+begin;
+# Insert conflicting key, ignoring error
+insert ignore into test.t1 values (5,5), (3,6), (7,7);
+
+--echo Waiting for a while so that TC rolls back
+--echo the transaction
+--sleep 10
+
+--echo Committing the transaction, expect already rolled back error
+--error 1205
+commit;
+
+--disable_result_log
+--exec $NDB_MGM -e "ALL DUMP 2508 0"
+--enable_result_log
+
+drop table test.t1;
+

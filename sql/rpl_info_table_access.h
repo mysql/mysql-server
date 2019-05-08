@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@ enum enum_return_id { FOUND_ID = 1, NOT_FOUND_ID, ERROR_ID };
 
 class Rpl_info_table_access : public System_table_access {
  public:
-  Rpl_info_table_access() : thd_created(false){};
-  virtual ~Rpl_info_table_access(){};
+  Rpl_info_table_access() : thd_created(false) {}
+  virtual ~Rpl_info_table_access() {}
 
   /**
     Prepares before opening table.

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 # PROJECT(lot0lot)
 INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/zlib
 )
 
 SET(ZLOB_SRC_FILES

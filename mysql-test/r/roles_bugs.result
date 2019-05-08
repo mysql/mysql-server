@@ -33,3 +33,25 @@ cleanup
 SET ROLE DEFAULT;
 REVOKE r1 FROM root@localhost;
 DROP ROLE r1;
+#
+# Bug #28953158: DROP ROLE USERNAME SHOULD BE REJECTED
+#
+CREATE USER uu@localhost, u1@localhost;
+CREATE ROLE r1;
+GRANT CREATE ROLE, DROP ROLE ON *.* TO uu@localhost;
+SHOW GRANTS;
+Grants for uu@localhost
+GRANT CREATE ROLE, DROP ROLE ON *.* TO `uu`@`localhost`
+# connected as uu
+# test result: must fail
+DROP USER u1@localhost;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+# test result: must fail
+DROP ROLE u1@localhost;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+# test result: must pass
+DROP ROLE r1;
+# Cleanup
+# connection default
+DROP USER uu@localhost, u1@localhost;
+# End of 8.0 tests

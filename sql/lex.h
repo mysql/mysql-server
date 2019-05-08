@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,7 @@ static const SYMBOL symbols[] = {
     {SYM("ACCESSIBLE", ACCESSIBLE_SYM)},
     {SYM("ACCOUNT", ACCOUNT_SYM)},
     {SYM("ACTION", ACTION)},
+    {SYM("ACTIVE", ACTIVE_SYM)},
     {SYM("ADD", ADD)},
     {SYM("ADMIN", ADMIN_SYM)},
     {SYM("AFTER", AFTER_SYM)},
@@ -203,7 +204,7 @@ static const SYMBOL symbols[] = {
     {SYM("DIAGNOSTICS", DIAGNOSTICS_SYM)},
     {SYM("DIRECTORY", DIRECTORY_SYM)},
     {SYM("DISABLE", DISABLE_SYM)},
-    {SYM("DISCARD", DISCARD)},
+    {SYM("DISCARD", DISCARD_SYM)},
     {SYM("DISK", DISK_SYM)},
     {SYM("DISTINCT", DISTINCT)},
     {SYM("DISTINCTROW", DISTINCT)}, /* Access likes this */
@@ -223,6 +224,7 @@ static const SYMBOL symbols[] = {
     {SYM("ENCLOSED", ENCLOSED)},
     {SYM("END", END)},
     {SYM("ENDS", ENDS_SYM)},
+    {SYM("ENFORCED", ENFORCED_SYM)},
     {SYM("ENGINE", ENGINE_SYM)},
     {SYM("ENGINES", ENGINES_SYM)},
     {SYM("ENUM", ENUM_SYM)},
@@ -305,6 +307,7 @@ static const SYMBOL symbols[] = {
     {SYM("IGNORE_SERVER_IDS", IGNORE_SERVER_IDS_SYM)},
     {SYM("IMPORT", IMPORT)},
     {SYM("IN", IN_SYM)},
+    {SYM("INACTIVE", INACTIVE_SYM)},
     {SYM("INDEX", INDEX_SYM)},
     {SYM("INDEXES", INDEXES)},
     {SYM("INFILE", INFILE)},
@@ -346,6 +349,7 @@ static const SYMBOL symbols[] = {
     {SYM("LANGUAGE", LANGUAGE_SYM)},
     {SYM("LAST", LAST_SYM)},
     {SYM("LAST_VALUE", LAST_VALUE_SYM)},
+    {SYM("LATERAL", LATERAL_SYM)},
     {SYM("LEAD", LEAD_SYM)},
     {SYM("LEADING", LEADING)},
     {SYM("LEAVE", LEAVE_SYM)},
@@ -438,6 +442,7 @@ static const SYMBOL symbols[] = {
     {SYM("NDBCLUSTER", NDBCLUSTER_SYM)},
     {SYM("NCHAR", NCHAR_SYM)},
     {SYM("NESTED", NESTED_SYM)},
+    {SYM("NETWORK_NAMESPACE", NETWORK_NAMESPACE_SYM)},
     {SYM("NEVER", NEVER_SYM)},
     {SYM("NEW", NEW_SYM)},
     {SYM("NEXT", NEXT_SYM)},
@@ -457,6 +462,8 @@ static const SYMBOL symbols[] = {
     {SYM("NVARCHAR", NVARCHAR_SYM)},
     {SYM("OF", OF_SYM)},
     {SYM("OFFSET", OFFSET_SYM)},
+    {SYM("OJ", OJ_SYM)},
+    {SYM("OLD", OLD_SYM)},
     {SYM("ON", ON_SYM)},
     {SYM("ONE", ONE_SYM)},
     {SYM("ONLY", ONLY_SYM)},
@@ -536,7 +543,6 @@ static const SYMBOL symbols[] = {
     {SYM("RELAY_THREAD", RELAY_THREAD)},
     {SYM("RELEASE", RELEASE_SYM)},
     {SYM("RELOAD", RELOAD)},
-    {SYM("REMOTE", REMOTE_SYM)},
     {SYM("REMOVE", REMOVE_SYM)},
     {SYM("RENAME", RENAME)},
     {SYM("REORGANIZE", REORGANIZE_SYM)},
@@ -560,6 +566,7 @@ static const SYMBOL symbols[] = {
     {SYM("RESTORE", RESTORE_SYM)},
     {SYM("RESTRICT", RESTRICT)},
     {SYM("RESUME", RESUME_SYM)},
+    {SYM("RETAIN", RETAIN_SYM)},
     {SYM("RETURNED_SQLSTATE", RETURNED_SQLSTATE_SYM)},
     {SYM("RETURN", RETURN_SYM)},
     {SYM("RETURNS", RETURNS_SYM)},
@@ -586,6 +593,7 @@ static const SYMBOL symbols[] = {
     {SYM("SCHEMAS", DATABASES)},
     {SYM("SECOND", SECOND_SYM)},
     {SYM("SECOND_MICROSECOND", SECOND_MICROSECOND_SYM)},
+    {SYM("SECONDARY", SECONDARY_SYM)},
     {SYM("SECONDARY_ENGINE", SECONDARY_ENGINE_SYM)},
     {SYM("SECONDARY_LOAD", SECONDARY_LOAD_SYM)},
     {SYM("SECONDARY_UNLOAD", SECONDARY_UNLOAD_SYM)},

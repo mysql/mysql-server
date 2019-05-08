@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,12 @@
 #ifndef _m_ctype_h
 #define _m_ctype_h
 
-#include <stdarg.h>
+#ifndef __cplusplus
 #include <stdbool.h>
+#endif
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
@@ -58,24 +58,10 @@ typedef ulong my_wc_t;
 
 #define MY_CS_REPLACEMENT_CHARACTER 0xFFFD
 
-/*
-  On i386 we store Unicode->CS conversion tables for
-  some character sets using Big-endian order,
-  to copy two bytes at onces.
-  This gives some performance improvement.
-*/
-#if defined(__i386__) || defined(__x86_64__)
-#define MB2(x) (((x) >> 8) + (((x)&0xFF) << 8))
-static inline void MY_PUT_MB2(unsigned char *s, uint16 code) {
-  int2store(s, code);
-}
-#else
-#define MB2(x) (x)
 static inline void MY_PUT_MB2(unsigned char *s, uint16 code) {
   s[0] = code >> 8;
   s[1] = code & 0xFF;
 }
-#endif
 
 typedef struct MY_UNICASE_CHARACTER {
   uint32 toupper;
@@ -267,7 +253,7 @@ typedef struct MY_COLLATION_HANDLER {
     nr2 holds extra state between invocations.
   */
   void (*hash_sort)(const CHARSET_INFO *cs, const uchar *key, size_t len,
-                    ulong *nr1, ulong *nr2);
+                    uint64 *nr1, uint64 *nr2);
   bool (*propagate)(const CHARSET_INFO *cs, const uchar *str, size_t len);
 } MY_COLLATION_HANDLER;
 
@@ -347,20 +333,20 @@ typedef struct MY_CHARSET_HANDLER {
 
   /* String-to-number conversion routines */
   long (*strntol)(const CHARSET_INFO *, const char *s, size_t l, int base,
-                  char **e, int *err);
+                  const char **e, int *err);
   ulong (*strntoul)(const CHARSET_INFO *, const char *s, size_t l, int base,
-                    char **e, int *err);
+                    const char **e, int *err);
   longlong (*strntoll)(const CHARSET_INFO *, const char *s, size_t l, int base,
-                       char **e, int *err);
+                       const char **e, int *err);
   ulonglong (*strntoull)(const CHARSET_INFO *, const char *s, size_t l,
-                         int base, char **e, int *err);
-  double (*strntod)(const CHARSET_INFO *, char *s, size_t l, char **e,
+                         int base, const char **e, int *err);
+  double (*strntod)(const CHARSET_INFO *, char *s, size_t l, const char **e,
                     int *err);
-  longlong (*strtoll10)(const CHARSET_INFO *cs, const char *nptr, char **endptr,
-                        int *error);
+  longlong (*strtoll10)(const CHARSET_INFO *cs, const char *nptr,
+                        const char **endptr, int *error);
   ulonglong (*strntoull10rnd)(const CHARSET_INFO *cs, const char *str,
-                              size_t length, int unsigned_fl, char **endptr,
-                              int *error);
+                              size_t length, int unsigned_fl,
+                              const char **endptr, int *error);
   size_t (*scan)(const CHARSET_INFO *, const char *b, const char *e, int sq);
 } MY_CHARSET_HANDLER;
 
@@ -453,7 +439,7 @@ extern int my_strnncollsp_simple(const CHARSET_INFO *, const uchar *, size_t,
                                  const uchar *, size_t);
 
 extern void my_hash_sort_simple(const CHARSET_INFO *cs, const uchar *key,
-                                size_t len, ulong *nr1, ulong *nr2);
+                                size_t len, uint64 *nr1, uint64 *nr2);
 
 extern size_t my_lengthsp_8bit(const CHARSET_INFO *cs, const char *ptr,
                                size_t length);
@@ -488,14 +474,14 @@ size_t my_snprintf_8bit(const CHARSET_INFO *, char *to, size_t n,
     MY_ATTRIBUTE((format(printf, 4, 5)));
 
 long my_strntol_8bit(const CHARSET_INFO *, const char *s, size_t l, int base,
-                     char **e, int *err);
+                     const char **e, int *err);
 ulong my_strntoul_8bit(const CHARSET_INFO *, const char *s, size_t l, int base,
-                       char **e, int *err);
+                       const char **e, int *err);
 longlong my_strntoll_8bit(const CHARSET_INFO *, const char *s, size_t l,
-                          int base, char **e, int *err);
+                          int base, const char **e, int *err);
 ulonglong my_strntoull_8bit(const CHARSET_INFO *, const char *s, size_t l,
-                            int base, char **e, int *err);
-double my_strntod_8bit(const CHARSET_INFO *, char *s, size_t l, char **e,
+                            int base, const char **e, int *err);
+double my_strntod_8bit(const CHARSET_INFO *, char *s, size_t l, const char **e,
                        int *err);
 size_t my_long10_to_str_8bit(const CHARSET_INFO *, char *to, size_t l,
                              int radix, long int val);
@@ -503,13 +489,13 @@ size_t my_longlong10_to_str_8bit(const CHARSET_INFO *, char *to, size_t l,
                                  int radix, longlong val);
 
 longlong my_strtoll10_8bit(const CHARSET_INFO *cs, const char *nptr,
-                           char **endptr, int *error);
+                           const char **endptr, int *error);
 longlong my_strtoll10_ucs2(const CHARSET_INFO *cs, const char *nptr,
                            char **endptr, int *error);
 
 ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs, const char *str,
-                                 size_t length, int unsigned_fl, char **endptr,
-                                 int *error);
+                                 size_t length, int unsigned_fl,
+                                 const char **endptr, int *error);
 ulonglong my_strntoull10rnd_ucs2(const CHARSET_INFO *cs, const char *str,
                                  size_t length, int unsigned_fl, char **endptr,
                                  int *error);
@@ -596,7 +582,8 @@ int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                          const char *s, const char *t);
 
 void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const uchar *key, size_t len, ulong *nr1, ulong *nr2);
+                         const uchar *key, size_t len, uint64 *nr1,
+                         uint64 *nr2);
 
 size_t my_strnxfrm_mb(const CHARSET_INFO *, uchar *dst, size_t dstlen,
                       uint nweights, const uchar *src, size_t srclen,
@@ -619,8 +606,6 @@ int my_wildcmp_unicode(const CHARSET_INFO *cs, const char *str,
 
 extern bool my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf,
                                  size_t buflen);
-extern char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
-                       char c);
 extern size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
                          const char *end, const char *reject,
                          size_t reject_length);

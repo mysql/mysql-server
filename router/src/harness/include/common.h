@@ -64,13 +64,19 @@ void HARNESS_EXPORT make_file_public(const std::string &file_name);
  * users.
  *
  * On Unix, the function sets file permission mask to 600.
- * On Windows, all permissions to this file are removed for Everyone group.
+ * On Windows, all permissions to this file are removed for Everyone group,
+ * LocalService account gets read (and optionally write) access.
  *
  * @param[in] file_name File name.
+ * @param[in] read_only_for_local_service Weather the LocalService user on
+ * Windows should get only the read access (if false will grant write access
+ * too). Not used on non-Windows.
  *
  * @throw std::exception Failed to change file permissions.
  */
-void HARNESS_EXPORT make_file_private(const std::string &file_name);
+void HARNESS_EXPORT
+make_file_private(const std::string &file_name,
+                  const bool read_only_for_local_service = true);
 
 /** @brief Wrapper for thread safe function returning error string.
  *
@@ -185,6 +191,61 @@ std::string serial_comma(InputIt start, InputIt finish,
   serial_comma(out, start, finish, delim);
 
   return out.str();
+}
+
+/**
+ * Returns string containing list of the elements separated by selected
+ * delimiter.
+ *
+ * To return a list of the first five prime numbers as "The first five prime
+ * numbers are 2, 3, 5, 7, 11":
+ *
+ * @code
+ * std::vector<int> primes{2, 3, 5, 7, 11};
+ * std::cout << "The first five prime numbers are "
+ *           << list_elements(primes.begin(), primes.end()) << std::endl;
+ * @endcode
+ *
+ * @param start Input iterator to start of range.
+ * @param finish Input iterator to one-after-end of range.
+ * @param delim Delimiter to use. Defaults to ",".
+ *
+ * @return string containing list of the elements
+ */
+template <class InputIt>
+std::string list_elements(InputIt start, InputIt finish,
+                          const std::string &delim = ",") {
+  std::string result;
+  for (auto cur = start; cur != finish; ++cur) {
+    if (cur != start) result += delim;
+    result += *cur;
+  }
+
+  return result;
+}
+
+/**
+ * Returns string containing list of the elements separated by selected
+ * delimiter.
+ *
+ * To return a list of the first five prime numbers as "The first five prime
+ * numbers are 2, 3, 5, 7, 11":
+ *
+ * @code
+ * std::vector<int> primes{2, 3, 5, 7, 11};
+ * std::cout << "The first five prime numbers are "
+ *           << list_elements(primes) << std::endl;
+ * @endcode
+ *
+ * @param collection Collection of the elements to output.
+ * @param delim Delimiter to use. Defaults to ",".
+ *
+ * @return string containing list of the elements
+ */
+template <class Collection>
+std::string list_elements(Collection collection,
+                          const std::string &delim = ",") {
+  return list_elements(collection.begin(), collection.end(), delim);
 }
 
 }  // namespace mysql_harness

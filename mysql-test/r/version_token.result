@@ -254,10 +254,12 @@ ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plug
 # VERSION_TOKEN_ADMIN shouldn't be visible in SHOW PRIVILEGES
 SHOW PRIVILEGES;
 Privilege	Context	Comment
+APPLICATION_PASSWORD_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
+BINLOG_ENCRYPTION_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
 Create role	Server Admin	To create new roles
@@ -289,13 +291,17 @@ References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges
 Replication client	Server Admin	To ask where the slave or master servers are
 Replication slave	Server Admin	To read binary log events from the master
+SERVICE_CONNECTION_ADMIN	Server Admin	
+SESSION_VARIABLES_ADMIN	Server Admin	
 SET_USER_ID	Server Admin	
+SYSTEM_USER	Server Admin	
 SYSTEM_VARIABLES_ADMIN	Server Admin	
 Select	Tables	To retrieve rows from table
 Show databases	Server Admin	To see all databases with SHOW DATABASES
 Show view	Tables	To see views with SHOW CREATE VIEW
 Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+TABLE_ENCRYPTION_ADMIN	Server Admin	
 Trigger	Tables	To use triggers
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only

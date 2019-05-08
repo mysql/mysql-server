@@ -1,0 +1,154 @@
+########################################################################
+#
+# This test validate transactions that aren't held
+#
+# Test:
+#   0. This test requires one server on single primary mode
+#   1. Enable debug point that run an assert if command will be put on
+#      hold
+#   2. Validate SQL command SHOW will not block
+#   3. Validate SQL command SET will not block
+#   4. Validate SQL command DO will not block
+#   5. Validate SQL command EMPTY will not block
+#   6. Validate SQL command USE will not block
+#   7. Validate SQL command SELECT to performance_schema will not block
+#   8. Validate SQL command SELECT to table PROCESSLIST from database
+#      infoschema will not block
+#   9. Validate SQL command SELECT from database syschema will not block
+#  10. Validate SQL command SELECT that don't use tables will not block
+#  11. Validate SQL command RESET PERSIST will not block
+#  12. Validate SQL command STOP GROUP_REPLICATION will not block
+#  13. Reconnect server1 to group
+#  14. Validate SQL command SHUTDOWN will not block
+#  15. Cleanup
+#
+########################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 2
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 1. Enable debug point that run an assert if command will be put on
+--echo #    hold
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @debug_save= @@GLOBAL.DEBUG;
+# If any command is hold the server will trigger an assert
+SET @@GLOBAL.DEBUG= '+d,launch_hook_trans_begin_assert_if_hold';
+
+--echo
+--echo # 2. Validate SQL command SHOW will not block
+
+SHOW GLOBAL VARIABLES LIKE 'group_replication_consistency';
+
+--echo
+--echo # 3. Validate SQL command SET will not block
+
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+--echo
+--echo # 4. Validate SQL command DO will not block
+
+DO SLEEP(1);
+
+--echo
+--echo # 5. Validate SQL command EMPTY will not block
+
+--exec $MYSQL --comments -e "-- sql comment"
+
+--echo
+--echo # 6. Validate SQL command USE will not block
+
+USE test;
+
+--echo
+--echo # 7. Validate SQL command SELECT to performance_schema will not block
+
+SELECT COUNT(*) from performance_schema.replication_group_members;
+
+--echo
+--echo # 8. Validate SQL command SELECT to table PROCESSLIST from database
+--echo #    infoschema will not block
+
+SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
+
+--echo
+--echo # 9. Validate SQL command SELECT from database syschema will not block
+
+SELECT COUNT(*)=1 FROM sys.version;
+
+--echo
+--echo # 10. Validate SQL command SELECT that don't use tables will not block
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+SELECT @@GLOBAL.GTID_EXECUTED;
+
+--echo
+--echo # 11. Validate SQL command RESET PERSIST will not block
+
+RESET PERSIST;
+
+--echo
+--echo # 12. Validate SQL command STOP GROUP_REPLICATION will not block
+
+ STOP GROUP_REPLICATION;
+
+--echo
+--echo # 13. Reconnect server1 to group
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,launch_hook_trans_begin_assert_if_hold';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 14. Validate SQL command SHUTDOWN will not block
+
+SET @@GLOBAL.DEBUG= '+d,launch_hook_trans_begin_assert_if_hold';
+
+SHUTDOWN;
+
+--source include/wait_until_disconnected.inc
+
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 15. Cleanup
+
+SET @@GLOBAL.DEBUG= '-d,launch_hook_trans_begin_assert_if_hold';
+
+--replace_result $group_replication_group_name GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--replace_result $_group_replication_local_address GROUP_LOCAL_ADDRESS2
+--eval SET GLOBAL group_replication_local_address= "$_group_replication_local_address"
+--replace_result $_group_replication_group_seeds GROUP_SEEDS_SERVER2
+--eval SET GLOBAL group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+--eval SET GLOBAL group_replication_single_primary_mode= TRUE;
+
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+--source include/group_replication_end.inc

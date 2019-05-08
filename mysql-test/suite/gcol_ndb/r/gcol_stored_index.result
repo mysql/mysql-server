@@ -31,7 +31,7 @@ i	j
 9	109
 explain select * from test_gcol_index where j > 106;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	test_gcol_index	p0,p1,p2,p3,p4,p5,p6,p7	range	j	j	5	NULL	3	100.00	Using where with pushed condition (`test`.`test_gcol_index`.`j` > 106); Using MRR
+1	SIMPLE	test_gcol_index	p0,p1,p2,p3,p4,p5,p6,p7	range	j	j	5	NULL	3	100.00	Using pushed condition (`test`.`test_gcol_index`.`j` > 106); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`test_gcol_index`.`i` AS `i`,`test`.`test_gcol_index`.`j` AS `j` from `test`.`test_gcol_index` where (`test`.`test_gcol_index`.`j` > 106)
 insert into test_gcol_index values(13, default);

@@ -1599,8 +1599,8 @@ default_storage_engine	InnoDB
 
 ##
 ## Verify the notices statistics
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 167]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 857]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 168]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -1696,8 +1696,8 @@ Got expected error: Specified key was too long; max key length is 3072 bytes (co
 0 rows affected
 
 0 rows affected
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 37]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 32]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 38]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -1720,7 +1720,7 @@ command ok
 Try enable produced_message
 
 command ok
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -1746,7 +1746,7 @@ command ok
 Try enable produced_message
 
 command ok
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -1770,7 +1770,7 @@ generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -1821,7 +1821,7 @@ generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
@@ -1838,7 +1838,7 @@ ok
 0 rows affected
 Warnings generated:
 NOTE | 1051 | Unknown table 'mysql.t1'
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
 Mysqlx.Ok {
@@ -1850,7 +1850,7 @@ create user noti@localhost identified by 'noti';
 While executing use mysql:
 Got expected error: Access denied for user 'noti'@'localhost' to database 'mysql' (code 1044)
 Got expected error: No database selected (code 1046)
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]

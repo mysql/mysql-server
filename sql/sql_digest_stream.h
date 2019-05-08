@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #include "sql/sql_digest.h"
 
+union Lexer_yystype;
+
 /**
   State data storage for @c digest_start, @c digest_add_token.
   This structure extends the @c sql_digest_storage structure
@@ -48,5 +50,11 @@ struct sql_digest_state {
   inline bool is_empty() { return m_digest_storage.is_empty(); }
 };
 typedef struct sql_digest_state sql_digest_state;
+
+sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
+                                   Lexer_yystype *yylval);
+
+sql_digest_state *digest_reduce_token(sql_digest_state *state, uint token_left,
+                                      uint token_right);
 
 #endif

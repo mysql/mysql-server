@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ Tables_base::Tables_base() {
       "IF (tbl.type = 'VIEW', NULL,"
       "  GET_DD_CREATE_OPTIONS(tbl.options,"
       "  IF(IFNULL(tbl.partition_expression, 'NOT_PART_TBL')='NOT_PART_TBL',"
-      "     0, 1)))");
+      "     0, 1), IF(sch.default_encryption='YES',1,0)))");
   m_target_def.add_field(
       FIELD_TABLE_COMMENT, "TABLE_COMMENT",
       "INTERNAL_GET_COMMENT_OR_ERROR(sch.name, tbl.name, tbl.type, "

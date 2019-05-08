@@ -1,0 +1,32 @@
+#
+# WL#12236 CREATE TABLESPACE without DATAFILE clause
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Create a tablespace without DATAFILE on master
+# and make sure the tablespace is replicated on slave
+#
+CREATE TABLESPACE ts ENGINE=InnoDB;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ENGINE=InnoDB TABLESPACE=ts;
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+include/sync_slave_sql_with_master.inc
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME LIKE 'ts%';
+NAME
+ts
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+[connection master]
+DROP TABLE t1;
+DROP TABLESPACE ts;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

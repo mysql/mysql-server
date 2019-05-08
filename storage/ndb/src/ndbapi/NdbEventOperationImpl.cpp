@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -867,11 +867,20 @@ NdbEventOperationImpl::execSUB_TABLE_DATA(const NdbApiSignal * signal,
   const SubTableData * const sdata=
     CAST_CONSTPTR(SubTableData, signal->getDataPtr());
 
-  if(signal->isFirstFragment()){
+  if (signal->isFirstFragment())
+  {
+    /*
+      Only one buffer for fragmented signal assembly.
+      Buffer must be empty for first fragment.
+     */
+    require(m_buffer.empty());
     m_fragmentId = signal->getFragmentId();
     m_buffer.grow(4 * sdata->totalLen);
-  } else {
-    if(m_fragmentId != signal->getFragmentId()){
+  }
+  else
+  {
+    if (m_fragmentId != signal->getFragmentId())
+    {
       abort();
     }
   }
@@ -1424,9 +1433,7 @@ NdbEventBuffer::~NdbEventBuffer()
     const Uint32 unmap_sz = mem_block->alloced_size();
     m_total_alloc -= unmap_sz;
     m_mem_block_head = mem_block->m_next;
-#ifndef NDEBUG
-    memset(mem_block, 0x11, unmap_sz);
-#endif
+    mem_block->destruct();
 
 #if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
@@ -1440,9 +1447,7 @@ NdbEventBuffer::~NdbEventBuffer()
     m_total_alloc -= unmap_sz;
     m_mem_block_free = mem_block->m_next;
     m_mem_block_free_sz -= mem_block->get_size();
-#ifndef NDEBUG
-    memset(mem_block, 0x11, unmap_sz);
-#endif
+    mem_block->destruct();
 
 #if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
@@ -3198,6 +3203,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
        * Already completed GCI...
        *   Possible in case of resend during NF handling
        */
+      DBUG_EXECUTE_IF("ndb_crash_on_drop_SUB_TABLE_DATA", DBUG_SUICIDE(););
       DBUG_RETURN_EVENT(0);
     }
     
@@ -3573,9 +3579,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
       const Uint32 alloced_sz = mem_block->alloced_size();
       assert(m_total_alloc >= alloced_sz);
       m_total_alloc -= alloced_sz;
-#ifndef NDEBUG
-      memset(mem_block, 0x11, alloced_sz);
-#endif
+      mem_block->destruct();
 
 #if defined(USE_MMAP)
       require(my_munmap(mem_block, alloced_sz) == 0);
@@ -4470,8 +4474,8 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   const uchar* dptr = (uchar*)ptr[1].p;
 
   // hash registers
-  ulong nr1 = 0;
-  ulong nr2 = 0;
+  uint64 nr1 = 0;
+  uint64 nr2 = 0;
   while (nkey-- != 0)
   {
     AttributeHeader ah(*hptr++);
@@ -4488,6 +4492,9 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
 
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
     (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
+    // TODO: Do we need hash stability here?
+    nr1 = static_cast<ulong>(nr1);
+    nr2 = static_cast<ulong>(nr2);
     dptr += ((bytesize + 3) / 4) * 4;
   }
   DBUG_PRINT_EVENT("info", ("hash result=%08x", nr1));

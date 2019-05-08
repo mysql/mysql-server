@@ -1,0 +1,156 @@
+#####################################################################
+#                                                                   #
+# The aim of this test is verify error checks for usage of network  #
+# namespaces introduced by WL#12720.                                #
+#                                                                   #
+# The test requires following conditions to be met in order for     #
+# it to run :-                                                      #
+# 1. mysqld has been granted the capability to switch network       #
+#    namespaces.                                                    #
+# 2. A network namespace named 'red' containing the IP '10.0.2.1'   #
+#    is created and is accessible.                                  #
+#                                                                   #
+# Creation Date: 2019-02-20                                         #
+# Author: Srikanth B R                                              #
+#                                                                   #
+#####################################################################
+
+# Network namespaces is a feature of Linux.
+# So, ignore this test on any platform except Linux.
+--source include/linux.inc
+
+--source ../include/have_network_namespaces.inc
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+--echo # Stop DB server which was created by default
+--source include/shutdown_mysqld.inc
+
+--let $MYSQLD_LOG=$MYSQLTEST_VARDIR/tmp/netns.err
+
+--let $DEFARGS= --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --socket=$MYSQLD_SOCKET --skip-ssl --skip-mysqlx
+
+--echo # Using an unknown network namespace with bind-address
+--error 1
+--exec $MYSQLD $DEFARGS --bind-address=10.0.2.1/green
+
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=ERROR.*Server.*Unknown network namespace 'green'
+--source include/search_pattern.inc
+
+--remove_file $MYSQLD_LOG
+
+--echo # Simulate lack of cap_sys_admin capability
+
+# Since capabilities are granted on file paths, they are not transferred
+# when a binary is copied to another location
+--copy_file $MYSQLD $MYSQLTEST_VARDIR/tmp/mysqld
+
+--error 1
+--exec $MYSQLTEST_VARDIR/tmp/mysqld $DEFARGS --bind-address=10.0.2.1/red
+
+--let SEARCH_PATTERN=ERROR.*Server.*setns\(\) failed with error 'Operation not permitted'
+--source include/search_pattern.inc
+--remove_file $MYSQLD_LOG
+
+--error 1
+--exec $MYSQLTEST_VARDIR/tmp/mysqld $DEFARGS --admin-address=10.0.2.1/red
+
+--let SEARCH_PATTERN=ERROR.*Server.*setns\(\) failed with error 'Operation not permitted'
+--source include/search_pattern.inc
+--remove_file $MYSQLD_LOG
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqld
+
+--echo # Try specifying wildcard address for bind-address/admin-address with network namespaces
+--error 1
+--exec $MYSQLD $DEFARGS --bind-address=*/red
+
+--error 1
+--exec $MYSQLD $DEFARGS --bind-address=0.0.0.0/red
+
+--error 1
+--exec $MYSQLD $DEFARGS --bind-address=::/red
+
+--error 1
+--exec $MYSQLD $DEFARGS --admin-address=*/red
+
+--error 1
+--exec $MYSQLD $DEFARGS --admin-address=0.0.0.0/red
+
+--error 1
+--exec $MYSQLD $DEFARGS --admin-address=::/red
+
+--error 1
+--exec $MYSQLD $DEFARGS --bind-address=127.0.0.1/
+
+--error 1
+--exec $MYSQLD $DEFARGS --admin-address=127.0.0.1/
+
+--error 1
+--exec $MYSQLD $DEFARGS --bind-address=127.0.0.1/,localhost
+
+--let SEARCH_PATTERN=ERROR.*Server.*Network namespace not allowed for wildcard interface address
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option bind-addresses: '\*/red'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option bind-addresses: '0.0.0.0/red'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option bind-addresses: '::/red'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option admin-address: '\*/red'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option admin-address: '0.0.0.0/red'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option admin-address: '::/red'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option bind-addresses: '127.0.0.1/'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option bind-addresses: '127.0.0.1/,localhost'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Invalid value for command line option admin-address: '127.0.0.1/'
+--source include/search_pattern.inc
+
+--remove_file $MYSQLD_LOG
+
+--echo # Try specifying incorrect values to --mysqlx-bind-address
+
+# mysqld doesn't abort when invalid mysqlx bind address is given
+# as it sets up a socket. Hence, it should be specified that MTR
+# need not wait for the xplugin tcp socket to be setup.
+--let $wait_for_tcpsocket_status = no_wait
+
+# Unknown network namespace
+--let $restart_parameters=restart: --log-error=$MYSQLD_LOG --mysqlx-bind-address=10.0.2.1/green
+--connection default
+--replace_result $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Unknown network namespace 'green'
+--source include/search_pattern.inc
+
+# Wildcard address with network namespaces
+--let $restart_parameters=restart: --log-error=$MYSQLD_LOG --mysqlx-bind-address=*/red
+--replace_result $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+--let SEARCH_PATTERN=ERROR.*Server.*Plugin mysqlx reported: 'Network namespace not allowed for wildcard interface address'
+--source include/search_pattern.inc
+
+--let $wait_for_tcpsocket_status=
+--remove_file $MYSQLD_LOG
+
+--echo # Starting mysqld with original parameters
+--let $restart_parameters=
+--connection default
+
+--source include/restart_mysqld.inc

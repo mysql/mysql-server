@@ -98,7 +98,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
 connection default;
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
@@ -142,7 +142,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con2';
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
 connection default;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
@@ -231,7 +231,7 @@ connection con2;
 connection con3;
 connection con4;
 connection con5;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts2
 connection default;
 DROP TABLE t1;
 DROP TABLE t3;
@@ -403,11 +403,11 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con3';
 #
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts2
 connection con3;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts3
 connection default;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
@@ -478,7 +478,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 #
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
 connection default;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
@@ -651,7 +651,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 # In connection 1, run table DDL and park it
 # after getting MDL IX lock on the tablespace name.
 connection con1;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
   SIGNAL got_lock_con1
   WAIT_FOR cont_con1';
@@ -801,7 +801,7 @@ wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
 connection default;
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';

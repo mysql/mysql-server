@@ -106,7 +106,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_lock_waits
-where REQUESTING_ENGINE_LOCK_ID < "impossible";
+where REQUESTING_ENGINE_LOCK_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ALL	REQUESTING_ENGINE_LOCK_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -140,7 +140,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_lock_waits
 where REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id
-and ENGINE < "impossible";
+and ENGINE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ref	REQUESTING_ENGINE_LOCK_ID	REQUESTING_ENGINE_LOCK_ID	514	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -184,7 +184,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_lock_waits
-where BLOCKING_ENGINE_LOCK_ID < "impossible";
+where BLOCKING_ENGINE_LOCK_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ALL	BLOCKING_ENGINE_LOCK_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -218,7 +218,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_lock_waits
 where BLOCKING_ENGINE_LOCK_ID = @blocking_lock_id
-and ENGINE < "impossible";
+and ENGINE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ref	BLOCKING_ENGINE_LOCK_ID	BLOCKING_ENGINE_LOCK_ID	514	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -262,7 +262,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_lock_waits
-where REQUESTING_ENGINE_TRANSACTION_ID < "impossible";
+where REQUESTING_ENGINE_TRANSACTION_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ALL	REQUESTING_ENGINE_TRANSACTION_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -296,7 +296,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_lock_waits
 where REQUESTING_ENGINE_TRANSACTION_ID = @requesting_trx_id
-and ENGINE < "impossible";
+and ENGINE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ref	REQUESTING_ENGINE_TRANSACTION_ID	REQUESTING_ENGINE_TRANSACTION_ID	9	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -340,7 +340,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_lock_waits
-where BLOCKING_ENGINE_TRANSACTION_ID < "impossible";
+where BLOCKING_ENGINE_TRANSACTION_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ALL	BLOCKING_ENGINE_TRANSACTION_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -374,7 +374,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_lock_waits
 where BLOCKING_ENGINE_TRANSACTION_ID = @blocking_trx_id
-and ENGINE < "impossible";
+and ENGINE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ref	BLOCKING_ENGINE_TRANSACTION_ID	BLOCKING_ENGINE_TRANSACTION_ID	9	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -418,7 +418,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_lock_waits force index(REQUESTING_THREAD_ID)
-where REQUESTING_THREAD_ID < "impossible";
+where REQUESTING_THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ALL	REQUESTING_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -452,7 +452,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_lock_waits force index(REQUESTING_THREAD_ID)
 where REQUESTING_THREAD_ID = @requesting_thread_id
-and REQUESTING_EVENT_ID < "impossible";
+and REQUESTING_EVENT_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ref	REQUESTING_THREAD_ID	REQUESTING_THREAD_ID	9	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -496,7 +496,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_lock_waits force index(BLOCKING_THREAD_ID)
-where BLOCKING_THREAD_ID < "impossible";
+where BLOCKING_THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ALL	BLOCKING_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -530,7 +530,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_lock_waits force index(BLOCKING_THREAD_ID)
 where BLOCKING_THREAD_ID = @blocking_thread_id
-and BLOCKING_EVENT_ID < "impossible";
+and BLOCKING_EVENT_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_lock_waits	NULL	ref	BLOCKING_THREAD_ID	BLOCKING_THREAD_ID	9	const	#	33.33	Using where
 ############ Explain for Query ####################################

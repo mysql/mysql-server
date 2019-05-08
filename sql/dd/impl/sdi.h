@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,51 @@ class View;
 
 typedef String_type Sdi_type;
 
-static constexpr std::uint64_t sdi_version = 1;
+/**
+  The version of the current SDI Json format.
+
+  This version number is stored inside SDIs. This number is bumpred only when
+  there is a change in how the data dictionary information is converted to json
+  (e.g. adding a forgotten member). It does not need to be bumped when the data
+  dictionary schema structure is changed, as this is covered by the DD_VERSION
+  variable.
+
+  The SDI version number is the MySQL server version number
+  of the first MySQL server version that published a given SDI Json format.
+  The format is Mmmdd with M=Major, m=minor, d=dot, so that MySQL 8.0.4 is
+  encoded as 80004. This is the same version numbering scheme as the
+  information schema and performance schema are using.
+
+  The next change to the SDI Json format will be associated with the next
+  available MySQL server version number.
+
+  Historical version number published in the data dictionary, (note that 1 is a
+  legacy number from before SDI version numbers were mapped to server versions):
+
+
+  1: Published in 8.0.15
+  ----------------------------------------------------------------------------
+  Initial version.
+
+  80016: Current
+  ----------------------------------------------------------------------------
+  Changes from version 1:
+
+  - Bug#29210646: DD::INDEX_IMPL::M_HIDDEN NOT INCLUDED IN SDI
+
+
+  800XX: Next SDI version number after the previous is public. The next
+         server version > 80016 where a change to the SDI JSON format is made.
+  ----------------------------------------------------------------------------
+  Changes from version 80016:
+
+  - No changes, this version number is not active yet.
+
+
+  If a new SDI version is published in a MRU, it will not
+  be possible to import this version into previous MRUs within the same GA.
+*/
+constexpr const std::uint64_t SDI_VERSION = 80016;
 
 /**
   @defgroup serialize_api (De)serialize api functions.

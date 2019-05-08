@@ -1,14 +1,12 @@
 SET default_storage_engine=InnoDB;
 SET innodb_strict_mode=OFF;
 SET SESSION debug="+d,row_print_geometry_data";
-SHOW VARIABLES LIKE '%engine%';
+SHOW VARIABLES LIKE '%storage_engine%';
 Variable_name	Value
 default_storage_engine	InnoDB
 default_tmp_storage_engine	InnoDB
 disabled_storage_engines	
-internal_tmp_disk_storage_engine	InnoDB
 internal_tmp_mem_storage_engine	TempTable
-use_secondary_engine	ON
 USE test;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon;
 DROP TABLE IF EXISTS gis_multi_point, gis_multi_line, gis_multi_polygon;

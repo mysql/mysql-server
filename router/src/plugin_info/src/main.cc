@@ -22,12 +22,70 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <iostream>
 #include "plugin_info_app.h"
 
-int main(int argc, char *argv[]) {
-  Plugin_info_app plugin_info_app(argc, (const char **)argv, std::cout,
-                                  std::cerr);
+#include <iostream>
+#include <string>
 
-  return plugin_info_app.run();
+#include "mysql/harness/tty.h"
+#include "mysql/harness/vt100.h"
+#include "mysql/harness/vt100_filter.h"
+
+/**
+ * display error.
+ *
+ * in case the frontend failed to parse arguments, show errormsg
+ * and a hint for help.
+ * If the frontend failed for another reason, just show the errormsg.
+ *
+ * @param cerr output stream
+ * @param program_name name of executable that was started (argv[0])
+ * @param errmsg error message to display
+ * @param with_help true, if "hint for help" shall be displayed
+ */
+static void display_error(std::ostream &cerr, const std::string program_name,
+                          const std::string &errmsg, bool with_help) {
+  cerr << Vt100::foreground(Vt100::Color::Red) << "[ERROR] "
+       << Vt100::render(Vt100::Render::ForegroundDefault) << errmsg << "\n";
+
+  if (with_help) {
+    cerr << "\n"
+         << Vt100::foreground(Vt100::Color::Red) << "[NOTE]"
+         << Vt100::render(Vt100::Render::ForegroundDefault) << " Use '"
+         << program_name << " --help' to show the help."
+         << "\n";
+  }
+  cerr << std::endl;  // flush
+}
+
+int main(int argc, char **argv) {
+  Tty cout_tty(Tty::fd_from_stream(std::cout));
+  Vt100Filter filtered_out_streambuf(
+      std::cout.rdbuf(), !(cout_tty.is_tty() && cout_tty.ensure_vt100()));
+  std::ostream filtered_out_stream(&filtered_out_streambuf);
+
+  Tty cerr_tty(Tty::fd_from_stream(std::cerr));
+  Vt100Filter filtered_err_streambuf(
+      std::cerr.rdbuf(), !(cerr_tty.is_tty() && cerr_tty.ensure_vt100()));
+  std::ostream filtered_err_stream(&filtered_err_streambuf);
+  try {
+    std::vector<std::string> args;
+    if (argc > 1) {
+      // if there are more args, place them in a vector
+      args.reserve(argc - 1);
+      for (int n = 1; n < argc; ++n) {
+        args.emplace_back(argv[n]);
+      }
+    }
+    // cout is a tty?
+    PluginInfoFrontend frontend(argv[0], args, filtered_out_stream,
+                                filtered_err_stream);
+    return frontend.run();
+  } catch (const UsageError &e) {
+    display_error(filtered_err_stream, argv[0], e.what(), true);
+    return EXIT_FAILURE;
+  } catch (const FrontendError &e) {
+    display_error(filtered_err_stream, argv[0], e.what(), false);
+    return EXIT_FAILURE;
+  }
 }

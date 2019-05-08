@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,8 +55,68 @@
 #define JAM_FILE_ID 393
 
 extern EventLogger * g_eventLogger;
+/**
+ * NDBFS has two types of async IO file threads : Bound and non-bound.
+ * These threads are kept in two distinct idle pools.
+ * Requests to be executed by any thread in an idle pool are queued onto
+ * a shared queue, which all of the idle threads in the pool attempt to
+ * dequeue work from.  Work items are processed, which may take some
+ * time, and then once the outcome is known, a response is queued on a
+ * reply queue, which the NDBFS signal execution thread polls
+ * periodically.
+ *
+ * Bound IO threads have the ability to remove themselves from the idle
+ * pool.  This happens as part of processing an OPEN request, where the
+ * thread is 'attached' to a particular file.
+ * As part of being 'attached' to a file, the thread no longer attempts
+ * to dequeue work from the shared queue, but rather starts dequeuing
+ * work just from a private queue associated with the file.
+ *
+ * This removes the thread from general use and dedicates it to servicing
+ * requests on the attached file until a CLOSE request arrives, which
+ * will cause the thread to be detached from the file and return to the
+ * idle Bound threads pool, where it will attempt to dequeue work from
+ * the Shared queue again.
+ *
+ * Non-bound IO threads are created at startup, they are not associated
+ * with a particular file and process one request at a time to
+ * completion.  They always dequeue work from the non-bound shared queue.
 
-NdbMutex g_active_bound_threads_mutex;
+ * Some request types use Bound IO threads in a non-bound way, where a
+ * single request is processed to completion by a single thread, which
+ * then continues to dequeue work from the shared bound
+ * queue.  Examples: build index, allocate memory, remove file.
+ * In these cases, the bound IO thread pool is being used as it
+ * effectively offers a concurrent thread for each concurrent request,
+ * and these use cases exist to get thread concurrency.
+ *
+ * Pool sizing
+ *
+ * The non-bound thread pool size is set by the DiskIoThreadPool config
+ * variable at node start, and does not change after.
+ *
+ * The bound thread pool size is set by the InitialNoOfOpenFiles
+ * config variable at node start and can grow dynamically afterwards.
+ * There is no mechanism currently for IO threads to be released.
+ * It is bound by MaxNoOfOpenFiles.
+ *
+ * Bound thread pool growth
+ *
+ * When receiving a request which requires the use of a Bound thread pool
+ * thread, the NDBFS block checks whether there are sufficient threads
+ * to ensure a quick execution of the request.  If there are not then
+ * it creates an extra thread prior to enqueuing the request on the
+ * shared bound thread pool queue.
+ *
+ *
+ * The Bound IO thread pool exists to supply enough thread concurrency to
+ * match the concurrency of requests submitted to it. Assumed goals are :
+ *  1) Avoid excessive thread creation
+ *     since each thread has a memory and resource cost and
+ *     currently they are never released until the process exits.
+ *  2) Avoid bound requests sitting on the shared bound queue for any
+ *     significant amount of time.
+*/
 
 inline
 int pageSize( const NewVARIABLE* baseAddrRef )
@@ -81,8 +141,6 @@ Ndbfs::Ndbfs(Block_context& ctx) :
   m_active_bound_threads_cnt(0)
 {
   BLOCK_CONSTRUCTOR(Ndbfs);
-
-  NdbMutex_Init(&g_active_bound_threads_mutex);
 
   // Set received signals
   addRecSignal(GSN_READ_CONFIG_REQ, &Ndbfs::execREAD_CONFIG_REQ);
@@ -353,11 +411,13 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
     }
   }
 
-  // Make sure at least "noIdleFiles" files can be created and a few more
+  // Make sure at least "noIdleFiles" more files can be created
   if (noIdleFiles > m_maxFiles && m_maxFiles != 0)
   {
-    jam();
-    m_maxFiles = noIdleFiles + 2;
+    const Uint32 newMax = theFiles.size() + noIdleFiles + 1;
+    g_eventLogger->info("Resetting MaxNoOfOpenFiles %u to %u",
+                        m_maxFiles, newMax);
+    m_maxFiles = newMax;
   }
 
   // Create idle AsyncFiles
@@ -477,6 +537,8 @@ int
 Ndbfs::forward( AsyncFile * file, Request* request)
 {
   jam();
+  request->m_startTime = getHighResTimer();
+
   AsyncIoThread* thr = file->getThread();
   if (thr) // bound
   {
@@ -1182,7 +1244,7 @@ Ndbfs::createAsyncFile()
     }
     ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
               m_maxFiles, theFiles.size());
-    ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
+    ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile: creating more than MaxNoOfOpenFiles");
   }
 
 #ifdef _WIN32
@@ -1204,6 +1266,11 @@ void
 Ndbfs::pushIdleFile(AsyncFile* file)
 {
   assert(file->getThread() == 0);
+  if (file->thread_bound())
+  {
+    m_active_bound_threads_cnt--;
+    file->set_thread_bound(false);
+  }
   theIdleFiles.push_back(file);
 }
 
@@ -1259,24 +1326,11 @@ Ndbfs::getIdleFile(bool bound)
         theThreads.push_back(thr);
       }
     }
+
+    file->set_thread_bound(true);
+    m_active_bound_threads_cnt++;
   }
   return file;
-}
-
-void
-Ndbfs::cnt_active_bound(int val)
-{
-  Guard g(&g_active_bound_threads_mutex);
-  if (val < 0)
-  {
-    val = -val;
-    assert(m_active_bound_threads_cnt >= (Uint32)val);
-    m_active_bound_threads_cnt -= val;
-  }
-  else
-  {
-    m_active_bound_threads_cnt += val;
-  }
 }
 
 void
@@ -1741,6 +1795,39 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 
     return;
   }
+  if(signal->theData[0] == DumpStateOrd::NdbfsDumpRequests)
+  {
+    g_eventLogger->info("NDBFS: Dump requests: %u",
+                        theRequestPool->inuse());
+    for (unsigned ridx=0; ridx < theRequestPool->inuse(); ridx++)
+    {
+      const Request* req = theRequestPool->peekInuseItem(ridx);
+      Uint64 duration = 0;
+
+      if (NdbTick_IsValid(req->m_startTime))
+      {
+        duration = NdbTick_Elapsed(req->m_startTime,
+                                   getHighResTimer()).milliSec();
+      }
+
+      g_eventLogger->info("Request %u action %u %s userRef 0x%x "
+                          "userPtr %u filePtr %u bind %u "
+                          "duration(ms) %llu filename %s",
+                          ridx,
+                          req->action,
+                          Request::actionName(req->action),
+                          req->theUserReference,
+                          req->theUserPointer,
+                          req->theFilePointer,
+                          req->m_do_bind,
+                          duration,
+                          (req->file?
+                           req->file->theFileName.c_str():
+                           "NO FILE"));
+    }
+    return;
+  }
+
 
   if(signal->theData[0] == 404)
   {

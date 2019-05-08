@@ -153,6 +153,10 @@ UNLOCK TABLES;
 --let $assert_cond= $negatively_certified = 0
 --source include/assert.inc
 
+#Now table is unlocked, wait for member to reset read_only
+--let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+--source include/wait_condition_or_abort.inc
+
 --echo
 --echo ###########################################################
 --echo # 6. Clean up.
@@ -163,6 +167,7 @@ UNLOCK TABLES;
 SET SESSION sql_log_bin= 0;
 SET GLOBAL read_only= 0;
 --eval DROP USER $recovery_user
+SET GLOBAL super_read_only= 1;
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2

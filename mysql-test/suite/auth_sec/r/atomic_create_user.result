@@ -47,7 +47,7 @@ ERROR HY000: Plugin 'blahblah' is not loaded
 # Case 5 : Try creating user with invalid hash
 CREATE USER userA IDENTIFIED BY 'abcd',
 userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+ERROR HY000: The password hash doesn't have the expected format.
 # Must not show userA, userB
 SELECT user FROM mysql.user WHERE user LIKE 'user%';
 user
@@ -123,7 +123,7 @@ ERROR HY000: Plugin 'blahblah' is not loaded
 # Case 4 : Try creating user with invalid hash
 CREATE USER IF NOT EXISTS userA IDENTIFIED BY 'abcd',
 userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+ERROR HY000: The password hash doesn't have the expected format.
 # Must not show userA, userB
 SELECT user FROM mysql.user WHERE user LIKE 'user%';
 user
@@ -202,7 +202,7 @@ include/save_binlog_position.inc
 CREATE USER userA IDENTIFIED BY 'abcd',
 userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha'
             DEFAULT ROLE roleX;
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+ERROR HY000: The password hash doesn't have the expected format.
 # Must not show userA, userB
 SELECT user FROM mysql.user WHERE user LIKE 'user%';
 user

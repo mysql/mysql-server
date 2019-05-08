@@ -32,7 +32,7 @@ class RouterUserOptionTest : public RouterComponentTest,
  protected:
   virtual void SetUp() {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
   }
 };
 

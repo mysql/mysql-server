@@ -21,7 +21,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.table_io_waits_summary_by_table
-where OBJECT_TYPE < "impossible";
+where OBJECT_TYPE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table_io_waits_summary_by_table	NULL	ALL	OBJECT	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -55,7 +55,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT_STAR
 from performance_schema.table_io_waits_summary_by_table
 where OBJECT_TYPE = "TABLE"
-and OBJECT_SCHEMA < "impossible";
+and OBJECT_SCHEMA < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table_io_waits_summary_by_table	NULL	ref	OBJECT	OBJECT	259	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -94,7 +94,7 @@ explain select COUNT_STAR
 from performance_schema.table_io_waits_summary_by_table
 where OBJECT_TYPE = "TABLE"
 and OBJECT_SCHEMA = "explain_test_db"
-and OBJECT_NAME < "impossible";
+and OBJECT_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table_io_waits_summary_by_table	NULL	ref	OBJECT	OBJECT	518	const,const	#	33.33	Using where
 ############ Explain for Query ####################################

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -6625,8 +6626,7 @@ static void test_field_misc() {
 }
 
 /*
-  Test SET feature with prepare stmts
-  bug #85 (reported by mark@mysql.com)
+  Test SET feature with prepare stmts, bug #85
 */
 
 static void test_set_option() {
@@ -6695,8 +6695,7 @@ static void test_set_option() {
 }
 
 /*
-  Test a misc GRANT option
-  bug #89 (reported by mark@mysql.com)
+  Test a misc GRANT option, bug #89
 */
 
 static void test_prepare_grant() {
@@ -6894,7 +6893,7 @@ static void test_decimal_bug() {
   mysql_stmt_close(stmt);
 }
 
-/* Test EXPLAIN bug (#115, reported by mark@mysql.com & georg@php.net). */
+/* Test EXPLAIN bug, bug #115 */
 
 static void test_explain_bug() {
   MYSQL_STMT *stmt;
@@ -7035,135 +7034,6 @@ static void test_explain_bug() {
   mysql_free_result(result);
   mysql_stmt_close(stmt);
 }
-
-#ifdef NOT_YET_WORKING
-
-  /*
-    Test math functions.
-    Bug #148 (reported by salle@mysql.com).
-  */
-
-#define myerrno(n) check_errcode(n)
-
-static void check_errcode(const unsigned int err) {
-  if (!opt_silent || mysql_errno(mysql) != err) {
-    if (mysql->server_version)
-      fprintf(stdout, "\n [MySQL-%s]", mysql->server_version);
-    else
-      fprintf(stdout, "\n [MySQL]");
-    fprintf(stdout, "[%d] %s\n", mysql_errno(mysql), mysql_error(mysql));
-  }
-  DIE_UNLESS(mysql_errno(mysql) == err);
-}
-
-static void test_drop_temp() {
-  int rc;
-
-  myheader("test_drop_temp");
-
-  rc = mysql_query(mysql, "DROP DATABASE IF EXISTS test_drop_temp_db");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "CREATE DATABASE test_drop_temp_db");
-  myquery(rc);
-
-  rc = mysql_query(mysql,
-                   "CREATE TABLE test_drop_temp_db.t1(c1 int, c2 char(1))");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "delete from mysql.db where Db='test_drop_temp_db'");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "delete from mysql.db where Db='test_drop_temp_db'");
-  myquery(rc);
-
-  strxmov(query, "CREATE USER test_temp@", opt_host ? opt_host : "localhost");
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  strxmov(query,
-          "GRANT SELECT, USAGE, DROP ON test_drop_temp_db.* TO test_temp@",
-          opt_host ? opt_host : "localhost", NullS);
-
-  if (mysql_query(mysql, query)) {
-    myerror("GRANT failed");
-
-    /*
-       If server started with --skip-grant-tables, skip this test, else
-       exit to indicate an error
-
-       ER_UNKNOWN_COM_ERROR= 1047
-     */
-    if (mysql_errno(mysql) != 1047) exit(1);
-  } else {
-    MYSQL *org_mysql = mysql, *lmysql;
-
-    if (!opt_silent) fprintf(stdout, "\n Establishing a test connection ...");
-    if (!(lmysql = mysql_client_init(NULL))) {
-      myerror("mysql_client_init() failed");
-      exit(1);
-    }
-
-    rc = mysql_query(mysql, "flush privileges");
-    myquery(rc);
-
-    if (!(mysql_real_connect(lmysql, opt_host ? opt_host : "localhost",
-                             "test_temp", "", "test_drop_temp_db", opt_port,
-                             opt_unix_socket, 0))) {
-      mysql = lmysql;
-      myerror("connection failed");
-      mysql_close(lmysql);
-      exit(1);
-    }
-    lmysql->reconnect = 1;
-    if (!opt_silent) fprintf(stdout, "OK");
-
-    mysql = lmysql;
-    rc = mysql_query(mysql, "INSERT INTO t1 VALUES(10, 'C')");
-    myerrno((uint)1142);
-
-    rc = mysql_query(mysql, "DROP TABLE t1");
-    myerrno((uint)1142);
-
-    mysql = org_mysql;
-    rc = mysql_query(mysql,
-                     "CREATE TEMPORARY TABLE test_drop_temp_db.t1(c1 int)");
-    myquery(rc);
-
-    rc = mysql_query(mysql,
-                     "CREATE TEMPORARY TABLE test_drop_temp_db.t2 LIKE "
-                     "test_drop_temp_db.t1");
-    myquery(rc);
-
-    mysql = lmysql;
-
-    rc = mysql_query(mysql, "DROP TABLE t1, t2");
-    myquery_r(rc);
-
-    rc = mysql_query(mysql, "DROP TEMPORARY TABLE t1");
-    myquery_r(rc);
-
-    rc = mysql_query(mysql, "DROP TEMPORARY TABLE t2");
-    myquery_r(rc);
-
-    mysql_close(lmysql);
-    mysql = org_mysql;
-
-    rc = mysql_query(mysql, "drop database test_drop_temp_db");
-    myquery(rc);
-    DIE_UNLESS(1 == mysql_affected_rows(mysql));
-
-    rc = mysql_query(mysql, "delete from mysql.user where User='test_temp'");
-    myquery(rc);
-    DIE_UNLESS(1 == mysql_affected_rows(mysql));
-
-    rc = mysql_query(mysql,
-                     "delete from mysql.tables_priv where User='test_temp'");
-    myquery(rc);
-    DIE_UNLESS(1 == mysql_affected_rows(mysql));
-  }
-}
-#endif
 
 /* Test warnings for truncated rows */
 
@@ -14135,12 +14005,12 @@ static void test_bug15510() {
 
   rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
+  DIE_UNLESS(mysql_warning_count(mysql));
 
   rc = mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
   rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(mysql_warning_count(mysql));
 
   /* Cleanup */
   mysql_stmt_close(stmt);
@@ -18533,6 +18403,7 @@ static void test_wl6791() {
     MYSQL_OPT_SSL_CA,
     MYSQL_OPT_SSL_CAPATH,
     MYSQL_OPT_SSL_CIPHER,
+    MYSQL_OPT_TLS_CIPHERSUITES,
     MYSQL_OPT_SSL_CRL,
     MYSQL_OPT_SSL_CRLPATH,
     MYSQL_SERVER_PUBLIC_KEY },
@@ -20153,14 +20024,415 @@ static void test_bug25701141() {
   myquery(mysql_query(mysql, "DROP TABLE t1"));
 }
 
+static void test_bug27443252() {
+  MYSQL_STMT *stmt;
+  MYSQL_BIND my_bind[1];
+  int rc;
+  int32 a;
+  int row_count = 0;
+  int column_count = 0;
+  MYSQL_RES *metadata = NULL;
+
+  myheader("test_bug27443252");
+
+  rc = mysql_query(mysql, "drop procedure if exists p1");
+  myquery(rc);
+  rc = mysql_query(mysql, "drop table if exists p1");
+  myquery(rc);
+  rc = mysql_query(mysql, "create table t1 (id int)");
+  myquery(rc);
+  rc = mysql_query(mysql, "create procedure p1() begin select * from t1; end");
+  myquery(rc);
+
+  /* Case 1 - Procedure call with empty result set */
+  stmt = open_cursor("call p1");
+  /* This should not result in hang */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  metadata = mysql_stmt_result_metadata(stmt);
+  if (metadata) {
+    column_count = mysql_num_fields(metadata);
+    DIE_UNLESS(column_count == 1);
+  }
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 0);
+
+  rc = mysql_stmt_next_result(stmt);
+  check_execute(stmt, rc);
+  rc = mysql_stmt_free_result(stmt);
+  check_execute(stmt, rc);
+  mysql_free_result(metadata);
+  mysql_stmt_close(stmt);
+
+  /* Case 2 - SELECT with empty result set */
+  row_count = 0;
+  stmt = open_cursor("select * from t1");
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 0);
+  mysql_stmt_close(stmt);
+
+  /* Case 3 - Procedure call with non-empty result set */
+  rc = mysql_query(mysql,
+                   "insert into t1 (id) values "
+                   " (1), (2), (3)");
+  myquery(rc);
+  row_count = 0;
+  stmt = open_cursor("call p1");
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 3);
+
+  rc = mysql_stmt_next_result(stmt);
+  check_execute(stmt, rc);
+  rc = mysql_stmt_free_result(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  /* Case 4 - SELECT with Non-empty result set */
+  row_count = 0;
+  stmt = open_cursor("select * from t1");
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 3);
+
+  rc = mysql_stmt_free_result(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  /* Cleanup */
+  rc = mysql_query(mysql, "drop table t1");
+  myquery(rc);
+  rc = mysql_query(mysql, "drop procedure p1");
+  myquery(rc);
+}
+
+void perform_arithmatic() { fprintf(stdout, "\n Do some other stuff."); }
+
+static void test_wl11381() {
+  MYSQL *mysql_local;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  net_async_status status;
+  const char *stmt_text, *stmt_text1, *insert_stmt, *insert_stmt1;
+
+  myheader("test_wl11381");
+  /*make new non blocking connection to do asynchronous operations */
+  if (!(mysql_local = mysql_client_init(NULL))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  status = mysql_real_connect_nonblocking(
+      mysql_local, opt_host, opt_user, opt_password, current_db, opt_port,
+      opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed");
+    exit(1);
+  } else {
+    fprintf(stdout, "\n asynchronous connection estalished");
+  }
+
+  mysql_autocommit(mysql_local, 1);
+
+  if (mysql_query(mysql_local, "DROP TABLE IF EXISTS test_table")) {
+    fprintf(stderr, "\n drop table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_local, "CREATE TABLE test_table(col1 int)")) {
+    fprintf(stderr, "\n create table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_local,
+                  "INSERT INTO test_table values(10), (20), (30)")) {
+    fprintf(stderr, "\n insert into table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  stmt_text = "SELECT * FROM test_table";
+  /* run query in asynchronous way */
+  status = mysql_real_query_nonblocking(mysql_local, stmt_text,
+                                        (ulong)strlen(stmt_text));
+  /* do some other task */
+  perform_arithmatic();
+  while (status == NET_ASYNC_NOT_READY) {
+    status = mysql_real_query_nonblocking(mysql_local, stmt_text,
+                                          (ulong)strlen(stmt_text));
+  }
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_query_nonblocking() failed");
+    exit(1);
+  } else {
+    fprintf(stdout, "\n mysql_real_query_nonblocking() passed");
+  }
+  status = mysql_store_result_nonblocking(mysql_local, &result);
+  /* do some other task */
+  perform_arithmatic();
+  while (status == NET_ASYNC_NOT_READY) {
+    status = mysql_store_result_nonblocking(mysql_local, &result);
+  }
+  if (!result) {
+    fprintf(stdout, "\n mysql_store_result_nonblocking() fetched 0 records");
+    exit(1);
+  } else {
+    fprintf(stdout, "\n mysql_store_result_nonblocking() passed");
+  }
+
+  row = mysql_fetch_row(result);
+  DIE_UNLESS(strcmp(row[0], "10") == 0);
+  fprintf(stdout, "\n mysql_fetch_row() passed");
+
+  while ((status = mysql_fetch_row_nonblocking(result, &row)) !=
+         NET_ASYNC_COMPLETE)
+    ;
+  /* 2nd row fetched */
+  DIE_UNLESS(strcmp(row[0], "20") == 0);
+  fprintf(stdout, "\n mysql_fetch_row_nonblocking() passed");
+
+  status = mysql_fetch_row_nonblocking(result, &row);
+  /* do some other task */
+  perform_arithmatic();
+  if (status == NET_ASYNC_COMPLETE) {
+    DIE_UNLESS(strcmp(row[0], "30") == 0);
+  } else {
+    while ((status = mysql_fetch_row_nonblocking(result, &row)) !=
+           NET_ASYNC_COMPLETE)
+      ;
+    /* 3rd row fetched */
+    DIE_UNLESS(strcmp(row[0], "30") == 0);
+    fprintf(stdout, "\n mysql_fetch_row_nonblocking() passed");
+  }
+
+  while ((status = mysql_free_result_nonblocking(result)) != NET_ASYNC_COMPLETE)
+    ;
+  fprintf(stdout, "\n mysql_free_result_nonblocking() passed");
+
+  if (mysql_query(mysql_local, "DROP TABLE IF EXISTS test_table1")) {
+    fprintf(stderr, "\n drop table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_local,
+                  "CREATE TABLE test_table1(col1 int, col2 varchar(2048))")) {
+    fprintf(stderr, "\n create table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  insert_stmt =
+      "INSERT INTO test_table1 values(10, repeat('a', 2000)), (2, repeat('bc', "
+      "1000)), (3, repeat('def', 600))";
+  status = NET_ASYNC_NOT_READY;
+  while (status == NET_ASYNC_NOT_READY) {
+    status = mysql_real_query_nonblocking(mysql_local, insert_stmt,
+                                          (ulong)strlen(insert_stmt));
+  }
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n INSERT INTO test_table1... failed");
+    exit(1);
+  }
+
+  insert_stmt1 =
+      "INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;\
+                 INSERT INTO test_table1 SELECT * FROM test_table1;";
+  status = mysql_real_query_nonblocking(mysql_local, insert_stmt1,
+                                        (ulong)strlen(insert_stmt1));
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_query_nonblocking() failed");
+    exit(1);
+  }
+  /* do some other task */
+  perform_arithmatic();
+  while (status == NET_ASYNC_NOT_READY) {
+    status = mysql_real_query_nonblocking(mysql_local, insert_stmt1,
+                                          (ulong)strlen(insert_stmt1));
+  }
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stderr,
+            "\n INSERT INTO test_table1 "
+            "SELECT * FROM test_table1 with error; %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  while (mysql_more_results(mysql_local)) {
+    status = mysql_next_result_nonblocking(mysql_local);
+    if (status == NET_ASYNC_ERROR) {
+      fprintf(stdout, "\n mysql_next_result_nonblocking() failed");
+      exit(1);
+    } else {
+      while (status == NET_ASYNC_NOT_READY) {
+        status = mysql_store_result_nonblocking(mysql_local, &result);
+      }
+    }
+  }
+  stmt_text1 = "SELECT * FROM test_table1";
+  /* run query in asynchronous way */
+  status = mysql_real_query_nonblocking(mysql_local, stmt_text1,
+                                        (ulong)strlen(stmt_text1));
+  /* do some other task */
+  perform_arithmatic();
+  while (status == NET_ASYNC_NOT_READY) {
+    status = mysql_real_query_nonblocking(mysql_local, stmt_text1,
+                                          (ulong)strlen(stmt_text1));
+  }
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n SELECT * FROM test_table1 failed");
+    exit(1);
+  }
+  result = mysql_use_result(mysql_local);
+  while ((status = mysql_free_result_nonblocking(result)) != NET_ASYNC_COMPLETE)
+    ;
+  mysql_close(mysql_local);
+}
+
+static void test_wl11381_qa() {
+  MYSQL *mysql_con1;
+  MYSQL *mysql_con2;
+  net_async_status mysql_con1_status;
+  net_async_status mysql_con2_status;
+  const char *stmt_text;
+  int counter = 0;
+
+  myheader("test_wl11381_qa");
+  /*make new non blocking connection to do asynchronous operations */
+  if (!(mysql_con1 = mysql_client_init(NULL))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  /*make new non blocking connection to do asynchronous operations */
+  if (!(mysql_con2 = mysql_client_init(NULL))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  mysql_con1_status = (mysql_real_connect_nonblocking(
+      mysql_con1, opt_host, opt_user, opt_password, current_db, opt_port,
+      opt_unix_socket, CLIENT_MULTI_STATEMENTS));
+
+  mysql_con2_status = (mysql_real_connect_nonblocking(
+      mysql_con2, opt_host, opt_user, opt_password, current_db, opt_port,
+      opt_unix_socket, CLIENT_MULTI_STATEMENTS));
+
+  if (mysql_con1_status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed");
+    exit(1);
+  } else if (mysql_con1_status == NET_ASYNC_COMPLETE) {
+    fprintf(stdout, "\n asynchronous connection 1 estalished");
+  }
+
+  if (mysql_con2_status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed");
+    exit(1);
+  } else if (mysql_con2_status == NET_ASYNC_COMPLETE) {
+    fprintf(stdout, "\n asynchronous connection 2 estalished");
+  }
+
+  mysql_autocommit(mysql_con1, 1);
+  mysql_autocommit(mysql_con2, 1);
+
+  if (mysql_query(mysql_con1, "DROP TABLE IF EXISTS test_table")) {
+    fprintf(stderr, "\n drop table failed with error %s ",
+            mysql_error(mysql_con1));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_con1, "CREATE TABLE test_table(col1 int)")) {
+    fprintf(stderr, "\n create table failed with error %s ",
+            mysql_error(mysql_con1));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_con1,
+                  "INSERT INTO test_table values(10), (20), (30)")) {
+    fprintf(stderr, "\n insert into table failed with error %s ",
+            mysql_error(mysql_con1));
+    exit(1);
+  }
+  if (mysql_query(mysql_con1, "LOCK TABLE test_table WRITE")) {
+    fprintf(stderr, "\n lock table failed with error %s ",
+            mysql_error(mysql_con1));
+    exit(1);
+  }
+  stmt_text = "SELECT * FROM test_table";
+  /* run query in asynchronous way */
+  mysql_con2_status = mysql_real_query_nonblocking(mysql_con2, stmt_text,
+                                                   (ulong)strlen(stmt_text));
+  if (mysql_con2_status == NET_ASYNC_NOT_READY)
+    printf("\n Query not finished yet.");
+  while (mysql_con2_status == NET_ASYNC_NOT_READY) {
+    /* do some other task */
+    perform_arithmatic();
+    fprintf(stdout, "\n Operation pending.");
+    counter++;
+    if (counter == 4) mysql_query(mysql_con1, "UNLOCK TABLES");
+    mysql_con2_status = mysql_real_query_nonblocking(mysql_con2, stmt_text,
+                                                     (ulong)strlen(stmt_text));
+  }
+  if (mysql_con2_status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_query_nonblocking() failed");
+    exit(1);
+  } else {
+    fprintf(stdout, "\n mysql_real_query_nonblocking() passed");
+  }
+  mysql_close(mysql_con1);
+  mysql_close(mysql_con2);
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
     {"client_query", client_query},
     {"test_prepare_insert_update", test_prepare_insert_update},
-#ifdef NOT_YET_WORKING
-    {"test_drop_temp", test_drop_temp},
-#endif
     {"test_fetch_seek", test_fetch_seek},
     {"test_fetch_nobuffs", test_fetch_nobuffs},
     {"test_open_direct", test_open_direct},
@@ -20435,6 +20707,9 @@ static struct my_tests_st my_tests[] = {
     {"test_bug22028117", test_bug22028117},
     {"test_skip_metadata", test_skip_metadata},
     {"test_bug25701141", test_bug25701141},
+    {"test_bug27443252", test_bug27443252},
+    {"test_wl11381", test_wl11381},
+    {"test_wl11381_qa", test_wl11381_qa},
     {0, 0}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

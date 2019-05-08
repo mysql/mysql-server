@@ -39,7 +39,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 
 #include "dict0types.h"
-#include "sql/handler.h"
 #include "trx0types.h"
 #include "ut0new.h"
 
@@ -82,9 +81,10 @@ void trx_set_detailed_error_from_file(
     trx_t *trx,  /*!< in: transaction struct */
     FILE *file); /*!< in: file to read message from */
 /** Retrieves the error_info field from a trx.
- @return the error info */
+ @return the error index */
 UNIV_INLINE
-const dict_index_t *trx_get_error_info(const trx_t *trx); /*!< in: trx object */
+const dict_index_t *trx_get_error_index(
+    const trx_t *trx); /*!< in: trx object */
 /** Creates a transaction object for MySQL.
  @return own: transaction object */
 trx_t *trx_allocate_for_mysql(void);
@@ -402,6 +402,16 @@ Kill all transactions that are blocking this transaction from acquiring locks.
 
 void trx_kill_blocking(trx_t *trx);
 
+/** Provides an id of the transaction which does not change over time.
+Contrast this with trx->id and trx_get_id_for_print(trx) which change value once
+a transaction can no longer be treated as read-only and becomes read-write.
+@param[in]  trx   The transaction for which you want an immutable id
+@return the transaction's immutable id */
+UNIV_INLINE
+uint64_t trx_immutable_id(const trx_t *trx) {
+  return reinterpret_cast<uint64_t>(trx);
+}
+
 /**
 Check if redo/noredo rseg is modified for insert/update.
 @param[in] trx		Transaction to check */
@@ -415,8 +425,7 @@ wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
 @param	t transaction
 @return lock wait timeout in seconds */
-#define trx_lock_wait_timeout_get(t) \
-  ((t)->mysql_thd != NULL ? thd_lock_wait_timeout((t)->mysql_thd) : 0)
+#define trx_lock_wait_timeout_get(t) thd_lock_wait_timeout((t)->mysql_thd)
 
 /**
 Determine if the transaction is a non-locking autocommit select
@@ -591,17 +600,6 @@ struct trx_lock_t {
   lock_pool_t table_locks; /*!< All table locks requested by this
                            transaction, including AUTOINC locks */
 
-  bool cancel;       /*!< true if the transaction is being
-                     rolled back either via deadlock
-                     detection or due to lock timeout. The
-                     caller has to acquire the trx_t::mutex
-                     in order to cancel the locks. In
-                     lock_trx_table_locks_remove() we
-                     check for this cancel of a transaction's
-                     locks and avoid reacquiring the trx
-                     mutex to prevent recursive deadlocks.
-                     Protected by both the lock sys mutex
-                     and the trx_t::mutex. */
   ulint n_rec_locks; /*!< number of rec locks in this trx */
 #ifdef UNIV_DEBUG
   /** When a transaction is forced to rollback due to a deadlock
@@ -1010,24 +1008,24 @@ struct trx_t {
   trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
   /*------------------------------*/
-  dberr_t error_state;            /*!< 0 if no error, otherwise error
-                                  number; NOTE That ONLY the thread
-                                  doing the transaction is allowed to
-                                  set this field: this is NOT protected
-                                  by any mutex */
-  const dict_index_t *error_info; /*!< if the error number indicates a
-                                  duplicate key error, a pointer to
-                                  the problematic index is stored here */
-  ulint error_key_num;            /*!< if the index creation fails to a
-                                  duplicate key error, a mysql key
-                                  number of that index is stored here */
-  sess_t *sess;                   /*!< session of the trx, NULL if none */
-  que_t *graph;                   /*!< query currently run in the session,
-                                  or NULL if none; NOTE that the query
-                                  belongs to the session, and it can
-                                  survive over a transaction commit, if
-                                  it is a stored procedure with a COMMIT
-                                  WORK statement, for instance */
+  dberr_t error_state;             /*!< 0 if no error, otherwise error
+                                   number; NOTE That ONLY the thread
+                                   doing the transaction is allowed to
+                                   set this field: this is NOT protected
+                                   by any mutex */
+  const dict_index_t *error_index; /*!< if the error number indicates a
+                                   duplicate key error, a pointer to
+                                   the problematic index is stored here */
+  ulint error_key_num;             /*!< if the index creation fails to a
+                                   duplicate key error, a mysql key
+                                   number of that index is stored here */
+  sess_t *sess;                    /*!< session of the trx, NULL if none */
+  que_t *graph;                    /*!< query currently run in the session,
+                                   or NULL if none; NOTE that the query
+                                   belongs to the session, and it can
+                                   survive over a transaction commit, if
+                                   it is a stored procedure with a COMMIT
+                                   WORK statement, for instance */
   /*------------------------------*/
   UT_LIST_BASE_NODE_T(trx_named_savept_t)
   trx_savepoints; /*!< savepoints set with SAVEPOINT ...,

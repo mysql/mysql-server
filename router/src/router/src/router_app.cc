@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,19 @@
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
 #include "router_app.h"
+
+#include <algorithm>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <functional>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include "common.h"
 #include "config_files.h"
 #include "config_generator.h"
@@ -34,22 +47,15 @@
 #include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/vt100.h"
 #include "mysql_session.h"
+#include "print_version.h"
 #include "welcome_copyright_notice.h"
-
-#include <algorithm>
-#include <cerrno>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -85,7 +91,9 @@ using std::vector;
 static const char *kDefaultKeyringFileName = "keyring";
 static const char kProgramName[] = "mysqlrouter";
 
-static std::string find_full_path(const std::string &argv0) {
+// throws std::runtime_error, ...?
+/*static*/
+std::string MySQLRouter::find_full_path(const std::string &argv0) {
 #ifdef _WIN32
   // the bin folder is not usually in the path, just the lib folder
   char szPath[MAX_PATH];
@@ -157,7 +165,8 @@ static void check_and_add_conf(std::vector<string> &configs,
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
 MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
-                         const vector<string> &arguments
+                         const std::vector<std::string> &arguments,
+                         std::ostream &out_stream, std::ostream &err_stream
 #ifndef _WIN32
                          ,
                          SysUserOperationsBase *sys_user_operations
@@ -168,7 +177,9 @@ MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
       arg_handler_(),
       can_start_(false),
       showing_info_(false),
-      origin_(origin)
+      origin_(origin),
+      out_stream_(out_stream),
+      err_stream_(err_stream)
 #ifndef _WIN32
       ,
       sys_user_operations_(sys_user_operations)
@@ -181,16 +192,18 @@ MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
-MySQLRouter::MySQLRouter(const int argc, char **argv
+MySQLRouter::MySQLRouter(const int argc, char **argv, std::ostream &out_stream,
+                         std::ostream &err_stream
 #ifndef _WIN32
                          ,
                          SysUserOperationsBase *sys_user_operations
 #endif
                          )
     : MySQLRouter(mysql_harness::Path(find_full_path(argv[0])).dirname(),
-                  vector<string>({argv + 1, argv + argc})
+                  vector<string>({argv + 1, argv + argc}), out_stream,
+                  err_stream
 #ifndef _WIN32
-                      ,
+                  ,
                   sys_user_operations
 #endif
       ) {
@@ -254,8 +267,7 @@ void MySQLRouter::init(const vector<string> &arguments) {
       mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
 
       // reinit logger (right now the logger is configured to log to STDERR,
-      // here
-      //                we re-configure it with settings from config file)
+      // here we re-configure it with settings from config file)
       init_main_logger(config, true);  // true = raw logging mode
     }
 
@@ -308,6 +320,19 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
     } else {  // prompt password
       init_keyring_using_prompted_password();
     }
+  }
+}
+
+void MySQLRouter::init_dynamic_state(mysql_harness::Config &config) {
+  if (config.has_default("dynamic_state")) {
+    using mysql_harness::DynamicState;
+
+    const std::string dynamic_state_file = config.get_default("dynamic_state");
+    DIM::instance().set_DynamicState(
+        [=]() { return new DynamicState(dynamic_state_file); },
+        std::default_delete<mysql_harness::DynamicState>());
+    // force object creation, the further code relies on it's existence
+    DIM::instance().get_DynamicState();
   }
 }
 
@@ -364,12 +389,16 @@ static string fixpath(const string &path, const std::string &basedir) {
 #endif
 }
 
-std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
-  std::string basedir = mysql_harness::Path(origin_).dirname().str();
+/*static*/
+std::map<std::string, std::string> MySQLRouter::get_default_paths(
+    const mysql_harness::Path &origin) {
+  std::string basedir = mysql_harness::Path(origin)
+                            .dirname()
+                            .str();  // throws std::invalid_argument
 
   std::map<std::string, std::string> params = {
       {"program", kProgramName},
-      {"origin", origin_.str()},
+      {"origin", origin.str()},
       {"logging_folder", fixpath(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
       {"plugin_folder", fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
       {"runtime_folder", fixpath(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
@@ -381,7 +410,7 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   {
     mysql_harness::Path install_origin(
         fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
+    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
       params["plugin_folder"] = fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir);
     }
   }
@@ -389,8 +418,8 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   {
     mysql_harness::Path install_origin(
         fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
-      params["plugin_folder"] = origin_.dirname().join("lib").str();
+    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
+      params["plugin_folder"] = origin.dirname().join("lib").str();
     }
   }
 #endif
@@ -399,140 +428,57 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   for (auto it : params) {
     std::string &param = params.at(it.first);
     param.assign(
-        mysqlrouter::substitute_variable(param, "{origin}", origin_.str()));
+        mysqlrouter::substitute_variable(param, "{origin}", origin.str()));
   }
   return params;
 }
 
-// throws mysql_harness::bad_section (std::runtime_error) on [logger:some_key]
-// section
-static void set_default_log_level(mysql_harness::LoaderConfig &config,
-                                  bool raw_mode /*= false*/) {
-  // What we do here is an UGLY HACK. TODO remove once we have a proper remedy.
-  //
-  // This is a (hopefully temporary) hack to guarantee backward compatibility
-  // after we revamped our logging facility in v8.0. Before, 8.0, our logger
-  // was a separate plugin, and thus config file had a [logger] section.
-  // Since 8.0, logger is integral part of the Harness and logger.so/dll no
-  // longer exists. Therefore [logger] section should no longer appear in the
-  // config file. Yet, we need to maintain backward compatibility of the
-  // config file, therefore must allow [logger] section to appear and carry the
-  // information it carried before. This however, presents numerous problems:
-  //
-  // - Loader will complain that it can't find a plugin.so (plugin.dll) and
-  //   shut down the Router
-  //
-  // - Loader will try to access start(), stop(), init() and deinit() functions
-  //   of the "logger" plugin, which are undefined
-  //
-  // - logger initialization will try to create a logger for non-existent
-  //   "logger" plugin
-  //
-  // - possibly others, the list is not necessairly exhaustive
-  //
-  //
-  //
-  // To work around these problems, we introduce an UGLY HACK:
-  // We allow [logger] section to appear, along with the log level key/value
-  // pair, as it did before. During log initialization, we look for that
-  // [logger] section and extract the information it carries. Then, we erase it
-  // from configuration, so that no other piece of code ever sees it. This hack
-  // relies on the fact that logging initialization is done very early in the
-  // startup of the Router, even before Loader or anything else gets a chance to
-  // access the configuration.
-
-  constexpr const char kNone[] = "";
-
-  // aliases with shorter names
-  constexpr const char *kLogLevel =
-      mysql_harness::logging::kConfigOptionLogLevel;
-  constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
-
-  // extract log level from [logger] section/log level entry, if it exists
-  if (config.has(kLogger) && config.get(kLogger, kNone).has(kLogLevel))
-    mysql_harness::logging::g_HACK_default_log_level =
-        config.get(kLogger, kNone).get(kLogLevel);
-  // otherwise, set it to default
-  else
-    mysql_harness::logging::g_HACK_default_log_level =
-        raw_mode ? mysql_harness::logging::kRawLogLevelName
-                 : mysql_harness::logging::kDefaultLogLevelName;
-
-  // now erase the entire [logger] section, if it exists (NOTE: it will not
-  // erase sections with keys)
-  config.remove(kLogger);  // no-op if [logger] section doesn't exist
-
-  // if there's anything leftover, it means it must be a section with a key
-  if (config.has_any(kLogger)) {
-    throw mysql_harness::bad_section(std::string("Section '") + kLogger +
-                                     "' does not support keys");
-  }
-}
-
-std::exception_ptr detect_and_fix_nonfatal_problems(
-    mysql_harness::LoaderConfig &config) {
-  // This function checks (and fixes) certain logging-related problems, which
-  // can be fixed well enough to enable the logger to initialize, and therefore
-  // log the actual problem, before the whole application exits with error.
-  //
-  // We return the exception ptr to the first problem we found.
-
-  std::exception_ptr eptr = nullptr;
-
-  // fix invalid log level
-  try {
-    mysql_harness::logging::get_default_log_level(config);
-  } catch (const std::invalid_argument &) {
-    mysql_harness::logging::g_HACK_default_log_level =
-        mysql_harness::logging::kDefaultLogLevelName;
-    if (!eptr) eptr = std::current_exception();
-  }
-
-  // return first problem found
-  return eptr;
+std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
+  return get_default_paths(origin_);  // throws std::invalid_argument
 }
 
 /*static*/
 void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
-                                   bool raw_mode /*= false*/) {
-  // set defaults if they're not defined
-  set_default_log_level(
-      config,
-      raw_mode);  // throws std::runtime_error on [logger:some_key] section
+                                   bool raw_mode /*= false*/,
+                                   bool use_os_log /*= false*/) {
+// currently logging to OS log is only supported on Windows
+#ifndef _WIN32
+  harness_assert(use_os_log == false);
+#endif
+
   if (!config.has_default("logging_folder"))
     config.set_default("logging_folder", "");
 
   const std::string logging_folder = config.get_default("logging_folder");
 
-  // detect (and fix) certain logger config problems early
-  std::exception_ptr first_problem = detect_and_fix_nonfatal_problems(config);
-
   // setup logging
   {
     // REMINDER: If something threw beyond this point, but before we managed to
-    // re-initialize
-    //           the logger (registry), we would be in a world of pain: throwing
-    //           with a non- functioning logger may cascade to a place where the
-    //           error is logged and... BOOM!) So we deal with the above problem
-    //           by working on a new logger registry object, and only if nothing
-    //           throws, we replace the current registry with the new one at the
-    //           very end.
+    //           re-initialize the logger (registry), we would be in a world of
+    //           pain: throwing with a non-functioning logger may cascade to a
+    //           place where the error is logged and... BOOM!) So we deal with
+    //           the above problem by working on a new logger registry object,
+    //           and only if nothing throws, we replace the current registry
+    //           with the new one at the very end.
 
     // our new logger registry, it will replace the current one if all goes well
     std::unique_ptr<mysql_harness::logging::Registry> registry(
         new mysql_harness::logging::Registry());
 
+    const auto level = mysql_harness::logging::get_default_log_level(
+        config, raw_mode);  // throws std::invalid_argument
+
     // register loggers for all modules + main exec (throws std::logic_error,
     // std::invalid_argument)
-    mysql_harness::logging::init_loggers(
-        *registry, config, {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
+    mysql_harness::logging::create_module_loggers(
+        *registry, level, {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
 
     // register logger for sql domain
-    mysql_harness::logging::init_logger(*registry, config, "sql");
+    mysql_harness::logging::create_logger(*registry, level, "sql");
 
     // attach all loggers to main handler (throws std::runtime_error)
-    mysql_harness::logging::create_main_logfile_handler(
-        *registry, kProgramName, logging_folder, !raw_mode);
+    mysql_harness::logging::create_main_log_handler(
+        *registry, kProgramName, logging_folder, !raw_mode, use_os_log);
 
     // nothing threw - we're good. Now let's replace the new registry with the
     // old one
@@ -545,43 +491,16 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
     DIM::instance().get_LoggingRegistry().set_ready();
   }
 
-  // now that our logger is running, report the first problem found (if any)
-  if (first_problem) std::rethrow_exception(first_problem);
-
   // and give it a first spin
   if (config.logging_to_file())
     log_debug("Main logger initialized, logging to '%s'",
               config.get_log_file().c_str());
+#ifdef _WIN32
+  else if (use_os_log)
+    log_debug("Main logger initialized, logging to Windows EventLog");
+#endif
   else
     log_debug("Main logger initialized, logging to STDERR");
-}
-
-void MySQLRouter::init_plugin_loggers(mysql_harness::LoaderConfig &config) {
-  mysql_harness::logging::Registry &registry =
-      DIM::instance().get_LoggingRegistry();
-
-  // logging facility should be operational and main logger should exist by now
-  assert(registry.is_ready());
-
-  // put together a list of plugins to be loaded. loader_->available() provides
-  // a list of plugin instances (one per each [section:key]), while we need
-  // a list of plugin names (each entry has to be unique).
-  std::set<std::string> modules;
-  std::list<mysql_harness::Config::SectionKey> plugins = loader_->available();
-  for (const mysql_harness::Config::SectionKey &sk : plugins)
-    modules.emplace(sk.first);
-
-  // create loggers for all modules (plugins)
-  std::list<std::string> log_domains(modules.begin(), modules.end());
-  mysql_harness::logging::init_loggers(  // throws std::invalid_argument,
-                                         // std::logic_error
-      registry, config, log_domains, MYSQL_ROUTER_LOG_DOMAIN);
-
-  // take all the handlers that exist, and attach them to all new loggers.
-  // At the time of writing, there is only one such handler - the main
-  // console/file handler that was created in init_main_logger()
-  for (const std::string &h : registry.get_handler_names())
-    attach_handler_to_all_loggers(registry, h);
 }
 
 // throws std::runtime_error
@@ -596,8 +515,7 @@ mysql_harness::LoaderConfig *MySQLRouter::make_config(
                                         mysql_harness::Config::allow_keys));
 
     // throws std::invalid_argument, std::runtime_error, syntax_error, ...
-    for (const mysql_harness::Path &config_file :
-         config_files.available_config_files())
+    for (const auto &config_file : config_files.available_config_files())
       config->read(config_file);
 
     return config.release();
@@ -656,27 +574,6 @@ void MySQLRouter::start() {
   }
 #endif
 
-  // create logging directory if necessary
-  if (config.logging_to_file()) {
-    // get logger directory
-    auto log_file = config.get_log_file();
-    std::string log_path(log_file.str());  // log_path = /path/to/file.log
-    size_t pos;
-    pos = log_path.find_last_of('/');
-    if (pos != std::string::npos) log_path.erase(pos);  // log_path = /path/to
-
-    // mkdir if it doesn't exist
-    if (mysql_harness::Path(log_path).exists() == false &&
-        mysqlrouter::mkdir(log_path, mysqlrouter::kStrictDirectoryPerm) != 0)
-      throw std::runtime_error("Error when creating dir '" + log_path +
-                               "': " + std::to_string(errno));
-  }
-
-  // reinit logger (right now the logger is configured to log to STDERR, here
-  //                we re-configure it with settings from config file)
-  init_main_logger(
-      config);  // throws std::runtime_error on error opening file or bad config
-
   if (!can_start_) {
     throw std::runtime_error("Can not start");
   }
@@ -709,12 +606,37 @@ void MySQLRouter::start() {
     }
   }
 
-  std::list<mysql_harness::Config::SectionKey> plugins = loader_->available();
-  if (!plugins.size())
-    throw std::runtime_error(
-        "MySQL Router not configured to load or start any plugin. Exiting.");
+  // make sure there is at most one [logger] section in the config and that it
+  // has no key
+  if (config.has_any(mysql_harness::logging::kConfigSectionLogger)) {
+    const auto logger_sections =
+        config.get(mysql_harness::logging::kConfigSectionLogger);
+    if (logger_sections.size() > 1) {
+      throw std::runtime_error(
+          "There can be at most one [logger] section in the configuration");
+    } else if (logger_sections.size() == 1) {
+      auto const section = logger_sections.begin();
+      if (!((*section)->key).empty()) {
+        throw std::runtime_error("Section 'logger' does not support keys");
+      }
+    }
+  }
 
-  init_plugin_loggers(config);
+  // before running the loader we need to make sure there is a logger section in
+  // the configuration as logger plugin init() does all the logging setup now.
+  // If there is none in the config let's add an empty one to go with the
+  // defaults. This is for the backward compatibility as in the previous Router
+  // versions this section was optional.
+  if (!config.has(mysql_harness::logging::kConfigSectionLogger, "")) {
+    config.add(mysql_harness::logging::kConfigSectionLogger);
+  }
+
+  // before running the loader we need to register loggers in the current
+  // temporary registry for all the plugins as loader will start them soon and
+  // they may want to log something; meanwhile the true logging registry will be
+  // created later when logging plugin starts
+  create_plugin_loggers(config, DIM::instance().get_LoggingRegistry(),
+                        mysql_harness::logging::get_default_log_level(config));
 
   // there can be at most one metadata_cache section because
   // currently the router supports only one metadata_cache instance
@@ -726,6 +648,7 @@ void MySQLRouter::start() {
         "configuration. Exiting.");
 
   init_keyring(config);
+  init_dynamic_state(config);
 
   loader_->start();
 }
@@ -753,19 +676,10 @@ string MySQLRouter::get_version() noexcept {
 }
 
 string MySQLRouter::get_version_line() noexcept {
-  std::ostringstream os;
-  string edition{MYSQL_ROUTER_VERSION_EDITION};
+  std::string version_string;
+  build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
 
-  os << MYSQL_ROUTER_PACKAGE_NAME << " v" << get_version();
-
-  os << " on " << MYSQL_ROUTER_PACKAGE_PLATFORM << " ("
-     << (MYSQL_ROUTER_PACKAGE_ARCH_64BIT ? "64-bit" : "32-bit") << ")";
-
-  if (!edition.empty()) {
-    os << " (" << edition << ")";
-  }
-
-  return os.str();
+  return version_string;
 }
 
 vector<string> MySQLRouter::check_config_files() {
@@ -805,19 +719,26 @@ void MySQLRouter::prepare_command_options() noexcept {
   // and the configuration.
 
   arg_handler_.clear_options();
-  arg_handler_.add_option(CmdOption::OptionNames({"-V", "--version"}),
-                          "Display version information and exit.",
-                          CmdOptionValueReq::none, "", [this](const string &) {
-                            std::cout << this->get_version_line() << std::endl;
-                            this->showing_info_ = true;
-                          });
 
-  arg_handler_.add_option(CmdOption::OptionNames({"-?", "--help"}),
-                          "Display this help and exit.",
-                          CmdOptionValueReq::none, "", [this](const string &) {
-                            this->show_help();
-                            this->showing_info_ = true;
-                          });
+  arg_handler_.add_option(
+      OptionNames({"--account-host"}),
+      "Host pattern to be used when creating Router's database user, "
+      "default='%'. "
+      "It can be used multiple times to provide multiple patterns. (bootstrap)",
+      CmdOptionValueReq::required, "account-host",
+      [this](const string &host_pattern) {
+        std::vector<std::string> &hostnames =
+            this->bootstrap_multivalue_options_["account-host"];
+        hostnames.push_back(host_pattern);
+
+        // sort and eliminate any non-unique hostnames; we do this to ensure
+        // that CREATE USER does not get called twice for the same user@host
+        // later on in the ConfigGenerator
+        std::sort(hostnames.begin(), hostnames.end());
+        auto it = std::unique(hostnames.begin(), hostnames.end());
+        hostnames.resize(std::distance(hostnames.begin(), it));
+      },
+      [this] { this->assert_bootstrap_mode("--account-host"); });
 
   arg_handler_.add_option(
       OptionNames({"-B", "--bootstrap"}),
@@ -847,35 +768,6 @@ void MySQLRouter::prepare_command_options() noexcept {
       [this] { this->assert_bootstrap_mode("--bootstrap-socket"); });
 
   arg_handler_.add_option(
-      OptionNames({"-d", "--directory"}),
-      "Creates a self-contained directory for a new instance of the Router. "
-      "(bootstrap)",
-      CmdOptionValueReq::required, "directory",
-      [this](const string &path) {
-        if (path.empty()) {
-          throw std::runtime_error("Invalid value for --directory option");
-        }
-        this->bootstrap_directory_ = path;
-      },
-      [this] { this->assert_bootstrap_mode("-d/--directory"); });
-
-#ifndef _WIN32
-  arg_handler_.add_option(
-      OptionNames({"--conf-use-sockets"}),
-      "Whether to use Unix domain sockets. (bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const string &) { this->bootstrap_options_["use-sockets"] = "1"; },
-      [this] { this->assert_bootstrap_mode("--conf-use-sockets"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-skip-tcp"}),
-      "Whether to disable binding of a TCP port for incoming connections. "
-      "(bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const string &) { this->bootstrap_options_["skip-tcp"] = "1"; },
-      [this] { this->assert_bootstrap_mode("--conf-skip-tcp"); });
-#endif
-  arg_handler_.add_option(
       OptionNames({"--conf-base-port"}),
       "Base port to use for listening router ports. (bootstrap)",
       CmdOptionValueReq::required, "port",
@@ -893,6 +785,92 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->bootstrap_options_["bind-address"] = address;
       },
       [this] { this->assert_bootstrap_mode("--conf-bind-address"); });
+
+#ifndef _WIN32
+  arg_handler_.add_option(
+      OptionNames({"--conf-skip-tcp"}),
+      "Whether to disable binding of a TCP port for incoming connections. "
+      "(bootstrap)",
+      CmdOptionValueReq::none, "",
+      [this](const string &) { this->bootstrap_options_["skip-tcp"] = "1"; },
+      [this] { this->assert_bootstrap_mode("--conf-skip-tcp"); });
+  arg_handler_.add_option(
+      OptionNames({"--conf-use-sockets"}),
+      "Whether to use Unix domain sockets. (bootstrap)",
+      CmdOptionValueReq::none, "",
+      [this](const string &) { this->bootstrap_options_["use-sockets"] = "1"; },
+      [this] { this->assert_bootstrap_mode("--conf-use-sockets"); });
+#endif
+
+  arg_handler_.add_option(OptionNames({"-c", "--config"}),
+                          "Only read configuration from given file.",
+                          CmdOptionValueReq::required, "path",
+                          [this](const string &value) {
+                            if (!config_files_.empty()) {
+                              throw std::runtime_error(
+                                  "Option -c/--config can only be used once; "
+                                  "use -a/--extra-config instead.");
+                            }
+
+                            // When --config is used, no defaults shall be read
+                            default_config_files_.clear();
+                            check_and_add_conf(config_files_, value);
+                          });
+
+  arg_handler_.add_option(
+      OptionNames({"--connect-timeout"}),
+      "The time in seconds after which trying to connect to metadata server "
+      "should timeout. It applies to bootstrap mode and is written to "
+      "configuration file. It is also used in normal mode.",
+      CmdOptionValueReq::optional, "", [this](const string &connect_timeout) {
+        this->bootstrap_options_["connect-timeout"] = connect_timeout;
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"-d", "--directory"}),
+      "Creates a self-contained directory for a new instance of the Router. "
+      "(bootstrap)",
+      CmdOptionValueReq::required, "directory",
+      [this](const string &path) {
+        if (path.empty()) {
+          throw std::runtime_error("Invalid value for --directory option");
+        }
+        this->bootstrap_directory_ = path;
+      },
+      [this] { this->assert_bootstrap_mode("-d/--directory"); });
+
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"-a", "--extra-config"}),
+      "Read this file after configuration files are read from either "
+      "default locations or from files specified by the --config option.",
+      CmdOptionValueReq::required, "path", [this](const string &value) {
+        check_and_add_conf(extra_config_files_, value);
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--force"}),
+      "Force reconfiguration of a possibly existing instance of the router. "
+      "(bootstrap)",
+      CmdOptionValueReq::none, "",
+      [this](const string &) { this->bootstrap_options_["force"] = "1"; },
+      [this] { this->assert_bootstrap_mode("--force"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--force-password-validation"}),
+      "When autocreating database account do not use HASHED password. "
+      "(bootstrap)",
+      CmdOptionValueReq::none, "",
+      [this](const string &) {
+        this->bootstrap_options_["force-password-validation"] = "1";
+      },
+      [this] { this->assert_bootstrap_mode("--force-password-validation"); });
+
+  arg_handler_.add_option(CmdOption::OptionNames({"-?", "--help"}),
+                          "Display this help and exit.",
+                          CmdOptionValueReq::none, "", [this](const string &) {
+                            this->show_help();
+                            this->showing_info_ = true;
+                          });
 
   arg_handler_.add_option(
       OptionNames({"--master-key-reader"}),
@@ -929,53 +907,11 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(
-      OptionNames({"--connect-timeout"}),
-      "The time in seconds after which trying to connect to metadata server "
-      "should timeout. It applies to bootstrap mode and is written to "
-      "configuration file. It is also used in normal mode.",
-      CmdOptionValueReq::optional, "", [this](const string &connect_timeout) {
-        this->bootstrap_options_["connect-timeout"] = connect_timeout;
-      });
-  arg_handler_.add_option(
-      OptionNames({"--read-timeout"}),
-      "The time in seconds after which read from metadata server should "
-      "timeout. It applies to bootstrap mode and is written to configuration "
-      "file. It is also used in normal mode.",
-      CmdOptionValueReq::optional, "", [this](const string &read_timeout) {
-        this->bootstrap_options_["read-timeout"] = read_timeout;
-      });
-#ifndef _WIN32
-  arg_handler_.add_option(
-      OptionNames({"-u", "--user"}),
-      "Run the mysqlrouter as the user having the name user_name.",
-      CmdOptionValueReq::required, "username",
-      [this](const string &username) { this->username_ = username; },
-      [this] {
-        if (this->bootstrap_uri_.empty()) {
-          this->user_cmd_line_ = this->username_;
-        } else {
-          check_user(this->username_, true, this->sys_user_operations_);
-          this->bootstrap_options_["user"] = this->username_;
-        }
-      });
-#endif
-
-  arg_handler_.add_option(
       OptionNames({"--name"}),
       "Gives a symbolic name for the router instance. (bootstrap)",
       CmdOptionValueReq::optional, "name",
       [this](const string &name) { this->bootstrap_options_["name"] = name; },
       [this] { this->assert_bootstrap_mode("--name"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--force-password-validation"}),
-      "When autocreating database account do not use HASHED password. "
-      "(bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const string &) {
-        this->bootstrap_options_["force-password-validation"] = "1";
-      },
-      [this] { this->assert_bootstrap_mode("--force-password-validation"); });
 
   arg_handler_.add_option(
       OptionNames({"--password-retries"}),
@@ -988,25 +924,13 @@ void MySQLRouter::prepare_command_options() noexcept {
       [this] { this->assert_bootstrap_mode("--password-retries"); });
 
   arg_handler_.add_option(
-      OptionNames({"--account-host"}),
-      "Host pattern to be used when creating Router's database user, "
-      "default='%'. "
-      "It can be used multiple times to provide multiple patterns. (bootstrap)",
-      CmdOptionValueReq::required, "account-host",
-      [this](const string &host_pattern) {
-        std::vector<std::string> &hostnames =
-            this->bootstrap_multivalue_options_["account-host"];
-        hostnames.push_back(host_pattern);
-
-        // sort and eliminate any non-unique hostnames; we do this to ensure
-        // that CREATE USER does not get called twice for the same user@host
-        // later on in the ConfigGenerator
-        std::sort(hostnames.begin(), hostnames.end());
-        auto it = std::unique(hostnames.begin(), hostnames.end());
-        hostnames.resize(std::distance(hostnames.begin(), it));
-      },
-      [this] { this->assert_bootstrap_mode("--account-host"); });
-
+      OptionNames({"--read-timeout"}),
+      "The time in seconds after which read from metadata server should "
+      "timeout. It applies to bootstrap mode and is written to configuration "
+      "file. It is also used in normal mode.",
+      CmdOptionValueReq::optional, "", [this](const string &read_timeout) {
+        this->bootstrap_options_["read-timeout"] = read_timeout;
+      });
   arg_handler_.add_option(
       OptionNames({"--report-host"}),
       "Host name of this computer (it will be queried from OS if not "
@@ -1028,12 +952,74 @@ void MySQLRouter::prepare_command_options() noexcept {
       [this] { this->assert_bootstrap_mode("--report-host"); });
 
   arg_handler_.add_option(
-      OptionNames({"--force"}),
-      "Force reconfiguration of a possibly existing instance of the router. "
-      "(bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const string &) { this->bootstrap_options_["force"] = "1"; },
-      [this] { this->assert_bootstrap_mode("--force"); });
+      OptionNames({"--ssl-ca"}),
+      "Path to SSL CA file to verify server's certificate against.",
+      CmdOptionValueReq::required, "path",
+      [this](const string &path) {
+        this->save_bootstrap_option_not_empty("--ssl-ca", "ssl_ca", path);
+      },
+      [this] { this->assert_bootstrap_mode("--ssl-ca"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--ssl-capath"}),
+      "Path to directory containing SSL CA files to verify server's "
+      "certificate against.",
+      CmdOptionValueReq::required, "directory",
+      [this](const string &path) {
+        this->save_bootstrap_option_not_empty("--ssl-capath", "ssl_capath",
+                                              path);
+      },
+      [this] { this->assert_bootstrap_mode("--ssl-capath"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--ssl-cert"}),
+      "Path to client SSL certificate, to be used if client certificate "
+      "verification is required. Used during bootstrap only.",
+      CmdOptionValueReq::required, "path",
+      [this](const string &path) {
+        this->save_bootstrap_option_not_empty("--ssl-cert", "ssl_cert", path);
+      },
+      [this] { this->assert_bootstrap_mode("--ssl-cert"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--ssl-cipher"}),
+      ": separated list of SSL ciphers to allow, if SSL is enabeld.",
+      CmdOptionValueReq::required, "ciphers",
+      [this](const string &cipher) {
+        this->save_bootstrap_option_not_empty("--ssl-cipher", "ssl_cipher",
+                                              cipher);
+      },
+      [this] { this->assert_bootstrap_mode("--ssl-cipher"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--ssl-crl"}),
+      "Path to SSL CRL file to use when verifying server certificate.",
+      CmdOptionValueReq::required, "path",
+      [this](const string &path) {
+        this->save_bootstrap_option_not_empty("--ssl-crl", "ssl_crl", path);
+      },
+      [this] { this->assert_bootstrap_mode("--ssl-crl"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--ssl-crlpath"}),
+      "Path to directory containing SSL CRL files to use when verifying server "
+      "certificate.",
+      CmdOptionValueReq::required, "directory",
+      [this](const string &path) {
+        this->save_bootstrap_option_not_empty("--ssl-crlpath", "ssl_crlpath",
+                                              path);
+      },
+      [this] { this->assert_bootstrap_mode("--ssl-crlpath"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--ssl-key"}),
+      "Path to private key for client SSL certificate, to be used if client "
+      "certificate verification is required. Used during bootstrap only.",
+      CmdOptionValueReq::required, "path",
+      [this](const string &path) {
+        this->save_bootstrap_option_not_empty("--ssl-key", "ssl_key", path);
+      },
+      [this] { this->assert_bootstrap_mode("--ssl-key"); });
 
   char ssl_mode_vals[128];
   char ssl_mode_desc[384];
@@ -1064,16 +1050,6 @@ void MySQLRouter::prepare_command_options() noexcept {
       [this] { this->assert_bootstrap_mode("--ssl-mode"); });
 
   arg_handler_.add_option(
-      OptionNames({"--ssl-cipher"}),
-      ": separated list of SSL ciphers to allow, if SSL is enabeld.",
-      CmdOptionValueReq::required, "ciphers",
-      [this](const string &cipher) {
-        this->save_bootstrap_option_not_empty("--ssl-cipher", "ssl_cipher",
-                                              cipher);
-      },
-      [this] { this->assert_bootstrap_mode("--ssl-cipher"); });
-
-  arg_handler_.add_option(
       OptionNames({"--tls-version"}),
       ", separated list of TLS versions to request, if SSL is enabled.",
       CmdOptionValueReq::required, "versions",
@@ -1082,119 +1058,79 @@ void MySQLRouter::prepare_command_options() noexcept {
                                               version);
       },
       [this] { this->assert_bootstrap_mode("--tls-version"); });
-
+#ifndef _WIN32
   arg_handler_.add_option(
-      OptionNames({"--ssl-ca"}),
-      "Path to SSL CA file to verify server's certificate against.",
-      CmdOptionValueReq::required, "path",
-      [this](const string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-ca", "ssl_ca", path);
-      },
-      [this] { this->assert_bootstrap_mode("--ssl-ca"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-capath"}),
-      "Path to directory containing SSL CA files to verify server's "
-      "certificate against.",
-      CmdOptionValueReq::required, "directory",
-      [this](const string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-capath", "ssl_capath",
-                                              path);
-      },
-      [this] { this->assert_bootstrap_mode("--ssl-capath"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-crl"}),
-      "Path to SSL CRL file to use when verifying server certificate.",
-      CmdOptionValueReq::required, "path",
-      [this](const string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-crl", "ssl_crl", path);
-      },
-      [this] { this->assert_bootstrap_mode("--ssl-crl"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-crlpath"}),
-      "Path to directory containing SSL CRL files to use when verifying server "
-      "certificate.",
-      CmdOptionValueReq::required, "directory",
-      [this](const string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-crlpath", "ssl_crlpath",
-                                              path);
-      },
-      [this] { this->assert_bootstrap_mode("--ssl-crlpath"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-cert"}),
-      "Path to client SSL certificate, to be used if client certificate "
-      "verification is required. Used during bootstrap only.",
-      CmdOptionValueReq::required, "path",
-      [this](const string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-cert", "ssl_cert", path);
-      },
-      [this] { this->assert_bootstrap_mode("--ssl-cert"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-key"}),
-      "Path to private key for client SSL certificate, to be used if client "
-      "certificate verification is required. Used during bootstrap only.",
-      CmdOptionValueReq::required, "path",
-      [this](const string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-key", "ssl_key", path);
-      },
-      [this] { this->assert_bootstrap_mode("--ssl-key"); });
-
-  arg_handler_.add_option(OptionNames({"-c", "--config"}),
-                          "Only read configuration from given file.",
-                          CmdOptionValueReq::required, "path",
-                          [this](const string &value) {
-                            if (!config_files_.empty()) {
-                              throw std::runtime_error(
-                                  "Option -c/--config can only be used once; "
-                                  "use -a/--extra-config instead.");
-                            }
-
-                            // When --config is used, no defaults shall be read
-                            default_config_files_.clear();
-                            check_and_add_conf(config_files_, value);
+      OptionNames({"-u", "--user"}),
+      "Run the mysqlrouter as the user having the name user_name.",
+      CmdOptionValueReq::required, "username",
+      [this](const string &username) { this->username_ = username; },
+      [this] {
+        if (this->bootstrap_uri_.empty()) {
+          this->user_cmd_line_ = this->username_;
+        } else {
+          check_user(this->username_, true, this->sys_user_operations_);
+          this->bootstrap_options_["user"] = this->username_;
+        }
+      });
+#endif
+  arg_handler_.add_option(CmdOption::OptionNames({"-V", "--version"}),
+                          "Display version information and exit.",
+                          CmdOptionValueReq::none, "", [this](const string &) {
+                            out_stream_ << this->get_version_line()
+                                        << std::endl;
+                            this->showing_info_ = true;
                           });
 
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"-a", "--extra-config"}),
-      "Read this file after configuration files are read from either "
-      "default locations or from files specified by the --config option.",
-      CmdOptionValueReq::required, "path", [this](const string &value) {
-        check_and_add_conf(extra_config_files_, value);
-      });
 // These are additional Windows-specific options, added (at the time of writing)
 // in check_service_operations(). Grep after '--install-service' and you shall
 // find.
 #ifdef _WIN32
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"--clear-all-credentials"}),
+      "Clear the vault, removing all the credentials stored on it",
+      CmdOptionValueReq::none, "", [](const string &) {
+        PasswordVault pv;
+        pv.clear_passwords();
+        log_info("Removed successfully all passwords from the vault.");
+        throw silent_exception();
+      });
   arg_handler_.add_option(CmdOption::OptionNames({"--install-service"}),
                           "Install Router as Windows service which starts "
                           "automatically at system boot",
                           CmdOptionValueReq::none, "",
-                          [this](const string &) { /*implemented elsewhere*/ });
+                          [](const string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(
       CmdOption::OptionNames({"--install-service-manual"}),
       "Install Router as Windows service which needs to be started manually",
       CmdOptionValueReq::none, "",
-      [this](const string &) { /*implemented elsewhere*/ });
+      [](const string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(CmdOption::OptionNames({"--remove-service"}),
                           "Remove Router from Windows services",
                           CmdOptionValueReq::none, "",
-                          [this](const string &) { /*implemented elsewhere*/ });
+                          [](const string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(CmdOption::OptionNames({"--service"}),
                           "Start Router as Windows service",
                           CmdOptionValueReq::none, "",
-                          [this](const string &) { /*implemented elsewhere*/ });
+                          [](const string &) { /*implemented elsewhere*/ });
+
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"--remove-credentials-section"}),
+      "Removes the credentials for the given section",
+      CmdOptionValueReq::required, "section_name", [](const string &value) {
+        PasswordVault pv;
+        pv.remove_password(value);
+        pv.store_passwords();
+        log_info("The password was removed successfully.");
+        throw silent_exception();
+      });
 
   arg_handler_.add_option(
       CmdOption::OptionNames({"--update-credentials-section"}),
       "Updates the credentials for the given section",
-      CmdOptionValueReq::required, "section_name", [this](const string &value) {
+      CmdOptionValueReq::required, "section_name", [](const string &value) {
         std::string prompt = mysqlrouter::string_format(
             "Enter password for config section '%s'", value.c_str());
         std::string pass = mysqlrouter::prompt_password(prompt);
@@ -1204,38 +1140,18 @@ void MySQLRouter::prepare_command_options() noexcept {
         log_info("The password was stored in the vault successfully.");
         throw silent_exception();
       });
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--remove-credentials-section"}),
-      "Removes the credentials for the given section",
-      CmdOptionValueReq::required, "section_name", [this](const string &value) {
-        PasswordVault pv;
-        pv.remove_password(value);
-        pv.store_passwords();
-        log_info("The password was removed successfully.");
-        throw silent_exception();
-      });
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--clear-all-credentials"}),
-      "Clear the vault, removing all the credentials stored on it",
-      CmdOptionValueReq::none, "", [this](const string &) {
-        PasswordVault pv;
-        pv.clear_passwords();
-        log_info("Removed successfully all passwords from the vault.");
-        throw silent_exception();
-      });
 #endif
 }
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ... ?
 void MySQLRouter::bootstrap(const std::string &server_url) {
-  mysqlrouter::ConfigGenerator config_gen{
+  mysqlrouter::ConfigGenerator config_gen(out_stream_, err_stream_
 #ifndef _WIN32
-      sys_user_operations_
+                                          ,
+                                          sys_user_operations_
 #endif
-  };
+  );
   config_gen.init(
       server_url,
       bootstrap_options_);  // throws MySQLSession::Error, std::runtime_error,
@@ -1258,6 +1174,8 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     std::string config_file_path = mysqlrouter::substitute_variable(
         MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.conf", "{origin}",
         origin_.str());
+    std::string state_file_path = mysqlrouter::substitute_variable(
+        MYSQL_ROUTER_DATA_FOLDER "/state.json", "{origin}", origin_.str());
     std::string master_key_path = mysqlrouter::substitute_variable(
         MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.key", "{origin}",
         origin_.str());
@@ -1266,8 +1184,8 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
         MYSQL_ROUTER_DATA_FOLDER, "{origin}", origin_.str());
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
-      if (mysqlrouter::mkdir(default_keyring_file,
-                             mysqlrouter::kStrictDirectoryPerm) < 0) {
+      if (mysql_harness::mkdir(default_keyring_file,
+                               mysqlrouter::kStrictDirectoryPerm, true) < 0) {
         log_error("Cannot create directory '%s': %s",
                   truncate_string(default_keyring_file).c_str(),
                   get_strerror(errno).c_str());
@@ -1283,9 +1201,9 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     keyring_info_.set_keyring_file(default_keyring_file);
     keyring_info_.set_master_key_file(master_key_path);
     config_gen.set_keyring_info(keyring_info_);
-    config_gen.bootstrap_system_deployment(config_file_path, bootstrap_options_,
-                                           bootstrap_multivalue_options_,
-                                           default_paths);
+    config_gen.bootstrap_system_deployment(
+        config_file_path, state_file_path, bootstrap_options_,
+        bootstrap_multivalue_options_, default_paths);
   } else {
     keyring_info_.set_keyring_file(kDefaultKeyringFileName);
     keyring_info_.set_master_key_file("mysqlrouter.key");
@@ -1298,85 +1216,156 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
 
 void MySQLRouter::show_help() noexcept {
   FILE *fp;
-  std::cout << get_version_line() << std::endl;
-  std::cout << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
+  out_stream_ << get_version_line() << std::endl;
+  out_stream_ << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
 
   for (auto line : wrap_string(
            "Configuration read from the following files in the given order"
            " (enclosed in parentheses means not available for reading):",
            kHelpScreenWidth, 0)) {
-    std::cout << line << std::endl;
+    out_stream_ << line << std::endl;
   }
 
   for (auto file : default_config_files_) {
     if ((fp = std::fopen(file.c_str(), "r")) == nullptr) {
-      std::cout << "  (" << file << ")" << std::endl;
+      out_stream_ << "  (" << file << ")" << std::endl;
     } else {
       std::fclose(fp);
-      std::cout << "  " << file << std::endl;
+      out_stream_ << "  " << file << std::endl;
     }
   }
   const std::map<std::string, std::string> paths = get_default_paths();
-  std::cout << "Plugins Path:" << std::endl
-            << "  " << paths.at("plugin_folder") << std::endl;
-  std::cout << "Default Log Directory:" << std::endl
-            << "  " << paths.at("logging_folder") << std::endl;
-  std::cout << "Default Persistent Data Directory:" << std::endl
-            << "  " << paths.at("data_folder") << std::endl;
-  std::cout << "Default Runtime State Directory:" << std::endl
-            << "  " << paths.at("runtime_folder") << std::endl;
-  std::cout << std::endl;
+  out_stream_ << "Plugins Path:"
+              << "\n"
+              << "  " << paths.at("plugin_folder") << "\n\n";
+  out_stream_ << "Default Log Directory:"
+              << "\n"
+              << "  " << paths.at("logging_folder") << "\n\n";
+  out_stream_ << "Default Persistent Data Directory:"
+              << "\n"
+              << "  " << paths.at("data_folder") << "\n\n";
+  out_stream_ << "Default Runtime State Directory:"
+              << "\n"
+              << "  " << paths.at("runtime_folder") << "\n\n";
+  out_stream_ << std::endl;
 
   show_usage();
 }
 
+/**
+ * filter CmdOption by section.
+ *
+ * makes options "required" if needed for the usage output
+ */
+static std::pair<bool, CmdOption> cmd_option_acceptor(
+    const std::string &section, const std::set<std::string> &accepted_opts,
+    const CmdOption &opt) {
+  for (const auto &name : opt.names) {
+    if (accepted_opts.find(name) != accepted_opts.end()) {
+      if ((section == "help" && name == "--help") ||
+          (section == "version" && name == "--version") ||
+          (section == "bootstrap" && name == "--bootstrap")) {
+        CmdOption req_opt(opt);
+        req_opt.required = true;
+        return {true, req_opt};
+      } else {
+        return {true, opt};
+      }
+    }
+  }
+
+  return {false, opt};
+}
+
 void MySQLRouter::show_usage(bool include_options) noexcept {
-  for (auto line :
-       arg_handler_.usage_lines("Usage: mysqlrouter", "", kHelpScreenWidth)) {
-    std::cout << line << std::endl;
+  out_stream_ << Vt100::render(Vt100::Render::Bold) << "# Usage"
+              << Vt100::render(Vt100::Render::Normal) << "\n\n";
+
+  std::vector<std::pair<std::string, std::set<string>>> usage_sections{
+      {"help", {"--help"}},
+      {"version", {"--version"}},
+      {"bootstrap",
+       {"--account-host",
+        "--bootstrap",
+        "--bootstrap-socket",
+        "--conf-use-sockets",
+        "--conf-skip-tcp",
+        "--conf-base-port",
+        "--connect-timeout",
+        "--directory",
+        "--force",
+        "--force-password-validation",
+        "--name",
+        "--master-key-reader",
+        "--master-key-writer",
+        "--password-retries",
+        "--read-timeout",
+        "--report-host",
+        "--ssl-ca",
+        "--ssl-cert",
+        "--ssl-cipher",
+        "--ssl-crl",
+        "--ssl-crlpath",
+        "--ssl-key",
+        "--ssl-mode",
+        "--tls-version",
+        "--user"}},
+      {"run",
+       {"--user", "--config", "--extra-config", "--clear-all-credentials",
+        "--service", "--remove-service", "--install-service",
+        "--install-service-manual", "--remove-credentials-section",
+        "--update-credentials-section"}}};
+
+  for (const auto &section : usage_sections) {
+    for (auto line : arg_handler_.usage_lines_if(
+             "mysqlrouter", "", kHelpScreenWidth,
+             std::bind(cmd_option_acceptor, section.first, section.second,
+                       std::placeholders::_1))) {
+      out_stream_ << line << "\n";
+    }
+    out_stream_ << "\n";
   }
 
   if (!include_options) {
     return;
   }
 
-  std::cout << "\nOptions:" << std::endl;
+  out_stream_ << Vt100::render(Vt100::Render::Bold) << "# Options"
+              << Vt100::render(Vt100::Render::Normal) << "\n\n";
   for (auto line :
        arg_handler_.option_descriptions(kHelpScreenWidth, kHelpScreenIndent)) {
-    std::cout << line << std::endl;
+    out_stream_ << line << std::endl;
   }
 
+  out_stream_ << "\n"
+              << Vt100::render(Vt100::Render::Bold) << "# Examples"
+              << Vt100::render(Vt100::Render::Normal) << "\n\n";
+
 #ifdef _WIN32
-  std::cout
-      << "\nExamples:\n"
-      << "  Bootstrap for use with InnoDB cluster into system-wide "
-         "installation\n"
-      << "    mysqlrouter --bootstrap root@clusterinstance01\n"
-      << "  Start router\n"
-      << "    mysqlrouter\n"
-      << "\n"
-      << "  Bootstrap for use with InnoDb cluster in a self-contained "
-         "directory\n"
-      << "    mysqlrouter --bootstrap root@clusterinstance01 -d myrouter\n"
-      << "  Start router\n"
-      << "    myrouter\\start.ps1\n";
+  constexpr const char kStartWithSudo[]{""};
+  constexpr const char kStartWithUser[]{""};
+  constexpr const char kStartScript[]{"start.ps1"};
 #else
-  std::cout
-      << "\nExamples:\n"
-      << "  Bootstrap for use with InnoDB cluster into system-wide "
-         "installation\n"
-      << "    sudo mysqlrouter --bootstrap root@clusterinstance01 "
-         "--user=mysqlrouter\n"
-      << "  Start router\n"
-      << "    sudo mysqlrouter --user=mysqlrouter&\n"
-      << "\n"
-      << "  Bootstrap for use with InnoDb cluster in a self-contained "
-         "directory\n"
-      << "    mysqlrouter --bootstrap root@clusterinstance01 -d myrouter\n"
-      << "  Start router\n"
-      << "    myrouter/start.sh\n";
+  constexpr const char kStartWithSudo[]{"sudo "};
+  constexpr const char kStartWithUser[]{" --user=mysqlrouter"};
+  constexpr const char kStartScript[]{"start.sh"};
 #endif
-  std::cout << "\n";
+
+  out_stream_ << "Bootstrap for use with InnoDB cluster into system-wide "
+                 "installation\n\n"
+              << "    " << kStartWithSudo
+              << "mysqlrouter --bootstrap root@clusterinstance01"
+              << kStartWithUser << "\n\n"
+              << "Start router\n\n"
+              << "    " << kStartWithSudo << "mysqlrouter" << kStartWithUser
+              << "\n\n"
+              << "Bootstrap for use with InnoDb cluster in a self-contained "
+                 "directory\n\n"
+              << "    "
+              << "mysqlrouter --bootstrap root@clusterinstance01 -d myrouter"
+              << "\n\n"
+              << "Start router\n\n"
+              << "    myrouter" << dir_sep << kStartScript << "\n\n";
 }
 
 void MySQLRouter::show_usage() noexcept { show_usage(true); }

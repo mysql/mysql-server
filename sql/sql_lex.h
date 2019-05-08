@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -68,6 +67,7 @@
 #include "sql/item_subselect.h"  // chooser_compare_func_creator
 #include "sql/key_spec.h"        // KEY_CREATE_INFO
 #include "sql/lex_symbol.h"      // LEX_SYMBOL
+#include "sql/lexer_yystype.h"   // Lexer_yystype
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/opt_hints.h"
@@ -100,6 +100,7 @@
 #include "thr_lock.h"  // thr_lock_type
 #include "violite.h"   // SSL_type
 
+class Item_cond;
 class Item_func_set_user_var;
 class Item_sum;
 class Parse_tree_root;
@@ -215,8 +216,6 @@ struct sys_var_with_base {
 
 #define YYSTYPE_IS_DECLARED 1
 union YYSTYPE;
-
-typedef YYSTYPE *LEX_YYSTYPE;
 
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
@@ -383,7 +382,7 @@ struct LEX_MASTER_INFO {
   LEX_MASTER_INFO() : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED) {
     initialize();
   }
-  char *host, *user, *password, *log_file_name, *bind_addr;
+  char *host, *user, *password, *log_file_name, *bind_addr, *network_namespace;
   uint port, connect_retry;
   float heartbeat_period;
   int sql_delay;
@@ -481,7 +480,7 @@ class Index_hint {
     key_name.length = length;
   }
 
-  void print(THD *thd, String *str);
+  void print(const THD *thd, String *str);
 };
 
 /*
@@ -707,12 +706,11 @@ class SELECT_LEX_UNIT {
     else if (saved_fake_select_lex != NULL)
       return saved_fake_select_lex;
     return first_select();
-  };
+  }
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
-  THD *thd;  ///< Thread handler
   /**
     Helper query block for query expression with UNION or multi-level
     ORDER BY/LIMIT
@@ -748,6 +746,15 @@ class SELECT_LEX_UNIT {
   SELECT_LEX *first_recursive;
 
   /**
+    If 'this' is body of lateral derived table:
+    map of tables in the same FROM clause as this derived table, and to which
+    the derived table's body makes references.
+    In pre-resolution stages, this is OUTER_REF_TABLE_BIT, just to indicate
+    that this has LATERAL; after resolution, which has found references in the
+    body, this is the proper map (with no PSEUDO_TABLE_BITS anymore).
+  */
+  table_map m_lateral_deps;
+  /**
     True if the with-recursive algorithm has produced the complete result.
     In a recursive CTE, a JOIN is executed several times in a loop, and
     should not be cleaned up (e.g. by join_free()) before all iterations of
@@ -759,7 +766,7 @@ class SELECT_LEX_UNIT {
   bool is_mergeable() const;
 
   /// @return true if query expression is recommended to be merged
-  bool merge_heuristic() const;
+  bool merge_heuristic(const LEX *lex) const;
 
   /// @return the query block this query expression belongs to as subquery
   SELECT_LEX *outer_select() const { return master; }
@@ -789,12 +796,12 @@ class SELECT_LEX_UNIT {
                ulonglong removed_options);
   bool optimize(THD *thd);
   bool execute(THD *thd);
-  bool explain(THD *ethd);
-  bool cleanup(bool full);
+  bool explain(THD *explain_thd, const THD *query_thd);
+  bool cleanup(THD *thd, bool full);
   inline void unclean() { cleaned = UC_DIRTY; }
   void reinit_exec_mechanism();
 
-  void print(String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type);
   bool accept(Select_lex_visitor *visitor);
 
   bool add_fake_select_lex(THD *thd);
@@ -806,14 +813,13 @@ class SELECT_LEX_UNIT {
   bool is_prepared() const { return prepared; }
   bool is_optimized() const { return optimized; }
   bool is_executed() const { return executed; }
-  bool change_query_result(Query_result_interceptor *result,
+  bool change_query_result(THD *thd, Query_result_interceptor *result,
                            Query_result_interceptor *old_result);
   bool prepare_limit(THD *thd, SELECT_LEX *provider);
   bool set_limit(THD *thd, SELECT_LEX *provider);
-  void set_thd(THD *thd_arg) { thd = thd_arg; }
 
   inline bool is_union() const;
-  bool union_needs_tmp_table();
+  bool union_needs_tmp_table(LEX *lex);
   /// @returns true if mixes UNION DISTINCT and UNION ALL
   bool mixed_union_operators() const;
 
@@ -824,7 +830,7 @@ class SELECT_LEX_UNIT {
   void exclude_level();
 
   /// Exclude subtree of current unit from tree of SELECTs
-  void exclude_tree();
+  void exclude_tree(THD *thd);
 
   /// Renumber query blocks of a query expression according to supplied LEX
   void renumber_selects(LEX *lex);
@@ -834,9 +840,9 @@ class SELECT_LEX_UNIT {
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
 
-  enum_parsing_context get_explain_marker() const;
-  void set_explain_marker(enum_parsing_context m);
-  void set_explain_marker_from(const SELECT_LEX_UNIT *u);
+  enum_parsing_context get_explain_marker(const THD *thd) const;
+  void set_explain_marker(THD *thd, enum_parsing_context m);
+  void set_explain_marker_from(THD *thd, const SELECT_LEX_UNIT *u);
 
 #ifndef DBUG_OFF
   /**
@@ -852,6 +858,35 @@ class SELECT_LEX_UNIT {
   bool is_recursive() const { return first_recursive != nullptr; }
 
   bool check_materialized_derived_query_blocks(THD *thd);
+
+  bool clear_corr_ctes();
+
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
+
+  /**
+    If unit is a subquery, which forms an object of the upper level (an
+    Item_subselect, a derived TABLE_LIST), adds to this object a map
+    of tables of the upper level which the unit references.
+  */
+  void accumulate_used_tables(table_map map) {
+    DBUG_ASSERT(outer_select());
+    if (item)
+      item->accumulate_used_tables(map);
+    else if (m_lateral_deps)
+      m_lateral_deps |= map;
+  }
+
+  /**
+    If unit is a subquery, which forms an object of the upper level (an
+    Item_subselect, a derived TABLE_LIST), returns the place of this object
+    in the upper level query block.
+  */
+  enum_parsing_context place() const {
+    DBUG_ASSERT(outer_select());
+    return item ? item->place() : CTX_DERIVED;
+  }
+
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
 
   /*
     An exception: this is the only function that needs to adjust
@@ -892,7 +927,7 @@ class SELECT_LEX {
   void set_having_cond(Item *cond) { m_having_cond = cond; }
   void set_query_result(Query_result *result) { m_query_result = result; }
   Query_result *query_result() const { return m_query_result; }
-  bool change_query_result(Query_result_interceptor *new_result,
+  bool change_query_result(THD *thd, Query_result_interceptor *new_result,
                            Query_result_interceptor *old_result);
 
   /// Set base options for a query block (and active options too)
@@ -1200,8 +1235,6 @@ class SELECT_LEX {
   bool having_fix_field;
   /// true when GROUP BY fix field called in processing of this query block
   bool group_fix_field;
-  /// List of references to fields referenced from inner query blocks
-  List<Item_outer_ref> inner_refs_list;
 
   /// explicit LIMIT clause is used
   bool explicit_limit;
@@ -1348,6 +1381,9 @@ class SELECT_LEX {
   /// @returns true if query block is a recursive member of a recursive unit
   bool is_recursive() const { return recursive_reference != nullptr; }
 
+  /// @returns true if query block contains window functions
+  bool has_windows() const { return m_windows.elements > 0; }
+
   void invalidate();
 
   bool set_braces(bool value);
@@ -1412,7 +1448,7 @@ class SELECT_LEX {
 
     @todo Integrate better with SELECT_LEX_UNIT::set_limit()
   */
-  ha_rows get_offset();
+  ha_rows get_offset(THD *thd);
   /**
    Get limit.
 
@@ -1422,14 +1458,14 @@ class SELECT_LEX {
 
    @todo Integrate better with SELECT_LEX_UNIT::set_limit()
   */
-  ha_rows get_limit();
+  ha_rows get_limit(THD *thd);
 
   /// Assign a default name resolution object for this query block.
   bool set_context(Name_resolution_context *outer_context);
 
   /// Setup the array containing references to base items
   bool setup_base_ref_items(THD *thd);
-  void print(THD *thd, String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the SELECT_LEX object.
@@ -1438,7 +1474,7 @@ class SELECT_LEX {
     @param      query_type   Options to print out string output
     @param[out] str          String of output.
   */
-  void print_select(THD *thd, String *str, enum_query_type query_type);
+  void print_select(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the UPDATE statement.
@@ -1447,7 +1483,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_update(THD *thd, String *str, enum_query_type query_type);
+  void print_update(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the DELETE statement.
@@ -1456,7 +1492,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_delete(THD *thd, String *str, enum_query_type query_type);
+  void print_delete(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the INSERT statement.
@@ -1465,7 +1501,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_insert(THD *thd, String *str, enum_query_type query_type);
+  void print_insert(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of Hints.
@@ -1474,7 +1510,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_hints(THD *thd, String *str, enum_query_type query_type);
+  void print_hints(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print error.
@@ -1486,7 +1522,7 @@ class SELECT_LEX {
     @retval false   If there is no error
     @retval true    else
   */
-  bool print_error(THD *thd, String *str);
+  bool print_error(const THD *thd, String *str);
 
   /**
     Print select options.
@@ -1524,44 +1560,52 @@ class SELECT_LEX {
     @param      table_list   TABLE_LIST object
     @param      query_type   Options to print out string output
   */
-  void print_table_references(THD *thd, String *str, TABLE_LIST *table_list,
+  void print_table_references(const THD *thd, String *str,
+                              TABLE_LIST *table_list,
                               enum_query_type query_type);
 
   /**
     Print list of items in SELECT_LEX object.
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_item_list(String *str, enum_query_type query_type);
+  void print_item_list(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print assignments list. Used in UPDATE and
     INSERT ... ON DUPLICATE KEY UPDATE ...
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
     @param      fields       List columns to be assigned.
     @param      values       List of values.
   */
-  void print_update_list(String *str, enum_query_type query_type,
-                         List<Item> fields, List<Item> values);
+  void print_update_list(const THD *thd, String *str,
+                         enum_query_type query_type, List<Item> fields,
+                         List<Item> values);
 
   /**
     Print column list to be inserted into. Used in INSERT.
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_insert_fields(String *str, enum_query_type query_type);
+  void print_insert_fields(const THD *thd, String *str,
+                           enum_query_type query_type);
 
   /**
     Print list of values to be inserted. Used in INSERT.
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_insert_values(String *str, enum_query_type query_type);
+  void print_insert_values(const THD *thd, String *str,
+                           enum_query_type query_type);
 
   /**
     Print list of tables in FROM clause.
@@ -1570,31 +1614,36 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_from_clause(THD *thd, String *str, enum_query_type query_type);
+  void print_from_clause(const THD *thd, String *str,
+                         enum_query_type query_type);
 
   /**
     Print list of conditions in WHERE clause.
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_where_cond(String *str, enum_query_type query_type);
+  void print_where_cond(const THD *thd, String *str,
+                        enum_query_type query_type);
 
   /**
     Print list of items in GROUP BY clause.
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_group_by(String *str, enum_query_type query_type);
+  void print_group_by(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print list of items in HAVING clause.
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_having(String *str, enum_query_type query_type);
+  void print_having(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print details of Windowing functions.
@@ -1603,19 +1652,20 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_windows(THD *thd, String *str, enum_query_type query_type);
+  void print_windows(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print list of items in ORDER BY clause.
 
+    @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_order_by(String *str, enum_query_type query_type);
+  void print_order_by(const THD *thd, String *str, enum_query_type query_type);
 
-  static void print_order(String *str, ORDER *order,
+  static void print_order(const THD *thd, String *str, ORDER *order,
                           enum_query_type query_type);
-  void print_limit(String *str, enum_query_type query_type);
+  void print_limit(const THD *thd, String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd);
 
   /**
@@ -1628,11 +1678,12 @@ class SELECT_LEX {
   /**
     Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
     SELECT_LEX_UNITs).
+    @param thd   thread handle
     @param full  if false only partial cleanup is done, JOINs and JOIN_TABs are
     kept to provide info for EXPLAIN CONNECTION; if true, complete cleanup is
     done, all JOINs are freed.
   */
-  bool cleanup(bool full);
+  bool cleanup(THD *thd, bool full);
   /*
     Recursively cleanup the join of this select lex and of all nested
     select lexes. This is not a full cleanup.
@@ -1698,12 +1749,6 @@ class SELECT_LEX {
   void renumber(LEX *lex);
 
   /**
-     Set pointer to corresponding JOIN object.
-     The function sets the pointer only after acquiring THD::LOCK_query_plan
-     mutex. This is needed to avoid races when EXPLAIN FOR CONNECTION is used.
-  */
-  void set_join(JOIN *join_arg);
-  /**
     Does permanent transformations which are local to a query block (which do
     not merge it to another block).
   */
@@ -1714,6 +1759,8 @@ class SELECT_LEX {
 
   bool validate_outermost_option(LEX *lex, const char *wrong_option) const;
   bool validate_base_options(LEX *lex, ulonglong options) const;
+
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
 
  private:
   // Delete unused columns from merged derived tables
@@ -1741,16 +1788,26 @@ class SELECT_LEX {
   /// Merge derived table into query block
  public:
   bool merge_derived(THD *thd, TABLE_LIST *derived_table);
+  /// Remove semijoin condition for this query block
+  void clear_sj_expressions(NESTED_JOIN *nested_join);
+  ///  Build semijoin condition for th query block
+  bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
+                     SELECT_LEX *subq_select, table_map outer_tables_map,
+                     Item **sj_cond);
+  bool decorrelate_where_cond(TABLE_LIST *sj_nest);
 
  private:
-  bool convert_subquery_to_semijoin(Item_exists_subselect *subq_pred);
+  bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
+  bool resolve_rollup_item(THD *thd, Item *item);
   bool resolve_rollup(THD *thd);
-  bool change_func_or_wf_group_ref(THD *thd, Item *func, bool *changed);
 
  public:
-  bool flatten_subqueries();
+  bool resolve_rollup_wfs(THD *thd);
+  bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
+  bool change_group_ref_for_cond(THD *thd, Item_cond *cond, bool *changed);
+  bool flatten_subqueries(THD *thd);
   void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
     sj_candidates = sj_cand;
   }
@@ -1758,6 +1815,7 @@ class SELECT_LEX {
   bool has_sj_candidates() const {
     return sj_candidates != NULL && !sj_candidates->empty();
   }
+  bool is_in_select_list(Item *i);
 
  private:
   bool setup_wild(THD *thd);
@@ -1782,7 +1840,6 @@ class SELECT_LEX {
   /// How many expressions are part of the order by but not select list.
   int hidden_order_field_count;
 
-  bool fix_inner_refs(THD *thd);
   bool setup_conds(THD *thd);
   bool prepare(THD *thd);
   bool optimize(THD *thd);
@@ -1829,6 +1886,7 @@ class SELECT_LEX {
                 Used to access optimizer_switch
   */
   void update_semijoin_strategies(THD *thd);
+  void remove_semijoin_candidate(Item_exists_subselect *sub_query);
 
   /**
     Add item to the hidden part of select list
@@ -1845,8 +1903,6 @@ class SELECT_LEX {
 
   TABLE_LIST *find_table_by_name(const Table_ident *ident);
 };
-
-typedef class SELECT_LEX SELECT_LEX;
 
 inline bool SELECT_LEX_UNIT::is_union() const {
   return first_select()->next_select() &&
@@ -2005,14 +2061,14 @@ struct Value_or_default {
   T value;  ///< undefined if is_default is true
 };
 
-enum class Explain_format_type { TRADITIONAL, JSON };
+enum class Explain_format_type { TRADITIONAL, JSON, TREE };
 
 union YYSTYPE {
+  Lexer_yystype lexer;  // terminal values from the lexical scanner
   /*
     Hint parser section (sql_hints.yy)
   */
   opt_hints_enum hint_type;
-  LEX_CSTRING hint_string;
   class PT_hint *hint;
   class PT_hint_list *hint_list;
   Hint_param_index_list hint_param_index_list;
@@ -2026,9 +2082,7 @@ union YYSTYPE {
   ulong ulong_num;
   ulonglong ulonglong_number;
   LEX_CSTRING lex_cstr;
-  LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
-  LEX_SYMBOL keyword;
   Table_ident *table;
   char *simple_string;
   Item *item;
@@ -2058,10 +2112,9 @@ union YYSTYPE {
     const char *dec;
   } precision;
   struct Cast_type cast_type;
-  const CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
-  timestamp_type date_time_type;
+  enum_mysql_timestamp_type date_time_type;
   SELECT_LEX *select_lex;
   chooser_compare_func_creator boolfunc2creator;
   class sp_condition_value *spcondvalue;
@@ -2171,7 +2224,6 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
-  class PT_hint_list *optimizer_hints;
   enum alter_instance_action_enum alter_instance_action;
   class PT_create_index_stmt *create_index_stmt;
   class PT_table_constraint_def *table_constraint_def;
@@ -2233,7 +2285,6 @@ union YYSTYPE {
     Item *expr;
   } sp_default;
   class PT_field_def_base *field_def;
-  class PT_check_constraint *check_constraint;
   struct {
     fk_option fk_update_opt;
     fk_option fk_delete_opt;
@@ -2360,6 +2411,7 @@ union YYSTYPE {
     PT_item_list *set_expr_list;
     List<String> *set_expr_str_list;
   } load_set_list;
+  ts_alter_tablespace_type alter_tablespace_type;
   Sql_cmd_srs_attributes *sql_cmd_srs_attributes;
 };
 
@@ -2386,6 +2438,24 @@ class Disable_semijoin_flattening {
  private:
   SELECT_LEX *select;
   bool saved_value;
+};
+
+/**
+  Base class for secondary engine execution context objects. Secondary
+  storage engines may create classes derived from this one which
+  contain state they need to preserve between optimization and
+  execution of statements. The context objects should be allocated on
+  the execution MEM_ROOT.
+*/
+class Secondary_engine_execution_context {
+ public:
+  /**
+    Destructs the secondary engine execution context object. It is
+    called after the query execution has completed. Secondary engines
+    may override the destructor in subclasses and add code that
+    performs cleanup tasks that are needed after query execution.
+  */
+  virtual ~Secondary_engine_execution_context() = default;
 };
 
 typedef struct struct_slave_connection {
@@ -3333,7 +3403,7 @@ class Lex_input_stream {
   uint yytoklen;
 
   /** Interface with bison, value of the last token parsed. */
-  LEX_YYSTYPE yylval;
+  Lexer_yystype *yylval;
 
   /**
     LALR(2) resolution, look ahead token.
@@ -3344,7 +3414,7 @@ class Lex_input_stream {
   int lookahead_token;
 
   /** LALR(2) resolution, value of the look ahead token.*/
-  LEX_YYSTYPE lookahead_yylval;
+  Lexer_yystype *lookahead_yylval;
 
   /// Skip adding of the current token's digest since it is already added
   ///
@@ -3365,7 +3435,7 @@ class Lex_input_stream {
   /// help of skip_digest flag.
   bool skip_digest;
 
-  void add_digest_token(uint token, LEX_YYSTYPE yylval);
+  void add_digest_token(uint token, Lexer_yystype *yylval);
 
   void reduce_digest_token(uint token_left, uint token_right);
 
@@ -3543,6 +3613,23 @@ class LEX_COLUMN {
   LEX_COLUMN(const String &x, const uint &y) : column(x), rights(y) {}
 };
 
+enum class role_enum;
+
+/*
+  This structure holds information about grantor's context
+*/
+class LEX_GRANT_AS {
+ public:
+  LEX_GRANT_AS();
+  void cleanup();
+
+ public:
+  bool grant_as_used;
+  role_enum role_type;
+  LEX_USER *user;
+  List<LEX_USER> *role_list;
+};
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX : public Query_tables_list {
@@ -3583,6 +3670,7 @@ struct LEX : public Query_tables_list {
   LEX_STRING ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
+  LEX_GRANT_AS grant_as;
   THD *thd;
   Value_generator *gcol_info;
 
@@ -3806,7 +3894,24 @@ struct LEX : public Query_tables_list {
   /// @see also sp_head::m_root_parsing_ctx.
   sp_pcontext *sp_current_parsing_ctx;
 
+  /**
+    Statement context for SELECT_LEX::make_active_options.
+  */
+  ulonglong m_statement_options{0};
+
  public:
+  /// @return a bit set of options set for this statement
+  ulonglong statement_options() { return m_statement_options; }
+  /**
+    Add options to values of m_statement_options. options is an ORed
+    bit set of options defined in query_options.h
+
+    @param options Add this set of options to the set already in
+                   m_statement_options
+  */
+  void add_statement_options(ulonglong options) {
+    m_statement_options |= options;
+  }
   bool is_broken() const { return m_broken; }
   /**
      Certain permanent transformations (like in2exists), if they fail, may
@@ -3885,16 +3990,6 @@ struct LEX : public Query_tables_list {
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in LEX because
-    with subquery, it is not clear what does the field mean. To fix this
-    we should aggregate used tables information for selected expressions
-    into the select_lex. This map should contain "real" tables only.
-  */
-  table_map used_tables;
-
   class Explain_format *explain_format;
 
   // Maximum execution time for a statement.
@@ -3938,6 +4033,10 @@ struct LEX : public Query_tables_list {
   inline bool is_ps_or_view_context_analysis() {
     return (context_analysis_only &
             (CONTEXT_ANALYSIS_ONLY_PREPARE | CONTEXT_ANALYSIS_ONLY_VIEW));
+  }
+
+  inline bool is_view_context_analysis() {
+    return (context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW);
   }
 
   /**
@@ -4012,10 +4111,6 @@ struct LEX : public Query_tables_list {
   }
 
   Name_resolution_context *current_context() { return context_stack.head(); }
-  /*
-    Restore the LEX and THD in case of a parse error.
-  */
-  static void cleanup_lex_after_parse_error(THD *thd);
 
   void reset_n_backup_query_tables_list(Query_tables_list *backup);
   void restore_backup_query_tables_list(Query_tables_list *backup);
@@ -4057,6 +4152,35 @@ struct LEX : public Query_tables_list {
   void clear_privileges();
 
   bool make_sql_cmd(Parse_tree_root *parse_tree);
+
+ private:
+  /**
+    Context object used by secondary storage engines to store query
+    state during optimization and execution.
+  */
+  Secondary_engine_execution_context *m_secondary_engine_context{nullptr};
+
+ public:
+  /**
+    Gets the secondary engine execution context for this statement.
+  */
+  Secondary_engine_execution_context *secondary_engine_execution_context()
+      const {
+    return m_secondary_engine_context;
+  }
+
+  /**
+    Sets the secondary engine execution context for this statement.
+    The old context object is destroyed, if there is one. Can be set
+    to nullptr to destroy the old context object and clear the
+    pointer.
+
+    The supplied context object should be allocated on the execution
+    MEM_ROOT, so that its memory doesn't have to be manually freed
+    after query execution.
+  */
+  void set_secondary_engine_execution_context(
+      Secondary_engine_execution_context *context);
 };
 
 /**
@@ -4237,17 +4361,11 @@ class Common_table_expr_parser_state : public Parser_state {
   PT_subquery *result;
 };
 
-extern sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
-                                          LEX_YYSTYPE yylval);
-
-extern sql_digest_state *digest_reduce_token(sql_digest_state *state,
-                                             uint token_left, uint token_right);
-
 struct st_lex_local : public LEX {
-  static void *operator new(size_t size) throw() { return sql_alloc(size); }
-  static void *operator new(
-      size_t size, MEM_ROOT *mem_root,
-      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+  static void *operator new(size_t size) noexcept { return sql_alloc(size); }
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return alloc_root(mem_root, size);
   }
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
@@ -4255,7 +4373,7 @@ struct st_lex_local : public LEX {
     TRASH(ptr, size);
   }
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* Never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* Never called */
   }
 };
 
@@ -4263,8 +4381,7 @@ extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(union YYSTYPE *yylval, struct YYLTYPE *yylloc,
-                    class THD *thd);
+extern int MYSQLlex(union YYSTYPE *, struct YYLTYPE *, class THD *);
 
 extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 
@@ -4275,7 +4392,7 @@ bool db_is_default_db(const char *db, size_t db_len, const THD *thd);
 
 bool check_select_for_locking_clause(THD *);
 
-void print_derived_column_names(THD *thd, String *str,
+void print_derived_column_names(const THD *thd, String *str,
                                 const Create_col_name_list *column_names);
 
 /**
@@ -4297,9 +4414,8 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
   size_t valid_len;
   bool len_error;
 
-  if (validate_string(charset_info, string_val.str,
-                      static_cast<uint32>(string_val.length), &valid_len,
-                      &len_error)) {
+  if (validate_string(charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error)) {
     char hexbuf[7];
     octet2hex(
         hexbuf, string_val.str + valid_len,

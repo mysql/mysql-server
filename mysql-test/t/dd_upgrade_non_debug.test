@@ -25,6 +25,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
 --echo # Stop DB server which was created by MTR default
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $shutdown_server_timeout= 300
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
@@ -46,16 +47,9 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --echo # Start the DB server. Server will create and populate Dictionary tables.
 --exec echo "restart: --loose-skip-log-bin --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
+--let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
-
---source include/shutdown_mysqld.inc
---exec echo "restart: --loose-skip-log-bin --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
 ALTER TABLE aview.t1 comment='abcd';
 ALTER TABLE aview.t2 comment='efgh';
 
@@ -64,5 +58,6 @@ ALTER TABLE aview.t2 comment='efgh';
 --remove_file $MYSQLD_LOG
 
 --echo # Restart the server with default options.
+--let $wait_counter= 6000
 --source include/restart_mysqld.inc
 --force-rmdir $MYSQL_TMP_DIR/data57

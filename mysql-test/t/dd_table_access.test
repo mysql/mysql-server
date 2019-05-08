@@ -23,7 +23,7 @@ if (!$TABLE)
   DROP TABLESPACE mysql;
   --error ER_WRONG_TABLESPACE_NAME
   CREATE TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
-  --error ER_WRONG_TABLESPACE_NAME
+  --error ER_ALTER_FILEGROUP_FAILED
   ALTER TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
 
   --echo # Create a non- white listed table in the DD tablespace

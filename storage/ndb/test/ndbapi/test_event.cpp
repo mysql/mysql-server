@@ -1,25 +1,25 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2003, 2019, Oracle and/or its affiliates.  All rights reserved
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #include <NDBT_Test.hpp>
@@ -42,13 +42,27 @@
     return NDBT_FAILED; \
   }
 
+static void inline generateEventName(char* eventName,
+                                     const char* tabName, uint eventId)
+{
+  if (eventId == 0)
+  {
+    sprintf(eventName, "%s_EVENT", tabName);
+  }
+  else
+  {
+    sprintf(eventName, "%s_EVENT_%d", tabName, eventId);
+  }
+}
+
 static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
                        bool merge_events,
-                       bool report)
+                       bool report,
+                       uint eventId = 0)
 {
   char eventName[1024];
-  sprintf(eventName,"%s_EVENT",tab.getName());
+  generateEventName(eventName, tab.getName(), eventId);
 
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
 
@@ -117,10 +131,11 @@ static int createEvent(Ndb *pNdb,
   return createEvent(pNdb, tab, merge_events, report);
 }
 
-static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
+static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab,
+                     uint eventId = 0)
 {
   char eventName[1024];
-  sprintf(eventName,"%s_EVENT",tab.getName());
+  generateEventName(eventName, tab.getName(), eventId);
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
   if (!myDict) {
     g_err << "Dictionary not found " 
@@ -140,11 +155,12 @@ static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
 static
 NdbEventOperation *createEventOperation(Ndb *ndb,
                                         const NdbDictionary::Table &tab,
-                                        int do_report_error = 1)
+                                        int do_report_error = 1,
+                                        int eventId = 0)
 {
-  char buf[1024];
-  sprintf(buf, "%s_EVENT", tab.getName());
-  NdbEventOperation *pOp= ndb->createEventOperation(buf);
+  char eventName[1024];
+  generateEventName(eventName, tab.getName(), eventId);
+  NdbEventOperation *pOp= ndb->createEventOperation(eventName);
   if (pOp == 0)
   {
     if (do_report_error)
@@ -2552,7 +2568,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table* pTab = ctx->getTab();
   NdbEventOperation *pOp= createEventOperation(ndb, *pTab);
   int result = NDBT_OK;
-  int res;
+  int res = 0;
   bool connected = true;
   uint retries = 100;
 
@@ -2562,13 +2578,13 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  Uint64 curr_gci = 0;
   if (restarter.insertErrorInAllNodes(13037) != 0)
   {
     result = NDBT_FAILED;
     goto cleanup;
   }
 
-  Uint64 curr_gci;
   for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
   {
     res = ndb->pollEvents(5000, &curr_gci) > 0;
@@ -5550,6 +5566,133 @@ int runGetLogEventPretty(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+int runCreateMultipleEvents(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Create multiple events */
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *tab = ctx->getTab();
+  int numOfEvents = ctx->getProperty("numOfEvents") *
+                      ctx->getProperty("numOfThreads");
+
+  for (int i = 0; i < numOfEvents; i++)
+  {
+    if (createEvent(pNdb, *tab, false, false, i+1) != 0){
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int runCreateDropMultipleEventOperations(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb;
+  Ndb_cluster_connection *pCC;
+
+  if (cc(&pCC, &pNdb))
+  {
+    // too few api slots...
+    return NDBT_OK;
+  }
+  /* Create multiple event ops */
+  NdbRestarter restarter;
+  int res = NDBT_OK;
+
+  const NdbDictionary::Table *tab= ctx->getTab();
+  int numOfEvents = ctx->getProperty("numOfEvents");
+  int eventID = (numOfEvents * (step->getStepNo() - 1)) + 1;
+
+  Vector<NdbEventOperation*> pOpArr;
+  for (int i = 0; i < numOfEvents; i++, eventID++)
+  {
+    NdbEventOperation *pOp = createEventOperation(pNdb, *tab, false, eventID);
+    if (pOp == NULL) {
+      if (pNdb->getNdbError().code == 1422)
+      {
+        /*
+         1422 - Out of Subscription Records. Stop creating event operations.
+         */
+        g_warning << "Only '" << i << "' event operations were "
+                  << "created by the step instead of '"
+                  << numOfEvents << "'.\n";
+        break;
+      }
+      else
+      {
+        g_err << "Error in createEventOperation: "
+              << pNdb->getNdbError().code << " "
+              << pNdb->getNdbError().message << endl;
+        res = NDBT_FAILED;
+        goto dropEvents;
+      }
+    }
+    pOpArr.push_back(pOp);
+  }
+
+  restarter.insertErrorInAllNodes(13051);
+
+  dropEvents:
+  for(uint i =0; i < pOpArr.size(); i++)
+  {
+    if (pNdb->dropEventOperation(pOpArr[i]) != 0) {
+      g_err << "operation drop failed\n";
+      res = NDBT_FAILED;
+    }
+  }
+  restarter.insertErrorInAllNodes(0);
+
+  delete pNdb;
+  delete pCC;
+  return res;
+}
+
+int runDropMultipleEvents(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Drop multiple events from the table */
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *tab = ctx->getTab();
+  int numOfEvents = ctx->getProperty("numOfEvents");
+  for (int i = 0; i < numOfEvents; i++)
+  {
+    if (dropEvent(pNdb, *tab, i+1) != 0){
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
+int runCheckAllNodesOnline(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+
+  if(restarter.waitClusterStarted(1) != 0){
+    g_err << "All nodes were not online " << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int setEmptySafeCounterPool(const bool val)
+{
+  NdbRestarter restarter;
+
+  int dumpValues[2];
+  dumpValues[0] = 8005;
+  dumpValues[1] = val?1:0;
+
+  return restarter.dumpStateAllNodes(dumpValues, 2);
+}
+
+int setEmptySafeCounterPool(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return setEmptySafeCounterPool(true);
+}
+int clearEmptySafeCounterPool(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return setEmptySafeCounterPool(false);
+}
+
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -5950,6 +6093,27 @@ TESTCASE("getEventBufferUsage2",
   STEP(runGetLogEventPretty);
   FINALIZER(runDropEvent);
 }
+TESTCASE("checkParallelTriggerDropReqHandling",
+         "Flood the DBDICT with lots of SUB_STOP_REQs and "
+         "check that the SUMA handles them properly without "
+         "flooding the DBTUP with DROP_TRIG_IMPL_REQs")
+{
+  TC_PROPERTY("numOfEvents", 100);
+  TC_PROPERTY("numOfThreads", 10);
+  INITIALIZER(runCreateMultipleEvents);
+  STEPS(runCreateDropMultipleEventOperations, 10);
+  VERIFIER(runCheckAllNodesOnline);
+  FINALIZER(runDropMultipleEvents);
+}
+TESTCASE("ExhaustedSafeCounterPool",
+         "Check that DICT is not affected by an exhausted "
+         "SafeCounter pool")
+{
+  INITIALIZER(setEmptySafeCounterPool);
+  INITIALIZER(runCreateShadowTable);
+  FINALIZER(clearEmptySafeCounterPool);
+  FINALIZER(runDropShadowTable);
+}
 
 #if 0
 TESTCASE("BackwardCompatiblePollCOverflowEB",
@@ -5963,7 +6127,7 @@ TESTCASE("BackwardCompatiblePollCOverflowEB",
   FINALIZER(runDropEvent);
 }
 #endif
-NDBT_TESTSUITE_END(test_event);
+NDBT_TESTSUITE_END(test_event)
 
 int main(int argc, const char** argv){
   ndb_init();

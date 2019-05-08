@@ -198,4 +198,5 @@ source include/stop_slave.inc;
 
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
-### TODO: --source include/rpl_end.inc
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

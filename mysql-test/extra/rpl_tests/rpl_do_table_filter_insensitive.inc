@@ -6,8 +6,8 @@
 # lower_case_table_name > 0
 #
 
--- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
+-- source include/master-slave.inc
 
 -- source extra/rpl_tests/rpl_filters.test 
 let $replicate_do_table= query_get_value(SHOW SLAVE STATUS, Replicate_Do_Table, 1);

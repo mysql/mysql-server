@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <gtest/gtest.h>
 #include "my_sys.h"
+#include "my_systime.h"  // my_sleep()
 
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
@@ -41,7 +42,9 @@ const int EXPECTED_VALUE_SET_EXPECT = 50;
 
 class Xpl_sync_variable : public ::testing::Test {
  public:
-  Xpl_sync_variable() : m_sut(EXPECTED_VALUE_FIRST), m_thread_ended(false) {}
+  Xpl_sync_variable()
+      : m_sut(EXPECTED_VALUE_FIRST, PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED),
+        m_thread_ended(false) {}
 
   static void *start_routine_set(void *data) {
     Xpl_sync_variable *self = (Xpl_sync_variable *)data;

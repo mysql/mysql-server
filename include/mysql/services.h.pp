@@ -226,7 +226,7 @@ enum enum_locking_service_lock_type {
 typedef int (*mysql_acquire_locks_t)(
     void * opaque_thd, const char *lock_namespace, const char **lock_names,
     size_t lock_num, enum enum_locking_service_lock_type lock_type,
-    unsigned long lock_timeout);
+    uint64_t lock_timeout);
 typedef int (*mysql_release_locks_t)(void * opaque_thd,
                                      const char *lock_namespace);
 extern "C" struct mysql_locking_service_st {
@@ -236,7 +236,7 @@ extern "C" struct mysql_locking_service_st {
 int mysql_acquire_locking_service_locks(
     void * opaque_thd, const char *lock_namespace, const char **lock_names,
     size_t lock_num, enum enum_locking_service_lock_type lock_type,
-    unsigned long lock_timeout);
+    uint64_t lock_timeout);
 int mysql_release_locking_service_locks(void * opaque_thd,
                                         const char *lock_namespace);
 #include <mysql/service_my_plugin_log.h>

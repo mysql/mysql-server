@@ -1,0 +1,897 @@
+#
+# WL#12261 Control (enforce and disable) table encryption
+#
+# Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT ALL ON db2.* TO u1@localhost;
+GRANT ALL ON sch1.* TO u1@localhost;
+GRANT ALL ON sch2.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+# The test cases run RENAME TABLE to move tables from one database
+# to another, with tables using file-per-table or general
+# tablespace. And these operations are run in below configuration,
+#
+# - Setting table_encryption_privilege_check to true/false.
+# - Setting per database default encryption to 'y' and 'n'
+# - Setting table's encryption mode to 'y' and 'n'.
+# - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+# -
+# - Check for warnings generated.
+#
+`````````````````````````````````````````````````````````
+# Test using innodb_file_per_table tablespace.
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=false
+# [ALTER TABLE ... RENAME ...] Case 1 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='n';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# 1.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+# 1.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+# 1.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+# [ALTER TABLE ... RENAME ...] Case 2 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# 2.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+# 2.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+# 2.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=true
+`````````````````````````````````````````````````````````
+# We expect failure when the table encryption does not match
+# with default database encryption.
+# [ALTER TABLE ... RENAME ...] Case 3 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='n';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# 3.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+# 3.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+# 3.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt2
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1
+fpt1_renamed
+fpt2
+ts1
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+# [ALTER TABLE ... RENAME ...] Case 4 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='n';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Grant user with TABLE_ENCRYPTION_ADMIN
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+# 4.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.fpt1 RENAME db2.fpt1_renamed ;
+ALTER TABLE db2.fpt1 RENAME db1.fpt1_renamed ;
+# 4.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.ts1 RENAME db2.ts1_rename ;
+ALTER TABLE db2.ts1 RENAME db1.ts1_rename ;
+# 4.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+ALTER TABLE sch1.fpt  RENAME sch1.fpt_renamed ;
+ALTER TABLE sch1.ts   RENAME sch1.ts_renamed  ;
+ALTER TABLE sch2.fpt  RENAME sch2.fpt_renamed ;
+ALTER TABLE sch2.ts   RENAME sch2.ts_renamed  ;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+# Revoke TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+`````````````````````````````````````````````````````````
+# We expect failure when the table encryption does not match
+# with default database encryption.
+# [ALTER TABLE ... RENAME ...] Case 5 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# 5.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+# 5.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+# 5.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1
+fpt1_renamed
+fpt2
+ts1
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt2
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+# [ALTER TABLE ... RENAME ...] Case 6 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Grant user with TABLE_ENCRYPTION_ADMIN
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+# 6.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.fpt1 RENAME db2.fpt1_renamed ;
+ALTER TABLE db2.fpt1 RENAME db1.fpt1_renamed ;
+# 6.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.ts1 RENAME db2.ts1_rename ;
+ALTER TABLE db2.ts1 RENAME db1.ts1_rename ;
+# 6.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+ALTER TABLE sch1.fpt  RENAME sch1.fpt_renamed ;
+ALTER TABLE sch1.ts   RENAME sch1.ts_renamed  ;
+ALTER TABLE sch2.fpt  RENAME sch2.fpt_renamed ;
+ALTER TABLE sch2.ts   RENAME sch2.ts_renamed  ;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+# Revoke TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+`````````````````````````````````````````````````````````
+# Test using general tablespace.
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=false
+# [ALTER TABLE ... RENAME ...] Case 7 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='n';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# 7.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+# 7.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+# 7.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+DROP TABLESPACE ts1;
+# [ALTER TABLE ... RENAME ...] Case 8 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# 8.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+# 8.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+# 8.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=true
+`````````````````````````````````````````````````````````
+# We expect failure when the table encryption does not match
+# with default database encryption.
+# [ALTER TABLE ... RENAME ...] Case 9 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='n';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# 9.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+# 9.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+# 9.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt2
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1
+fpt1_renamed
+fpt2
+ts1
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+DROP TABLESPACE ts1;
+# [ALTER TABLE ... RENAME ...] Case 10 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='n';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Grant user with TABLE_ENCRYPTION_ADMIN
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+# 10.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.fpt1 RENAME db2.fpt1_renamed ;
+ALTER TABLE db2.fpt1 RENAME db1.fpt1_renamed ;
+# 10.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.ts1 RENAME db2.ts1_rename ;
+ALTER TABLE db2.ts1 RENAME db1.ts1_rename ;
+# 10.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+ALTER TABLE sch1.fpt  RENAME sch1.fpt_renamed ;
+ALTER TABLE sch1.ts   RENAME sch1.ts_renamed  ;
+ALTER TABLE sch2.fpt  RENAME sch2.fpt_renamed ;
+ALTER TABLE sch2.ts   RENAME sch2.ts_renamed  ;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+# Revoke TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# We expect failure when the table encryption does not match
+# with default database encryption.
+# [ALTER TABLE ... RENAME ...] Case 11 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# 11.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.fpt1 TO db2.fpt1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+RENAME TABLE db2.fpt1 TO db1.fpt1_renamed;
+# 11.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+RENAME TABLE db1.ts1 TO db2.ts1_rename;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+RENAME TABLE db2.ts1 TO db1.ts1_rename;
+# 11.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+RENAME TABLE sch1.fpt  TO sch1.fpt_renamed;
+RENAME TABLE sch1.ts   TO sch1.ts_renamed;
+RENAME TABLE sch2.fpt  TO sch2.fpt_renamed;
+RENAME TABLE sch2.ts   TO sch2.ts_renamed;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1
+fpt1_renamed
+fpt2
+ts1
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt2
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+DROP TABLESPACE ts1;
+# [ALTER TABLE ... RENAME ...] Case 12 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE sch1 DEFAULT ENCRYPTION='y';
+CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db1.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db2.fpt1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.fpt2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db2.ts1  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE db2.ts2  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE sch1.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch1.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+CREATE TABLE sch2.fpt (f1 int) ENCRYPTION='y';
+CREATE TABLE sch2.ts  (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Grant user with TABLE_ENCRYPTION_ADMIN
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+# 12.1.
+# Rename table using file-per-table tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.fpt1 RENAME db2.fpt1_renamed ;
+ALTER TABLE db2.fpt1 RENAME db1.fpt1_renamed ;
+# 12.2.
+# Rename table using general tablespace from db encryption='y'
+# to db with encryption='n' and viceversa
+ALTER TABLE db1.ts1 RENAME db2.ts1_rename ;
+ALTER TABLE db2.ts1 RENAME db1.ts1_rename ;
+# 12.3.
+# Rename table (using file-per-table/general tablespace)
+# within the database never fails.
+ALTER TABLE sch1.fpt  RENAME sch1.fpt_renamed ;
+ALTER TABLE sch1.ts   RENAME sch1.ts_renamed  ;
+ALTER TABLE sch2.fpt  RENAME sch2.fpt_renamed ;
+ALTER TABLE sch2.ts   RENAME sch2.ts_renamed  ;
+SET GLOBAL table_encryption_privilege_check=false;
+SHOW TABLES IN db1;
+Tables_in_db1
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN db2;
+Tables_in_db2
+fpt1_renamed
+fpt2
+ts1_rename
+ts2
+SHOW TABLES IN sch1;
+Tables_in_sch1
+fpt_renamed
+ts_renamed
+SHOW TABLES IN sch2;
+Tables_in_sch2
+fpt_renamed
+ts_renamed
+# Revoke TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE sch1;
+DROP DATABASE sch2;
+DROP TABLESPACE ts1;
+# Cleanup
+DROP USER u1@localhost;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

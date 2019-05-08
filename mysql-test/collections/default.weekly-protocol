@@ -1,4 +1,4 @@
 # Collection for the platform built with DWITH_TEST_TRACE_PLUGIN=1
 # https://dev.mysql.com/doc/refman/5.7/en/writing-protocol-trace-plugins.html
 # Runs only main suite
-perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=protocol_check --vardir=var-protocol_check --suite=main
+perl mysql-test-run.pl --timer --debug-server --force  --comment=protocol_check --vardir=var-protocol_check --suite=main

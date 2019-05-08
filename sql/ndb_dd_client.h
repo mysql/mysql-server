@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ namespace dd {
     class Dictionary_client;
   }
   class Table;
+  class Tablespace;
 }
 
 /*
@@ -99,7 +100,12 @@ public:
   bool mdl_lock_table(const char* schema_name, const char* table_name);
   bool mdl_locks_acquire_exclusive(const char* schema_name,
                                    const char* table_name);
-  bool mdl_lock_logfile_group(const char* logfile_group_name);
+  bool mdl_lock_logfile_group(const char* logfile_group_name,
+                              bool intention_exclusive);
+  bool mdl_lock_logfile_group_exclusive(const char* logfile_group_name);
+  bool mdl_lock_tablespace(const char* tablespace_name,
+                           bool intention_exclusive);
+  bool mdl_lock_tablespace_exclusive(const char* tablespace_name);
   void mdl_locks_release();
 
   // Transaction handling functions
@@ -154,11 +160,30 @@ public:
   */
   bool lookup_tablespace_id(const char* tablespace_name,
                             dd::Object_id* tablespace_id);
+  bool get_tablespace(const char* tablespace_name,
+                      const dd::Tablespace **tablespace_def);
+  bool tablespace_exists(const char* tablespace_name, bool& exists);
+  bool fetch_ndb_tablespace_names(std::unordered_set<std::string>& names);
+  bool install_tablespace(const char* tablespace_name,
+                          const std::vector<std::string>& data_file_names,
+                          int tablespace_id,
+                          int tablespace_version,
+                          bool force_overwrite);
+  bool drop_tablespace(const char* tablespace_name,
+                       bool fail_if_not_exists = true);
+  bool get_logfile_group(const char* logfile_group_name,
+                         const dd::Tablespace **logfile_group_def);
+  bool logfile_group_exists(const char* logfile_group_name, bool& exists);
+  bool fetch_ndb_logfile_group_names(std::unordered_set<std::string>& names);
   bool install_logfile_group(const char* logfile_group_name,
-                             const char* undo_file_name);
+                             const std::vector<std::string>& undo_file_names,
+                             int logfile_group_id,
+                             int logfile_group_version,
+                             bool force_overwrite);
   bool install_undo_file(const char* logfile_group_name,
                          const char* undo_file_name);
-  bool drop_logfile_group(const char* logfile_group_name);
+  bool drop_logfile_group(const char* logfile_group_name,
+                          bool fail_if_not_exists = true);
 };
 
 

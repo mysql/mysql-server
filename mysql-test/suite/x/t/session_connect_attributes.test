@@ -1,0 +1,357 @@
+## Test of general functionality of session_connect_attrs capability
+
+## Preamble
+--source ../include/have_performance_schema_statements.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+CREATE USER xtest_client1@localhost;
+CREATE USER xtest_client2@localhost;
+GRANT ALL ON *.* TO xtest_client1@localhost;
+GRANT ALL ON *.* TO xtest_client2@localhost;
+
+--write_file $MYSQL_TMP_DIR/session_connect_attrs.xpl
+-->varlet %TEST_KEY% custom_test_key
+-->import connection_attributes.macro
+-->import connection.macro
+
+-->echo
+-->echo
+-->echo ## I. Check valid uses of the session_connect_attrs capability only.
+-->echo #
+-->echo # 1. Set the session_connect_attrs capability once and verify it in the PFS.
+-->echo # 2. Set the session_connect_attrs capability with some duplicated conneection attribute keys and verify that the duplicated keys are present in the PFS.
+-->echo # 3. Set the session_connect_attrs capability twice and verify that only the last set is present in the PFS.
+-->echo # 4. Set the session_connect_attrs capability with two distinct attributes and verify if they are in the PFS.
+-->echo
+-->echo ## II. Check session_connect_attrs capability with invalid contents.
+-->echo #
+-->echo # 1. Assert that session_connect_attrs which contains value with length exceeding 1024 character limit triggers an error.
+-->echo #   a. Send just the invalid capability.
+-->echo #   b. Send the invalid capability followed by a valid one.
+-->echo # 2. Assert that session_connect_attrs which contains key with length exceeding 32 character limit triggers an error.
+-->echo #   a. Send just the invalid capability.
+-->echo #   b. Send the invalid capability followed by a valid one.
+-->echo # 3. Assert that session_connect_attrs which contains an empty key triggers an error.
+-->echo #   a. Send just the invalid capability.
+-->echo #   b. Send the invalid capability followed by a valid one.
+-->echo # 4. Assert that session_connect_attrs which contains both key and value with lengths exceeding their limits triggers an error.
+-->echo #   a. Send just the invalid capability.
+-->echo #   b. Send the invalid capability followed by a valid one.
+-->echo # 5. Assert that session_connect_attrs which contains a message that after decoding exceeds 64k size limit triggers an error.
+-->echo #   a. Send just the invalid capability.
+-->echo #   b. Send the invalid capability followed by a valid one.
+-->echo
+-->echo ## III. Check session_connect_attrs capability when used with other capabilities.
+-->echo #
+-->echo # 1. Set the session_connect_attrs capability and other valid capability.
+-->echo # 2. Set the session_connect_attrs capability and other capability, one of which is invalid. Verify that none of the capabilities are not set in the PFS.
+-->echo #   a. The session_connect_attrs capability is invalid.
+-->echo #   b. The additional capability is invalid.
+-->echo
+-->echo ## IV. Check session connect attributes after client disconnects.
+-->echo #
+-->echo # 1. Verify that new client cannot see the session connection attibutes of a previously disconnected client.
+-->echo # 2. Verify that new client can see the session connection attibutes of another connected client.
+-->echo
+-->echo ## V. Check that it is not possible to send session connection attributes after the authentication.
+-->echo
+-->echo ## VI. Check that malformed session connection attributes capability triggers an error.
+
+
+-->echo
+-->echo #
+-->echo # I.1
+-->newsession test_session.I.1	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someOS"
+-->recvok
+-->callmacro Check_connect_attributes_and_close_session	"%TEST_KEY%"	"someOS"
+
+-->echo
+-->echo #
+-->echo # I.2
+-->newsession test_session.I.2	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"someOS"	"%TEST_KEY%"	"otherOS"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someOS"
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"otherOS"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # I.3
+-->newsession test_session.I.3	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"not_shownOS"
+-->recvok
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"shownOS"
+-->recvok
+-->callmacro Check_connect_attributes_and_close_session	"%TEST_KEY%"	"shownOS"
+
+-->echo
+-->echo #
+-->echo # I.4
+-->newsession test_session.I.4	-
+-->callmacro Verify_its_xprotocol_connection
+-->varlet %KEY1% test_key1
+-->varlet %KEY2% test_key2
+-->callmacro Send_session_connect_attrs_2	"%KEY1%"	"value1"	"%KEY2%"	"value2"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%KEY1%"	"value1"
+-->callmacro Check_connect_attributes	"%KEY2%"	"value2"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.1.a
+-->newsession test_session.II.1.a	-
+-->callmacro Verify_its_xprotocol_connection
+-->vargen %INVALID_VALUE% x 1025
+-->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"%INVALID_VALUE%"	"%TEST_KEY%"	"valid_value"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH
+-->callmacro Assert_no_attribute_inserted
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.1.b
+-->newsession test_session.II.1.b	-
+-->callmacro Verify_its_xprotocol_connection
+-->vargen %INVALID_VALUE% x 1025
+-->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"%INVALID_VALUE%"	"%TEST_KEY%"	"valid_value"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"valid_value"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.2.a
+-->newsession test_session.II.2.a	-
+-->callmacro Verify_its_xprotocol_connection
+-->vargen %INVALID_KEY% x 33
+-->callmacro Send_session_connect_attrs_2	"%INVALID_KEY%"	"valid_value"	"%TEST_KEY%"	"valid_value"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
+-->callmacro Assert_no_attribute_inserted
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.2.b
+-->newsession test_session.II.2.b	-
+-->callmacro Verify_its_xprotocol_connection
+-->vargen %INVALID_KEY% x 33
+-->callmacro Send_session_connect_attrs_2	"%INVALID_KEY%"	"valid_value"	"%TEST_KEY%"	"valid_value"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"valid_value"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.3.a
+-->newsession test_session.II.3.a	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	""	"valid_value"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_EMPTY_KEY
+-->callmacro Assert_no_attribute_inserted
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.3.b
+-->newsession test_session.II.3.b	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	""	"valid_value"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_EMPTY_KEY
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"valid_value"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.4.a
+-->newsession test_session.II.4.a	-
+-->callmacro Verify_its_xprotocol_connection
+-->vargen %INVALID_KEY% x 33
+-->vargen %INVALID_VALUE% x 1025
+-->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	"%INVALID_KEY%"	"%INVALID_VALUE%"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
+-->callmacro Assert_no_attribute_inserted
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.4.b
+-->newsession test_session.II.4.b	-
+-->callmacro Verify_its_xprotocol_connection
+-->vargen %INVALID_KEY% x 33
+-->vargen %INVALID_VALUE% x 1025
+-->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	"%INVALID_KEY%"	"%INVALID_VALUE%"
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"valid_value"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.5.a
+-->newsession test_session.II.5.a	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_connect_capability_with_too_long_payload
+-->callmacro Assert_no_attribute_inserted
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.5.b
+-->newsession test_session.II.5.b	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_connect_capability_with_too_long_payload
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"valid_value"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # III.1
+-->newsession test_session.III.1	-
+-->callmacro Verify_its_xprotocol_connection
+-->varlet %SCALAR1% type: V_STRING v_string { value: "valid_value" }
+-->varlet %SCALAR2% type: V_BOOL v_bool: 1
+-->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
+-->recvok
+-->callmacro Check_connect_attributes_and_close_session	"%TEST_KEY%"	"valid_value"
+
+-->echo
+-->echo #
+-->echo # III.2.a
+-->newsession test_session.III.2.a	-
+-->callmacro Verify_its_xprotocol_connection
+-->vargen %INVALID_VALUE% x 1025
+-->varlet %SCALAR1% type: V_STRING v_string { value: "%INVALID_VALUE%" }
+-->varlet %SCALAR2% type: V_BOOL v_bool: 1
+-->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH
+-->callmacro Assert_no_attribute_inserted
+-->closesession
+
+-->echo
+-->echo #
+-->echo # III.2.b
+-->newsession test_session.III.2.b	-
+-->callmacro Verify_its_xprotocol_connection
+-->varlet %SCALAR1% type: V_STRING v_string { value: "value" }
+-->varlet %SCALAR2% type: V_NULL
+-->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
+-->recverror ER_X_CAPABILITIES_PREPARE_FAILED
+-->callmacro Assert_no_attribute_inserted
+-->closesession
+
+-->echo
+-->echo #
+-->echo # IV.1
+-->newsession test_session.IV.1_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client1OS"
+-->recvok
+-->login xtest_client1
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"client1OS"
+-->closesession
+-->newsession test_session.IV.1_xtest_client_2	-
+-->callmacro Verify_its_xprotocol_connection
+-->login xtest_client2
+-->stmtsql SELECT COUNT(ATTR_VALUE) FROM performance_schema.session_connect_attrs WHERE ATTR_NAME="%TEST_KEY%";
+-->recvtovar %COUNT%
+-->echo [Assert that no session connect attributes were inserted]
+-->assert_eq %COUNT%	0
+-->closesession
+
+-->echo
+-->echo #
+-->echo # IV.2
+-->newsession test_session.IV.2_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client_1_OS"
+-->recvok
+-->login xtest_client1
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"client_1_OS"
+-->newsession test_session.IV.2_xtest_client_2	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client_2_OS"
+-->recvok
+-->login xtest_client2
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"client_1_OS"
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"client_2_OS"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # V
+-->newsession test_session.V_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
+-->login xtest_client1
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client_2_OS"
+-->recverror 1047
+-->closesession
+
+-->echo
+-->echo #
+-->echo # VI
+-->newsession test_session.VI_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "session_connect_attrs"
+      value {
+        type: OBJECT
+        obj {
+         fld {
+           key: "some_key"
+           value {
+             type: SCALAR
+             scalar {
+               type: V_BOOL
+               v_bool: true
+             }
+           }
+         }
+       }
+     }
+   }
+ }
+}
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_TYPE
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
+-->recvok
+-->login x_root
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"valid_value"
+-->closesession
+
+EOF
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/session_connect_attrs.xpl 2>&1;
+
+## Cleanup
+DROP USER xtest_client1@localhost;
+DROP USER xtest_client2@localhost;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,11 @@
 #include <string.h>
 #include <atomic>
 
+#include "my_systime.h"  // my_sleep()
 #include "pfs_thread_provider.h"
 #include "storage/perfschema/pfs_server.h"
 
-int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+int pfs_get_thread_system_attrs_by_id_v2(PSI_thread *thread,
                                          ulonglong thread_id,
                                          PSI_thread_attrs *thread_attrs);
 
@@ -343,7 +344,7 @@ void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -370,7 +371,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -396,7 +397,7 @@ void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -422,7 +423,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -448,7 +449,7 @@ void pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
     return;
   }
 

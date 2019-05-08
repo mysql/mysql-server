@@ -124,9 +124,9 @@ class Binlog_sender : Gtid_mode_copy {
      threshold is set to (@c Log_event::read_log_event):
 
        max(max_allowed_packet,
-           opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER)
+           binlog_row_event_max_size + MAX_LOG_EVENT_HEADER)
 
-     - opt_binlog_rows_event_max_size is defined as an unsigned long,
+     - binlog_row_event_max_size is defined as an unsigned long,
        thence in theory row events can be bigger than UINT_MAX32.
 
      - max_allowed_packet is set to MAX_MAX_ALLOWED_PACKET which is in

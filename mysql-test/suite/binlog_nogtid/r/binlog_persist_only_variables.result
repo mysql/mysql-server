@@ -22,12 +22,13 @@ VARIABLE_NAME LIKE '%slave%') AND
 'innodb_master_thread_disabled_debug'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc ['Expect 80 variables in the table.']
+include/assert.inc ['Expect 83 variables in the table.']
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
 SET PERSIST_ONLY binlog_checksum = @@GLOBAL.binlog_checksum;
 SET PERSIST_ONLY binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
+SET PERSIST_ONLY binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST_ONLY binlog_error_action = @@GLOBAL.binlog_error_action;
 SET PERSIST_ONLY binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
 SET PERSIST_ONLY binlog_format = @@GLOBAL.binlog_format;
@@ -39,6 +40,8 @@ Warnings:
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY binlog_order_commits = @@GLOBAL.binlog_order_commits;
+SET PERSIST_ONLY binlog_rotate_encryption_master_key_at_startup = @@GLOBAL.binlog_rotate_encryption_master_key_at_startup;
+SET PERSIST_ONLY binlog_row_event_max_size = @@GLOBAL.binlog_row_event_max_size;
 SET PERSIST_ONLY binlog_row_image = @@GLOBAL.binlog_row_image;
 SET PERSIST_ONLY binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST_ONLY binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
@@ -63,6 +66,7 @@ SET PERSIST_ONLY log_bin_index = @@GLOBAL.log_bin_index;
 ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
 SET PERSIST_ONLY log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
 SET PERSIST_ONLY log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
+ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST_ONLY log_slave_updates = @@GLOBAL.log_slave_updates;
 SET PERSIST_ONLY log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
 SET PERSIST_ONLY log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
@@ -119,16 +123,16 @@ SET PERSIST_ONLY sync_master_info = @@GLOBAL.sync_master_info;
 SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 
-include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 72 persisted variables in persisted_variables table.']
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 70 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 70 persisted variables with matching peristed and global values.']
+include/assert.inc ['Expect 72 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 72 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 71 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -136,6 +140,7 @@ include/assert.inc ['Expect 70 persisted variables with matching peristed and gl
 RESET PERSIST binlog_cache_size;
 RESET PERSIST binlog_checksum;
 RESET PERSIST binlog_direct_non_transactional_updates;
+RESET PERSIST binlog_encryption;
 RESET PERSIST binlog_error_action;
 RESET PERSIST binlog_expire_logs_seconds;
 RESET PERSIST binlog_format;
@@ -144,6 +149,8 @@ RESET PERSIST binlog_group_commit_sync_no_delay_count;
 RESET PERSIST binlog_gtid_simple_recovery;
 RESET PERSIST binlog_max_flush_queue_time;
 RESET PERSIST binlog_order_commits;
+RESET PERSIST binlog_rotate_encryption_master_key_at_startup;
+RESET PERSIST binlog_row_event_max_size;
 RESET PERSIST binlog_row_image;
 RESET PERSIST binlog_row_metadata;
 RESET PERSIST binlog_row_value_options;
@@ -168,6 +175,7 @@ RESET PERSIST log_bin_index;
 ERROR HY000: Variable log_bin_index does not exist in persisted config file
 RESET PERSIST log_bin_trust_function_creators;
 RESET PERSIST log_bin_use_v1_row_events;
+ERROR HY000: Variable log_bin_use_v1_row_events does not exist in persisted config file
 RESET PERSIST log_slave_updates;
 RESET PERSIST log_slow_slave_statements;
 RESET PERSIST log_statements_unsafe_for_binlog;

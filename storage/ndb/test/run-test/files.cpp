@@ -30,6 +30,7 @@ static bool generate_my_cnf(BaseString mycnf, atrt_config& config);
 static bool create_directory(const char* path);
 static bool delete_file_if_exists(const char* path);
 static bool copy_file(const char* src, const char* dst);
+static bool generate_mysql_init_file_configurations(const char* fileName);
 
 bool setup_directories(atrt_config& config, int setup) {
   /**
@@ -179,9 +180,9 @@ static bool generate_my_cnf(BaseString mycnf, atrt_config& config) {
                     proc.m_cluster->m_name.c_str());
           break;
         case atrt_process::AP_NDB_API:
-          // fall-through
+        // fall-through
         case atrt_process::AP_ALL:
-          // fall-through
+        // fall-through
         case atrt_process::AP_CLUSTER:
           break;
       }
@@ -305,11 +306,20 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
           require(proc.m_options.m_loaded.get("--datadir=", &val));
           BaseString tmp;
           if (use_mysqld) {
+            BaseString initFile;
+            initFile.assfmt("%s/mysqld-init-file.sql", g_basedir);
+            if (!generate_mysql_init_file_configurations(initFile.c_str())) {
+              g_logger.error(
+                  "Failed to generate the mysql configuration init-file: %s",
+                  initFile.c_str());
+              return false;
+            }
+
             tmp.assfmt(
                 "%s --defaults-file=%s/my.cnf --basedir=%s "
-                "--datadir=%s --initialize-insecure "
+                "--datadir=%s --initialize-insecure --init-file=%s"
                 "> %s/mysqld-initialize.log 2>&1",
-                g_mysqld_bin_path, g_basedir, g_prefix, val,
+                g_mysqld_bin_path, g_basedir, g_prefix, val, initFile.c_str(),
                 proc.m_proc.m_cwd.c_str());
           } else {
             assert(g_mysql_install_db_bin_path != NULL);
@@ -507,4 +517,24 @@ bool remove_dir(const char* path, bool inclusive) {
 
   abort();  // Never reached
   return false;
+}
+
+bool generate_mysql_init_file_configurations(const char* fileName) {
+  FILE* fp = fopen(fileName, "w");
+  if (fp == NULL) {
+    g_logger.error("Failed to open mysql init file: %s", fileName);
+    return false;
+  }
+
+  if (fprintf(fp, "rename user root@localhost to root@'%%';") < 0) {
+    g_logger.error("Failed to write to mysql init file: %s", fileName);
+    return false;
+  }
+
+  if (fclose(fp) == EOF) {
+    g_logger.error("Failed to close mysql init file: %s", fileName);
+    return false;
+  }
+
+  return true;
 }

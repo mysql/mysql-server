@@ -311,3 +311,4 @@ DROP TABLE empty;
 
 ## Test suceeded
 exit;
+--remove_file $NDB_TOOLS_OUTPUT

@@ -25,10 +25,12 @@
 
 #include "my_compiler.h"
 #include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/dd/types/tablespace.h"
 
 class THD;
 class MDL_ticket;
 class Plugin_table;
+// class Tablespace;
 
 namespace dd {
 
@@ -437,6 +439,7 @@ const Object_table &get_dd_table();
   @param dst ticket for new name
 */
 void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst);
+
 }  // namespace dd
 
 #endif  // DD__DICTIONARY_INCLUDED

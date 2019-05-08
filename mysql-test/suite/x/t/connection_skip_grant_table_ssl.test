@@ -9,8 +9,6 @@ call mtr.add_suppression("Internal account mysqlxsys@localhost can't be removed 
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 call mtr.add_suppression("Access denied for user .*");
 
---let $USER_CIPHER= --ssl-cipher='DHE-RSA-AES256-SHA'
-
 --let $USER_AUTH_PLUGIN= 'mysql_native_password'
 --source ../include/connection_skip_grant_table.inc
 

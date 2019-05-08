@@ -70,3 +70,4 @@ drop table t2;
 # Wait till all disconnects are completed
 -- source include/wait_until_count_sessions.inc
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

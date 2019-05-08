@@ -5,12 +5,17 @@ call mtr.add_suppression("Capability expired password failed with error: Invalid
 --source include/xplugin_create_user.inc
 
 --write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesGet {
 }
 -->recv
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
+
 Mysqlx.Connection.CapabilitiesGet {
 }
 -->recv
@@ -84,6 +89,49 @@ capabilities {
  }
 }
 -->recvtype Mysqlx.Error
+
+-->echo Error when setting a duplicated capability
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+     }
+   }
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+     }
+   }
+ }
+}
+-->recverror ER_X_DUPLICATED_CAPABILITIES
+-->echo After setting a duplicated capability it should be possible to set valid capability
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+     }
+   }
+ }
+}
+-->recvok
 
 -->echo setting Read only message.maxSendLength cap
 -->echo this param is not ready and needs changes in result file once available
@@ -160,6 +208,9 @@ Mysqlx.Connection.CapabilitiesSet {
 -->recvtype Mysqlx.Error
 EOF
 --write_file $MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
+
 -->echo setting read/write  tls param with String type instead of Bool
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
@@ -179,6 +230,9 @@ Mysqlx.Connection.CapabilitiesSet {
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
+
 -->echo setting read/write  tls param with possible data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
@@ -275,6 +329,9 @@ Mysqlx.Connection.CapabilitiesSet {
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
+
 -->macro Test_different_values_in_cap_set %NAME%
 -->echo setting %NAME% param with possible invalid data types
 
@@ -447,6 +504,9 @@ Mysqlx.Connection.CapabilitiesSet {
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
+
 -->echo setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
 Mysqlx.Connection.CapabilitiesGet {
 }

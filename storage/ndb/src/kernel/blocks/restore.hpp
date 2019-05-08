@@ -283,9 +283,8 @@ private:
   
   List::DataBufferPool m_databuffer_pool;
   Uint32 m_table_buf[MAX_WORDS_META_FILE];
-#define LCP_CTL_FILE_DATA_SIZE (BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG + \
-        sizeof(BackupFormat::LCPCtlFile))
-  Uint32 m_lcp_ctl_file_data[2][LCP_CTL_FILE_DATA_SIZE/4];
+  Uint32
+    m_lcp_ctl_file_data[2][BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
 };
 
 NdbOut& operator << (NdbOut&, const Restore::Column&);

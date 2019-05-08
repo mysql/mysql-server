@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,14 @@
 #define GCS_OPERATIONS_INCLUDE
 
 #include <mysql/group_replication_priv.h>
+#include <future>
 #include <string>
+#include <utility>
 
 #include "plugin/group_replication/include/gcs_logger.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/gcs_view_modification_notifier.h"
+#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
 /**
@@ -124,6 +128,8 @@ class Gcs_operations {
 
     @param[in] communication_event_listener The communication event listener
     @param[in] control_event_listener       The control event listener
+    @param[in] view_notifier  A view change notifier to know the response
+
 
     @return the operation status
       @retval 0      OK
@@ -131,7 +137,8 @@ class Gcs_operations {
   */
   enum enum_gcs_error join(
       const Gcs_communication_event_listener &communication_event_listener,
-      const Gcs_control_event_listener &control_event_listener);
+      const Gcs_control_event_listener &control_event_listener,
+      Plugin_gcs_view_modification_notifier *view_notifier);
 
   /**
     Returns true if this server belongs to the group.
@@ -140,6 +147,9 @@ class Gcs_operations {
 
   /**
     Request GCS interface to leave the group.
+
+    @param[in] view_notifier  A view change notifier to know the response.
+                              Pass a null pointer if you don't want to wait
 
     Note: This method only asks to leave, it does not know if request was
           successful
@@ -150,7 +160,35 @@ class Gcs_operations {
       @retval ALREADY_LEFT        The member already left
       @retval ERROR_WHEN_LEAVING  An error happened when trying to leave
   */
-  enum_leave_state leave();
+  enum_leave_state leave(Plugin_gcs_view_modification_notifier *view_notifier);
+
+  /**
+    Notify all listeners that a view changed.
+  */
+  void notify_of_view_change_end();
+
+  /**
+    Notify all listeners that a view was canceled.
+
+    @param[in] errnr  The error associated to this view
+  */
+  void notify_of_view_change_cancellation(
+      int errnr = GROUP_REPLICATION_CONFIGURATION_ERROR);
+
+  /**
+    Checks if the view modification is a injected one.
+
+    @return
+      @retval true  if the current view modification is a injected one
+      @retval false otherwise
+   */
+  bool is_injected_view_modification();
+
+  /**
+    Removes the notifier from the list
+  */
+  void remove_view_notifer(
+      Plugin_gcs_view_modification_notifier *view_notifier);
 
   /**
     Declare the member as being already out of the group.
@@ -236,9 +274,55 @@ class Gcs_operations {
   enum enum_gcs_error set_write_concurrency(uint32_t new_write_concurrency);
 
   /**
+    Retrieves the group's "group communication protocol" value.
+
+    @retval the protocol version
+   */
+  Gcs_protocol_version get_protocol_version();
+
+  /**
+   Modifies the GCS protocol version in use.
+
+   The method is non-blocking. It returns a future on which the caller can
+   wait for the action to finish.
+
+   @param new_version The desired GCS protocol version
+
+   @retval {true, future} If successful
+   @retval {false, _} If unsuccessful because @c new_version is unsupported
+   */
+  std::pair<bool, std::future<void>> set_protocol_version(
+      Gcs_protocol_version gcs_protocol);
+
+  /**
+   Get the maximum protocol version currently supported by the group.
+
+   @returns the maximum protocol version currently supported by the group
+   */
+  Gcs_protocol_version get_maximum_protocol_version();
+
+  /**
+    Requests GCS to change the maximum size of the XCom cache.
+
+    @param size The new maximum size of the XCom cache.
+
+    @retval GCS_OK if request successfully scheduled
+    @retval GCS_NOK if GCS is unable to schedule the request
+  */
+  enum enum_gcs_error set_xcom_cache_size(uint64_t new_size);
+
+  /**
    * @return the communication engine being used
    */
   static const std::string &get_gcs_engine();
+
+  /**
+    Returns a flag indicating whether or not the component is initialized.
+
+    @retval true if the component is initialized.
+    @retval false otherwise.
+  */
+  bool is_initialized();
 
  private:
   /**
@@ -247,11 +331,14 @@ class Gcs_operations {
   */
   enum enum_gcs_error do_set_debug_options(std::string &debug_options) const;
   Gcs_group_management_interface *get_gcs_group_manager() const;
+  Gcs_communication_interface *get_gcs_communication() const;
 
   static const std::string gcs_engine;
   Gcs_gr_logger_impl gcs_logger;
   Gcs_interface *gcs_interface;
 
+  /** Was this view change injected */
+  bool injected_view_modification;
   /** Is the member leaving*/
   bool leave_coordination_leaving;
   /** Did the member already left*/
@@ -259,7 +346,12 @@ class Gcs_operations {
   /** Is finalize ongoing*/
   bool finalize_ongoing;
 
+  /** List of associated view change notifiers waiting */
+  std::list<Plugin_gcs_view_modification_notifier *> view_change_notifier_list;
+
   Checkable_rwlock *gcs_operations_lock;
+  /** Lock for the list of waiters on a view change */
+  Checkable_rwlock *view_observers_lock;
   Checkable_rwlock *finalize_ongoing_lock;
 };
 

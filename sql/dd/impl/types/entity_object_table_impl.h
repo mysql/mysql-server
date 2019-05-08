@@ -44,7 +44,7 @@ class Raw_record;
 class Entity_object_table_impl : public Object_table_impl,
                                  public Entity_object_table {
  public:
-  virtual ~Entity_object_table_impl(){};
+  virtual ~Entity_object_table_impl() {}
 
   virtual bool restore_object_from_record(Open_dictionary_tables_ctx *otx,
                                           const Raw_record &record,

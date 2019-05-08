@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -398,7 +398,7 @@ struct mtr_write_log_t {
 
         Only in case 1), the next group of records is the first group
         of log records in block containing m_lsn. */
-        && m_rec_group_start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
+        && m_handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
                end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
       log_buffer_set_first_record_group(*log_sys, m_handle, end_lsn);
     }
@@ -412,7 +412,6 @@ struct mtr_write_log_t {
 
   Log_handle m_handle;
   lsn_t m_lsn;
-  lsn_t m_rec_group_start_lsn;
   ulint m_left_to_write;
 };
 #endif /* !UNIV_HOTBACKUP */
@@ -641,7 +640,6 @@ void mtr_t::Command::execute() {
 
     write_log.m_handle = handle;
     write_log.m_lsn = handle.start_lsn;
-    write_log.m_rec_group_start_lsn = handle.start_lsn;
 
     m_impl->m_log.for_each_block(write_log);
 

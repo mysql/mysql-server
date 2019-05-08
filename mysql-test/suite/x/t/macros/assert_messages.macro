@@ -1,0 +1,23 @@
+
+-->macro Assert_rows	%ROWS%
+noquery_result;
+repeat %ROWS%;
+echo [ASSERT Mysqlx.Resultset.Row];
+recvtype Mysqlx.Resultset.Row;
+endrepeat;
+query_result;
+-->endmacro
+
+-->macro Assert_metadata	%COL_TYPE%	%COL_NAME%
+noquery_result;
+echo [ASSERT Mysqlx.Resultset.ColumnMetaData];
+recvmessage Mysqlx.Resultset.ColumnMetaData {type: %COL_TYPE% name: %COL_NAME%};
+query_result;
+-->endmacro
+
+-->macro Assert_message	%NAME%
+noquery_result;
+echo [ASSERT %NAME%];
+recvtype %NAME%;
+query_result;
+-->endmacro

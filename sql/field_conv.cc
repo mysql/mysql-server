@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,19 +22,13 @@
 
 /**
   @file
-
-  @brief
-  Functions to copy data to or from fields
-
-    This could be done with a single short function but opencoding this
-    gives much more speed.
+  Functions to copy data to or from fields.
 */
 
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
 
-#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
@@ -908,15 +902,18 @@ type_conversion_status field_conv(Field *to, Field *from) {
     if (from->type() == MYSQL_TYPE_TIME) {
       from->get_time(&ltime);
       if (current_thd->is_fsp_truncate_mode())
-        nr = TIME_to_ulonglong_time(&ltime);
+        nr = TIME_to_ulonglong_time(ltime);
       else
-        nr = TIME_to_ulonglong_time_round(&ltime);
+        nr = TIME_to_ulonglong_time_round(ltime);
     } else {
       from->get_date(&ltime, TIME_FUZZY_DATE);
       if (current_thd->is_fsp_truncate_mode())
-        nr = TIME_to_ulonglong_datetime(&ltime);
-      else
-        nr = TIME_to_ulonglong_datetime_round(&ltime);
+        nr = TIME_to_ulonglong_datetime(ltime);
+      else {
+        nr = propagate_datetime_overflow(current_thd, [&](int *w) {
+          return TIME_to_ulonglong_datetime_round(ltime, w);
+        });
+      }
     }
     return to->store(ltime.neg ? -nr : nr, 0);
   } else if (from->is_temporal() && (to->result_type() == REAL_RESULT ||

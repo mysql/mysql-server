@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,8 @@ static void test_timer_create(test_timer_t *test) {
   memset(test, 0, sizeof(test_timer_t));
   native_mutex_init(&test->mutex, NULL);
   native_cond_init(&test->cond);
-  EXPECT_EQ(my_timer_create(&test->timer), 0);
   test->timer.notify_function = timer_notify_function;
+  EXPECT_EQ(my_timer_create(&test->timer), 0);
 }
 
 static void test_timer_destroy(test_timer_t *test) {
@@ -126,10 +126,6 @@ extern "C" void *test_timer_per_thread(void *arg) {
   int iter = *(int *)arg;
 
   while (iter--) test_timer();
-
-  mysql_mutex_lock(&mutex);
-  if (!--running_threads) mysql_cond_signal(&cond);
-  mysql_mutex_unlock(&mutex);
 
   return NULL;
 }
@@ -217,27 +213,28 @@ TEST(Mysys, TestMultipleTimers) {
 
   // Timer "test1"
   test_timer_create(&test1);
-  native_mutex_lock(&test1.mutex);
   rc = my_timer_set(&test1.timer, 3);
   EXPECT_EQ(rc, 0);
 
   // Timer "test2"
   test_timer_create(&test2);
-  native_mutex_lock(&test2.mutex);
   rc = my_timer_set(&test2.timer, 6);
   EXPECT_EQ(rc, 0);
 
   // Timer "test3"
   test_timer_create(&test3);
-  native_mutex_lock(&test3.mutex);
   rc = my_timer_set(&test3.timer, 600000);
   EXPECT_EQ(rc, 0);
 
   // Wait till test1 timer fired.
+  native_mutex_lock(&test1.mutex);
   while (!test1.fired) native_cond_wait(&test1.cond, &test1.mutex);
+  native_mutex_unlock(&test1.mutex);
 
   // Wait till test2 timer fired.
+  native_mutex_lock(&test2.mutex);
   while (!test2.fired) native_cond_wait(&test2.cond, &test2.mutex);
+  native_mutex_unlock(&test2.mutex);
 
   // timer test1 fired
   EXPECT_EQ(test1.fired, (unsigned int)1);
@@ -252,10 +249,6 @@ TEST(Mysys, TestMultipleTimers) {
   rc = my_timer_cancel(&test3.timer, &state);
   EXPECT_EQ(rc, 0);
 
-  native_mutex_unlock(&test1.mutex);
-  native_mutex_unlock(&test2.mutex);
-  native_mutex_unlock(&test3.mutex);
-
   test_timer_destroy(&test1);
   test_timer_destroy(&test2);
   test_timer_destroy(&test3);
@@ -265,8 +258,6 @@ TEST(Mysys, TestMultipleTimers) {
 
 /* Test timer in multiple threads */
 TEST(Mysys, TestTimerPerThread) {
-  mysql_mutex_init(0, &mutex, 0);
-  mysql_cond_init(0, &cond);
   my_thread_attr_init(&thr_attr);
   my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_DETACHED);
 
@@ -275,8 +266,6 @@ TEST(Mysys, TestTimerPerThread) {
   test_concurrently("per-thread", test_timer_per_thread, THREADS, 5);
 
   my_timer_deinitialize();
-  mysql_mutex_destroy(&mutex);
-  mysql_cond_destroy(&cond);
   my_thread_attr_destroy(&thr_attr);
 }
 

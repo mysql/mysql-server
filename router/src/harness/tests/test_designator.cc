@@ -38,6 +38,7 @@
 ////////////////////////////////////////
 // Standard include files
 #include <iostream>
+#include <stdexcept>
 
 using mysql_harness::utility::make_range;
 

@@ -22,7 +22,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select DESIRED_DELAY
 from performance_schema.replication_applier_configuration
-where CHANNEL_NAME < "impossible";
+where CHANNEL_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	replication_applier_configuration	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################

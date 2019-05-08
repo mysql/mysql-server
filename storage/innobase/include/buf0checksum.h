@@ -88,6 +88,7 @@ class BlockReporter {
         m_skip_checksum(skip_checksum) {}
 
   virtual ~BlockReporter() {}
+  BlockReporter(const BlockReporter &) = default;
 
   /** Checks if a page is corrupt.
   @retval	true	if page is corrupt

@@ -146,7 +146,7 @@ INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log where command_type='connect';
+SELECT argument FROM mysql.general_log where command_type='connect' and user_host not like '%mysql.session%';
 --echo ------ done ------
 
 --remove_file $general_file_on

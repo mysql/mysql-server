@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"

@@ -668,7 +668,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recv
 
-#-- testcase for https://jira.oraclecorp.com/jira/browse/MYP-287
+#
 -->sql
 #DELETE FROM xplugintest.table2;
 TRUNCATE xplugintest.table2;
@@ -1032,10 +1032,8 @@ SHOW CREATE TABLE xplugintest.table3;
 
 #-- Testing many multi-field indexes https://jira.oraclecorp.com/jira/browse/MYP-337
 
-
--->sql
-CREATE TABLE col_myp337 ( _id INT , doc JSON ) ;
--->endsql
+-->stmtadmin create_collection	{"schema":"xplugintest","name":"col_myp337"}
+-->recvresult
 
 
 -->macro Create_3_field_index %NUM%

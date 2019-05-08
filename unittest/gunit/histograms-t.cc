@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"  // my_charset_latin1, my_charset_bin
 #include "my_inttypes.h"
+#include "my_systime.h"                  // my_micro_time()
 #include "my_time.h"                     // MYSQL_TIME
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height
@@ -1358,9 +1359,9 @@ void VerifyEquiHeightBucketContentsTemporal(Json_array *equi_height_buckets,
   Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
 
   EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(my_time_compare(json_lower_inclusive->value(), &lower_inclusive),
+  EXPECT_EQ(my_time_compare(*json_lower_inclusive->value(), lower_inclusive),
             0);
-  EXPECT_EQ(my_time_compare(json_upper_inclusive->value(), &upper_inclusive),
+  EXPECT_EQ(my_time_compare(*json_upper_inclusive->value(), upper_inclusive),
             0);
   EXPECT_EQ(num_distinct, json_num_distinct->value());
 }
@@ -1480,7 +1481,7 @@ void VerifySingletonBucketContentsTemporal(Json_array *singleton_buckets,
       down_cast<Json_double *>((*json_bucket)[1]);
 
   EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(my_time_compare(json_value->value(), &value), 0);
+  EXPECT_EQ(my_time_compare(*json_value->value(), value), 0);
 }
 
 /*
@@ -2595,7 +2596,7 @@ TEST_F(HistogramsTest, HistogramTimeCreated) {
 
   longlong seconds_diff = 0;
   long microseconds_diff = 0;
-  calc_time_diff(last_updated->value(), &current_time, 1, &seconds_diff,
+  calc_time_diff(*last_updated->value(), current_time, 1, &seconds_diff,
                  &microseconds_diff);
 
   EXPECT_LE(seconds_diff, 2LL);

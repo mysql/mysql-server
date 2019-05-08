@@ -9,7 +9,7 @@ GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
 set session sql_log_bin = 1;
 [plain]
 set session sql_log_bin = 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 **** Variable BINLOG_FORMAT ****
 [root]
 set global binlog_format = 'row';
@@ -18,7 +18,7 @@ set session binlog_format = 'row';
 set global binlog_format = 'row';
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 set session binlog_format = 'row';
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 **** Clean up ****
 set global binlog_format = @saved_binlog_format;
 drop user mysqltest_1@localhost;

@@ -36,3 +36,4 @@
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
 
 --echo End of test for bug#24444908 / bug#25128512
+--remove_file $NDB_TOOLS_OUTPUT

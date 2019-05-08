@@ -164,9 +164,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	33.33	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 0)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
 explain select * from t1 where a is null or (a >= 5 and a <= 7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2,p3	ALL	NULL	NULL	NULL	NULL	7	23.81	Using where

@@ -32,5 +32,6 @@ FOREACH(TEST ${TESTS})
     LIB_DEPENDS test-helpers)
 ENDFOREACH()
 
-create_harness_test_directory_post_build(test_harness_plugin_keepalive keepalive)
+ROUTERTEST_GET_TARGET(test_target "test_plugin_keepalive.cc" harness)
+create_harness_test_directory_post_build(${test_target} keepalive)
 CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
  */
 
 #include <stddef.h>
+#include <functional>
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -30,9 +31,9 @@
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
-using namespace ngs;
+namespace ngs {
 
 const uint64_t MILLI_TO_NANO = 1000000;
 const ulonglong TIME_VALUE_NOT_VALID = 0;
@@ -44,6 +45,7 @@ Scheduler_dynamic::Scheduler_dynamic(const char *name,
       m_worker_pending_cond(KEY_cond_x_scheduler_dynamic_worker_pending),
       m_thread_exit_mutex(KEY_mutex_x_scheduler_dynamic_thread_exit),
       m_thread_exit_cond(KEY_cond_x_scheduler_dynamic_thread_exit),
+      m_post_mutex(KEY_mutex_x_scheduler_post),
       m_is_running(0),
       m_min_workers_count(1),
       m_workers_count(0),
@@ -101,7 +103,7 @@ void Scheduler_dynamic::stop() {
     while (m_tasks.empty() == false) {
       Task *task = NULL;
 
-      if (m_tasks.pop(task)) ngs::free_object(task);
+      if (m_tasks.pop(task)) free_object(task);
     }
 
     m_worker_pending_cond.broadcast(m_worker_pending_mutex);
@@ -114,7 +116,7 @@ void Scheduler_dynamic::stop() {
 
     Thread_t thread;
     while (m_threads.pop(thread)) {
-      ngs::thread_join(&thread, NULL);
+      thread_join(&thread, NULL);
     }
 
     log_debug("Scheduler \"%s\" stopped.", m_name.c_str());
@@ -150,11 +152,11 @@ bool Scheduler_dynamic::post(Task *task) {
 }
 
 bool Scheduler_dynamic::post(const Task &task) {
-  Task *copy_task = ngs::allocate_object<Task>(task);
+  Task *copy_task = allocate_object<Task>(task);
 
   if (post(copy_task)) return true;
 
-  ngs::free_object(copy_task);
+  free_object(copy_task);
 
   return false;
 }
@@ -228,7 +230,7 @@ void *Scheduler_dynamic::worker() {
         }
 
         if (task_available && task) {
-          ngs::Memory_instrumented<Task>::Unique_ptr task_ptr(task);
+          Memory_instrumented<Task>::Unique_ptr task_ptr(task);
           thread_waiting_time = TIME_VALUE_NOT_VALID;
 
           (*task_ptr)();
@@ -267,9 +269,9 @@ void Scheduler_dynamic::join_terminating_workers() {
   while (m_terminating_workers.pop(tid)) {
     Thread_t thread;
     if (m_threads.remove_if(thread,
-                            ngs::bind(Scheduler_dynamic::thread_id_matches,
-                                      ngs::placeholders::_1, tid))) {
-      ngs::thread_join(&thread, NULL);
+                            std::bind(Scheduler_dynamic::thread_id_matches,
+                                      std::placeholders::_1, tid))) {
+      thread_join(&thread, NULL);
     }
   }
 }
@@ -279,7 +281,7 @@ void Scheduler_dynamic::create_thread() {
     Thread_t thread;
     log_debug("Scheduler '%s', create threads", m_name.c_str());
 
-    ngs::thread_create(m_thread_key, &thread, worker_proxy, this);
+    thread_create(m_thread_key, &thread, worker_proxy, this);
     increase_workers_count();
     m_threads.push(thread);
   }
@@ -310,3 +312,5 @@ int32 Scheduler_dynamic::decrease_tasks_count() {
 
   return --m_tasks_count;
 }
+
+}  // namespace ngs

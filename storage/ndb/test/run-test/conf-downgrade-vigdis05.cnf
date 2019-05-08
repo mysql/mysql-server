@@ -30,7 +30,6 @@ mysqld = CHOOSE_host1
 
 [mysqld]
 socket=mysql.sock
-skip-grant-tables
 
 [client]
 protocol=tcp

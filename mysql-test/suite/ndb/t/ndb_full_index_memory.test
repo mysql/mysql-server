@@ -35,3 +35,4 @@ while (!$mysql_errno)
 delete from t1;
 
 drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

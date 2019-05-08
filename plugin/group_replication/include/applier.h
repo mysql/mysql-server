@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,21 +24,31 @@
 #define APPLIER_INCLUDE
 
 #include <mysql/group_replication_priv.h>
+#include <mysql/plugin_group_replication.h>
+#include <list>
 #include <vector>
 
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/applier_channel_state_observer.h"
+#include "plugin/group_replication/include/consistency_manager.h"
+#include "plugin/group_replication/include/gcs_operations.h"
 #include "plugin/group_replication/include/handlers/applier_handler.h"
 #include "plugin/group_replication/include/handlers/certification_handler.h"
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
 #include "plugin/group_replication/include/pipeline_factory.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
+#include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include "plugin/group_replication/include/plugin_utils.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+#include "sql/sql_class.h"
 
 // Define the applier packet types
 #define ACTION_PACKET_TYPE 2
 #define VIEW_CHANGE_PACKET_TYPE 3
 #define SINGLE_PRIMARY_PACKET_TYPE 4
+#define SYNC_BEFORE_EXECUTION_PACKET_TYPE 5
+#define TRANSACTION_PREPARED_PACKET_TYPE 6
+#define LEAVING_MEMBERS_PACKET_TYPE 7
 
 // Define the applier return error codes
 #define APPLIER_GTID_CHECK_TIMEOUT_ERROR -1
@@ -135,6 +145,91 @@ class Queue_checkpoint_packet : public Action_packet {
   std::shared_ptr<Continuation> checkpoint_condition;
 };
 
+/**
+  @class Transaction_prepared_action_packet
+  A packet to inform that a given member did prepare a given transaction.
+*/
+class Transaction_prepared_action_packet : public Packet {
+ public:
+  /**
+    Create a new transaction prepared action.
+
+    @param  sid              the prepared transaction sid
+    @param  gno              the prepared transaction gno
+    @param  gcs_member_id    the member id that did prepare the
+                             transaction
+  */
+  Transaction_prepared_action_packet(const rpl_sid *sid, rpl_gno gno,
+                                     const Gcs_member_identifier &gcs_member_id)
+      : Packet(TRANSACTION_PREPARED_PACKET_TYPE),
+        m_sid_specified(sid != NULL ? true : false),
+        m_gno(gno),
+        m_gcs_member_id(gcs_member_id.get_member_id()) {
+    if (sid != NULL) {
+      m_sid.copy_from(*sid);
+    }
+  }
+
+  virtual ~Transaction_prepared_action_packet() {}
+
+  const bool m_sid_specified;
+  const rpl_gno m_gno;
+  const Gcs_member_identifier m_gcs_member_id;
+
+  const rpl_sid *get_sid() { return m_sid_specified ? &m_sid : NULL; }
+
+ private:
+  rpl_sid m_sid;
+};
+
+/**
+  @class Sync_before_execution_action_packet
+  A packet to request a synchronization point on the global message
+  order on a given member before transaction execution.
+*/
+class Sync_before_execution_action_packet : public Packet {
+ public:
+  /**
+    Create a new synchronization point request.
+
+    @param  thread_id        the thread that did the request
+    @param  gcs_member_id    the member id that did the request
+  */
+  Sync_before_execution_action_packet(
+      my_thread_id thread_id, const Gcs_member_identifier &gcs_member_id)
+      : Packet(SYNC_BEFORE_EXECUTION_PACKET_TYPE),
+        m_thread_id(thread_id),
+        m_gcs_member_id(gcs_member_id.get_member_id()) {}
+
+  virtual ~Sync_before_execution_action_packet() {}
+
+  const my_thread_id m_thread_id;
+  const Gcs_member_identifier m_gcs_member_id;
+};
+
+/**
+  @class Leaving_members_action_packet
+  A packet to inform pipeline listeners of leaving members,
+  this packet will be handled on the global message order,
+  that is, ordered with certification.
+*/
+class Leaving_members_action_packet : public Packet {
+ public:
+  /**
+    Create a new leaving members packet.
+
+    @param  leaving_members  the members that left the group
+  */
+  Leaving_members_action_packet(
+      const std::vector<Gcs_member_identifier> &leaving_members)
+      : Packet(LEAVING_MEMBERS_PACKET_TYPE),
+        m_leaving_members(leaving_members) {}
+
+  virtual ~Leaving_members_action_packet() {}
+
+  const std::vector<Gcs_member_identifier> m_leaving_members;
+};
+
 typedef enum enum_applier_state {
   APPLIER_STATE_ON = 1,
   APPLIER_STATE_OFF,
@@ -164,17 +259,27 @@ class Applier_module_interface {
   virtual void add_view_change_packet(View_change_packet *packet) = 0;
   virtual void add_single_primary_action_packet(
       Single_primary_action_packet *packet) = 0;
-  virtual int handle(const uchar *data, ulong len) = 0;
+  virtual void add_transaction_prepared_action_packet(
+      Transaction_prepared_action_packet *packet) = 0;
+  virtual void add_sync_before_execution_action_packet(
+      Sync_before_execution_action_packet *packet) = 0;
+  virtual void add_leaving_members_action_packet(
+      Leaving_members_action_packet *packet) = 0;
+  virtual int handle(const uchar *data, ulong len,
+                     enum_group_replication_consistency_level consistency_level,
+                     std::list<Gcs_member_identifier> *online_members) = 0;
   virtual int handle_pipeline_action(Pipeline_action *action) = 0;
   virtual Flow_control_module *get_flow_control_module() = 0;
   virtual void run_flow_control_step() = 0;
   virtual int purge_applier_queue_and_restart_applier_module() = 0;
-  virtual void kill_pending_transactions(bool set_read_mode,
-                                         bool threaded_sql_session) = 0;
-  virtual uint64
-  get_pipeline_stats_member_collector_transactions_applied_during_recovery() = 0;
+  virtual void kill_pending_transactions(
+      bool set_read_mode, bool threaded_sql_session,
+      Gcs_operations::enum_leave_state leave_state,
+      Plugin_gcs_view_modification_notifier *view_notifier) = 0;
   virtual bool queue_and_wait_on_queue_checkpoint(
       std::shared_ptr<Continuation> checkpoint_condition) = 0;
+  virtual Pipeline_stats_member_collector *
+  get_pipeline_stats_member_collector() = 0;
 };
 
 class Applier_module : public Applier_module_interface {
@@ -274,13 +379,19 @@ class Applier_module : public Applier_module_interface {
 
     @param[in]  data      the packet data
     @param[in]  len       the packet length
+    @param[in]  consistency_level  the transaction consistency level
+    @param[in]  online_members     the ONLINE members when the transaction
+                                   message was delivered
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle(const uchar *data, ulong len) {
-    this->incoming->push(new Data_packet(data, len));
+  int handle(const uchar *data, ulong len,
+             enum_group_replication_consistency_level consistency_level,
+             std::list<Gcs_member_identifier> *online_members) {
+    this->incoming->push(
+        new Data_packet(data, len, consistency_level, online_members));
     return 0;
   }
 
@@ -385,6 +496,42 @@ class Applier_module : public Applier_module_interface {
     @param[in]  packet              The packet to be queued
   */
   void add_single_primary_action_packet(Single_primary_action_packet *packet) {
+    incoming->push(packet);
+  }
+
+  /**
+    Queues a transaction prepared action packet into the applier.
+
+    @note This will happen only after all the previous packets are processed.
+
+    @param[in]  packet              The packet to be queued
+  */
+  void add_transaction_prepared_action_packet(
+      Transaction_prepared_action_packet *packet) {
+    incoming->push(packet);
+  }
+
+  /**
+    Queues a synchronization before execution action packet into the applier.
+
+    @note This will happen only after all the previous packets are processed.
+
+    @param[in]  packet              The packet to be queued
+  */
+  void add_sync_before_execution_action_packet(
+      Sync_before_execution_action_packet *packet) {
+    incoming->push(packet);
+  }
+
+  /**
+    Queues a leaving members action packet into the applier.
+
+    @note This will happen only after all the previous packets are processed.
+
+    @param[in]  packet              The packet to be queued
+  */
+  void add_leaving_members_action_packet(
+      Leaving_members_action_packet *packet) {
     incoming->push(packet);
   }
 
@@ -560,20 +707,13 @@ class Applier_module : public Applier_module_interface {
     @param set_read_mode         if true, enable super_read_only mode
     @param threaded_sql_session  if true, creates a thread to open the
                                  SQL session
+    @param leave_state           the result of the leave attempt
+    @param view_notifier         the view notification object
   */
-  void kill_pending_transactions(bool set_read_mode, bool threaded_sql_session);
-
-  /**
-    Return the number of transactions applied during recovery from the pipeline
-    stats member.
-
-    @return number of transactions applied during recovery
-  */
-  uint64
-  get_pipeline_stats_member_collector_transactions_applied_during_recovery() {
-    return pipeline_stats_member_collector
-        .get_transactions_applied_during_recovery();
-  }
+  void kill_pending_transactions(
+      bool set_read_mode, bool threaded_sql_session,
+      Gcs_operations::enum_leave_state leave_state,
+      Plugin_gcs_view_modification_notifier *view_notifier);
 
   virtual bool queue_and_wait_on_queue_checkpoint(
       std::shared_ptr<Continuation> checkpoint_condition);
@@ -635,6 +775,43 @@ class Applier_module : public Applier_module_interface {
   int apply_single_primary_action_packet(Single_primary_action_packet *packet);
 
   /**
+    Apply a transaction prepared action packet received by the applier.
+
+    @param packet  the received action packet
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error when applying packet
+  */
+  int apply_transaction_prepared_action_packet(
+      Transaction_prepared_action_packet *packet);
+
+  /**
+    Apply a synchronization before execution action packet received
+    by the applier.
+
+    @param packet  the received action packet
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error when applying packet
+  */
+  int apply_sync_before_execution_action_packet(
+      Sync_before_execution_action_packet *packet);
+
+  /**
+    Apply a leaving members action packet received by the applier.
+
+    @param packet  the received action packet
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error when applying packet
+  */
+  int apply_leaving_members_action_packet(
+      Leaving_members_action_packet *packet);
+
+  /**
     Suspends the applier module, being transactions still queued in the incoming
     queue.
 
@@ -645,10 +822,8 @@ class Applier_module : public Applier_module_interface {
     mysql_mutex_lock(&suspend_lock);
 
     suspended = true;
-
-#ifndef _WIN32
-    THD_STAGE_INFO(applier_thd, stage_suspending);
-#endif
+    stage_handler.set_stage(info_GR_STAGE_module_suspending.m_key, __FILE__,
+                            __LINE__, 0, 0);
 
     // Alert any interested party about the applier suspension
     mysql_cond_broadcast(&suspension_waiting_condition);
@@ -656,10 +831,8 @@ class Applier_module : public Applier_module_interface {
     while (suspended) {
       mysql_cond_wait(&suspend_cond, &suspend_lock);
     }
-
-#ifndef _WIN32
-    THD_STAGE_INFO(applier_thd, stage_executing);
-#endif
+    stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
+                            __LINE__, 0, 0);
 
     mysql_mutex_unlock(&suspend_lock);
   }
@@ -747,6 +920,7 @@ class Applier_module : public Applier_module_interface {
 
   Pipeline_stats_member_collector pipeline_stats_member_collector;
   Flow_control_module flow_control_module;
+  Plugin_stage_monitor_handler stage_handler;
 };
 
 #endif /* APPLIER_INCLUDE */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -195,7 +195,7 @@ fsp_header_t *fsp_get_space_header(space_id_t id, const page_size_t &page_size,
 
   ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 #ifdef UNIV_DEBUG
-  const ulint flags = mach_read_from_4(FSP_SPACE_FLAGS + header);
+  const uint32_t flags = mach_read_from_4(FSP_SPACE_FLAGS + header);
   ut_ad(page_size_t(flags).equals_to(page_size));
 #endif /* UNIV_DEBUG */
   return (header);
@@ -212,7 +212,7 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 @param[in]	fsp_flags	fil_space_t::flags
 @param[in]	compact		true if not Redundant row format
 @return tablespace flags (fil_space_t::flags) */
-ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact) {
+uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact) {
   /* If the table in this file-per-table tablespace is Compact
   row format, the low order bit will not indicate Compact. */
   bool post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(fsp_flags);
@@ -224,12 +224,19 @@ ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact) {
   flag position in the table flags. But it would go into flags2 if
   any code is created where that is needed. */
 
-  ulint flags = dict_tf_init(post_antelope | compact, zip_ssize, atomic_blobs,
-                             data_dir, shared_space);
+  uint32_t flags = dict_tf_init(post_antelope | compact, zip_ssize,
+                                atomic_blobs, data_dir, shared_space);
 
   return (flags);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/** Check if tablespace is dd tablespace.
+@param[in]      space_id        tablespace ID
+@return true if tablespace is dd tablespace. */
+bool fsp_is_dd_tablespace(space_id_t space_id) {
+  return (space_id == dict_sys_t::s_space_id);
+}
 
 /** Check whether a space id is an undo tablespace ID
 Undo tablespaces have space_id's starting 1 less than the redo logs.
@@ -531,7 +538,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) xdes_t
   ulint limit;
   ulint size;
   page_no_t descr_page_no;
-  ulint flags;
+  uint32_t flags;
   page_t *descr_page;
 #ifdef UNIV_DEBUG
   const fil_space_t *fspace = fil_space_get(space);
@@ -699,9 +706,9 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
     {
       const fil_type_t type = fil_space_get_type(id);
       ut_a(fsp_is_system_temporary(id) ||
-           fil_space_get_flags(id) == ULINT_UNDEFINED ||
+           fil_space_get_flags(id) == UINT32_UNDEFINED ||
            type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_IMPORT ||
-           fil_space_is_redo_skipped(id) || undo::is_inactive(id));
+           fil_space_is_redo_skipped(id) || !undo::is_active(id, false));
     }
 #endif /* UNIV_DEBUG */
       return;
@@ -768,8 +775,8 @@ void fsp_init() {
 void fsp_header_init_fields(
     page_t *page,        /*!< in/out: first page in the space */
     space_id_t space_id, /*!< in: space id */
-    ulint flags)         /*!< in: tablespace flags
-                         (FSP_SPACE_FLAGS) */
+    uint32_t flags)      /*!< in: tablespace flags
+                      (FSP_SPACE_FLAGS) */
 {
   ut_a(fsp_flags_is_valid(flags));
 
@@ -951,6 +958,34 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
                                       false, true, mtr));
 }
 
+/** Read the server version number from the DD tablespace header.
+@param[out]     version server version from tablespace header
+@return false if success. */
+bool fsp_header_dict_get_server_version(uint *version) {
+  fil_space_t *space = fil_space_acquire(dict_sys_t::s_space_id);
+
+  if (space == nullptr) {
+    return (true);
+  }
+
+  buf_block_t *block;
+  page_t *page;
+  mtr_t mtr;
+
+  const page_size_t page_size(space->flags);
+
+  mtr_start(&mtr);
+  block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0), page_size,
+                       RW_SX_LATCH, &mtr);
+  page = buf_block_get_frame(block);
+  *version = fsp_header_get_server_version(page);
+
+  mtr_commit(&mtr);
+  fil_space_release(space);
+
+  return (false);
+}
+
 /** Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0.
 @param[in]	space_id	space id
@@ -1085,7 +1120,7 @@ page_size_t fsp_header_get_page_size(const page_t *page) {
 @param[in,out]	iv		tablespace iv
 @param[in]	page	first page of a tablespace
 @return true if success */
-bool fsp_header_get_encryption_key(ulint fsp_flags, byte *key, byte *iv,
+bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
                                    page_t *page) {
   ulint offset;
   const page_size_t page_size(fsp_flags);
@@ -1348,7 +1383,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
                                fsp_header_t *header, mtr_t *mtr) {
   page_no_t limit;
   page_no_t size;
-  ulint flags;
+  uint32_t flags;
   xdes_t *descr;
   ulint count = 0;
   page_no_t i;
@@ -3960,7 +3995,7 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
       Take them into consideration. */
       buf_block_t *block = buf_page_get_gen(
           page_id_t(space_id, current_page), pageSize, RW_X_LATCH, NULL,
-          BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+          Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
 
       if (block == nullptr) {
         continue;
@@ -4095,7 +4130,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       space->encryption_op_in_progress = ENCRYPTION;
 
       /* Update Encryption flag for tablespace */
-      space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      fsp_flags_set_encryption(space->flags);
     } else {
       /* Assert that tablespace is encrypted */
       ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -4118,7 +4153,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       space->encryption_op_in_progress = UNENCRYPTION;
 
       /* Update Encryption flag for tablespace */
-      space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+      fsp_flags_unset_encryption(space->flags);
 
       /* Don't erase Encryption info from page 0 yet */
     }
@@ -4162,7 +4197,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       ut_ad(space->encryption_op_in_progress == UNENCRYPTION);
 
       /* Update Encryption flag for tablespace */
-      space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+      fsp_flags_unset_encryption(space->flags);
 
       /* Don't erase Encryption information from page 0 yet */
     }
@@ -4185,7 +4220,7 @@ all_done:
   /* For unencryption, if server crashed, before tablespace flags were flushed
   on disk. Set them now. */
   if (in_recovery && !to_encrypt) {
-    space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+    fsp_flags_unset_encryption(space->flags);
   }
 
   /* If it was an Unencryption operation */
@@ -4224,8 +4259,8 @@ all_done:
   if (!in_recovery) {
     ut_ad(dd_space != nullptr);
     /* Update DD flags for tablespace */
-    dd_space->se_private_data().set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
-                                           static_cast<uint32>(space->flags));
+    dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                    static_cast<uint32>(space->flags));
   }
 
   /* Crash before resetting progress on page 0 */
@@ -4277,9 +4312,10 @@ static void validate_tablespace_encryption(fil_space_t *space) {
 #endif
 
 /** Resume Encrypt/Unencrypt for tablespace(s) post recovery.
-@param[in]	thd	background thread
-@return 0 for success, otherwise error code */
-static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
+If an error occurs while processing any tablespace needing encryption,
+post an error for that space and keep going.
+@param[in]	thd	background thread */
+static void resume_alter_encrypt_tablespace(THD *thd) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   char operation_name[3][20] = {"NONE", "ENCRYPTION", "UNENCRYPTION"};
@@ -4355,17 +4391,17 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
         !(operation & UNENCRYPTION_IN_PROGRESS)) {
       /* There are two possibilities:
       1. Crash happened even before operation/progress
-         was written to page 0. Nohting to do.
+         was written to page 0. Nothing to do.
       2. Crash happened after (un)encryption was done and progress/operation
          was reset but before DD is updated.
       Update DD in that case. */
-      ib::info(ER_IB_MSG_1278) << "No operation/progress found."
-                                  " Updating DD for tablespace "
-                               << space->name << ":" << space_id << ".";
+      ib::info(ER_IB_MSG_NO_ENCRYPT_PROGRESS_FOUND)
+          << "No operation/progress found. Updating DD for tablespace "
+          << space->name << ":" << space_id << ".";
       goto update_dd;
     }
 
-    ib::info(ER_IB_MSG_1279)
+    ib::info(ER_IB_MSG_RESUME_OP_FOR_SPACE)
         << "Resuming " << operation_name[operation] << " for tablespace "
         << space->name << ":" << space_id << " from page " << progress + 1;
 
@@ -4379,97 +4415,104 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
       ib::error(ER_IB_MSG_1280)
           << operation_name[operation] << " for tablespace " << space->name
           << ":" << space_id << " could not be done successfully.";
-      return (err);
+      continue;
+    }
+
+  update_dd:
+    /* At this point, encryption/unencryption process would have been
+    finished and all pages in tablespace should have been written
+    correctly and flushed to disk. Now :
+    - Set/Update tablespace flags encryption.
+    - Remove In-mem encryption info from tablespace (If Unencrypted).
+    - Reset operation in progress to NONE. */
+    mtr_start(&mtr);
+    block = buf_page_get(page_id_t(space_id, 0), pageSize, RW_X_LATCH, &mtr);
+    page = buf_block_get_frame(block);
+    uint32_t latest_fsp_flags = fsp_header_get_flags(page);
+    if (FSP_FLAGS_GET_ENCRYPTION(latest_fsp_flags)) {
+      fsp_flags_set_encryption(space->flags);
     } else {
-    update_dd:
-      /* At this point, encryption/unencryption process would have been
-      finished and all pages in tablespace should have been written
-      correctly and flushed to disk. Now :
-        - Set/Update tablespace flags encryption.
-        - Remove In-mem encryption info from tablespace (If Unencrypted).
-        - Reset operation in progress to NONE. */
-      mtr_start(&mtr);
-      buf_block_t *block =
-          buf_page_get(page_id_t(space_id, 0), pageSize, RW_X_LATCH, &mtr);
-      page_t *page = buf_block_get_frame(block);
-      ulint latest_fsp_flags = fsp_header_get_flags(page);
-      if (FSP_FLAGS_GET_ENCRYPTION(latest_fsp_flags)) {
-        space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-      } else {
-        space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
-      }
-      ut_ad(space->flags == latest_fsp_flags);
-      mtr_commit(&mtr);
+      fsp_flags_unset_encryption(space->flags);
+    }
+    ut_ad(space->flags == latest_fsp_flags);
+    mtr_commit(&mtr);
 
-      if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-        /* Reset In-mem encryption for tablespace */
-        err = fil_reset_encryption(space_id);
-        ut_ad(err == DB_SUCCESS);
-      }
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      /* Reset In-mem encryption for tablespace */
+      err = fil_reset_encryption(space_id);
+      ut_ad(err == DB_SUCCESS);
+    }
 
-      space->encryption_op_in_progress = NONE;
+    space->encryption_op_in_progress = NONE;
 
     /* In case of crash/recovery, following has to be set explicitly
         - DD tablespace flags.
         - DD encryption option value. */
-    retry:
-      if (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false)) {
-        os_thread_sleep(20);
-        goto retry;
-      }
-
-      if (client->acquire_for_modification<dd::Tablespace>(space->name,
-                                                           &recv_dd_space)) {
-        os_thread_sleep(20);
-        goto retry;
-      }
-
-      if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-        /* Update DD Option value, for Unencryption */
-        recv_dd_space->options().set("encryption", "N");
-
-      } else {
-        /* Update DD Option value, for Encryption */
-        recv_dd_space->options().set("encryption", "Y");
-      }
-
-      /* Update DD flags for tablespace */
-      recv_dd_space->se_private_data().set_uint32(
-          dd_space_key_strings[DD_SPACE_FLAGS],
-          static_cast<uint32>(space->flags));
-
-      /* Validate tablespace In-mem representation */
-      ut_d(validate_tablespace_encryption(space));
-
-      /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
-      transactional locks to be released only in case of successful commit */
-      if (dd::commit_or_rollback_tablespace_change(thd, recv_dd_space, false,
-                                                   true)) {
-        os_thread_sleep(20);
-        goto retry;
-      }
-
-      ib::info(ER_IB_MSG_1281)
-          << "Finished " << operation_name[operation] << " for tablespace "
-          << space->name << ":" << space_id << ".";
+    while (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
+      os_thread_sleep(20);
     }
+
+    while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false)) {
+      os_thread_sleep(20);
+    }
+
+    while (client->acquire_for_modification<dd::Tablespace>(space->name,
+                                                            &recv_dd_space)) {
+      os_thread_sleep(20);
+    }
+
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      /* Update DD Option value, for Unencryption */
+      recv_dd_space->options().set("encryption", "N");
+
+    } else {
+      /* Update DD Option value, for Encryption */
+      recv_dd_space->options().set("encryption", "Y");
+    }
+
+    /* Update DD flags for tablespace */
+    recv_dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                         static_cast<uint32>(space->flags));
+
+    /* Validate tablespace In-mem representation */
+    ut_d(validate_tablespace_encryption(space));
+
+    /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
+    transactional locks to be released only in case of successful commit */
+    while (dd::commit_or_rollback_tablespace_change(thd, recv_dd_space, false,
+                                                    true)) {
+      os_thread_sleep(20);
+    }
+
+    ib::info(ER_IB_MSG_1281)
+        << "Finished " << operation_name[operation] << " for tablespace "
+        << space->name << ":" << space_id << ".";
+
     /* Release MDL on tablespace explicitly */
     dd_release_mdl((*mdl_it));
     mdl_it = shared_mdl_list.erase(mdl_it);
   }
+
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_startup_error_1",
+                  srv_inject_too_many_concurrent_trxs = true;);
+
   /* Delete DDL logs now */
-  log_ddl->post_ts_encryption(ts_encrypt_ddl_records);
+  err = log_ddl->post_ts_encryption(ts_encrypt_ddl_records);
+
+  /* Abort post recovery startup if this is not successful since
+  it would leave the DDL Log in an indeterminate state. */
+  if (err != DB_SUCCESS) {
+    ib::fatal(ER_IB_MSG_POST_RECOVER_POST_TS_ENCRYPT);
+  }
+
   ts_encrypt_ddl_records.clear();
   /* All MDLs should have been released and removed from list by now */
   ut_ad(shared_mdl_list.empty());
   shared_mdl_list.clear();
-  return (err);
 }
 
 /* Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace() {
-  dberr_t err = DB_SUCCESS;
-
   my_thread_init();
 #ifdef UNIV_PFS_THREAD
   THD *thd =
@@ -4478,8 +4521,7 @@ void fsp_init_resume_alter_encrypt_tablespace() {
   THD *thd = create_thd(false, true, true, 0);
 #endif
 
-  err = resume_alter_encrypt_tablespace(thd);
-  ut_a(err == DB_SUCCESS);
+  resume_alter_encrypt_tablespace(thd);
 
   srv_threads.m_ts_alter_encrypt_thread_active = false;
 

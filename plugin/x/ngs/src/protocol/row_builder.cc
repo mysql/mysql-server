@@ -36,10 +36,10 @@
 #include "my_macros.h"
 #include "plugin/x/client/mysqlxclient/xdatetime.h"
 #include "plugin/x/client/mysqlxclient/xdecimal.h"
-#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
-using namespace ngs;
+namespace ngs {
 
 #define ADD_FIELD_HEADER()                                                   \
   DBUG_ASSERT(m_row_processing);                                             \
@@ -56,12 +56,12 @@ Row_builder::~Row_builder() { abort_row(); }
 void Row_builder::abort_row() {
   if (m_row_processing) {
     reset_stream();
-    m_out_buffer->rollback();
+    m_out_page_stream->restore_position();
     m_row_processing = false;
   }
 }
 
-void Row_builder::start_row(Output_buffer *out_buffer) {
+void Row_builder::start_row(Page_output_stream *out_buffer) {
   m_num_fields = 0;
   abort_row();
 
@@ -389,8 +389,7 @@ void Row_builder::add_datetime_field(const MYSQL_TIME *value, uint) {
   append_time_values(value, m_out_stream);
 }
 
-void Row_builder::add_string_field(const char *const value, size_t length,
-                                   const CHARSET_INFO *const) {
+void Row_builder::add_string_field(const char *const value, size_t length) {
   ADD_FIELD_HEADER();
 
   m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(
@@ -401,8 +400,7 @@ void Row_builder::add_string_field(const char *const value, size_t length,
   m_out_stream->WriteRaw(&zero, 1);
 }
 
-void Row_builder::add_set_field(const char *const value, size_t length,
-                                const CHARSET_INFO *const) {
+void Row_builder::add_set_field(const char *const value, size_t length) {
   ADD_FIELD_HEADER();
 
   // special case: empty SET
@@ -448,8 +446,7 @@ void Row_builder::add_set_field(const char *const value, size_t length,
   }
 }
 
-void Row_builder::add_bit_field(const char *const value, size_t length,
-                                const CHARSET_INFO *const) {
+void Row_builder::add_bit_field(const char *const value, size_t length) {
   ADD_FIELD_HEADER();
   DBUG_ASSERT(length <= 8);
 
@@ -461,3 +458,5 @@ void Row_builder::add_bit_field(const char *const value, size_t length,
   m_out_stream->WriteVarint32(CodedOutputStream::VarintSize64(binary_value));
   m_out_stream->WriteVarint64(binary_value);
 }
+
+}  // namespace ngs

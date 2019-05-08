@@ -23,17 +23,22 @@ ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 5K
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
-ERROR HY000: Failed to create UNDOFILE
-set default_storage_engine=ndb;
+ERROR HY000: Failed to create LOGFILE GROUP
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Undofile size rounded down to kernel page size
+Warning	1296	Got error 1516 'File too small' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Error	1528	Failed to create LOGFILE GROUP
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
-UNDO_BUFFER_SIZE = 1M;
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=NDB;
-set default_storage_engine=myisam;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
@@ -41,7 +46,7 @@ INITIAL_SIZE 12M
 ENGINE NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M;
+INITIAL_SIZE = 12M;
 CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
 TABLESPACE ts1 STORAGE DISK
@@ -213,12 +218,22 @@ CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
 TABLESPACE ts1 STORAGE DISK;
-ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'NOLOGGING=1 on table with fields using STORAGE DISK'
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat';
+DROP TABLESPACE ts1;
+#
+# Bug #21699 DROP last DATAFILE from TABLESPACE even though there are still tables in it
+#
+# Create the tablespace
 create tablespace ts2
 add datafile 'datafile2_1.dat'
 use logfile group lg1
 initial_size 12M
 engine ndb;
+# Create tables on the tablespace
 CREATE TABLE City (
 ID int(11) NOT NULL AUTO_INCREMENT,
 Name char(35) NOT NULL,
@@ -232,20 +247,39 @@ storage disk;
 create table t1 (a int primary key, b int)
 engine = ndbcluster tablespace ts2 storage disk;
 insert into t1 values (1,1);
+# Attempting to drop the datafile should fail now
 alter tablespace ts2
 drop datafile 'datafile2_1.dat';
-ERROR HY000: Failed to alter:  DROP DATAFILE
+ERROR HY000: Failed to alter: DROP DATAFILE FAILED
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 770 'Cant drop file, file is used' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Error	1533	Failed to alter: DROP DATAFILE FAILED
 drop table t1;
 alter tablespace ts2
 drop datafile 'datafile2_1.dat';
+# Inserting into the table should now fail with error : NoDatafile in tablespace
 insert
 into City (Name,CountryCode,District,Population)
 values ('BeiJing','CN','Beijing',2000);
 ERROR HY000: Got error 1602 'No datafile in tablespace' from NDBCLUSTER
+# Dropping tablsepace before dropping table should fail
 drop tablespace ts2;
 ERROR HY000: Tablespace `ts2` is not empty.
+# Cleanup
 drop table City;
 drop tablespace ts2;
+###########################
+# Test update of mm/dd part
+###########################
+# Create the tablespaces
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 8M
+ENGINE NDB;
+# Create the tables with mm/dd parts and run tests
 CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE = NDB;
 INSERT INTO t1 VALUES (1,'1','1'), (2,'2','2'), (3,'3','3');
 BEGIN;
@@ -446,10 +480,25 @@ SELECT * from t1 ORDER BY 1;
 a	b	c
 3	0	0
 DROP TABLE t1;
+# Cleanup tablespace
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
+########################
+# Test for blobs...
+########################
+# Create the tablespace
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+# Create a table with blob column on it
 CREATE TABLE t1 (
 a INT NOT NULL PRIMARY KEY,
 b TEXT NOT NULL
 ) TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
+# Generate the blob values to be inserted
 set @x0 = '01234567012345670123456701234567';
 set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
 set @b1 = 'b1';
@@ -462,6 +511,7 @@ set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+# Run the tests
 INSERT INTO t1 VALUES(1,@b1);
 INSERT INTO t1 VALUES(2,@b2);
 SELECT a,length(b),substr(b,1+2*900,2) FROM t1 WHERE a=1;
@@ -491,13 +541,28 @@ DELETE FROM t1 WHERE a=2;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
+# Cleanup
 DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
+#
+# Bug#20612 INS-DEL bug in TUP (not pgman bug)
+# found via disk data assert but is not pgman or disk data related
+#
+#Setup - Create tablespaces and table
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 8M
+ENGINE NDB;
 CREATE TABLE t1 (
 a int NOT NULL,
 b varchar(4000) charset latin1,  -- must use 2 pages undo
 PRIMARY KEY using hash (a)
 )
 TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
+# Run the tests
 set autocommit = 0;
 insert into t1 values(0,'x');
 insert into t1 values(1,'x');
@@ -518,28 +583,56 @@ a	b
 1	x
 rollback;
 set autocommit = 1;
+# Cleanup
 drop table t1;
-create table test.t1 (f1 varchar(50) primary key, f2 text,f3 int) 
+alter tablespace ts1
+drop datafile 'datafile.dat';
+drop tablespace ts1;
+#############################
+# Customer posted order by test case
+# Org in ndb_dd_advance.test
+#############################
+# Setup
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 4M
+engine ndb;
+create table t1 (f1 varchar(50) primary key, f2 text,f3 int) 
 TABLESPACE ts1 STORAGE DISK engine=NDB;
-insert into test.t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
-insert into test.t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
-select * from test.t1 order by f1;
+# Run the tests
+insert into t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
+insert into t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
+select * from t1 order by f1;
 f1	f2	f3
 111111	aaaaaa	1
 222222	bbbbbb	2
-select f1,f2 from test.t1 order by f2;
+select f1,f2 from t1 order by f2;
 f1	f2
 111111	aaaaaa
 222222	bbbbbb
-select f2 from test.t1 order by f2;
+select f2 from t1 order by f2;
 f2
 aaaaaa
 bbbbbb
-select f1,f2 from test.t1 order by f1;
+select f1,f2 from t1 order by f1;
 f1	f2
 111111	aaaaaa
 222222	bbbbbb
-drop table test.t1;
+# Cleanup
+drop table t1;
+alter tablespace ts1
+drop datafile 'datafile.dat';
+drop tablespace ts1;
+#
+# bug#34118 hash index trigger and do not update any disk attr
+#
+# Setup - Create tablespace, table and fill it
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 4M
+ENGINE NDB;
 CREATE TABLE t1 (
 id int unsigned NOT NULL,
 c1 int unsigned NOT NULL,
@@ -549,14 +642,15 @@ UNIQUE KEY c1 using hash (c1))
 TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster;
 insert into t1 values(1, 1, 3);
 insert into t1 values(2, 2, 3);
+# Confirm that the update fails
 update t1 set c1 = 1 where id = 2;
 ERROR 23000: Can't write; duplicate key in table ''
+# Cleanup
 drop table t1;
-ALTER TABLESPACE ts1 
+ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat';
-ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat';
 DROP TABLESPACE ts1;
+# Also drop the logfile group lg1 created at the start of this file
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 === bug#31712 ===
@@ -575,6 +669,7 @@ ERROR HY000: Failed to create DATAFILE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1516 'File too small' from NDB
+Warning	1296	Failed to create datafile 'datafile.dat' in NDB
 Error	1528	Failed to create DATAFILE
 create tablespace ts1
 add datafile 'datafile.dat'
@@ -585,11 +680,12 @@ engine ndb;
 alter tablespace ts1
 add datafile 'datafile02.dat'
 initial_size 1M;
-ERROR HY000: Failed to alter:  CREATE DATAFILE
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1516 'File too small' from NDB
-Error	1533	Failed to alter:  CREATE DATAFILE
+Warning	1296	Failed to create datafile 'datafile02.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
 alter tablespace ts1
 drop datafile 'datafile.dat';
 drop tablespace ts1;
@@ -628,14 +724,14 @@ initial_size 3276801
 undo_buffer_size 294913
 engine ndb;
 Warnings:
-Warning	1	Undo buffer size rounded up to kernel page size
-Warning	2	Undofile size rounded down to kernel page size
+Warning	1296	Undo buffer size rounded up to kernel page size
+Warning	1296	Undofile size rounded down to kernel page size
 alter logfile group lg1
 add undofile 'undofile02.dat'
 initial_size 3309567
 engine ndb;
 Warnings:
-Warning	2	Undofile size rounded down to kernel page size
+Warning	1296	Undofile size rounded down to kernel page size
 create tablespace ts1
 add datafile 'datafile.dat'
 use logfile group lg1
@@ -643,13 +739,13 @@ initial_size 3276801
 extent_size 294913
 engine ndb;
 Warnings:
-Warning	4	Extent size rounded up to kernel page size
-Warning	8	Datafile size rounded down to extent size
+Warning	1296	Extent size rounded up to kernel page size
+Warning	1296	Datafile size rounded down to extent size
 alter tablespace ts1
 add datafile 'datafile02.dat'
 initial_size 3342335;
 Warnings:
-Warning	24	Datafile size rounded up to extent size
+Warning	1296	Datafile size rounded up to extent size
 select file_name, initial_size
 from information_schema.files
 where file_type = 'UNDO LOG' and file_name like '%dat'
@@ -672,6 +768,8 @@ drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
 set character_set_client=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create logfile group lg1
 add undofile 'undo1.log'
 undo_buffer_size 2M
@@ -687,5 +785,6 @@ ERROR HY000: Failed to create LOGFILE GROUP
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 1504 'Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)' from NDB
+Warning	1296	Failed to commit NDB schema transaction
 Error	1528	Failed to create LOGFILE GROUP
 SET SESSION information_schema_stats_expiry=default;

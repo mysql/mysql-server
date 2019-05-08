@@ -28,13 +28,6 @@ struct PSI_stage_progress_v1 {
 };
 typedef struct PSI_stage_progress_v1 PSI_stage_progress_v1;
 struct PSI_stage_info_v1 {
-  PSI_stage_info_v1() {}
-  PSI_stage_info_v1(PSI_stage_key key, const char *name, unsigned int flags,
-                    const char *documentation)
-      : m_key(key),
-        m_name(name),
-        m_flags(flags),
-        m_documentation(documentation) {}
   PSI_stage_key m_key{0};
   const char *m_name{nullptr};
   unsigned int m_flags{0};

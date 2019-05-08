@@ -1,7 +1,7 @@
 #ifndef MY_COMPILER_INCLUDED
 #define MY_COMPILER_INCLUDED
 
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,20 +80,6 @@ inline bool unlikely(bool expr) { return expr; }
   } while (0)
 #endif
 
-#if defined __GNUC__ || defined __SUNPRO_C || defined __SUNPRO_CC
-/* Specifies the minimum alignment of a type. */
-#define MY_ALIGNOF(type) __alignof__(type)
-/* Determine the alignment requirement of a type. */
-#define MY_ALIGNED(n) __attribute__((__aligned__((n))))
-/* Microsoft Visual C++ */
-#elif defined _MSC_VER
-#define MY_ALIGNOF(type) __alignof(type)
-#define MY_ALIGNED(n) __declspec(align(n))
-#else /* Make sure they are defined for other compilers. */
-#define MY_ALIGNOF(type)
-#define MY_ALIGNED(size)
-#endif
-
 /* Visual Studio requires '__inline' for C code */
 #if !defined(__cplusplus) && defined(_MSC_VER)
 #define inline __inline
@@ -103,49 +89,6 @@ inline bool unlikely(bool expr) { return expr; }
 #if defined(_MSC_VER)
 #define __func__ __FUNCTION__
 #endif
-
-/**
-  C++ Type Traits
-*/
-#ifdef __cplusplus
-
-/**
-  Opaque storage with a particular alignment.
-  Partial specialization used due to MSVC++.
-*/
-template <size_t alignment>
-struct my_alignment_imp;
-
-template <>
-struct MY_ALIGNED(1) my_alignment_imp<1> {};
-template <>
-struct MY_ALIGNED(2) my_alignment_imp<2> {};
-template <>
-struct MY_ALIGNED(4) my_alignment_imp<4> {};
-template <>
-struct MY_ALIGNED(8) my_alignment_imp<8> {};
-template <>
-struct MY_ALIGNED(16) my_alignment_imp<16> {};
-
-/**
-  A POD type with a given size and alignment.
-
-  @remark If the compiler does not support a alignment attribute
-          (MY_ALIGN macro), the default alignment of a double is
-          used instead.
-
-  @tparam size        The minimum size.
-  @tparam alignment   The desired alignment: 1, 2, 4, 8 or 16.
-*/
-template <size_t size, size_t alignment>
-struct my_aligned_storage {
-  union {
-    char data[size];
-    my_alignment_imp<alignment> align;
-  };
-};
-
-#endif /* __cplusplus */
 
 /*
   Disable MY_ATTRIBUTE for Sun Studio and Visual Studio.
@@ -181,12 +124,22 @@ struct my_aligned_storage {
 #if defined(HAVE_UBSAN) && defined(__clang__)
 #define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize("undefined")))
 // gcc -fsanitize=undefined
-#elif __has_attribute(no_sanitize_undefined)
+#elif defined(HAVE_UBSAN) && __has_attribute(no_sanitize_undefined)
 #define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize_undefined))
 #else
 #define SUPPRESS_UBSAN
 #endif
 #endif /* SUPPRESS_UBSAN */
+
+#ifndef SUPPRESS_TSAN
+#if defined(HAVE_TSAN) && defined(__clang__)
+#define SUPPRESS_TSAN MY_ATTRIBUTE((no_sanitize("thread")))
+#elif defined(HAVE_TSAN) && __has_attribute(no_sanitize_thread)
+#define SUPPRESS_TSAN MY_ATTRIBUTE((no_sanitize_thread))
+#else
+#define SUPPRESS_TSAN
+#endif
+#endif /* SUPPRESS_TSAN */
 
 #ifdef _WIN32
 #define STDCALL __stdcall

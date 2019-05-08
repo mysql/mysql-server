@@ -401,31 +401,6 @@ check table t2 extended;
 drop table t1,t2;
 --echo ##################################################################
 
---echo #
---echo # Bug #46075: Assertion failed: 0, file .\protocol.cc, line 416
---echo #
-let $default_internal_tmp_se = `select @@internal_tmp_disk_storage_engine`;
-set global internal_tmp_disk_storage_engine = 'myisam';
-set session internal_tmp_mem_storage_engine = 'memory';
-
-CREATE TABLE t1(a INT);
-# To force MyISAM temp. table in the following INSERT ... SELECT.
-SET max_heap_table_size = 16384;
-# To overflow the temp. table.
-SET @old_myisam_data_pointer_size = @@myisam_data_pointer_size;
-SET GLOBAL myisam_data_pointer_size = 2;
-
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
-
-call mtr.add_suppression("\\[MY-\\d+.*\\] The table '.*#sql.*' is full");
---error ER_RECORD_FILE_FULL,ER_RECORD_FILE_FULL
-INSERT IGNORE INTO t1 SELECT t1.a FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6,t1 t7;
-set session internal_tmp_mem_storage_engine = default;
-eval set global internal_tmp_disk_storage_engine = $default_internal_tmp_se;
-
-# Cleanup
-SET GLOBAL myisam_data_pointer_size = @old_myisam_data_pointer_size;
-DROP TABLE t1;
 --echo End of 5.0 tests
 
 --echo #

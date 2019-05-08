@@ -5,6 +5,7 @@
 # When removing this, also remove 'SET default_storage_engine InnoDB' below
 --source include/no_ps_protocol.inc
 --source include/force_myisam_default.inc
+--source include/count_sessions.inc
 
 # Description
 # -----------
@@ -2067,3 +2068,51 @@ CALL proc(51390, 51394);
 CALL proc(51390, 51394);
 --enable_warnings
 DROP PROCEDURE proc;
+
+--echo #
+--echo # Bug#29133127 ASSERTION `MAYBE_NULL' FAILED
+--echo #              |ITEM_FUNC_CONCAT::VAL_STR(STRING*)
+--echo #
+SET GLOBAL max_allowed_packet=1024;
+
+connect (con1,localhost,root,,);
+
+--source include/turn_off_strict_mode.inc
+SET collation_connection=utf32_unicode_ci;
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+                        repeat('b',60),
+                        repeat('c',60),
+                        repeat ('d',100)),'"');
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+                           repeat('b',60),
+                           repeat('c',60),
+                           repeat ('d',100)),'"');
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+                              repeat('b',60),
+                              repeat('c',60),
+                              repeat ('d',100)),'"');
+--source include/restore_strict_mode.inc
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+                        repeat('b',60),
+                        repeat('c',60),
+                        repeat ('d',100)),'"');
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+                           repeat('b',60),
+                           repeat('c',60),
+                           repeat ('d',100)),'"');
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+                              repeat('b',60),
+                              repeat('c',60),
+                              repeat ('d',100)),'"');
+connection default;
+disconnect con1;
+
+SET GLOBAL max_allowed_packet=default;
+
+--source include/wait_until_count_sessions.inc

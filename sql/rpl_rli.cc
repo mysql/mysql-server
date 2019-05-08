@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #include "binlog_event.h"
 #include "m_ctype.h"
+#include "mutex_lock.h"  // Mutex_lock
 #include "my_dbug.h"
 #include "my_dir.h"  // MY_STAT
 #include "my_sqlcommand.h"
@@ -88,9 +89,8 @@ const char *info_rli_fields[] = {
     "number_of_workers",    "id",
     "channel_name"};
 
-Relay_log_info::Relay_log_info(bool is_slave_recovery
+Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
-                               ,
                                PSI_mutex_key *param_key_info_run_lock,
                                PSI_mutex_key *param_key_info_data_lock,
                                PSI_mutex_key *param_key_info_sleep_lock,
@@ -98,20 +98,17 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                PSI_mutex_key *param_key_info_data_cond,
                                PSI_mutex_key *param_key_info_start_cond,
                                PSI_mutex_key *param_key_info_stop_cond,
-                               PSI_mutex_key *param_key_info_sleep_cond
+                               PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-                               ,
                                uint param_id, const char *param_channel,
                                bool is_rli_fake)
-    : Rpl_info("SQL"
+    : Rpl_info("SQL",
 #ifdef HAVE_PSI_INTERFACE
-               ,
                param_key_info_run_lock, param_key_info_data_lock,
                param_key_info_sleep_lock, param_key_info_thd_lock,
                param_key_info_data_cond, param_key_info_start_cond,
-               param_key_info_stop_cond, param_key_info_sleep_cond
+               param_key_info_stop_cond, param_key_info_sleep_cond,
 #endif
-               ,
                param_id, param_channel),
       replicate_same_server_id(::replicate_same_server_id),
       relay_log(&sync_relaylog_period),
@@ -152,7 +149,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
       exit_counter(0),
       max_updated_index(0),
       recovery_parallel_workers(0),
-      checkpoint_seqno(0),
+      rli_checkpoint_seqno(0),
       checkpoint_group(opt_mts_checkpoint_group),
       recovery_groups_inited(false),
       mts_recovery_group_cnt(0),
@@ -295,7 +292,12 @@ Relay_log_info::~Relay_log_info() {
     delete sid_lock;
   }
 
-  set_rli_description_event(NULL);
+  if (set_rli_description_event(nullptr)) {
+#ifndef DBUG_OFF
+    bool set_rli_description_event_failed{false};
+#endif
+    DBUG_ASSERT(set_rli_description_event_failed);
+  }
   delete until_option;
   delete gtid_monitoring_info;
   DBUG_VOID_RETURN;
@@ -325,7 +327,7 @@ void Relay_log_info::reset_notified_relay_log_change() {
 
    Worker notices the new checkpoint value at the group commit to reset
    the current bitmap and starts using the clean bitmap indexed from zero
-   of being reset checkpoint_seqno.
+   of being reset rli_checkpoint_seqno.
 
     New seconds_behind_master timestamp is installed.
 
@@ -370,16 +372,16 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
                        static_cast<unsigned>(it - workers.begin())));
   }
   /*
-    There should not be a call where (shift == 0 && checkpoint_seqno != 0).
+    There should not be a call where (shift == 0 && rli_checkpoint_seqno != 0).
     Then the new checkpoint sequence is updated by subtracting the number
     of consecutive jobs that were successfully processed.
   */
   DBUG_ASSERT(current_mts_submode->get_type() != MTS_PARALLEL_TYPE_DB_NAME ||
-              !(shift == 0 && checkpoint_seqno != 0));
-  checkpoint_seqno = checkpoint_seqno - shift;
+              !(shift == 0 && rli_checkpoint_seqno != 0));
+  rli_checkpoint_seqno = rli_checkpoint_seqno - shift;
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
-                     "checkpoint_seqno --> %u.",
-                     shift, checkpoint_seqno));
+                     "rli_checkpoint_seqno --> %u.",
+                     shift, rli_checkpoint_seqno));
 
   if (update_timestamp) {
     mysql_mutex_lock(&data_lock);
@@ -440,6 +442,7 @@ err:
 static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
+  mysql_mutex_assert_owner(&rli->log_space_lock);
   if (!mysql_file_stat(key_file_relaylog, linfo->log_file_name, &s, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_STAT_LOG_IN_INDEX,
            linfo->log_file_name);
@@ -456,6 +459,7 @@ static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
 int Relay_log_info::count_relay_log_space() {
   LOG_INFO flinfo;
   DBUG_ENTER("Relay_log_info::count_relay_log_space");
+  MUTEX_LOCK(lock, &log_space_lock);
   log_space_total = 0;
   if (relay_log.find_log_pos(&flinfo, NullS, 1)) {
     LogErr(ERROR_LEVEL, ER_RPL_LOG_NOT_FOUND_WHILE_COUNTING_RELAY_LOG_SPACE);
@@ -569,7 +573,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
 
   DEBUG_SYNC(thd, "begin_master_pos_wait");
 
-  set_timespec_nsec(&abstime, (ulonglong)timeout * 1000000000ULL);
+  set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -601,7 +605,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
   strmake(log_name_tmp, log_name->ptr(),
           min<uint32>(log_name->length(), FN_REFLEN - 1));
 
-  char *p = fn_ext(log_name_tmp);
+  const char *p = fn_ext(log_name_tmp);
   char *p_end;
   if (!*p || log_pos < 0) {
     error = -2;  // means improper arguments
@@ -657,7 +661,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
         and protect against user's input error :
         if the names do not match up to '.' included, return error
       */
-      char *q = (fn_ext(basename) + 1);
+      const char *q = fn_ext(basename) + 1;
       if (strncmp(basename, log_name_tmp, (int)(q - basename))) {
         error = -2;
         break;
@@ -779,7 +783,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
 
   DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
-  set_timespec_nsec(&abstime, (ulonglong)timeout * 1000000000ULL);
+  set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
 
   mysql_mutex_lock(&data_lock);
   if (update_THD_status)
@@ -1288,12 +1292,15 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
     */
     XID_STATE *xid_state = thd->get_transaction()->xid_state();
     if (!xid_state->has_state(XID_STATE::XA_NOTR)) {
-      DBUG_ASSERT(DBUG_EVALUATE_IF("simulate_commit_failure", 1,
-                                   xid_state->has_state(XID_STATE::XA_ACTIVE)));
+      DBUG_ASSERT(
+          DBUG_EVALUATE_IF("simulate_commit_failure", 1,
+                           xid_state->has_state(XID_STATE::XA_ACTIVE) ||
+                               xid_state->has_state(XID_STATE::XA_IDLE)));
 
       xa_trans_force_rollback(thd);
       xid_state->reset();
       cleanup_trans_state(thd);
+      thd->rpl_unflag_detached_engine_ha_data();
     }
     thd->mdl_context.release_transactional_locks();
   }
@@ -1461,7 +1468,7 @@ err:
   DBUG_RETURN(res);
 }
 
-int Relay_log_info::rli_init_info() {
+int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
   int error = 0;
   enum_return_check check_return = ERROR_CHECKING_REPOSITORY;
   const char *msg = NULL;
@@ -1630,6 +1637,7 @@ int Relay_log_info::rli_init_info() {
         init_recovery.
       */
       if (!is_relay_log_recovery && !gtid_retrieved_initialized &&
+          !skip_received_gtid_set_recovery &&
           relay_log.init_gtid_sets(
               gtid_set, NULL, opt_slave_sql_verify_checksum,
               true /*true=need lock*/, &mi->transaction_parser, partial_trx)) {
@@ -1756,7 +1764,7 @@ void Relay_log_info::end_info() {
   inited = 0;
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true /*need_lock_log=true*/, true /*need_lock_index=true*/);
-  relay_log.harvest_bytes_written(&log_space_total);
+  relay_log.harvest_bytes_written(this, true /*need_log_space_lock=true*/);
   /*
     Delete the slave's temporary tables from memory.
     In the future there will be other actions than this, to ensure persistance
@@ -2013,9 +2021,11 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
 
    @param  fe Pointer to be installed into execution context
            FormatDescriptor event
+
+   @return 1 if an error was encountered, 0 otherwise.
 */
 
-void Relay_log_info::set_rli_description_event(
+int Relay_log_info::set_rli_description_event(
     Format_description_log_event *fe) {
   DBUG_ENTER("Relay_log_info::set_rli_description_event");
   DBUG_ASSERT(!info_thd || !is_mts_worker(info_thd) || !fe);
@@ -2024,13 +2034,22 @@ void Relay_log_info::set_rli_description_event(
     ulong fe_version = adapt_to_master_version(fe);
 
     if (info_thd) {
-      // See rpl_rli_pdb.h:Slave_worker::set_rli_description_event.
-      if (!is_in_group() &&
-          (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
-           info_thd->variables.gtid_next.type == UNDEFINED_GTID)) {
-        DBUG_PRINT("info",
-                   ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
-        info_thd->variables.gtid_next.set_not_yet_determined();
+      /* @see rpl_rli_pdb.h:Slave_worker::set_rli_description_event for a
+         detailed explanation on the following code block's logic. */
+      if (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
+          info_thd->variables.gtid_next.type == UNDEFINED_GTID) {
+        bool in_active_multi_stmt =
+            info_thd->in_active_multi_stmt_transaction();
+
+        if (!is_in_group() && !in_active_multi_stmt) {
+          DBUG_PRINT("info",
+                     ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
+          info_thd->variables.gtid_next.set_not_yet_determined();
+        } else if (in_active_multi_stmt) {
+          my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+                   "gtid_next");
+          DBUG_RETURN(1);
+        }
       }
 
       if (is_parallel_exec() && fe_version > 0) {
@@ -2055,7 +2074,7 @@ void Relay_log_info::set_rli_description_event(
   rli_description_event = fe;
   if (rli_description_event) ++rli_description_event->atomic_usage_counter;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 struct st_feature_version {

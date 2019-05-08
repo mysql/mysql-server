@@ -58,7 +58,7 @@ a int not null,
 b int not null,
 c int not null,
 unique key uniquet2a(a),
-foreign key fkt2ab(a,b) references t1(a,b)
+constraint fkt2ab foreign key (a,b) references t1(a,b)
 ) engine=ndbcluster;
 #verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
 show create table t2;
@@ -99,11 +99,11 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #try adding fk(a,b,c) referring t1(a,b,c), it should fail without parent index.
-alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+alter table t2 add constraint fkt2abc foreign key (a,b,c) references t1(a,b,c);
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fkt2abc' in the referenced table 't1'
 #now add a unique key but on a different column order and try again
 alter table t1 add constraint uniquet1abc unique (c,a,b);
-alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+alter table t2 add constraint fkt2abc foreign key (a,b,c) references t1(a,b,c);
 #verify the presence of new fk
 show create table t2;
 Table	Create Table

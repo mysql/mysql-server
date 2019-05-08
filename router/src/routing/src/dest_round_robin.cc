@@ -22,13 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include <chrono>
+#include <stdexcept>
 
 #include "common.h"
 #include "dest_round_robin.h"
 #include "mysql/harness/logging/logging.h"
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -55,7 +55,9 @@ void *DestRoundRobin::run_thread(void *context) {
   return nullptr;
 }
 
-void DestRoundRobin::start() { quarantine_thread_.run(&run_thread, this); }
+void DestRoundRobin::start(const mysql_harness::PluginFuncEnv * /*env*/) {
+  quarantine_thread_.run(&run_thread, this);
+}
 
 int DestRoundRobin::get_server_socket(
     std::chrono::milliseconds connect_timeout, int *error,
@@ -113,7 +115,8 @@ int DestRoundRobin::get_server_socket(
 }
 
 DestRoundRobin::~DestRoundRobin() {
-  stopping_ = true;
+  stopper_.set_value();
+  condvar_quarantine_.notify_one();
   quarantine_thread_.join();
 }
 
@@ -145,7 +148,8 @@ void DestRoundRobin::cleanup_quarantine() noexcept {
   mutex_quarantine_.unlock();
 
   for (auto it = cpy_quarantined.begin(); it != cpy_quarantined.end(); ++it) {
-    if (stopping_) {
+    if (stopped_.wait_for(std::chrono::seconds(0)) ==
+        std::future_status::ready) {
       return;
     }
 
@@ -175,16 +179,22 @@ void DestRoundRobin::quarantine_manager_thread() noexcept {
       "RtQ:<unknown>");  // TODO change <unknown> to instance name
 
   std::unique_lock<std::mutex> lock(mutex_quarantine_manager_);
-  while (!stopping_) {
+  while (stopped_.wait_for(std::chrono::seconds(0)) !=
+         std::future_status::ready) {
+    // wait until something got added to quarantie or shutdown
     condvar_quarantine_.wait_for(
-        lock, std::chrono::seconds(kTimeoutQuarantineConditional),
-        [this] { return !quarantined_.empty(); });
+        lock, std::chrono::seconds(kTimeoutQuarantineConditional), [this] {
+          return !quarantined_.empty() ||
+                 (stopped_.wait_for(std::chrono::seconds(0)) ==
+                  std::future_status::ready);
+        });
 
-    if (!stopping_) {
+    // if we aren't shutting down, cleanup and wait
+    if (stopped_.wait_for(std::chrono::seconds(0)) !=
+        std::future_status::ready) {
       cleanup_quarantine();
       // Temporize
-      std::this_thread::sleep_for(
-          std::chrono::seconds(kQuarantineCleanupInterval));
+      stopped_.wait_for(std::chrono::seconds(kQuarantineCleanupInterval));
     }
   }
 }

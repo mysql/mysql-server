@@ -276,3 +276,34 @@ let $MYSQLD_DATADIR= `SELECT @@global.datadir`;
 --list_files $MYSQLD_DATADIR/mysqltest *.MYD
 --echo # And that DROP DATABASE can remove this table, without problems.
 DROP DATABASE mysqltest;
+
+
+--echo #
+--echo # Bug#28923782: DD CRASHES ON ASSERT IF HA_COMMIT_TRANS() RETURNS ERROR
+--echo #
+--echo # Check result of ha_commit_trans() before committing changes of the DD
+--echo # objects.
+--echo #
+
+CREATE TABLE t(i INT);
+SET debug = '+d,simulate_failure_in_before_commit_hook';
+
+--echo # This test case works only with binlogging, because it depends on the
+--echo # 2pc coordinated by the binlog. Hence, to avoid failure when running
+--echo # the test with --skip-log-bin, we temporarily suppress the query- and
+--echo # result log.
+
+--disable_query_log
+--disable_result_log
+if (`SELECT @@global.log_bin`)
+{
+  # Before the patch, this would fail with an assert due to an inconsistency
+  # between the state of the DD cache and the contents of the DD tables.
+  --error ER_RUN_HOOK_ERROR
+  DROP TABLE t;
+}
+--enable_result_log
+--enable_query_log
+
+SET debug = '-d,simulate_failure_in_before_commit_hook';
+DROP TABLE t;

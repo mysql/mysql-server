@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ Transaction_boundary_parser::get_event_boundary_type(
       ROLLBACK and the rest.
     */
     case binary_log::QUERY_EVENT: {
-      char *query = NULL;
+      const char *query = nullptr;
       size_t qlen = 0;
       /* Get the query to let us check for BEGIN/COMMIT/ROLLBACK */
       qlen = Query_log_event::get_query(buf, length, fd_event, &query);

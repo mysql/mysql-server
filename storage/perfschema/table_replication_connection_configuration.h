@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,6 +100,8 @@ struct st_row_connect_config {
   char public_key_path[FN_REFLEN];
   uint public_key_path_length;
   enum_rpl_yes_no get_public_key;
+  char network_namespace[NAME_LEN];
+  uint network_namespace_length;
 };
 
 class PFS_index_rpl_connection_config : public PFS_engine_index {

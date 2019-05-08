@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include <string>
+
+#include "my_config.h"
 
 int verbose = 0;
 volatile sig_atomic_t terminated = 0;
@@ -260,6 +264,16 @@ int main(int argc, char *const argv[]) {
     // Close write end
     close(pfd[1]);
 
+#if defined(HAVE_ASAN) && defined(HAVE_TIRPC)
+#include "asan_library_name.h"
+    std::string ld_preload = "LD_PRELOAD=";
+    if (strlen(asan_library_name) > 0) {
+      ld_preload.append(asan_library_name);
+      ld_preload.append(":");
+    }
+    ld_preload.append("/lib64/libtirpc.so");
+    putenv(strdup(ld_preload.c_str()));
+#endif
     if (execvp(child_argv[0], child_argv) < 0) die("Failed to exec child");
   }
 

@@ -1,7 +1,7 @@
 #ifndef DISCRETE_INTERVAL_INCLUDED
 #define DISCRETE_INTERVAL_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,11 +58,11 @@ class Discrete_interval {
   Discrete_interval(ulonglong start, ulonglong val, ulonglong incr)
       : next(NULL) {
     replace(start, val, incr);
-  };
-  Discrete_interval() : next(NULL) { replace(0, 0, 0); };
-  ulonglong minimum() const { return interval_min; };
-  ulonglong values() const { return interval_values; };
-  ulonglong maximum() const { return interval_max; };
+  }
+  Discrete_interval() : next(NULL) { replace(0, 0, 0); }
+  ulonglong minimum() const { return interval_min; }
+  ulonglong values() const { return interval_values; }
+  ulonglong maximum() const { return interval_max; }
   /*
     If appending [3,5] to [1,2], we merge both in [1,5] (they should have the
     same increment for that, user of the class has to ensure that). That is
@@ -79,7 +79,7 @@ class Discrete_interval {
       return 0;
     }
     return 1;
-  };
+  }
 };
 
 /// List of Discrete_interval objects
@@ -165,7 +165,7 @@ class Discrete_intervals_list {
     if (current != NULL) current = current->next;
     return tmp;
   }
-  ~Discrete_intervals_list() { empty(); };
+  ~Discrete_intervals_list() { empty(); }
   /**
     Appends an interval to the list.
 
@@ -200,8 +200,8 @@ class Discrete_intervals_list {
     return append(new Discrete_interval(start, val, incr));
 #endif
   }
-  ulonglong minimum() const { return (head ? head->minimum() : 0); };
-  ulonglong maximum() const { return (head ? tail->maximum() : 0); };
+  ulonglong minimum() const { return (head ? head->minimum() : 0); }
+  ulonglong maximum() const { return (head ? tail->maximum() : 0); }
   uint nb_elements() const { return elements; }
 };
 

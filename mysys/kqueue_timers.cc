@@ -36,6 +36,7 @@
 #include "my_sys.h"    /* my_message_local */
 #include "my_thread.h" /* my_thread_init, my_thread_end */
 #include "my_timer.h"  /* my_timer_t */
+#include "mysql/psi/mysql_thread.h"
 #include "mysys_err.h"
 #include "mysys_priv.h" /* key_thread_timer_notifier */
 

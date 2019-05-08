@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,12 +39,17 @@ class Catalogs : public Object_table_impl {
     return *s_instance;
   }
 
+  static const CHARSET_INFO *name_collation() {
+    return Object_table_definition_impl::fs_name_collation();
+  }
+
   enum enum_fields {
     FIELD_ID = static_cast<uint>(Common_field::ID),
     FIELD_NAME,
     FIELD_CREATED,
     FIELD_LAST_ALTERED,
-    FIELD_OPTIONS
+    FIELD_OPTIONS,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {
@@ -57,11 +62,9 @@ class Catalogs : public Object_table_impl {
 
     m_target_def.add_field(FIELD_ID, "FIELD_ID",
                            "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-    m_target_def.add_field(
-        FIELD_NAME, "FIELD_NAME",
-        "name VARCHAR(64) NOT NULL COLLATE " +
-            String_type(
-                Object_table_definition_impl::fs_name_collation()->name));
+    m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
+                           "name VARCHAR(64) NOT NULL COLLATE " +
+                               String_type(name_collation()->name));
     m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
                            "created TIMESTAMP NOT NULL");
     m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",

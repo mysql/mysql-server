@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,13 @@ ENDIF()
 
 IF(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   # Enable running mtr from build directory
+  FIND_PROGRAM(PERL_EXECUTABLE perl
+    /usr/bin /usr/local/bin
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_SYSTEM_ENVIRONMENT_PATH)
+  # If not found in hard-coded list above, look in PATH as well.
+  FIND_PROGRAM(PERL_EXECUTABLE perl)
+
   CONFIGURE_FILE(
     ${CMAKE_CURRENT_SOURCE_DIR}/mtr.out-of-source 
     ${CMAKE_CURRENT_BINARY_DIR}/mysql-test-run.pl
@@ -133,16 +140,19 @@ MACRO(PROCESS_COLLECTION_INCLUDE collin collection)
   ENDFOREACH()
 ENDMACRO()
 
-FILE(GLOB infiles "collections/*.in")
-FOREACH(collin ${infiles})
-  STRING(REPLACE ".in" "" collection ${collin})
-  STRING(REPLACE ".in" ".done" colldone ${collin})
-  # Only generate file once
-  IF(NOT EXISTS ${colldone})
-    PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
-    FILE(APPEND ${colldone} "${collin}\n")
-  ENDIF()
-ENDFOREACH()
+# For internal testing in PB2, append collections files
+IF(DEFINED ENV{PB2WORKDIR})
+  FILE(GLOB infiles "collections/*.in")
+  FOREACH(collin ${infiles})
+    STRING(REPLACE ".in" "" collection ${collin})
+    STRING(REPLACE ".in" ".done" colldone ${collin})
+    # Only generate file once
+    IF(NOT EXISTS ${colldone})
+      PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
+      FILE(APPEND ${colldone} "${collin}\n")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 # With different MAX_INDEXES values, server might behave differently in
 # certain cases. 'max_indexes.inc' file should be updated accordingly to

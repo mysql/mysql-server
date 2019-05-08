@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include <stdio.h>
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_systime.h"
 #include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -81,6 +80,7 @@
 
 #ifdef _WIN32
 #define DIR_SEPARATOR "\\"
+#include <my_systime.h>
 #else
 #define DIR_SEPARATOR "/"
 #endif
@@ -159,10 +159,6 @@
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
-#endif
-
-#ifndef HAVE_STRDUP
-extern char * strdup(const char *s);
 #endif
 
 static const char table_name_separator =  '/';
@@ -386,7 +382,7 @@ SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
 #ifdef __cplusplus
 struct GenericSectionIterator
 {
-  virtual ~GenericSectionIterator() {};
+  virtual ~GenericSectionIterator() {}
   virtual void reset()=0;
   virtual const Uint32* getNextWords(Uint32& sz)=0;
 };

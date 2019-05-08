@@ -31,12 +31,14 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
 
 /* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 

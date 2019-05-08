@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_SHARED_INCLUDED
 #define SYS_VARS_SHARED_INCLUDED
 
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
   classes in the sys_var hierarchy (sql_plugin.cc)
 */
 
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"  // mysql_mutex_t
 #include "sql/sql_table.h"
 

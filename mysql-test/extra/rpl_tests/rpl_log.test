@@ -63,11 +63,9 @@ source include/show_binlog_events.inc;
 let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 source include/show_binlog_events.inc;
 
---replace_column 2 #
-show binary logs;
+--source include/show_binary_logs.inc
 --source include/sync_slave_sql_with_master.inc
---replace_column 2 #
-show binary logs;
+--source include/show_binary_logs.inc
 
 let $binlog_file=;
 source include/show_binlog_events.inc;

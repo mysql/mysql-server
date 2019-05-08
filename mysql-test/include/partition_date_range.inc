@@ -21,8 +21,8 @@ SELECT * FROM t1 WHERE a >= '1001-00-00';
 SELECT * FROM t1 WHERE a > '1001-00-00';
 --sorted_result
 SELECT * FROM t1 WHERE a = '1001-00-00';
---echo # Disabling warnings for the invalid date
---disable_warnings
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = "ALLOW_INVALID_DATES";
 --sorted_result
 SELECT * FROM t1 WHERE a < '1999-02-31';
 --sorted_result
@@ -33,7 +33,6 @@ SELECT * FROM t1 WHERE a >= '1999-02-31';
 SELECT * FROM t1 WHERE a > '1999-02-31';
 --sorted_result
 SELECT * FROM t1 WHERE a = '1999-02-31';
---enable_warnings
 --sorted_result
 SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 --sorted_result
@@ -54,16 +53,14 @@ EXPLAIN SELECT * FROM t1 WHERE a <= '1001-00-00';
 EXPLAIN SELECT * FROM t1 WHERE a >= '1001-00-00';
 EXPLAIN SELECT * FROM t1 WHERE a > '1001-00-00';
 EXPLAIN SELECT * FROM t1 WHERE a = '1001-00-00';
---echo # Disabling warnings for the invalid date
---disable_warnings
 EXPLAIN SELECT * FROM t1 WHERE a < '1999-02-31';
 EXPLAIN SELECT * FROM t1 WHERE a <= '1999-02-31';
 EXPLAIN SELECT * FROM t1 WHERE a >= '1999-02-31';
 EXPLAIN SELECT * FROM t1 WHERE a > '1999-02-31';
 EXPLAIN SELECT * FROM t1 WHERE a = '1999-02-31';
---enable_warnings
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1001-01-01';
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0001-01-02' AND '1002-00-00';
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0001-01-01' AND '1001-01-01';
+SET sql_mode = @previous_sql_mode;
 }

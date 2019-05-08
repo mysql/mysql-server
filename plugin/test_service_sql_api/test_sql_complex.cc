@@ -943,6 +943,12 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
   my_thread_attr_init(&attr);
   (void)my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
+  // Default stack size may be too small.
+  size_t stacksize = 0;
+  my_thread_attr_getstacksize(&attr, &stacksize);
+  if (stacksize < my_thread_stack_size)
+    my_thread_attr_setstacksize(&attr, my_thread_stack_size);
+
   struct test_thread_context context;
 
   context.p = p;

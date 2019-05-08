@@ -25,22 +25,23 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_CLIENT_TIMEOUT_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_CLIENT_TIMEOUT_H_
 
+#include <functional>
+
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 
 namespace ngs {
 
 class Server_client_timeout {
  public:
-  Server_client_timeout(const chrono::time_point &release_all_before_time);
-  void validate_client_state(ngs::shared_ptr<Client_interface> client);
+  Server_client_timeout(const xpl::chrono::Time_point &release_all_before_time);
+  void validate_client_state(std::shared_ptr<Client_interface> client);
 
-  chrono::time_point get_oldest_client_accept_time();
+  xpl::chrono::Time_point get_oldest_client_accept_time();
 
  private:
-  chrono::time_point m_oldest_client_accept_time;
-  const chrono::time_point &m_release_all_before_time;
+  xpl::chrono::Time_point m_oldest_client_accept_time;
+  const xpl::chrono::Time_point &m_release_all_before_time;
 };
 
 }  // namespace ngs

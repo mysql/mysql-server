@@ -41,7 +41,6 @@ namespace xpl {
 class Query_string_builder {
  public:
   Query_string_builder(size_t reserve = 256);
-  ~Query_string_builder();
 
   Query_string_builder &bquote() {
     m_str.push_back('\'');
@@ -89,12 +88,12 @@ class Query_string_builder {
 
   Query_string_builder &dot() { return put(".", 1); }
 
-  Query_string_builder &put(const int64_t i) { return put(ngs::to_string(i)); }
-  Query_string_builder &put(const uint64_t u) { return put(ngs::to_string(u)); }
-  Query_string_builder &put(const int32_t i) { return put(ngs::to_string(i)); }
-  Query_string_builder &put(const uint32_t u) { return put(ngs::to_string(u)); }
-  Query_string_builder &put(const float f) { return put(ngs::to_string(f)); }
-  Query_string_builder &put(const double d) { return put(ngs::to_string(d)); }
+  Query_string_builder &put(const int64_t i) { return put(to_string(i)); }
+  Query_string_builder &put(const uint64_t u) { return put(to_string(u)); }
+  Query_string_builder &put(const int32_t i) { return put(to_string(i)); }
+  Query_string_builder &put(const uint32_t u) { return put(to_string(u)); }
+  Query_string_builder &put(const float f) { return put(to_string(f)); }
+  Query_string_builder &put(const double d) { return put(to_string(d)); }
 
   Query_string_builder &put(const char *s, size_t length);
 

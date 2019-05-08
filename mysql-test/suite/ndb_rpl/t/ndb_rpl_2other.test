@@ -23,7 +23,7 @@ set @@global.slave_exec_mode= 'IDEMPOTENT';
 
 # Silence warning about MyISAM not supporting HASH index algorithm
 # when creating mysql.ndb_apply_status
-disable_warnings ONCE;
+--disable_warnings ER_UNSUPPORTED_INDEX_ALGORITHM ONCE
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,
                    epoch BIGINT UNSIGNED NOT NULL,
@@ -76,4 +76,6 @@ SET @@global.default_storage_engine=innodb;
 drop table mysql.ndb_apply_status;
 set @@global.slave_exec_mode= @old_slave_exec_mode;
 SET @@global.default_storage_engine=@old_slave_storage_engine;
-
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

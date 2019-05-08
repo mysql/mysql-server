@@ -1,0 +1,61 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap group on server 1 and create table t1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE test.t1 (a int primary key);
+
+# 2. Join server2 to group
+[connection server_2]
+include/start_group_replication.inc
+
+# 3. Lock tables to allow create backlog
+LOCK TABLES t1 READ;
+
+# 4. Execute transaction on primary server
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+# 5. Server2 will certify transaction but won't apply due lock tables
+[connection server2]
+
+# 6. Stop primary server and primary election will occur
+[connection server1]
+include/stop_group_replication.inc
+
+# 7. Set wait_timeout to 5 seconds
+[connection server2]
+SET @@SESSION.wait_timeout = 5;
+
+# 8. Execute a statement that will be put on hold
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+SELECT * FROM t1;
+
+# 9. Validate statement is on hold
+[connection server_2]
+
+# 10. Sleep for 10 seconds to connection on hold exceed wait timeout
+
+# 11. Reap with timeout error on pending statement
+[connection server2]
+ERROR HY000: Timeout exceeded for held statement while new Group Replication primary member is applying backlog.
+include/rpl_reconnect.inc
+
+# 12. UNLOCK tables to allow apply backlog
+[connection server_2]
+UNLOCK TABLES;
+
+# 13. Cleanup
+[connection server2]
+include/gr_wait_for_member_state.inc
+DROP TABLE t1;
+include/stop_group_replication.inc
+[connection server1]
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

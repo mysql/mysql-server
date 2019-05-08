@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,6 +96,6 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
 
   db_cl = db_cl ? db_cl : thd->collation();
 
-  return new (*THR_MALLOC)
+  return new (thd->mem_root)
       Trigger_creation_ctx(client_cs, connection_cl, db_cl);
 }

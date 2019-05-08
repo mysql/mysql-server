@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,8 @@ struct CreateFKRef
     InvalidChildIndexVersion = 21029,
     NoMoreTableRecords = 707,
     ObjectAlreadyExist = 721,
-    OutOfStringBuffer = 773
+    OutOfStringBuffer = 773,
+    ChildTableHasBlobsAndCascadeDelete = 21034
   };
 
   Uint32 senderData;

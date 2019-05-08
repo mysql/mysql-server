@@ -1,0 +1,17 @@
+--source include/windows.inc
+#
+# only global
+#
+select @@global.named_pipe_full_access_group;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.named_pipe_full_access_group;
+show global variables like 'named_pipe_full_access_group';
+show session variables like 'named_pipe_full_access_group';
+set global named_pipe_full_access_group = NULL;
+show session variables like 'named_pipe_full_access_group';
+set global named_pipe_full_access_group = '*everyone*';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='named_pipe_full_access_group';
+select * from performance_schema.session_variables where variable_name='named_pipe_full_access_group';
+--enable_warnings
+

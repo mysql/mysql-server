@@ -27,8 +27,6 @@ SET(SOURCE_FILES
   )
 
 SET(include_dirs
-  ../src/router/include
-  ../src/harness/include
   include
   )
 

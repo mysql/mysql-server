@@ -23,9 +23,7 @@
 #ifndef OBSERVER_TRANS
 #define OBSERVER_TRANS
 
-#include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 
 /*
   Transaction lifecycle events observers.
@@ -40,59 +38,8 @@ int group_replication_trans_after_commit(Trans_param *param);
 
 int group_replication_trans_after_rollback(Trans_param *param);
 
+int group_replication_trans_begin(Trans_param *param, int &out);
+
 extern Trans_observer trans_observer;
-
-/*
-  @class Transaction_message
-  Class to convey the serialized contents of the TCLE
- */
-class Transaction_message : public Plugin_gcs_message, public Basic_ostream {
- public:
-  enum enum_payload_item_type {
-    // This type should not be used anywhere.
-    PIT_UNKNOWN = 0,
-
-    // Length of the payload item: variable
-    PIT_TRANSACTION_DATA = 1,
-
-    // No valid type codes can appear after this one.
-    PIT_MAX = 2
-  };
-
-  /**
-   Default constructor
-   */
-  Transaction_message();
-  virtual ~Transaction_message();
-
-  /**
-     Overrides Basic_ostream::write().
-     Transaction_message is a Basic_ostream. Callers can write data into
-     Transaction_message's data buffer though this method.
-
-     @param[in] buffer  where the data will be read
-     @param[in] length  the length of the data to write
-
-     @return returns false if succeeds, otherwise true is returned.
-  */
-  bool write(const unsigned char *buffer, my_off_t length);
-
-  /**
-     Length of data in data vector
-
-     @return data length
-  */
-  my_off_t length();
-
- protected:
-  /*
-   Implementation of the template methods
-   */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
-  void decode_payload(const unsigned char *buffer, const unsigned char *);
-
- private:
-  std::vector<uchar> data;
-};
 
 #endif /* OBSERVER_TRANS */

@@ -1,0 +1,107 @@
+#
+# Tests for WL#12086: Cryptographically signed SET statements
+#
+# Testing FR2
+# must be /C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
+SELECT @@GLOBAL.persist_only_admin_x509_subject;
+@@GLOBAL.persist_only_admin_x509_subject
+/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
+SET PERSIST_ONLY auto_generate_certs = DEFAULT;
+SET PERSIST_ONLY basedir = DEFAULT;
+SET PERSIST_ONLY bind_address = DEFAULT;
+SET PERSIST_ONLY character_sets_dir = DEFAULT;
+SET PERSIST_ONLY datadir = DEFAULT;
+SET PERSIST_ONLY default_authentication_plugin = DEFAULT;
+SET PERSIST_ONLY ft_stopword_file = DEFAULT;
+SET PERSIST_ONLY init_file = DEFAULT;
+SET PERSIST_ONLY keyring_operations = DEFAULT;
+SET PERSIST_ONLY lc_messages_dir = DEFAULT;
+SET PERSIST_ONLY log_bin_use_v1_row_events = DEFAULT;
+SET PERSIST_ONLY log_error = DEFAULT;
+SET PERSIST_ONLY pid_file = DEFAULT;
+SET PERSIST_ONLY plugin_dir = DEFAULT;
+SET PERSIST_ONLY port = DEFAULT;
+SET PERSIST_ONLY relay_log = DEFAULT;
+SET PERSIST_ONLY relay_log_info_file = DEFAULT;
+SET PERSIST_ONLY secure_file_priv = DEFAULT;
+SET PERSIST_ONLY skip_networking = DEFAULT;
+SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;
+SET PERSIST_ONLY socket = DEFAULT;
+SET PERSIST_ONLY tmpdir = DEFAULT;
+SET PERSIST_ONLY caching_sha2_password_auto_generate_rsa_keys = DEFAULT;
+SET PERSIST_ONLY caching_sha2_password_private_key_path = DEFAULT;
+SET PERSIST_ONLY caching_sha2_password_public_key_path = DEFAULT;
+SET PERSIST_ONLY innodb_buffer_pool_load_at_startup = DEFAULT;
+SET PERSIST_ONLY innodb_data_file_path = DEFAULT;
+SET PERSIST_ONLY innodb_data_home_dir = DEFAULT;
+SET PERSIST_ONLY innodb_dedicated_server = DEFAULT;
+SET PERSIST_ONLY innodb_directories = DEFAULT;
+SET PERSIST_ONLY innodb_log_group_home_dir = DEFAULT;
+SET PERSIST_ONLY innodb_page_size = DEFAULT;
+SET PERSIST_ONLY innodb_read_only = DEFAULT;
+SET PERSIST_ONLY innodb_temp_data_file_path = DEFAULT;
+SET PERSIST_ONLY innodb_temp_tablespaces_dir = DEFAULT;
+SET PERSIST_ONLY innodb_undo_directory = DEFAULT;
+SET PERSIST_ONLY innodb_undo_tablespaces = DEFAULT;
+SET PERSIST_ONLY sha256_password_auto_generate_rsa_keys = DEFAULT;
+SET PERSIST_ONLY sha256_password_private_key_path = DEFAULT;
+SET PERSIST_ONLY sha256_password_public_key_path = DEFAULT;
+SET PERSIST_ONLY innodb_force_load_corrupted = DEFAULT;
+# Following variables will never be settable
+SET PERSIST_ONLY innodb_version = DEFAULT;
+ERROR HY000: Variable 'innodb_version' is a non persistent read only variable
+SET PERSIST_ONLY persisted_globals_load = DEFAULT;
+ERROR HY000: Variable 'persisted_globals_load' is a non persistent read only variable
+SET PERSIST_ONLY character_set_system = DEFAULT;
+ERROR HY000: Variable 'character_set_system' is a non persistent read only variable
+SET PERSIST_ONLY core_file = DEFAULT;
+ERROR HY000: Variable 'core_file' is a non persistent read only variable
+SET PERSIST_ONLY have_statement_timeout = DEFAULT;
+ERROR HY000: Variable 'have_statement_timeout' is a non persistent read only variable
+SET PERSIST_ONLY have_symlink = DEFAULT;
+ERROR HY000: Variable 'have_symlink' is a non persistent read only variable
+SET PERSIST_ONLY hostname = DEFAULT;
+ERROR HY000: Variable 'hostname' is a non persistent read only variable
+SET PERSIST_ONLY large_files_support = DEFAULT;
+ERROR HY000: Variable 'large_files_support' is a non persistent read only variable
+SET PERSIST_ONLY large_page_size = DEFAULT;
+ERROR HY000: Variable 'large_page_size' is a non persistent read only variable
+SET PERSIST_ONLY license = DEFAULT;
+ERROR HY000: Variable 'license' is a non persistent read only variable
+SET PERSIST_ONLY log_bin = DEFAULT;
+ERROR HY000: Variable 'log_bin' is a non persistent read only variable
+SET PERSIST_ONLY log_bin_basename = DEFAULT;
+ERROR HY000: Variable 'log_bin_basename' is a non persistent read only variable
+SET PERSIST_ONLY log_bin_index = DEFAULT;
+ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
+SET PERSIST_ONLY lower_case_file_system = DEFAULT;
+ERROR HY000: Variable 'lower_case_file_system' is a non persistent read only variable
+SET PERSIST_ONLY protocol_version = DEFAULT;
+ERROR HY000: Variable 'protocol_version' is a non persistent read only variable
+SET PERSIST_ONLY relay_log_basename = DEFAULT;
+ERROR HY000: Variable 'relay_log_basename' is a non persistent read only variable
+SET PERSIST_ONLY relay_log_index = DEFAULT;
+ERROR HY000: Variable 'relay_log_index' is a non persistent read only variable
+SET PERSIST_ONLY server_uuid = DEFAULT;
+ERROR HY000: Variable 'server_uuid' is a non persistent read only variable
+SET PERSIST_ONLY skip_external_locking = DEFAULT;
+ERROR HY000: Variable 'skip_external_locking' is a non persistent read only variable
+SET PERSIST_ONLY system_time_zone = DEFAULT;
+ERROR HY000: Variable 'system_time_zone' is a non persistent read only variable
+SET PERSIST_ONLY version_comment = DEFAULT;
+ERROR HY000: Variable 'version_comment' is a non persistent read only variable
+SET PERSIST_ONLY version_compile_machine = DEFAULT;
+ERROR HY000: Variable 'version_compile_machine' is a non persistent read only variable
+SET PERSIST_ONLY version_compile_os = DEFAULT;
+ERROR HY000: Variable 'version_compile_os' is a non persistent read only variable
+SET PERSIST_ONLY version_compile_zlib = DEFAULT;
+ERROR HY000: Variable 'version_compile_zlib' is a non persistent read only variable
+# Cleanup
+RESET PERSIST;
+#
+# BUG#28589736: PID_FILE OPTION MUST NOT HAVE DEFAULT VALUE AS NULL
+#
+SET PERSIST_ONLY pid_file = DEFAULT;
+include/assert_grep.inc [Check mysqld-auto.cnf for "pid_file" value]
+# Cleanup
+RESET PERSIST;

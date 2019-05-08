@@ -55,14 +55,14 @@ test.t2	analyze	status	OK
 explain select * from t1
 where b1 = 5 and c1 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	const	#	#	Using where with pushed condition (`test`.`t1`.`c1` = 5)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	const	#	#	Using pushed condition (`test`.`t1`.`c1` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` = 5) and (`test`.`t1`.`b1` = 5))
 # must use c2x
 explain select * from t2
 where b2 = 5 and c2 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	const	#	#	Using where with pushed condition (`test`.`t2`.`b2` = 5)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	const	#	#	Using pushed condition (`test`.`t2`.`b2` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t2` where ((`test`.`t2`.`c2` = 5) and (`test`.`t2`.`b2` = 5))
 # must use b1x, c2x
@@ -70,7 +70,7 @@ explain select * from t1, t2
 where c1 = c2 and b1 = 5 and b2 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	const	#	#	Parent of 2 pushed join@1
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1; Using where with pushed condition (`test`.`t2`.`b2` = 5)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1; Using pushed condition (`test`.`t2`.`b2` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b2` = 5) and (`test`.`t1`.`b1` = 5) and (`test`.`t2`.`c2` = `test`.`t1`.`c1`))
 # must use c2x, b1x
@@ -78,7 +78,7 @@ explain select * from t1, t2
 where b1 = b2 and c1 = 5 and c2 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	const	#	#	Parent of 2 pushed join@1
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1; Using where with pushed condition (`test`.`t1`.`c1` = 5)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1; Using pushed condition (`test`.`t1`.`c1` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c2` = 5) and (`test`.`t1`.`c1` = 5) and (`test`.`t1`.`b1` = `test`.`t2`.`b2`))
 # must use t1, c2x
@@ -592,6 +592,56 @@ CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY,
 val int unsigned, UNIQUE (val)) ENGINE=NDBCluster;
 INSERT INTO test.t1 values (1,1), (2,2);
 DROP TABLE t1;
+#
+# Bug#28714864: Running 'analyze' on table with unsupported index length crashes the data nodes
+#
+#setup
+create table t1(
+a int auto_increment primary key,
+b varchar(3053),
+c varchar(3056),
+d varchar(3072),
+col1 varchar(762) not null,
+col2 varchar(762) not null,
+col3 varchar(762) not null,
+col4 varchar(762) not null
+) engine ndb charset latin1;
+# populate enough rows to generate index stats
+# create index on b - it has the maximum key size supported by ndb index stat
+create index idxb on t1(b);
+# analyze should run fine
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop index idxb on t1;
+# create index on c - it has a key size unsupported by ndb index stat
+create index idxc on t1(c);
+# analyze should fail with error 911
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Got error 911 'Index stat scan requested on index with unsupported key size' from NDB
+test.t1	analyze	status	Operation failed
+drop index idxc on t1;
+# create index on d - it has the maximum key size allowed by mysql(3072)
+# but the key size is unsupported by ndb index stat
+create index idxd on t1(d);
+# analyze should fail with error 911
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Got error 911 'Index stat scan requested on index with unsupported key size' from NDB
+test.t1	analyze	status	Operation failed
+drop index idxd on t1;
+# create index on col1..col4 - it has the maximum key size supported by ndb index stat
+create index idxcol on t1(col1, col2, col3, col4);
+# analyze should run fine
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop index idxcol on t1;
+#cleanup
+drop table t1;
+call mtr.add_suppression("Failed to acquire global schema lock");
+call mtr.add_suppression("Failed to release global schema lock");
 set @is_enable = @is_enable_default;
 set @is_enable = NULL;
 # is_enable_on=0 is_enable_off=0

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ static void test_bootstrap() {
 
   psi = thread_boot->get_interface(0);
   ok(psi == NULL, "no thread version 0");
-  psi = thread_boot->get_interface(PSI_THREAD_VERSION_1);
+  psi = thread_boot->get_interface(PSI_THREAD_VERSION_2);
   ok(psi != NULL, "thread version 1");
 
   psi = mutex_boot->get_interface(0);
@@ -242,7 +242,9 @@ static void test_bootstrap() {
   psi = statement_boot->get_interface(0);
   ok(psi == NULL, "no statement version 0");
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_1);
-  ok(psi != NULL, "statement version 1");
+  ok(psi == NULL, "no statement version 1");
+  psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_2);
+  ok(psi != NULL, "statement version 2");
 
   psi = transaction_boot->get_interface(0);
   ok(psi == NULL, "no transaction version 0");
@@ -357,7 +359,7 @@ static void load_perfschema(
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
       &data_lock_boot, &system_boot);
   *thread_service =
-      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
+      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_2);
   *mutex_service =
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
   *rwlock_service =
@@ -377,7 +379,7 @@ static void load_perfschema(
   *stage_service =
       (PSI_stage_service_t *)stage_boot->get_interface(PSI_SOCKET_VERSION_1);
   *statement_service = (PSI_statement_service_t *)statement_boot->get_interface(
-      PSI_STATEMENT_VERSION_1);
+      PSI_STATEMENT_VERSION_2);
   *system_service =
       (PSI_system_service_t *)system_boot->get_interface(PSI_SYSTEM_VERSION_1);
   *transaction_service =
@@ -1869,7 +1871,7 @@ static void test_event_name_index() {
   ok(data_lock_boot != NULL, "data_lock_bootstrap");
 
   thread_service =
-      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
+      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_2);
   ok(thread_service != NULL, "thread_service");
   mutex_service =
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
@@ -1898,7 +1900,7 @@ static void test_event_name_index() {
       (PSI_stage_service_t *)stage_boot->get_interface(PSI_STAGE_VERSION_1);
   ok(stage_service != NULL, "stage_service");
   statement_service = (PSI_statement_service_t *)statement_boot->get_interface(
-      PSI_STATEMENT_VERSION_1);
+      PSI_STATEMENT_VERSION_2);
   ok(statement_service != NULL, "statement_service");
   transaction_service =
       (PSI_transaction_service_t *)transaction_boot->get_interface(
@@ -2197,7 +2199,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(329);
+  plan(330);
 
   MY_INIT("pfs-t");
   do_all_tests();

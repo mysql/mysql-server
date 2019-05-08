@@ -2,15 +2,6 @@
 
 SET default_storage_engine=InnoDB;
 
---source include/mysql_upgrade_preparation.inc
---echo # Test 0) Verify that we can run 'mysql_upgrade' once.
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose 2>&1
---source include/mysql_upgrade_cleanup.inc
-
 --disable_query_log
 let $MYSQLD_DATADIR = `select @@datadir`;
 let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,8 +53,7 @@ TEST_F(TimespecTest, TestNsecZero) {
 }
 
 TEST_F(TimespecTest, TestNsecMax) {
-  ulonglong nsec = 0xFFFFFFFFFFFFFFFFULL;
-  set_timespec_nsec(&ts, nsec);
+  set_timespec_nsec(&ts, TIMEOUT_INF);
   verify_timespec();
 }
 

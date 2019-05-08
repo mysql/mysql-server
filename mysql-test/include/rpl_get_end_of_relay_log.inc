@@ -64,6 +64,13 @@ EOF
 --let $relay_log_size= `SELECT TRIM(SUBSTR('$size_and_file', 1, 10))`
 --let $relay_log_file= `SELECT TRIM(SUBSTR('$size_and_file', 11))`
 
+# Take into account the encryption header if necessary
+--let $_binlog_encryption=`SELECT @@GLOBAL.binlog_encryption`
+if ($_binlog_encryption)
+{
+  --let $relay_log_size=`SELECT $relay_log_size - 512`
+}
+
 if ($rpl_debug)
 {
   --echo relay_log_file=$relay_log_file relay_log_size=$relay_log_size

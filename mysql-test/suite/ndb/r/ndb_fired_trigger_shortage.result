@@ -1,7 +1,8 @@
-select sum(high) < sum(total) from ndbinfo.ndb$pools 
-where pool_name='Fired Trigger';
-sum(high) < sum(total)
-1
+Sending dump signal with data:
+0x000009fc 0x00000002 0x00000007 
+Sending dump signal with data:
+0x000009fc 0x00000002 0x00000007 
+
 create table num (n int);
 insert into num value (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 CREATE TABLE t1 (
@@ -19,3 +20,8 @@ sum(used)
 0
 drop table num;
 drop table t1;
+Sending dump signal with data:
+0x000009fd 0x00000002 
+Sending dump signal with data:
+0x000009fd 0x00000002 
+

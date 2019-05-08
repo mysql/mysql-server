@@ -459,11 +459,11 @@ int Item_func_spatial_rel::multipoint_within_geometry_collection(
 
   Rtree_index &rtree = *((Rtree_index *)prtree);
 
-  TYPENAME BG_models<Coordsys>::Multipoint mpts(
+  typename BG_models<Coordsys>::Multipoint mpts(
       pmpts->get_data_ptr(), pmpts->get_data_size(), pmpts->get_flags(),
       pmpts->get_srid());
 
-  for (TYPENAME BG_models<Coordsys>::Multipoint::iterator k = mpts.begin();
+  for (typename BG_models<Coordsys>::Multipoint::iterator k = mpts.begin();
        k != mpts.end(); ++k) {
     bool already_in = false;
     BG_box box;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,11 @@ public:
     Uint16 Key;
     size_t Offset;
     ValueType Type;
-    Uint32 minValue;
-    Uint32 maxValue;
+    Uint32 maxLength;
     size_t Length_Offset; // Offset used for looking up length of
-                          // data if Type = BinaryValue
+                          // data if Type = BinaryValue, or the flag value
+                          // ExternalData.
+    enum { ExternalData = 0xFFFFFF };
   };
 
   /**
@@ -73,8 +74,8 @@ public:
     Eof = 0,            // Success, end of SimpleProperties object reached
     Break = 1,          // Success 
     TypeMismatch = 2,
-    ValueTooLow = 3,
-    ValueTooHigh = 4,
+    __unused__ = 3,
+    ValueTooLong = 4,
     UnknownKey = 5,
     OutOfMemory = 6     // Only used when packing
   };
@@ -83,17 +84,31 @@ public:
    * Unpack
    */
   class Reader;
-  static UnpackStatus unpack(class Reader & it, 
-			     void * dst, 
-			     const SP2StructMapping[], Uint32 mapSz,
-			     bool ignoreMinMax,
-			     bool ignoreUnknownKeys);
+
+  /* Callback function for reading indirect values.
+     The callback is expected to read the current value of the iterator.
+  */
+  typedef void IndirectReader(class Reader & it, void * dst);
+
+  static UnpackStatus unpack(class Reader &,
+			     void * struct_dst,
+                             const SP2StructMapping[], Uint32 mapSz,
+                             IndirectReader *indirectReader = 0,
+                             void * readerExtra = 0);
   
   class Writer;
+
+  /* Callback function for writing indirect values.
+     The callback is expected to retrieve the value using key and src,
+     add() it to the iterator, and return UnpackStatus::Eof on success.
+  */
+  typedef bool IndirectWriter(class Writer & it, Uint16 key, const void * src);
+
   static UnpackStatus pack(class Writer &,
-			   const void * src,
-			   const SP2StructMapping[], Uint32 mapSz, 
-			   bool ignoreMinMax);
+			   const void * struct_src,
+			   const SP2StructMapping[], Uint32 mapSz,
+                           IndirectWriter *indirectWriter = 0,
+                           const void * writerExtra = 0);
   
   /**
    * Reader class
@@ -132,11 +147,23 @@ public:
     Uint16 getValueLen() const;
 
     /**
+     * Get value length including any padding that may be returned
+     * from getString()
+     */
+    size_t getPaddedLength() const;
+
+    /**
      * Get value type
      *  Note only valid is valid() == true
      */
     ValueType getValueType() const;
-    
+
+    /**
+     * Read value iteratively into buffer.
+       Returns number of bytes read, 0 on EOF, or -1 on error.
+     */
+     int getBuffered(char * buf, Uint32 buf_size);
+
     /**
      * Get value
      *  Note only valid is valid() == true
@@ -178,15 +205,34 @@ public:
 
     bool first();
     bool add(Uint16 key, Uint32 value);
-    bool add(Uint16 key, const char * value);
-    bool add(Uint16 key, const void* value, int len);
+    bool add(Uint16 key, const char * value)  {
+      return add(StringValue, key, value, strlen(value)+1);
+    }
+    bool add(Uint16 key, const void* value, int len) {
+      return add(BinaryValue, key, value, len);
+    }
+
+    /* Two part API: add a key, then iteratively set value from buffer.
+       append() returns
+         the number of bytes written;
+         0 after writing the complete length as specified by value_length;
+         -1 on storage error.
+    */
+    bool addKey(Uint16 key, ValueType type, Uint32 value_length);
+    int append(const char * buf, Uint32 buf_size);
+
   protected:
+    bool add(ValueType type, Uint16 key, const void * value, int len);
     virtual ~Writer() {}
     virtual bool reset() = 0;
     virtual bool putWord(Uint32 val) = 0;
     virtual bool putWords(const Uint32 * src, Uint32 len) = 0;
   private:
     bool add(const char* value, int len);
+
+  private:
+    Uint32 m_value_length;
+    Uint32 m_bytes_written;
   };
 };
 

@@ -1,0 +1,13 @@
+# Test sending and receiving queries that must span packets (ie,
+# larger than 16mb).  This test is around a 32mb send/receive, testing
+# payloads that cross multiple packets.
+
+let $str = `SELECT REPEAT('X', 33554432)`;
+let $str = zzzzzzzzzzzzzzzz$str;
+
+--disable_query_log
+--eval SELECT MD5("$str");
+--eval SELECT LENGTH("$str");
+--replace_column 1 verylongstring
+--eval SELECT "Q $str END";
+--enable_query_log

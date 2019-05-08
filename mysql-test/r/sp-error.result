@@ -1,11 +1,9 @@
-drop table if exists t1, t2;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-drop table if exists t3|
 create table t3 ( x int )|
 insert into t3 values (2), (3)|
 create procedure bad_into(out param int)
@@ -160,7 +158,6 @@ open cc;
 close c;
 end|
 ERROR 42000: Undefined CURSOR: cc
-drop table if exists t1|
 create table t1 (val int)|
 create procedure p()
 begin
@@ -185,7 +182,6 @@ drop procedure p|
 alter procedure bar3 sql security invoker|
 ERROR 42000: PROCEDURE test.bar3 does not exist
 drop table t1|
-drop table if exists t1|
 create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 create procedure p()
@@ -270,7 +266,6 @@ declare continue handler for sqlstate '42S99' set x = 1;
 declare c cursor for select * from t1;
 end|
 ERROR 42000: Cursor declaration after handler declaration
-drop procedure if exists p|
 create procedure p(in x int, inout y int, out z int)
 begin
 set y = x+y;
@@ -293,7 +288,6 @@ lock table t1 read|
 call p()|
 unlock tables|
 drop procedure p|
-drop function if exists f1|
 create function f1(i int) returns int
 begin
 insert into t1 (val) values (i);
@@ -334,7 +328,6 @@ ERROR 42S22: Unknown column 'valname' in 'order clause'
 drop procedure bug1965|
 select 1 into a|
 ERROR 42000: Undeclared variable: a
-drop table if exists t3|
 create table t3 (column_1_0 int)|
 create procedure bug1653()
 update t3 set column_1 = 0|
@@ -401,7 +394,6 @@ end case|
 call bug3287(2)|
 ERROR 20000: Case not found for CASE statement
 drop procedure bug3287|
-drop table if exists t3|
 create table t3 (s1 int, primary key (s1))|
 insert into t3 values (5),(6)|
 create procedure bug3279(out y int) 
@@ -447,7 +439,6 @@ create procedure bug4344() drop procedure bug4344|
 ERROR HY000: Can't drop or alter a PROCEDURE from within another stored routine
 create procedure bug4344() drop function bug4344|
 ERROR HY000: Can't drop or alter a FUNCTION from within another stored routine
-drop procedure if exists bug3294|
 create procedure bug3294()
 begin
 declare continue handler for sqlexception drop table t5;
@@ -495,7 +486,6 @@ ERROR 0A000: LOCK is not allowed in stored procedures
 create procedure bug6600()
 unlock table t1|
 ERROR 0A000: UNLOCK is not allowed in stored procedures
-drop procedure if exists bug7299|
 create procedure bug7299()
 begin
 declare v int;
@@ -536,7 +526,6 @@ declare exit handler for condname1 select 1;
 declare exit handler for sqlstate '42000' select 2;
 end|
 ERROR 42000: Duplicate handler declared in the same block
-drop procedure if exists bug9073|
 create procedure bug9073()
 begin
 declare condname1 condition for sqlstate '42000';
@@ -606,11 +595,9 @@ val	x	bug8408()
 7	7	3
 drop function bug8408|
 truncate table t1|
-drop procedure if exists bug10537|
 create procedure bug10537()
 load data local infile '/tmp/somefile' into table t1|
 ERROR 0A000: LOAD DATA is not allowed in stored procedures
-drop function if exists bug8409|
 create function bug8409()
 returns int
 begin
@@ -649,7 +636,6 @@ create procedure bug9529_9012345678901234567890123456789012345678901234567890123
 begin
 end|
 ERROR 42000: Identifier name 'bug9529_901234567890123456789012345678901234567890123456789012345' is too long
-drop procedure if exists bug17015_0123456789012345678901234567890123456789012345678901234|
 create procedure bug17015_0123456789012345678901234567890123456789012345678901234()
 begin
 end|
@@ -657,7 +643,6 @@ show procedure status like 'bug17015%'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	bug17015_0123456789012345678901234567890123456789012345678901234	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug17015_0123456789012345678901234567890123456789012345678901234|
-drop procedure if exists bug10969|
 create procedure bug10969()
 begin
 declare s1 int default 0;
@@ -768,14 +753,12 @@ execute stmt;
 ERROR 42000: FUNCTION test.bug11834_1 does not exist
 deallocate prepare stmt;
 drop function bug11834_2;
-DROP FUNCTION IF EXISTS bug12953|
 CREATE FUNCTION bug12953() RETURNS INT
 BEGIN
 OPTIMIZE TABLE t1;
 RETURN 1;
 END|
 ERROR 0A000: Not allowed to return a result set from a function
-DROP FUNCTION IF EXISTS bug12995|
 CREATE FUNCTION bug12995() RETURNS INT
 BEGIN
 HANDLER t1 OPEN;
@@ -883,7 +866,6 @@ names
 foo4
 drop procedure bug13510_3|
 drop procedure bug13510_4|
-drop function if exists bug_13627_f|
 CREATE TABLE t1 (a int)|
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN DROP TRIGGER test1; END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
@@ -1072,7 +1054,6 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database mysqltest2;
 use test;
-DROP FUNCTION IF EXISTS bug13012|
 CREATE FUNCTION bug13012() RETURNS INT
 BEGIN
 REPAIR TABLE t1;
@@ -1130,7 +1111,6 @@ ERROR 42S02: Table 'test.t2' doesn't exist
 drop function bug11555_1;
 drop table t1;
 drop view v1;
-drop procedure if exists ` bug15658`;
 create procedure ``() select 1;
 ERROR 42000: Incorrect routine name ''
 create procedure ` `() select 1;
@@ -1165,7 +1145,6 @@ return 1;
 end|
 ERROR 0A000: Not allowed to return a result set from a function
 drop table t1;
-drop procedure if exists bug15091;
 create procedure bug15091()
 begin
 declare selectstr varchar(6000) default ' ';
@@ -1178,10 +1157,8 @@ end|
 call bug15091();
 ERROR 42S02: Unknown table 'c' in field list
 drop procedure bug15091;
-drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '() returns int return 1' at line 1
-DROP PROCEDURE IF EXISTS bug14702;
 CREATE IF NOT EXISTS PROCEDURE bug14702()
 BEGIN
 END;
@@ -1194,7 +1171,6 @@ END;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS bug14702()
 BEGIN
 END' at line 1
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i INT);
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO @a;
 ERROR HY000: View's SELECT contains a 'INTO' clause
@@ -1367,7 +1343,6 @@ drop procedure proc_25345;
 drop function func_25345;
 drop function func_25345_b;
 End of 5.0 tests
-drop function if exists bug20701;
 create function bug20701() returns varchar(25) binary return "test";
 ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
 create function bug20701() returns varchar(25) return "test";
@@ -1424,7 +1399,6 @@ end
 until true end repeat retry;
 end//
 ERROR 42000: LEAVE with no matching label: retry
-DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE c char(100);
@@ -1440,7 +1414,6 @@ FETCH cur1 INTO c;
 select c;
 CLOSE cur1;
 END' at line 4
-DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
@@ -1565,7 +1538,6 @@ CALL p1((SELECT * FROM t1))|
 ERROR 21000: Subquery returns more than 1 row
 DROP PROCEDURE IF EXISTS p1|
 DROP TABLE t1|
-drop procedure if exists p1;
 create procedure p1()
 begin
 create table t1 (a int);
@@ -1574,7 +1546,6 @@ end|
 call p1();
 call p1();
 drop procedure p1;
-drop procedure if exists proc_8759;
 create procedure proc_8759()
 begin
 declare should_be_illegal condition for sqlstate '00000';
@@ -1586,7 +1557,6 @@ begin
 declare continue handler for sqlstate '00000' set @x=0;
 end$$
 ERROR 42000: Bad SQLSTATE: '00000'
-drop procedure if exists proc_36510;
 create procedure proc_36510()
 begin
 declare should_be_illegal condition for sqlstate '00123';
@@ -1609,7 +1579,6 @@ begin
 declare continue handler for 0 set @x=0;
 end$$
 ERROR HY000: Incorrect CONDITION value: '0'
-drop procedure if exists p1;
 set @old_recursion_depth = @@max_sp_recursion_depth;
 set @@max_sp_recursion_depth = 255;
 create procedure p1(a int)
@@ -1711,7 +1680,6 @@ DROP PROCEDURE p2;
 
 # - Case 2
 
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a INT);
 CREATE PROCEDURE p1()
 BEGIN
@@ -1810,7 +1778,6 @@ SET sql_mode = default;
 
 # - Case 3: check that "Exception trumps No Data".
 
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1), (2), (3);
 CREATE PROCEDURE p1()

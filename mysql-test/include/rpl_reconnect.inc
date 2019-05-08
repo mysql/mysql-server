@@ -98,6 +98,13 @@ if ($rpl_server_number == 2)
   }
 }
 
+if ($using_rpl_group_replication_default_connections)
+{
+  --let $rpl_connection_name= server$rpl_server_number
+  --source include/rpl_connection.inc
+  --enable_reconnect
+}
+
 --let $rpl_connection_name= server_$rpl_server_number
 --source include/rpl_connection.inc
 --enable_reconnect
@@ -141,7 +148,8 @@ if ($rpl_server_number == 1)
     {
       --let $rpl_connection_name= server1
       --source include/rpl_connection.inc
-      --enable_reconnect
+      --source include/wait_until_connected_again.inc
+      --disable_reconnect
 
       --let $rpl_connection_name= server_1
       --source include/rpl_connection.inc
@@ -169,7 +177,8 @@ if ($rpl_server_number == 2)
     {
       --let $rpl_connection_name= server2
       --source include/rpl_connection.inc
-      --enable_reconnect
+      --source include/wait_until_connected_again.inc
+      --disable_reconnect
 
       --let $rpl_connection_name= server_2
       --source include/rpl_connection.inc
@@ -177,6 +186,14 @@ if ($rpl_server_number == 2)
       --disable_reconnect
     }
   }
+}
+
+if ($using_rpl_group_replication_default_connections)
+{
+  --let $rpl_connection_name= server$rpl_server_number
+  --source include/rpl_connection.inc
+  --source include/wait_until_connected_again.inc
+  --disable_reconnect
 }
 
 --let $rpl_connection_name= server_$rpl_server_number

@@ -1,0 +1,168 @@
+#------------------------------------------------------------------------
+# Test case to verify MDL locking on check constraints with same names
+# in the concurrent CREATE TABLE statements.
+#------------------------------------------------------------------------
+SET DEBUG_SYNC="after_acquiring_lock_on_check_constraints SIGNAL cc_locked WAIT_FOR continue";
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10), f2 INT, CONSTRAINT t1_ck CHECK(f2 < 10));;
+CONNECT  con1, localhost, root;
+SET DEBUG_SYNC="now WAIT_FOR cc_locked";
+CREATE TABLE t2 (f1 INT, f2 INT, CONSTRAINT t1_ck CHECK(f2 < 10));;
+CONNECT  con2, localhost, root;
+# default connection acquires MDL lock on the check constraint name 'test.t1_ck'.
+# con1 waits for the MDL lock on 'test.t1_ck' at this point.
+SET DEBUG_SYNC="now SIGNAL continue";
+connection con1;
+ERROR HY000: Duplicate check constraint name 't1_ck'.
+connection default;
+#------------------------------------------------------------------------
+# Test case to verify MDL locking on check constraints names in the
+# RENAME TABLE and CREATE TABLE statements.
+#------------------------------------------------------------------------
+SET DEBUG_SYNC="after_acquiring_lock_on_check_constraints_for_rename SIGNAL cc_locked WAIT_FOR continue";
+RENAME TABLE t1 to t2;;
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR cc_locked";
+CREATE TABLE t3 (f1 INT, CONSTRAINT t1_chk_1 CHECK (f1 < 10));;
+connection con2;
+# default connection acquires lock on check constraint 'test.t1_chk_1'.
+# Concurrent create operation with same name for check constraint in con1
+# waits for the lock.
+SET DEBUG_SYNC="now SIGNAL continue";
+connection con1;
+connection default;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_ck` CHECK ((`f2` < 10)),
+  CONSTRAINT `t2_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t3;
+#------------------------------------------------------------------------
+# Test case to verify MDL locking on generated check constraints names
+# in the RENAME TABLE using the target table name and CREATE TABLE
+# statements.
+#------------------------------------------------------------------------
+SET DEBUG_SYNC="after_acquiring_lock_on_check_constraints_for_rename SIGNAL cc_locked WAIT_FOR continue";
+RENAME TABLE t2 to t1;;
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR cc_locked";
+CREATE TABLE t3 (f1 INT, CONSTRAINT t1_chk_1 CHECK (f1 < 10));;
+connection con2;
+# default connection acquires lock on check constraint name('test.t1_chk_1')
+# generated using target table t1.
+# concurrent con1 waits for the MDL on test.t1_chk_1 in CREATE TABLE
+# statement.
+SET DEBUG_SYNC="now SIGNAL continue";
+connection con1;
+ERROR HY000: Duplicate check constraint name 't1_chk_1'.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_ck` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+connection default;
+#------------------------------------------------------------------------
+# Test case to verify MDL locking on check constraint name in ALTER
+# TABLE statement to RENAME table and CREATE TABLE statements.
+#------------------------------------------------------------------------
+SET DEBUG_SYNC="after_acquiring_lock_on_check_constraints_for_rename SIGNAL cc_locked WAIT_FOR continue";
+ALTER TABLE t1 RENAME TO t3;;
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR cc_locked";
+CREATE TABLE t2 (f1 INT, CONSTRAINT t1_chk_1 CHECK (f1 < 10));;
+connection con2;
+# default connection acquires lock on check constraint 'test.t1_chk_1'.
+# Concurrent con1 waits for lock on test.t1_chk_1.
+SET DEBUG_SYNC="now SIGNAL continue";
+connection con1;
+connection default;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_ck` CHECK ((`f2` < 10)),
+  CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+#------------------------------------------------------------------------
+# Test case to verify MDL locking on generated check constraint name
+# using target table name in ALTER TABLE statement to RENAME table and
+# CREATE TABLE statements.
+#------------------------------------------------------------------------
+SET DEBUG_SYNC="after_acquiring_lock_on_check_constraints_for_rename SIGNAL cc_locked WAIT_FOR continue";
+ALTER TABLE t3 RENAME TO t1;;
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR cc_locked";
+CREATE TABLE t2 (f1 INT, CONSTRAINT t1_chk_1 CHECK (f1 < 10));;
+connection con2;
+# default connection acquires lock on the generated check constraint
+# name('test.t1_chk_1') using target table name t1. con1 waits for
+# the lock on same name for check constraint.
+SET DEBUG_SYNC="now SIGNAL continue";
+connection con1;
+ERROR HY000: Duplicate check constraint name 't1_chk_1'.
+connection default;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_ck` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#------------------------------------------------------------------------
+# Test case to verify check constraint evaluation skip for unaffected
+# columns during update operation.
+#------------------------------------------------------------------------
+connection default;
+SET @binlog_format_saved = @@binlog_format;
+SET binlog_format = 'STATEMENT';
+CREATE TABLE t2 (f1 INT, f2 INT, f3 INT CONSTRAINT f3_ck CHECK(f3 < 10));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `f3_ck` CHECK ((`f3` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (5, 5, 5);
+SELECT * FROM t2;
+f1	f2	f3
+5	5	5
+SET DEBUG_SYNC="skip_check_constraints_on_unaffected_columns SIGNAL check_proc_state WAIT_FOR continue";
+UPDATE t2 SET f2 = 10 WHERE f1 = 5;;
+connection con1;
+# Column f2 is unaffected and it is not used in building a row during
+# update operation. So check constraint f3_ck is not evaluated.
+# DEBUG_SYNC is hit on skipping a check constraint.
+SET DEBUG_SYNC="now WAIT_FOR check_proc_state";
+SET DEBUG_SYNC="now SIGNAL continue";
+connection default;
+SELECT * FROM t2;
+f1	f2	f3
+5	10	5
+SET binlog_format=@binlog_format_saved;
+connection default;
+disconnect con1;
+disconnect con2;
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1, t2;

@@ -19,14 +19,15 @@ SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
 ERROR 42000: Variable 'group_replication_gtid_assignment_block_size' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_ip_whitelist= default;
 ERROR 42000: Variable 'group_replication_ip_whitelist' can't be set to the value of 'DEFAULT'
+SET @@GLOBAL.group_replication_communication_max_message_size= default;
 include/stop_group_replication.inc
 # Take backup of group replication variables
 #
 # Test Unit#1
-# Set global group replication variables to default.
-# Curently there are 46 group replication variables.
+# Set global/session group replication variables to default.
+# Curently there are 50 group replication variables.
 #
-include/assert.inc [There are 46 GR variables at present.]
+include/assert.inc [There are 50 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -70,6 +71,11 @@ SET @@GLOBAL.group_replication_recovery_public_key_path= default;
 SET @@GLOBAL.group_replication_recovery_get_public_key= default;
 SET @@GLOBAL.group_replication_exit_state_action= default;
 SET @@GLOBAL.group_replication_member_expel_timeout= default;
+SET @@GLOBAL.group_replication_consistency= default;
+SET @@GLOBAL.group_replication_communication_max_message_size= default;
+SET @@GLOBAL.group_replication_autorejoin_tries= default;
+SET @@GLOBAL.group_replication_message_cache_size= default;
+SET @@SESSION.group_replication_consistency= default;
 #
 # Test Unit#2
 # Verify default values of the group replication variables.
@@ -104,8 +110,13 @@ include/assert.inc [Default group_replication_unreachable_majority_timeout is 0]
 include/assert.inc [Default group_replication_member_weight is 50]
 include/assert.inc [Default group_replication_recovery_public_key_path is ""(EMPTY)]
 include/assert.inc [Default group_replication_recovery_get_public_key is OFF/0]
-include/assert.inc [Default group_replication_exit_state_action is ABORT_SERVER]
+include/assert.inc [Default group_replication_exit_state_action is READ_ONLY]
 include/assert.inc [Default group_replication_member_expel_timeout is 0]
+include/assert.inc [Default group_replication_consistency is EVENTUAL]
+include/assert.inc [Default group_replication_consistency is EVENTUAL]
+include/assert.inc [Default group_replication_communication_max_message_size is 10485760]
+include/assert.inc [Default group_replication_autorejoin_tries is 0]
+include/assert.inc [Default group_replication_message_cache_size is 1073741824]
 #
 # Clean up
 #

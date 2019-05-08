@@ -20,18 +20,26 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <components/mysql_server/mysql_page_track.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
+#include <mysql.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/backup_lock_service.h>
+#include <mysql/components/services/clone_protocol_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_loader.h>
+#include <mysql/components/services/mysql_socket_bits.h>
+#include <mysql/components/services/page_track_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
+#include <mysql/components/services/psi_statement_bits.h>
+#include <mysql/components/services/psi_thread_bits.h>
 #include <mysql/mysql_lex_string.h>
 #include <mysql_ongoing_transaction_query.h>
 #include <security_context_imp.h>
@@ -40,6 +48,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <system_variable_source_imp.h>
 
 #include "components/mysql_server/persistent_dynamic_loader.h"
+#include "host_application_signal_imp.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_inttypes.h"
@@ -53,6 +62,11 @@ extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
+                   (int, void *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
                    (void *, const char *[], int)) {
@@ -140,6 +154,46 @@ DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
 
 DEFINE_BOOL_METHOD(mysql_release_backup_lock, (MYSQL_THD)) { return true; }
 
+DEFINE_METHOD(void, mysql_clone_start_statement,
+              (THD *&, PSI_thread_key, PSI_statement_key)) {
+  return;
+}
+
+DEFINE_METHOD(void, mysql_clone_finish_statement, (THD *)) { return; }
+
+DEFINE_METHOD(MYSQL *, mysql_clone_connect,
+              (THD *, const char *, uint, const char *, const char *,
+               mysql_clone_ssl_context *, MYSQL_SOCKET *)) {
+  return nullptr;
+}
+
+DEFINE_METHOD(int, mysql_clone_send_command,
+              (THD *, MYSQL *, bool, uchar, uchar *, size_t)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_get_response,
+              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_kill, (MYSQL *, MYSQL *)) { return 0; }
+
+DEFINE_METHOD(void, mysql_clone_disconnect, (THD *, MYSQL *, bool, bool)) {
+  return;
+}
+
+DEFINE_METHOD(int, mysql_clone_get_command,
+              (THD *, uchar *, uchar **, size_t *)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_send_response, (THD *, uchar *, size_t)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_send_error, (THD *, uchar, bool)) { return 0; }
+
 DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
                    (void *, Security_context_handle *)) {
   return true;
@@ -187,9 +241,54 @@ DEFINE_BOOL_METHOD(
   return 0;
 }
 
+DEFINE_BOOL_METHOD(
+    mysql_audit_api_message_imp::emit,
+    (mysql_event_message_subclass_t type MY_ATTRIBUTE((unused)),
+     const char *component MY_ATTRIBUTE((unused)),
+     size_t component_length MY_ATTRIBUTE((unused)),
+     const char *producer MY_ATTRIBUTE((unused)),
+     size_t producer_length MY_ATTRIBUTE((unused)),
+     const char *message MY_ATTRIBUTE((unused)),
+     size_t message_length MY_ATTRIBUTE((unused)),
+     mysql_event_message_key_value_t *key_value_map MY_ATTRIBUTE((unused)),
+     size_t key_value_map_length MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_METHOD(int, Page_track_implementation::start,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::stop,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_page_ids,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *,
+               unsigned char *, size_t, Page_Track_Callback, void *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_num_page_ids,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::purge,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_status,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *)) {
+  return (0);
+}
+
 /* TODO following code resembles symbols used in sql library, these should be
-  some day extracted to be reused both in sql library and server component unit
-  tests. */
+  some day extracted to be reused both in sql library and server component
+  unit tests. */
 struct CHARSET_INFO;
 
 CHARSET_INFO *system_charset_info = &my_charset_latin1;
@@ -233,7 +332,7 @@ class dynamic_loader : public ::testing::Test {
   SERVICE_TYPE(dynamic_loader) * loader;
 };
 
-TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != NULL); };
+TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != NULL); }
 
 TEST_F(dynamic_loader, try_load_component) {
   static const char *urns[] = {"file://component_example_component1"};

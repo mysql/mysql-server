@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,15 +30,20 @@
 
 #define JAM_FILE_ID 316
 
+// Optimally ROPE_COPY_BUFFER_SIZE should be evenly divisible by 28 (4*sz)
+#define ROPE_COPY_BUFFER_SIZE 5600
+
 
 typedef DataBuffer<7,ArrayPool<DataBufferSegment<7> > > RopeBase;
 typedef RopeBase::DataBufferPool RopePool;
 
 struct RopeHandle {
-  RopeHandle() { m_hash = 0; }
+  RopeHandle() { m_hash = m_length = 0; }
+  RopeHandle(RopeBase::Head h, Uint32 l) : m_length(l), m_head(h) {}
 
   Uint32 m_hash;
-  RopeBase::Head m_head; 
+  Uint32 m_length;
+  RopeBase::Head m_head;
 
   Uint32 hashValue() const { return m_hash; }
 };
@@ -49,6 +54,7 @@ public:
     : RopeBase(thePool), src(handle)
   {
     this->head = src.m_head;
+    m_length = src.m_length;
   }
   
   ~ConstRope(){
@@ -58,13 +64,26 @@ public:
   bool empty() const;
 
   void copy(char* buf) const;
-  
+  bool copy(class LocalRope & dest);
+
+  /* Returns number of bytes read, or 0 at EOF.
+     Context is maintained in rope_offset.
+     The caller must initialize rope_offset to 0 before the first read.
+  */
+  int readBuffered(char* buf, Uint32 buf_size, Uint32 & rope_offset) const;
+
   int compare(const char * s) const { return compare(s, (Uint32)strlen(s) + 1);}
   int compare(const char *, Uint32 len) const; 
 
   bool equal(const ConstRope& r2) const;
+
+private:
+  const char * firstSegment(Ptr<Segment> &) const;
+  const char * nextSegment(Ptr<Segment> &) const;
+
 private:
   const RopeHandle & src;
+  Uint32 m_length;
 };
 
 class LocalRope : private RopeBase {
@@ -73,11 +92,13 @@ public:
     : RopeBase(thePool), src(handle)
   {
     this->head = src.m_head;
+    m_length = src.m_length;
     m_hash = src.m_hash;
   }
   
   ~LocalRope(){
     src.m_head = this->head;
+    src.m_length = m_length;
     src.m_hash = m_hash;
   }
 
@@ -93,38 +114,46 @@ public:
   bool assign(const char * s, Uint32 l) { return assign(s, l, hash(s, l));}
   bool assign(const char *, Uint32 len, Uint32 hash);
 
+  bool appendBuffer(const char * buf, Uint32 len);
+
   void erase();
   
-  static Uint32 hash(const char * str, Uint32 len);
+  static Uint32 hash(const char * str, Uint32 len, Uint32 starter = 0);
 
-  static Uint32 getSegmentSize() { return RopeBase::getSegmentSize();}
+  static Uint32 getSegmentSizeInBytes() { return RopeBase::getSegmentSizeInBytes();}
+
+private:
+  char * firstSegment(Ptr<Segment> &) const;
+  char * nextSegment(Ptr<Segment> &) const;
+
 private:
   Uint32 m_hash;
+  Uint32 m_length;
   RopeHandle & src;
 };
 
 inline
 Uint32
 LocalRope::size() const {
-  return head.used;
+  return m_length;
 }
 
 inline
 bool
 LocalRope::empty() const {
-  return head.used == 0;
+  return m_length == 0;
 }
 
 inline
 Uint32
 ConstRope::size() const {
-  return head.used;
+  return m_length;
 }
 
 inline
 bool
 ConstRope::empty() const {
-  return head.used == 0;
+  return m_length == 0;
 }
 
 

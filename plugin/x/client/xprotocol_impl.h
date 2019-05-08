@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -153,6 +153,30 @@ class Protocol_impl : public XProtocol,
     return send(Mysqlx::ClientMessages::EXPECT_CLOSE, m);
   }
 
+  XError send(const Mysqlx::Cursor::Open &m) override {
+    return send(Mysqlx::ClientMessages::CURSOR_OPEN, m);
+  }
+
+  XError send(const Mysqlx::Cursor::Close &m) override {
+    return send(Mysqlx::ClientMessages::CURSOR_CLOSE, m);
+  }
+
+  XError send(const Mysqlx::Cursor::Fetch &m) override {
+    return send(Mysqlx::ClientMessages::CURSOR_FETCH, m);
+  }
+
+  XError send(const Mysqlx::Prepare::Prepare &m) override {
+    return send(Mysqlx::ClientMessages::PREPARE_PREPARE, m);
+  }
+
+  XError send(const Mysqlx::Prepare::Execute &m) override {
+    return send(Mysqlx::ClientMessages::PREPARE_EXECUTE, m);
+  }
+
+  XError send(const Mysqlx::Prepare::Deallocate &m) override {
+    return send(Mysqlx::ClientMessages::PREPARE_DEALLOCATE, m);
+  }
+
   XError recv(Header_message_type_id *out_mid, uint8_t **buffer,
               std::size_t *buffer_size) override;
 
@@ -187,6 +211,17 @@ class Protocol_impl : public XProtocol,
 
   std::unique_ptr<XQuery_result> execute_delete(const Mysqlx::Crud::Delete &m,
                                                 XError *out_error) override;
+
+  std::unique_ptr<XQuery_result> execute_prep_stmt(
+      const Mysqlx::Prepare::Execute &m, XError *out_error) override;
+
+  std::unique_ptr<XQuery_result> execute_cursor_open(
+      const Mysqlx::Cursor::Open &m, XError *out_error) override;
+
+  std::unique_ptr<XQuery_result> execute_cursor_fetch(
+      const Mysqlx::Cursor::Fetch &m,
+      std::unique_ptr<XQuery_result> cursor_open_result,
+      XError *out_error) override;
 
   std::unique_ptr<Capabilities> execute_fetch_capabilities(
       XError *out_error) override;
@@ -280,9 +315,9 @@ class Protocol_impl : public XProtocol,
 
   Protocol_factory *m_factory;
   Handler_id m_last_handler_id{0};
-  std::list<Notice_handler_with_id> m_notice_handlers;
-  std::list<Client_handler_with_id> m_message_send_handlers;
-  std::list<Server_handler_with_id> m_message_received_handlers;
+  Priority_list<Notice_handler_with_id> m_notice_handlers;
+  Priority_list<Client_handler_with_id> m_message_send_handlers;
+  Priority_list<Server_handler_with_id> m_message_received_handlers;
   std::unique_ptr<XConnection> m_sync_connection;
   std::unique_ptr<Query_instances> m_query_instances;
   std::shared_ptr<Context> m_context;

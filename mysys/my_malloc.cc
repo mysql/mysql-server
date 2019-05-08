@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ void my_claim(const void *ptr) {
 
   if (ptr == NULL) return;
 
-  mh = USER_TO_HEADER(ptr);
+  mh = USER_TO_HEADER(const_cast<void *>(ptr));
   DBUG_ASSERT(mh->m_magic == MAGIC);
   mh->m_key =
       PSI_MEMORY_CALL(memory_claim)(mh->m_key, mh->m_size, &mh->m_owner);

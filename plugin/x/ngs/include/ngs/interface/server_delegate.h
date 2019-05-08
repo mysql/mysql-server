@@ -25,7 +25,7 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_DELEGATE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_DELEGATE_H_
 
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include <memory>
 
 namespace ngs {
 
@@ -42,9 +42,9 @@ class Server_delegate {
   virtual void did_accept_client(const Client_interface &client) = 0;
   virtual void did_reject_client(Reject_reason reason) = 0;
 
-  virtual ngs::shared_ptr<Client_interface> create_client(
+  virtual std::shared_ptr<Client_interface> create_client(
       std::shared_ptr<Vio_interface> sock) = 0;
-  virtual ngs::shared_ptr<Session_interface> create_session(
+  virtual std::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,
       const int session_id) = 0;
 

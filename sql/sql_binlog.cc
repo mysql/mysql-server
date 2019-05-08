@@ -64,8 +64,13 @@ static int check_event_type(int type, Relay_log_info *rli) {
         We need a preliminary FD event in order to parse the FD event,
         if we don't already have one.
       */
-      if (!fd_event)
-        rli->set_rli_description_event(new Format_description_log_event());
+      if (!fd_event) {
+        fd_event = new Format_description_log_event();
+        if (rli->set_rli_description_event(fd_event)) {
+          delete fd_event;
+          return 1;
+        }
+      }
 
       /* It is always allowed to execute FD events. */
       return 0;
@@ -173,7 +178,7 @@ void mysql_client_binlog_statement(THD *thd) {
   const char *error = 0;
   char *buf = (char *)my_malloc(key_memory_binlog_statement_buffer, decoded_len,
                                 MYF(MY_WME));
-  Log_event *ev = 0;
+  Log_event *ev = nullptr;
 
   /*
     Out of memory check
@@ -279,7 +284,7 @@ void mysql_client_binlog_statement(THD *thd) {
       if (ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
           ev->get_type_code() != binary_log::ROWS_QUERY_LOG_EVENT) {
         delete ev;
-        ev = NULL;
+        ev = nullptr;
       }
       if (err) {
         /*
@@ -299,7 +304,7 @@ end:
   if (rli) {
     if ((error || err) && rli->rows_query_ev) {
       delete rli->rows_query_ev;
-      rli->rows_query_ev = NULL;
+      rli->rows_query_ev = nullptr;
     }
     rli->slave_close_thread_tables(thd);
   }

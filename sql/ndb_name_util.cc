@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,10 +34,10 @@
 
 void ndb_set_dbname(const char *path_name, char *dbname)
 {
-  char *end, *ptr, *tmp_name;
+  const char *end, *ptr;
   char tmp_buff[FN_REFLEN + 1];
 
-  tmp_name= tmp_buff;
+  char *tmp_name= tmp_buff;
   /* Scan name from the end */
   ptr= strend(path_name)-1;
   while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
@@ -63,10 +63,10 @@ void ndb_set_dbname(const char *path_name, char *dbname)
 void
 ndb_set_tabname(const char *path_name, char * tabname)
 {
-  char *end, *ptr, *tmp_name;
+  const char *end, *ptr;
   char tmp_buff[FN_REFLEN + 1];
 
-  tmp_name= tmp_buff;
+  char *tmp_name= tmp_buff;
   /* Scan name from the end */
   end= strend(path_name)-1;
   ptr= end;
@@ -88,4 +88,10 @@ bool ndb_name_is_temp(const char *name)
 bool ndb_name_is_blob_prefix(const char* name)
 {
   return is_prefix(name, "NDB$BLOB");
+}
+
+
+bool ndb_name_is_index_stat(const char* name)
+{
+  return is_prefix(name, "ndb_index_stat");
 }

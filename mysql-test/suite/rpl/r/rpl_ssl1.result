@@ -18,7 +18,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 start slave;
 include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
-change master to master_ssl=1 , master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.1';
+change master to master_ssl=1 , master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.2';
 start slave;
 include/wait_for_slave_to_start.inc
 insert into t1 values (1);
@@ -31,7 +31,7 @@ Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Master_TLS_Version = 'TLSv1.1'
+Master_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 stop slave;
 include/wait_for_slave_to_stop.inc
@@ -51,7 +51,7 @@ Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Master_TLS_Version = 'TLSv1.1'
+Master_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 stop slave;
 include/wait_for_slave_to_stop.inc
@@ -76,7 +76,7 @@ Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Master_TLS_Version = 'TLSv1.1'
+Master_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 drop table t1;
 include/sync_slave_sql_with_master.inc

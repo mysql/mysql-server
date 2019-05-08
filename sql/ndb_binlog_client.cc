@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,9 +44,9 @@ bool Ndb_binlog_client::table_should_have_event(
     NDB_SHARE* share, const NdbDictionary::Table* ndbtab) const {
   DBUG_ENTER("table_should_have_event");
 
-  // Never create event(or event operation) for distributed
-  // privilege tables, the local ACL is kept in synch using
-  // schema distribution and by storing those tables in NDB
+  // Never create event(or event operation) for legacy distributed
+  // privilege tables, which will be seen only when upgrading from
+  // an earlier version.
   if (Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, m_tabname)) {
     DBUG_PRINT("info", ("dist priv table"));
     DBUG_RETURN(false);

@@ -19,4 +19,5 @@ COUNT(a)
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
+include/rpl_end.inc
 # End of tests

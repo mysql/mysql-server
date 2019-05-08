@@ -28,10 +28,6 @@
 */
 
 /*
-  Written by Anjuta Widenius
-*/
-
-/*
   Creates one include file and multiple language-error message files from one
   multi-language text file.
 */
@@ -48,6 +44,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -603,7 +600,8 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 }
 
 static uint parse_error_offset(char *str) {
-  char *soffset, *end;
+  char *soffset;
+  const char *end;
   int error;
   uint ioffset;
 
@@ -655,7 +653,7 @@ static uint parse_error_offset(char *str) {
 */
 static bool parse_reserved_error_section(char *str) {
   char *offset;
-  char *end;
+  const char *end;
   int error;
 
   DBUG_ENTER("parse_reserved_error_section");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,9 +83,9 @@ static unsigned long lfactor[9] = {
     the stop character here.
 */
 
-longlong my_strtoll10(const char *nptr, char **endptr, int *error) {
+longlong my_strtoll10(const char *nptr, const char **endptr, int *error) {
   const char *s, *end, *start, *n_end, *true_end;
-  char *dummy;
+  const char *dummy;
   uchar c;
   unsigned long i, j, k;
   ulonglong li;
@@ -166,7 +166,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error) {
   k = c;
   if (++s == end || (c = (*s - '0')) > 9) goto end4;
   k = k * 10 + c;
-  *endptr = (char *)++s;
+  *endptr = ++s;
 
   /* number string should have ended here */
   if (s != end && (c = (*s - '0')) <= 9) goto overflow;
@@ -183,22 +183,22 @@ overflow: /* *endptr is set here */
   return negative ? LLONG_MIN : (longlong)ULLONG_MAX;
 
 end_i:
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? ((longlong) - (long)i) : (longlong)i);
 
 end_i_and_j:
   li = (ulonglong)i * lfactor[(uint)(s - start)] + j;
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? -((longlong)li) : (longlong)li);
 
 end3:
   li = (ulonglong)i * LFACTOR + (ulonglong)j;
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? -((longlong)li) : (longlong)li);
 
 end4:
   li = (ulonglong)i * LFACTOR1 + (ulonglong)j * 10 + k;
-  *endptr = (char *)s;
+  *endptr = s;
   if (negative) {
     if (li > MAX_NEGATIVE_NUMBER) goto overflow;
     if (li == MAX_NEGATIVE_NUMBER) return LLONG_MIN;
@@ -209,6 +209,6 @@ end4:
 no_conv:
   /* There was no number to convert.  */
   *error = MY_ERRNO_EDOM;
-  *endptr = (char *)nptr;
+  *endptr = nptr;
   return 0;
 }

@@ -128,53 +128,62 @@ static void simple_cs_init_functions(CHARSET_INFO *cs) {
   cs->cset = &my_charset_8bit_handler;
 }
 
-static int cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
+static bool cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
   to->number = from->number ? from->number : to->number;
 
-  if (from->csname)
-    if (!(to->csname = my_once_strdup(from->csname, MYF(MY_WME)))) goto err;
+  if (from->csname) {
+    to->csname = my_once_strdup(from->csname, MYF(MY_WME));
+    if (to->csname == nullptr) return true;
+  }
 
-  if (from->name)
-    if (!(to->name = my_once_strdup(from->name, MYF(MY_WME)))) goto err;
+  if (from->name) {
+    to->name = my_once_strdup(from->name, MYF(MY_WME));
+    if (to->name == nullptr) return true;
+  }
 
-  if (from->comment)
-    if (!(to->comment = my_once_strdup(from->comment, MYF(MY_WME)))) goto err;
+  if (from->comment) {
+    to->comment = my_once_strdup(from->comment, MYF(MY_WME));
+    if (to->comment == nullptr) return true;
+  }
 
   if (from->ctype) {
-    if (!(to->ctype = (uchar *)my_once_memdup(
-              (char *)from->ctype, MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME))))
-      goto err;
-    if (init_state_maps(to)) goto err;
+    to->ctype = static_cast<uchar *>(
+        my_once_memdup(from->ctype, MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME)));
+    if (to->ctype == nullptr) return true;
+    if (init_state_maps(to)) return true;
   }
-  if (from->to_lower)
-    if (!(to->to_lower = (uchar *)my_once_memdup(
-              (char *)from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME))))
-      goto err;
 
-  if (from->to_upper)
-    if (!(to->to_upper = (uchar *)my_once_memdup(
-              (char *)from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE, MYF(MY_WME))))
-      goto err;
+  if (from->to_lower) {
+    to->to_lower = static_cast<uchar *>(
+        my_once_memdup(from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME)));
+    if (to->to_lower == nullptr) return true;
+  }
+
+  if (from->to_upper) {
+    to->to_upper = static_cast<uchar *>(
+        my_once_memdup(from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE, MYF(MY_WME)));
+    if (to->to_upper == nullptr) return true;
+  }
+
   if (from->sort_order) {
-    if (!(to->sort_order = (uchar *)my_once_memdup((char *)from->sort_order,
-                                                   MY_CS_SORT_ORDER_TABLE_SIZE,
-                                                   MYF(MY_WME))))
-      goto err;
+    to->sort_order = static_cast<uchar *>(my_once_memdup(
+        from->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE, MYF(MY_WME)));
+    if (to->sort_order == nullptr) return true;
   }
+
   if (from->tab_to_uni) {
-    uint sz = MY_CS_TO_UNI_TABLE_SIZE * sizeof(uint16);
-    if (!(to->tab_to_uni = (uint16 *)my_once_memdup((char *)from->tab_to_uni,
-                                                    sz, MYF(MY_WME))))
-      goto err;
+    size_t sz = MY_CS_TO_UNI_TABLE_SIZE * sizeof(uint16);
+    to->tab_to_uni = static_cast<uint16 *>(
+        my_once_memdup(from->tab_to_uni, sz, MYF(MY_WME)));
+    if (to->tab_to_uni == nullptr) return true;
   }
-  if (from->tailoring)
-    if (!(to->tailoring = my_once_strdup(from->tailoring, MYF(MY_WME))))
-      goto err;
 
-  return 0;
+  if (from->tailoring) {
+    to->tailoring = my_once_strdup(from->tailoring, MYF(MY_WME));
+    if (to->tailoring == nullptr) return true;
+  }
 
-err:
-  return 1;
+  return false;
 }
 
 static bool simple_cs_is_full(CHARSET_INFO *cs) {
@@ -513,8 +522,7 @@ const char *get_charset_name(uint charset_number) {
   if (charset_number < array_elements(all_charsets)) {
     CHARSET_INFO *cs = all_charsets[charset_number];
 
-    if (cs && (cs->number == charset_number) && cs->name)
-      return (char *)cs->name;
+    if (cs && (cs->number == charset_number) && cs->name) return cs->name;
   }
 
   return "?"; /* this mimics find_type() */
@@ -919,4 +927,6 @@ void charset_uninit() {
   cs_name_pri_num_map = nullptr;
   delete cs_name_bin_num_map;
   cs_name_bin_num_map = nullptr;
+
+  new (&charsets_initialized) std::once_flag;
 }

@@ -7,7 +7,7 @@
 # TODO: fix with a proper comparison in mysqltest
 let $rcd= `SELECT REPLACE('$MYSQL_CHARSETSDIR', '\\\\\', '.')`;
 let $rcd= `SELECT REPLACE('$rcd', '/', '.')`;
-let $regex_charsetdir= `SELECT '/$rcd[\\\\\/\\\\\]/MYSQL_CHARSETSDIR/'`;
+let $regex_charsetdir= /$rcd[\\\/]/MYSQL_CHARSETSDIR/;
 
 --replace_regex $regex_charsetdir
 select @@global.character_sets_dir;

@@ -58,10 +58,16 @@ class MockProtocol : public BaseProtocol {
   /* MOCK_METHOD8(copy_packets, int(int, int, bool,
      RoutingProtocolBuffer&, int* , bool&, size_t*, bool)); */
   virtual int copy_packets(int, int, bool, RoutingProtocolBuffer &, int *,
-                           bool &, size_t *, bool) override {
+                           bool &, size_t *, bool) {
     return 1;
   }
 };
+
+#ifdef _WIN32
+using socket_t = SOCKET;
+#else
+using socket_t = int;
+#endif
 
 class TestRoutingConnection : public testing::Test {
  public:
@@ -90,9 +96,9 @@ class TestRoutingConnection : public testing::Test {
   size_t thread_stack_size_ = 1000;
 
   // connection
-  int client_socket_;
+  socket_t client_socket_;
   sockaddr_storage client_addr_;
-  int server_socket_;
+  socket_t server_socket_;
   mysql_harness::TCPAddress server_address_;
 
   mysql_harness::Path bind_named_socket;
@@ -115,7 +121,7 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   EXPECT_CALL(socket_operations_, getpeername(_, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
                       Return(0)));
-  ;
+
   EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 
@@ -162,7 +168,7 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtThreadExit) {
   EXPECT_CALL(socket_operations_, getpeername(_, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
                       Return(0)));
-  ;
+
   EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 
@@ -175,7 +181,7 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtThreadExit) {
       destination_connect_timeout_, client_connect_timeout_, bind_address_,
       bind_named_socket_, max_connect_errors_, thread_stack_size_);
 
-  bool is_called = false;
+  std::atomic_bool is_called{false};
 
   MySQLRoutingConnection connection(
       context, client_socket_, client_addr_, server_socket_, server_address_,
@@ -219,7 +225,7 @@ TEST_F(TestRoutingConnection, IsConnectionThreadStopOnDisconnect) {
   EXPECT_CALL(socket_operations_, getpeername(_, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
                       Return(0)));
-  ;
+
   EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 
@@ -232,7 +238,7 @@ TEST_F(TestRoutingConnection, IsConnectionThreadStopOnDisconnect) {
       destination_connect_timeout_, client_connect_timeout_, bind_address_,
       bind_named_socket_, max_connect_errors_, thread_stack_size_);
 
-  bool is_called = false;
+  std::atomic_bool is_called{false};
 
   MySQLRoutingConnection connection(
       context, client_socket_, client_addr_, server_socket_, server_address_,

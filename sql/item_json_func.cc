@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* JSON Function items used by mysql */
+// JSON function items.
 
 #include "sql/item_json_func.h"
 
@@ -33,7 +33,7 @@
 #include <string>
 #include <utility>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "m_string.h"
 #include "my_compare.h"
 #include "my_dbug.h"
@@ -42,6 +42,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/current_thd.h"   // current_thd
+#include "sql/field.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
@@ -301,7 +302,7 @@ bool parse_path(String *path_value, bool forbid_wildcards,
 
   // OK, we have a string encoded in utf-8. Does it parse?
   size_t bad_idx = 0;
-  if (parse_path(false, path_length, path_chars, json_path, &bad_idx)) {
+  if (parse_path(path_length, path_chars, json_path, &bad_idx)) {
     /*
       Issue an error message. The last argument is no longer used, but kept to
       avoid changing error message format.
@@ -532,10 +533,8 @@ static bool contains_wr(const THD *thd, const Json_wrapper &doc_wrapper,
       return false;
     }
 
-    for (auto c_oi = containee_wr.object_iterator(); !c_oi.empty();
-         c_oi.next()) {
-      auto c_elt = c_oi.elt();
-      auto d_wr = doc_wrapper.lookup(c_elt.first);
+    for (const auto &c_oi : Json_object_wrapper(containee_wr)) {
+      Json_wrapper d_wr = doc_wrapper.lookup(c_oi.first);
 
       if (d_wr.type() == enum_json_type::J_ERROR) {
         // No match for this key. Give up.
@@ -544,7 +543,7 @@ static bool contains_wr(const THD *thd, const Json_wrapper &doc_wrapper,
       }
 
       // key is the same, now compare values
-      if (contains_wr(thd, d_wr, c_elt.second, result))
+      if (contains_wr(thd, d_wr, c_oi.second, result))
         return true; /* purecov: inspected */
 
       if (!*result) {
@@ -903,15 +902,12 @@ static constexpr uint32 strlen_const(const char *str) {
   return *str == '\0' ? 0 : 1 + strlen_const(str + 1);
 }
 
-/// std::max isn't constexpr until C++14, so we roll our own for now.
-static constexpr uint32 max_const(uint32 a, uint32 b) { return a > b ? a : b; }
-
 /// Find the length of the longest string in a range.
 static constexpr uint32 longest_string(const char *const *begin,
                                        const char *const *end) {
   return begin == end
              ? 0
-             : max_const(strlen_const(*begin), longest_string(begin + 1, end));
+             : std::max(strlen_const(*begin), longest_string(begin + 1, end));
 }
 
 /**
@@ -929,7 +925,7 @@ bool Item_func_json_type::resolve_type(THD *) {
   m_value.set_charset(&my_charset_utf8mb4_bin);
   set_data_type_string(typelit_max_length, &my_charset_utf8mb4_bin);
   return false;
-};
+}
 
 /**
    Compute an index into json_type_string_map
@@ -1129,7 +1125,8 @@ static bool val_json_func_field_subselect(
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_LONGLONG: {
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_YEAR: {
       longlong i = arg->val_int();
 
       if (arg->null_value) return false;
@@ -1202,8 +1199,7 @@ static bool val_json_func_field_subselect(
     case MYSQL_TYPE_BIT:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_YEAR: {
+    case MYSQL_TYPE_TINY_BLOB: {
       String *oo = arg->val_str(value);
 
       if (arg->null_value) return false;
@@ -1291,6 +1287,7 @@ static bool val_json_func_field_subselect(
 
     case MYSQL_TYPE_JSON:
       DBUG_ASSERT(false); /* purecov: inspected */
+
       // fall-through
     default:
       my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
@@ -1478,9 +1475,10 @@ bool Item_json_typecast::val_json(Json_wrapper *wr) {
   return false;
 }
 
-void Item_json_typecast::print(String *str, enum_query_type query_type) {
+void Item_json_typecast::print(const THD *thd, String *str,
+                               enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
   str->append(')');
@@ -1604,9 +1602,10 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
     // and return them as a JSON array.
     Json_array_ptr res(new (std::nothrow) Json_array());
     if (res == nullptr) return error_json(); /* purecov: inspected */
-    for (Json_wrapper_object_iterator i(wrapper.object_iterator()); !i.empty();
-         i.next()) {
-      if (res->append_alias(new (std::nothrow) Json_string(i.elt().first)))
+    for (const auto &i : Json_object_wrapper(wrapper)) {
+      const MYSQL_LEX_CSTRING &key = i.first;
+      if (res->append_alias(new (std::nothrow)
+                                Json_string(key.str, key.length)))
         return error_json(); /* purecov: inspected */
     }
     *wr = Json_wrapper(std::move(res));
@@ -2558,12 +2557,11 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
 
     case enum_json_type::J_OBJECT: {
       const size_t path_length = path->length();
-      for (Json_wrapper_object_iterator jwot(wrapper.object_iterator());
-           !jwot.empty(); jwot.next()) {
-        std::pair<const std::string, Json_wrapper> pair = jwot.elt();
+      for (const auto &jwot : Json_object_wrapper(wrapper)) {
         // recurse with the member added to the path
-        if (Json_path_leg(pair.first).to_string(path) ||
-            find_matches(pair.second, path, matches, duplicates, one_match,
+        const MYSQL_LEX_CSTRING &key = jwot.first;
+        if (Json_path_leg(key.str, key.length).to_string(path) ||
+            find_matches(jwot.second, path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;              /* purecov: inspected */
         path->length(path_length);  // restore the path

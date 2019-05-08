@@ -1,25 +1,33 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
 briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -736,29 +744,62 @@ static bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
 
 /* @{ */
 
+/** Computes maximum number of spin rounds which should be used when waiting
+in user thread (for written or flushed redo) or 0 if busy waiting should not
+be used at all.
+@param[in]  min_non_zero_value    minimum allowed value (unless 0 is returned)
+@return maximum number of spin rounds or 0 */
+static inline uint64_t log_max_spins_when_waiting_in_user_thread(
+    uint64_t min_non_zero_value) {
+  uint64_t max_spins;
+
+  /* Get current cpu usage. */
+  const double cpu = srv_cpu_usage.utime_pct;
+
+  /* Get high-watermark - when cpu usage is higher, don't spin! */
+  const uint32_t hwm = srv_log_spin_cpu_pct_hwm;
+
+  if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm || cpu >= hwm) {
+    /* Don't spin because either cpu usage is too high or it's
+    almost idle so no reason to bother. */
+    max_spins = 0;
+
+  } else if (cpu >= hwm / 2) {
+    /* When cpu usage is more than 50% of the hwm, use the minimum allowed
+    number of spin rounds, not to increase cpu usage too much (risky). */
+    max_spins = min_non_zero_value;
+
+  } else {
+    /* When cpu usage is less than 50% of the hwm, choose maximum spin rounds
+    in range [minimum, 10*minimum]. Smaller usage of cpu is, more spin rounds
+    might be used. */
+    const double r = 1.0 * (hwm / 2 - cpu) / (hwm / 2);
+
+    max_spins =
+        static_cast<uint64_t>(min_non_zero_value + r * min_non_zero_value * 9);
+  }
+
+  return (max_spins);
+}
+
 /** Waits until redo log is written up to provided lsn (or greater).
 We do not care if it's flushed or not.
 @param[in]	log	redo log
 @param[in]	lsn	wait until log.write_lsn >= lsn
 @return		statistics related to waiting inside */
 static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn) {
-  if (log.write_lsn.load() >= lsn) {
-    return (Wait_stats{0});
-  }
+  os_event_set(log.writer_event);
 
-  os_event_try_set(log.writer_event);
+  const uint64_t max_spins = log_max_spins_when_waiting_in_user_thread(
+      srv_log_wait_for_write_spin_delay);
 
-  auto max_spins = srv_log_wait_for_write_spin_delay;
-
-  if (srv_flush_log_at_trx_commit == 1 ||
-      srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
-      srv_cpu_usage.utime_pct >= srv_log_spin_cpu_pct_hwm) {
-    max_spins = 0;
-  }
-
-  auto stop_condition = [&log, lsn](bool) {
+  auto stop_condition = [&log, lsn](bool wait) {
     if (log.write_lsn.load() >= lsn) {
       return (true);
+    }
+
+    if (wait) {
+      os_event_set(log.writer_event);
     }
 
     ut_d(log_background_write_threads_active_validate(log));
@@ -782,28 +823,30 @@ static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn) {
 @param[in]	lsn	wait until log.flushed_to_disk_lsn >= lsn
 @return		statistics related to waiting inside */
 static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn) {
-  os_event_try_set(log.flusher_event);
+  if (log.write_lsn.load(std::memory_order_relaxed) < lsn) {
+    os_event_set(log.writer_event);
+  }
+  os_event_set(log.flusher_event);
 
-  /* Optional spinning - useful for usr1-4 case, disabled by default. */
-  auto max_spins = srv_log_wait_for_flush_spin_delay;
+  uint64_t max_spins = log_max_spins_when_waiting_in_user_thread(
+      srv_log_wait_for_flush_spin_delay);
 
-  if (log.flush_avg_time >= srv_log_wait_for_flush_spin_hwm ||
-      srv_flush_log_at_trx_commit != 1 ||
-      srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
-      srv_cpu_usage.utime_pct >= srv_log_spin_cpu_pct_hwm) {
-    /* Average flush time is too big, don't spin,
-    also don't spin when trx != 1. */
+  if (log.flush_avg_time >= srv_log_wait_for_flush_spin_hwm) {
     max_spins = 0;
   }
 
-  auto stop_condition = [&log, lsn](bool) {
+  auto stop_condition = [&log, lsn](bool wait) {
     LOG_SYNC_POINT("log_wait_for_flush_before_flushed_to_disk_lsn");
 
     if (log.flushed_to_disk_lsn.load() >= lsn) {
       return (true);
     }
 
-    if (srv_flush_log_at_trx_commit != 1) {
+    if (wait) {
+      if (log.write_lsn.load(std::memory_order_relaxed) < lsn) {
+        os_event_set(log.writer_event);
+      }
+
       os_event_set(log.flusher_event);
     }
 
@@ -850,6 +893,15 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
     return (Wait_stats{0});
   }
 
+  /* We do not need to have exact numbers and we do not care if we
+  lost some increments for heavy workload. The value only has usage
+  when it is low workload and we need to discover that we request
+  redo write or flush only from time to time. In such case we prefer
+  to avoid spinning in log threads to save on CPU power usage. */
+  log.write_to_file_requests_total.store(
+      log.write_to_file_requests_total.load(std::memory_order_relaxed) + 1,
+      std::memory_order_relaxed);
+
   ut_a(end_lsn != LSN_MAX);
 
   ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE == 0 ||
@@ -858,7 +910,7 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
   ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <=
        OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
 
-  ut_a(end_lsn <= log_get_lsn(log));
+  ut_ad(end_lsn <= log_get_lsn(log));
 
   if (flush_to_disk) {
     if (log.flushed_to_disk_lsn.load() >= end_lsn) {
@@ -867,14 +919,22 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
 
     Wait_stats wait_stats{0};
 
-    /* The flusher might be sleeping for some time when flush is not
-    forced, if we want to wait for flush in such cases (e.g. for DDL
-    operations) we need to wake flusher up. */
     if (srv_flush_log_at_trx_commit != 1) {
-      /* First we need to assure the data is written and ready
-      for flusher to continue with. */
-      wait_stats += log_wait_for_write(log, end_lsn);
-      os_event_set(log.flusher_event);
+      /* We need redo flushed, but because trx != 1, we have
+      disabled notifications sent from log_writer to log_flusher.
+
+      The log_flusher might be sleeping for 1 second, and we need
+      quick response here. Log_writer avoids waking up log_flusher,
+      so we must do it ourselves here.
+
+      However, before we wake up log_flusher, we must ensure that
+      log.write_lsn >= lsn. Otherwise log_flusher could flush some
+      data which was ready for lsn values smaller than end_lsn and
+      return to sleeping for next 1 second. */
+
+      if (log.write_lsn.load() < end_lsn) {
+        wait_stats = log_wait_for_write(log, end_lsn);
+      }
     }
 
     /* Wait until log gets flushed up to end_lsn. */
@@ -890,15 +950,143 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
   }
 }
 
-  /* @} */
+/* @} */
 
-  /**************************************************/ /**
+/**************************************************/ /**
 
-   @name Log writer thread
+ @name Log threads waiting strategy
 
-   *******************************************************/
+ *******************************************************/
 
-  /* @{ */
+/* @{ */
+
+/** Small utility which is used inside log threads when they have to
+wait for next interesting event to happen. For performance reasons,
+it might make sense to use spin-delay in front of the wait on event
+in such cases. The strategy is first to spin and then to fallback to
+the wait on event. However, for idle servers or work-loads which do
+not need redo being flushed as often, we prefer to avoid spinning.
+This utility solves such problems and provides waiting mechanism. */
+struct Log_thread_waiting {
+  Log_thread_waiting(const log_t &log, os_event_t event, uint64_t spin_delay,
+                     uint64_t min_timeout)
+      : m_log(log),
+        m_event{event},
+        m_spin_delay{static_cast<uint32_t>(std::min(
+            uint64_t(std::numeric_limits<uint32_t>::max()), spin_delay))},
+        m_min_timeout{static_cast<uint32_t>(
+            /* No more than 1s */
+            std::min(uint64_t{1000 * 1000}, min_timeout))} {}
+
+  template <typename Stop_condition>
+  inline Wait_stats wait(Stop_condition stop_condition) {
+    auto spin_delay = m_spin_delay;
+    auto min_timeout = m_min_timeout;
+
+    /** We might read older value, it just decides on spinning.
+    Correctness does not depend on this. Only local performance
+    might depend on this but it's anyway heuristic and depends
+    on average which by definition has lag. No reason to make
+    extra barriers here. */
+
+    const auto req_interval =
+        m_log.write_to_file_requests_interval.load(std::memory_order_relaxed);
+
+    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
+        !log_write_to_file_requests_are_frequent(req_interval)) {
+      /* Either:
+      1. CPU usage is very low on the server, which means the server
+         is most likely idle or almost idle.
+      2. Request to write/flush redo to disk comes only once per 1ms
+         in average or even less often.
+      In both cases we prefer not to spend on CPU power, because there
+      is no real gain from spinning in log threads then. */
+
+      spin_delay = 0;
+      min_timeout =
+          static_cast<uint32_t>(req_interval < 1000 ? req_interval : 1000);
+    }
+
+    const auto wait_stats =
+        os_event_wait_for(m_event, spin_delay, min_timeout, stop_condition);
+
+    return (wait_stats);
+  }
+
+ private:
+  const log_t &m_log;
+  os_event_t m_event;
+  const uint32_t m_spin_delay;
+  const uint32_t m_min_timeout;
+};
+
+struct Log_write_to_file_requests_monitor {
+  explicit Log_write_to_file_requests_monitor(log_t &log)
+      : m_log(log), m_last_requests_value{0}, m_request_interval{0} {
+    m_last_requests_time = Log_clock::now();
+  }
+
+  void update() {
+    const auto requests_value =
+        m_log.write_to_file_requests_total.load(std::memory_order_relaxed);
+
+    const auto current_time = Log_clock::now();
+    if (current_time < m_last_requests_time) {
+      m_last_requests_time = current_time;
+      return;
+    }
+
+    const auto delta_time = current_time - m_last_requests_time;
+    const auto delta_time_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(delta_time)
+            .count();
+
+    if (requests_value > m_last_requests_value) {
+      const auto delta_requests = requests_value - m_last_requests_value;
+      const auto request_interval = delta_time_us / delta_requests;
+      m_request_interval = (m_request_interval * 63 + request_interval) / 64;
+
+    } else if (delta_time_us > 100 * 1000) {
+      /* Last call to log_write_up_to() was longer than 100ms ago,
+      so consider this as maximum time between calls we can expect.
+      Tracking higher values does not make sense, because it is for
+      sure already higher than any reasonable threshold which can be
+      used to differ different activity modes. */
+
+      m_request_interval = 100 * 1000; /* 100ms */
+
+    } else {
+      /* No progress in number of requests and still no more than
+      1second since last progress. Postpone any decision. */
+      return;
+    }
+
+    m_log.write_to_file_requests_interval.store(m_request_interval,
+                                                std::memory_order_relaxed);
+
+    MONITOR_SET(MONITOR_LOG_WRITE_TO_FILE_REQUESTS_INTERVAL,
+                m_request_interval);
+
+    m_last_requests_time = current_time;
+    m_last_requests_value = requests_value;
+  }
+
+ private:
+  log_t &m_log;
+  uint64_t m_last_requests_value;
+  Log_clock_point m_last_requests_time;
+  uint64_t m_request_interval;
+};
+
+/* @} */
+
+/**************************************************/ /**
+
+ @name Log writer thread
+
+ *******************************************************/
+
+/* @{ */
 
 #else /* !UNIV_HOTBACKUP */
 #define log_writer_mutex_own(log) true
@@ -1274,6 +1462,10 @@ static inline size_t compute_write_event_slot(const log_t &log, lsn_t lsn) {
 static inline void notify_about_advanced_write_lsn(log_t &log,
                                                    lsn_t old_write_lsn,
                                                    lsn_t new_write_lsn) {
+  if (srv_flush_log_at_trx_commit == 1) {
+    os_event_set(log.flusher_event);
+  }
+
   const auto first_slot = compute_write_event_slot(log, old_write_lsn);
 
   const auto last_slot = compute_write_event_slot(log, new_write_lsn);
@@ -1284,6 +1476,10 @@ static inline void notify_about_advanced_write_lsn(log_t &log,
   } else {
     LOG_SYNC_POINT("log_write_before_notifier_notify");
     os_event_set(log.write_notifier_event);
+  }
+
+  if (arch_log_sys && arch_log_sys->is_active()) {
+    os_event_set(log_archiver_thread_event);
   }
 }
 
@@ -1609,7 +1805,7 @@ static void log_writer_wait_on_archiver(log_t &log, lsn_t last_write_lsn,
       break;
     }
 
-    os_event_set(archiver_thread_event);
+    os_event_set(log_archiver_thread_event);
 
     log_writer_mutex_exit(log);
 
@@ -1714,14 +1910,6 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
   log_update_limits(log);
 
   LOG_SYNC_POINT("log_writer_write_end");
-
-  if (srv_flush_log_at_trx_commit == 1) {
-    os_event_set(log.flusher_event);
-  }
-
-  if (arch_log_sys && arch_log_sys->is_active()) {
-    os_event_set(archiver_thread_event);
-  }
 }
 
 void log_writer(log_t *log_ptr) {
@@ -1733,10 +1921,16 @@ void log_writer(log_t *log_ptr) {
 
   log_writer_mutex_enter(log);
 
+  Log_thread_waiting waiting{log, log.writer_event, srv_log_writer_spin_delay,
+                             srv_log_writer_timeout};
+
+  Log_write_to_file_requests_monitor write_to_file_requests_monitor{log};
+
   for (uint64_t step = 0;; ++step) {
     bool released = false;
 
-    auto stop_condition = [&ready_lsn, &log, &released](bool wait) {
+    auto stop_condition = [&ready_lsn, &log, &released,
+                           &write_to_file_requests_monitor](bool wait) {
 
       if (released) {
         log_writer_mutex_enter(log);
@@ -1757,6 +1951,7 @@ void log_writer(log_t *log_ptr) {
       }
 
       if (wait) {
+        write_to_file_requests_monitor.update();
         log_writer_mutex_exit(log);
         released = true;
       }
@@ -1764,14 +1959,7 @@ void log_writer(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_writer_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats = os_event_wait_for(
-        log.writer_event, max_spins, srv_log_writer_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_WRITER_, wait_stats);
 
@@ -1780,6 +1968,8 @@ void log_writer(log_t *log_ptr) {
       log_writer_write_buffer(log, ready_lsn);
 
       if (step % 1024 == 0) {
+        write_to_file_requests_monitor.update();
+
         log_writer_mutex_exit(log);
 
         os_thread_sleep(0);
@@ -1975,6 +2165,9 @@ void log_flusher(log_t *log_ptr) {
 
   log_t &log = *log_ptr;
 
+  Log_thread_waiting waiting{log, log.flusher_event, srv_log_flusher_spin_delay,
+                             srv_log_flusher_timeout};
+
   log_flusher_mutex_enter(log);
 
   for (uint64_t step = 0; log.writer_thread_alive.load(); ++step) {
@@ -2021,8 +2214,6 @@ void log_flusher(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_flusher_spin_delay;
-
     if (srv_flush_log_at_trx_commit != 1) {
       const auto current_time = Log_clock::now();
 
@@ -2064,16 +2255,9 @@ void log_flusher(log_t *log_ptr) {
 
         log_flusher_mutex_enter(log);
       }
-
-      max_spins = 0;
     }
 
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats = os_event_wait_for(
-        log.flusher_event, max_spins, srv_log_flusher_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_FLUSHER_, wait_stats);
   }
@@ -2107,6 +2291,10 @@ void log_write_notifier(log_t *log_ptr) {
   lsn_t lsn = log.write_lsn.load() + 1;
 
   log_write_notifier_mutex_enter(log);
+
+  Log_thread_waiting waiting{log, log.write_notifier_event,
+                             srv_log_write_notifier_spin_delay,
+                             srv_log_write_notifier_timeout};
 
   for (uint64_t step = 0;; ++step) {
     if (!log.writer_thread_alive.load()) {
@@ -2143,15 +2331,7 @@ void log_write_notifier(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_write_notifier_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats =
-        os_event_wait_for(log.write_notifier_event, max_spins,
-                          srv_log_write_notifier_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_WRITE_NOTIFIER_, wait_stats);
 
@@ -2208,6 +2388,10 @@ void log_flush_notifier(log_t *log_ptr) {
 
   log_flush_notifier_mutex_enter(log);
 
+  Log_thread_waiting waiting{log, log.flush_notifier_event,
+                             srv_log_flush_notifier_spin_delay,
+                             srv_log_flush_notifier_timeout};
+
   for (uint64_t step = 0;; ++step) {
     if (!log.flusher_thread_alive.load()) {
       if (lsn > log.flushed_to_disk_lsn.load()) {
@@ -2244,15 +2428,7 @@ void log_flush_notifier(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_flush_notifier_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats =
-        os_event_wait_for(log.flush_notifier_event, max_spins,
-                          srv_log_flush_notifier_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_FLUSH_NOTIFIER_, wait_stats);
 
@@ -2309,6 +2485,9 @@ void log_closer(log_t *log_ptr) {
 
   log_closer_mutex_enter(log);
 
+  Log_thread_waiting waiting{log, log.closer_event, srv_log_closer_spin_delay,
+                             srv_log_closer_timeout};
+
   for (uint64_t step = 0;; ++step) {
     bool released = false;
 
@@ -2342,14 +2521,7 @@ void log_closer(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_closer_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    os_event_wait_for(log.closer_event, max_spins, srv_log_closer_timeout,
-                      stop_condition);
+    waiting.wait(stop_condition);
 
     /* Check if we should close the thread. */
     if (log.should_stop_threads.load() && !log.flusher_thread_alive.load() &&
@@ -2449,7 +2621,7 @@ bool log_read_encryption() {
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
       redo log blocks. */
-      space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      fsp_flags_set_encryption(space->flags);
       err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 
       if (err == DB_SUCCESS) {
@@ -2536,50 +2708,11 @@ bool log_rotate_encryption() {
   return (log_write_encryption(nullptr, nullptr, false));
 }
 
-void log_enable_encryption_if_set() {
+void redo_rotate_default_master_key() {
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
   if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
     return;
-  }
-
-  /* Check encryption for redo log is enabled or not. If it's
-  enabled, we will start to encrypt the redo log block from now on.
-  Note: We need the server_uuid initialized, otherwise, the keyname will
-  not contains server uuid. */
-  if (srv_redo_log_encrypt && !FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
-      strlen(server_uuid) > 0) {
-    dberr_t err;
-    byte key[ENCRYPTION_KEY_LEN];
-    byte iv[ENCRYPTION_KEY_LEN];
-
-    if (srv_read_only_mode) {
-      srv_redo_log_encrypt = false;
-      ib::error(ER_IB_MSG_1242) << "Can't set redo log tablespace to be"
-                                << " encrypted in read-only mode.";
-      return;
-    }
-
-    Encryption::random_value(key);
-    Encryption::random_value(iv);
-    if (!log_write_encryption(key, iv, false)) {
-      srv_redo_log_encrypt = false;
-      ib::error(ER_IB_MSG_1243) << "Can't set redo log"
-                                << " tablespace to be"
-                                << " encrypted.";
-    } else {
-      space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-      err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-      if (err != DB_SUCCESS) {
-        srv_redo_log_encrypt = false;
-        ib::warn(ER_IB_MSG_1244) << "Can't set redo log"
-                                 << " tablespace to be"
-                                 << " encrypted.";
-      } else {
-        ib::info(ER_IB_MSG_1245) << "Redo log encryption is"
-                                 << " enabled.";
-      }
-    }
   }
 
   /* If the redo log space is using default key, rotate it.

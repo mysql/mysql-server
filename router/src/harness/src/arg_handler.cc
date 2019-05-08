@@ -102,69 +102,99 @@ bool CmdArgHandler::is_valid_option_name(const string &name) const noexcept {
 }
 
 void CmdArgHandler::process(const vector<string> &arguments) {
-  size_t pos;
-  string argpart;
-  string value;
   rest_arguments_.clear();
-  auto args_end = arguments.end();
+
   vector<std::pair<CmdOption::ActionFunc, string>> schedule;
   vector<CmdOption::AtEndActionFunc> at_end_schedule;
 
+  const auto args_end = arguments.end();
   for (auto part = arguments.begin(); part < args_end; ++part) {
+    string argpart;
+    string value;
+    bool got_value{false};
+
+    size_t pos;
     if ((pos = (*part).find('=')) != string::npos) {
       // Option like --config=/path/to/config.conf
       argpart = (*part).substr(0, pos);
       value = (*part).substr(pos + 1);
+      got_value = true;
     } else {
       argpart = *part;
-      value = "";
     }
 
     // Save none-option arguments
     if (!is_valid_option_name(argpart)) {
       if (!allow_rest_arguments) {
-        throw std::invalid_argument("invalid argument '" + argpart + "'.");
+        throw std::invalid_argument("invalid argument '" + *part + "'.");
       }
-      rest_arguments_.push_back(argpart);
+      rest_arguments_.push_back(*part);
       continue;
     }
 
-    auto opt_iter = find_option(argpart);
-    if (options_.end() != opt_iter) {
-      auto &option = *opt_iter;
-      string err_value_req =
-          string_format("option '%s' requires a value.", argpart.c_str());
+    const auto opt_iter = find_option(argpart);
+    if (opt_iter == options_.end()) {
+      throw std::invalid_argument("unknown option '" + argpart + "'.");
+    }
+    const auto &option = *opt_iter;
 
-      if (option.value_req == CmdOptionValueReq::required) {
-        if (value.empty()) {
-          if (part == (args_end - 1)) {
-            // No more parts to get value from
-            throw std::invalid_argument(err_value_req);
-          }
+    switch (option.value_req) {
+      case CmdOptionValueReq::required:
+      case CmdOptionValueReq::optional:
+        if (!got_value) {
+          // no value provided after =, check next arg
 
-          ++part;
-          if (!part->empty() && part->at(0) == '-') {
-            throw std::invalid_argument(err_value_req);
+          auto next_part_it = std::next(part);
+          if (option.value_req == CmdOptionValueReq::required) {
+            if (next_part_it == args_end) {
+              throw std::invalid_argument("option '" + argpart +
+                                          "' expects a value, got nothing");
+            } else if (next_part_it->empty()) {
+              // accept and ignore
+              ++part;
+            } else if (next_part_it->at(0) == '-') {
+              throw std::invalid_argument("option '" + argpart +
+                                          "' expects a value, got nothing");
+            } else {
+              // accept
+              value = *next_part_it;
+              ++part;
+            }
+          } else {
+            // optional
+            if (next_part_it == args_end) {
+              // ok
+            } else if (next_part_it->empty()) {
+              // accept and ignore
+              ++part;
+            } else if (next_part_it->at(0) == '-') {
+              // skip
+            } else {
+              value = *next_part_it;
+              ++part;
+            }
           }
-          value = *part;
+        } else if (option.value_req == CmdOptionValueReq::required) {
+          // even empty value is ok
         }
-      } else if (option.value_req == CmdOptionValueReq::optional) {
-        if (value.empty() && part != (args_end - 1)) {
-          ++part;
-          if (part->empty() || part->at(0) != '-') {
-            value = *part;
-          }
+        break;
+      case CmdOptionValueReq::none:
+        if (!value.empty()) {
+          throw std::invalid_argument(
+              "option '" + argpart +
+              "' does not expect a value, but got a value");
         }
-      }
+        break;
+      default:
+        throw std::invalid_argument(
+            "unsupported req: " +
+            std::to_string(static_cast<int>(option.value_req)));
+    }
 
-      // Execute actions after
-      if (option.action != nullptr) {
-        schedule.emplace_back(option.action, value);
-        at_end_schedule.push_back(option.at_end_action);
-      }
-    } else {
-      auto message = string_format("unknown option '%s'.", argpart.c_str());
-      throw std::invalid_argument(message);
+    // Execute actions after
+    if (option.action != nullptr) {
+      schedule.emplace_back(option.action, value);
+      at_end_schedule.push_back(option.at_end_action);
     }
   }
 
@@ -179,37 +209,53 @@ void CmdArgHandler::process(const vector<string> &arguments) {
   }
 }
 
-vector<string> CmdArgHandler::usage_lines(const string &prefix,
-                                          const string &rest_metavar,
-                                          size_t width) const noexcept {
+vector<string> CmdArgHandler::usage_lines_if(const string &prefix,
+                                             const string &rest_metavar,
+                                             size_t width,
+                                             UsagePredicate predicate) const
+    noexcept {
   std::stringstream ss;
   vector<string> usage;
 
-  for (auto option = options_.begin(); option != options_.end(); ++option) {
+  for (auto option : options_) {
+    bool accepted;
+
+    std::tie(accepted, option) = predicate(option);
+
+    if (!accepted) continue;
+
     ss.clear();
     ss.str(string());
 
-    ss << "[";
-    for (auto name = option->names.begin(); name != option->names.end();
-         ++name) {
-      ss << *name;
-      if (name == --option->names.end()) {
-        if (option->value_req != CmdOptionValueReq::none) {
-          if (option->value_req == CmdOptionValueReq::optional) {
-            ss << "=[";
-          } else {
-            ss << "=";
-          }
-          ss << "<" << (option->metavar.empty() ? "VALUE" : option->metavar)
-             << ">";
-          if (option->value_req == CmdOptionValueReq::optional) {
-            ss << "]";
-          }
-        }
-        ss << "]";
-      } else {
-        ss << "|";
+    bool has_multiple_names = option.names.size() > 1;
+
+    if (!option.required) {
+      ss << "[";
+    } else if (has_multiple_names) {
+      ss << "(";
+    }
+    {
+      auto name_it = option.names.begin();
+      ss << *name_it;
+      for (++name_it; name_it != option.names.end(); ++name_it) {
+        ss << "|" << *name_it;
       }
+    }
+    if (option.value_req != CmdOptionValueReq::none) {
+      if (option.value_req == CmdOptionValueReq::optional) {
+        ss << "=[";
+      } else {
+        ss << "=";
+      }
+      ss << "<" << (option.metavar.empty() ? "VALUE" : option.metavar) << ">";
+      if (option.value_req == CmdOptionValueReq::optional) {
+        ss << "]";
+      }
+    }
+    if (!option.required) {
+      ss << "]";
+    } else if (has_multiple_names) {
+      ss << ")";
     }
     usage.push_back(ss.str());
   }
@@ -254,7 +300,8 @@ vector<string> CmdArgHandler::usage_lines(const string &prefix,
 }
 
 vector<string> CmdArgHandler::option_descriptions(size_t width,
-                                                  size_t indent) noexcept {
+                                                  size_t indent) const
+    noexcept {
   std::stringstream ss;
   vector<string> desc_lines;
 

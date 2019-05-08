@@ -1,0 +1,18 @@
+CREATE DATABASE IF NOT EXISTS db_28977428;
+USE db_28977428;
+CREATE TABLE child (id int(11) NOT NULL) ENGINE=InnoDB;
+INSERT INTO child (id) values (90), (102), (100), (111), (112), (113), (114), (115), (116), (117), (118), (119), (120);
+SET SESSION DEBUG='+d,simulate_bad_alloc_exception_1';
+SELECT count(*) FROM child WHERE id > 100 FOR UPDATE;
+count(*)
+11
+SELECT count(*) FROM performance_schema.data_locks;
+ERROR HY000: Memory allocation error: while scanning data_locks table in function rnd_next.
+SET SESSION DEBUG='-d,simulate_bad_alloc_exception_1';
+SET SESSION DEBUG='+d,simulate_bad_alloc_exception_2';
+SELECT count(*) FROM child WHERE id > 100 FOR UPDATE;
+count(*)
+11
+SELECT count(*) FROM performance_schema.data_lock_waits;
+ERROR HY000: Memory allocation error: while scanning data_lock_waits table in function rnd_next.
+DROP DATABASE db_28977428;

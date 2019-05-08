@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -417,8 +417,14 @@ const uint64_t INVALID_XID = 0xffffffffffffffffULL;
   <tr>
     <td>sql_require_primary_key</td>
     <td>Q_SQL_REQUIRE_PRIMARY_KEY</td>
-    <td>1 byte integer</td>
+    <td>2 byte integer</td>
     <td>Value of the config variable sql_require_primary_key</td>
+  </tr>
+  <tr>
+    <td>default_table_encryption</td>
+    <td>Q_DEFAULT_TABLE_ENCRYPTION</td>
+    <td>2 byte integer</td>
+    <td>Value of the config variable default_table_encryption</td>
   </tr>
   </table>
 
@@ -517,7 +523,12 @@ class Query_event : public Binary_log_event {
     /*
       Replicate sql_require_primary_key.
     */
-    Q_SQL_REQUIRE_PRIMARY_KEY
+    Q_SQL_REQUIRE_PRIMARY_KEY,
+
+    /*
+      Replicate default_table_encryption.
+    */
+    Q_DEFAULT_TABLE_ENCRYPTION
   };
   const char *query;
   const char *db;
@@ -632,6 +643,9 @@ class Query_event : public Binary_log_event {
   /* Default collation for the utf8mb4 set. Used in cross-version replication */
   uint16_t default_collation_for_utf8mb4_number;
   uint8_t sql_require_primary_key;
+
+  uint8_t default_table_encryption;
+
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
@@ -806,7 +820,7 @@ class User_var_event : public Binary_log_event {
                  unsigned long val_len_arg, Value_type type_arg,
                  unsigned int charset_number_arg, unsigned char flags_arg)
       : Binary_log_event(USER_VAR_EVENT),
-        name(name_arg),
+        name(bapi_strndup(name_arg, name_len_arg)),
         name_len(name_len_arg),
         val(val_arg),
         val_len(val_len_arg),
@@ -834,6 +848,7 @@ class User_var_event : public Binary_log_event {
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
   User_var_event(const char *buf, const Format_description_event *fde);
+  virtual ~User_var_event();
   const char *name;
   unsigned int name_len;
   char *val;

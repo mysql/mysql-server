@@ -1,0 +1,31 @@
+###############################################################################
+# WL#12098: MySQL system users                                                #
+#                                                                             #
+#   This test file covers the usage of partial revokes.                       #
+#   In other words how does the partial_revokes restricts DML/DDL access on   #
+#   databases for which they are created.                                     #
+#                                                                             #
+#   Refer the test file - partial_revokes_add_remove.test to understand       #
+#   the various scenarios of adding/removing partial revokes                  #
+#                                                                             #
+###############################################################################
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--disable_query_log
+let $saved_partial_revokes = `SELECT @@global.partial_revokes`;
+--disable_warnings
+SET GLOBAL partial_revokes= ON;
+--enable_warnings
+--enable_query_log
+--let $TEST_MODE = NORMAL
+--source ../include/partial_revokes_dml.inc
+
+--disable_query_log
+--disable_warnings
+eval SET GLOBAL partial_revokes = $saved_partial_revokes;
+--enable_warnings
+--enable_query_log
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
+
+ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
+IF(SOLARIS)
+ # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
+ IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
+     OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+   TARGET_COMPILE_OPTIONS(mytime PRIVATE
+     $<$<CONFIG:RelWithDebInfo>:-xO1>)
+ ENDIF()
+ENDIF()
 
 SET(MYSYS_SOURCES
   array.cc
@@ -38,7 +48,6 @@ SET(MYSYS_SOURCES
   mf_dirname.cc
   mf_fn_ext.cc
   mf_format.cc
-  mf_getdate.cc
   mf_iocache2.cc
   mf_iocache.cc
   mf_keycache.cc
@@ -70,7 +79,6 @@ SET(MYSYS_SOURCES
   my_fopen.cc
   my_fstream.cc
   my_gethwaddr.cc
-  my_getsystime.cc
   my_getwd.cc
   my_init.cc
   my_lib.cc
@@ -94,8 +102,6 @@ SET(MYSYS_SOURCES
   my_syslog.cc
   my_thread.cc
   my_thr_init.cc
-  my_time.cc
-  my_timespec.cc
   my_user.cc
   my_write.cc
   pack.cc
@@ -141,7 +147,7 @@ IF(HAVE_LINUX_LARGE_PAGES)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
-TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
+TARGET_LINK_LIBRARIES(mysys dbug mytime strings ${ZLIB_LIBRARY} 
  ${LIBNSL} ${LIBM} ${LIBRT} ${LIBEXECINFO})
 
 # Need explicit pthread for gcc -fsanitize=address

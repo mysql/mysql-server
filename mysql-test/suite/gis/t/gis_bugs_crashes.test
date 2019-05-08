@@ -1169,6 +1169,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_of_elems), 1));
 
 SET @buf = ST_BUFFER(ST_GEOMFROMTEXT(@star_of_elems), 1);
 
+--replace_numeric_round 12
 SELECT st_area(@buf);
 
 --replace_numeric_round 4

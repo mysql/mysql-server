@@ -1,0 +1,6 @@
+!include ../my.cnf
+
+[mysqld.1]
+
+[mysqld.2]
+local-infile=       true

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 
 #include <stddef.h>
 
-#include "binary_log_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "sql/parse_tree_node_base.h"  // POS
@@ -47,6 +46,7 @@ class PT_item_list;
 class THD;
 struct Cast_type;
 struct udf_func;
+enum enum_field_types : int;
 
 /* For type casts */
 

@@ -205,7 +205,7 @@ struct NoPolicy {
   void add(uint32_t, uint32_t) UNIV_NOTHROW {}
   void locked(const Mutex &, const char *, ulint) UNIV_NOTHROW {}
   void release(const Mutex &) UNIV_NOTHROW {}
-  std::string to_string() const { return (""); };
+  std::string to_string() const { return (""); }
   latch_id_t get_id() const;
 };
 

@@ -152,7 +152,7 @@ static const char* const jamFileNames[] =
    "TcContinueB.hpp",                    // 16
    "MasterGCP.hpp",                      // 17
    "UtilPrepare.hpp",                    // 18
-   "DictSizeAltReq.hpp",                 // 19
+   "DictSizeAltReq.hpp",                 // 19 DELETED FILE
    "TabCommit.hpp",                      // 20
    "LqhTransConf.hpp",                   // 21
    "CallbackSignal.hpp",                 // 22
@@ -199,7 +199,7 @@ static const char* const jamFileNames[] =
    "DropIndxImpl.hpp",                   // 63
    "CreateHashMap.hpp",                  // 64
    "CmRegSignalData.hpp",                // 65
-   "LqhSizeAltReq.hpp",                  // 66
+   "LqhSizeAltReq.hpp",                  // 66 DELETED FILE
    "StartFragReq.hpp",                   // 67
    "DictTakeover.hpp",                   // 68
    "FireTrigOrd.hpp",                    // 69
@@ -235,20 +235,20 @@ static const char* const jamFileNames[] =
    "ReleasePages.hpp",                   // 99
    "CreateTrig.hpp",                     // 100
    "BackupSignalData.hpp",               // 101
-   "TuxSizeAltReq.hpp",                  // 102
+   "TuxSizeAltReq.hpp",                  // 102 DELETED FILE
    "CreateEvnt.hpp",                     // 103
    "CreateTrigImpl.hpp",                 // 104
    "StartRec.hpp",                       // 105
    "ContinueFragmented.hpp",             // 106
    "CreateObj.hpp",                      // 107
    "DihScanTab.hpp",                     // 108
-   "AccSizeAltReq.hpp",                  // 109
+   "AccSizeAltReq.hpp",                  // 109 DELETED FILE
    "DropFK.hpp",                         // 110
    "HotSpareRep.hpp",                    // 111
    "AlterTable.hpp",                     // 112
    "DisconnectRep.hpp",                  // 113
    "DihContinueB.hpp",                   // 114
-   "TupSizeAltReq.hpp",                  // 115
+   "TupSizeAltReq.hpp",                  // 115 DELETED FILE
    "AllocMem.hpp",                       // 116
    "TamperOrd.hpp",                      // 117
    "ResumeReq.hpp",                      // 118
@@ -258,7 +258,7 @@ static const char* const jamFileNames[] =
    "DbinfoScan.hpp",                     // 122
    "SchemaTrans.hpp",                    // 123
    "UtilDelete.hpp",                     // 124
-   "TcSizeAltReq.hpp",                   // 125
+   "TcSizeAltReq.hpp",                   // 125 DELETED FILE
    "DictStart.hpp",                      // 126
    "TcKeyReq.hpp",                       // 127
    "SrFragidConf.hpp",                   // 128
@@ -314,7 +314,7 @@ static const char* const jamFileNames[] =
    "TuxContinueB.hpp",                   // 178
    "PgmanContinueB.hpp",                 // 179
    "SystemError.hpp",                    // 180
-   "DihSizeAltReq.hpp",                  // 181
+   "DihSizeAltReq.hpp",                  // 181 DELETED FILE
    "TsmanContinueB.hpp",                 // 182
    "SetVarReq.hpp",                      // 183
    "StartOrd.hpp",                       // 184
@@ -373,13 +373,13 @@ static const char* const jamFileNames[] =
    "testLongSig.cpp",                    // 237
    "TransporterCallback_mt.cpp",         // 238
    "NdbinfoTables.cpp",                  // 239
-   "SuperPool.cpp",                      // 240
+   "SuperPool.cpp",                      // 240 DELETED FILE
    "LongSignal_nonmt.cpp",               // 241
    "FastScheduler.cpp",                  // 242
    "TransporterCallback_nonmt.cpp",      // 243
    "FastScheduler.hpp",                  // 244
    "CountingSemaphore.hpp",              // 245
-   "NdbdSuperPool.cpp",                  // 246
+   "NdbdSuperPool.cpp",                  // 246 DELETED FILE
    "TimeQueue.hpp",                      // 247
    "SimulatedBlock.hpp",                 // 248
    "IntrusiveList.cpp",                  // 249
@@ -389,7 +389,7 @@ static const char* const jamFileNames[] =
    "WatchDog.hpp",                       // 253
    "SimplePropertiesSection_mt.cpp",     // 254
    "Pool.cpp",                           // 255
-   "ClusterConfiguration.cpp",           // 256
+   "ClusterConfiguration.cpp",           // 256 DELETED FILE
    "DLCHashTable.hpp",                   // 257
    "KeyTable2.hpp",                      // 258
    "KeyDescriptor.hpp",                  // 259
@@ -397,13 +397,13 @@ static const char* const jamFileNames[] =
    "LHLevel.hpp",                        // 261
    "LongSignal.cpp",                     // 262
    "ThreadConfig.cpp",                   // 263
-   "LinearPool.hpp",                     // 264
+   "LinearPool.hpp",                     // 264 DELETED FILE
    "SafeMutex.cpp",                      // 265
    "SafeCounter.cpp",                    // 266
    "bench_pool.cpp",                     // 267
    "DataBuffer2.hpp",                    // 268 DELETED FILE
    "Mutex.hpp",                          // 269
-   "testSuperPool.cpp",                  // 270
+   "testSuperPool.cpp",                  // 270 DELETED FILE
    "CArray.hpp",                         // 271
    "mt_thr_config.hpp",                  // 272
    "TimeQueue.cpp",                      // 273
@@ -414,7 +414,7 @@ static const char* const jamFileNames[] =
    "RWPool.cpp",                         // 278
    "GlobalData.cpp",                     // 279
    "Prio.hpp",                           // 280
-   "SuperPool.hpp",                      // 281
+   "SuperPool.hpp",                      // 281 DELETED FILE
    "pc.hpp",                             // 282
    "LockQueue.hpp",                      // 283
    "ClusterConfiguration.hpp",           // 284
@@ -439,24 +439,24 @@ static const char* const jamFileNames[] =
    "WOPool.hpp",                         // 303
    "CountingPool.cpp",                   // 304
    "TransporterCallbackKernel.hpp",      // 305
-   "NdbdSuperPool.hpp",                  // 306
+   "NdbdSuperPool.hpp",                  // 306 DELETED FILE
    "DLHashTable2.hpp",                   // 307
    "VMSignal.cpp",                       // 308
    "ArenaPool.cpp",                      // 309
    "LHLevel.cpp",                        // 310
    "RWPool.hpp",                         // 311
-   "t.cpp",                              // 312
+   "mt-send-t.cpp",                      // 312
    "DLHashTable.hpp",                    // 313
    "VMSignal.hpp",                       // 314
    "Pool.hpp",                           // 315
    "Rope.hpp",                           // 316
    "KeyTable2Ref.hpp",                   // 317 DELETED FILE
    "LockQueue.cpp",                      // 318
-   "arrayListTest.cpp",                  // 319
-   "main.cpp",                           // 320
-   "arrayPoolTest.cpp",                  // 321
+   "arrayListTest.cpp",                  // 319 DELETED FILE
+   "main.cpp",                           // 320 DELETED FILE
+   "arrayPoolTest.cpp",                  // 321 DELETED FILE
    "SimBlockList.hpp",                   // 322
-   "lock.hpp",                           // 323
+   "mt-lock.hpp",                        // 323
    "rr.cpp",                             // 324
    "testCopy.cpp",                       // 325
    "Ndbinfo.cpp",                        // 326
@@ -496,7 +496,7 @@ static const char* const jamFileNames[] =
    "QmgrMain.cpp",                       // 360
    "QmgrInit.cpp",                       // 361
    "Qmgr.hpp",                           // 362
-   "timer.hpp",                          // 363
+   "timer.hpp",                          // 363 DELETED FILE
    "diskpage.cpp",                       // 364
    "DbtuxGen.cpp",                       // 365
    "DbtuxDebug.cpp",                     // 366
@@ -515,14 +515,14 @@ static const char* const jamFileNames[] =
    "Cmvmi.hpp",                          // 379
    "Cmvmi.cpp",                          // 380
    "AsyncIoThread.hpp",                  // 381
-   "MemoryChannelTest.cpp",              // 382
+   "MemoryChannelTest.cpp",              // 382 DELETED FILE
    "Filename.cpp",                       // 383
    "PosixAsyncFile.cpp",                 // 384
    "Ndbfs.hpp",                          // 385
    "OpenFiles.hpp",                      // 386
    "AsyncFile.cpp",                      // 387
    "AsyncIoThread.cpp",                  // 388
-   "AsyncFileTest.cpp",                  // 389
+   "AsyncFileTest.cpp",                  // 389 DELETED FILE
    "MemoryChannel.cpp",                  // 390
    "AsyncFile.hpp",                      // 391
    "Filename.hpp",                       // 392
@@ -580,7 +580,7 @@ static const char* const jamFileNames[] =
    "DblqhCommon.cpp",                    // 444
    "DblqhProxy.hpp",                     // 445
    "DblqhStateDesc.cpp",                 // 446
-   "records.hpp",                        // 447
+   "records.hpp",                        // 447 DELETED FILE
    "records.cpp",                        // 448
    "reader.cpp",                         // 449
    "Dblqh.hpp",                          // 450
@@ -626,14 +626,25 @@ static const char* const jamFileNames[] =
    "ErrorReporter.cpp",                  // 490
    "angel.hpp",                          // 491
    "SimBlockList.cpp",                   // 492
-   "CopyTab.cpp"                         // 493
+   "CopyTab.hpp",                        // 493
    "IsolateOrd.hpp",                     // 494
-   "IsolateOrd.cpp"                      // 495
+   "IsolateOrd.cpp",                     // 495
    "SegmentList.hpp",                    // 496
    "SegmentList.cpp",                    // 497
    "LocalSysfile.hpp",                   // 498
    "UndoLogLevel.hpp",                   // 499
-   "RedoStateRep.hpp"                    // 500
+   "RedoStateRep.hpp",                   // 500
+   "printFragfile.cpp",                  // 501
+   "TransientPagePool.hpp",              // 502
+   "TransientPagePool.cpp",              // 503
+   "TransientSlotPool.hpp",              // 504
+   "TransientSlotPool.cpp",              // 505
+   "TransientPool.hpp",                  // 506
+   "Slot.hpp",                           // 507
+   "StaticSlotPool.hpp",                 // 508
+   "StaticSlotPool.cpp",                 // 509
+   "ComposedSlotPool.hpp",               // 510
+   "IntrusiveTags.hpp",                  // 511
    };
 
 bool 

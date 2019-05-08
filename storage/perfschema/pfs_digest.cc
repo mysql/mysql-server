@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ bool flag_statements_digest = true;
   Current index in Stat array where new record is to be inserted.
   index 0 is reserved for "all else" case when entire array is full.
 */
-static PFS_ALIGNED PFS_cacheline_atomic_uint32 digest_monotonic_index;
+static PFS_cacheline_atomic_uint32 digest_monotonic_index;
 bool digest_full = false;
 
 LF_HASH digest_hash;

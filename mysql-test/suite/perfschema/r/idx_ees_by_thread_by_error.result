@@ -21,7 +21,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
-where THREAD_ID < "impossible";
+where THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -55,7 +55,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
 where THREAD_ID = @tid
-and ERROR_NUMBER < "impossible";
+and ERROR_NUMBER < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ref	THREAD_ID	THREAD_ID	8	const	#	33.33	Using where
 ############ Explain for Query ####################################

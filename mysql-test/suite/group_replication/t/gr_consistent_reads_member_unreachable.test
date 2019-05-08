@@ -1,0 +1,211 @@
+################################################################################
+# Validate group_replication_consistency= 'AFTER' behaviour against a unreachable
+# member that does not cause majority loss.
+#
+# Test:
+# 00. The test requires three servers: M1, M2 and M3.
+# 01. Increase the expel timeout.
+# 02. Create a table on the group.
+# 03. Make server 3 block before send its prepare message.
+#     This will allow us to deterministically make it
+#     UNREACHABLE while others are waiting for its acknowledge.
+# 04. Execute T1 on server1.
+# 05. Wait until T1 is prepared on server3.
+# 06. Make server 3 UNREACHABLE.
+# 07. server 1 and 2 are waiting for the acknowledges, they
+#     will not proceed until server3 acknowledges or leaves
+#     the group.
+# 08. Make server 3 ONLINE.
+# 09. Unblock T1 prepare on server3.
+# 10. T1 is committed on all servers.
+# 11. Clean up.
+################################################################################
+# Test involves sending SIGSTOP and SIGCONT signals using kill Linux command.
+--source include/linux.inc
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 01. Increase the expel timeout.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+--let $pid_file=`SELECT @@pid_file`
+--replace_result $pid_file pid_file
+--eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+--let $server_pid=`SELECT pid_no FROM pid_table`
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+
+
+--echo
+--echo ############################################################
+--echo # 02. Create a table on the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+
+--echo
+--echo ############################################################
+--echo # 03. Make server 3 block before send its prepare message.
+--echo #     This will allow us to deterministically make it
+--echo #     UNREACHABLE while others are waiting for its acknowledge.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 04. Execute T1 on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--send INSERT INTO t1 VALUES (1)
+
+
+--echo
+--echo ############################################################
+--echo # 05. Wait until T1 is prepared on server3.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# Wait for the debug sync to be reached.
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+
+--echo
+--echo ############################################################
+--echo # 06. Make server 3 UNREACHABLE.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+# Then we send a SIGSTOP to it. This will stop the server from sending the
+# keep-alive message and thus it will be viewed as a faulty node by the rest of
+# the group (and consequently expelled).
+--exec kill -19 $server_pid
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 07. server 1 and 2 are waiting for the acknowledges, they
+--echo #     will not proceed until server3 acknowledges or leaves
+--echo #     the group.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='waiting for handler commit' AND info='INSERT INTO t1 VALUES (1)'
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE '%waiting for handler commit%' AND name LIKE 'thread/sql/slave_%'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 08. Make server 3 ONLINE.
+# Send SIGCONT to server, so it can continue.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--exec kill -18 $server_pid
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $group_replication_member_state= ONLINE
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_member_state= ONLINE
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 09. Unblock T1 prepare on server3.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# Signal debug sync to continue.
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 10. T1 is committed on all servers.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

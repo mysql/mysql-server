@@ -9,7 +9,7 @@ a int not null,
 b int not null,
 key t2x1 (b),
 primary key using hash (a),
-foreign key t2fk1 (b) references t1 (b)
+constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 
 ndb_show_tables completed.....
@@ -54,7 +54,7 @@ a int not null,
 b int not null,
 key t2x1 (b),
 primary key using hash (a),
-foreign key t2fk1 (b) references t1 (b)
+constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 
 ndb_show_tables completed.....

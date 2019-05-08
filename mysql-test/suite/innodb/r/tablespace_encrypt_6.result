@@ -21,7 +21,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE=encrypt_ts  ENGINE = InnoDB;
+) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 /*  Create table in non-encrypted tablesapce */
 CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
@@ -55,7 +55,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE=encrypt_ts ENGINE = InnoDB;
+) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
 c4 JSON ,
@@ -198,7 +198,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE=encrypt_ts  ENGINE = InnoDB;
+) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 # new table in non-encrypted tablespace is allowed after uninstall
 CREATE TABLE tde_db.t_non_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
@@ -389,7 +389,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE=encrypt_ts ENGINE = InnoDB;
+) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
 c4 JSON ,
@@ -545,7 +545,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE=encrypt_ts ENGINE = InnoDB;
+) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 ERROR HY000: InnoDB: A general tablespace named `encrypt_ts` cannot be found.
 # Creating table in unencrypted tablespace must be possible
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -638,9 +638,10 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
-# restart without --early-plugin-load and keyring_file_data
-# AND explicitly install plugin to access old table
-# restart: 
+# restart without --early-plugin-load (still need to provide with
+# keyring_file_data otherwise it would point to default location which might be
+# non-writable to mtr). Instead explicitly install plugin to access old table
+# restart: --loose-keyring_file_data=MYSQL_TMP_DIR/mydummy_keyring
 # Install keyring plugin
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 # Set keyring_file_data as old file so as to access old tables
@@ -753,7 +754,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE=encrypt_ts ENGINE = InnoDB;
+) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
 c4 JSON ,
@@ -823,7 +824,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE=encrypt_ts ENGINE = InnoDB;
+) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 DROP TABLE tde_db.t_encrypt_4;
@@ -925,7 +926,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) TABLESPACE encrypt_ts2 ENGINE = InnoDB;
+) TABLESPACE encrypt_ts2 ENCRYPTION='Y' ENGINE = InnoDB;
 # new table in non encrypted tablespace possible
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',

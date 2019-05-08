@@ -24,6 +24,7 @@
 
 #include <exception>
 #include <sstream>
+#include <stdexcept>
 
 #include "mysqlrouter/uri.h"
 

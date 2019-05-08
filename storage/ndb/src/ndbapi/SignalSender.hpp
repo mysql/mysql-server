@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ public:
   NdbApiSignal header;
   LinearSectionPtr ptr[3];
 
-  int readSignalNumber() const { return header.readSignalNumber(); };
+  int readSignalNumber() const { return header.readSignalNumber(); }
   Uint32 *getDataPtrSend() { return header.getDataPtrSend(); }
   const Uint32 *getDataPtr() const { return header.getDataPtr(); }
   Uint32 getLength() const { return header.getLength(); }
@@ -65,8 +65,8 @@ public:
    */
   bool isFragmented() const { return header.isFragmented(); }
   bool isFirstFragment() const { return header.isFirstFragment(); }
-  bool isLastFragment() const { return header.isLastFragment(); };
-  Uint32 getFragmentId() const { return header.getFragmentId(); };
+  bool isLastFragment() const { return header.isLastFragment(); }
+  Uint32 getFragmentId() const { return header.getFragmentId(); }
 
   void print(FILE * out = stdout) const;
   SimpleSignal& operator=(const SimpleSignal&);

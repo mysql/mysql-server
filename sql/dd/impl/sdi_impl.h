@@ -410,8 +410,7 @@ bool read_binary(dd::Sdi_rcontext *rctx, binary_t *b, const GV &gv,
 
 template <typename W, typename PP>
 void write_properties(W *w, const PP &p, const char *key, size_t keysz) {
-  DBUG_ASSERT(p.get());
-  write(w, p->raw_string(), key, keysz);
+  write(w, p.raw_string(), key, keysz);
 }
 
 template <typename PP, typename GV>
@@ -420,7 +419,7 @@ bool read_properties(PP *p, const GV &gv, const char *key) {
   if (read(&raw_string, gv, key)) {
     return true;
   }
-  p->reset(dd::parse_properties(raw_string));
+  p->insert_values(raw_string);
   return false;
 }
 

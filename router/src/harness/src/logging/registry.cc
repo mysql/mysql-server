@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,8 @@
 */
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
+#include <process.h>  // getpid()
 #include <windows.h>
-#define getpid GetCurrentProcessId
 #endif
 
 #include "my_compiler.h"
@@ -34,6 +33,9 @@
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#ifdef _WIN32
+#include "mysql/harness/logging/eventlog_plugin.h"
+#endif
 
 #include "common.h"
 #include "dim.h"
@@ -44,6 +46,7 @@
 #include <cstdarg>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 using mysql_harness::Path;
 using mysql_harness::logging::LogLevel;
@@ -65,10 +68,6 @@ const std::map<std::string, LogLevel> Registry::kLogLevels{
     {"warning", LogLevel::kWarning}, {"info", LogLevel::kInfo},
     {"debug", LogLevel::kDebug},
 };
-
-// log level is stored in this hacky global variable; see place where it's
-// set for exaplanation
-std::string g_HACK_default_log_level;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -129,6 +128,13 @@ std::set<std::string> Registry::get_logger_names() const {
   std::set<std::string> result;
   for (const auto &pair : loggers_) result.emplace(pair.first);
   return result;
+}
+
+void Registry::flush_all_loggers() {
+  std::lock_guard<std::mutex> lock(mtx_);
+  for (const auto &handler : handlers_) {
+    handler.second->reopen();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -216,17 +222,18 @@ void clear_registry(Registry &registry) {
 
 std::ostream *get_default_logger_stream() { return &std::cerr; }
 
-void create_main_logfile_handler(Registry &registry, const std::string &program,
-                                 const std::string &logging_folder,
-                                 bool format_messages) {
-  // Register the console as the handler if the logging folder is
-  // undefined. Otherwise, register a file handler.
-  if (logging_folder.empty()) {
-    registry.add_handler(kMainConsoleHandler,
-                         std::make_shared<StreamHandler>(
-                             *get_default_logger_stream(), format_messages));
-    attach_handler_to_all_loggers(registry, kMainConsoleHandler);
-  } else {
+void create_main_log_handler(Registry &registry, const std::string &program,
+                             const std::string &logging_folder,
+                             bool format_messages,
+                             bool use_os_log /*= false*/) {
+#ifndef _WIN32
+  // currently logging to OS log is only supported on Windows
+  // (maybe in the future we'll add Syslog on the Unix side)
+  harness_assert(use_os_log == false);
+#endif
+
+  // if logging folder is provided, make filelogger our main handler
+  if (!logging_folder.empty()) {
     Path log_file = Path::make_path(logging_folder, program, "log");
 
     // throws std::runtime_error on failure to open file
@@ -234,20 +241,42 @@ void create_main_logfile_handler(Registry &registry, const std::string &program,
                                               log_file, format_messages));
 
     attach_handler_to_all_loggers(registry, kMainLogHandler);
+    return;
+  }
+
+    // if user wants to log to OS log, make that our main handler
+#ifdef _WIN32  // only Windows Eventlog is supported at the moment
+  if (use_os_log) {
+    // throws std::runtime_error on failure to init Windows Eventlog
+    registry.add_handler(
+        EventlogHandler::kDefaultName,
+        std::make_shared<EventlogHandler>(
+            format_messages, mysql_harness::logging::LogLevel::kWarning,
+            false));
+
+    attach_handler_to_all_loggers(registry, EventlogHandler::kDefaultName);
+    return;
+  }
+#endif
+
+  // fall back to logging to console
+  {
+    registry.add_handler(kMainConsoleHandler,
+                         std::make_shared<StreamHandler>(
+                             *get_default_logger_stream(), format_messages));
+    attach_handler_to_all_loggers(registry, kMainConsoleHandler);
   }
 }
 
-void init_logger(Registry &registry, const Config &config,
-                 const std::string &logger_name) {
-  registry.create_logger(logger_name, get_default_log_level(config));
+void create_logger(Registry &registry, const LogLevel level,
+                   const std::string &logger_name) {
+  registry.create_logger(logger_name, level);
 }
 
-void init_loggers(Registry &registry, const Config &config,
-                  const std::list<std::string> &modules,
-                  const std::string &main_app) {
+void create_module_loggers(Registry &registry, const LogLevel level,
+                           const std::list<std::string> &modules,
+                           const std::string &main_app) {
   // Create a logger for each module in the logging registry.
-  LogLevel level =
-      get_default_log_level(config);  // throws std::invalid_argument
   for (const std::string &module : modules)
     registry.create_logger(module, level);  // throws std::logic_error
 
@@ -256,33 +285,17 @@ void init_loggers(Registry &registry, const Config &config,
   harness_assert(registry.get_logger_names().size() > 0);
 }
 
-LogLevel get_default_log_level(const Config &config) {
-  // What we do here is an UGLY HACK. See code where g_HACK_default_log_level
-  // is set for explanation.
-  //
-  // Before introducing this hack in Router v8.0, we used to obtain the default
-  // log level from configuration, like so:
-  //
-  //   // We get the default log level from the configuration.
-  //   auto level_name = config.get_default("log_level");
-  //
-  // Once we have a proper remedy, something analogous should be reinstated.
-
-  // Obtain default log level (through UGLY HACK)
-  (void)config;  // after we remove this hack, config will be used once again
-  std::string level_name = mysql_harness::logging::g_HACK_default_log_level;
-
-  std::transform(level_name.begin(), level_name.end(), level_name.begin(),
-                 ::tolower);
+HARNESS_EXPORT
+LogLevel log_level_from_string(std::string name) {
+  std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
   // Return its enum representation
   try {
-    return Registry::kLogLevels.at(level_name);
-  } catch (std::out_of_range &exc) {
+    return Registry::kLogLevels.at(name);
+  } catch (const std::out_of_range &) {
     std::stringstream buffer;
 
-    buffer << "Log level '" << level_name
-           << "' is not valid. Valid values are: ";
+    buffer << "Log level '" << name << "' is not valid. Valid values are: ";
 
     // Print the entries using a serial comma
     std::vector<std::string> alternatives;
@@ -291,6 +304,26 @@ LogLevel get_default_log_level(const Config &config) {
     serial_comma(buffer, alternatives.begin(), alternatives.end());
     throw std::invalid_argument(buffer.str());
   }
+}
+
+LogLevel get_default_log_level(const Config &config, bool raw_mode) {
+  constexpr const char kNone[] = "";
+
+  // aliases with shorter names
+  constexpr const char *kLogLevel =
+      mysql_harness::logging::kConfigOptionLogLevel;
+  constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
+
+  std::string level_name;
+  // extract log level from [logger] section/log level entry, if it exists
+  if (config.has(kLogger) && config.get(kLogger, kNone).has(kLogLevel))
+    level_name = config.get(kLogger, kNone).get(kLogLevel);
+  // otherwise, set it to default
+  else
+    level_name = raw_mode ? mysql_harness::logging::kRawLogLevelName
+                          : mysql_harness::logging::kDefaultLogLevelName;
+
+  return log_level_from_string(level_name);  // throws std::invalid_argument
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -339,7 +372,7 @@ void set_log_level_for_all_loggers(LogLevel level) {
 // However, since we are building a DLL/DSO with this file, and since VS only
 // allows __declspec(dllimport/dllexport) in function declarations, we must
 // provide both declaration and definition.
-extern "C" MY_ATTRIBUTE((format(printf, 3, 0))) void LOGGER_API
+extern "C" MY_ATTRIBUTE((format(printf, 3, 0))) void HARNESS_EXPORT
     log_message(LogLevel level, const char *module, const char *fmt,
                 va_list ap);
 

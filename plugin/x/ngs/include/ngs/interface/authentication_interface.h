@@ -25,17 +25,18 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_AUTHENTICATION_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_AUTHENTICATION_INTERFACE_H_
 
+#include <functional>
+
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
 
 namespace ngs {
 class Session_interface;
 class Authentication_interface;
 
-typedef ngs::Memory_instrumented<Authentication_interface>::Unique_ptr
+typedef Memory_instrumented<Authentication_interface>::Unique_ptr
     Authentication_interface_ptr;
 
 class Authentication_info {
@@ -80,9 +81,9 @@ class Authentication_interface {
 
   virtual Response handle_continue(const std::string &data) = 0;
 
-  virtual ngs::Error_code authenticate_account(
-      const std::string &user, const std::string &host,
-      const std::string &passwd) const = 0;
+  virtual Error_code authenticate_account(const std::string &user,
+                                          const std::string &host,
+                                          const std::string &passwd) const = 0;
 
   virtual Authentication_info get_authentication_info() const = 0;
 };

@@ -24,10 +24,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <memory>
+#include <string>
+#include <vector>
 
-#include "map_helpers.h"
-#include "my_alloc.h"
-#include "my_inttypes.h"
+#include "my_base.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_sort.h"
@@ -35,7 +35,6 @@
 class Filesort;
 class QEP_TAB;
 class THD;
-struct TABLE;
 
 /**
   An adapter that takes in another RowIterator and produces the same rows,
@@ -61,7 +60,7 @@ class SortingIterator final : public RowIterator {
   SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
                   ha_rows *examined_rows);
-  ~SortingIterator();
+  ~SortingIterator() override;
 
   // Calls Init() on the source iterator, then does the actual sort.
   // NOTE: If you call Init() again, SortingIterator will actually
@@ -80,7 +79,17 @@ class SortingIterator final : public RowIterator {
 
   int Read() override { return m_result_iterator->Read(); }
 
+  void SetNullRowFlag(bool is_null_row) override {
+    m_result_iterator->SetNullRowFlag(is_null_row);
+  }
+
   void UnlockRow() override { m_result_iterator->UnlockRow(); }
+
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source_iterator.get(), ""}};
+  }
+
+  std::vector<std::string> DebugString() const override;
 
  private:
   int DoSort(QEP_TAB *qep_tab);

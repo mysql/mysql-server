@@ -283,18 +283,6 @@ SET @@persist_only.secure_file_priv= "/";
 ERROR HY000: Variable 'secure_file_priv' is a non persistent read only variable
 SET @@persist_only.slave_load_tmpdir= "/";
 ERROR HY000: Variable 'slave_load_tmpdir' is a non persistent read only variable
-SET @@persist_only.ssl_ca= "/";
-ERROR HY000: Variable 'ssl_ca' is a non persistent read only variable
-SET @@persist_only.ssl_capath= "/";
-ERROR HY000: Variable 'ssl_capath' is a non persistent read only variable
-SET @@persist_only.ssl_cert= "/";
-ERROR HY000: Variable 'ssl_cert' is a non persistent read only variable
-SET @@persist_only.ssl_crlpath= "/";
-ERROR HY000: Variable 'ssl_crlpath' is a non persistent read only variable
-SET @@persist_only.ssl_crl= "/";
-ERROR HY000: Variable 'ssl_crl' is a non persistent read only variable
-SET @@persist_only.ssl_key= "/";
-ERROR HY000: Variable 'ssl_key' is a non persistent read only variable
 SET @@persist_only.tmpdir= "/";
 ERROR HY000: Variable 'tmpdir' is a non persistent read only variable
 SET @@persist_only.relay_log= "/";

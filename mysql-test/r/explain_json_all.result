@@ -346,11 +346,11 @@ WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
 OR i IN (SELECT i FROM t4 ORDER BY RAND());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
-3	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = NULL))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
 OR i IN (SELECT i FROM t4 ORDER BY RAND());
@@ -376,25 +376,15 @@ EXPLAIN
       "used_columns": [
         "i"
       ] /* used_columns */,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = NULL))))",
       "attached_subqueries": [
         {
-          "table": {
-            "table_name": "<materialized_subquery>",
-            "access_type": "eq_ref",
-            "key": "<auto_key>",
-            "key_length": "5",
-            "rows_examined_per_scan": 1,
-            "materialized_from_subquery": {
-              "using_temporary_table": true,
-              "dependent": true,
-              "cacheable": false,
-              "query_block": {
-                "select_id": 3,
-                "message": "no matching row in const table"
-              } /* query_block */
-            } /* materialized_from_subquery */
-          } /* table */
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "message": "no matching row in const table"
+          } /* query_block */
         },
         {
           "dependent": true,
@@ -429,7 +419,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = NULL))))
 # simple UNION
 EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1180,7 +1170,7 @@ EXPLAIN
           "used_columns": [
             "a"
           ] /* used_columns */,
-          "attached_condition": "((`test`.`t1`.`a` is not null) and (`test`.`t1`.`a` is not null))"
+          "attached_condition": "(`test`.`t1`.`a` is not null)"
         } /* table */
       },
       {
@@ -1311,36 +1301,36 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.35"
+      "query_cost": "1.05"
     } /* cost_info */,
-    "table": {
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 1,
-      "rows_produced_per_join": 1,
-      "filtered": "100.00",
-      "cost_info": {
-        "read_cost": "0.25",
-        "eval_cost": "0.10",
-        "prefix_cost": "0.35",
-        "data_read_per_join": "8"
-      } /* cost_info */,
-      "used_columns": [
-        "i1",
-        "c1"
-      ] /* used_columns */,
-      "attached_condition": "exists(/* select#2 */ select `test`.`t2`.`c1` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`)) and ((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)))",
-      "attached_subqueries": [
-        {
-          "dependent": true,
-          "cacheable": false,
-          "query_block": {
-            "select_id": 2,
-            "cost_info": {
-              "query_cost": "0.70"
-            } /* cost_info */,
-            "nested_loop": [
-              {
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.35",
+            "data_read_per_join": "8"
+          } /* cost_info */,
+          "used_columns": [
+            "i1",
+            "c1"
+          ] /* used_columns */,
+          "attached_condition": "((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)",
+          "attached_subqueries": [
+            {
+              "dependent": false,
+              "cacheable": true,
+              "query_block": {
+                "select_id": 3,
+                "cost_info": {
+                  "query_cost": "0.35"
+                } /* cost_info */,
                 "table": {
                   "table_name": "t3",
                   "access_type": "ALL",
@@ -1355,107 +1345,97 @@ EXPLAIN
                   } /* cost_info */,
                   "used_columns": [
                     "c1"
-                  ] /* used_columns */,
-                  "attached_condition": "((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)",
-                  "attached_subqueries": [
-                    {
-                      "dependent": false,
-                      "cacheable": true,
-                      "query_block": {
-                        "select_id": 3,
-                        "cost_info": {
-                          "query_cost": "0.35"
-                        } /* cost_info */,
-                        "table": {
-                          "table_name": "t3",
-                          "access_type": "ALL",
-                          "rows_examined_per_scan": 1,
-                          "rows_produced_per_join": 1,
-                          "filtered": "100.00",
-                          "cost_info": {
-                            "read_cost": "0.25",
-                            "eval_cost": "0.10",
-                            "prefix_cost": "0.35",
-                            "data_read_per_join": "8"
-                          } /* cost_info */,
-                          "used_columns": [
-                            "c1"
-                          ] /* used_columns */
-                        } /* table */
-                      } /* query_block */
-                    }
-                  ] /* attached_subqueries */
+                  ] /* used_columns */
                 } /* table */
-              },
-              {
+              } /* query_block */
+            }
+          ] /* attached_subqueries */
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t3",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.70",
+            "data_read_per_join": "8"
+          } /* cost_info */,
+          "used_columns": [
+            "c1"
+          ] /* used_columns */
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ref",
+          "possible_keys": [
+            "c1"
+          ] /* possible_keys */,
+          "key": "c1",
+          "used_key_parts": [
+            "c1"
+          ] /* used_key_parts */,
+          "key_length": "3",
+          "ref": [
+            "test.t3.c1"
+          ] /* ref */,
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "50.00",
+          "first_match": "t1",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.05",
+            "data_read_per_join": "16"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c2"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`))",
+          "attached_subqueries": [
+            {
+              "dependent": false,
+              "cacheable": true,
+              "query_block": {
+                "select_id": 3,
+                "cost_info": {
+                  "query_cost": "0.35"
+                } /* cost_info */,
                 "table": {
-                  "table_name": "t2",
-                  "access_type": "ref",
-                  "possible_keys": [
-                    "c1"
-                  ] /* possible_keys */,
-                  "key": "c1",
-                  "used_key_parts": [
-                    "c1"
-                  ] /* used_key_parts */,
-                  "key_length": "3",
-                  "ref": [
-                    "test.t3.c1"
-                  ] /* ref */,
+                  "table_name": "t3",
+                  "access_type": "ALL",
                   "rows_examined_per_scan": 1,
-                  "rows_produced_per_join": 0,
-                  "filtered": "50.00",
+                  "rows_produced_per_join": 1,
+                  "filtered": "100.00",
                   "cost_info": {
                     "read_cost": "0.25",
-                    "eval_cost": "0.05",
-                    "prefix_cost": "0.70",
+                    "eval_cost": "0.10",
+                    "prefix_cost": "0.35",
                     "data_read_per_join": "8"
                   } /* cost_info */,
                   "used_columns": [
-                    "c1",
-                    "c2"
-                  ] /* used_columns */,
-                  "attached_condition": "(`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`))",
-                  "attached_subqueries": [
-                    {
-                      "dependent": false,
-                      "cacheable": true,
-                      "query_block": {
-                        "select_id": 3,
-                        "cost_info": {
-                          "query_cost": "0.35"
-                        } /* cost_info */,
-                        "table": {
-                          "table_name": "t3",
-                          "access_type": "ALL",
-                          "rows_examined_per_scan": 1,
-                          "rows_produced_per_join": 1,
-                          "filtered": "100.00",
-                          "cost_info": {
-                            "read_cost": "0.25",
-                            "eval_cost": "0.10",
-                            "prefix_cost": "0.35",
-                            "data_read_per_join": "8"
-                          } /* cost_info */,
-                          "used_columns": [
-                            "c1"
-                          ] /* used_columns */
-                        } /* table */
-                      } /* query_block */
-                    }
-                  ] /* attached_subqueries */
+                    "c1"
+                  ] /* used_columns */
                 } /* table */
-              }
-            ] /* nested_loop */
-          } /* query_block */
-        }
-      ] /* attached_subqueries */
-    } /* table */
+              } /* query_block */
+            }
+          ] /* attached_subqueries */
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.c1' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where exists(/* select#2 */ select `test`.`t2`.`c1` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`)) and ((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`)) and ((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`))
 DROP TABLE t1, t2, t3;
 # multiple materialization groups
 CREATE TABLE t1 (c_key INT, KEY c_key (c_key));
@@ -2657,7 +2637,6 @@ EXPLAIN
               "rows_produced_per_join": 2,
               "filtered": "100.00",
               "using_index": true,
-              "distinct": true,
               "cost_info": {
                 "read_cost": "0.50",
                 "eval_cost": "0.20",

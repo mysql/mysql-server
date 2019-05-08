@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -220,14 +220,14 @@ Histogram::Histogram(MEM_ROOT *mem_root, const std::string &db_name,
       m_mem_root(mem_root),
       m_hist_type(type),
       m_data_type(data_type) {
-  make_lex_string_root(m_mem_root, &m_database_name, db_name.c_str(),
-                       db_name.length(), false);
+  lex_string_strmake(m_mem_root, &m_database_name, db_name.c_str(),
+                     db_name.length());
 
-  make_lex_string_root(m_mem_root, &m_table_name, tbl_name.c_str(),
-                       tbl_name.length(), false);
+  lex_string_strmake(m_mem_root, &m_table_name, tbl_name.c_str(),
+                     tbl_name.length());
 
-  make_lex_string_root(m_mem_root, &m_column_name, col_name.c_str(),
-                       col_name.length(), false);
+  lex_string_strmake(m_mem_root, &m_column_name, col_name.c_str(),
+                     col_name.length());
 }
 
 Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
@@ -238,14 +238,14 @@ Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
       m_mem_root(mem_root),
       m_hist_type(other.m_hist_type),
       m_data_type(other.m_data_type) {
-  make_lex_string_root(m_mem_root, &m_database_name, other.m_database_name.str,
-                       other.m_database_name.length, false);
+  lex_string_strmake(m_mem_root, &m_database_name, other.m_database_name.str,
+                     other.m_database_name.length);
 
-  make_lex_string_root(m_mem_root, &m_table_name, other.m_table_name.str,
-                       other.m_table_name.length, false);
+  lex_string_strmake(m_mem_root, &m_table_name, other.m_table_name.str,
+                     other.m_table_name.length);
 
-  make_lex_string_root(m_mem_root, &m_column_name, other.m_column_name.str,
-                       other.m_column_name.length, false);
+  lex_string_strmake(m_mem_root, &m_column_name, other.m_column_name.str,
+                     other.m_column_name.length);
 }
 
 bool Histogram::histogram_to_json(Json_object *json_object) const {
@@ -648,8 +648,6 @@ static bool prepare_value_maps(
   for (const Field *field : fields) {
     histograms::Value_map_base *value_map = nullptr;
 
-    // Row count variable
-    *row_size_bytes += sizeof(ha_rows);
     const Value_map_type value_map_type =
         histograms::field_type_to_value_map_type(field);
 
@@ -659,13 +657,11 @@ static bool prepare_value_maps(
             std::min(static_cast<size_t>(field->field_length),
                      histograms::HISTOGRAM_MAX_COMPARE_LENGTH);
         *row_size_bytes += max_field_length * field->charset()->mbmaxlen;
-        *row_size_bytes += sizeof(String);
         value_map =
             new histograms::Value_map<String>(field->charset(), value_map_type);
         break;
       }
       case histograms::Value_map_type::DOUBLE: {
-        *row_size_bytes += sizeof(double);
         value_map =
             new histograms::Value_map<double>(field->charset(), value_map_type);
         break;
@@ -673,13 +669,11 @@ static bool prepare_value_maps(
       case histograms::Value_map_type::INT:
       case histograms::Value_map_type::ENUM:
       case histograms::Value_map_type::SET: {
-        *row_size_bytes += sizeof(longlong);
         value_map = new histograms::Value_map<longlong>(field->charset(),
                                                         value_map_type);
         break;
       }
       case histograms::Value_map_type::UINT: {
-        *row_size_bytes += sizeof(ulonglong);
         value_map = new histograms::Value_map<ulonglong>(field->charset(),
                                                          value_map_type);
         break;
@@ -687,13 +681,11 @@ static bool prepare_value_maps(
       case histograms::Value_map_type::DATETIME:
       case histograms::Value_map_type::DATE:
       case histograms::Value_map_type::TIME: {
-        *row_size_bytes += sizeof(MYSQL_TIME);
         value_map = new histograms::Value_map<MYSQL_TIME>(field->charset(),
                                                           value_map_type);
         break;
       }
       case histograms::Value_map_type::DECIMAL: {
-        *row_size_bytes += sizeof(my_decimal);
         value_map = new histograms::Value_map<my_decimal>(field->charset(),
                                                           value_map_type);
         break;
@@ -703,6 +695,9 @@ static bool prepare_value_maps(
         return true;
       }
     }
+
+    // Overhead for each element
+    *row_size_bytes += value_map->element_overhead();
 
     value_maps.emplace(field->field_index,
                        std::unique_ptr<histograms::Value_map_base>(value_map));

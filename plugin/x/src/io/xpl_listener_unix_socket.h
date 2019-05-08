@@ -27,9 +27,9 @@
 
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
 
 namespace xpl {
 
@@ -42,7 +42,7 @@ class Listener_unix_socket : public ngs::Listener_interface {
       ngs::Operations_factory_interface::Shared_ptr operations_factory,
       const std::string &unix_socket_path, ngs::Socket_events_interface &event,
       const uint32 backlog);
-  ~Listener_unix_socket();
+  ~Listener_unix_socket() override;
 
   void report_properties(On_report_properties on_prop) override;
   Sync_variable_state &get_state() override;

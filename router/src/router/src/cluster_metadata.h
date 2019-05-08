@@ -25,6 +25,8 @@
 #ifndef ROUTER_CLUSTER_METADATA_INCLUDED
 #define ROUTER_CLUSTER_METADATA_INCLUDED
 
+#include <stdexcept>
+
 #include "config_generator.h"
 #include "mysqlrouter/mysql_session.h"
 #include "socket_operations.h"
@@ -95,6 +97,8 @@ void require_innodb_metadata_is_ok(MySQLSession *mysql);
  * @throws std::logic_error
  */
 void require_innodb_group_replication_is_ok(MySQLSession *mysql);
+
+std::string get_group_replication_id(MySQLSession *mysql);
 
 }  // namespace mysqlrouter
 

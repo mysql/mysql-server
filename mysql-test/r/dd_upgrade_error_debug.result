@@ -1,0 +1,95 @@
+########################################################################
+#
+# This test contains regression tests for bugs related to upgrade which
+# require a debug server.
+#
+########################################################################
+########################################################################
+# Stop the running server.
+########################################################################
+########################################################################
+# Unzip a 8.0.11 datadir with bug data, start the server against it
+########################################################################
+########################################################################
+# Copy and unzip the datadir.
+########################################################################
+########################################################################
+# Restart the server against the unzipped datadir.
+########################################################################
+# Bug #28554157: TABLES UPGRADED FROM 8.0.11 ALGORITHM=INSTANT
+# DOESN'T WORK UNLESS YOU REBUILD IT
+SET DEBUG='+d,skip_dd_table_access_check';
+# List options for indexes in users table. Should show flags=32
+# since this table was created in 8.0.11
+SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
+mysql.indexes.options
+FROM mysql.tables, mysql.indexes, mysql.schemata
+WHERE mysql.tables.name = 'users' AND
+mysql.schemata.name = 'test' AND
+mysql.indexes.table_id = mysql.tables.id AND
+mysql.schemata.id = mysql.tables.schema_id;
+name	name	name	options
+test	users	id_str	flags=32;
+test	users	id_str_UNIQUE	flags=32;
+test	users	ix_screen_name	flags=32;
+test	users	PRIMARY	flags=0;
+# The following statement must go through and not fall back to
+# COPY-algorithm
+ALTER TABLE users ADD COLUMN active integer DEFAULT 1 NOT NULL, ALGORITHM =INSTANT;
+# List options for indexes in users table after alter. Should show
+# flags=32
+SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
+mysql.indexes.options
+FROM mysql.tables, mysql.indexes, mysql.schemata
+WHERE mysql.tables.name = 'users' AND
+mysql.schemata.name = 'test' AND
+mysql.indexes.table_id = mysql.tables.id AND
+mysql.schemata.id = mysql.tables.schema_id;
+name	name	name	options
+test	users	id_str	flags=32;
+test	users	id_str_UNIQUE	flags=32;
+test	users	ix_screen_name	flags=32;
+test	users	PRIMARY	flags=0;
+# Rebuild table
+ALTER TABLE users ENGINE = INNODB;
+# Index options should now be 0
+SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
+mysql.indexes.options
+FROM mysql.tables, mysql.indexes, mysql.schemata
+WHERE mysql.tables.name = 'users' AND
+mysql.schemata.name = 'test' AND
+mysql.indexes.table_id = mysql.tables.id AND
+mysql.schemata.id = mysql.tables.schema_id;
+name	name	name	options
+test	users	id_str	flags=0;
+test	users	id_str_UNIQUE	flags=0;
+test	users	ix_screen_name	flags=0;
+test	users	PRIMARY	flags=0;
+########################################################################
+# Remove copied files and stop the server.
+########################################################################
+########################################################################
+# Bug#27960500: Upgrade fails due to FTS tables with 0 timestamps
+########################################################################
+########################################################################
+# Copy and unzip the datadir.
+########################################################################
+########################################################################
+# Restart the server against the unzipped datadir.
+########################################################################
+########################################################################
+# Also create a new FTS table on this version.
+########################################################################
+CREATE TABLE t2 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) charset utf8mb4;
+########################################################################
+# 0 timestamps for FTS entries?
+########################################################################
+SET debug='+d,skip_dd_table_access_check';
+include/assert.inc [No entries with 0 timestamps.]
+########################################################################
+# Remove copied files and stop the server.
+########################################################################
+########################################################################
+# Cleanup: Restart with default options.
+########################################################################
+# restart

@@ -1,0 +1,1996 @@
+################################################################################
+# WL929 - CHECK CONSTRAINTS.                                                   #
+#         Test file has cases to verify check constraint feature, common       #
+#         restrictions and mysql specific restriction on check constraints.    #
+################################################################################
+
+--echo #------------------------------------------------------------------------
+--echo # Test cases to verify column check constraint syntax.
+--echo #------------------------------------------------------------------------
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK);
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK());
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CONSTRAINT CHECK());
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int t1_ck CHECK());
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CONSTRAINT t1_ck CHECK());
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CONSTRAINT t1_ck CHECK( f1 < 10) NOT);
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int CHECK(f1));
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int CHECK(f1 + 10));
+
+--error ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+CREATE TABLE t1(f1 int CHECK(f2 < 10));
+
+CREATE TABLE t1 (f1 int CHECK(f1 < 10),
+                 f2 int CONSTRAINT t1_f2_ck CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK);
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK());
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CONSTRAINT CHECK());
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int t1_f2_ck CHECK(f2 < 10));
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CONSTRAINT t1_f2_ck CHECK(f2 < 10) NOT);
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f2 < 10) NOT);
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f2));
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f2 + 10));
+
+--error ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f3 < 10));
+
+CREATE TABLE t1 (f1 int CHECK(f1 < 10), f2 int CHECK(f2 < 10),
+                 f3 int CONSTRAINT t1_f3_ck CHECK (f3  < 10));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test cases to verify table check constraint syntax.
+--echo #------------------------------------------------------------------------
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK);
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK();
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK());
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1));
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1 + 10));
+
+--error ER_CHECK_CONSTRAINT_REFERS_UNKNOWN_COLUMN
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f2 < 10));
+
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1 < 10));
+
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK);
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK();
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f2 > 0) NOT);
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1));
+
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1 + 10));
+
+--error ER_CHECK_CONSTRAINT_REFERS_UNKNOWN_COLUMN
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f2 > 1));
+
+# Check constraint with specified and generated name.
+CREATE TABLE t1(f1 int, CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1 > 1));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint name with special charecters.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT `ck_1$` CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint name with white spaces.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT ` ck_2$ ` CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_NOT_FOUND
+ALTER TABLE t1 DROP CHECK ck_2$;
+ALTER TABLE t1 DROP CHECK ` ck_2$ `;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN c3 INTEGER , ADD CONSTRAINT ` c 3 ` CHECK ( c3 > 10 );
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint name with reserved words.
+--echo #-----------------------------------------------------------------------
+--error ER_PARSE_ERROR
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT FLOAT CHECK (c2 < 10));
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT `FLOAT` CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with long name.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT,
+                CONSTRAINT ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+                CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t2(c1 INT, c2 INT,
+                CONSTRAINT ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk1
+                CHECK (c2 < 10));
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with too long generated name.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+--error ER_TOO_LONG_IDENT
+RENAME TABLE t1 TO t123456789012345678901234567890123456789012345678901234567890;
+DROP TABLE t1;
+
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567890(f1 INT CHECK(f1 < 10));
+
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567890(f1 INT);
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t123456789012345678901234567890123456789012345678901234567890 ADD CONSTRAINT CHECK (f1 < 10);
+DROP TABLE t123456789012345678901234567890123456789012345678901234567890;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify duplicate check constraint name under same
+--echo # database. Check constraints with same name are not allowed under
+--echo # same database.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t(c1 INT CONSTRAINT t2_chk_1 CHECK (c1 > 10));
+CREATE TABLE t1(c1 INT CHECK (c1 > 10), CONSTRAINT ck CHECK(c1 > 10));
+--error ER_CHECK_CONSTRAINT_DUP_NAME
+CREATE TABLE t2(c1 INT, CONSTRAINT ck CHECK(c1 > 10));
+--error ER_CHECK_CONSTRAINT_DUP_NAME
+ALTER TABLE t1 ADD CONSTRAINT ck CHECK(c1 > 10);
+--error ER_CHECK_CONSTRAINT_DUP_NAME
+ALTER TABLE t1 RENAME TO t2;
+--error ER_CHECK_CONSTRAINT_DUP_NAME
+ALTER TABLE t1 ADD c2 INT, RENAME TO t2;
+DROP TABLE t;
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t(c1 INT CONSTRAINT t2_chk_1 CHECK (c1 > 10));
+--error ER_CHECK_CONSTRAINT_DUP_NAME
+ALTER TABLE t1 ADD c2 INT, RENAME TO db1.t2;
+--error ER_CHECK_CONSTRAINT_DUP_NAME
+ALTER TABLE t1 RENAME TO db1.t2;
+DROP DATABASE db1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Check constraint names are case insenitive and accent sensitive. Test
+--echo # case to verify the same.
+--echo #-----------------------------------------------------------------------
+--error ER_CHECK_CONSTRAINT_DUP_NAME
+CREATE TABLE t1 (f1 INT,
+                 CONSTRAINT cafe CHECK (f1 < 10),
+                 CONSTRAINT CAFE CHECK (f1 < 10));
+create table t1 (f1 int,
+                 CONSTRAINT cafe CHECK (f1 < 10),
+                 CONSTRAINT café CHECK (f1 < 10));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test cases to verify forward reference of columns in the constraint.
+--echo #------------------------------------------------------------------------
+--error ER_CHECK_CONSTRAINT_REFERS_UNKNOWN_COLUMN
+CREATE TABLE t1(CHECK((f1 + f3) > 10), f1 int CHECK (f1 < 10), f2 int);
+
+CREATE TABLE t1(CHECK((f1 + f2) > 10), f1 int CHECK (f1 < 10), f2 int);
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify creation of multiple check constraint on table.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, c3 INT, c4 INT);
+ALTER TABLE t1 ADD CONSTRAINT ck11 CHECK(c1 > 1),
+      ADD CONSTRAINT ck12 CHECK(c1 < 1),
+      ADD CONSTRAINT ck21 CHECK(c2 > 1),
+      ADD CONSTRAINT ck22 CHECK(c2 < 1),
+      ADD CONSTRAINT ck31 CHECK(c3 > 1),
+      ADD CONSTRAINT ck32 CHECK(c3 < 1),
+      ADD CONSTRAINT ck41 CHECK(c4 > 1),
+      ADD CONSTRAINT ck42 CHECK(c4 < 1);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraints with generated columns
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT,
+  c2 INT,
+  c3 INT GENERATED ALWAYS AS (c1 + c2),
+  CONSTRAINT ck CHECK (c3 > 10)
+);
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c1,c2) VALUES(1,1);
+INSERT INTO t1(c1,c2) VALUES(10,10);
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with DEFAULT column value.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(c1 INT DEFAULT 100 CHECK(c1 > 10));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1() VALUES(1);
+INSERT INTO t1() VALUES();
+DROP TABLE t1;
+CREATE TABLE t1(c1 int DEFAULT 1, CONSTRAINT CHECK(c1 IS NOT NULL));
+INSERT INTO t1() VALUES();
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1() VALUES(NULL);
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint behaviour with ascii charset
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 VARCHAR(1) CHARSET ASCII CHECK(c1 = 'a'),
+   c2 VARCHAR(1) CHARSET ASCII DEFAULT('b'));
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c1) VALUES('b');
+INSERT INTO t1(c1) VALUES('a');
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with an expression evaluated to
+--echo # FALSE always.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (CHECK (1 < 1), f1 int);
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(10);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES();
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify INFORMATION_SCHEMA.CHECK_CONSTRAINTS and
+--echo # INFORMATION_SCHEMA.TABLE_CONSTRAINTS result set.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10),
+                CONSTRAINT t2_cc1 CHECK (f1 + SQRT(f2) > 6174));
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test cases to verify check constraints in temporary table.
+--echo #------------------------------------------------------------------------
+CREATE TEMPORARY TABLE tmp_t1(CHECK((f1 + f2) > 10), f1 int CHECK (f1 < 12),
+                              f2 int);
+SHOW CREATE TABLE tmp_t1;
+# Temporary table check constraints are not listed in CHECK_CONSTRAINTS.
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+DROP TABLE tmp_t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test cases to verify check constraints with CREATE TABLE LIKE
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT CHECK (f1 < 10), f2 INT, CHECK (f2 < 10),
+                CONSTRAINT min CHECK (f1 + f2 > 10),
+                CONSTRAINT max CHECK (f1 + f2 < 929));
+SHOW CREATE TABLE t1;
+CREATE TABLE t2 LIKE t1;
+# t2 will have check constraints with all generated names.
+SHOW CREATE TABLE t2;
+
+CREATE TEMPORARY TABLE tmp_t2 LIKE t2;
+SHOW CREATE TABLE tmp_t2;
+CREATE TABLE t3 LIKE tmp_t2;
+# t3 will have check constraints with all generated names.
+SHOW CREATE TABLE t3;
+DROP TABLE t1, t2, t3, tmp_t2;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test cases to verify effect of check constraint in DML operations.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+CREATE TABLE t2(f1 INT, f2 INT);
+INSERT INTO t2 VALUES(101, 1);
+INSERT INTO t2 VALUES(102, NULL);
+INSERT INTO t2 VALUES(103, 1000);
+
+--echo # INSERT operations.
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(2, NULL);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(3, 1000);
+INSERT IGNORE INTO t1 VALUES (3, 1000);
+SELECT * FROM t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 SELECT * FROM t2;
+SELECT * FROM t1;
+INSERT IGNORE INTO t1 SELECT * FROM t2;
+SELECT * FROM t1;
+
+--echo # REPLACE operations.
+REPLACE INTO t1 VALUES(4, 1);
+REPLACE INTO t1 VALUES(5, NULL);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO t1 VALUES(6, 100);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO t1 VALUES(2, 10);
+REPLACE INTO t1 VALUES(2, 2);
+SELECT * FROM t1;
+
+--echo # UPDATE operations.
+UPDATE t1 SET f2 = 2;
+SELECT * FROM t1;
+UPDATE t1 SET f2 = NULL;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t1 SET f2 = 1000;
+UPDATE IGNORE t1 SET f2 = 1000;
+SELECT * FROM t1;
+DROP TABLE t1, t2;
+
+--echo # LOAD DATA operations.
+CREATE TABLE t2(f1 INT,f2 INT);
+INSERT INTO t2 VALUES(1,1);
+INSERT INTO t2 VALUES(2,NULL);
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+SELECT * FROM t2;
+SELECT * FROM t2 INTO OUTFILE 'tmp1.txt';
+LOAD DATA INFILE 'tmp1.txt' INTO TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t2 VALUES(3,20);
+SELECT * FROM t2;
+SELECT * FROM t2 INTO OUTFILE 'tmp2.txt';
+--error ER_CHECK_CONSTRAINT_VIOLATED
+LOAD DATA INFILE 'tmp2.txt' INTO TABLE t1;
+SELECT * FROM t1;
+LOAD DATA INFILE 'tmp2.txt' IGNORE INTO TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT CHECK(a < 3), b CHAR(10)) CHARSET latin1;
+LOAD DATA INFILE '../../std_data/loaddata3.dat' IGNORE INTO TABLE t1
+  FIELDS TERMINATED BY '' ENCLOSED BY '' IGNORE 1 LINES;
+DROP TABLE t1;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/tmp1.txt;
+remove_file $MYSQLD_DATADIR/test/tmp2.txt;
+
+--echo # LOAD XML operations.
+CREATE TABLE t2(f1 INT,f2 INT);
+INSERT INTO t2 VALUES(1,1);
+INSERT INTO t2 VALUES(2,NULL);
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+SELECT * FROM t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t2 VALUES(3,20);
+SELECT * FROM t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp2.xml" 2>&1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp2.xml" INTO TABLE t1;
+SELECT * FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp2.xml" IGNORE INTO TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1,t2;
+
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp2.xml;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with INSERT ON DUPLICATE
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (1, 2) ON DUPLICATE KEY UPDATE f2 = 4;
+SELECT * FROM t1;
+INSERT IGNORE INTO t1 VALUES (1, 1) ON DUPLICATE KEY UPDATE f2 = 20;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES (1, 1) ON DUPLICATE KEY UPDATE f2 = 20;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraints with multi-table update.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT, f2 INT CHECK(f2 < 20));
+INSERT INTO t1 VALUES (4, 4);
+CREATE TABLE t2(f1 INT, f2 INT);
+INSERT INTO t2 VALUES (4, 24);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t1,t2  SET t1.f2 = t1.f2 + 20 WHERE t1.f1 = t2.f1;
+UPDATE IGNORE t1,t2  SET t1.f2 = t1.f2 + 20 WHERE t1.f1 = t2.f1;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (
+   `f1` int(10) unsigned NOT NULL auto_increment,
+   `f2` int(11) NOT NULL default '0',
+   PRIMARY KEY  (`f1`)
+);
+INSERT INTO t1 VALUES (4433,5424);
+CREATE TABLE t2 (
+  `f3` int(10) unsigned NOT NULL default '0',
+  `f4` int(10) unsigned NOT NULL default '0' CHECK (f4 <= 500),
+  PRIMARY KEY  (`f3`,`f4`)
+);
+INSERT INTO t2 VALUES (495,500);
+INSERT INTO t2 VALUES (496,500);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t2,t1 set t2.f4 = t2.f4 + 1;
+UPDATE IGNORE t2,t1 set t2.f4 = t2.f4 + 1;
+DROP TABLE t1, t2;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test cases to verify generated check constraint name updates due to
+--echo # RENAME TABLE operation.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK(f1 < 10));
+SHOW CREATE TABLE t1;
+RENAME TABLE t1 TO t2;
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t1(f1 INT CHECK (f1>10), f11 INT CHECK (f11 < 1000));
+SHOW CREATE TABLE t1;
+RENAME TABLE t1 TO t3, t2 TO t1, t3 TO t2;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints removal on DROP table operation.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints creation with ALTER TABLE ADD
+--echo # CONSTRAINT operation.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+CREATE TEMPORARY TABLE t3(f1 INT CHECK (f1 < 10));
+ALTER TABLE t1 ADD CONSTRAINT CHECK (f1 > 1), ADD CONSTRAINT `t1_p_ck` CHECK (f1 > 1);
+ALTER TABLE t3 ADD CONSTRAINT CHECK (f1 > 1), ADD CONSTRAINT `t3_p_ck` CHECK (f1 > 1);
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t3;
+
+--echo # Test case to verify check constraint creation with ALTER TABLE ADD
+--echo # constraint and generated name updates with RENAME TO <table> in
+--echo # ALTER operation.
+ALTER TABLE t1 ADD f2 INT CHECK (f2 < 10), RENAME TO t6, ALGORITHM=COPY;
+SHOW CREATE TABLE t6;
+ALTER TABLE t3 ADD f2 INT CHECK (f2 < 10), RENAME TO t7, ALGORITHM=COPY;
+SHOW CREATE TABLE t7;
+ALTER TABLE t6 RENAME TO t1;
+SHOW CREATE TABLE t1;
+ALTER TABLE t7 RENAME TO t3;
+SHOW CREATE TABLE t3;
+
+--echo # Test case to verify add check constraint with INPLACE alter algorithm.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD f2 INT CHECK (f2 < 10), ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t3 ADD f2 INT CHECK (f2 < 10), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD f3 INT CHECK (f3 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD CONSTRAINT CHECK (f2 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
+
+--ERROR ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN f1 TO f10;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints creation with ALTER TABLE DROP
+--echo # CONSTRAINT operation.
+--echo #------------------------------------------------------------------------
+SHOW CREATE TABLE t3;
+ALTER TABLE t3 DROP CHECK t3_chk_3;
+SHOW CREATE TABLE t3;
+ALTER TABLE t3 DROP CHECK t3_p_ck, ADD CONSTRAINT t3_p_ck CHECK (f1 > 38);
+SHOW CREATE TABLE t3;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints alter operations.
+--echo #------------------------------------------------------------------------
+INSERT INTO t1 VALUES (5, 5, 5);
+ALTER TABLE t1 ALTER CHECK t1_chk_1 NOT ENFORCED, ALGORITHM=INPLACE;
+INSERT INTO t1 VALUES (8, 8, 8);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=COPY;
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=INPLACE;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES (12, 5, 5);
+ALTER TABLE t1 ALTER CHECK t1_chk_1 NOT ENFORCED, ALGORITHM=INPLACE;
+INSERT INTO t1 VALUES (12, 5, 5);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=COPY;
+
+DROP TABLE t1, t3;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to add check constraint with copy,instant,inplace algorithm
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT);
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10), ALGORITHM=COPY;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10), ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10), ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify drop check constraint with inplace algorithm.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD CONSTRAINT t1_chk_1 CHECK (f1 < 10), DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to alter table to add/drop column with the check constraint.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, CONSTRAINT ck1 CHECK (c1 > 10));
+ALTER TABLE t1 ADD COLUMN c2 INT,
+               ADD CONSTRAINT ck2 CHECK (c2 > 10);
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(20,10);
+ALTER TABLE t1 DROP CHECK ck2, DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c3 INT,
+               ADD CONSTRAINT ck3 CHECK (c3 < 10);
+ALTER TABLE t1 DROP CHECK ck3, DROP COLUMN c3,
+               ADD COLUMN c4 INT, ADD CONSTRAINT ck4 CHECK( c4 > 10);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify
+--echo #   - Creation of check constraint with NOT ENFORCED state.
+--echo #   - Listing state of the check constraints with SHOW and
+--echo #     INFORMATION_SCHEMA.CHECK_CONSTRAINTS table.
+--echo #   - State updates with ALTER TABLE statement to ALTER
+--echo #     check constraints.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT,
+                f2 INT CHECK (f2 < 10),
+                f3 INT CHECK (f3 < 10) NOT ENFORCED,
+                CONSTRAINT ck CHECK (f1 > 10),
+                CONSTRAINT CHECK (f1 > 10) NOT ENFORCED);
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+--echo # REVOKE check constraint ck.
+ALTER TABLE t1 ALTER CHECK ck NOT ENFORCED;
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+--echo # ENFORCE check constraint ck.
+ALTER TABLE t1 ALTER CHECK ck ENFORCED;
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+--echo # Add new constraint in NOT ENFORCED state.
+ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK(f1<10) NOT ENFORCED;
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+--echo # ENFORCE check constraint ck1
+ALTER TABLE t1 ALTER CHECK ck1 ENFORCED;
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+--echo # ENFORCE check constraint t1_chk_2
+ALTER TABLE t1 ALTER CHECK t1_chk_2 ENFORCED;
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+--echo # ADD column check constraint in NOT ENFORCED state.
+ALTER TABLE t1 ADD f4 INT CONSTRAINT t1_f4_chk CHECK (f4 < 10) NOT ENFORCED;
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+--echo # ENFORCE check constraint t1_f4_chk
+ALTER TABLE t1 ALTER CHECK t1_f4_chk ENFORCED;
+SHOW CREATE TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify alter statement with drop and alter constraint
+--echo # on non-existing check constraint.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, c3 INT, c4 INT);
+--error ER_CHECK_CONSTRAINT_NOT_FOUND
+ALTER TABLE t1 DROP CHECK ck13;
+--error ER_CHECK_CONSTRAINT_NOT_FOUND
+ALTER TABLE t1 ALTER CHECK ck13 ENFORCED;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify alter statement with multiple add, drop, enforce,
+--echo # revoke check constraints.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, c3 INT, c4 INT);
+ALTER TABLE t1 ADD CONSTRAINT ck11 CHECK(c1 > 1),
+      ADD CONSTRAINT ck12 CHECK(c1 < 1),
+      ADD CONSTRAINT ck21 CHECK(c2 > 1),
+      ADD CONSTRAINT ck22 CHECK(c2 < 1),
+      ADD CONSTRAINT ck31 CHECK(c3 > 1),
+      ADD CONSTRAINT ck32 CHECK(c3 < 1),
+      ADD CONSTRAINT ck41 CHECK(c4 > 1),
+      ADD CONSTRAINT ck42 CHECK(c4 < 1);
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1
+      DROP CHECK ck11, ADD CONSTRAINT ck11 CHECK (c1 > 10),
+      DROP CHECK ck12, ADD CONSTRAINT ck12 CHECK (c1 < 10),
+      DROP CHECK ck21, ADD CONSTRAINT ck21 CHECK (c1 > 10),
+      DROP CHECK ck22, ADD CONSTRAINT ck22 CHECK (c1 < 10),
+      DROP CHECK ck31, ADD CONSTRAINT ck31 CHECK (c1 > 10),
+      DROP CHECK ck32, ADD CONSTRAINT ck32 CHECK (c1 < 10),
+      DROP CHECK ck41, ADD CONSTRAINT ck41 CHECK (c1 > 10),
+      DROP CHECK ck42, ADD CONSTRAINT ck42 CHECK (c1 < 10),
+      ALTER CHECK ck11 NOT ENFORCED,
+      ALTER CHECK ck12 NOT ENFORCED,
+      ALTER CHECK ck21 NOT ENFORCED,
+      ALTER CHECK ck22 NOT ENFORCED,
+      ALTER CHECK ck11 ENFORCED;
+
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify auto-drop of check constraint on column drop.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT check (f1 < 10), f2 INT);
+SHOW CREATE TABLE t1;
+--echo # Drops check constraint t1_chk_1 too.
+ALTER TABLE t1 DROP COLUMN f1;
+
+ALTER TABLE t1 ADD COLUMN f1 INT check(f1 < 10),
+               ADD CONSTRAINT check(f1 + f2 < 10),
+               ADD CONSTRAINT check(f2 < 10);
+SHOW CREATE TABLE t1;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN f1;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN f1 to f3;
+--echo # Drops column f1 and constraints t1_chk_1, t1_chk_2.
+ALTER TABLE t1 DROP CHECK t1_chk_2, DROP COLUMN f1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with MODIFY COLUMN syntax.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 CHAR(1), CHECK (c1 > 'A'));
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES('A');
+INSERT INTO t1 VALUES('B');
+DELETE FROM t1;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 MODIFY COLUMN c1 FLOAT(10.3), DROP CHECK t1_chk_1, ADD CONSTRAINT CHECK(C1 > 10.1) ENFORCED;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 INT CHECK (f1 = default(f1)));
+INSERT INTO t1 VALUES (10);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY COLUMN f1 INT DEFAULT 20, algorithm=inplace;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER f1 SET DEFAULT 20, algorithm=inplace;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+ALTER TABLE t1 MODIFY COLUMN f1 INT DEFAULT 20, algorithm=copy;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with CHANGE COLUMN syntax.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 CHAR(1), CHECK (c1 > 'A'));
+SHOW CREATE TABLE t1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 CHANGE c1 c1 FLOAT, ALGORITHM=INPLACE;
+ALTER TABLE t1 DROP CHECK t1_chk_1, CHANGE c1 c2 VARCHAR(20), ADD CONSTRAINT CHECK(c2 > 'B');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t (a INT, b INT, CHECK(a != b));
+INSERT INTO t VALUES (2000000000, 2000000001);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+ALTER TABLE t CHANGE a a FLOAT, CHANGE b b FLOAT;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+ALTER TABLE t ADD CONSTRAINT CHECK(a > b);
+DROP TABLE t;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with IN operator.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(f1 int CHECK (f1 IN (10, 20, 30)), f2 int, CHECK(f2 IN (100, 120, 450)));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(10, 100);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(15, 100);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(10, 105);
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with BETWEEN operator.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(f1 int CHECK(f1 BETWEEN 10 AND 30),
+                f2 int, CHECK(f2 BETWEEN 100 AND 450));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(20, 200);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(2, 200);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(20, 2000);
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with IS NOT NULL.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1 (f1 int CHECK(f1 IS NOT NULL));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(10);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(NULL);
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with IS NULL.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1 (f1 int CHECK(f1 IS NULL));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(NULL);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(10);
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with CASE Statement
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT);
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (CASE WHEN c1 > 10 THEN c2 = 20 END) = 1);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(1,1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(15,1);
+INSERT INTO t1 VALUES(15,20);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints restrictions.
+--echo #------------------------------------------------------------------------
+
+--echo # Check constraint using column with AUTO_INCREMENT attribute.
+--error ER_CHECK_CONSTRAINT_REFERS_AUTO_INCREMENT_COLUMN
+CREATE TABLE t1 (f1 int primary key auto_increment, f2 int, CHECK (f1 != f2));
+
+--error ER_CHECK_CONSTRAINT_REFERS_AUTO_INCREMENT_COLUMN
+CREATE TABLE t1 (f1 int primary key auto_increment CHECK (f1 < 10), f2 int, CHECK (f1 != f2));
+
+--echo # Check constraint using non-deterministic builtin functions.
+--echo # NOW()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + NOW() > '2011-11-21'));
+
+--echo # CURRENT_TIMESTAMP()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIMESTAMP() > '2011-11-21 01:02:03'));
+
+--echo # CURRENT_TIMESTAMP
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIMESTAMP > '2011-11-21 01:02:03'));
+
+--echo # CURDATE()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + CURDATE() > '2011-11-21'));
+
+--echo # CURTIME()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + CURTIME() > '23:11:21'));
+
+--echo # CURTIME
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIME > '01:02:03'));
+
+--echo # CURRENT_DATE()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_DATE() > '2011-11-21'));
+
+--echo # CURRENT_DATE
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_DATE > '2011-11-21'));
+
+--echo # CURRENT_TIME()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIME() > '01:02:03'));
+
+--echo # CURRENT_TIME
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIME > '01:02:03'));
+
+--echo # LOCALTIME()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + LOCALTIME() > '23:11:21'));
+
+--echo # LOCALTIME
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + LOCALTIME > '23:11:21'));
+
+--echo # LOCALTIMESTAMP()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + LOCALTIMESTAMP() > '2011-11-21 01:02:03'));
+
+--echo # LOCALTIMESTAMP
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + LOCALTIMESTAMP > '2011-11-21 01:02:03'));
+
+--echo # UNIX_TIMESTAMP()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + UNIX_TIMESTAMP() > '2011-11-21 01:02:03'));
+
+--echo # UNIX_DATE()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + UTC_DATE() > '2011-11-21'));
+
+--echo # UNIX_TIMESTAMP()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + UTC_TIMESTAMP() > '2011-11-21 01:02:03'));
+
+--echo # UNIX_TIME()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + UTC_TIME() > '23:11:21'));
+
+--echo # CONNECTION_ID
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 INT CHECK (f1 + CONNECTION_ID() < 929));
+
+--echo # CURRENT_USER()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(32) CHECK (CURRENT_USER() != a));
+
+--echo # CURRENT_USER
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(32) CHECK (CURRENT_USER != a));
+
+--echo # SESSION_USER()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(32) CHECK (SESSION_USER() != a));
+
+--echo # VERSION()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(32) CHECK (VERSION() != a));
+
+--echo # FOUND_ROWS
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(1024), b INT CHECK (b + FOUND_ROWS() > 2000));
+
+--echo # LAST_INSERT_ID
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a INT CHECK ((a + LAST_INSERT_ID()) < 929));
+
+--echo # SYSTEM_USER
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(32) CHECK (SYSTEM_USER() != a));
+
+--echo # USER
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(32) CHECK (USER() != a));
+
+--echo # RAND()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 FLOAT CHECK (f1 + RAND() < 929.929));
+
+--echo # ROW_COUNT()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a INT CHECK (a + ROW_COUNT() > 1000));
+
+--echo  # GET_LOCK()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (GET_LOCK(b,10) != 0));
+
+--echo # IS_FREE_LOCK()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (IS_FREE_LOCK(b) != 0));
+
+--echo # IS_USED_LOCK()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (IS_USED_LOCK(b) != 0));
+
+--echo  # RELEASE_LOCK()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (RELEASE_LOCK(b) != 0));
+
+--echo  # RELEASE_ALL_LOCK()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024), CHECK (RELEASE_ALL_LOCKS() != 0));
+
+--echo # LOAD_FILE
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (f1 VARCHAR(1024), f2 VARCHAR(1024) CHECK (LOAD_FILE(f2) != NULL));
+
+--echo # UUID()
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (id CHAR(40) CHECK(UUID() != id));
+
+--echo # UUID_SHORT
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (id INT CHECK(UUID_SHORT() != id));
+
+--echo # SLEEP
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (id INT CHECK(SLEEP(id) != 0));
+
+--echo # Stored function
+CREATE FUNCTION func() RETURNS INT DETERMINISTIC return 1;
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (id INT CHECK(id = func()));
+DROP FUNCTION func;
+
+--echo # Stored procedure
+CREATE PROCEDURE proc() SELECT 1;
+--error ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (id INT CHECK(id = proc()));
+DROP PROCEDURE proc;
+
+--echo # User variable
+SET @v = 10;
+--error ER_CHECK_CONSTRAINT_VARIABLES
+CREATE TABLE t1 (id INT CHECK (id != @v));
+
+--echo # System variables.
+--error ER_CHECK_CONSTRAINT_VARIABLES
+CREATE TABLE t1 (id INT CHECK (id != @@global.max_execution_time));
+--error ER_CHECK_CONSTRAINT_VARIABLES
+CREATE TABLE t1 (id INt CHECK (id != @@session.max_execution_time));
+
+--echo # Subquery
+--error ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1 (id INT CHECK (id != (SELECT 1)));
+
+--echo # Parameter
+PREPARE stmt FROM 'CREATE TABLE t1 (id INT CHECK(id != ?))';
+--error ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
+EXECUTE stmt using @v;
+DEALLOCATE PREPARE stmt;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with numeric data types.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1 (
+  c1 BIT(7) CHECK(c1 < B'1111100'),
+  c2 BOOLEAN CHECK(c2 > 0),
+  c3 TINYINT CHECK(c3 > 10),
+  c4 SMALLINT CHECK(c4 > 10),
+  c5 MEDIUMINT CHECK(c5 > 10),
+  c6 INT CHECK(c6 > 10),
+  c7 BIGINT CHECK(c7 > 10),
+  c8 DECIMAL(6,2) CHECK(c8 > 10.1),
+  c9 FLOAT(6,2) CHECK(c9 > 10.1),
+  c10 DOUBLE(6,2) CHECK(c10 > 10.1));
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c1) VALUES(B'1111110');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c2) VALUES(0);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c3) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c4) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c5) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c6) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c7) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c8) VALUES(10.0);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c9) VALUES(10.0);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c10) VALUES(10.0);
+
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+  VALUES(B'1111000',1,11,11,11,11,11,10.2,10.2,10.2);
+
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with string data types.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(c1 CHAR(1) CHECK(c1 > 'a'),
+  c2 VARCHAR(1) CHECK(c2 > 'a'),
+  c3 BINARY(1) CHECK(c3 > 'a'),
+  c4 VARBINARY(1) CHECK(c4 > 'a'),
+  c5 TINYBLOB CHECK(c5 > 'a'),
+  c6 TINYTEXT CHECK(c6 > 'a'),
+  c7 BLOB CHECK(c7 > 'a'),
+  c8 TEXT CHECK(c8 > 'a'),
+  c9 MEDIUMBLOB CHECK(c9 > 'a'),
+  c10 MEDIUMTEXT CHECK(c10 > 'a'),
+  c11 LONGBLOB CHECK(c11 > 'a'),
+  c12 LONGTEXT CHECK(c12 > 'a'));
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c1) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c2) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c3) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c4) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c5) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c6) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c7) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c8) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c9) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c10) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c11) VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c12) VALUES('a');
+
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+  VALUES('b',"b","b","b","b","b","b","b","b","b","b","b");
+
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with date and time data types.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1 (c1 DATE CHECK(c1 > '2007-01-01'),
+  c2 DATETIME CHECK(c2 > '2007-01-01 12:00:01'),
+  c3 TIMESTAMP CHECK(c3 > '2007-01-01 00:00:01.000000'),
+  c4 TIME CHECK(c4 > '12:00:01.000000'),
+  c5 YEAR CHECK(c5 > '2007'));
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c1) VALUES('2006-01-01');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c2) VALUES('2007-01-01 11:00:01');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c3) VALUES('2007-01-01 00:00:00.000000');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c4) VALUES('12:00:00.000000');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c5) VALUES('2006');
+
+INSERT INTO t1(c1,c2,c3,c4,c5)
+  VALUES('2008-01-01','2007-01-01 12:00:02','2007-01-01 00:00:02.000000',
+        '12:00:02.000000','2008');
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with JSON data type.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255),
+  browser JSON CHECK( browser->'$.name' = "Chrome" ));
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(name,browser)
+  VALUES('pageview','{ "name": "Safari", "os": "Mac" }');
+
+INSERT INTO t1(name,browser)
+  VALUES('pageview','{ "name": "Chrome", "os": "Mac" }');
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # check constraint with ENUM data type
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (c1 ENUM ('a','b') CHECK (c1 IN ('c', 'd')) );
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES('b');
+--error 1265 #WARN_DATA_TRUNCATED
+INSERT INTO t1 VALUES('c');
+--error 1265 #WARN_DATA_TRUNCATED
+INSERT INTO t1 VALUES('d');
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # check constraint with SET data type
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (c1 SET ('a','b') CHECK (c1 IN ('c', 'd')) );
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES('a');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES('b');
+--error 1265 #WARN_DATA_TRUNCATED
+INSERT INTO t1 VALUES('c');
+--error 1265 #WARN_DATA_TRUNCATED
+INSERT INTO t1 VALUES('d');
+DROP TABLE t1;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with spatial data type.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(
+  pt POINT CHECK(ST_Equals(pt, ST_GEOMFROMTEXT('POINT(10 20)')) = TRUE),
+  lnstr LINESTRING CHECK(ST_Equals(lnstr, ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 6)'))),
+  mlnstr MULTILINESTRING CHECK(ST_Equals(mlnstr, ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),
+                                                                  (6 6,8 8,9 9,10 10))'))),
+  poly POLYGON CHECK(ST_Equals(poly, ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),
+                                                     (3 6,4 6,4 7,3 6))'))),
+  mpoly MULTIPOLYGON CHECK(ST_Equals(mpoly, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),
+                                                             ((2 2,4 5,6 2,2 2)))'))));
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(pt) VALUES (ST_GEOMFROMTEXT('POINT(10 21)'));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(lnstr) VALUES (ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 7)'));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(mlnstr) VALUES (ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 11))'));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(poly) VALUES (ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 8,3 6))'));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(mpoly) VALUES (ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((2 2,4 5,6 3,2 2)))'));
+
+INSERT INTO t1(pt) VALUES (ST_GEOMFROMTEXT('POINT(10 20)'));
+INSERT INTO t1(lnstr) VALUES (ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 6)'));
+INSERT INTO t1(mlnstr) VALUES (ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 10))'));
+INSERT INTO t1(poly) VALUES (ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 7,3 6))'));
+INSERT INTO t1(mpoly) VALUES (ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((2 2,4 5,6 2,2 2)))'));
+
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with REGEX
+--echo #-----------------------------------------------------------------------
+CREATE TABLE student
+(
+   id      	INT,
+   stu_code 	VARCHAR(10),
+   name    	VARCHAR(14),
+   email   	VARCHAR(20),
+   scholarship 	INT,
+   country 	VARCHAR(20),
+   CONSTRAINT ck1 CHECK (id != 0),
+   CONSTRAINT ck2 CHECK (stu_code like 'j%'),
+   CONSTRAINT ck3 CHECK (lower(name) != "noname"),
+   CONSTRAINT ck4 CHECK (REGEXP_LIKE(email,'@')),
+   CONSTRAINT ck5 CHECK (scholarship BETWEEN 5000 AND 20000),
+   CONSTRAINT ck6 CHECK (country IN ('usa','uk'))
+);
+SHOW CREATE TABLE student;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO student VALUES(0,"j001","name1","name1@oracle.com",6000,'usa');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO student VALUES(1,"s001","name1","name1@oracle.com",6000,'usa');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO student VALUES(1,"j001","NONAME","name1@oracle.com",6000,'usa');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO student VALUES(1,"j001","name1","name1oracle.com",6000,'usa');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO student VALUES(1,"j001","name1","name1@oracle.com",4000,'usa');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO student VALUES(1,"j001","name1","name1@oracle.com",6000,'nocountry');
+
+INSERT INTO student VALUES(1,"j001","name1","name1@oracle.com",6000,'usa');
+SELECT * FROM student;
+DROP TABLE student;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with numeric comparator
+--echo # operators with varchar columns.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 VARCHAR(20));
+ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK ( c1 > c2 );
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with Comparison Functions
+--echo # and Operators
+--echo #-----------------------------------------------------------------------
+--error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+CREATE TABLE t1(c1 INT, CHECK ( c1 IN ( SELECT COALESCE(NULL, 1, 1))));
+--error ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t1(c1 INT, CHECK ( c1 < ( SELECT COALESCE(NULL, 1, 1))));
+CREATE TABLE t1(c1 INT , CHECK ( c1 <=> NULL ));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(NULL);
+SELECT * FROM t1;
+
+ALTER TABLE t1 ADD COLUMN c2 INT, ADD CONSTRAINT CHECK( c2 > 10 );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c2) VALUES(10);
+INSERT INTO t1(c2) VALUES(11);
+
+ALTER TABLE t1 ADD COLUMN c3 INT, ADD CONSTRAINT CHECK( c3 >= 10 );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c3) VALUES(9);
+INSERT INTO t1(c3) VALUES(10);
+
+ALTER TABLE t1 ADD COLUMN c4 INT, ADD CONSTRAINT CHECK( c4 < 10 );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c4) VALUES(10);
+INSERT INTO t1(c4) VALUES(9);
+
+ALTER TABLE t1 ADD COLUMN c5 INT, ADD CONSTRAINT CHECK( c5 <= 10 );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c5) VALUES(11);
+INSERT INTO t1(c5) VALUES(10);
+
+ALTER TABLE t1 ADD COLUMN c6 INT, ADD CONSTRAINT CHECK( c6 != 10 );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c6) VALUES(10);
+INSERT INTO t1(c6) VALUES(20);
+
+ALTER TABLE t1 ADD COLUMN c7 INT, ADD CONSTRAINT CHECK( c7 <> 10 );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c7) VALUES(10);
+INSERT INTO t1(c7) VALUES(20);
+
+ALTER TABLE t1 ADD COLUMN c8 INT, ADD CONSTRAINT CHECK( c8 = GREATEST(1,2,3) );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c8) VALUES(1);
+INSERT INTO t1(c8) VALUES(3);
+
+ALTER TABLE t1 ADD COLUMN c9 INT, ADD CONSTRAINT CHECK( c9 = LEAST(1,2,3) );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c9) VALUES(3);
+INSERT INTO t1(c9) VALUES(1);
+
+ALTER TABLE t1 ADD COLUMN c10 INT, ADD CONSTRAINT CHECK( c10 NOT IN (1,2,3) );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c10) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c10) VALUES(3);
+INSERT INTO t1(c10) VALUES(10);
+
+ALTER TABLE t1 ADD COLUMN c11 YEAR, ADD CONSTRAINT CHECK ( c11 > '2007-01-01' + INTERVAL +1 YEAR);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c11) VALUES(2007);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c11) VALUES(2008);
+INSERT INTO t1(c11) VALUES(2009);
+
+ALTER TABLE t1 ADD COLUMN c12 INT, ADD CONSTRAINT CHECK ( c12 NOT BETWEEN 10 AND 20);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c12) VALUES(15);
+INSERT INTO t1(c12) VALUES(25);
+
+ALTER TABLE t1 ADD COLUMN c13 INT, ADD CONSTRAINT CHECK ( c13 NOT IN (1, 2, 3));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c13) VALUES(1);
+INSERT INTO t1(c13) VALUES(15);
+
+ALTER TABLE t1 ADD COLUMN c14 CHAR(10), ADD CONSTRAINT CHECK ( c14 LIKE 'A%');
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c14) VALUES('Good');
+INSERT INTO t1(c14) VALUES('All');
+
+ALTER TABLE t1 ADD COLUMN c15 INT, ADD CONSTRAINT CHECK ( c15 = STRCMP('A','A'));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c15) VALUES(1);
+INSERT INTO t1(c15) VALUES(0);
+
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with Logical Operators
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT);
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) AND (c2 < 20) );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(1,10);
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) && (c2 < 20) );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(15,25);
+ALTER TABLE t1 DROP CHECK `t1_chk_1`;
+ALTER TABLE t1 DROP CHECK `t1_chk_2`;
+
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) || (c2 < 20) );
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) OR (c2 < 20) );
+INSERT INTO t1 VALUES(15,25);
+INSERT INTO t1 VALUES(5,10);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(5,25);
+ALTER TABLE t1 DROP CHECK `t1_chk_1`;
+ALTER TABLE t1 DROP CHECK `t1_chk_2`;
+DELETE FROM t1;
+
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) XOR (c2 < 20) );
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(15,10);
+
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint behaviour with DEFAULT, NULL
+--echo # and with LOGICAL operators.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT DEFAULT 2 PRIMARY KEY CHECK(c1 > 1 OR c1 IS NOT NULL));
+SHOW CREATE TABLE t1;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES(NULL);
+INSERT INTO t1 VALUES(1);
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT DEFAULT 2 PRIMARY KEY CHECK(c1 > 1 OR c1 > 2));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT DEFAULT 2 PRIMARY KEY CHECK(c1 > 1 AND c1 IS NOT NULL));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint when table is moved to another DB
+--echo #-----------------------------------------------------------------------
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+USE test1;
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+INSERT INTO t1 VALUES(1,1);
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+ALTER TABLE test1.t1 rename test2.t1;
+USE test2;
+SELECT * FROM t1;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+DROP DATABASE test2;
+DROP DATABASE test1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint when table is moved to another DB
+--echo # with different name.
+--echo #-----------------------------------------------------------------------
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+USE test1;
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+INSERT INTO t1 VALUES(1,1);
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+ALTER TABLE test1.t1 rename test2.t2;
+USE test2;
+SELECT * FROM t2;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t2';
+DROP DATABASE test2;
+DROP DATABASE test1;
+use test;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraints with foreign key constraint
+--echo #-----------------------------------------------------------------------
+CREATE TABLE parent(pid INT NOT NULL PRIMARY KEY CHECK(pid > 1));
+CREATE TABLE child(cid INT CHECK(cid > 1),
+  CONSTRAINT fk FOREIGN KEY (cid) REFERENCES parent(pid));
+SHOW CREATE TABLE parent;
+SHOW CREATE TABLE child;
+INSERT INTO parent VALUES(2);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO child VALUES(1);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES(3);
+INSERT INTO child VALUES(2);
+SELECT * FROM parent;
+SELECT * FROM child;
+DROP TABLE child;
+DROP TABLE parent;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with FK referential actions.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE parent (a INT PRIMARY KEY);
+# With ON DELETE SET NULL referential action.
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+CREATE TABLE child (
+                    b INT,
+                    c INT CHECK (c < 10),
+                    INDEX(b),
+                    FOREIGN KEY (b) REFERENCES parent(a) ON DELETE SET NULL,
+                    CHECK (b IS NOT NULL)
+                   );
+CREATE TABLE child (
+                    b INT,
+                    c INT CHECK (c < 10),
+                    INDEX(b),
+                    FOREIGN KEY (b) REFERENCES parent(a) ON DELETE SET NULL
+                   );
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+ALTER TABLE child ADD CONSTRAINT CHECK (b IS NOT NULL);
+ALTER TABLE child DROP FOREIGN KEY child_ibfk_1;
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+ALTER TABLE child ADD CONSTRAINT FOREIGN KEY (b) REFERENCES parent(a) ON DELETE SET NULL,
+                  ADD CONSTRAINT CHECK (b IS NOT NULL);
+DROP TABLE child;
+
+# With ON UPDATE SET NULL referential action.
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+CREATE TABLE child (
+                    b INT,
+                    c INT CHECK (c < 10),
+                    INDEX(b),
+                    FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE SET NULL,
+                    CHECK (b IS NOT NULL)
+                   );
+CREATE TABLE child (
+                    b INT,
+                    c INT CHECK (c < 10),
+                    INDEX(b),
+                    FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE SET NULL
+                   );
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+ALTER TABLE child ADD CONSTRAINT CHECK (b IS NOT NULL);
+ALTER TABLE child DROP FOREIGN KEY child_ibfk_1;
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+ALTER TABLE child ADD CONSTRAINT FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE SET NULL,
+                  ADD CONSTRAINT CHECK (b IS NOT NULL);
+DROP TABLE child;
+
+# With ON UPDATE CASCADE referential action.
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+CREATE TABLE child (
+                    b INT,
+                    c INT CHECK (c < 10),
+                    INDEX(b),
+                    FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE CASCADE,
+                    CHECK (b IS NOT NULL)
+                   );
+CREATE TABLE child (
+                    b INT,
+                    c INT CHECK (c < 10),
+                    INDEX(b),
+                    FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE CASCADE
+                   );
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+ALTER TABLE child ADD CONSTRAINT CHECK (b IS NOT NULL);
+ALTER TABLE child DROP FOREIGN KEY child_ibfk_1;
+--error ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+ALTER TABLE child ADD CONSTRAINT FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE CASCADE,
+                  ADD CONSTRAINT CHECK (b IS NOT NULL);
+DROP TABLE child;
+DROP TABLE parent;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with triggers
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+CREATE TABLE t2(c1 INT, c2 INT);
+
+# before insert
+DELIMITER //;
+CREATE TRIGGER before_t2_insert
+  BEFORE INSERT ON t2
+  FOR EACH ROW
+  BEGIN
+    INSERT INTO t1 VALUES(NEW.c1,NEW.c2);
+  END
+//
+DELIMITER ;//
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t2 VALUES(1,20);
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TRIGGER before_t2_insert;
+
+# after insert
+DELIMITER //;
+CREATE TRIGGER after_t2_insert
+  AFTER INSERT ON t2
+  FOR EACH ROW
+  BEGIN
+    INSERT INTO t1 VALUES(NEW.c1,NEW.c2);
+  END
+//
+DELIMITER ;//
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t2 VALUES(1,30);
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TRIGGER after_t2_insert;
+
+# before update
+INSERT INTO t2 VALUES(1,5);
+INSERT INTO t1 VALUES(1,5);
+DELIMITER //;
+CREATE TRIGGER before_t2_update
+  BEFORE UPDATE ON t2
+  FOR EACH ROW
+  BEGIN
+    UPDATE t1 SET c2=NEW.c2 WHERE c1=NEW.c1;
+  END
+//
+DELIMITER ;//
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t2 SET c2=20 WHERE c1=1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TRIGGER before_t2_update;
+
+# after update
+DELIMITER //;
+CREATE TRIGGER after_t2_update
+  AFTER UPDATE ON t2
+  FOR EACH ROW
+  BEGIN
+    UPDATE t1 SET c2=NEW.c2 WHERE c1=NEW.c1;
+  END
+//
+DELIMITER ;//
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t2 SET c2=20 WHERE c1=1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TRIGGER after_t2_update;
+
+# before insert trigger to adjust value to pass check constraint.
+DELIMITER //;
+CREATE TRIGGER before_t1_insert
+  BEFORE INSERT ON t1
+  FOR EACH ROW
+  BEGIN
+    IF (NEW.c2 >= 10) THEN
+      SET NEW.c2 = 0;
+    END IF;
+  END
+//
+
+# before update trigger to adjust value to pass check constraint.
+CREATE TRIGGER before_t1_update
+  BEFORE UPDATE ON t1
+  FOR EACH ROW
+  BEGIN
+    IF (NEW.c2 >= 10) THEN
+      SET NEW.c2 = 0;
+    END IF;
+  END
+//
+DELIMITER ;//
+
+# Check constraint violation error is not reported for following statements as
+# triggers adjusts the value to pass check constraint.
+INSERT INTO t1 VALUES(1, 11);
+UPDATE t1 SET c2 = 11 WHERE c1 = 1;
+
+DROP TRIGGER before_t1_insert;
+DROP TRIGGER before_t1_update;
+DROP TABLE t1,t2;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case uses triggers to work as check constraints.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 int CONSTRAINT ck1 CHECK(c1 < 5));
+
+DELIMITER //;
+CREATE PROCEDURE proc1 (IN val1 INT)
+BEGIN
+   IF val1 < 10 THEN
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'check constraint on c1 failed';
+   END IF;
+END
+//
+
+CREATE TRIGGER before_t1_insert
+   BEFORE INSERT ON t1
+   FOR EACH ROW
+   BEGIN
+      CALL proc1(new.c1);
+   END
+//
+
+DELIMITER ;//
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(20);
+--error ER_SIGNAL_EXCEPTION
+INSERT INTO t1 VALUES(9);
+--error ER_SIGNAL_EXCEPTION
+INSERT INTO t1 VALUES(4);
+DROP PROCEDURE proc1;
+DROP TRIGGER before_t1_insert;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with mysqldump
+--echo #-----------------------------------------------------------------------
+CREATE DATABASE test1;
+USE test1;
+CREATE TABLE t1 (
+  c1 BIT(7) CHECK(c1 < B'1111100') NOT ENFORCED,
+  c2 BOOLEAN CHECK(c2 > 0) NOT ENFORCED,
+  c3 TINYINT CHECK(c3 > 10) NOT ENFORCED,
+  c4 SMALLINT CHECK(c4 > 10) NOT ENFORCED,
+  c5 MEDIUMINT CHECK(c5 > 10) NOT ENFORCED,
+  c6 INT CHECK(c6 > 10),
+  c7 BIGINT CHECK(c7 > 10),
+  c8 DECIMAL(6,2) CHECK(c8 > 10.1),
+  c9 FLOAT(6,2) CHECK(c9 > 10.1),
+  c10 DOUBLE(6,2) CHECK(c10 > 10.1),
+  c11 CHAR(6) CHECK (c11 IS NULL));
+SHOW CREATE TABLE t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --databases test1 > $MYSQLTEST_VARDIR/tmp/test1_db.sql 2>&1
+DROP DATABASE test1;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test1_db.sql
+USE test1;
+SHOW CREATE TABLE t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+    VALUES(B'1111111',0,5,5,5,1,1,1.2,1.2,1.2);
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+    VALUES(B'1111111',0,5,5,5,11,11,10.2,10.2,10.2);
+SELECT * FROM t1;
+DROP TABLE t1;
+DROP DATABASE test1;
+--remove_file $MYSQLTEST_VARDIR/tmp/test1_db.sql
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with mysqlpump
+--echo #-----------------------------------------------------------------------
+CREATE DATABASE test2;
+USE test2;
+CREATE TABLE t2 (
+  c1 BIT(7) CHECK(c1 < B'1111100'),
+  c2 BOOLEAN CHECK(c2 > 0),
+  c3 TINYINT CHECK(c3 > 10),
+  c4 SMALLINT CHECK(c4 > 10),
+  c5 MEDIUMINT CHECK(c5 > 10),
+  c6 INT CHECK(c6 > 10) NOT ENFORCED,
+  c7 BIGINT CHECK(c7 > 10) NOT ENFORCED,
+  c8 DECIMAL(6,2) CHECK(c8 > 10.1) NOT ENFORCED,
+  c9 FLOAT(6,2) CHECK(c9 > 10.1) NOT ENFORCED,
+  c10 DOUBLE(6,2) CHECK(c10 > 10.1) NOT ENFORCED);
+SHOW CREATE TABLE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_PUMP --databases test2 > $MYSQLTEST_VARDIR/tmp/test2_db.sql
+DROP DATABASE test2;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test2_db.sql
+USE test2;
+SHOW CREATE TABLE t2;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+    VALUES(B'1111000',0,10,10,10,5,5,9.1,9.1,9.1);
+INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+    VALUES(B'1111000',1,11,11,11,5,5,9.1,9.1,9.1);
+SELECT * FROM t2;
+DROP TABLE t2;
+DROP DATABASE test2;
+--remove_file $MYSQLTEST_VARDIR/tmp/test2_db.sql
+USE test;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with PREPARE statement
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT CHECK(c1 > 10));
+PREPARE stmt1 FROM 'INSERT INTO t1 VALUES(1)';
+--error ER_CHECK_CONSTRAINT_VIOLATED
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+PREPARE stmt2 FROM 'INSERT INTO t1 VALUES(20)';
+EXECUTE stmt2;
+DEALLOCATE PREPARE stmt2;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint behaviour inside transaction
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(c1 INT CHECK(c1 > 10));
+SET AUTOCOMMIT = OFF;
+# Transaction 1
+START TRANSACTION;
+INSERT INTO t1 VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t2 VALUES(1);
+ROLLBACK;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# Transaction 2
+START TRANSACTION;
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10);
+COMMIT;
+SHOW CREATE TABLE t1;
+SET AUTOCOMMIT = ON;
+DROP TABLE t1,t2;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify check constraints with Partition table.
+--echo #------------------------------------------------------------------------
+--echo # check constraint with range partition
+CREATE TABLE t1(
+  d DATE NOT NULL CHECK(YEAR(d) > '1950')
+)
+PARTITION BY RANGE( YEAR(d) ) (
+PARTITION p0 VALUES LESS THAN (1960),
+PARTITION p1 VALUES LESS THAN (1970),
+PARTITION p2 VALUES LESS THAN (1980),
+PARTITION p3 VALUES LESS THAN (1990)
+);
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES('1940-01-01');
+
+INSERT INTO t1 VALUES('1960-01-01');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo # check constraint with list partition
+CREATE TABLE t1(
+  id INT NOT NULL CHECK(id BETWEEN 10 AND 50),
+  name VARCHAR(10)
+)
+PARTITION BY LIST(id) (
+PARTITION p0 VALUES IN (10,19),
+PARTITION p1 VALUES IN (20,29),
+PARTITION p2 VALUES IN (30,39),
+PARTITION p3 VALUES IN (40,49)
+);
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(60,'aaa');
+INSERT INTO t1 VALUES(30,'aaa');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo # check constraint with hash partition
+CREATE TABLE t1(id INT NOT NULL CHECK(id > 10),
+                 name VARCHAR(40)
+)
+PARTITION BY HASH(id)
+PARTITIONS 4;
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(1,'aaa');
+INSERT INTO t1 VALUES(60,'aaa');
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # check constraint with key partition
+CREATE TABLE t1(id INT PRIMARY KEY NOT NULL CHECK(id > 10),
+                 name VARCHAR(40)
+)
+PARTITION BY KEY()
+PARTITIONS 4;
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES(1,'aaa');
+INSERT INTO t1 VALUES(60,'aaa');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify alter operations on non-transactional SE table
+--echo # with check constraints.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT CHECK (f1 < 10)) ENGINE = myisam;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD f2 INT, ALGORITHM=copy;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ALTER f1 SET DEFAULT 10, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify check constraint with Updatable view
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+CREATE VIEW v1 AS SELECT * FROM t1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO v1 VALUES(1,20);
+INSERT INTO v1 VALUES(1,5);
+SELECT * FROM t1;
+SELECT * FROM v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify error reporting when check constraint evaluation
+--echo # fails due to type conversion issue.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 CHAR(10) CHECK (f1 < 10));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES ("xy");
+--echo # Show warnings lists error reported for type conversion issue too.
+SHOW WARNINGS;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29191994 - MULTIPLE CONSTRAINTS ARE NOT ACCEPTED WHEN FIRST IS
+--echo #                CHECK CONSTRAINT IN COLUMN.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(a INTEGER CHECK (a > 0) NOT NULL);
+SHOW CREATE TABLE t1;
+CREATE TABLE t2(a INTEGER CHECK (a > 0) UNIQUE);
+SHOW CREATE TABLE t2;
+CREATE TABLE t3(a INTEGER CHECK (a > 0) PRIMARY KEY);
+SHOW CREATE TABLE t3;
+CREATE TABLE t4(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+SHOW CREATE TABLE t4;
+CREATE TABLE t5(a INTEGER CHECK (a > 0) NOT ENFORCED NOT NULL);
+SHOW CREATE TABLE t5;
+CREATE TABLE t6(a INTEGER CHECK (a > 0) UNIQUE CHECK (a IS NOT NULL) NULL CHECK (a < 100));
+SHOW CREATE TABLE t6;
+CREATE TABLE t7(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+--echo # [NOT] ENFORCED must follow check constraint clause. Error is reported otherwise.
+--error ER_PARSE_ERROR
+CREATE TABLE t8(a INTEGER ENFORCED);
+--error ER_PARSE_ERROR
+CREATE TABLE t8(a INTEGER NOT ENFORCED);
+--error ER_PARSE_ERROR
+CREATE TABLE t8(a INTEGER AUTO_INCREMENT NOT ENFORCED);
+--echo # Error is reported if column check constraints reference other columns of the
+--echo # table. Following cases verify the same when multiple check constraints are
+--echo # defined for a column.
+--error ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+CREATE TABLE t8(a INTEGER, b INTEGER CHECK (a + b > 0) UNIQUE CHECK ( a - b < 1000));
+--error ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+CREATE TABLE t7(a INTEGER, b INTEGER CHECK (b > 0) UNIQUE CHECK ( a - b < 1000));
+#Cleanup
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -75,11 +75,11 @@ public:   /* public interface methods */
     tail = sep;          // an empty queue
     
     is_active = 1;
-  };
+  }
   
   ~Queue() {
     free(nodepool);
-  };
+  }
   
   T * consume() {
     T * val = 0;
@@ -90,7 +90,7 @@ public:   /* public interface methods */
       sep = nxt;          /* at the head of the queue. */
     }
     return val;
-  };
+  }
   
   void produce(T *t) {
     /* First do deferred cleanup of the old nodes between head and sep */
@@ -105,7 +105,7 @@ public:   /* public interface methods */
     atomic_set_ptr((void * volatile *)& tail->next, n);
     atomic_barrier();
     tail = n;
-  };
+  }
   
   void abort() {
     atomic_cmp_swap_int(& is_active, 1, 0);
@@ -123,11 +123,11 @@ private:  /* internal allocator */
     n->next = 0;
     n->value = val;
     return n;
-  };
+  }
   
   void node_free(Node *n) {
     n->next = nodelist;
     nodelist = n;
-  };
+  }
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,13 +36,13 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"  // acl_init
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/auto_thd.h"                    // Auto_thd
-#include "sql/bootstrap.h"                   // bootstrap::bootstrap_functor
-#include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
-#include "sql/dd/dd.h"                       // enum_dd_init_type
-#include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "sql/dd/dd_version.h"               // dd::DD_VERSION
-#include "sql/dd/impl/bootstrapper.h"        // dd::Bootstrapper
+#include "sql/auto_thd.h"                        // Auto_thd
+#include "sql/bootstrap.h"                       // bootstrap::bootstrap_functor
+#include "sql/dd/cache/dictionary_client.h"      // dd::Dictionary_client
+#include "sql/dd/dd.h"                           // enum_dd_init_type
+#include "sql/dd/dd_schema.h"                    // dd::Schema_MDL_locker
+#include "sql/dd/dd_version.h"                   // dd::DD_VERSION
+#include "sql/dd/impl/bootstrap/bootstrapper.h"  // dd::Bootstrapper
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
 #include "sql/dd/impl/system_registry.h"                // dd::System_tables
 #include "sql/dd/impl/tables/columns.h"                 // dd::tables::Columns
@@ -51,6 +51,7 @@
 #include "sql/dd/impl/tables/table_partitions.h"  // dd::tables::Table_partitions
 #include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
 #include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
+#include "sql/dd/impl/utils.h"                    // dd::tables::Tablespaces
 #include "sql/dd/info_schema/metadata.h"  // dd::info_schema::store_dynamic...
 #include "sql/dd/types/abstract_table.h"  // dd::Abstract_table::DD_table
 #include "sql/dd/types/column.h"          // dd::Column::DD_table
@@ -58,14 +59,15 @@
 #include "sql/dd/types/object_table_definition.h"
 #include "sql/dd/types/partition.h"  // dd::Partition::DD_table
 #include "sql/dd/types/system_view.h"
-#include "sql/dd/types/table.h"       // dd::Table::DD_table
-#include "sql/dd/types/tablespace.h"  // dd::Tablespace::DD_table
-#include "sql/dd/upgrade/upgrade.h"   // dd::upgrade
+#include "sql/dd/types/table.h"         // dd::Table::DD_table
+#include "sql/dd/types/tablespace.h"    // dd::Tablespace::DD_table
+#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade
 #include "sql/derror.h"
 #include "sql/handler.h"
 #include "sql/mdl.h"
 #include "sql/opt_costconstantcache.h"  // init_optimizer_cost_module
 #include "sql/plugin_table.h"
+#include "sql/sql_base.h"   // close_cached_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"                       // Disable_autocommit_guard
@@ -105,8 +107,6 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
     Dictionary_impl::s_instance = d.release();
   }
 
-  acl_init(true);
-
   /*
     Initialize the cost model, but delete it after the dd is initialized.
     This is because the cost model is needed for the dd initialization, but
@@ -115,6 +115,11 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
     is passed to the function.
   */
   init_optimizer_cost_module(true);
+
+  // Disable table encryption privilege checks for system threads.
+  bool saved_table_encryption_privilege_check =
+      opt_table_encryption_privilege_check;
+  opt_table_encryption_privilege_check = false;
 
   /*
     Install or start or upgrade the dictionary
@@ -158,11 +163,12 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
         NULL, &dd::info_schema::update_I_S_metadata,
         SYSTEM_THREAD_DD_INITIALIZE);
 
+  // Restore the table_encryption_privilege_check.
+  opt_table_encryption_privilege_check = saved_table_encryption_privilege_check;
+
   /* Now that the dd is initialized, delete the cost model. */
   delete_optimizer_cost_module();
 
-  // TODO: See above.
-  acl_free(true);
   return result;
 }
 
@@ -580,7 +586,7 @@ bool create_native_table(THD *thd, const Plugin_table *pt) {
                                        pt->get_schema_name(), pt->get_name());
   }
 
-  if (!error) error = execute_query(thd, pt->get_ddl());
+  if (!error) error = dd::execute_query(thd, pt->get_ddl());
 
   thd->security_context()->set_master_access(master_access);
   thd->mark_plugin_fake_ddl(false);
@@ -637,10 +643,12 @@ bool reset_tables_and_tablespaces() {
   if (ddse->dict_cache_reset_tables_and_tablespaces != nullptr)
     ddse->dict_cache_reset_tables_and_tablespaces();
 
+  bool ret = close_cached_tables(nullptr, nullptr, false, LONG_TIMEOUT);
+
   // Release transactional metadata locks.
   thd.thd->mdl_context.release_transactional_locks();
 
-  return false;
+  return ret;
 }
 
 bool commit_or_rollback_tablespace_change(THD *thd, dd::Tablespace *space,
@@ -648,6 +656,7 @@ bool commit_or_rollback_tablespace_change(THD *thd, dd::Tablespace *space,
                                           bool release_mdl_on_commit_only) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   Disable_autocommit_guard autocommit_guard(thd);
+
   if (!error && space != nullptr) {
     error = thd->dd_client()->update(space);
   }
@@ -682,4 +691,5 @@ void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst) {
   }
   thd->locked_tables_list.add_rename_tablespace_mdls(src, dst);
 }
+
 }  // namespace dd

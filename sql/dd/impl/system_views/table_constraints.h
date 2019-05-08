@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,8 @@ class Table_constraints
     FIELD_CONSTRAINT_NAME,
     FIELD_TABLE_SCHEMA,
     FIELD_TABLE_NAME,
-    FIELD_CONSTRAINT_TYPE
+    FIELD_CONSTRAINT_TYPE,
+    FIELD_ENFORCED
   };
 
   Table_constraints();

@@ -75,6 +75,7 @@ class sqlstring {
   sqlstring();
   sqlstring(const char *format_string, const sqlstringformat format = 0);
   sqlstring(const sqlstring &copy);
+  sqlstring &operator=(const sqlstring &) = default;
   bool done() const;
 
   operator std::string() const;

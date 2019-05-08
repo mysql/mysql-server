@@ -53,6 +53,7 @@
 #include "sql/sql_select.h"      // handle_query()
 #include "sql/sql_table.h"       // mysql_create_like_table()
 #include "sql/sql_tablespace.h"  // validate_tablespace_name()
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "thr_lock.h"
@@ -140,13 +141,13 @@ bool Sql_cmd_create_table::execute(THD *thd) {
   */
   if (create_info.tablespace) {
     if (validate_tablespace_name_length(create_info.tablespace) ||
-        validate_tablespace_name(false, create_info.tablespace,
+        validate_tablespace_name(TS_CMD_NOT_DEFINED, create_info.tablespace,
                                  create_info.db_type))
       return true;
 
-    if (!thd->make_lex_string(&create_table->target_tablespace_name,
-                              create_info.tablespace,
-                              strlen(create_info.tablespace), false))
+    if (lex_string_strmake(thd->mem_root, &create_table->target_tablespace_name,
+                           create_info.tablespace,
+                           strlen(create_info.tablespace)))
       return true;
   }
 
@@ -277,10 +278,9 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       Query_result_create is currently not re-execution friendly and
       needs to be created for every execution of a PS/SP.
     */
-    if ((result = new (thd->mem_root)
-             Query_result_create(thd, create_table, &create_info, &alter_info,
-                                 select_lex->item_list, lex->duplicates,
-                                 query_expression_tables))) {
+    if ((result = new (thd->mem_root) Query_result_create(
+             create_table, &create_info, &alter_info, select_lex->item_list,
+             lex->duplicates, query_expression_tables))) {
       // For objects acquired during table creation.
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -354,8 +354,8 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
   HA_CREATE_INFO create_info;
   Alter_info alter_info(*m_alter_info, thd->mem_root);
 
-  if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-    return true;           // OOM
+  if (thd->is_fatal_error()) /* out of memory creating a copy of alter_info */
+    return true;             // OOM
 
   if (check_one_table_access(thd, INDEX_ACL, all_tables)) return true;
   /*

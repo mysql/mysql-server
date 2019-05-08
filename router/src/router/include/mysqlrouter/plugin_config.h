@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,9 @@ class BasePluginConfig {
                     T max_value = std::numeric_limits<T>::max()) {
     std::string value = get_option_string(section, option);
 
-    assert(max_value <= std::numeric_limits<long long>::max());
+    static_assert(
+        std::numeric_limits<T>::max() <= std::numeric_limits<long long>::max(),
+        "");
 
     char *rest;
     errno = 0;

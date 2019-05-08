@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,8 +90,8 @@
   must be called prefix (to enable skipping) and postfix (to disable
   skipping).
 */
-static const Item::enum_walk walk_options = Item::enum_walk(
-    Item::WALK_PREFIX | Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
+static const enum_walk walk_options =
+    enum_walk::SUBQUERY_PREFIX | enum_walk::POSTFIX;
 
 /**
    Rejects the query if it has a combination of DISTINCT and ORDER BY which
@@ -369,7 +369,10 @@ bool Group_check::is_fd_on_source(Item *item) {
       transformation. But there cannot be a key-based or equality-based
       functional dependency on a NULL literal.
       Moreover, there are no FDs in a UNION.
-      So if the query has ROLLUP, we can stop here.
+      So if the query has ROLLUP, we can stop here. Above, we have tested the
+      column against the group columns and that's enough.
+      See test group_by_fd_no_prot for examples of queries with ROLLUP which
+      are accepted or not.
     */
     return false;
   }
@@ -668,7 +671,7 @@ bool Group_check::is_in_fd(Item *item) {
 
   DBUG_ASSERT(local_column(item));
   Used_tables ut(select);
-  (void)item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+  (void)item->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&ut));
   if ((ut.used_tables & ~whole_tables_fd) == 0) {
     /*
@@ -738,7 +741,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
 
     Item *const real_it = item->real_item();
     Used_tables ut(select);
-    (void)item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+    (void)item->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                      pointer_cast<uchar *>(&ut));
     /*
       todo When we eliminate all uses of cached_table, we can probably add a
@@ -1191,7 +1194,7 @@ bool Group_check::do_ident_check(Item_ident *i, table_map tm,
       goto ignore_children;
     case CHECK_STRONG_SIDE_COLUMN: {
       Used_tables ut(select);
-      (void)i->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+      (void)i->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                     pointer_cast<uchar *>(&ut));
       if ((ut.used_tables & tm) && !is_in_fd(i))
         return true;  // It is a strong-side column and not FD

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,8 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-/* variable declarations are in sys_vars.cc now !!! */
 
 #include "sql/set_var.h"
 
@@ -69,6 +67,7 @@
 #include "sql/table.h"
 #include "sql_string.h"
 
+using std::min;
 using std::string;
 
 static collation_unordered_map<string, sys_var *> *system_variable_hash;
@@ -79,6 +78,9 @@ ulonglong system_variable_hash_version = 0;
 collation_unordered_map<string, sys_var *> *get_system_variable_hash(void) {
   return system_variable_hash;
 }
+
+/** list of variables that shouldn't be persisted in all cases */
+static collation_unordered_set<string> *never_persistable_vars;
 
 /**
   Get source of a given system variable given its name and name length.
@@ -118,6 +120,10 @@ int sys_var_init() {
   system_variable_hash = new collation_unordered_map<string, sys_var *>(
       system_charset_info, PSI_INSTRUMENT_ME);
 
+  never_persistable_vars = new collation_unordered_set<string>(
+      {PERSIST_ONLY_ADMIN_X509_SUBJECT, PERSISTED_GLOBALS_LOAD},
+      system_charset_info, PSI_INSTRUMENT_ME);
+
   if (mysql_add_sys_var_chain(all_sys_vars.first)) goto error;
 
   DBUG_RETURN(0);
@@ -145,11 +151,50 @@ void sys_var_end() {
   DBUG_ENTER("sys_var_end");
 
   delete system_variable_hash;
+  delete never_persistable_vars;
   system_variable_hash = nullptr;
 
   for (sys_var *var = all_sys_vars.first; var; var = var->next) var->cleanup();
 
   DBUG_VOID_RETURN;
+}
+
+/**
+  This function will check for necessary privileges needed to perform RESET
+  PERSIST or SET PERSIST[_ONLY] operation.
+
+  @param [in] thd                     Pointer to connection handle.
+  @param [in] static_variable         describes if variable is static or dynamic
+
+  @return 0 Success
+  @return 1 Failure
+*/
+bool check_priv(THD *thd, bool static_variable) {
+  Security_context *sctx = thd->security_context();
+  /* for dynamic variables user needs SUPER_ACL or SYSTEM_VARIABLES_ADMIN */
+  if (!static_variable) {
+    if (!sctx->check_access(SUPER_ACL) &&
+        !(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+              .first)) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SYSTEM_VARIABLES_ADMIN");
+      return 1;
+    }
+  } else {
+    /*
+     for static variables user needs both SYSTEM_VARIABLES_ADMIN and
+     PERSIST_RO_VARIABLES_ADMIN
+    */
+    if (!(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+              .first &&
+          sctx->has_global_grant(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"))
+              .first)) {
+      my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
+               "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
+      return 1;
+    }
+  }
+  return 0;
 }
 
 /**
@@ -382,13 +427,15 @@ bool sys_var::is_default(THD *, set_var *var) {
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
   /* set client user */
-  if (thd->security_context()->user().length)
+  if (thd->security_context()->user().length > 0)
     strncpy(user, thd->security_context()->user().str,
             thd->security_context()->user().length);
   memset(host, 0, sizeof(host));
-  if (thd->security_context()->host().length)
-    strncpy(host, thd->security_context()->host().str,
-            thd->security_context()->host().length);
+  if (thd->security_context()->host().length > 0) {
+    int host_len =
+        min<size_t>(sizeof(host), thd->security_context()->host().length);
+    strncpy(host, thd->security_context()->host().str, host_len);
+  }
 }
 
 void sys_var::do_deprecated_warning(THD *thd) {
@@ -790,7 +837,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
     }
   }
 err:
-  free_underlaid_joins(thd->lex->select_lex);
+  free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 
@@ -841,14 +888,81 @@ set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
 }
 
 /**
-  Resolve the variable assignment
+  global X509 subject name to require from the client session
+  to allow SET PERSIST[_ONLY] on sys_var::NOTPERSIST variables
 
-  @param thd Thread handler
+  @sa set_var::resolve
+*/
+char *sys_var_persist_only_admin_x509_subject = NULL;
 
-  @return status code
-   @retval -1 Failure
-   @retval 0 Success
- */
+/**
+  Checks if a THD can set non-persist variables
+
+  Requires that:
+  * the session uses SSL
+  * the peer has presented a valid certificate
+  * the certificate has a certain subject name
+
+  The format checked is deliberately kept the same as the
+  other SSL system and status variables representing names.
+  Hence X509_NAME_oneline is used.
+
+  @retval true the THD can set NON_PERSIST variables
+  @retval false usual restrictions apply
+  @param thd the THD handle
+  @param var the variable to be set
+  @param setvar_type  the operation to check against.
+
+  @sa sys_variables_admin_dn
+*/
+static bool can_persist_non_persistent_var(THD *thd, sys_var *var,
+                                           enum_var_type setvar_type) {
+  SSL *ssl = NULL;
+  X509 *cert = NULL;
+  char *ptr = NULL;
+  bool result = false;
+
+  /* Bail off if no subject is set */
+  if (likely(!sys_var_persist_only_admin_x509_subject ||
+             !sys_var_persist_only_admin_x509_subject[0]))
+    return false;
+
+  /* Can't persist read only variables without command line support */
+  if (unlikely(setvar_type == OPT_PERSIST_ONLY &&
+               !var->is_settable_at_command_line() &&
+               (var->is_readonly() || var->is_persist_readonly())))
+    return false;
+
+  /* do not allow setting the controlling variables */
+  if (never_persistable_vars->find(var->name.str) !=
+      never_persistable_vars->end())
+    return false;
+
+  ssl = thd->get_ssl();
+  if (!ssl) return false;
+
+  cert = SSL_get_peer_certificate(ssl);
+  if (!cert) goto done;
+
+  ptr = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+  if (!ptr) goto done;
+
+  result = !strcmp(sys_var_persist_only_admin_x509_subject, ptr);
+done:
+  if (ptr) OPENSSL_free(ptr);
+  if (cert) X509_free(cert);
+  return result;
+}
+
+/**
+Resolve the variable assignment
+
+@param thd Thread handler
+
+@return status code
+@retval -1 Failure
+@retval 0 Success
+*/
 
 int set_var::resolve(THD *thd) {
   DBUG_ENTER("set_var::resolve");
@@ -859,7 +973,8 @@ int set_var::resolve(THD *thd) {
                "read only");
       DBUG_RETURN(-1);
     }
-    if (type == OPT_PERSIST_ONLY && var->is_non_persistent()) {
+    if (type == OPT_PERSIST_ONLY && var->is_non_persistent() &&
+        !can_persist_non_persistent_var(thd, var, type)) {
       my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
                "non persistent read only");
       DBUG_RETURN(-1);
@@ -872,30 +987,21 @@ int set_var::resolve(THD *thd) {
   }
   if (type == OPT_GLOBAL || type == OPT_PERSIST) {
     /* Either the user has SUPER_ACL or she has SYSTEM_VARIABLES_ADMIN */
-    Security_context *sctx = thd->security_context();
-    if (!sctx->check_access(SUPER_ACL) &&
-        !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-             .first) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-               "SUPER or SYSTEM_VARIABLES_ADMIN");
-      DBUG_RETURN(1);
-    }
+    if (check_priv(thd, false)) DBUG_RETURN(1);
   }
   if (type == OPT_PERSIST_ONLY) {
-    Security_context *sctx = thd->security_context();
-    /*
-     user should have both SYSTEM_VARIABLES_ADMIN and
-     "PERSIST_RO_VARIABLES_ADMIN" privilege to persist read only variables
-    */
-    if (!(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-              .first &&
-          sctx->has_global_grant(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"))
-              .first)) {
-      my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
-               "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
-      DBUG_RETURN(1);
-    }
+    if (check_priv(thd, true)) DBUG_RETURN(1);
   }
+
+  /* check if read/write non-persistent variables can be persisted */
+  if ((type == OPT_PERSIST || type == OPT_PERSIST_ONLY) &&
+      var->is_non_persistent() &&
+      !can_persist_non_persistent_var(thd, var, type)) {
+    my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
+             "non persistent");
+    DBUG_RETURN(-1);
+  }
+
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value) DBUG_RETURN(0);
 
@@ -1017,11 +1123,11 @@ int set_var::update(THD *thd) {
   return ret;
 }
 
-void set_var::print_short(String *str) {
+void set_var::print_short(const THD *thd, String *str) {
   str->append(var->name.str, var->name.length);
   str->append(STRING_WITH_LEN("="));
   if (value)
-    value->print(str, QT_ORDINARY);
+    value->print(thd, str, QT_ORDINARY);
   else
     str->append(STRING_WITH_LEN("DEFAULT"));
 }
@@ -1029,9 +1135,10 @@ void set_var::print_short(String *str) {
 /**
   Self-print assignment
 
+  @param thd Thread handle
   @param str String buffer to append the partial assignment to.
 */
-void set_var::print(THD *, String *str) {
+void set_var::print(const THD *thd, String *str) {
   switch (type) {
     case OPT_PERSIST:
       str->append("PERSIST ");
@@ -1049,7 +1156,7 @@ void set_var::print(THD *, String *str) {
     str->append(base.str, base.length);
     str->append(STRING_WITH_LEN("."));
   }
-  print_short(str);
+  print_short(thd, str);
 }
 
 /*****************************************************************************
@@ -1105,8 +1212,8 @@ int set_var_user::update(THD *thd) {
   return 0;
 }
 
-void set_var_user::print(THD *, String *str) {
-  user_var_item->print_assignment(str, QT_ORDINARY);
+void set_var_user::print(const THD *thd, String *str) {
+  user_var_item->print_assignment(thd, str, QT_ORDINARY);
 }
 
 /*****************************************************************************
@@ -1114,15 +1221,18 @@ void set_var_user::print(THD *, String *str) {
 *****************************************************************************/
 
 set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
-                                   char *current_passowrd_arg)
+                                   char *current_password_arg,
+                                   bool retain_current)
     : user(user_arg),
       password(password_arg),
-      current_passowrd(current_passowrd_arg) {
-  if (current_passowrd != nullptr) {
+      current_password(current_password_arg),
+      retain_current_password(retain_current) {
+  if (current_password != nullptr) {
     user_arg->uses_replace_clause = true;
-    user_arg->current_auth.str = current_passowrd_arg;
-    user_arg->current_auth.length = strlen(current_passowrd_arg);
+    user_arg->current_auth.str = current_password_arg;
+    user_arg->current_auth.length = strlen(current_password_arg);
   }
+  user_arg->retain_current_password = retain_current_password;
 }
 
 /**
@@ -1135,15 +1245,21 @@ set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
 */
 int set_var_password::check(THD *thd) {
   /* Returns 1 as the function sends error to client */
-  return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
+  return check_change_password(thd, user->host.str, user->user.str,
+                               retain_current_password)
+             ? 1
+             : 0;
 }
 
 int set_var_password::update(THD *thd) {
   /* Returns 1 as the function sends error to client */
-  return change_password(thd, user, password, current_passowrd) ? 1 : 0;
+  return change_password(thd, user, password, current_password,
+                         retain_current_password)
+             ? 1
+             : 0;
 }
 
-void set_var_password::print(THD *thd, String *str) {
+void set_var_password::print(const THD *thd, String *str) {
   if (user->user.str != NULL && user->user.length > 0) {
     str->append(STRING_WITH_LEN("PASSWORD FOR "));
     append_identifier(thd, str, user->user.str, user->user.length);
@@ -1157,6 +1273,9 @@ void set_var_password::print(THD *thd, String *str) {
   str->append(STRING_WITH_LEN("<secret>"));
   if (user->uses_replace_clause) {
     str->append(STRING_WITH_LEN(" REPLACE <secret>"));
+  }
+  if (user->retain_current_password) {
+    str->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
   }
 }
 
@@ -1204,7 +1323,7 @@ int set_var_collation_client::update(THD *thd) {
   return 0;
 }
 
-void set_var_collation_client::print(THD *, String *str) {
+void set_var_collation_client::print(const THD *, String *str) {
   str->append((set_cs_flags & SET_CS_NAMES) ? "NAMES " : "CHARACTER SET ");
   if (set_cs_flags & SET_CS_DEFAULT)
     str->append("DEFAULT");

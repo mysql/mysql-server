@@ -798,6 +798,10 @@ SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 
+# NOTE: This currently gives the wrong result, because HAVING
+# and the materialization both evaluate next_seq_value() instead
+# of sharing the result between them. See the comment in
+# JOIN::create_iterators() for more details.
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
        WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 

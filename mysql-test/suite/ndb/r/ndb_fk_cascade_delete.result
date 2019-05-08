@@ -10,6 +10,19 @@ b int not null,
 c int not null,
 unique(b) using hash,
 index(c)) engine = ndb;
+create table blobchild (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+d text,
+unique(b) using hash,
+index(c)) engine = ndb;
+alter table blobchild add constraint fkbad foreign key(a) references parent (a) on delete cascade on update restrict;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21034 'Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
 alter table child add constraint fkname foreign key (a) references parent (a) on delete cascade on update restrict;
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -24,6 +37,12 @@ commit;
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
+alter table blobchild add constraint fkbad foreign key(b) references parent (a) on delete cascade on update restrict;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21034 'Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
 alter table child add constraint fkname foreign key (b) references parent (a) on delete cascade on update restrict;
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -40,6 +59,12 @@ commit;
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
+alter table blobchild add constraint fkbad foreign key(a) references parent (b) on delete cascade on update restrict;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21034 'Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
 alter table child add constraint fkname foreign key (a) references parent (b) on delete cascade on update restrict;
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -56,6 +81,12 @@ commit;
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
+alter table blobchild add constraint fkbad foreign key(b) references parent (b) on delete cascade on update restrict;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21034 'Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
 alter table child add constraint fkname foreign key (b) references parent (b) on delete cascade on update restrict;
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -74,6 +105,12 @@ commit;
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
+alter table blobchild add constraint fkbad foreign key(c) references parent (a) on delete cascade on update restrict;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21034 'Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
 alter table child add constraint fkname foreign key (c) references parent (a) on delete cascade on update restrict;
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -90,6 +127,12 @@ commit;
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
+alter table blobchild add constraint fkbad foreign key(c) references parent (b) on delete cascade on update restrict;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21034 'Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
 alter table child add constraint fkname foreign key (c) references parent (b) on delete cascade on update restrict;
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -129,4 +172,4 @@ delete from parent where a = 2;
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
-drop table parent, child;
+drop table parent, child, blobchild;

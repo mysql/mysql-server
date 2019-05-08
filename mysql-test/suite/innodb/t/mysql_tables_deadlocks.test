@@ -1,0 +1,126 @@
+--source include/have_debug_sync.inc
+
+--echo # Bug #28523042
+--echo # INNODB: ASSERTION FAILURE: LOCK0LOCK.CC:7034 IN DEADLOCKCHECKER::SEARCH*
+
+# Save the original settings, to be restored at the end of test
+SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+# Make sure that transactions will not finish prematurely
+SET @@global.innodb_lock_wait_timeout = 100000;
+
+# The original scenario from bug report, simplified a little, to still produce
+# assertion failure on old code, but not involve XA and nondeterministic
+# ouput.
+CREATE TABLE t1(f1 INT KEY,f2 INT);
+INSERT INTO t1 VALUES(2,2);
+# We need SERIALIZABLE level, as in REPEATABLE READ, SELECT .. FOR SHARE
+# does not take any locks on DD tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+# This SELECT places an S,REC_NOT_GAP on a single row of innodb_table_stats
+SELECT COUNT(1) FROM mysql.innodb_table_stats
+WHERE database_name='test' AND table_name='t1' FOR SHARE;
+# This INSERT causes a background update of stats for test.t1,
+# which has to wait because we hold S,REC_NOT_GAP on this particular record
+INSERT INTO t1 VALUES(1,2);
+# This SELECT will attempt to get X,REC_NOT_GAP lock on the same record,
+# but has to wait for the background thread due to FCFS nature of queue,
+# which causes a deadlock cycle
+SELECT count(1) FROM mysql.innodb_table_stats
+WHERE database_name='test' AND table_name='t1' FOR UPDATE;
+# The background thread will be chosen as a victim, which will cause an ERROR
+# to be reported to the error log:
+call mtr.add_suppression(
+  "Cannot save table statistics for table `test`.`t1`: Deadlock"
+);
+COMMIT;
+DROP TABLE t1;
+
+# The test below intends to check how our code reacts to a deadlock in an
+# InnoDB table from mysql.* database schema. In particular, we don't want
+# any assertion failures.
+# Make a list of names of tables to test.
+# These are the InnoDB tables visible to the end user in mysql.* database.
+# We exclude some table names from the list:
+# - ndb_binlog_index is only available on builds with NDB Cluster
+CREATE TABLE t1 (
+ id INT PRIMARY KEY AUTO_INCREMENT,
+ name TEXT
+)
+SELECT table_name AS name
+FROM information_schema.tables
+WHERE table_schema="mysql" AND engine="InnoDB"
+AND table_name NOT IN (
+ "ndb_binlog_index"
+)
+ORDER BY table_name;
+
+--let $i = 1
+--let $n = `SELECT COUNT(*) FROM t1`
+
+while($i <= $n)
+{
+  --let $name = `SELECT name FROM t1 WHERE id = $i`
+  --echo Preparing deadlock scenario for mysql.$name
+  --let $cnt = `SELECT COUNT(*) FROM mysql.$name`
+  --disable_query_log
+  --disable_result_log
+
+  # We plan to create a deadlock cycle in a quite simple way:
+  # c1: locks a row FOR SHARE
+  # c2: waits for a lock on the same row FOR UPDATE
+  # c1: now tries to lock the same row FOR UPDATE
+  # However, if the table is initially empty, we need to insert something to it.
+  # This requires us to guess plauisible default values for all columns.
+  # We exploit that in sql-mode="" we can simply pass 0 for each column.
+  # We simply count number of columns and prepare a string with that many
+  # zeros.
+  # I am aware that these tests are fragile, so if it is costly to maintain them
+  # please feel free to remove them - they were useful during development, but
+  # probably not worth spending resources to keep them up-to-date.
+  --connect (c1, localhost, root,,)
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    BEGIN;
+    if(!$cnt)
+    {
+      SET SESSION sql_mode = "";
+      let $zeros= `
+        SELECT REPEAT("0,", COUNT(*) - 1)
+        FROM information_schema.columns
+        WHERE table_schema = 'mysql'
+        AND table_name = '$name'
+      `;
+
+      --eval INSERT INTO mysql.$name VALUES ($zeros 0)
+    }
+    --eval SELECT COUNT(*) FROM mysql.$name FOR SHARE
+
+  --connect (c2, localhost, root,,)
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    BEGIN;
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL c2_will_wait';
+    --send_eval SELECT COUNT(*) FROM mysql.$name FOR UPDATE
+
+  --connection c1
+    SET DEBUG_SYNC = 'now WAIT_FOR c2_will_wait';
+    --eval SELECT COUNT(*) FROM mysql.$name FOR UPDATE
+    --enable_query_log
+    --enable_result_log
+    ROLLBACK;
+
+  --connection c2
+    --error ER_LOCK_DEADLOCK
+    --reap
+    ROLLBACK;
+
+  --connection default
+  --disconnect c1
+  --disconnect c2
+
+  --inc $i
+}
+
+DROP TABLE t1;
+
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;

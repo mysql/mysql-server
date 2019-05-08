@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,8 @@ class Schemata : public Entity_object_table_impl {
  public:
   static const Schemata &instance();
 
+  static const CHARSET_INFO *name_collation();
+
   enum enum_fields {
     FIELD_ID,
     FIELD_CATALOG_ID,
@@ -51,7 +53,9 @@ class Schemata : public Entity_object_table_impl {
     FIELD_DEFAULT_COLLATION_ID,
     FIELD_CREATED,
     FIELD_LAST_ALTERED,
-    FIELD_OPTIONS
+    FIELD_OPTIONS,
+    FIELD_DEFAULT_ENCRYPTION,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {

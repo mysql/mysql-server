@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET (DEB_COMMERCIAL_CONTROL_EXTRAS "
-Package: mysql-commercial-backup
+Package: mysql-${DEB_PRODUCTNAME}-backup
 Architecture: any
 Depends: \${shlibs:Depends}, \${misc:Depends}
 Description: MySQL Enterprise Backup

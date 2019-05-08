@@ -78,45 +78,32 @@ perl;
   close(FILE);
 EOF
 
--- source include/mysql_upgrade_preparation.inc
-
 --echo # Host table deprecation
 select count(*) from information_schema.tables where table_name like 'host' and table_schema like 'mysql' and table_type like 'BASE TABLE';
 
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
 
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose 2>&1
-# It should have created a file in the MySQL Servers datadir
-let $MYSQLD_DATADIR= `select @@datadir`;
-file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
+--let $restart_parameters = restart: --upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 drop table mysql.host;
 create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
-# It should have created a file in the MySQL Servers datadir
-file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
+--let $restart_parameters = restart: --upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 # Clean Up
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
 
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
-# It should have created a file in the MySQL Servers datadir
-file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
-
+--let $restart_parameters = restart: --upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 --echo # End of 5.6 tests
 

@@ -4,7 +4,7 @@ Field	Type	Null	Key	Default	Extra
 trx_id	varchar(18)	NO			
 trx_state	varchar(13)	NO			
 trx_started	datetime	NO			
-trx_requested_lock_id	varchar(81)	YES			
+trx_requested_lock_id	varchar(105)	YES			
 trx_wait_started	datetime	YES			
 trx_weight	bigint(21) unsigned	NO			
 trx_mysql_thread_id	bigint(21) unsigned	NO			
@@ -37,7 +37,7 @@ CREATE TABLE t2 (
 c01 INT,
 c02 INT,
 PRIMARY KEY (c01),
-FOREIGN KEY fk1 (c02) REFERENCES t1 (c01)
+CONSTRAINT fk1 FOREIGN KEY (c02) REFERENCES t1 (c01)
 ) ENGINE=INNODB STATS_AUTO_RECALC=0;
 INSERT INTO t2 VALUES
 (1,1),(2,2),(3,3);

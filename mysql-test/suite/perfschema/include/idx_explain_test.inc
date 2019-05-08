@@ -31,7 +31,7 @@ IF ($column_count == 1)
   --replace_column 10 #
   eval explain select $select_column
     from $table
-    where $col1 < "impossible";
+    where $col1 < "2"; # 2 instead of impossible: to avoid constant folding away the where
   
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
@@ -89,7 +89,7 @@ IF ($column_count == 2)
   --replace_column 10 #
   eval explain select $select_column
     from $table
-    where $col1 < "impossible";
+    where $col1 < "2"; # 2 instead of impossible: to avoid constant folding away the where
   
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
@@ -127,7 +127,7 @@ IF ($column_count == 2)
   eval explain select $select_column
     from $table
     where $col1 = $col1_act
-    and $col2 < "impossible";
+    and $col2 < "2"; # 2 instead of impossible: to avoid constant folding away the where
   
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
@@ -188,7 +188,7 @@ IF ($column_count == 3)
   --replace_column 10 #
   eval explain select $select_column
     from $table
-    where $col1 < "impossible";
+    where $col1 < "2"; # 2 instead of impossible: to avoid constant folding away the where
   
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
@@ -226,7 +226,7 @@ IF ($column_count == 3)
   eval explain select $select_column
     from $table
     where $col1 = $col1_act
-    and $col2 < "impossible";
+    and $col2 < "2"; # 2 instead of impossible: to avoid constant folding away the where
   
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
@@ -269,8 +269,8 @@ IF ($column_count == 3)
     from $table
     where $col1 = $col1_act
     and $col2 = $col2_act
-    and $col3 < "impossible";
-  
+    and $col3 < "2"; # 2 instead of impossible: to avoid constant folding away the where
+    
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
   eval explain select $select_column
@@ -280,7 +280,8 @@ IF ($column_count == 3)
     and $col3 = $col3_act;
   
   --echo ############# Explain End #########################################
-  
+  --enable_warnings
+
   flush status;
   let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
   
@@ -330,8 +331,8 @@ IF ($column_count == 4)
   --replace_column 10 #
   eval explain select $select_column
     from $table
-    where $col1 < "impossible";
-  
+    where $col1 < "2"; # 2 instead of impossible: to avoid constant folding away the where
+    
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
   eval explain select $select_column
@@ -368,8 +369,8 @@ IF ($column_count == 4)
   eval explain select $select_column
     from $table
     where $col1 = $col1_act
-    and $col2 < "impossible";
-  
+    and $col2 < "2"; # 2 instead of impossible: to avoid constant folding away the where
+    
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
   eval explain select $select_column
@@ -411,8 +412,8 @@ IF ($column_count == 4)
     from $table
     where $col1 = $col1_act
     and $col2 = $col2_act
-    and $col3 < "impossible";
-  
+    and $col3 < "2"; # 2 instead of impossible: to avoid constant folding away the where
+    
   --echo ############ Explain for Query ####################################
   --replace_column 10 #
   eval explain select $select_column
@@ -471,7 +472,8 @@ IF ($column_count == 4)
     and $col4 = $col4_act;
   
   --echo ############# Explain End #########################################
-  
+  --enable_warnings
+
   flush status;
   let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
   

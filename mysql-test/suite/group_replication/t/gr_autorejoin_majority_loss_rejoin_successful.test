@@ -1,0 +1,194 @@
+################################################################################
+#
+# The auto-rejoin process is a mechanism that allows a server that left the
+# group due to flaky network (either on his side or on the other members) to
+# try to join again up to group_replication_autorejoin_tries number of times.
+#
+# This test shall verify that upon a majority loss, if auto-rejoin is enabled,
+# the member of the partitioned group will rejoin the group.
+#
+# Test:
+# 0) The test requires three servers.
+# 1) Provoke a majority loss.
+# 2) Verify that the member in the partitioned group will try to rejoin the
+#    group the number of it is configured in
+#    group_replication_autorejoin_tries sysvar.
+# 3) Verify that once it successfully rejoins the group before depleting all
+#    tries, it will go through the usual RECOVERY phase and becomes ONLINE.
+# 4) Cleanup.
+#
+################################################################################
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+#
+# We manually start the group because we need to set the rejoin timeout before
+# the START GROUP_REPLICATION command.
+#
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count = 3
+--source include/group_replication.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("This member could not reach a majority of the members for more than 10 seconds. The member will now leave the group as instructed by the group_replication_unreachable_majority_timeout option");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET SESSION sql_log_bin = 1;
+
+--source include/gr_autorejoin_monitoring.inc
+
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+--let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
+
+--echo
+--echo ####
+--echo # 1) Provoke a majority loss.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_autorejoin_tries = 1;
+
+SET @@GLOBAL.DEBUG='+d,recovery_thread_start_wait';
+
+# Provoke a majority loss on member 1
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--source include/gr_provoke_majority_loss.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+
+# We have to reset the group
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
+--replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
+--eval SET @@global.group_replication_local_address="$local_address_server2"
+--source include/start_and_bootstrap_group_replication.inc
+
+# Add some trx's on the group so we can see the rejoining member go through
+# recovery
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
+--eval SET @@global.group_replication_group_seeds="$local_address_server2"
+--replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
+--eval SET @@global.group_replication_local_address="$local_address_server3"
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+
+--echo
+--echo ####
+--echo # 2) Verify that once it successfully rejoins the group before depleting
+--echo # all tries, it will go through the usual RECOVERY phase and becomes
+--echo # ONLINE.
+--echo ####
+--echo
+SET DEBUG_SYNC = "now WAIT_FOR signal.recovery_waiting";
+
+--let $group_replication_member_state = RECOVERING
+--let $group_replication_member_id = $member_id
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+--let $group_replication_member_state = RECOVERING
+--let $group_replication_member_id = $member_id
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+--let $group_replication_member_state = RECOVERING
+--let $group_replication_member_id = $member_id
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = "now SIGNAL signal.recovery_continue";
+
+SET @@GLOBAL.DEBUG='-d,recovery_thread_start_wait';
+--let $group_replication_member_state = ONLINE
+--let $group_replication_member_id = $member_id
+--source include/gr_wait_for_member_state.inc
+--let $group_replication_number_of_members = 3
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 3
+--source include/gr_wait_for_number_of_members.inc
+--let $group_replication_member_id = `SELECT @@GLOBAL.server_uuid`
+--let $group_replication_member_state = ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 3
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo ####
+--echo # 3) Cleanup.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET @@GLOBAL.group_replication_autorejoin_tries = default;
+--source include/gr_end_autorejoin_monitoring.inc
+--source include/group_replication_end.inc

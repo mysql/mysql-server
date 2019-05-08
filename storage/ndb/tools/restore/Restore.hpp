@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 
 #include <ndb_version.h>
 #include <version.h>
+#include <NdbMutex.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
 #ifdef ERROR_INSERT
@@ -147,12 +148,12 @@ public:
   TupleS() {
     m_currentTable= 0;
     allAttrData= 0;
-  };
+  }
   ~TupleS()
   {
     if (allAttrData)
       delete [] allAttrData;
-  };
+  }
   TupleS(const TupleS& tuple); // disable copy constructor
   TupleS & operator=(const TupleS& tuple);
   int getNoOfAttributes() const;
@@ -242,52 +243,15 @@ public:
   
   int getNoOfAttributes() const { 
     return allAttributesDesc.size();
-  };
+  }
   
   bool have_auto_inc() const {
     return m_auto_val_attrib != 0;
-  };
+  }
 
   bool have_auto_inc(Uint32 id) const {
     return (m_auto_val_attrib ? m_auto_val_attrib->attrId == id : false);
-  };
-
-  Uint64 get_max_auto_val() const {
-    return m_max_auto_val;
-  };
-
-  void update_max_auto_val(const char *data, int size) {
-    union {
-      Uint8  u8;
-      Uint16 u16;
-      Uint32 u32;
-    } val;
-    Uint64 v;
-    switch(size){
-    case 64:
-      memcpy(&v,data,8);
-      break;
-    case 32:
-      memcpy(&val.u32,data,4);
-      v= val.u32;
-      break;
-    case 24:
-      v= uint3korr((unsigned char*)data);
-      break;
-    case 16:
-      memcpy(&val.u16,data,2);
-      v= val.u16;
-      break;
-    case 8:
-      memcpy(&val.u8,data,1);
-      v= val.u8;
-      break;
-    default:
-      return;
-    };
-    if(v > m_max_auto_val)
-      m_max_auto_val= v;
-  };
+  }
 
   bool get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const;
 
@@ -357,9 +321,15 @@ protected:
   UtilBuffer m_twiddle_buffer;
 
   bool  m_is_undolog;
+  void (* free_data_callback)(void*);
+  void *m_ctx; // context for callback function
 
-  void (* free_data_callback)();
   virtual void reset_buffers() {}
+
+  // In case of multiple backup parts, each backup part is
+  // identified by a unique part ID, which is m_part_id.
+  Uint32 m_part_id;
+  Uint32 m_part_count;
 
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
@@ -373,7 +343,7 @@ protected:
 
   void setName(const char * path, const char * name);
 
-  BackupFile(void (* free_data_callback)() = 0);
+  BackupFile(void (* free_data_callback)(void*) = 0, void *ctx = 0);
   virtual ~BackupFile();
 
 public:
@@ -435,7 +405,8 @@ class RestoreMetaData : public BackupFile {
   Vector<DictObject> m_objects;
   
 public:
-  RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo);
+  RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo,
+                  Uint32 partId, Uint32 partCount);
   virtual ~RestoreMetaData();
   
   int loadContent();
@@ -451,7 +422,7 @@ public:
   void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
   
   Uint32 getStopGCP() const;
-  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; };
+  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; }
 }; // RestoreMetaData
 
 
@@ -465,7 +436,7 @@ public:
 
   // Constructor
   RestoreDataIterator(const RestoreMetaData &,
-                      void (* free_data_callback)());
+                      void (* free_data_callback)(void*), void*);
   virtual ~RestoreDataIterator();
   
   // Read data file fragment header
@@ -551,9 +522,25 @@ private:
   LogEntry m_logEntry;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  virtual ~RestoreLogIterator() {};
+  virtual ~RestoreLogIterator() {}
 
   const LogEntry * getNextLogEntry(int & res);
+};
+
+class RestoreLogger {
+public:
+  RestoreLogger();
+  ~RestoreLogger();
+  void log_info(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_debug(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_error(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void setThreadPrefix(const char* prefix);
+  const char* getThreadPrefix() const;
+private:
+  NdbMutex *m_mutex;
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);

@@ -15,11 +15,6 @@
 
 # Begin clean up test section
 connection master;
---disable_warnings
-DROP PROCEDURE IF EXISTS test.p1;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-
 
 # Begin test section 1 
 CREATE TABLE test.t1 (a INT, PRIMARY KEY(a));

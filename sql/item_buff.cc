@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 #include <stddef.h>
 #include <algorithm>
 
-#include "binary_log_types.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -56,16 +55,16 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   switch (item->result_type()) {
     case STRING_RESULT:
       if (item->is_temporal())
-        return new (*THR_MALLOC) Cached_item_temporal(item);
+        return new (thd->mem_root) Cached_item_temporal(item);
       if (item->data_type() == MYSQL_TYPE_JSON)
-        return new (*THR_MALLOC) Cached_item_json(item);
-      return new (*THR_MALLOC) Cached_item_str(thd, item);
+        return new (thd->mem_root) Cached_item_json(item);
+      return new (thd->mem_root) Cached_item_str(thd, item);
     case INT_RESULT:
-      return new (*THR_MALLOC) Cached_item_int(item);
+      return new (thd->mem_root) Cached_item_int(item);
     case REAL_RESULT:
-      return new (*THR_MALLOC) Cached_item_real(item);
+      return new (thd->mem_root) Cached_item_real(item);
     case DECIMAL_RESULT:
-      return new (*THR_MALLOC) Cached_item_decimal(item);
+      return new (thd->mem_root) Cached_item_decimal(item);
     case ROW_RESULT:
     default:
       DBUG_ASSERT(0);
@@ -115,8 +114,8 @@ Cached_item_str::~Cached_item_str() {
   item = 0;  // Safety
 }
 
-Cached_item_json::Cached_item_json(Item *item)
-    : Cached_item(item), m_value(new (*THR_MALLOC) Json_wrapper()) {}
+Cached_item_json::Cached_item_json(Item *item_arg)
+    : Cached_item(item_arg), m_value(new (*THR_MALLOC) Json_wrapper()) {}
 
 Cached_item_json::~Cached_item_json() { destroy(m_value); }
 

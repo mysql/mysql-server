@@ -53,9 +53,9 @@ class ReadView;
  negatives. The caller must confirm all positive results by calling
  trx_is_active() while holding lock_sys->mutex. */
 trx_t *row_vers_impl_x_locked(
-    const rec_t *rec,      /*!< in: record in a secondary index */
-    dict_index_t *index,   /*!< in: the secondary index */
-    const ulint *offsets); /*!< in: rec_get_offsets(rec, index) */
+    const rec_t *rec,          /*!< in: record in a secondary index */
+    const dict_index_t *index, /*!< in: the secondary index */
+    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
 /** Finds out if we must preserve a delete marked earlier version of a clustered
  index record, because it is >= the purge view.
  @param[in]	trx_id		transaction id in the version

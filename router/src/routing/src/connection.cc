@@ -23,6 +23,7 @@
 */
 
 #include <cstring>
+#include <stdexcept>
 #include <string>
 
 #include "common.h"
@@ -35,7 +36,7 @@
 #include "utils.h"
 IMPORT_LOG_FUNCTIONS()
 
-MySQLRoutingConnection ::MySQLRoutingConnection(
+MySQLRoutingConnection::MySQLRoutingConnection(
     MySQLRoutingContext &context, int client_socket,
     const sockaddr_storage &client_addr, int server_socket,
     const mysql_harness::TCPAddress &server_address,
@@ -50,10 +51,12 @@ MySQLRoutingConnection ::MySQLRoutingConnection(
                                           context_.get_socket_operations())) {}
 
 void MySQLRoutingConnection::start(bool detached) {
+  context_.increase_active_thread_counter();
   try {
     // both lines can throw std::runtime_error
     mysql_harness::MySQLRouterThread connect_thread(
         context_.get_thread_stack_size());
+
     connect_thread.run(&run_thread, this, detached);
   } catch (std::runtime_error &err) {
     context_.get_protocol().send_error(
@@ -76,6 +79,8 @@ void MySQLRoutingConnection::start(bool detached) {
           "error=%s",
           client_address_.c_str(), err.what());
     }
+
+    context_.decrease_active_thread_counter();
   }
 }
 
@@ -119,17 +124,18 @@ bool MySQLRoutingConnection::check_sockets() {
 }
 
 void MySQLRoutingConnection::run() {
-  mysql_harness::rename_thread(
-      get_routing_thread_name(context_.get_name(), "RtC")
-          .c_str());  // "Rt client thread" would be too long :(
-
-  context_.increase_active_thread_counter();
+  // adding the decrease-active-thread must be the first step
+  // as it guarentees the active-thread is always decremented
   std::shared_ptr<void> thread_exit_guard(nullptr, [&](void *) {
     context_.decrease_active_thread_counter();
 
     // remove callback has to be executed as a last thing in connection
     remove_callback_(this);
   });
+
+  mysql_harness::rename_thread(
+      get_routing_thread_name(context_.get_name(), "RtC")
+          .c_str());  // "Rt client thread" would be too long :(
 
   std::size_t bytes_down = 0;
   std::size_t bytes_up = 0;
@@ -153,6 +159,7 @@ void MySQLRoutingConnection::run() {
   int pktnr = 0;
 
   bool connection_is_ok = true;
+  bool error_counter_already_cleared = false;
   while (connection_is_ok && !disconnect_) {
     const size_t kClientEventIndex = 0;
     const size_t kServerEventIndex = 1;
@@ -231,6 +238,14 @@ void MySQLRoutingConnection::run() {
       bytes_up += bytes_read;
     }
 
+    // after a successful handshake, we reset client-side connection error
+    // counter, just like the Server
+    if (!error_counter_already_cleared && handshake_done) {
+      context_.clear_error_counter(in_addr_to_array(client_addr_),
+                                   client_address_.c_str());
+      error_counter_already_cleared = true;
+    }
+
     // Handle traffic from Client to Server
     if (context_.get_protocol().copy_packets(
             client_socket_, server_socket_, client_is_readable, buffer, &pktnr,
@@ -253,6 +268,8 @@ void MySQLRoutingConnection::run() {
   }  // while (connection_is_ok && !disconnect_.load())
 
   if (!handshake_done) {
+    harness_assert(!error_counter_already_cleared);
+
     log_info("[%s] fd=%d Pre-auth socket failure %s: %s",
              context_.get_name().c_str(), client_socket_,
              client_address_.c_str(), extra_msg.c_str());

@@ -81,6 +81,13 @@ GROUP BY prod WITH ROLLUP;
 SELECT CONCAT(product,':',country_id), 1+1, SUM(profit)/COUNT(*) FROM t1
 GROUP BY CONCAT(product,':',country_id) WITH ROLLUP;
 
+SET @saved_sql_mode = @@session.sql_mode;
+SET SESSION sql_mode= '';
+SELECT UPPER(product) AS prod,
+       SUM(profit)/COUNT(*)
+  FROM t1 GROUP BY prod WITH ROLLUP HAVING prod='COMPUTER' ;
+SET SESSION sql_mode= @saved_sql_mode;
+
 # Joins
 SELECT product, country , year, SUM(profit) FROM t1,t2 WHERE
 t1.country_id=t2.country_id GROUP BY product, country, year WITH ROLLUP;
@@ -861,11 +868,11 @@ ORDER BY GROUPING(i),i,GROUPING(j),j LIMIT 5;
 
 #GROUPING with ORDER BY and HAVING CONDITION
 SELECT i, j, SUM(k) FROM t1 GROUP BY i,j WITH ROLLUP
-HAVING i > 10 and j < 1000 ORDER BY GROUPING(i),i,GROUPINg(j),j;
+HAVING i > 10 and j < 1000 ORDER BY GROUPING(i),i,GROUPING(j),j;
 
 #GROUPING with ORDER BY function
 SELECT CONCAT(i,':',j) as ij, CONCAT(j,':',i) as ji FROM t1
-GROUP BY ij, ji WITH ROLLUP ORDER BY GROUPING(ij),ij,GROUPINg(ji),ji;
+GROUP BY ij, ji WITH ROLLUP ORDER BY GROUPING(ij),ij,GROUPING(ji),ji;
 
 #GROUPING with ORDER BY and DERIVED TABLE
 SELECT i, 'sum' FROM (SELECT i, SUM(j) AS 'sum' FROM t1 GROUP BY i
@@ -979,10 +986,11 @@ PRIMARY KEY (pk)
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO t2 VALUES (1);
-
+--source include/turn_off_only_full_group_by.inc
 SELECT  CONCAT(alias1.col_varchar_key,1) AS field1 FROM t1 AS alias1
  RIGHT JOIN t2 ON (alias1.pk = 1) GROUP BY field1 WITH ROLLUP HAVING
  field1 >= 'n' ORDER BY field1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1,t2;
 
@@ -993,10 +1001,11 @@ CREATE TABLE t1 (
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO t1 VALUES (1,1);
-
+--source include/turn_off_only_full_group_by.inc
 SELECT ((table1.col_int) * (table1.col_int)) AS field2 FROM (t1 AS table1)
   WHERE (table1.col_int != 1 OR table1.pk) GROUP BY field2 WITH ROLLUP
   HAVING (field2 <> 239 ) ORDER BY GROUPING(field2);
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1;
 
@@ -1014,5 +1023,41 @@ SELECT (((@e:=`b`)) NOT BETWEEN 0x0b5f09 AND (CHAR(md5(@pub1),
 SELECT a + COUNT(*) OVER () FROM t GROUP BY a WITH ROLLUP;
 
 SELECT a, b, a + SUM(a) OVER () FROM t GROUP BY a,b WITH ROLLUP;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#28836345 ROLLUP EXPRESSION'S NULL ROWS GIVE WRONG VALUE WHEN INVOLVED IN OTHER EXPRESSION
+--echo #
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES
+  (1,4),
+  (2,2), (2,2),
+  (4,1), (4,1), (4,1), (4,1),
+  (2,1), (2,1);
+# safe: (a+1) IS NULL is functionally dependent on (a+1):
+--source include/turn_off_only_full_group_by.inc
+SELECT (a+1) IS NULL, GROUPING(a+1) FROM t1 GROUP BY a+1 WITH ROLLUP;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#25296217 ISNULL()/IFNULL() DOESN'T RECOGNIZE ROLLUP NULLS ON CONST COLUMNS
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3);
+SELECT a AS f1, 'w' AS f2 FROM t GROUP BY f1, f2 WITH ROLLUP HAVING ISNULL(f2);
+SELECT a AS f1, 'w' AS f2 FROM t GROUP BY f1, f2 WITH ROLLUP HAVING ISNULL(f1);
+SELECT a AS f1, 'w' AS f2 FROM t GROUP BY f1, f2 WITH ROLLUP HAVING GROUPING(f2)=1;
+SELECT a AS f1, 'w' AS f2 FROM t GROUP BY f1, f2 WITH ROLLUP HAVING GROUPING(f2)=0;
+SELECT a AS f1, 'w' AS f2 FROM t GROUP BY f1, f2 WITH ROLLUP HAVING GROUPING(f1)=0;
+
+--echo #
+--echo # Bug#29061545 ROLLUP WRONG RESULT FOR NULL GROUPING ROW WHEN REFERENCED FROM CONDITION
+--echo #
+SELECT a = 3,          a AS f1 FROM t GROUP BY f1 WITH ROLLUP; # Used to be right
+SELECT a = 3 or a = 3, a AS f1 FROM t GROUP BY f1 WITH ROLLUP; # Used to be wrong
 
 DROP TABLE t;

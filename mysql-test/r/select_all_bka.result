@@ -132,7 +132,7 @@ select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
 fld3
 explain select t2.fld3 from t2 where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
@@ -147,12 +147,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3,not_used);
@@ -189,7 +189,7 @@ explain select fld1 from t2 where fld1=250501 or fld1="250502";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	fld1	fld1	4	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`fld1` AS `fld1` from `test`.`t2` where ((`test`.`t2`.`fld1` = 250501) or (`test`.`t2`.`fld1` = '250502'))
+Note	1003	/* select#1 */ select `test`.`t2`.`fld1` AS `fld1` from `test`.`t2` where ((`test`.`t2`.`fld1` = 250501) or (`test`.`t2`.`fld1` = 250502))
 select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 and fld1 <= 250601 or fld1 between 250501 and 250502;
 fld1
 250501
@@ -655,7 +655,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	fld1	fld1	4	const	1	100.00	NULL
 1	SIMPLE	t3	NULL	const	PRIMARY,period	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where (('11401' = 11401))
+Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where 1
 select fld3,period from t2,t1 where companynr*10 = 37*10;
 fld3	period
 breaking	9410
@@ -1420,10 +1420,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and (`test`.`t2`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	55.55	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	33.33	Using where
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` < 0)))
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and (`test`.`t2`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	33.33	Using where
@@ -1438,10 +1438,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	12	100.00	Using index condition; Using MRR
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using index condition; Using MRR
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` < 0))
+Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 and companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using index condition; Using MRR
@@ -1459,7 +1459,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` < 0) or (`test`.`t4`.`companynr` > 0))
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t4`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
@@ -1474,10 +1474,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	12	100.00	Using index condition; Using MRR
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using index condition; Using MRR
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` < 0) or (`test`.`t4`.`companynr` > 0))
+Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` > 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where ifnull(companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
@@ -2108,7 +2108,7 @@ t2nr	count(*)
 select max(t2nr) from t3 where price=983543950;
 max(t2nr)
 41807
-select t1.period from t3 = t1 limit 1;
+select t1.period from t3 t1 limit 1;
 period
 1001
 select t1.period from t1 as t1 limit 1;
@@ -2188,10 +2188,7 @@ INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\AR
 CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
-gvid	the_success	the_fail	the_size	the_time
-Warnings:
-Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
-Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
+ERROR HY000: Incorrect DATETIME value: 'wrong-date-value'
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= NULL AND b.sampletime < NULL AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 DROP TABLE t1,t2;
@@ -2670,9 +2667,9 @@ create index t2i on t2(a);
 insert into t2 values (0), (254), (255);
 explain select * from t2 where a > -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	t2i	t2i	2	NULL	3	33.33	Using where; Using index
+1	SIMPLE	t2	NULL	index	t2i	t2i	2	NULL	3	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` > <cache>(-(1)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` is not null)
 select * from t2 where a > -1;
 a
 0
@@ -3076,6 +3073,8 @@ create table t1 (s1 int, s2 char(5), s3 decimal(10));
 create view v1 as select s1, s2, 'x' as s3 from t1;
 select * from t1 natural join v1;
 s1	s2	s3
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'x'
 insert into t1 values (1,'x',5);
 select * from t1 natural join v1;
 s1	s2	s3
@@ -3383,18 +3382,9 @@ f1	f2
 4	2005-10-01
 5	2005-12-30
 select * from t1 where f2 >= '0000-00-00' order by f2;
-f1	f2
-1	2005-01-01
-2	2005-09-01
-3	2005-09-30
-4	2005-10-01
-5	2005-12-30
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'f2' at row 1
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 select * from t1 where f2 >= '2005-09-31' order by f2;
-f1	f2
-4	2005-10-01
-5	2005-12-30
+ERROR HY000: Incorrect DATE value: '2005-09-31'
 select * from t1 where f2 >= '2005-09-3a' order by f2;
 f1	f2
 3	2005-09-30
@@ -3403,10 +3393,7 @@ f1	f2
 Warnings:
 Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
 select * from t1 where f2 <= '2005-09-31' order by f2;
-f1	f2
-1	2005-01-01
-2	2005-09-01
-3	2005-09-30
+ERROR HY000: Incorrect DATE value: '2005-09-31'
 select * from t1 where f2 <= '2005-09-3a' order by f2;
 f1	f2
 1	2005-01-01
@@ -4306,10 +4293,7 @@ str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6'
 Warnings:
 Warning	1292	Truncated incorrect date value: '2007/10/01 00:00:00 GMT-6'
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
-str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6'
-1
-Warnings:
-Warning	1292	Truncated incorrect date value: '2007/10/2000:00:00 GMT-6'
+ERROR HY000: Incorrect DATE value: '2007/10/2000:00:00 GMT-6'
 select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6'
 1
@@ -4359,15 +4343,10 @@ str_to_date('2007-10-01 12:34','%Y-%m-%d %H') = '2007-10-01 12:00:00'
 1
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2007-10-01 12:34'
-select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34';
-str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34'
-1
+select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34:00';
+ERROR HY000: Incorrect DATETIME value: '2007-02-30 12:34:00'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
-str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+ERROR HY000: Incorrect DATETIME value: '2007-10-00 12:34'
 select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
                                                 and '2007/10/20 00:00:00';
 str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
@@ -4377,16 +4356,9 @@ Warnings:
 Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=TRADITIONAL;
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
-str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+ERROR HY000: Incorrect DATETIME value: '2007-10-00 12:34'
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
-str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-0
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+ERROR HY000: Incorrect DATETIME value: '2007-10-00 12:34'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
 NULL
@@ -4419,29 +4391,13 @@ select str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34'
 NULL
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '';
-str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = ''
-NULL
-Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+ERROR HY000: Incorrect DATETIME value: ''
 select str_to_date('1','%Y-%m-%d') = '1';
-str_to_date('1','%Y-%m-%d') = '1'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: '1'
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
+ERROR HY000: Incorrect DATE value: '1'
 select str_to_date('1','%Y-%m-%d') = '1';
-str_to_date('1','%Y-%m-%d') = '1'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: '1'
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
+ERROR HY000: Incorrect DATE value: '1'
 select str_to_date('','%Y-%m-%d') = '';
-str_to_date('','%Y-%m-%d') = ''
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: ''
-Warning	1411	Incorrect datetime value: '' for function str_to_date
+ERROR HY000: Incorrect DATE value: ''
 select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
 0
@@ -4872,9 +4828,7 @@ SELECT date_nokey FROM C
 WHERE int_key IN (SELECT 1 FROM A) 
 HAVING date_nokey = '10:41:7' 
 ORDER BY date_key;
-date_nokey
-Warnings:
-Warning	1292	Incorrect date value: '10:41:7' for column 'date_nokey' at row 1
+ERROR HY000: Incorrect DATE value: '10:41:7'
 DROP TABLE A,C;
 CREATE TABLE t1 (a INT NOT NULL, b INT);
 INSERT INTO t1 VALUES (1, 1);
@@ -5023,7 +4977,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from <constant table> left join `test`.`t1` on((`test`.`t1`.`a` = <cache>(('2' + 1)))) where 1
 EXPLAIN SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
@@ -5057,7 +5011,7 @@ SELECT @old_optimizer_switch:=@@optimizer_switch;
 @old_optimizer_switch:=@@optimizer_switch
 #
 Warnings:
-#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 CREATE TABLE t1 (
 pk int(11) NOT NULL,
 i int(11) DEFAULT NULL,

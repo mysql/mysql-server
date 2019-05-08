@@ -23,6 +23,8 @@
 #ifndef XCOM_TRANSPORT_H
 #define XCOM_TRANSPORT_H
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -180,6 +182,46 @@ int deserialize_msg(pax_msg *p, xcom_proto x_proto, char *buf, uint32_t buflen);
 xcom_proto common_xcom_version(site_def const *site);
 xcom_proto get_latest_common_proto();
 xcom_proto set_latest_common_proto(xcom_proto x_proto);
+
+/**
+ * @brief Returns the version from which nodes are able to speak IPv6
+ *
+ * @return xcom_proto the version from which nodes are able to speak IPv6
+ */
+xcom_proto minimum_ipv6_version();
+
+#define IP_MAX_SIZE 512
+
+/**
+ * @brief Get the ip and port object from a given address in the authorized
+ * input format. For IP v4 is IP (or) NAME:PORT and for IPv6 is [IP (or)
+ * NAME]:PORT
+ *
+ * @param address input address to parse
+ * @param ip the resulting IP or Name
+ * @param port the resulting port
+ * @return int true (1) in case of parse error
+ */
+int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port);
+
+/**
+ * @brief Checks if an incoming node is eligible to enter the group
+ *
+ * This function checks if a new node entering the group is able to be part of
+ * it.
+ * This is needed duw to downgrade procedures to server versions that do not
+ * speak IPv6. One wil check if:
+ * - Our server is being contacted by a server that has a lower version than the
+ * IPv6 baseline
+ * - Check if the current configuration is all reachable by an IPv4 node
+ *
+ * If all of the above hold true we are able to proceed and add the node. Else,
+ * we must fail.
+ *
+ * @return 1 in case of success.
+ */
+int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
+                                  const site_def *current_site_def);
 
 #define INITIAL_CONNECT_WAIT 0.1
 #define MAX_CONNECT_WAIT 1.0

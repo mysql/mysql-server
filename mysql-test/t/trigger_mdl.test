@@ -1,3 +1,4 @@
+#
 --source include/have_log_bin.inc
 --source include/have_debug.inc
 
@@ -135,6 +136,83 @@ DROP TABLE t1;
 
 --disconnect con1
 --disconnect con2
+
+--echo #
+--echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+--echo #                Even trigger names are case and accent insensitive. Test case to verify
+--echo #                MDL locking with the case and accent insensitive trigger names.
+--echo #
+
+--enable_connect_log
+SET NAMES utf8;
+CREATE TABLE t1 (f1 INT);
+
+--echo # Case 1: Test case to verify MDL locking from concurrent SHOW CREATE TRIGGER
+--echo #         and DROP TRIGGER operation with case and accent insensitive trigger
+--echo #         name.
+
+CREATE TRIGGER cafe BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_trigger SIGNAL locked WAIT_FOR continue';
+--send SHOW CREATE TRIGGER CaFé;
+--echo # At this point SHARED lock is acquired on the trigger.
+
+CONNECT (con1, localhost, root);
+SET DEBUG_SYNC='now WAIT_FOR locked';
+--send DROP TRIGGER CAFE;
+--echo # DROP TRIGGER requires EXCLUSIVE lock on the trigger. DROP is blocked
+--echo # until SHARED lock on the trigger is released.
+
+CONNECT (con2, localhost, root);
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'DROP TRIGGER%' AND
+                     state LIKE 'Waiting for % metadata lock';
+source include/wait_condition.inc;
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--CONNECTION default
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
+--REAP
+
+--CONNECTION con1
+--REAP
+
+--echo # Case 2: Test case to verify MDL locking from concurrent DROP TRIGGER and
+--echo #         SHOW CREATE TRIGGER operation with case and accent insensitive
+--echo #         trigger name.
+
+--CONNECTION default
+CREATE TRIGGER cafe BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_trigger SIGNAL locked WAIT_FOR continue';
+--send DROP TRIGGER CAFE;
+--echo # At this point EXCLUSIVE lock is acquired on the trigger.
+
+--CONNECTION con1
+SET DEBUG_SYNC='now WAIT_FOR locked';
+--send SHOW CREATE TRIGGER CaFé;
+--echo # SHOW CREATE TRIGGER requires SHARED lock on the trigger. Statement is blocked
+--echo # until EXCLUSIVE lock on the trigger is released.
+
+--CONNECTION con2
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'SHOW CREATE TRIGGER%' AND
+                     state LIKE 'Waiting for % metadata lock';
+source include/wait_condition.inc;
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--CONNECTION default
+--REAP
+
+--CONNECTION con1
+--error ER_TRG_DOES_NOT_EXIST
+--REAP
+
+#Cleanup
+--CONNECTION default
+DISCONNECT con1;
+DISCONNECT con2;
+DROP TABLE t1;
+SET NAMES default;
+--disable_connect_log
 
 # Restore original value for lock_wait_timeout
 SET @@session.lock_wait_timeout= @start_session_value;

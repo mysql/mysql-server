@@ -13,6 +13,10 @@
 # large enough, especially if using multiple undo tablespaces.
 --source include/have_innodb_max_16k.inc
 
+# Skip this test if the test run is initialized with a non-default
+# number of undo tablespaces.
+--source include/have_innodb_default_undo_tablespaces.inc
+
 --let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
 
 --error 0,1

@@ -1,0 +1,130 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+####
+# 0) The test requires three servers.
+####
+
+[connection server1]
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("Unable to read the server value for the super_read_only variable");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET sql_log_bin = 1;
+include/gr_autorejoin_monitoring.inc
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_long_retry';
+SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+####
+# 1) Provoke a member expel.
+####
+
+[connection server1]
+SET GLOBAL group_replication_autorejoin_tries = 3;
+include/gr_expel_member_from_group.inc
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+
+####
+# 2) Verify that the auto-rejoin process is ongoing.
+####
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+include/assert.inc [Auto-rejoin should be running]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+include/assert.inc [super_read_only should be enabled]
+
+####
+# 2.1) Verify that we can see the number of retries being incremented
+# until depleted.
+####
+
+include/assert.inc [We should have attempted 1 rejoins]
+
+####
+# 2.2) Verify that we can infer the time remaining until the next
+# retry.
+####
+
+include/assert.inc [Time remaining should be less than 5 mins]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+include/assert.inc [super_read_only should be enabled]
+
+####
+# 2.1) Verify that we can see the number of retries being incremented
+# until depleted.
+####
+
+include/assert.inc [We should have attempted 2 rejoins]
+
+####
+# 2.2) Verify that we can infer the time remaining until the next
+# retry.
+####
+
+include/assert.inc [Time remaining should be less than 5 mins]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+include/assert.inc [super_read_only should be enabled]
+
+####
+# 2.1) Verify that we can see the number of retries being incremented
+# until depleted.
+####
+
+include/assert.inc [We should have attempted 3 rejoins]
+
+####
+# 2.2) Verify that we can infer the time remaining until the next
+# retry.
+####
+
+include/assert.inc [Time remaining should be less than 5 mins]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+####
+# 3) Verify that we see the timestamp of the last auto-rejoin process.
+####
+
+
+####
+# 4) Verify that we can see the number of times the auto-rejoin process
+# was run.
+####
+
+include/assert.inc [There should only be one auto-rejoin process triggered]
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin';
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_rejoin_long_retry';
+include/stop_group_replication.inc
+include/start_group_replication.inc
+
+####
+# 5) Cleanup.
+####
+
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET GLOBAL group_replication_autorejoin_tries = default;
+include/gr_end_autorejoin_monitoring.inc
+include/group_replication_end.inc

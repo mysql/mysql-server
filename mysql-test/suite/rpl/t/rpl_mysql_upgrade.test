@@ -7,6 +7,7 @@
 #############################################################################
 --source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
+--source include/no_valgrind_without_big.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
@@ -22,14 +23,22 @@ DROP DATABASE IF EXISTS `#mysql50#mysqltest-1`;
 CREATE DATABASE `#mysql50#mysqltest-1`;
 --enable_warnings
 --source include/sync_slave_sql_with_master.inc
+# Stop slave io thread before restarting master
+--source include/stop_slave_io.inc
 
 connection master;
 let $before_position= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 #With '--force' option, mysql_upgrade always executes all sql statements for upgrading.
 #binlog is disabled by default.
---exec $MYSQL_UPGRADE --skip-verbose --force --user=root > $MYSQLTEST_VARDIR/log/mysql_upgrade.log 2>&1
---source include/sync_slave_sql_with_master.inc
+--let $rpl_server_parameters= --upgrade=FORCE
+--let $rpl_server_number= 1
+--let $wait_counter= 10000
+--source include/rpl_restart_server.inc
+
+# Restart slave io thread after restarting master server
+connection slave;
+--source include/start_slave_io.inc
 
 connection master;
 let $after_position= query_get_value(SHOW MASTER STATUS, Position, 1);
@@ -39,15 +48,18 @@ if ($before_position == $after_position)
   echo Master position is not changed;
 }
 
-#Some log events of the mysql_upgrade's will cause errors on slave.
+# Some log events of the mysql_upgrade's will cause errors on slave.
+# And Stop slave io thread before restarting master
 connection slave;
-STOP SLAVE SQL_THREAD;
-source include/wait_for_slave_sql_to_stop.inc;
+--source include/stop_slave.inc
 
 connection master;
 #With '--force' option, mysql_upgrade always executes all sql statements for upgrading.
 #--write-binlog option enables binlog.
---exec $MYSQL_UPGRADE --write-binlog --skip-verbose --force --user=root > $MYSQLTEST_VARDIR/log/mysql_upgrade.log 2>&1
+--let $rpl_server_parameters= --upgrade=FORCE
+--let $rpl_server_number= 1
+--let $wait_counter= 10000
+--source include/rpl_restart_server.inc
 
 connection master;
 let $after_file= query_get_value(SHOW MASTER STATUS, File, 1);
@@ -64,4 +76,3 @@ DROP DATABASE `#mysql50#mysqltest-1`;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
 
---source include/mysql_upgrade_cleanup.inc

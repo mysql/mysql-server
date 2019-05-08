@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <atomic>
 #include <map>
+#include <sstream>
 #include <utility>
 
 #include "my_compiler.h"
@@ -458,20 +459,18 @@ err:
 }
 
 int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
-  DBUG_ENTER("channel_stop(master_info, stop_receiver, stop_applier, timeout");
-
   channel_map.assert_some_lock();
 
   if (mi == NULL) {
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
-
-  mi->channel_rdlock();
 
   int thread_mask = 0;
   int server_thd_mask = 0;
   int error = 0;
   bool thd_init = false;
+
+  mi->channel_wrlock();
   lock_slave_threads(mi);
 
   init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
@@ -491,7 +490,11 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
 
   thd_init = init_thread_context();
 
+  if (current_thd) current_thd->set_skip_readonly_check();
+
   error = terminate_slave_threads(mi, thread_mask, timeout, false);
+
+  if (current_thd) current_thd->reset_skip_readonly_check();
 
 end:
   unlock_slave_threads(mi);
@@ -501,7 +504,7 @@ end:
     clean_thread_context();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_stop(const char *channel, int threads_to_stop, long timeout) {
@@ -518,21 +521,14 @@ int channel_stop(const char *channel, int threads_to_stop, long timeout) {
   DBUG_RETURN(error);
 }
 
-int channel_stop_all(int threads_to_stop, long timeout, char **error_message) {
-  DBUG_ENTER("channel_stop_all");
-
+int channel_stop_all(int threads_to_stop, long timeout,
+                     std::string *error_message) {
   Master_info *mi = 0;
 
   /* Error related varaiables */
   int error = 0;
-  char buf[MYSQL_ERRMSG_SIZE];
-  char *ptr = buf;
-  size_t error_length = 0;
-
-  if (error_message) {
-    error_length = snprintf(ptr, sizeof(buf), "Error stopping channel(s): ");
-    ptr += (int)error_length;
-  }
+  std::stringstream err_msg_ss;
+  err_msg_ss << "Error stopping channel(s): ";
 
   channel_map.rdlock();
 
@@ -541,8 +537,6 @@ int channel_stop_all(int threads_to_stop, long timeout, char **error_message) {
     mi = it->second;
 
     if (mi) {
-      DBUG_PRINT("info", ("stopping channel_name: %s", mi->get_channel()));
-
       int channel_error = channel_stop(mi, threads_to_stop, timeout);
 
       DBUG_EXECUTE_IF("group_replication_stop_all_channels_failure",
@@ -556,43 +550,21 @@ int channel_stop_all(int threads_to_stop, long timeout, char **error_message) {
                    "Error stopping channel: %s. Got error: %d",
                    mi->get_channel(), error);
 
-        if (error_message) {
-          size_t curr_len =
-              snprintf(ptr, sizeof(buf) - error_length,
-                       " '%s' [error number: %d],", mi->get_channel(), error);
-
-          if (error_length + curr_len < sizeof(buf)) {
-            ptr += (int)curr_len;
-            error_length += curr_len;
-          }
-        }
+        err_msg_ss << " '" << mi->get_channel() << "' [error number: " << error
+                   << "],";
       }
     }
   }
 
-  if (error_message && error) {
-    char append_str[] = " Please check the error log for additional details.";
-    int append_len = strlen(append_str);
-    size_t total_length = error_length;
-    error_length -= 1;  // remove comma at the end
-
-    /* append append_str if buffer has space */
-    if (error_length + append_len < sizeof(buf)) {
-      total_length += append_len;
-      *error_message =
-          (char *)my_malloc(PSI_NOT_INSTRUMENTED, total_length + 1, MYF(0));
-      snprintf(*error_message, total_length + 1, "%.*s.%s", int(error_length),
-               buf, append_str);
-    } else {
-      *error_message =
-          (char *)my_malloc(PSI_NOT_INSTRUMENTED, total_length + 1, MYF(0));
-      snprintf(*error_message, total_length + 1, "%.*s.", int(error_length),
-               buf);
-    }
+  if (error) {
+    *error_message = err_msg_ss.str();
+    (*error_message)[error_message->length() - 1] = '.';
+    error_message->append(
+        " Please check the error log for additional details.");
   }
 
   channel_map.unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_purge_queue(const char *channel, bool reset_all) {
@@ -634,11 +606,8 @@ bool channel_is_active(const char *channel,
     DBUG_RETURN(false);
   }
 
-  mi->channel_rdlock();
-
   init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   switch (thd_type) {
@@ -669,8 +638,6 @@ int channel_get_thread_id(const char *channel,
     channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
-
-  mi->channel_rdlock();
 
   switch (thd_type) {
     case CHANNEL_RECEIVER_THREAD:
@@ -740,10 +707,9 @@ int channel_get_thread_id(const char *channel,
       }
       break;
     default:
-      DBUG_RETURN(number_threads);
+      break;
   }
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(number_threads);
@@ -761,7 +727,6 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
   rpl_gno last_gno = 0;
 
   Checkable_rwlock *sid_lock = mi->rli->get_sid_lock();
@@ -780,7 +745,6 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
   my_free(retrieved_gtid_set_string);
 #endif
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(last_gno);
@@ -796,15 +760,13 @@ int channel_add_executed_gtids_to_received_gtids(const char *channel) {
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
-  channel_map.unlock();
   global_sid_lock->wrlock();
 
   enum_return_status return_status =
       mi->rli->add_gtid_set(gtid_state->get_executed_gtids());
 
   global_sid_lock->unlock();
-  mi->channel_unlock();
+  channel_map.unlock();
 
   DBUG_RETURN(return_status != RETURN_STATUS_OK);
 }
@@ -822,10 +784,9 @@ int channel_queue_packet(const char *channel, const char *buf,
     channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
+  channel_map.unlock();
 
   result = queue_event(mi, buf, event_len, false /*flush_master_info*/);
-
-  channel_map.unlock();
 
   DBUG_RETURN(result);
 }
@@ -858,8 +819,8 @@ int channel_wait_until_apply_queue_applied(const char *channel,
   mi->rli->get_gtid_set()->to_string(&retrieved_gtid_set_buf);
   mi->rli->get_sid_lock()->unlock();
 
-  int error =
-      mi->rli->wait_for_gtid_set(current_thd, retrieved_gtid_set_buf, timeout);
+  int error = mi->rli->wait_for_gtid_set(current_thd, retrieved_gtid_set_buf,
+                                         timeout, false);
   my_free(retrieved_gtid_set_buf);
   mi->dec_reference();
 
@@ -982,7 +943,7 @@ int channel_flush(const char *channel) {
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  bool error = flush_relay_logs(mi);
+  bool error = (flush_relay_logs(mi, mi->info_thd) == 1);
 
   channel_map.unlock();
 
@@ -1026,8 +987,6 @@ bool channel_is_stopping(const char *channel,
     DBUG_RETURN(false);
   }
 
-  mi->channel_rdlock();
-
   switch (thd_type) {
     case CHANNEL_NO_THD:
       break;
@@ -1041,7 +1000,6 @@ bool channel_is_stopping(const char *channel,
       DBUG_ASSERT(0);
   }
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(is_stopping);
@@ -1055,9 +1013,7 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel) {
     channel_map.unlock();
     DBUG_RETURN(false);
   }
-  mi->channel_rdlock();
   bool ret = mi->transaction_parser.is_inside_transaction();
-  mi->channel_unlock();
   channel_map.unlock();
   DBUG_RETURN(ret);
 }

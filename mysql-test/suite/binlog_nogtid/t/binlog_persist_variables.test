@@ -58,8 +58,9 @@ INSERT INTO rplvars (varname, varvalue)
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
---let $assert_text= 'Expect 80 variables in the table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = 80
+--let $expected=83
+--let $assert_text= 'Expect $expected variables in the table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc
 
 --echo
@@ -70,7 +71,7 @@ while ( $varid <= $countvars )
   --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid;`
 
   # Following variables are either non persistent or read only variables.
-  if (`SELECT '$varnames' IN ('binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'slave_load_tmpdir', 'slave_load_tmpdir', 'slave_skip_errors')`)
+  if (`SELECT '$varnames' IN ('binlog_row_event_max_size', 'binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'slave_load_tmpdir', 'slave_load_tmpdir', 'slave_skip_errors', 'log_bin_use_v1_row_events', 'binlog_rotate_encryption_master_key_at_startup')`)
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }
@@ -80,8 +81,9 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $assert_text= 'Expect 65 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 65
+--let $expected=65
+--let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc
 
 --echo
@@ -92,16 +94,16 @@ while ( $varid <= $countvars )
 --source include/wait_until_connected_again.inc
 
 --echo
---let $assert_text= 'Expect 65 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 65
+--let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc
 
---let $assert_text= 'Expect 65 persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 65
+--let $assert_text= 'Expect $expected persisted variables shown as PERSISTED in variables_info table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $expected
 --source include/assert.inc
 
---let $assert_text= 'Expect 65 persisted variables with matching peristed and global values.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 65
+--let $assert_text= 'Expect $expected persisted variables with matching persisted and global values.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $expected
 --source include/assert.inc
 
 

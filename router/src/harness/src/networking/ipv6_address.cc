@@ -31,11 +31,11 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <ws2tcpip.h>  // in6_addr, inet_pton, etc
 #endif
 #include <cerrno>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 
 namespace mysql_harness {

@@ -162,9 +162,9 @@ static void prepare_type_string_from_dd_param(THD *thd,
   // Geometry sub type
   Field::geometry_type geom_type = Field::GEOM_GEOMETRY;
   if (param->data_type() == dd::enum_column_types::GEOMETRY) {
-    uint32 sub_type;
+    uint32 sub_type = 0;
     dd::Properties *options = const_cast<dd::Properties *>(&param->options());
-    options->get_uint32("geom_type", &sub_type);
+    options->get("geom_type", &sub_type);
     geom_type = static_cast<Field::geometry_type>(sub_type);
   }
 

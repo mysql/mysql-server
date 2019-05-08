@@ -323,4 +323,4 @@ dberr_t zInserter::set_page_next() {
   return (m_err);
 }
 
-};  // namespace lob
+}  // namespace lob

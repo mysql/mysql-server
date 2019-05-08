@@ -58,7 +58,6 @@ SET(include_dirs
 )
 
 SET(system_include_dirs
-  ${PROTOBUF_INCLUDE_DIR}
   ${MYSQLX_GENERATE_DIR}/protobuf_lite
 )
 
@@ -71,6 +70,8 @@ add_harness_plugin(routing
  )
 TARGET_INCLUDE_DIRECTORIES(routing PRIVATE ${include_dirs})
 TARGET_INCLUDE_DIRECTORIES(routing SYSTEM PRIVATE ${system_include_dirs})
+MY_TARGET_INCLUDE_SYSTEM_DIRECTORIES(routing PROTOBUF)
+ADD_DEPENDENCIES(routing GenLiteProtos)
 
 TARGET_LINK_LIBRARIES(routing PRIVATE mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 

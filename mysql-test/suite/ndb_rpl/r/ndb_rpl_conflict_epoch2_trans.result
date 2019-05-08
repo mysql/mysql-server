@@ -1041,7 +1041,7 @@ select @primary_ok:=
 @epoch_trans2_diff_epoch)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 Now sync with Secondary to show outcomes
 start slave;
@@ -1057,7 +1057,7 @@ select @secondary_ok:=
 @epoch_trans2_diff_epoch)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 PRIMARY
 Cleanup
@@ -1166,7 +1166,7 @@ select @primary_ok:=
 @epoch2_trans)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -1184,7 +1184,7 @@ select @secondary_ok:=
 @epoch2_trans)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -2242,7 +2242,7 @@ select @primary_ok:=
 @epoch_trans2_diff_epoch)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 Now sync with Secondary to show outcomes
 start slave;
@@ -2258,7 +2258,7 @@ select @secondary_ok:=
 @epoch_trans2_diff_epoch)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 PRIMARY
 Cleanup
@@ -2367,7 +2367,7 @@ select @primary_ok:=
 @epoch2_trans)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -2385,7 +2385,7 @@ select @secondary_ok:=
 @epoch2_trans)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland

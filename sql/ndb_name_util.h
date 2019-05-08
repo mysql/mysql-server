@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,5 +43,14 @@ bool ndb_name_is_temp(const char* name);
   parts of NdbApi so they may need to be filtered in various places.
 */
 bool ndb_name_is_blob_prefix(const char* name);
+
+/*
+  Return true if name starts with the prefix used for Index
+  Stat tables i.e. ndb_index_stat
+
+  NOTE! These tables are not installed in DD at this point
+  of time so they need to be filtered out
+*/
+bool ndb_name_is_index_stat(const char* name);
 
 #endif

@@ -100,7 +100,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+--error ER_RUN_HOOK_ERROR
 --reap
 
 --echo #
@@ -117,6 +117,8 @@ call mtr.add_suppression("Due to a plugin error, some transactions were unable t
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");
 call mtr.add_suppression("read failed");
+call mtr.add_suppression("Error while waiting for conflict detection procedure to finish on session .*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server_2

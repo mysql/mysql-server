@@ -8,6 +8,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_fil
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring/' not found .*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File 'MYSQL_test_invalid/dir/' not found .*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File '/' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Incorrect Keyring file");
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';

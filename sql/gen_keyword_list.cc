@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,15 +21,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <unicode/errorcode.h>
+#include <unicode/regex.h>
+#include <unicode/unistr.h>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <set>
 
-#include "extra/regex/my_regex.h"      // my_regex_t
 #include "lex.h"                       // symbols[]
-#include "m_ctype.h"                   // CHARSET_INFO
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
+using icu::RegexMatcher;
+using icu::UnicodeString;
+
+bool icu_error(const UErrorCode &status) {
+  if (!U_FAILURE(status)) {
+    return false;
+  }
+  icu::ErrorCode error_code;
+  error_code.set(status);
+  std::cerr << "Error: " << error_code.errorName() << std::endl;
+  return true;
+}
 
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
@@ -45,29 +60,36 @@ int main(int argc, const char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  my_regex_t rx;
-  my_regmatch_t match[4];
-  if (my_regcomp(&rx,
-                 "^%(token|left|right|nonassoc)[[:space:]]*"
-                 "(<[_[:alnum:]]+>)?[[:space:]]*([_[:alnum:]]+)",
-                 MY_REG_EXTENDED, &my_charset_utf8_general_ci))
+  UErrorCode status = U_ZERO_ERROR;
+
+  UnicodeString rx(
+      "^%(token|left|right|nonassoc)[[:space:]]*"
+      "(<[._[:alnum:]]+>)?[[:space:]]*([_[:alnum:]]+).*$");
+  RegexMatcher match(rx, 0, status);
+  if (icu_error(status)) {
     return EXIT_FAILURE;
+  }
 
   std::set<size_t> keyword_tokens;
   std::string s;
   size_t token_num = 257;
   while (getline(yacc, s)) {
-    if (!my_regexec(&rx, s.c_str(), sizeof(match) / sizeof(*match), match, 0)) {
+    UnicodeString sample(s.data(), s.length());
+    match.reset(sample);
+    if (match.matches(status)) {
+      assert(match.groupCount() == 3);
       token_num++;
-      const char *semantic_type = s.c_str() + match[2].rm_so;
-      const size_t semantic_type_sz = match[2].rm_eo - match[2].rm_so;
-      if (semantic_type_sz != 0 &&
-          strncmp(semantic_type, "<keyword>", semantic_type_sz) == 0)
+
+      UnicodeString uc_semantic_type = match.group(2, status);
+      if (icu_error(status)) {
+        return EXIT_FAILURE;
+      }
+
+      static const UnicodeString keyword_semantic_type("<lexer.keyword>");
+      if (uc_semantic_type == keyword_semantic_type)
         keyword_tokens.insert(token_num);
     }
   }
-
-  my_regfree(&rx);
 
   std::map<std::string, bool> words;
 
@@ -85,7 +107,7 @@ int main(int argc, const char *argv[]) {
               "This should not happen: \"%s\" has duplicates."
               " See symbols[] in lex.h",
               sym->name);
-      DBUG_ASSERT(false);
+      assert(false);
       return EXIT_FAILURE;
     }
   }
@@ -109,8 +131,6 @@ int main(int argc, const char *argv[]) {
   out << "};/*keyword_list*/\n\n";
 
   out << "#endif/*GEN_KEYWORD_LIST_H__INCLUDED*/\n";
-
-  my_regex_end();
 
   return 0;
 }

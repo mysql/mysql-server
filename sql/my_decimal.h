@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -168,14 +168,12 @@ class my_decimal : public decimal_t {
   /** Swap two my_decimal values */
   void swap(my_decimal &rhs) { std::swap(*this, rhs); }
 
-  // Error reporting in server code only.
-  int check_result(uint, int result) const
 #ifndef MYSQL_SERVER
-  {
-    return result;
-  }
+  // Error reporting in server code only.
+  int check_result(uint, int result) const { return result; }
+#else
+  int check_result(uint, int result) const;
 #endif
-  ;
 };
 
 #ifndef DBUG_OFF
@@ -330,7 +328,7 @@ inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to) {
 }
 
 inline int str2my_decimal(uint mask, const char *str, my_decimal *d,
-                          char **end) {
+                          const char **end) {
   return check_result_and_overflow(mask, string2decimal(str, d, end), d);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,15 +26,18 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <stdexcept>
 
 // needed for ip_to_hostname(), should probably be turned into a service
+#include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_systime.h"  // my_sleep
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
-#include "plugin/x/src/cap_handles_expired_passwords.h"
+#include "plugin/x/src/capabilities/configurator.h"
+#include "plugin/x/src/capabilities/handler_expired_passwords.h"
+#include "plugin/x/src/capabilities/handler_readonly_value.h"
+#include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_server.h"
@@ -46,33 +49,20 @@ namespace xpl {
 Client::Client(std::shared_ptr<ngs::Vio_interface> connection,
                ngs::Server_interface &server, Client_id client_id,
                Protocol_monitor *pmon, const Global_timeouts &timeouts)
-    : ngs::Client(connection, server, client_id, pmon, timeouts),
-      m_protocol_monitor(pmon) {
-  if (m_protocol_monitor) m_protocol_monitor->init(this);
+    : ngs::Client(connection, server, client_id, pmon, timeouts) {
+  if (pmon) pmon->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
 
-void Client::on_session_close(ngs::Session_interface &s) {
-  ngs::Client::on_session_close(s);
-  if (s.state_before_close() != ngs::Session_interface::Authenticating) {
-    ++Global_status_variables::instance().m_closed_sessions_count;
-  }
-}
-
-void Client::on_session_reset(ngs::Session_interface &s) {
-  ngs::Client::on_session_reset(s);
-}
-
-ngs::Capabilities_configurator *Client::capabilities_configurator() {
-  ngs::Capabilities_configurator *caps =
-      ngs::Client::capabilities_configurator();
+Capabilities_configurator *Client::capabilities_configurator() {
+  Capabilities_configurator *caps = ngs::Client::capabilities_configurator();
 
   // add our capabilities
-  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>(
-      "node_type", "mysql"));
   caps->add_handler(
-      ngs::allocate_shared<Cap_handles_expired_passwords>(ngs::ref(*this)));
+      ngs::allocate_shared<Capability_readonly_value>("node_type", "mysql"));
+  caps->add_handler(
+      ngs::allocate_shared<Cap_handles_expired_passwords>(std::ref(*this)));
 
   return caps;
 }
@@ -113,31 +103,11 @@ void Client::kill() {
   ++Global_status_variables::instance().m_killed_sessions_count;
 }
 
-void Client::on_network_error(int error) {
-  ngs::Client::on_network_error(error);
-  if (error != 0)
-    ++Global_status_variables::instance().m_connection_errors_count;
-}
-
-void Client::on_server_shutdown() {
-  ngs::shared_ptr<ngs::Session_interface> local_copy = m_session;
-
-  if (local_copy) local_copy->on_kill();
-
-  ngs::Client::on_server_shutdown();
-}
-
-void Client::on_auth_timeout() {
-  ngs::Client::on_auth_timeout();
-
-  ++Global_status_variables::instance().m_connection_errors_count;
-}
-
 /* Check is a session assigned to this client has following thread data
 
    The method can be called from different thread/xpl_client.
  */
-bool Client::is_handler_thd(THD *thd) {
+bool Client::is_handler_thd(const THD *thd) const {
   // When accessing the session we need to hold it in
   // shared_pointer to be sure that the session is
   // not reseted (by Mysqlx::Session::Reset) in middle
@@ -150,15 +120,24 @@ bool Client::is_handler_thd(THD *thd) {
 
 void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {
   std::vector<std::string> ciphers =
-      ngs::Ssl_session_options(&connection()).ssl_cipher_list();
+      Ssl_session_options(&connection()).ssl_cipher_list();
 
-  mysqld::xpl_show_var(var).assign(ngs::join(ciphers, ":"));
+  mysqld::xpl_show_var(var).assign(join(ciphers, ":"));
 }
 
 std::string Client::resolve_hostname() {
   std::string result;
   std::string socket_ip_string;
   uint16 socket_port;
+
+  DBUG_EXECUTE_IF("resolve_timeout", {
+    int i = 0;
+    int max_iterations = 1000;
+    while (server().is_running() && i < max_iterations) {
+      my_sleep(10000);
+      ++i;
+    }
+  });
 
   sockaddr_storage *addr =
       m_connection->peer_addr(socket_ip_string, socket_port);

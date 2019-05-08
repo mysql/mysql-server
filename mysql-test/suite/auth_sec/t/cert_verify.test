@@ -6,14 +6,12 @@
 
 let $ssl_verify_pass_path = --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem;
 
-let $tls_default= TLSv1.2;
-
 --echo #T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
 --let $restart_parameters="restart: $ssl_verify_pass_path"
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --source include/restart_mysqld.inc
 
---replace_result $tls_default TLS_VERSION
+--replace_result TLSv1.2 TLS_VERSION TLSv1.3 TLS_VERSION
 --exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-mode=VERIFY_IDENTITY -e "SHOW STATUS like 'Ssl_version'"
 
 --let $restart_parameters="restart: "

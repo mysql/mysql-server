@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,12 +44,16 @@ involved. However, for the time being, proposing a no_op for an instance
 will not mark it as busy. This may change in the future, so a safe upper
 limit on the number of nodes marked as busy is event_horizon * NSERVERS.
 */
-#define CACHED 50000
+#define MIN_LENGTH 50000      // Also Default value
+#define INCREMENT MIN_LENGTH  // Total number of slots to add/remove
 
 #define is_cached(x) (hash_get(x) != NULL)
 
 struct lru_machine;
 typedef struct lru_machine lru_machine;
+
+struct stack_machine;
+typedef struct stack_machine stack_machine;
 
 struct pax_machine;
 typedef struct pax_machine pax_machine;
@@ -57,6 +61,7 @@ typedef struct pax_machine pax_machine;
 /* Definition of a Paxos instance */
 struct pax_machine {
   linkage hash_link;
+  stack_machine *stack_link;
   lru_machine *lru;
   synode_no synode;
   double last_modified; /* Start time */
@@ -89,6 +94,8 @@ struct pax_machine {
 #endif
 };
 
+pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
+                              synode_no synode);
 int is_busy_machine(pax_machine *p);
 int lock_pax_machine(pax_machine *p);
 pax_machine *get_cache_no_touch(synode_no synode, bool_t force);
@@ -101,15 +108,34 @@ void init_cache();
 void deinit_cache();
 void unlock_pax_machine(pax_machine *p);
 void xcom_cache_var_init();
-void shrink_cache();
+size_t shrink_cache();
 size_t pax_machine_size(pax_machine const *p);
+synode_no cache_get_last_removed();
 
 void init_cache_size();
 size_t add_cache_size(pax_machine *p);
 size_t sub_cache_size(pax_machine *p);
 int above_cache_limit();
-size_t set_max_cache_size(size_t x);
+size_t set_max_cache_size(uint64_t x);
 int was_removed_from_cache(synode_no x);
+uint16_t check_decrease();
+void do_cache_maintenance();
+
+// Unit testing
+#define DEC_THRESHOLD_LENGTH 500000  // MIN_LENGTH * 10
+#define MIN_TARGET_OCCUPATION 0.7
+#define DEC_THRESHOLD_SIZE 0.95
+#define MIN_LENGTH_THRESHOLD 0.9
+
+uint64_t get_xcom_cache_occupation();
+uint64_t get_xcom_cache_length();
+uint64_t get_xcom_cache_size();
+void set_length_increment(size_t increment);
+void set_size_decrement(size_t decrement);
+void set_dec_threshold_length(uint64_t threshold);
+void set_min_target_occupation(float threshold);
+void set_dec_threshold_size(float threshold);
+void set_min_length_threshold(float threshold);
 
 #ifndef XCOM_STANDALONE
 void psi_set_cache_resetting(int is_resetting);

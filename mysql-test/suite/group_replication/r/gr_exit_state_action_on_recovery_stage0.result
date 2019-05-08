@@ -9,18 +9,20 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server2]
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_before_joining_the_group';
 [connection server2]
 SET sql_log_bin = 0;
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Error 'Table 't1'*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
 call mtr.add_suppression("Error writing relay log configuration.");
+call mtr.add_suppression("Error reading relay log event for channel.*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
 call mtr.add_suppression("Slave: Table 't1' already exists Error_code:*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
-call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 SET sql_log_bin = 1;
 
 #########################################################################
@@ -53,7 +55,13 @@ SET SESSION sql_log_bin = 0;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 SET SESSION sql_log_bin = 1;
 START GROUP_REPLICATION;
-ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+[connection server_2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_join_waiting";
+SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
+[connection server2]
+Got one of the listed errors
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
 include/gr_wait_for_member_state.inc
 [connection server1]
 include/rpl_gr_wait_for_number_of_members.inc
@@ -72,40 +80,29 @@ SET GLOBAL group_replication_exit_state_action = ABORT_SERVER;
 # not abort.
 #########################################################################
 
-START GROUP_REPLICATION;
-ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+START GROUP_REPLICATION;;
+[connection server_2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_join_waiting";
+SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
+[connection server2]
+Got one of the listed errors
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
 include/gr_wait_for_member_state.inc
 [connection server1]
 include/rpl_gr_wait_for_number_of_members.inc
 
 #########################################################################
-# 7) Drop replication channel for recovery on M2 and manully issue START
-# GROUP_REPLICATION. M2 should not abort.
-#########################################################################
-
-[connection server2]
-SET sql_log_bin = 0;
-SET GLOBAL super_read_only = 0;
-SET sql_log_bin = 1;
-CHANGE MASTER TO MASTER_USER='', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-START GROUP_REPLICATION;
-ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
-[connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
-
-#########################################################################
-# 8) Cleanup.
+# 7) Cleanup.
 #########################################################################
 
 [connection server1]
 DROP TABLE t1;
 [connection server2]
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET DEBUG_SYNC= 'RESET';
 SET SESSION sql_log_bin = 0;
 DROP TABLE t1;
 SET SESSION sql_log_bin = 1;
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 SET GLOBAL group_replication_exit_state_action = @group_replication_exit_state_action_saved;
 include/group_replication_end.inc

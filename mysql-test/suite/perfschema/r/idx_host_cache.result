@@ -52,7 +52,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_CONNECT_ERRORS
 from performance_schema.host_cache
-where IP < "impossible";
+where IP < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	host_cache	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -88,7 +88,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_CONNECT_ERRORS
 from performance_schema.host_cache
-where HOST < "impossible";
+where HOST < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	host_cache	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################

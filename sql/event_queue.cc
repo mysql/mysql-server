@@ -769,8 +769,9 @@ void Event_queue::dump_internal_status() {
   printf("LUA             : %s:%u\n", mutex_last_unlocked_in_func,
          mutex_last_unlocked_at_line);
   if (mutex_last_attempted_lock_at_line)
-    printf("Last lock attempt at: %s:%u\n", mutex_last_attempted_lock_in_func,
-           mutex_last_attempted_lock_at_line);
+    printf("Last lock attempt at: %s:%u\n",
+           mutex_last_attempted_lock_in_func.load(),
+           mutex_last_attempted_lock_at_line.load());
   printf("WOC             : %s\n", waiting_on_cond ? "YES" : "NO");
 
   MYSQL_TIME time;

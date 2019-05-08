@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,8 +196,8 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
 
 #ifdef ERROR_INSERT
   Uint32 disk_data_format = 1;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISK_DATA_FORMAT,
-                                        &disk_data_format));
+  ndb_mgm_get_int_parameter(p, CFG_DB_DISK_DATA_FORMAT,
+                            &disk_data_format);
   g_use_old_format = (disk_data_format == 0);
 #endif
   m_file_pool.init(RT_TSMAN_FILE, pc);
@@ -1003,6 +1003,21 @@ Tsman::open_file(Signal* signal,
   // TODO check overflow in cast
   ptr.p->m_create.m_extent_pages = Uint32(extent_pages);
   ptr.p->m_create.m_data_pages = Uint32(data_pages);
+
+  /**
+   * Check whether there are enough free slots in the disk page buffer
+   * for extent pages, which will be locked in the buffer.
+   */
+  {
+    Page_cache_client pgman(this, m_pgman);
+    if (!pgman.extent_pages_available(extent_pages))
+    {
+      return CreateFileImplRef::OutOfDiskPageBufferMemory;
+
+      // CreateFileImplReq::Abort from DBDICT will free the
+      // PGMAN datafile already created
+    }
+  }
 
   /**
    * Update file size

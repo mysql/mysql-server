@@ -142,4 +142,3 @@ SET global super_read_only = @default_super_read_only;
 SET global read_only = @default_read_only;
 
 --disable_info
---enable_warnings

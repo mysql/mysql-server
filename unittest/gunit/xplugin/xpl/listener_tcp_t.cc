@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -65,11 +65,11 @@ class Listener_tcp_testsuite : public Test {
   void SetUp() {
     KEY_socket_x_tcpip = 1;
 
-    m_mock_factory = ngs::make_shared<StrictMock<ngs::test::Mock_factory>>();
-    m_mock_socket = ngs::make_shared<StrictMock<ngs::test::Mock_socket>>();
-    m_mock_system = ngs::make_shared<StrictMock<ngs::test::Mock_system>>();
+    m_mock_factory = std::make_shared<StrictMock<ngs::test::Mock_factory>>();
+    m_mock_socket = std::make_shared<StrictMock<ngs::test::Mock_socket>>();
+    m_mock_system = std::make_shared<StrictMock<ngs::test::Mock_system>>();
     m_mock_socket_invalid =
-        ngs::make_shared<StrictMock<ngs::test::Mock_socket>>();
+        std::make_shared<StrictMock<ngs::test::Mock_socket>>();
 
     ASSERT_NO_FATAL_FAILURE(assert_verify_and_reinitailize_rules());
   }
@@ -95,9 +95,9 @@ class Listener_tcp_testsuite : public Test {
   void make_sut(const std::string &interface, const uint32 port = PORT,
                 const uint32 port_timeout = PORT_TIMEOUT) {
     m_resulting_bind_address = interface;
-    sut = ngs::make_shared<Listener_tcp>(
-        m_mock_factory, ngs::ref(m_resulting_bind_address), port, port_timeout,
-        ngs::ref(m_mock_socket_events), BACKLOG);
+    sut = std::make_shared<Listener_tcp>(
+        m_mock_factory, std::ref(m_resulting_bind_address), "", port,
+        port_timeout, std::ref(m_mock_socket_events), BACKLOG);
   }
 
   void expect_create_socket(addrinfo &ai, const std::string &interface,
@@ -120,7 +120,7 @@ class Listener_tcp_testsuite : public Test {
 #endif
   }
 
-  void expect_listen_socket(ngs::shared_ptr<ngs::test::Mock_socket> mock_socket,
+  void expect_listen_socket(std::shared_ptr<ngs::test::Mock_socket> mock_socket,
                             addrinfo &ai,
                             const bool socket_events_listen = true) {
     EXPECT_CALL(*mock_socket, set_socket_thread_owner());
@@ -162,13 +162,13 @@ class Listener_tcp_testsuite : public Test {
   }
   std::string m_resulting_bind_address;
 
-  ngs::shared_ptr<ngs::test::Mock_socket> m_mock_socket;
-  ngs::shared_ptr<ngs::test::Mock_socket> m_mock_socket_invalid;
-  ngs::shared_ptr<ngs::test::Mock_system> m_mock_system;
+  std::shared_ptr<ngs::test::Mock_socket> m_mock_socket;
+  std::shared_ptr<ngs::test::Mock_socket> m_mock_socket_invalid;
+  std::shared_ptr<ngs::test::Mock_system> m_mock_system;
   StrictMock<ngs::test::Mock_socket_events> m_mock_socket_events;
-  ngs::shared_ptr<ngs::test::Mock_factory> m_mock_factory;
+  std::shared_ptr<ngs::test::Mock_factory> m_mock_factory;
 
-  ngs::shared_ptr<Listener_tcp> sut;
+  std::shared_ptr<Listener_tcp> sut;
 };
 
 TEST_F(Listener_tcp_testsuite,
@@ -448,7 +448,7 @@ TEST_F(Listener_tcp_testsuite,
 
   expect_create_socket(ai4, ALL_INTERFACES_6, AF_INET, INVALID_SOCKET);
 
-  ngs::shared_ptr<ngs::test::Mock_socket> mock_socket_ipv6(
+  std::shared_ptr<ngs::test::Mock_socket> mock_socket_ipv6(
       new StrictMock<ngs::test::Mock_socket>());
   EXPECT_CALL(*mock_socket_ipv6, get_socket_fd()).WillOnce(Return(SOCKET_OK));
   EXPECT_CALL(*m_mock_factory,

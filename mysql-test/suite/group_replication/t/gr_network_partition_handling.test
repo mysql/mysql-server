@@ -4,7 +4,7 @@
 # the group enabling super read mode.
 # Steps:
 #   0) The test requires three servers: M1, M2 and M3.
-#   1) Create a group with 3 members.
+#   1) Create a group with 3 members, we want fourth server for async channel.
 #   2) Check the group_replication_unreachable_majority_timeout var boundaries
 #     2.1) Check min value of group_replication_unreachable_majority_timeout
 #     2.1) Check max value of group_replication_unreachable_majority_timeout
@@ -15,7 +15,8 @@
 #     * member state is ERROR
 #     * super read only mode is ON
 #     * the query rolled back
-#   6) Clean up.
+#   6) Confirm on server1 Slave IO and SQL threads are not running.
+#   7) Clean up.
 ################################################################################
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
@@ -24,12 +25,13 @@
 --source include/have_group_replication_plugin.inc
 
 --echo #
---echo # 1. Create a group with 3 members
+--echo # 1. Create a group with 3 members,
+--echo #    we want fourth server for async channel.
 --echo #    Extract each server uuid
 --echo #    Create a table on it.
 --echo #
 
---let $rpl_server_count= 3
+--let $rpl_server_count= 4
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
@@ -44,6 +46,19 @@
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_4 SERVER_4_PORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_4 for channel 'ch4_1'
+
+--let $rpl_channel_name= 'ch4_1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/rpl_sync.inc
@@ -134,7 +149,7 @@ SET @@GLOBAL.group_replication_unreachable_majority_timeout= 11;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+--error ER_RUN_HOOK_ERROR
 --reap
 
 --echo # The server's read_only mode should be enabled
@@ -142,8 +157,21 @@ SET @@GLOBAL.group_replication_unreachable_majority_timeout= 11;
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
 --source include/assert.inc
 
+
+--echo
+--echo # 6. Confirm on server1 Slave IO and SQL threads are not running.
+
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= No
+--source include/check_slave_param.inc
+
+--let $slave_param= Slave_SQL_Running
+--let $slave_param_value= No
+--source include/check_slave_param.inc
+
+
 --echo #
---echo # 6. Clean up.
+--echo # 7. Clean up.
 --echo #
 
 --source include/stop_group_replication.inc
@@ -162,6 +190,8 @@ call mtr.add_suppression("The member lost contact with a majority of the members
 call mtr.add_suppression("'This member could not reach a majority of the members for more than.*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
+call mtr.add_suppression("Error while waiting for conflict detection procedure to finish on session.*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");

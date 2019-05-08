@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,7 +314,7 @@ LocalProxy::loadWorkers()
 
     if (number() == PGMAN && i == (c_workers - 1))
     {
-      ((Pgman*)worker)->set_extra_pgman();
+      ((Pgman*)worker)->init_extra_pgman();
     }
     mt_add_thr_map(number(), instanceNo);
   }
@@ -338,7 +338,7 @@ LocalProxy::forwardToWorkerIndex(Signal* signal, Uint32 index)
              signal->getLength(),
              JBB,
              &sh);
-};
+}
 
 void
 LocalProxy::forwardToAnyWorker(Signal* signal)

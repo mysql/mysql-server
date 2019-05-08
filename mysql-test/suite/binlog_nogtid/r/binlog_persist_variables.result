@@ -22,12 +22,13 @@ VARIABLE_NAME LIKE '%slave%') AND
 'innodb_master_thread_disabled_debug'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc ['Expect 80 variables in the table.']
+include/assert.inc ['Expect 83 variables in the table.']
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
 SET PERSIST binlog_checksum = @@GLOBAL.binlog_checksum;
 SET PERSIST binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
+SET PERSIST binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST binlog_error_action = @@GLOBAL.binlog_error_action;
 SET PERSIST binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
 SET PERSIST binlog_format = @@GLOBAL.binlog_format;
@@ -40,6 +41,10 @@ Warnings:
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 SET PERSIST binlog_order_commits = @@GLOBAL.binlog_order_commits;
+SET PERSIST binlog_rotate_encryption_master_key_at_startup = @@GLOBAL.binlog_rotate_encryption_master_key_at_startup;
+ERROR HY000: Variable 'binlog_rotate_encryption_master_key_at_startup' is a read only variable
+SET PERSIST binlog_row_event_max_size = @@GLOBAL.binlog_row_event_max_size;
+ERROR HY000: Variable 'binlog_row_event_max_size' is a read only variable
 SET PERSIST binlog_row_image = @@GLOBAL.binlog_row_image;
 SET PERSIST binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
@@ -64,6 +69,7 @@ SET PERSIST log_bin_index = @@GLOBAL.log_bin_index;
 ERROR HY000: Variable 'log_bin_index' is a read only variable
 SET PERSIST log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
 SET PERSIST log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
+ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST log_slave_updates = @@GLOBAL.log_slave_updates;
 ERROR HY000: Variable 'log_slave_updates' is a read only variable
 SET PERSIST log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
@@ -133,7 +139,7 @@ include/assert.inc ['Expect 65 persisted variables in persisted_variables table.
 
 include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
 include/assert.inc ['Expect 65 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 65 persisted variables with matching peristed and global values.']
+include/assert.inc ['Expect 65 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -141,6 +147,7 @@ include/assert.inc ['Expect 65 persisted variables with matching peristed and gl
 RESET PERSIST IF EXISTS binlog_cache_size;
 RESET PERSIST IF EXISTS binlog_checksum;
 RESET PERSIST IF EXISTS binlog_direct_non_transactional_updates;
+RESET PERSIST IF EXISTS binlog_encryption;
 RESET PERSIST IF EXISTS binlog_error_action;
 RESET PERSIST IF EXISTS binlog_expire_logs_seconds;
 RESET PERSIST IF EXISTS binlog_format;
@@ -151,6 +158,12 @@ Warnings:
 Warning	3615	Variable binlog_gtid_simple_recovery does not exist in persisted config file
 RESET PERSIST IF EXISTS binlog_max_flush_queue_time;
 RESET PERSIST IF EXISTS binlog_order_commits;
+RESET PERSIST IF EXISTS binlog_rotate_encryption_master_key_at_startup;
+Warnings:
+Warning	3615	Variable binlog_rotate_encryption_master_key_at_startup does not exist in persisted config file
+RESET PERSIST IF EXISTS binlog_row_event_max_size;
+Warnings:
+Warning	3615	Variable binlog_row_event_max_size does not exist in persisted config file
 RESET PERSIST IF EXISTS binlog_row_image;
 RESET PERSIST IF EXISTS binlog_row_metadata;
 RESET PERSIST IF EXISTS binlog_row_value_options;
@@ -180,6 +193,8 @@ Warnings:
 Warning	3615	Variable log_bin_index does not exist in persisted config file
 RESET PERSIST IF EXISTS log_bin_trust_function_creators;
 RESET PERSIST IF EXISTS log_bin_use_v1_row_events;
+Warnings:
+Warning	3615	Variable log_bin_use_v1_row_events does not exist in persisted config file
 RESET PERSIST IF EXISTS log_slave_updates;
 Warnings:
 Warning	3615	Variable log_slave_updates does not exist in persisted config file

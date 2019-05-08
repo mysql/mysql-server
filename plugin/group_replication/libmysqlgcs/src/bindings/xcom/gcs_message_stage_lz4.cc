@@ -32,24 +32,12 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 
-const unsigned long long Gcs_message_stage_lz4::DEFAULT_THRESHOLD;
-
-unsigned long long Gcs_message_stage_lz4::max_input_compression() {
-  /*
-   The code expects that the following assumption will always hold.
-   */
-  static_assert(
-      LZ4_MAX_INPUT_SIZE <= std::numeric_limits<int>::max(),
-      "Maximum input size for lz compression exceeds the expected value");
-  return LZ4_MAX_INPUT_SIZE;
-}
-
 Gcs_message_stage::stage_status Gcs_message_stage_lz4::skip_apply(
-    const Gcs_packet &packet) const {
+    uint64_t const &original_payload_size) const {
   /*
    Check if the packet really needs to be compressed.
    */
-  if (packet.get_payload_length() < m_threshold) {
+  if (original_payload_size < m_threshold) {
     return stage_status::skip;
   }
 
@@ -58,36 +46,121 @@ Gcs_message_stage::stage_status Gcs_message_stage_lz4::skip_apply(
    Gcs_message_stage_lz4::max_input_compression(). Note that we are
    disregarding the header because only the palyload is compressed.
    */
-  if (packet.get_payload_length() >
-      Gcs_message_stage_lz4::max_input_compression()) {
+  if (original_payload_size > Gcs_message_stage_lz4::max_input_compression()) {
     MYSQL_GCS_LOG_ERROR(
         "Gcs_packet's payload is too big. Only packets smaller than "
         << Gcs_message_stage_lz4::max_input_compression()
         << " bytes can "
            "be compressed. Payload size is "
-        << packet.get_payload_length() << ".");
+        << original_payload_size << ".");
     return stage_status::abort;
   }
 
   return stage_status::apply;
 }
 
-unsigned long long Gcs_message_stage_lz4::calculate_payload_length(
-    Gcs_packet &packet) const {
-  return LZ4_compressBound(static_cast<int>(packet.get_payload_length()));
+std::unique_ptr<Gcs_stage_metadata> Gcs_message_stage_lz4::get_stage_header() {
+  return std::unique_ptr<Gcs_stage_metadata>(new Gcs_empty_stage_metadata());
 }
 
-std::pair<bool, unsigned long long>
-Gcs_message_stage_lz4::transform_payload_apply(
-    unsigned int, unsigned char *new_payload_ptr,
-    unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-    unsigned long long old_payload_length) {
-  int compressed_len = LZ4_compress_default(
-      reinterpret_cast<char *>(old_payload_ptr),
-      reinterpret_cast<char *>(new_payload_ptr),
-      static_cast<int>(old_payload_length), new_payload_length);
+std::pair<bool, std::vector<Gcs_packet>>
+Gcs_message_stage_lz4::apply_transformation(Gcs_packet &&packet) {
+  bool constexpr ERROR = true;
+  bool constexpr OK = false;
+  auto result = std::make_pair(ERROR, std::vector<Gcs_packet>());
+  char *new_payload_pointer = nullptr;
+  int compressed_len = 0;
+  std::vector<Gcs_packet> packets_out;
 
-  return std::make_pair(false, static_cast<unsigned long long>(compressed_len));
+  /* Get the original payload information. */
+  int original_payload_length = packet.get_payload_length();
+  char const *original_payload_pointer =
+      reinterpret_cast<char const *>(packet.get_payload_pointer());
+
+  /* Get an upper-bound on the transformed payload size and create a packet big
+     enough to hold it. */
+  unsigned long long new_payload_length =
+      LZ4_compressBound(original_payload_length);
+  bool packet_ok;
+  Gcs_packet new_packet;
+  std::tie(packet_ok, new_packet) =
+      Gcs_packet::make_from_existing_packet(packet, new_payload_length);
+  if (!packet_ok) goto end;
+
+  /* Compress the old payload into the new packet. */
+  new_payload_pointer =
+      reinterpret_cast<char *>(new_packet.get_payload_pointer());
+  compressed_len =
+      LZ4_compress_default(original_payload_pointer, new_payload_pointer,
+                           original_payload_length, new_payload_length);
+  MYSQL_GCS_LOG_TRACE("Compressing payload from size %llu to output %llu.",
+                      static_cast<unsigned long long>(original_payload_length),
+                      static_cast<unsigned long long>(compressed_len))
+
+  /* Since the actual compressed payload size may be smaller than the estimate
+     given by LZ4_compressBound, update the packet information accordingly. */
+  new_packet.set_payload_length(compressed_len);
+
+  packets_out.push_back(std::move(new_packet));
+  result = std::make_pair(OK, std::move(packets_out));
+
+end:
+  return result;
+}
+
+std::pair<Gcs_pipeline_incoming_result, Gcs_packet>
+Gcs_message_stage_lz4::revert_transformation(Gcs_packet &&packet) {
+  auto &dynamic_header = packet.get_current_dynamic_header();
+  auto result =
+      std::make_pair(Gcs_pipeline_incoming_result::ERROR, Gcs_packet());
+  char *new_payload_pointer = nullptr;
+  int uncompressed_len = 0;
+
+  /* Get the compressed payload information. */
+  int original_payload_length = packet.get_payload_length();
+  char const *original_payload_pointer =
+      reinterpret_cast<char const *>(packet.get_payload_pointer());
+
+  /*
+   Create a packet big enough to hold the uncompressed payload.
+
+   The size of the uncompressed payload is stored in the dynamic header, i.e.
+   the payload size before the stage was applied.
+   */
+  unsigned long long expected_new_payload_length =
+      dynamic_header.get_payload_length();
+  bool packet_ok;
+  Gcs_packet new_packet;
+  std::tie(packet_ok, new_packet) = Gcs_packet::make_from_existing_packet(
+      packet, expected_new_payload_length);
+  if (!packet_ok) goto end;
+
+  /* Decompress the payload into the new packet. */
+  new_payload_pointer =
+      reinterpret_cast<char *>(new_packet.get_payload_pointer());
+  uncompressed_len =
+      LZ4_decompress_safe(original_payload_pointer, new_payload_pointer,
+                          original_payload_length, expected_new_payload_length);
+
+  if (uncompressed_len < 0) {
+    MYSQL_GCS_LOG_ERROR("Error decompressing payload from size "
+                        << original_payload_length << " to "
+                        << expected_new_payload_length);
+    goto end;
+  } else {
+    MYSQL_GCS_LOG_TRACE(
+        "Decompressing payload from size %llu to output %llu.",
+        static_cast<unsigned long long>(original_payload_length),
+        static_cast<unsigned long long>(uncompressed_len))
+
+    DBUG_ASSERT(static_cast<unsigned long long>(uncompressed_len) ==
+                expected_new_payload_length);
+  }
+
+  result = std::make_pair(Gcs_pipeline_incoming_result::OK_PACKET,
+                          std::move(new_packet));
+end:
+  return result;
 }
 
 Gcs_message_stage::stage_status Gcs_message_stage_lz4::skip_revert(
@@ -109,27 +182,4 @@ Gcs_message_stage::stage_status Gcs_message_stage_lz4::skip_revert(
   }
 
   return stage_status::apply;
-}
-
-std::pair<bool, unsigned long long>
-Gcs_message_stage_lz4::transform_payload_revert(
-    unsigned int, unsigned char *new_payload_ptr,
-    unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-    unsigned long long old_payload_length) {
-  // Decompress to the payload
-  int src_len = static_cast<int>(old_payload_length);
-  int dest_len = static_cast<int>(new_payload_length);
-  int uncompressed_len = LZ4_decompress_safe(
-      reinterpret_cast<char *>(old_payload_ptr),
-      reinterpret_cast<char *>(new_payload_ptr), src_len, dest_len);
-
-  if (uncompressed_len < 0) {
-    MYSQL_GCS_LOG_ERROR("Error decompressing payload of size "
-                        << new_payload_length << ".");
-    return std::make_pair(true, 0);
-  }
-  assert(static_cast<unsigned long long>(uncompressed_len) ==
-         new_payload_length);
-
-  return std::make_pair(false, new_payload_length);
 }

@@ -5,3 +5,5 @@ call mtr.add_suppression("Could not create keyring directory The keyring_file wi
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 call mtr.add_suppression("Plugin keyring_file reported: 'File '../bad_dir/../../bad_keyring' not found");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error: SSL_CTX_new failed");
+call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");

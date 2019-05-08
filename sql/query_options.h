@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,11 +90,9 @@
 #define OPTION_SETUP_TABLES_DONE (1ULL << 30)  // intern
 /** If not set then the thread will ignore all warnings with level notes. */
 #define OPTION_SQL_NOTES (1ULL << 31)  // THD, user
-/**
-  Force the used temporary table to be a MyISAM table (because we will use
-  fulltext functions when reading from it.
-*/
-#define TMP_TABLE_FORCE_MYISAM (1ULL << 32)
+
+/** (1ULL << 32) is not used after removing TMP_TABLE_FORCE_MYISAM option */
+
 #define OPTION_PROFILING (1ULL << 33)
 /**
   Indicates that this is a HIGH_PRIORITY SELECT.

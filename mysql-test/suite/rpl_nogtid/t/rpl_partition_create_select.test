@@ -1,0 +1,68 @@
+# ==== Purpose ====
+#
+#  The purpose of this test script is to test the behavior of
+#  CREATE..SELECT with a partition table
+#
+# ==== Implementation ===
+#  Create a table using CREATE..SELECT clause based on a partition table
+#  and test for INSERT in the new table
+#
+# ==== References ====
+#
+# WL#12168:Add Partition Information into the Binary Log
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--echo #### Create a table using CREATE..SELECT clause #####
+
+CREATE TABLE store (store_id INT) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+
+--source include/save_binlog_position.inc
+INSERT INTO store VALUES (5);
+INSERT INTO store VALUES (12);
+
+# Check if the partition_id is correctly logged for this event.
+--let $expected_partition_id = 0;1
+--source suite/rpl/include/rpl_partition_info.inc
+
+# Create the table using CREATE..SELECT based on a partitioned table
+--source include/save_binlog_position.inc
+CREATE TABLE emp (m INT) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
+SELECT store_id FROM store;
+
+#Check if the rows inserted in table emp from table store has the correct partition_id info
+--let $expected_partition_id = 0;1
+--source suite/rpl/include/rpl_partition_info.inc
+
+--let $store_table_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'store'`
+--let $emp_table_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'emp'`
+
+# Check if the number of partition is same in both tables
+--let $assert_text= Check that the partition count is same in both tables
+--let $assert_cond= $store_table_count = $emp_table_count
+--source include/assert.inc
+
+let $wait_condition = SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = "emp" AND  PARTITION_NAME ="p0";
+--source include/wait_condition_or_abort.inc
+let $wait_condition = SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = "emp" AND  PARTITION_NAME ="p1";
+--source include/wait_condition_or_abort.inc
+
+# Check if the partition_id is correctly logged for this event.
+--source include/save_binlog_position.inc
+INSERT INTO emp values (3, 12);
+
+--let $expected_partition_id = 1
+--source suite/rpl/include/rpl_partition_info.inc
+
+--source include/save_binlog_position.inc
+INSERT INTO emp values (4, 6), (5, 13) ;
+
+# Check if the partition_id is correctly logged for this event.
+--let $expected_partition_id = 0;1
+--source suite/rpl/include/rpl_partition_info.inc
+
+DROP TABLE store;
+DROP TABLE emp;
+RESET MASTER;
+--source include/rpl_end.inc

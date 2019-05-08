@@ -342,7 +342,7 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
   /* Preferred form of partitioning information */
   if (options->optionsPresent & ScanOptions::SO_PART_INFO)
   {
-    Uint32 partValue;
+    Uint32 partValue = 0;
     Ndb::PartitionSpec tmpSpec;
     const Ndb::PartitionSpec* pSpec= options->partitionInfo;
     if (unlikely(validatePartInfoPtr(pSpec,

@@ -73,11 +73,11 @@ FLUSH TABLES test.t2_myisam, performance_schema.threads WITH READ LOCK;
 
 --source include/rpl_connection_slave.inc
 # Save current InnoDB LSN and LSN_checkpoint before the collection
---replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
+--replace_regex /\n/<EOL>/ /.*<EOL>Last checkpoint at[[:space:]]*([0-9]+)<EOL>.*/\1/
 --let $innodb_seis=`SHOW ENGINE INNODB STATUS`
 # Remove the "InnoDB" from the collected LSN_checkpoint info
 --let $innodb_lsn_checkpoint_before=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
---replace_regex /.*Log sequence number[[:space:]]*([0-9]+).*/\1/gso
+--replace_regex /\n/<EOL>/ /.*<EOL>Log sequence number[[:space:]]*([0-9]+)<EOL>.*/\1/
 --let $innodb_seis=`SHOW ENGINE INNODB STATUS`
 # Remove the "InnoDB" from the collected LSN info
 --let $innodb_lsn_before=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
@@ -205,11 +205,11 @@ if ($rpl_debug)
 }
 
 # Save current InnoDB LSN and LSN_checkpoint after the collection
---replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
+--replace_regex /\n/<EOL>/ /.*<EOL>Last checkpoint at[[:space:]]*([0-9]+)<EOL>.*/\1/
 --let $innodb_seis=`SHOW ENGINE INNODB STATUS`
 # Remove the "InnoDB" from the collected LSN_checkpoint info
 --let $innodb_lsn_checkpoint_after=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
---replace_regex /.*Log sequence number[[:space:]]*([0-9]+).*/\1/gso
+--replace_regex /\n/<EOL>/ /.*<EOL>Log sequence number[[:space:]]*([0-9]+)<EOL>.*/\1/
 --let $innodb_seis=`SHOW ENGINE INNODB STATUS`
 # Remove the "InnoDB" from the collected LSN info
 --let $innodb_lsn_after=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`

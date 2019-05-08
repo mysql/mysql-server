@@ -1,17 +1,24 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/basic_istream.h"
 #include <my_io.h>
@@ -58,16 +65,19 @@ void IO_CACHE_istream::close() {
 my_off_t IO_CACHE_istream::length() { return my_b_filelength(&m_io_cache); }
 
 ssize_t IO_CACHE_istream::read(unsigned char *buffer, size_t length) {
+  DBUG_ENTER("IO_CACHE_istream::read");
   if (my_b_read(&m_io_cache, buffer, length) ||
       DBUG_EVALUATE_IF("simulate_magic_header_io_failure", 1, 0))
-    return m_io_cache.error;
-  return static_cast<longlong>(length);
+    DBUG_RETURN(m_io_cache.error);
+  DBUG_RETURN(static_cast<longlong>(length));
 }
 
 bool IO_CACHE_istream::seek(my_off_t offset) {
-  DBUG_EXECUTE_IF("simulate_seek_failure", return true;);
+  DBUG_ENTER("IO_CACHE_istream::seek");
+  bool res = false;
   my_b_seek(&m_io_cache, offset);
-  return false;
+  DBUG_EXECUTE_IF("simulate_seek_failure", res = true;);
+  DBUG_RETURN(res);
 }
 
 Stdin_istream::Stdin_istream() {}

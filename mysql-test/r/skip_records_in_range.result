@@ -115,7 +115,7 @@ EXPLAIN
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1"
@@ -136,7 +136,7 @@ SELECT @trace RLIKE "skipped_due_to_force_index";
 SET optimizer_trace="enabled=off";
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 WHERE a1 = 'a''
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	t1_a1_idx,t1_a1_a2_idx	t1_a1_idx	257	const	3	100.00	Using index
+1	SIMPLE	t1	NULL	ref	t1_a1_idx,t1_a1_a2_idx	t1_a1_idx	257	const	3	100.00	Using where; Using index
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 WHERE a1 = 'a''
 EXPLAIN
 {
@@ -163,6 +163,7 @@ EXPLAIN
       "rows_examined_per_scan": 3,
       "rows_produced_per_join": 3,
       "filtered": "100.00",
+      "using_where": true,
       "using_index": true,
       "cost_info": {
         "read_cost": "0.27",
@@ -189,7 +190,7 @@ SELECT @trace RLIKE "skipped_due_to_force_index";
 SET optimizer_trace="enabled=off";
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 = 'a''
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	t1_a1_a2_idx	t1_a1_a2_idx	257	const	NULL	NULL	Using index
+1	SIMPLE	t1	NULL	ref	t1_a1_a2_idx	t1_a1_a2_idx	257	const	NULL	NULL	Using where; Using index
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 = 'a''
 EXPLAIN
 {
@@ -212,13 +213,14 @@ EXPLAIN
       "ref": [
         "const"
       ],
+      "using_where": true,
       "skip_records_in_range_due_to_force": true,
       "using_index": true,
       "cost_info": {
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1"
@@ -368,7 +370,7 @@ EXPLAIN
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1"
@@ -410,7 +412,7 @@ EXPLAIN
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1",

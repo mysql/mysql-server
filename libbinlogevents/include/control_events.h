@@ -308,6 +308,7 @@ class Format_description_event : public Binary_log_event {
   Format_description_event(const char *buf,
                            const Format_description_event *fde);
 
+  Format_description_event(const Format_description_event &) = default;
   Format_description_event &operator=(const Format_description_event &) =
       default;
   uint8_t number_of_event_types;
@@ -383,7 +384,7 @@ class Stop_event : public Binary_log_event {
   Stop_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &){};
+  void print_event_info(std::ostream &) {}
   void print_long_info(std::ostream &info);
 #endif
 };
@@ -618,8 +619,8 @@ class XA_prepare_event : public Binary_log_event {
     todo: we need to find way how to exploit server's code of
     serialize_xid()
   */
-  void print_event_info(std::ostream &){};
-  void print_long_info(std::ostream &){};
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 };
 
@@ -729,7 +730,6 @@ struct gtid_info {
     <th>Description</th>
   </tr>
 
-  </tr>
   <tr>
     <td>GTID_FLAGS</td>
     <td>1 byte</td>
@@ -778,6 +778,16 @@ struct gtid_info {
     <td>transaction_length</td>
     <td>1 to 9 byte integer // See net_length_size(ulonglong num)</td>
     <td>The packed transaction's length in bytes, including the Gtid</td>
+  </tr>
+  <tr>
+    <td>immediate_server_version</td>
+    <td>4 byte integer</td>
+    <td>Server version of the immediate server</td>
+  </tr>
+  <tr>
+    <td>original_server_version</td>
+    <td>4 byte integer</td>
+    <td>Version of the server where the transaction was originally executed</td>
   </tr>
   </table>
 
@@ -829,14 +839,18 @@ class Gtid_event : public Binary_log_event {
                       long long int sequence_number_arg,
                       bool may_have_sbr_stmts_arg,
                       unsigned long long int original_commit_timestamp_arg,
-                      unsigned long long int immediate_commit_timestamp_arg)
+                      unsigned long long int immediate_commit_timestamp_arg,
+                      uint32_t original_server_version_arg,
+                      uint32_t immediate_server_version_arg)
       : Binary_log_event(GTID_LOG_EVENT),
         last_committed(last_committed_arg),
         sequence_number(sequence_number_arg),
         may_have_sbr_stmts(may_have_sbr_stmts_arg),
         original_commit_timestamp(original_commit_timestamp_arg),
         immediate_commit_timestamp(immediate_commit_timestamp_arg),
-        transaction_length(0) {}
+        transaction_length(0),
+        original_server_version(original_server_version_arg),
+        immediate_server_version(immediate_server_version_arg) {}
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
@@ -864,12 +878,31 @@ class Gtid_event : public Binary_log_event {
   // Minimum and maximum lengths of transaction length field.
   static const int TRANSACTION_LENGTH_MIN_LENGTH = 1;
   static const int TRANSACTION_LENGTH_MAX_LENGTH = 9;
+  /// Length of original_server_version
+  static const int ORIGINAL_SERVER_VERSION_LENGTH = 4;
+  /// Length of immediate_server_version
+  static const int IMMEDIATE_SERVER_VERSION_LENGTH = 4;
+  /// Length of original and immediate server version
+  static const int FULL_SERVER_VERSION_LENGTH =
+      ORIGINAL_SERVER_VERSION_LENGTH + IMMEDIATE_SERVER_VERSION_LENGTH;
+  // We use 4 bytes out of which 1 bit is used as a flag.
+  static const int ENCODED_SERVER_VERSION_LENGTH = 31;
 
   /* We have only original commit timestamp if both timestamps are equal. */
   int get_commit_timestamp_length() const {
     if (original_commit_timestamp != immediate_commit_timestamp)
       return FULL_COMMIT_TIMESTAMP_LENGTH;
     return ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+  }
+
+  /**
+    We only store the immediate_server_version if both server versions are the
+    same.
+  */
+  int get_server_version_length() const {
+    if (original_server_version != immediate_server_version)
+      return FULL_SERVER_VERSION_LENGTH;
+    return IMMEDIATE_SERVER_VERSION_LENGTH;
   }
 
   gtid_info gtid_info_struct;
@@ -890,14 +923,14 @@ class Gtid_event : public Binary_log_event {
       LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
 
   /*
-    Length of two timestamps used for monitoring.
-    We keep the timestamps in the body section because they can be of
+    We keep the commit timestamps in the body section because they can be of
     variable length.
     On the originating master, the event has only one timestamp as the two
     timestamps are equal. On every other server we have two timestamps.
   */
-  static const int MAX_DATA_LENGTH =
-      FULL_COMMIT_TIMESTAMP_LENGTH + TRANSACTION_LENGTH_MAX_LENGTH;
+  static const int MAX_DATA_LENGTH = FULL_COMMIT_TIMESTAMP_LENGTH +
+                                     TRANSACTION_LENGTH_MAX_LENGTH +
+                                     FULL_SERVER_VERSION_LENGTH;
   static const int MAX_EVENT_LENGTH =
       LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
   /**
@@ -911,6 +944,11 @@ class Gtid_event : public Binary_log_event {
   void set_trx_length(unsigned long long int transaction_length_arg) {
     transaction_length = transaction_length_arg;
   }
+
+  /** The version of the server where the transaction was originally executed */
+  uint32_t original_server_version;
+  /** The version of the immediate server */
+  uint32_t immediate_server_version;
 };
 
 /**

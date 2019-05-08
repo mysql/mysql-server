@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Derived tables
-  These were introduced by Sinisa <sinisa@mysql.com>
-*/
+// Support for derived tables.
 
 #include "sql/sql_derived.h"
 
@@ -44,7 +41,6 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/mem_root_array.h"
-#include "sql/mysqld.h"     // internal_tmp_disk_storage_engine
 #include "sql/opt_trace.h"  // opt_trace_disable_etc
 #include "sql/query_options.h"
 #include "sql/sql_base.h"  // EXTRA_RECORD
@@ -55,6 +51,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_resolver.h"   // check_right_lateral_join
 #include "sql/sql_tmp_table.h"  // Tmp tables
 #include "sql/sql_union.h"      // Query_result_union
 #include "sql/sql_view.h"       // check_duplicate_names
@@ -65,7 +62,6 @@
 #include "thr_lock.h"
 
 class Opt_trace_context;
-struct MI_COLUMNDEF;
 
 /**
    Produces, from the first tmp TABLE object, a clone TABLE object for
@@ -242,7 +238,7 @@ bool Common_table_expr::substitute_recursive_reference(THD *thd,
   TABLE *t = clone_tmp_table(thd, tl);
   if (t == nullptr) return true; /* purecov: inspected */
   // Eliminate the dummy unit:
-  tl->derived_unit()->exclude_tree();
+  tl->derived_unit()->exclude_tree(thd);
   tl->set_derived_unit(NULL);
   tl->set_privileges(SELECT_ACL);
   return false;
@@ -262,22 +258,16 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   DBUG_ENTER("TABLE_LIST::resolve_derived");
 
   /*
-    Helper class which takes care of restoration of THD::LEX::allow_sum_func
-    and THD::derived_tables_processing. These members are changed in this
+    Helper class which takes care of restoration of members like
+    THD::derived_tables_processing. These members are changed in this
     method scope for resolving derived tables.
   */
   class Context_handler {
    public:
     Context_handler(THD *thd)
         : m_thd(thd),
-          m_allow_sum_func_saved(thd->lex->allow_sum_func),
           m_deny_window_func_saved(thd->lex->m_deny_window_func),
           m_derived_tables_processing_saved(thd->derived_tables_processing) {
-      /*
-        Since derived tables do not allow outer references, they cannot allow
-        aggregation to occur in any outer query blocks.
-      */
-      m_thd->lex->allow_sum_func = 0;
       /*
         Window functions are allowed; they're aggregated in the derived
         table's definition.
@@ -287,7 +277,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     }
 
     ~Context_handler() {
-      m_thd->lex->allow_sum_func = m_allow_sum_func_saved;
       m_thd->lex->m_deny_window_func = m_deny_window_func_saved;
       m_thd->derived_tables_processing = m_derived_tables_processing_saved;
     }
@@ -295,9 +284,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
    private:
     // Thread handle.
     THD *m_thd;
-
-    // Saved state of THD::LEX::allow_sum_func.
-    nesting_map m_allow_sum_func_saved;
 
     // Saved state of THD::LEX::m_deny_window_func.
     nesting_map m_deny_window_func_saved;
@@ -312,16 +298,20 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   // Dummy derived tables for recursive references disappear before this stage
   DBUG_ASSERT(this != select_lex->recursive_reference);
 
+  if (is_derived() && derived->m_lateral_deps)
+    select_lex->end_lateral_table = this;
+
   Context_handler ctx_handler(thd);
 
   if (derived->prepare_limit(thd, derived->global_parameters()))
     DBUG_RETURN(true); /* purecov: inspected */
 
-#ifndef DBUG_OFF
-  for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
-    // Make sure there are no outer references
-    DBUG_ASSERT(sl->context.outer_context == NULL);
-  }
+#ifndef DBUG_OFF  // CTEs, derived tables can have outer references
+  if (is_view())  // but views cannot.
+    for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
+      // Make sure there are no outer references
+      DBUG_ASSERT(sl->context.outer_context == NULL);
+    }
 #endif
 
   if (m_common_table_expr && m_common_table_expr->recursive &&
@@ -420,7 +410,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 
   derived->derived_table = this;
 
-  if (!(derived_result = new (thd->mem_root) Query_result_union(thd)))
+  if (!(derived_result = new (thd->mem_root) Query_result_union()))
     DBUG_RETURN(true); /* purecov: inspected */
 
   /*
@@ -446,6 +436,22 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       delete or insert.
     */
     set_privileges(SELECT_ACL);
+
+    if (derived->m_lateral_deps) {
+      select_lex->end_lateral_table = nullptr;
+      derived->m_lateral_deps &= ~PSEUDO_TABLE_BITS;
+      if (derived->m_lateral_deps == 0) {
+        /*
+          Table doesn't depend on tables in the same FROM clause, so it can be
+          evaluated once per execution of the parent query; having the map
+          equal to 0 is like removing the LATERAL word.
+        */
+      } else {
+        propagate_table_maps(0);
+        if (check_right_lateral_join(this, derived->m_lateral_deps))
+          DBUG_RETURN(true);
+      }
+    }
   }
 
   DBUG_RETURN(false);
@@ -521,12 +527,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
 
   if (table == NULL) {
     // Create the result table for the materialization
-    if (m_common_table_expr &&
-        internal_tmp_disk_storage_engine != TMP_TABLE_INNODB) {
-      my_error(ER_SWITCH_TMP_ENGINE, MYF(0),
-               "Materialization of a Common Table Expression");
-      DBUG_RETURN(true);
-    }
     ulonglong create_options =
         derived->first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
@@ -569,6 +569,8 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   // Table is "nullable" if inner table of an outer_join
   if (is_inner_table_of_outer_join()) table->set_nullable();
 
+  dep_tables |= derived->m_lateral_deps;
+
   DBUG_RETURN(false);
 }
 
@@ -603,10 +605,10 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg) {
     Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
     Mark_field mf(thd_arg->mark_used_columns);
     while ((item = it++)) {
-      if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
+      if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                      (uchar *)thd_arg))
         return true;
-      item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX, (uchar *)&mf);
+      item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
     }
   }
   return false;
@@ -636,14 +638,17 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
 
   set_uses_materialization();
 
+  /*
+    A table function has name resolution context of query which owns FROM
+    clause. So it automatically is LATERAL. This end_lateral_table is to
+    make sure a table function won't access tables located after it in FROM
+    clause.
+  */
+  select_lex->end_lateral_table = this;
+
   if (table_function->init()) DBUG_RETURN(true);
 
   // Create the result table for the materialization
-  if (internal_tmp_disk_storage_engine != TMP_TABLE_INNODB) {
-    my_error(ER_SWITCH_TMP_ENGINE, MYF(0), "Table function");
-    DBUG_RETURN(true);
-  }
-
   if (table_function->create_result_table(0LL, alias))
     DBUG_RETURN(true); /* purecov: inspected */
   table = table_function->table;
@@ -671,6 +676,13 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
   trace_derived.add_utf8_table(this)
       .add_utf8("function_name", func_name, func_name_len)
       .add("materialized", true);
+
+  select_lex->end_lateral_table = nullptr;
+
+  propagate_table_maps(0);
+  if (check_right_lateral_join(this, table_function->used_tables()))
+    DBUG_RETURN(true);
+
   thd->where = saved_where;
 
   DBUG_RETURN(false);
@@ -718,10 +730,9 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
 bool TABLE_LIST::create_materialized_table(THD *thd) {
   DBUG_ENTER("TABLE_LIST::create_materialized_table");
 
-  SELECT_LEX_UNIT *const unit = is_table_function() ? NULL : derived_unit();
-
   // @todo: Be able to assert !table->is_created() as well
-  DBUG_ASSERT((unit || is_table_function()) && uses_materialization() && table);
+  DBUG_ASSERT((is_table_function() || derived_unit()) &&
+              uses_materialization() && table);
 
   if (!table->is_created()) {
     Derived_refs_iterator it(this);
@@ -755,22 +766,7 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
     DBUG_RETURN(false);
   }
   /* create tmp table */
-  MI_COLUMNDEF *start_recinfo;
-  MI_COLUMNDEF **recinfo;
-  if (!is_table_function()) {
-    Query_result_union *result = (Query_result_union *)unit->query_result();
-    start_recinfo = result->tmp_table_param.start_recinfo;
-    recinfo = &result->tmp_table_param.recinfo;
-  } else {
-    start_recinfo = NULL;
-    recinfo = NULL;
-  }
-
-  ulonglong options =
-      thd->lex->select_lex->active_options() | TMP_TABLE_ALL_COLUMNS |
-      (is_table_function() ? 0 : unit->first_select()->active_options());
-  if (instantiate_tmp_table(thd, table, table->key_info, start_recinfo, recinfo,
-                            options, thd->variables.big_tables))
+  if (instantiate_tmp_table(thd, table))
     DBUG_RETURN(true); /* purecov: inspected */
 
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -808,7 +804,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   /*
     The with-recursive algorithm needs the table scan to return rows in
     insertion order.
-    For MEMORY it is true.
+    For MEMORY and Temptable it is true.
     For InnoDB: InnoDB's table scan returns rows in PK order. If the PK
     is (not) the autogenerated autoincrement InnoDB ROWID, PK order will (not)
     be the same as insertion order.
@@ -817,25 +813,9 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   DBUG_ASSERT(table->s->primary_key == MAX_KEY);
 
   SELECT_LEX_UNIT *const unit = derived_unit();
-  bool res = false;
 
-  if (unit->is_union()) {
-    // execute union without clean up
-    res = unit->execute(thd);
-  } else {
-    SELECT_LEX *first_select = unit->first_select();
-    JOIN *join = first_select->join;
-    SELECT_LEX *save_current_select = thd->lex->current_select();
-    thd->lex->set_current_select(first_select);
-
-    DBUG_ASSERT(join && join->is_optimized());
-
-    unit->set_limit(thd, first_select);
-
-    join->exec();
-    res = join->error;
-    thd->lex->set_current_select(save_current_select);
-  }
+  // execute unit without cleaning up
+  bool res = unit->execute(thd);
 
   if (!res) {
     /*
@@ -853,7 +833,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
    Clean up the query expression for a materialized derived table
 */
 
-bool TABLE_LIST::cleanup_derived() {
+bool TABLE_LIST::cleanup_derived(THD *thd) {
   DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-  return derived_unit()->cleanup(false);
+  return derived_unit()->cleanup(thd, false);
 }

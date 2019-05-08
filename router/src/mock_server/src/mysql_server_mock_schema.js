@@ -268,6 +268,16 @@
           ]
         }
       ]
+    },
+
+    "Greeting": {
+      "description": "First packet of the MySQL Classic Protocol Handshake",
+      "type": "object",
+      "properties" : {
+        "exec_time" : {
+          "$ref": "#/definitions/ExecTime"
+        }
+      }
     }
   },
 
@@ -278,6 +288,15 @@
        "properties" : {
          "exec_time" : {
            "$ref": "#/definitions/ExecTime"
+         }
+       }
+    },
+    "handshake": {
+      "description": "Handshake Configuration",
+      "type": "object",
+       "properties" : {
+         "greeting" : {
+           "$ref": "#/definitions/Greeting"
          }
        }
     },

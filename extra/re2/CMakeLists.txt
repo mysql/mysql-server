@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(.)
-
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 SET(RE2_SOURCES
     util/arena.cc
@@ -70,6 +68,9 @@ ADD_LIBRARY(re2_lib STATIC ${RE2_SOURCES})
 
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "-Wno-sign-compare")
+  IF(CMAKE_COMPILER_IS_GNUCXX)
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "-Wno-class-memaccess")
+  ENDIF()
 
   MY_CHECK_CXX_COMPILER_FLAG("-Wtautological-undefined-compare"
                              HAVE_TAUTOLOGICAL_UNDEFINED_COMPARE)
@@ -85,10 +86,19 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   IF(HAVE_NONNULL_COMPARE)
     TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "-Wno-nonnull-compare")
   ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wextra-semi" HAVE_EXTRA_SEMI)
+  IF(HAVE_EXTRA_SEMI)
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "-Wno-extra-semi")
+  ENDIF()
 ENDIF()
 
 IF(DEFINED WIN32)
   IF(MSVC)
+    # 'identifier' : macro redefinition
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "/wd4005")
+    # 'expression' : signed/unsigned mismatch
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "/wd4018")
     ADD_DEFINITIONS(-DSTL_MSVC)
   ENDIF()
 ENDIF()

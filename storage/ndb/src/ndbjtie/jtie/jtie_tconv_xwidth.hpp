@@ -1,6 +1,5 @@
 /*
- Copyright 2010 Sun Microsystems, Inc.
- Use is subject to license terms.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates.  All rights reserved
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -63,20 +62,20 @@
     JTIE_DEFINE_BYTEBUFFER_PTR_LENGTH1_TYPE_MAPPING(C, T)               \
     JTIE_DEFINE_BYTEBUFFER_REF_TYPE_MAPPING(C, T)
 
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jboolean, bool, bool);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, char, char);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, signed char, schar);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, unsigned char, uchar);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, int8_t, int8);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, uint8_t, uint8);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jshort, int16_t, int16);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jshort, uint16_t, uint16);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jint, int32_t, int32);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jint, uint32_t, uint32);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jlong, int64_t, int64);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jlong, uint64_t, uint64);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jfloat, float, float);
-JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jdouble, double, double);
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jboolean, bool, bool)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, char, char)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, signed char, schar)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, unsigned char, uchar)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, int8_t, int8)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, uint8_t, uint8)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jshort, int16_t, int16)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jshort, uint16_t, uint16)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jint, int32_t, int32)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jint, uint32_t, uint32)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jlong, int64_t, int64)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jlong, uint64_t, uint64)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jfloat, float, float)
+JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jdouble, double, double)
 
 // ---------------------------------------------------------------------------
 

@@ -1,8 +1,30 @@
 Backup restored
-Restart server 1 to trigger schema distribution synchronization
+Restart server 1 to trigger schema synchronization
 # restart
-Restart server 2 to trigger schema distribution synchronization
+Restart server 2 to trigger schema synchronization
 # restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(30) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b
+1	a
+2	bb
+3	ccc
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 values (4),(5);
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+DROP TABLE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

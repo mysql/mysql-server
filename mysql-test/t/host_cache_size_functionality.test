@@ -21,7 +21,6 @@
 # For crash recovery test on default change please run the ibtest             #
 ###############################################################################
 
---disable_warnings
 echo '#________________________VAR_06_Host_Cache_Size__________________#'
 echo '##'
 --echo '#---------------------WL6372_VAR_6_01----------------------#'
@@ -50,8 +49,6 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 -- exec echo "restart:--host_cache_size=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
-
---disable_warnings
 
 SELECT @@GLOBAL.Host_Cache_Size;
 --echo 1 Expected

@@ -76,6 +76,14 @@ message ClientMessages {
     CRUD_CREATE_VIEW = 30;
     CRUD_MODIFY_VIEW = 31;
     CRUD_DROP_VIEW = 32;
+
+    PREPARE_PREPARE = 40;
+    PREPARE_EXECUTE = 41;
+    PREPARE_DEALLOCATE = 42;
+
+    CURSOR_OPEN = 43;
+    CURSOR_CLOSE = 44;
+    CURSOR_FETCH = 45;
   }
 }
 
@@ -107,7 +115,7 @@ message ServerMessages {
 
     SQL_STMT_EXECUTE_OK = 17;
     RESULTSET_FETCH_DONE_MORE_OUT_PARAMS = 18;
-  };
+  }
 }
 // ifndef PROTOBUF_LITE
 extend google.protobuf.MessageOptions {
@@ -146,7 +154,7 @@ message Error {
   enum Severity {
     ERROR = 0;
     FATAL = 1;
-  };
+  }
 
   option (server_message_id) = ERROR; // comment_out_if PROTOBUF_LITE
 }

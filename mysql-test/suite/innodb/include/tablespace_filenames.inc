@@ -20,6 +20,7 @@ CREATE TABLESPACE bad ADD DATAFILE './.ibd';
 SHOW WARNINGS;
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE bad ADD DATAFILE '../spaces/';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE bad ADD DATAFILE 'test/bad.ibd';
@@ -38,6 +39,7 @@ CREATE TABLESPACE bad ADD DATAFILE '../data/../data/test/bad.ibd';
 SHOW WARNINGS;
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE bad ADD DATAFILE '../does_not_exist/bad.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
 
 --echo #

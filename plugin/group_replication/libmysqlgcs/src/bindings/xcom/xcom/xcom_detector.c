@@ -284,50 +284,52 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
   ep->local_notify = 1;
   DBGOHK(FN;);
   while (!xcom_shutdown) {
-    site_def *p_site = (site_def *)get_proposer_site();
-    site_def *x_site = (site_def *)get_executor_site();
+    {
+      site_def *p_site = (site_def *)get_proposer_site();
+      site_def *x_site = (site_def *)get_executor_site();
 
-    if (!p_site) p_site = (site_def *)get_site_def();
-    DBGOHK(FN; SYCEXP(executed_msg); SYCEXP(max_synode));
-    DBGOHK(FN; PTREXP(p_site); NDBG(get_nodeno(p_site), u));
-    DBGOHK(FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));
-
-    if (x_site && get_nodeno(x_site) != VOID_NODE_NO) {
-      if (x_site != last_x_site) {
-        reset_disjunct_servers(last_x_site, x_site);
-      }
-      update_detected(x_site);
-      if (x_site != last_x_site) {
-        last_x_site = x_site;
-        ep->notify = 1;
-        ep->local_notify = 1;
-      }
-
+      if (!p_site) p_site = (site_def *)get_site_def();
+      DBGOHK(FN; SYCEXP(executed_msg); SYCEXP(max_synode));
+      DBGOHK(FN; PTREXP(p_site); NDBG(get_nodeno(p_site), u));
       DBGOHK(FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));
-      DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->global_node_set)));
-      DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->local_node_set)));
-      check_global_node_set(x_site, &ep->notify);
-      update_global_count(x_site);
-      DBGOHK(FN; NDBG(iamtheleader(x_site), d);
-             NDBG(enough_live_nodes(x_site), d););
-      /* Send xcom message if node has changed state */
-      DBGOHK(FN; NDBG(ep->notify, d));
-      if (ep->notify && iamtheleader(x_site) && enough_live_nodes(x_site)) {
-        ep->notify = 0;
-        send_my_view(x_site);
-      }
-    }
 
-    if (x_site && get_nodeno(x_site) != VOID_NODE_NO) {
-      DBGOHK(FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));
-      DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->global_node_set)));
-      DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->local_node_set)));
-      update_global_count(x_site);
-      check_local_node_set(x_site, &ep->local_notify);
-      DBGOHK(FN; NDBG(ep->local_notify, d));
-      if (ep->local_notify) {
-        ep->local_notify = 0;
-        deliver_view_msg(x_site); /* To application */
+      if (x_site && get_nodeno(x_site) != VOID_NODE_NO) {
+        if (x_site != last_x_site) {
+          reset_disjunct_servers(last_x_site, x_site);
+        }
+        update_detected(x_site);
+        if (x_site != last_x_site) {
+          last_x_site = x_site;
+          ep->notify = 1;
+          ep->local_notify = 1;
+        }
+
+        DBGOHK(FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));
+        DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->global_node_set)));
+        DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->local_node_set)));
+        check_global_node_set(x_site, &ep->notify);
+        update_global_count(x_site);
+        DBGOHK(FN; NDBG(iamtheleader(x_site), d);
+               NDBG(enough_live_nodes(x_site), d););
+        /* Send xcom message if node has changed state */
+        DBGOHK(FN; NDBG(ep->notify, d));
+        if (ep->notify && iamtheleader(x_site) && enough_live_nodes(x_site)) {
+          ep->notify = 0;
+          send_my_view(x_site);
+        }
+      }
+
+      if (x_site && get_nodeno(x_site) != VOID_NODE_NO) {
+        DBGOHK(FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));
+        DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->global_node_set)));
+        DBGOHK(FN; COPY_AND_FREE_GOUT(dbg_node_set(x_site->local_node_set)));
+        update_global_count(x_site);
+        check_local_node_set(x_site, &ep->local_notify);
+        DBGOHK(FN; NDBG(ep->local_notify, d));
+        if (ep->local_notify) {
+          ep->local_notify = 0;
+          deliver_view_msg(x_site); /* To application */
+        }
       }
     }
     TASK_DELAY(1.0);
@@ -391,44 +393,46 @@ int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
   ep->i_p = ep->you_p = NULL;
 
   while (!xcom_shutdown) {
-    double sec = task_now();
-    synode_no alive_synode = get_current_message();
-    site_def const *site = find_site_def(alive_synode);
+    {
+      synode_no alive_synode = get_current_message();
+      site_def const *site = find_site_def(alive_synode);
 
-    /*
-      If a new configuration has been forced, the site's configuration may be
-      invalid. Specifically, this function is called to verify if the site's
-      node number is valid and fix it if this is not valid.
-    */
-    validate_update_configuration(site, alive_synode);
+      /*
+        If a new configuration has been forced, the site's configuration may be
+        invalid. Specifically, this function is called to verify if the site's
+        node number is valid and fix it if this is not valid.
+      */
+      validate_update_configuration(site, alive_synode);
 
-    if (site && get_nodeno(site) != VOID_NODE_NO) {
-      /* Send alive if we have not been active for some time */
-      if (server_active(site, get_nodeno(site)) < sec - 0.5) {
-        replace_pax_msg(&ep->i_p, pax_msg_new(alive_synode, site));
-        ep->i_p->op = i_am_alive_op;
-        send_to_all_site(site, ep->i_p, "alive_task");
-      }
+      if (site && get_nodeno(site) != VOID_NODE_NO) {
+        /* Send alive if we have not been active for some time */
+        if (server_active(site, get_nodeno(site)) < task_now() - 0.5) {
+          replace_pax_msg(&ep->i_p, pax_msg_new(alive_synode, site));
+          ep->i_p->op = i_am_alive_op;
+          send_to_all_site(site, ep->i_p, "alive_task");
+        }
 
-      /* Ping nodes which seem absent */
-      {
-        node_no i;
-        for (i = 0; i < get_maxnodes(site); i++) {
-          if (i != get_nodeno(site) && may_be_dead(site->detected, i, sec)) {
-            replace_pax_msg(&ep->you_p, pax_msg_new(alive_synode, site));
-            ep->you_p->op = are_you_alive_op;
+        /* Ping nodes which seem absent */
+        {
+          double sec = task_now();
+          node_no i;
+          for (i = 0; i < get_maxnodes(site); i++) {
+            if (i != get_nodeno(site) && may_be_dead(site->detected, i, sec)) {
+              replace_pax_msg(&ep->you_p, pax_msg_new(alive_synode, site));
+              ep->you_p->op = are_you_alive_op;
 
-            ep->you_p->a = new_app_data();
-            ep->you_p->a->app_key.group_id = ep->you_p->a->group_id =
-                get_group_id(site);
-            ep->you_p->a->body.c_t = xcom_boot_type;
-            init_node_list(1, &site->nodes.node_list_val[i],
-                           &ep->you_p->a->body.app_u_u.nodes);
+              ep->you_p->a = new_app_data();
+              ep->you_p->a->app_key.group_id = ep->you_p->a->group_id =
+                  get_group_id(site);
+              ep->you_p->a->body.c_t = xcom_boot_type;
+              init_node_list(1, &site->nodes.node_list_val[i],
+                             &ep->you_p->a->body.app_u_u.nodes);
 
-            DBGOUT(FN; COPY_AND_FREE_GOUT(
-                       dbg_list(&ep->you_p->a->body.app_u_u.nodes)););
+              DBGOUT(FN; COPY_AND_FREE_GOUT(
+                         dbg_list(&ep->you_p->a->body.app_u_u.nodes)););
 
-            send_server_msg(site, i, ep->you_p);
+              send_server_msg(site, i, ep->you_p);
+            }
           }
         }
       }

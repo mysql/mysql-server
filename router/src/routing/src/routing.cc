@@ -39,7 +39,6 @@
 #include <poll.h>
 #include <sys/socket.h>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -84,7 +83,10 @@ std::string get_access_mode_names() {
 }
 
 std::string get_access_mode_name(AccessMode access_mode) noexcept {
-  return kAccessModeNames[static_cast<int>(access_mode)];
+  if (access_mode == AccessMode::kUndefined)
+    return "<not-set>";
+  else
+    return kAccessModeNames[static_cast<int>(access_mode)];
 }
 
 // keep in-sync with enum RoutingStrategy
@@ -115,7 +117,10 @@ std::string get_routing_strategy_names(bool metadata_cache) {
 
 std::string get_routing_strategy_name(
     RoutingStrategy routing_strategy) noexcept {
-  return kRoutingStrategyNames[static_cast<int>(routing_strategy)];
+  if (routing_strategy == RoutingStrategy::kUndefined)
+    return "<not set>";
+  else
+    return kRoutingStrategyNames[static_cast<int>(routing_strategy)];
 }
 
 void set_socket_blocking(int sock, bool blocking) {

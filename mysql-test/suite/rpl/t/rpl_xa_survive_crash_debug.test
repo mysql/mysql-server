@@ -42,7 +42,8 @@ XA PREPARE 'xid_partly_rolled_back';
 # roll back.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET @@session.debug="+d,crash_after_xa_rollback";
---error 2013 # CR_SERVER_LOST
+# CR_SERVER_LOST
+--error 2013
 XA ROLLBACK 'xid_partly_rolled_back';
 
 #

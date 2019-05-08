@@ -45,22 +45,9 @@
 #include <unistd.h>
 #endif
 
-#ifdef _MSC_VER
-#ifdef logger_EXPORTS
-/* We are building this library */
-#define LOGGER_API __declspec(dllexport)
-#else
-/* We are using this library */
-#define LOGGER_API __declspec(dllimport)
-#endif
-#else
-#define LOGGER_API
-#endif
-
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#define pid_t DWORD
+typedef int pid_t; /* getpid() */
 #endif
 
 namespace mysql_harness {
@@ -210,8 +197,8 @@ static inline void log_debug(const char *fmt, ...)
  */
 
 static inline void log_error(const char *fmt, ...) {
-  extern void log_message(LogLevel level, const char *module, const char *fmt,
-                          va_list ap);
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
   log_message(LogLevel::kError, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
@@ -219,8 +206,8 @@ static inline void log_error(const char *fmt, ...) {
 }
 
 static inline void log_warning(const char *fmt, ...) {
-  extern void log_message(LogLevel level, const char *module, const char *fmt,
-                          va_list ap);
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
   log_message(LogLevel::kWarning, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
@@ -228,8 +215,8 @@ static inline void log_warning(const char *fmt, ...) {
 }
 
 static inline void log_info(const char *fmt, ...) {
-  extern void log_message(LogLevel level, const char *module, const char *fmt,
-                          va_list ap);
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
   log_message(LogLevel::kInfo, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
@@ -237,8 +224,8 @@ static inline void log_info(const char *fmt, ...) {
 }
 
 static inline void log_debug(const char *fmt, ...) {
-  extern void log_message(LogLevel level, const char *module, const char *fmt,
-                          va_list ap);
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
   log_message(LogLevel::kDebug, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);

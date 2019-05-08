@@ -217,176 +217,38 @@ Ndb_local_connection::flush_table(const char* db, size_t db_length,
                                 NULL));
 }
 
-
-bool
-Ndb_local_connection::delete_rows(const char* db, size_t db_length,
-                                  const char* table, size_t table_length,
-                                  bool ignore_no_such_table,
-                                  ...)
-{
+bool Ndb_local_connection::delete_rows(const std::string &db,
+                                       const std::string &table,
+                                       int ignore_no_such_table,
+                                       const std::string &where) {
   DBUG_ENTER("Ndb_local_connection::delete_rows");
-  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
+  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db.c_str(), table.c_str()));
 
   // Create the SQL string
-  String sql_text((uint32)(db_length + table_length + 100));
-  sql_text.append(STRING_WITH_LEN("DELETE FROM "));
-  sql_text.append(db, (uint32)db_length);
-  sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, (uint32)table_length);
-  sql_text.append(" WHERE ");
-
-  va_list args;
-  va_start(args, ignore_no_such_table);
-
-  // Append var args strings until ending NULL as WHERE clause
-  const char* arg;
-  bool empty_where = true;
-  while ((arg= va_arg(args, char *)))
-  {
-    sql_text.append(arg);
-    empty_where = false;
-  }
-
-  va_end(args);
-
-  if (empty_where)
-    sql_text.append("1=1");
+  std::string sql_text;
+  sql_text.reserve(db.length() + table.length() + 32 + where.length());
+  sql_text.append("DELETE FROM ");
+  sql_text.append(db).append(".").append(table);
+  sql_text.append(" WHERE ").append(where);
 
   // Setup list of errors to ignore
   uint ignore_mysql_errors[2] = {0, 0};
   if (ignore_no_such_table)
     ignore_mysql_errors[0] = ER_NO_SUCH_TABLE;
 
-  DBUG_RETURN(execute_query_iso(sql_text.lex_string(),
-                                ignore_mysql_errors,
-                                NULL));
+  const LEX_STRING lex_string = {const_cast<char *>(sql_text.c_str()),
+                                 sql_text.length()};
+  DBUG_RETURN(execute_query_iso(lex_string, ignore_mysql_errors, NULL));
 }
 
+bool Ndb_local_connection::create_util_table(const std::string &table_def_sql) {
+  DBUG_ENTER("Ndb_local_connection::create_util_table");
+  // Don't ignore any errors
+  uint ignore_mysql_errors[1] = {0};
+  MYSQL_LEX_STRING sql_text = {const_cast<char *>(table_def_sql.c_str()),
+                               table_def_sql.length()};
 
-class Create_sys_table_suppressor : public Suppressor
-{
-public:
-  virtual ~Create_sys_table_suppressor() {}
-  virtual bool should_ignore_error(Ed_connection& con) const
-  {
-    const uint last_errno = con.get_last_errno();
-    const char* last_errmsg = con.get_last_error();
-    DBUG_ENTER("Create_sys_table_suppressor::should_ignore_error");
-    DBUG_PRINT("enter", ("last_errno: %d, last_errmsg: '%s'",
-                         last_errno, last_errmsg));
-
-    if (last_errno == ER_CANT_CREATE_TABLE)
-    {
-      /*
-        The CREATE TABLE failed late and it was classifed as a
-        'Can't create table' error.
-      */
-
-      /*
-        Error message always end with " %d)" in all languages. Find last
-        space and convert number from there
-      */
-      const char* last_space = strrchr(last_errmsg, ' ');
-      DBUG_PRINT("info", ("last_space: '%s'", last_space));
-      if (!last_space)
-      {
-        // Could not find last space, parse error
-        assert(false);
-        DBUG_RETURN(false); // Don't suppress
-      }
-
-      int error;
-      if (sscanf(last_space, " %d)", &error) != 1)
-      {
-        // Not a number here, parse error
-        assert(false);
-        DBUG_RETURN(false); // Don't suppress
-      }
-      DBUG_PRINT("info", ("error: %d", error));
-
-      switch (error)
-      {
-        case HA_ERR_TABLE_EXIST:
-        {
-          /*
-            The most common error is that NDB returns error 721
-            which means 'No such table' and the error is automatically
-            mapped to MySQL error code ER_TABLE_EXISTS_ERROR
-
-            This is most likley caused by another MySQL Server trying
-            to create the same table inbetween the check if table
-            exists(on local disk and in storage engine) and the actual
-            create.
-          */
-          DBUG_RETURN(true); // Suppress
-          break;
-        }
-
-        case 701: // System busy with other schema operation
-        case 711: // System busy with node restart, no schema operations
-        case 702: // Request to non-master(should never pop up to api)
-        {
-          /* Different errors from NDB, that just need to be retried later */
-          DBUG_RETURN(true); // Suppress
-          break;
-        }
-
-        case 4009: // Cluster failure
-        case HA_ERR_NO_CONNECTION: // 4009 auto mapped to this error
-        {
-          /*
-            No connection to cluster, don't spam error log with
-            failed to create ndb_xx tables
-          */
-          DBUG_RETURN(true); // Suppress
-          break;
-        }
-      }
-    }
-    DBUG_PRINT("info", ("Don't ignore error"));
-    DBUG_RETURN(false); // Don't suppress
-  }
-};
-
-
-bool
-Ndb_local_connection::create_sys_table(const char* db, size_t db_length,
-                                       const char* table, size_t table_length,
-                                       bool create_if_not_exists,
-                                       const char* create_definitions,
-                                       const char* create_options)
-{
-  DBUG_ENTER("Ndb_local_connection::create_table");
-  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
-
-  // Create the SQL string
-  String sql_text(512);
-  sql_text.append(STRING_WITH_LEN("CREATE TABLE "));
-
-  if (create_if_not_exists)
-    sql_text.append(STRING_WITH_LEN("IF NOT EXISTS "));
-  sql_text.append(db, (uint32)db_length);
-  sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, (uint32)table_length);
-
-  sql_text.append(STRING_WITH_LEN(" ( "));
-  sql_text.append(create_definitions);
-  sql_text.append(STRING_WITH_LEN(" ) "));
-  sql_text.append(create_options);
-
-  // List of errors to ignore
-  uint ignore_mysql_errors[2] = {ER_TABLE_EXISTS_ERROR, 0};
-
-  /*
-    This is the only place where an error is suppressed
-    based one the original NDB error, wich is extracted
-    by parsing the error string, use a special suppressor
-  */
-  Create_sys_table_suppressor suppressor;
-
-  DBUG_RETURN(execute_query_iso(sql_text.lex_string(),
-                                ignore_mysql_errors,
-                                &suppressor));
+  DBUG_RETURN(execute_query_iso(sql_text, ignore_mysql_errors, nullptr));
 }
 
 

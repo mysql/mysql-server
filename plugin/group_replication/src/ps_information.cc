@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,8 +59,19 @@ bool get_group_members_info(
     /* purecov: end */
   }
 
-  Group_member_info *member_info =
-      group_member_manager->get_group_member_info_by_index(index);
+  Group_member_info *member_info = NULL;
+  /*
+    If the local member is already OFFLINE but still has the previous
+    membership because is waiting for the leave view, do not report
+    the other members.
+  */
+  if (local_member_info != NULL && local_member_info->get_recovery_status() ==
+                                       Group_member_info::MEMBER_OFFLINE) {
+    member_info = group_member_manager->get_group_member_info(
+        local_member_info->get_uuid());
+  } else {
+    member_info = group_member_manager->get_group_member_info_by_index(index);
+  }
 
   if (member_info == NULL)  // The requested member is not managed...
   {
@@ -68,12 +79,12 @@ bool get_group_members_info(
   }
 
   // Get info from view.
-  callbacks.set_member_id(callbacks.context, *member_info->get_uuid().c_str(),
-                          member_info->get_uuid().length());
+  std::string uuid(member_info->get_uuid());
+  callbacks.set_member_id(callbacks.context, *uuid.c_str(), uuid.length());
 
-  callbacks.set_member_host(callbacks.context,
-                            *member_info->get_hostname().c_str(),
-                            member_info->get_hostname().length());
+  std::string hostname(member_info->get_hostname());
+  callbacks.set_member_host(callbacks.context, *hostname.c_str(),
+                            hostname.length());
 
   callbacks.set_member_port(callbacks.context, member_info->get_port());
 
@@ -124,16 +135,27 @@ bool get_group_member_stats(
     return false;
   }
 
-  Group_member_info *member_info =
-      group_member_manager->get_group_member_info_by_index(index);
+  Group_member_info *member_info = NULL;
+  /*
+    If the local member is already OFFLINE but still has the previous
+    membership because is waiting for the leave view, do not report
+    the other members.
+  */
+  if (local_member_info != NULL && local_member_info->get_recovery_status() ==
+                                       Group_member_info::MEMBER_OFFLINE) {
+    member_info = group_member_manager->get_group_member_info(
+        local_member_info->get_uuid());
+  } else {
+    member_info = group_member_manager->get_group_member_info_by_index(index);
+  }
 
   if (member_info == NULL)  // The requested member is not managed...
   {
     return true; /* purecov: inspected */
   }
 
-  callbacks.set_member_id(callbacks.context, *member_info->get_uuid().c_str(),
-                          member_info->get_uuid().length());
+  std::string uuid(member_info->get_uuid());
+  callbacks.set_member_id(callbacks.context, *uuid.c_str(), uuid.length());
 
   // Retrieve view information
   Gcs_view *view = gcs_module->get_current_view();
@@ -150,8 +172,7 @@ bool get_group_member_stats(
     // For local member fetch information locally
     Certification_handler *cert = applier_module->get_certification_handler();
     Certifier_interface *cert_module = (cert ? cert->get_certifier() : NULL);
-    if (local_member_info &&
-        !local_member_info->get_uuid().compare(member_info->get_uuid()) &&
+    if (local_member_info && !local_member_info->get_uuid().compare(uuid) &&
         cert_module) {
       /* certification related data */
       callbacks.set_transactions_conflicts_detected(

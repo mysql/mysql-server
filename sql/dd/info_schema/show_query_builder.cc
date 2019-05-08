@@ -37,6 +37,7 @@
 #include "sql/query_options.h"     // OPTION_SELECT_FOR_SHOW
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"  // Query_options
+#include "sql/strfunc.h"
 #include "sql_string.h"
 
 class Item;
@@ -131,14 +132,14 @@ bool Select_lex_builder::add_from_item(const LEX_STRING schema_name,
 
   /* ... schame_name ... */
   LEX_CSTRING tmp_db_name;
-  if (!m_thd->make_lex_string(&tmp_db_name, schema_name.str, schema_name.length,
-                              false))
+  if (lex_string_strmake(m_thd->mem_root, &tmp_db_name, schema_name.str,
+                         schema_name.length))
     return true;
 
   /* ... <table_name> ... */
   LEX_CSTRING tmp_table_name;
-  if (!m_thd->make_lex_string(&tmp_table_name, table_name.str,
-                              table_name.length, false))
+  if (lex_string_strmake(m_thd->mem_root, &tmp_table_name, table_name.str,
+                         table_name.length))
     return true;
 
   /* ... schame_name.<table_name> ... */
@@ -302,8 +303,8 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
   Create_col_name_list column_names;
   column_names.init(m_thd->mem_root);
   PT_derived_table *derived_table;
-  derived_table = new (m_thd->mem_root)
-      PT_derived_table(sub_query, to_lex_cstring(table_alias), &column_names);
+  derived_table = new (m_thd->mem_root) PT_derived_table(
+      false, sub_query, to_lex_cstring(table_alias), &column_names);
 
   return derived_table;
 }

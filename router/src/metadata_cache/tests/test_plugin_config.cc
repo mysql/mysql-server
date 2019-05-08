@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "../src/plugin_config.h"
 
 #include "router_test_helpers.h"
+#include "test/helpers.h"
 
 #include "gmock/gmock.h"
 
@@ -80,20 +81,6 @@ std::ostream &operator<<(std::ostream &os, const TCPAddress &addr) {
 }
 }  // namespace mysql_harness
 
-template <typename T>
-std::ostream &operator<<(std::ostream &os, const std::vector<T> &container) {
-  os << "[";
-  bool is_first = true;
-  for (auto &it : container) {
-    if (!is_first) os << ", ";
-    os << it;
-
-    is_first = false;
-  }
-  os << "]";
-  return os;
-}
-
 std::ostream &operator<<(std::ostream &os, const GoodTestData &test_data) {
   return os << "user=" << test_data.expected.user << ", "
             << "ttl="
@@ -113,8 +100,7 @@ TEST_P(MetadataCachePluginConfigGoodTest, GoodConfigs) {
   mysql_harness::Config config;
   mysql_harness::ConfigSection &section = config.add("metadata_cache", "");
 
-  for (const std::pair<std::string, std::string> &pair :
-       test_data.input.extra_config_lines) {
+  for (const auto &pair : test_data.input.extra_config_lines) {
     section.add(pair.first, pair.second);
   }
 
@@ -124,7 +110,7 @@ TEST_P(MetadataCachePluginConfigGoodTest, GoodConfigs) {
   EXPECT_THAT(plugin_config.ttl, Eq(test_data.expected.ttl));
   EXPECT_THAT(plugin_config.metadata_cluster,
               StrEq(test_data.expected.metadata_cluster));
-  EXPECT_THAT(plugin_config.bootstrap_addresses,
+  EXPECT_THAT(plugin_config.metadata_servers_addresses,
               ContainerEq(test_data.expected.bootstrap_addresses));
 }
 
@@ -279,8 +265,7 @@ TEST_P(MetadataCachePluginConfigBadTest, BadConfigs) {
   mysql_harness::Config config;
   mysql_harness::ConfigSection &section = config.add("metadata_cache", "");
 
-  for (const std::pair<std::string, std::string> &pair :
-       test_data.input.extra_config_lines) {
+  for (const auto &pair : test_data.input.extra_config_lines) {
     section.add(pair.first, pair.second);
   }
 
@@ -415,3 +400,9 @@ INSTANTIATE_TEST_CASE_P(
         {"3600.001",
          "needs value between 0 and 3600 inclusive, was '3600.001'"},
     })));
+
+int main(int argc, char *argv[]) {
+  init_test_logger();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

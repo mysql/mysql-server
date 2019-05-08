@@ -3,6 +3,9 @@
 #
 --source include/have_debug.inc
 
+# Warning is generated when default file (NULL) is used
+CALL mtr.add_suppression("Could not parse key-value pairs in property string.*");
+
 --echo #
 --echo # Bug#24487414 - SIG 11 IN DD::INFO_SCHEMA::STATISTICS_CACHE::READ_STAT_BY_OPEN_TABLE
 --echo #
@@ -59,3 +62,21 @@ SHOW CREATE TABLE t1;
 
 SET SESSION debug="";
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#28460158 SIG 11 IN ITEM_FUNC_GET_DD_CREATE_OPTIONS::VAL_STR AT SQL/ITEM_STRFUNC.CC:4167
+--echo #
+CREATE TABLE t1(f1 INT, s VARCHAR(10));
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME='t1';
+SET debug = '+d,skip_dd_table_access_check';
+update mysql.tables set options=concat(options,"abc") where name='t1';
+SET debug = '+d,continue_on_property_string_parse_failure';
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME='t1';
+SET debug = DEFAULT;
+DROP TABLE t1;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+--let SEARCH_PATTERN= Could not parse key-value pairs in property string.*
+--source include/search_pattern.inc
+

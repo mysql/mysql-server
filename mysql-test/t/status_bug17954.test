@@ -28,11 +28,6 @@ flush status;
 # Bug#17954 Threads_connected > Threads_created
 #
 
---disable_warnings
-DROP VIEW IF EXISTS v1;
---enable_warnings
-
---disable_warnings
 CREATE VIEW v1 AS SELECT VARIABLE_NAME AS NAME, CONVERT(VARIABLE_VALUE, UNSIGNED) AS VALUE FROM performance_schema.global_status;
 
 SELECT VALUE INTO @tc FROM v1 WHERE NAME = 'Threads_connected';
@@ -40,7 +35,6 @@ SELECT NAME FROM v1 WHERE NAME = 'Threads_created' AND VALUE < @tc;
 #SELECT * FROM performance_schema.global_status where variable_name like '%thread%';
 #SELECT * FROM performance_schema.global_status;
 #SELECT * FROM performance_schema.global_variables;
---disable_warnings
 
 DROP VIEW v1;
 

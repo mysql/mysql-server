@@ -1,0 +1,167 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE func(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (25), PARTITION P1 VALUES LESS THAN (50));
+CREATE FUNCTION insert_data() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO func VALUES (100, 36);
+RETURN (SELECT COUNT(*) FROM func);
+END//
+CREATE FUNCTION update_data() RETURNS INT DETERMINISTIC
+BEGIN
+UPDATE func SET age=age-12 WHERE id=100;
+RETURN (SELECT COUNT(*) FROM func);
+END//
+CREATE FUNCTION delete_data() RETURNS INT DETERMINISTIC
+BEGIN
+DELETE FROM func WHERE id=100;
+RETURN (SELECT COUNT(*) FROM func);
+END//
+include/save_binlog_position.inc
+BEGIN;
+SELECT insert_data();
+insert_data()
+1
+COMMIT;
+include/rpl_partition_info.inc
+BEGIN;
+SELECT update_data();
+update_data()
+1
+COMMIT;
+include/rpl_partition_info_update.inc
+BEGIN;
+SELECT delete_data();
+delete_data()
+0
+COMMIT;
+include/rpl_partition_info.inc
+CREATE TABLE proc(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (35), PARTITION P1 VALUES LESS THAN (60));
+CREATE PROCEDURE insert_data()
+BEGIN
+INSERT INTO proc VALUES (100, 30);
+END//
+CREATE PROCEDURE update_data()
+BEGIN
+UPDATE proc SET age=age+10 WHERE id=100;
+END//
+CREATE PROCEDURE delete_data()
+BEGIN
+DELETE FROM proc WHERE id=100;
+END//
+include/save_binlog_position.inc
+BEGIN;
+CALL insert_data();
+COMMIT;
+include/rpl_partition_info.inc
+include/save_binlog_position.inc
+BEGIN;
+CALL update_data();
+COMMIT;
+include/rpl_partition_info_update.inc
+include/save_binlog_position.inc
+BEGIN;
+CALL delete_data();
+COMMIT;
+include/rpl_partition_info.inc
+CREATE TABLE t1(a INT);
+CREATE TABLE trigg(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (25), PARTITION P1 VALUES LESS THAN (60));
+CREATE TRIGGER insert_data AFTER INSERT ON t1 FOR EACH ROW
+BEGIN
+INSERT INTO trigg VALUES (100, 36);
+END//
+CREATE TRIGGER update_data AFTER UPDATE ON t1 FOR EACH ROW
+BEGIN
+UPDATE trigg SET age=age-13 WHERE id=100;
+END//
+CREATE TRIGGER delete_data AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+DELETE FROM trigg WHERE id=100;
+END//
+include/save_binlog_position.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+COMMIT;
+include/rpl_partition_info.inc
+include/save_binlog_position.inc
+BEGIN;
+UPDATE t1 SET a=a+10;
+COMMIT;
+include/rpl_partition_info_update.inc
+include/save_binlog_position.inc
+BEGIN;
+DELETE FROM t1;
+COMMIT;
+include/rpl_partition_info.inc
+CREATE TABLE trans(id INT, age INT) PARTITION BY RANGE(age) SUBPARTITION BY KEY(id)
+(
+PARTITION P0 VALUES LESS THAN (30)
+(SUBPARTITION P0A, SUBPARTITION P0B)
+,
+PARTITION P1 VALUES LESS THAN (60)
+(SUBPARTITION P1A, SUBPARTITION P1B)
+);
+include/save_binlog_position.inc
+BEGIN;
+INSERT INTO trans VALUES(100,46);
+COMMIT;
+include/rpl_partition_info.inc
+include/save_binlog_position.inc
+BEGIN;
+UPDATE trans SET age=age-20 WHERE id=100;
+COMMIT;
+include/rpl_partition_info_update.inc
+include/save_binlog_position.inc
+BEGIN;
+DELETE FROM trans WHERE id=100;
+COMMIT;
+include/rpl_partition_info.inc
+include/save_binlog_position.inc
+BEGIN;
+INSERT INTO trans VALUES(1,55),(1,55);
+UPDATE trans SET id=id+10;
+DELETE FROM trans WHERE id=11;
+COMMIT;
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+BEGIN;
+INSERT INTO trans VALUES(101,46),(102,23);
+UPDATE trans SET id=id+100;
+DELETE FROM trans WHERE id=201;
+COMMIT;
+include/assert_binlog_events.inc
+CREATE TABLE t2(a INT);
+include/save_binlog_position.inc
+BEGIN;
+INSERT INTO trans VALUES(301,55),(301,55);
+INSERT INTO t2 VALUES(10);
+UPDATE trans SET id=id+10;
+UPDATE t2 SET a=a+10;
+DELETE FROM trans WHERE id=11;
+DELETE FROM t2 WHERE a=20;
+COMMIT;
+include/assert_binlog_events.inc
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:trans, slave:trans]
+include/diff_tables.inc [master:func, slave:func]
+include/diff_tables.inc [master:proc, slave:proc]
+include/diff_tables.inc [master:trigg, slave:trigg]
+DROP FUNCTION insert_data;
+DROP FUNCTION update_data;
+DROP FUNCTION delete_data;
+DROP PROCEDURE insert_data;
+DROP PROCEDURE update_data;
+DROP PROCEDURE delete_data;
+DROP TRIGGER insert_data;
+DROP TRIGGER update_data;
+DROP TRIGGER delete_data;
+DROP TABLE trans;
+DROP TABLE func;
+DROP TABLE proc;
+DROP TABLE trigg;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

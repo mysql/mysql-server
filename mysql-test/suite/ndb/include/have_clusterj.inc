@@ -37,6 +37,7 @@ my $clusterj_jar = my_find_file($bindir,
                                 [ "storage/ndb/clusterj", 
                                   "share/java",
                                   "share/mysql/java",
+                                  "share/mysql-8.0/java",
                                   "lib/java" ],
                                 "clusterj-*.jar", NOT_REQUIRED);
 
@@ -44,13 +45,14 @@ my $clusterj_test_jar = my_find_file($bindir,
                                      [ "storage/ndb/clusterj/clusterj-test",
                                        "share/java",
                                        "share/mysql/java",
+                                       "share/mysql-8.0/java",
                                        "lib/java" ],
                                      "clusterj-test-*.jar", NOT_REQUIRED);
 
 # The expected installation locations are lib, lib/mysql, lib64/mysql, lib/x86_64-linux-gnu
 my $ndbclient_lib = my_find_file($bindir,
                                 ["storage/ndb/src/.libs", 
-                                 "storage/ndb/src", 
+                                 "library_output_directory",
                                  "lib*/*",
                                  "lib"],
                                 ["ndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
@@ -61,14 +63,16 @@ if ($clusterj_jar) {
   print $F "--let \$CLUSTERJ_JAR= $clusterj_jar\n"; 
   print $F "--echo Found clusterj.jar\n"
 } else {
-  print $F "--skip Could not find clusterj jar file\n";
+  print $F "--let \$skip_test=1\n";
+  print $F "--let \$skip_reason=Could not find clusterj jar file\n";
 }
 
 if ($clusterj_test_jar) {
   print $F "--let \$CLUSTERJ_TEST_JAR= $clusterj_test_jar\n";
   print $F "--echo Found clusterj_test jar\n"
 } else {
-  print $F "--skip Could not find clusterj test jar file\n";
+  print $F "--let \$skip_test=1\n";
+  print $F "--let \$skip_reason=Could not find clusterj test jar file\n";
 }
 
 if ($ndbclient_lib) {
@@ -103,7 +107,7 @@ sub write_properties {
   add($F, 'connect.timeout.before', '30');
   add($F, 'connect.timeout.after', '20');
   add($F, 'jdbc.url', "jdbc:mysql://localhost:$ENV{MASTER_MYPORT}/$db");
-  add($F, 'jdbc.driver', 'com.mysql.jdbc.Driver');
+  add($F, 'jdbc.driver', 'com.mysql.cj.jdbc.Driver');
   add($F, 'jdbc.username', $user);
   add($F, 'jdbc.password', '');
   add($F, 'username', '');
@@ -116,3 +120,11 @@ sub write_properties {
 EOF
 
 --source $MYSQLTEST_VARDIR/tmp/have_clusterj_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/have_clusterj_result.inc
+
+# skip if the required jars were not found
+if ($skip_test) {
+  # remove the clusterj.properties file
+  --remove_file $MYSQLTEST_VARDIR/tmp/clusterj.properties
+  --skip $skip_reason
+}

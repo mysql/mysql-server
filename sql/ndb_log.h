@@ -74,4 +74,13 @@ void ndb_log_print(enum ndb_log_loglevel loglevel,
 void ndb_log_error_dump(const char* fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
 
+/*
+  @brief All the logs printed before the error log has been opened are
+  buffered and printed later to the right file after the error log has
+  been opened. This function flushes out all the buffered logs to the
+  stderr. This needs to be called if the ndbcluster plugin exits with an
+  error before the error log has been opened.
+*/
+void ndb_log_flush_buffered_messages();
+
 #endif

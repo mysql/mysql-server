@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,9 @@ using Msg_types = ::testing::Types<
     ::Mysqlx::Crud::CreateView, ::Mysqlx::Crud::ModifyView,
     ::Mysqlx::Crud::DropView, ::Mysqlx::Expect::Open, ::Mysqlx::Expect::Close,
     ::Mysqlx::Connection::CapabilitiesGet,
-    ::Mysqlx::Connection::CapabilitiesSet, ::Mysqlx::Connection::Close>;
+    ::Mysqlx::Connection::CapabilitiesSet, ::Mysqlx::Connection::Close,
+    ::Mysqlx::Prepare::Prepare, ::Mysqlx::Prepare::Execute,
+    ::Mysqlx::Prepare::Deallocate>;
 
 TYPED_TEST_CASE(Xcl_protocol_impl_tests_with_msg, Msg_types);
 
@@ -329,14 +331,23 @@ TEST_F(Xcl_protocol_impl_tests, recv_ok_fails_error_msg) {
   using Error_desc = Server_message<::Mysqlx::Error>;
 
   const uint32 expected_error_code = 23332;
+  const char *expected_msg = "expected error message";
+  const char *expected_sql_state = "expected sql state";
+
   auto msg_error = Error_desc::make_required();
 
   msg_error.set_code(expected_error_code);
+  msg_error.set_msg(expected_msg);
+  msg_error.set_sql_state(expected_sql_state);
+  msg_error.set_severity(::Mysqlx::Error::FATAL);
 
   expect_read_message(msg_error);
-  auto error = m_sut->recv_ok();
+  XError error = m_sut->recv_ok();
 
   ASSERT_EQ(expected_error_code, error.error());
+  ASSERT_STREQ(expected_msg, error.what());
+  ASSERT_STREQ(expected_sql_state, error.sql_state());
+  ASSERT_TRUE(error.is_fatal());
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_ok) {

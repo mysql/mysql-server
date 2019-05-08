@@ -84,6 +84,12 @@ enum enum_query_type {
   */
   QT_ONLY_QB_NAME = (1 << 12),
 
+  /**
+    When printing subselects, print only the select number
+    (like QT_SHOW_SELECT_NUMBER), not the actual subselect text.
+   */
+  QT_SUBSELECT_AS_ONLY_SELECT_NUMBER = (1 << 13),
+
 };
 
 #endif  // ENUM_QUERY_TYPE_INCLUDED

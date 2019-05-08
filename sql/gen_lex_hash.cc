@@ -26,11 +26,10 @@
 
   @details
 @verbatim
-The idea of presented algorithm see in
+Algorithm implemented from a description in
 "The Art of Computer Programming" by Donald E. Knuth
-Volume 3 "Sorting and searching"
-(chapter 6.3 "Digital searching" - name and number of chapter
-   is back translation from Russian edition :))
+Volume 3 "Sorting and searching",
+chapter 6.3 "Digital searching"
 
 as illustration of data structures, imagine next table:
 

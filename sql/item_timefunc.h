@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -108,7 +107,7 @@ class Item_func_to_seconds final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "to_seconds"; }
   bool resolve_type(THD *) override {
-    fix_char_length(6);
+    fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
     maybe_null = true;
     return false;
   }
@@ -137,6 +136,7 @@ class Item_func_dayofmonth final : public Item_int_func {
 
   longlong val_int() override;
   const char *func_name() const override { return "dayofmonth"; }
+  enum Functype functype() const override { return DAY_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 1..31 */
     maybe_null = true;
@@ -173,6 +173,7 @@ class Item_func_month final : public Item_func {
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
   const char *func_name() const override { return "month"; }
+  enum Functype functype() const override { return MONTH_FUNC; }
   enum Item_result result_type() const override { return INT_RESULT; }
   bool resolve_type(THD *) override {
     fix_char_length(2);
@@ -220,6 +221,7 @@ class Item_func_hour final : public Item_int_func {
   Item_func_hour(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "hour"; }
+  enum Functype functype() const override { return HOUR_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..23 */
     maybe_null = true;
@@ -236,6 +238,7 @@ class Item_func_minute final : public Item_int_func {
   Item_func_minute(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "minute"; }
+  enum Functype functype() const override { return MINUTE_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..59 */
     maybe_null = true;
@@ -268,6 +271,7 @@ class Item_func_second final : public Item_int_func {
   Item_func_second(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "second"; }
+  enum Functype functype() const override { return SECOND_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..59 */
     maybe_null = true;
@@ -290,6 +294,7 @@ class Item_func_week final : public Item_int_func {
 
   longlong val_int() override;
   const char *func_name() const override { return "week"; }
+  enum Functype functype() const override { return WEEK_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..54 */
     maybe_null = true;
@@ -319,10 +324,12 @@ class Item_func_year final : public Item_int_func {
   Item_func_year(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "year"; }
+  enum Functype functype() const override { return YEAR_FUNC; }
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool resolve_type(THD *) override {
     fix_char_length(4); /* 9999 */
+    unsigned_flag = true;
     maybe_null = true;
     return false;
   }
@@ -361,6 +368,7 @@ class Item_func_weekday : public Item_func {
   const char *func_name() const override {
     return (odbc_type ? "dayofweek" : "weekday");
   }
+  enum Functype functype() const override { return WEEKDAY_FUNC; }
   enum Item_result result_type() const override { return INT_RESULT; }
   bool resolve_type(THD *) override {
     fix_char_length(1);
@@ -473,7 +481,8 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(p_arg);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -534,7 +543,8 @@ class Item_temporal_func : public Item_func {
     DBUG_ASSERT(fixed);
     return decimals;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 /**
@@ -628,6 +638,7 @@ class Item_date_func : public Item_temporal_func {
   longlong val_date_temporal() override;
   double val_real() override { return static_cast<double>(val_int()); }
   const char *func_name() const override { return "date"; }
+  enum Functype functype() const override { return DATE_FUNC; }
   bool resolve_type(THD *) override { return false; }
   my_decimal *val_decimal(my_decimal *decimal_value) override {
     DBUG_ASSERT(fixed == 1);
@@ -752,8 +763,7 @@ class Item_time_func : public Item_temporal_func {
 
   - MYSQL_TIME representation (time) is initialized during set_XXX().
   - Packed representation (time_packed) is also initialized during set_XXX().
-  - String representation (string_buff) is not initialized during set_XXX();
-    it's initialized only if val_str() or cptr() are called.
+  - String representation (string_buff) is also initialized during set_XXX();
 */
 class MYSQL_TIME_cache {
   MYSQL_TIME time;                               ///< MYSQL_TIME representation
@@ -761,27 +771,7 @@ class MYSQL_TIME_cache {
   char string_buff[MAX_DATE_STRING_REP_LENGTH];  ///< string representation
   uint string_length;                            ///< length of string
   uint8 dec;                                     ///< Number of decimals
-  /**
-    Cache string representation from the cached MYSQL_TIME representation.
-    If string representation has already been cached, then nothing happens.
-  */
-  void cache_string();
-  /**
-    Reset string representation.
-  */
-  void reset_string() {
-    string_length = 0;
-    string_buff[0] = '\0';
-  }
-  /**
-    Reset all members.
-  */
-  void reset() {
-    time.time_type = MYSQL_TIMESTAMP_NONE;
-    time_packed = 0;
-    reset_string();
-    dec = 0;
-  }
+
   /**
     Store MYSQL_TIME representation into the given MYSQL_TIME variable.
   */
@@ -791,7 +781,10 @@ class MYSQL_TIME_cache {
   }
 
  public:
-  MYSQL_TIME_cache() { reset(); }
+  MYSQL_TIME_cache() : time_packed(0), string_length(0), dec(0) {
+    time.time_type = MYSQL_TIMESTAMP_NONE;
+    string_buff[0] = '\0';
+  }
   /**
     Set time and time_packed from a DATE value.
   */
@@ -867,7 +860,7 @@ class MYSQL_TIME_cache {
   /**
     Return C string representation.
   */
-  const char *cptr();
+  const char *cptr() const { return string_buff; }
 };
 
 /**
@@ -887,7 +880,8 @@ class Item_date_literal final : public Item_date_func {
     fixed = true;
   }
   const char *func_name() const override { return "date_literal"; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   longlong val_date_temporal() override {
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
@@ -930,7 +924,8 @@ class Item_time_literal final : public Item_time_func {
     fixed = true;
   }
   const char *func_name() const override { return "time_literal"; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   longlong val_time_temporal() override {
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
@@ -973,7 +968,9 @@ class Item_datetime_literal final : public Item_datetime_func {
     fixed = true;
   }
   const char *func_name() const override { return "datetime_literal"; }
-  void print(String *str, enum_query_type query_type) override;
+  enum Functype functype() const override { return DATETIME_LITERAL; }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   longlong val_date_temporal() override {
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
@@ -1032,11 +1029,13 @@ class Item_func_curtime : public Item_time_func {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1090,11 +1089,13 @@ class Item_func_curdate : public Item_date_func {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1152,11 +1153,13 @@ class Item_func_now : public Item_datetime_func {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1326,7 +1329,8 @@ class Item_date_add_interval final : public Item_temporal_hybrid_func {
   const char *func_name() const override { return "date_add_interval"; }
   bool resolve_type(THD *) override;
   bool eq(const Item *item, bool binary_cmp) const override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_extract final : public Item_int_func {
@@ -1341,7 +1345,8 @@ class Item_extract final : public Item_int_func {
   const char *func_name() const override { return "extract"; }
   bool resolve_type(THD *) override;
   bool eq(const Item *item, bool binary_cmp) const override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_valid_arguments_processor(uchar *) override {
     switch (int_type) {
@@ -1387,7 +1392,8 @@ class Item_date_typecast final : public Item_date_func {
     maybe_null = 1;
   }
 
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const char *func_name() const override { return "cast_as_date"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override;
@@ -1410,7 +1416,8 @@ class Item_time_typecast final : public Item_time_func {
     detect_precision_from_arg = false;
     decimals = dec_arg;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const char *func_name() const override { return "cast_as_time"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool get_time(MYSQL_TIME *ltime) override;
@@ -1439,7 +1446,8 @@ class Item_datetime_typecast final : public Item_datetime_func {
     detect_precision_from_arg = false;
     decimals = dec_arg;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const char *func_name() const override { return "cast_as_datetime"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   const char *cast_type() const { return "datetime"; }
@@ -1482,7 +1490,8 @@ class Item_func_add_time final : public Item_temporal_hybrid_func {
       : Item_func_add_time(pos, a, b, false, false) {}
 
   bool resolve_type(THD *) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const char *func_name() const override { return "add_time"; }
 };
 
@@ -1519,6 +1528,7 @@ class Item_func_microsecond final : public Item_int_func {
   Item_func_microsecond(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "microsecond"; }
+  enum Functype functype() const override { return MICROSECOND_FUNC; }
   bool resolve_type(THD *) override {
     maybe_null = true;
     return false;
@@ -1542,7 +1552,8 @@ class Item_func_timestamp_diff final : public Item_int_func {
     maybe_null = true;
     return false;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 enum date_time_format {
@@ -1555,8 +1566,9 @@ enum date_time_format {
 
 class Item_func_get_format final : public Item_str_ascii_func {
  public:
-  const timestamp_type type;  // keep it public
-  Item_func_get_format(const POS &pos, timestamp_type type_arg, Item *a)
+  const enum_mysql_timestamp_type type;  // keep it public
+  Item_func_get_format(const POS &pos, enum_mysql_timestamp_type type_arg,
+                       Item *a)
       : Item_str_ascii_func(pos, a), type(type_arg) {}
   String *val_str_ascii(String *str) override;
   const char *func_name() const override { return "get_format"; }
@@ -1565,11 +1577,12 @@ class Item_func_get_format final : public Item_str_ascii_func {
     set_data_type_string(17, default_charset());
     return false;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_str_to_date final : public Item_temporal_hybrid_func {
-  timestamp_type cached_timestamp_type;
+  enum_mysql_timestamp_type cached_timestamp_type;
   void fix_from_format(const char *format, size_t length);
 
  protected:
@@ -1618,6 +1631,6 @@ class Item_func_internal_check_time final : public Item_datetime_func {
 /* Function prototypes */
 
 bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
-                    timestamp_type type, String *str);
+                    enum_mysql_timestamp_type type, String *str);
 
 #endif /* ITEM_TIMEFUNC_INCLUDED */

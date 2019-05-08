@@ -22,14 +22,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-// disable the min() macro in favor of std::min() and
-// std::numeric_limits<>::min()
-#define NOMINMAX
-#endif
-
 #include <functional>
 #include <map>
+#include <stdexcept>
 #include <string>
 
 #include "duk_logging.h"
@@ -297,10 +292,25 @@ struct DuktapeStatementReader::Pimpl {
 
     duk_pop(ctx);  // "rows"
 
-    // gcc-4.8 needs a std::move, other's don't
+#ifdef __SUNPRO_CC
     return std::move(response);
+#else
+    return response;
+#endif
   }
   duk_context *ctx{nullptr};
+
+  enum class HandshakeState {
+    INIT,
+    GREETED,
+    AUTH_SWITCHED,
+    AUTH_FASTED,
+    DONE
+  } handshake_state_{HandshakeState::INIT};
+
+  mysql_protocol::Capabilities::Flags server_capabilities_;
+
+  bool first_stmt_{true};
 };
 
 duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
@@ -476,17 +486,43 @@ DuktapeStatementReader::DuktapeStatementReader(
         filename + ": expected statement handler to return an object, got " +
         duk_get_type_names(ctx, -1));
   }
+
+  // check if 'stmt's has the right type
   duk_get_prop_string(ctx, -1, "stmts");
   if (!(duk_is_callable(ctx, -1) || duk_is_thread(ctx, -1) ||
         duk_is_array(ctx, -1))) {
     throw std::runtime_error(
-        "expected 'stmts' to be one of callable, thread or array, got " +
+        "expected 'stmts' to be one of callable, thread or array, "
+        "got " +
         duk_get_type_names(ctx, -1));
   }
+  duk_pop(ctx);
 
-  if (duk_is_array(ctx, -1)) {
-    duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
+  duk_get_prop_string(ctx, -1, "handshake");
+  if (!duk_is_undefined(ctx, -1)) {
+    if (!duk_is_object(ctx, -1)) {
+      throw std::runtime_error("handshake must be a object, if set. Is " +
+                               duk_get_type_names(ctx, -1));
+    }
+    duk_get_prop_string(ctx, -1, "greeting");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_object(ctx, -1)) {
+        throw std::runtime_error(
+            "handshake.greeting must be a object, if set. Is " +
+            duk_get_type_names(ctx, -1));
+      }
+      duk_get_prop_string(ctx, -1, "exec_time");
+      if (!duk_is_undefined(ctx, -1)) {
+        if (!duk_is_number(ctx, -1)) {
+          throw std::runtime_error("exec_time must be a number, if set. Is " +
+                                   duk_get_type_names(ctx, -1));
+        }
+      }
+      duk_pop(ctx);
+    }
+    duk_pop(ctx);
   }
+  duk_pop(ctx);
 
   // we are still alive, dismiss the guard
   pimpl_->ctx = ctx;
@@ -499,16 +535,182 @@ DuktapeStatementReader::~DuktapeStatementReader() {
   if (pimpl_->ctx) duk_destroy_heap(pimpl_->ctx);
 }
 
-StatementAndResponse DuktapeStatementReader::handle_statement(
+constexpr char kAuthCachingSha2Password[] = "caching_sha2_password";
+constexpr char kAuthNativePassword[] = "mysql_native_password";
+
+/*
+ * @pre on the stack is an object
+ */
+HandshakeResponse DuktapeStatementReader::handle_handshake_init(
+    const std::vector<uint8_t> &, HandshakeState &next_state) {
+  HandshakeResponse response;
+
+  response.exec_time = get_default_exec_time();
+
+  auto *ctx = pimpl_->ctx;
+
+  // defaults
+  std::string server_version = "8.0.5-mock";
+  uint32_t connection_id = 0;
+  mysql_protocol::Capabilities::Flags server_capabilities =
+      mysql_protocol::Capabilities::PROTOCOL_41 |
+      mysql_protocol::Capabilities::PLUGIN_AUTH |
+      mysql_protocol::Capabilities::SECURE_CONNECTION;
+  uint16_t status_flags = 0;
+  uint8_t character_set = 0;
+  std::string auth_method = kAuthNativePassword;
+  std::string auth_data = "01234567890123456789";
+
+  duk_get_prop_string(ctx, -1, "handshake");
+  if (!duk_is_undefined(ctx, -1)) {
+    if (!duk_is_object(ctx, -1)) {
+      throw std::runtime_error("handshake must be a object, if set. Is " +
+                               duk_get_type_names(ctx, -1));
+    }
+    duk_get_prop_string(ctx, -1, "greeting");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_object(ctx, -1)) {
+        throw std::runtime_error(
+            "handshake.greeting must be a object, if set. Is " +
+            duk_get_type_names(ctx, -1));
+      }
+      duk_get_prop_string(ctx, -1, "exec_time");
+      if (!duk_is_undefined(ctx, -1)) {
+        if (!duk_is_number(ctx, -1)) {
+          throw std::runtime_error("exec_time must be a number, if set. Is " +
+                                   duk_get_type_names(ctx, -1));
+        }
+        if (duk_get_number(ctx, -1) < 0) {
+          throw std::out_of_range("exec_time must be a non-negative number");
+        }
+
+        // exec_time is written in the tracefile as microseconds
+        response.exec_time = std::chrono::microseconds(
+            static_cast<long>(duk_get_number(ctx, -1) * 1000));
+      }
+      duk_pop(ctx);
+    }
+    duk_pop(ctx);
+  }
+  duk_pop(ctx);
+
+  response.response_type = HandshakeResponse::ResponseType::GREETING;
+  response.response = std::unique_ptr<Greeting>{
+      new Greeting(server_version, connection_id, server_capabilities,
+                   status_flags, character_set, auth_method, auth_data)};
+
+  pimpl_->server_capabilities_ = server_capabilities;
+  next_state = HandshakeState::GREETED;
+
+  return response;
+}
+
+HandshakeResponse DuktapeStatementReader::handle_handshake_greeted(
+    const std::vector<uint8_t> &payload, HandshakeState &next_state) {
+  HandshakeResponse response;
+
+  response.exec_time = get_default_exec_time();
+
+  // decode the payload
+
+  // prepend length of packet again as HandshakeResponsePacket parser
+  // expects a full frame, not the payload
+  std::vector<uint8_t> frame{0, 0, 0, 1};
+  frame.insert(frame.end(), payload.begin(), payload.end());
+
+  for (unsigned int i = 0, sz = payload.size(); i < 3; i++, sz >>= 8) {
+    frame[i] = sz % 0xff;
+  }
+
+  mysql_protocol::HandshakeResponsePacket pkt(frame);
+
+  pkt.parse_payload(pimpl_->server_capabilities_);
+
+  // default: OK the auth or switch to sha256
+
+  if (pkt.get_auth_plugin() == kAuthCachingSha2Password) {
+    response.response_type = HandshakeResponse::ResponseType::AUTH_SWITCH;
+    response.response = std::unique_ptr<AuthSwitch>{
+        new AuthSwitch(kAuthCachingSha2Password, "123456789|ABCDEFGHI|")};
+
+    next_state = HandshakeState::AUTH_SWITCHED;
+  } else if (pkt.get_auth_plugin() == kAuthNativePassword) {
+    response.response_type = HandshakeResponse::ResponseType::OK;
+    response.response = std::unique_ptr<OkResponse>{new OkResponse()};
+
+    next_state = HandshakeState::DONE;
+  } else {
+    response.response_type = HandshakeResponse::ResponseType::ERROR;
+    response.response = std::unique_ptr<ErrorResponse>{
+        new ErrorResponse(0, "unknown auth-method")};
+
+    next_state = HandshakeState::DONE;
+  }
+
+  return response;
+}
+HandshakeResponse DuktapeStatementReader::handle_handshake_auth_switched(
+    const std::vector<uint8_t> &, HandshakeState &next_state) {
+  HandshakeResponse response;
+
+  response.exec_time = get_default_exec_time();
+
+  // switched to sha256
+  //
+  // for now, ignore the payload and send the fast-auth ticket
+  response.response_type = HandshakeResponse::ResponseType::AUTH_FAST;
+  response.response = std::unique_ptr<AuthFast>{new AuthFast()};
+
+  next_state = HandshakeState::DONE;
+
+  return response;
+}
+
+HandshakeResponse DuktapeStatementReader::handle_handshake(
+    const std::vector<uint8_t> &payload) {
+  switch (handshake_state_) {
+    case HandshakeState::INIT:
+      return handle_handshake_init(payload, handshake_state_);
+    case HandshakeState::GREETED:
+      return handle_handshake_greeted(payload, handshake_state_);
+    case HandshakeState::AUTH_SWITCHED:
+      return handle_handshake_auth_switched(payload, handshake_state_);
+    default: {
+      HandshakeResponse response;
+
+      response.response_type = HandshakeResponse::ResponseType::ERROR;
+      response.response = std::unique_ptr<ErrorResponse>{
+          new ErrorResponse(0, "wrong handshake state")};
+
+      handshake_state_ = HandshakeState::DONE;
+      return response;
+    }
+  }
+}
+
+// @pre on the stack is an object
+StatementResponse DuktapeStatementReader::handle_statement(
     const std::string &statement) {
   auto *ctx = pimpl_->ctx;
   bool is_enumable = false;
 
+  // setup the stack for the next rounds
+  if (pimpl_->first_stmt_) {
+    duk_get_prop_string(ctx, -1, "stmts");
+    // type is already checked in the constructor
+
+    if (duk_is_array(ctx, -1)) {
+      duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
+    }
+
+    pimpl_->first_stmt_ = false;
+  }
+
   if (duk_is_thread(ctx, -1)) {
     if (DUK_EXEC_SUCCESS !=
-        duk_pcompile_string(
-            ctx, DUK_COMPILE_FUNCTION,
-            "function (t, stmt) { return Duktape.Thread.resume(t, stmt); }")) {
+        duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
+                            "function (t, stmt) { return "
+                            "Duktape.Thread.resume(t, stmt); }")) {
       throw DuktapeRuntimeError(ctx, -1);
     }
     duk_dup(ctx, -2);  // the thread
@@ -520,7 +722,8 @@ StatementAndResponse DuktapeStatementReader::handle_statement(
     // @-1 result of resume
   } else if (duk_is_callable(ctx, -1)) {
     duk_dup(ctx,
-            -1);  // copy the function to keep it on the stack for the next run
+            -1);  // copy the function to keep it on the stack for the
+                  // next run
     duk_push_lstring(ctx, statement.c_str(), statement.size());
 
     if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 1)) {
@@ -550,18 +753,18 @@ StatementAndResponse DuktapeStatementReader::handle_statement(
                              duk_get_type_names(ctx, -1));
   }
 
-  StatementAndResponse response;
+  StatementResponse response;
   duk_get_prop_string(ctx, -1, "exec_time");
   if (!duk_is_undefined(ctx, -1)) {
     if (!duk_is_number(ctx, -1)) {
-      throw std::runtime_error("exec_time must be a number, if set, get " +
+      throw std::runtime_error("exec_time must be a number, if set, got " +
                                duk_get_type_names(ctx, -1));
     }
     if (duk_get_number(ctx, -1) < 0) {
       throw std::out_of_range("exec_time must be a non-negative number");
     }
 
-    // exec-time is written in the tracefile as microseconds
+    // exec_time is written in the tracefile as microseconds
     response.exec_time = std::chrono::microseconds(
         static_cast<long>(duk_get_number(ctx, -1) * 1000));
   }
@@ -569,22 +772,19 @@ StatementAndResponse DuktapeStatementReader::handle_statement(
 
   duk_get_prop_string(ctx, -1, "result");
   if (!duk_is_undefined(ctx, -1)) {
-    response.response_type =
-        StatementAndResponse::StatementResponseType::STMT_RES_RESULT;
+    response.response_type = StatementResponse::ResponseType::RESULT;
     response.response = pimpl_->get_result(-1);
   } else {
     duk_pop(ctx);  // result
     duk_get_prop_string(ctx, -1, "error");
     if (!duk_is_undefined(ctx, -1)) {
-      response.response_type =
-          StatementAndResponse::StatementResponseType::STMT_RES_ERROR;
+      response.response_type = StatementResponse::ResponseType::ERROR;
       response.response = pimpl_->get_error(-1);
     } else {
       duk_pop(ctx);  // error
       duk_get_prop_string(ctx, -1, "ok");
       if (!duk_is_undefined(ctx, -1)) {
-        response.response_type =
-            StatementAndResponse::StatementResponseType::STMT_RES_OK;
+        response.response_type = StatementResponse::ResponseType::OK;
         response.response = pimpl_->get_ok(-1);
       } else {
         throw std::runtime_error("expected 'error', 'ok' or 'result'");

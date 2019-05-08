@@ -151,8 +151,18 @@ class Plugin_gcs_message {
     // for some task
     CT_GROUP_VALIDATION_MESSAGE = 9,
 
+    // This cargo type is used for synchronization before executing a
+    // transation.
+    CT_SYNC_BEFORE_EXECUTION_MESSAGE = 10,
+
+    // This cargo type is used for transaction data with guarantee.
+    CT_TRANSACTION_WITH_GUARANTEE_MESSAGE = 11,
+
+    // This cargo type is used to inform about prepared transactions.
+    CT_TRANSACTION_PREPARED_MESSAGE = 12,
+
     // No valid type codes can appear after this one.
-    CT_MAX = 10
+    CT_MAX = 13
   };
 
  private:
@@ -232,8 +242,6 @@ class Plugin_gcs_message {
     @param[out] buffer              the buffer to decode from.
     @param[out] payload_item_data   the data.
     @param[out] payload_item_length the length of the data.
-
-    @return the raw data of the first payload item
   */
   static void get_first_payload_item_raw_data(
       const unsigned char *buffer, const unsigned char **payload_item_data,
@@ -282,7 +290,7 @@ class Plugin_gcs_message {
     @param[out] payload_item_type   the type of the payload item
     @param[out] payload_item_length the length of the payload item
   */
-  void decode_payload_item_type_and_length(
+  static void decode_payload_item_type_and_length(
       const unsigned char **buffer, uint16 *payload_item_type,
       unsigned long long *payload_item_length);
 
@@ -305,8 +313,8 @@ class Plugin_gcs_message {
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_char(const unsigned char **buffer, uint16 *type,
-                                unsigned char *value);
+  static void decode_payload_item_char(const unsigned char **buffer,
+                                       uint16 *type, unsigned char *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -399,6 +407,32 @@ class Plugin_gcs_message {
   void decode_payload_item_string(const unsigned char **buffer, uint16 *type,
                                   std::string *value,
                                   unsigned long long *length);
+
+  /**
+    Encodes the given payload item (type, length and value) into the buffer as
+    a byte buffer (variable size).
+
+    @param[out] buffer the buffer to encode to
+    @param[in]  type   the type of the payload item
+    @param[in]  value  the value of the payload item
+    @param[in]  length the length of the payload item
+  */
+  void encode_payload_item_bytes(std::vector<unsigned char> *buffer,
+                                 uint16 type, const unsigned char *value,
+                                 unsigned long long length) const;
+
+  /**
+    Decodes the given payload item (type, length and value) from the buffer as
+    a byte buffer (variable size).
+
+    @param[in]  buffer the buffer to encode from
+    @param[out] type   the type of the payload item
+    @param[out] value  the value of the payload item
+    @param[out] length the length of the payload item
+  */
+  void decode_payload_item_bytes(const unsigned char **buffer, uint16 *type,
+                                 unsigned char *value,
+                                 unsigned long long *length);
 };
 
 #endif /* GCS_PLUGIN_MESSAGES_INCLUDED */

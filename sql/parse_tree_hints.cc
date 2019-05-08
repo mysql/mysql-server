@@ -60,7 +60,7 @@ static Opt_hints_global *get_global_hints(Parse_context *pc) {
 
   if (!lex->opt_hints_global)
     lex->opt_hints_global =
-        new (*THR_MALLOC) Opt_hints_global(pc->thd->mem_root);
+        new (pc->thd->mem_root) Opt_hints_global(pc->thd->mem_root);
   if (lex->opt_hints_global) lex->opt_hints_global->set_resolved();
   return lex->opt_hints_global;
 }
@@ -82,7 +82,7 @@ static Opt_hints_qb *get_qb_hints(Parse_context *pc) {
   Opt_hints_global *global_hints = get_global_hints(pc);
   if (global_hints == NULL) return NULL;
 
-  Opt_hints_qb *qb = new (*THR_MALLOC)
+  Opt_hints_qb *qb = new (pc->thd->mem_root)
       Opt_hints_qb(global_hints, pc->thd->mem_root, pc->select->select_number);
   if (qb) {
     global_hints->register_child(qb);
@@ -139,7 +139,7 @@ static Opt_hints_table *get_table_hints(Parse_context *pc,
   Opt_hints_table *tab = static_cast<Opt_hints_table *>(
       qb->find_by_name(&table_name->table, table_alias_charset));
   if (!tab) {
-    tab = new (*THR_MALLOC)
+    tab = new (pc->thd->mem_root)
         Opt_hints_table(&table_name->table, qb, pc->thd->mem_root);
     qb->register_child(tab);
   }
@@ -260,7 +260,7 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc) {
   return false;
 }
 
-void PT_qb_level_hint::append_args(THD *thd, String *str) const {
+void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
   switch (type()) {
     case SEMIJOIN_HINT_ENUM: {
       int count = 0;
@@ -359,7 +359,7 @@ bool PT_table_level_hint::contextualize(Parse_context *pc) {
   return false;
 }
 
-void PT_key_level_hint::append_args(THD *thd, String *str) const {
+void PT_key_level_hint::append_args(const THD *thd, String *str) const {
   if (type() == INDEX_MERGE_HINT_ENUM || type() == SKIP_SCAN_HINT_ENUM) {
     for (uint i = 0; i < key_list.size(); i++) {
       const LEX_CSTRING *key_name = &key_list.at(i);
@@ -403,7 +403,8 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
         (Opt_hints_key *)tab->find_by_name(key_name, system_charset_info);
 
     if (!key) {
-      key = new (*THR_MALLOC) Opt_hints_key(key_name, tab, pc->thd->mem_root);
+      key = new (pc->thd->mem_root)
+          Opt_hints_key(key_name, tab, pc->thd->mem_root);
       tab->register_child(key);
     }
 

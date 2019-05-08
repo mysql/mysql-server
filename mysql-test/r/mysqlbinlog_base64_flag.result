@@ -33,11 +33,14 @@ a
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at 4
-<#>ROLLBACK/*!*/;
+<#>
+ROLLBACK/*!*/;
 # at 120
-<#>use `test`/*!*/;
+<#>
+use `test`/*!*/;
 SET TIMESTAMP=1360247561/*!*/;
-<#>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+<#>
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=1073741824/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -47,11 +50,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 CREATE TABLE t1 (a int) engine = myisam
 /*!*/;
 # at 233
-<#>SET TIMESTAMP=1360247563/*!*/;
+<#>
+SET TIMESTAMP=1360247563/*!*/;
 BEGIN
 /*!*/;
 # at 305
-<#>ROLLBACK /* added by mysqlbinlog */ /*!*/;
+<#>
+ROLLBACK /* added by mysqlbinlog */ /*!*/;
 SET @@SESSION.GTID_NEXT= 'AUTOMATIC' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file

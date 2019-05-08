@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -27,16 +27,20 @@
 /// See @ref PAGE_MYSQL_TEST_RUN "The MySQL Test Framework" for more
 /// information.
 
-#include "client/mysqltest/mysqltest_expected_error.h"
-
-#include "my_config.h"
+#include "client/mysqltest/error_names.h"
+#include "client/mysqltest/expected_errors.h"
+#include "client/mysqltest/expected_warnings.h"
+#include "client/mysqltest/secondary_engine.h"
+#include "client/mysqltest/utils.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>  // std::isinf
 #include <functional>
 #include <limits>
 #include <new>
-#include <string>
+#include <regex>
+#include <sstream>
 #ifdef _WIN32
 #include <thread>  // std::thread
 #endif
@@ -51,6 +55,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <mysql_async.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <signal.h>
@@ -59,6 +64,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #ifndef _WIN32
+#include <poll.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #endif
 #ifdef _WIN32
@@ -67,11 +74,11 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
-#include "extra/regex/my_regex.h"  // Our own version of regex
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
 #include "my_compiler.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_dir.h"
@@ -80,6 +87,7 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_stacktrace.h"
+#include "my_systime.h"  // my_sleep()
 #include "my_thread_local.h"
 #include "prealloced_array.h"
 #include "print_version.h"
@@ -141,24 +149,33 @@
 
 extern CHARSET_INFO my_charset_utf16le_bin;
 
-static void signal_handler(int sig);
-static bool get_one_option(int optid, const struct my_option *, char *argument);
+// List of error codes specified with 'error' command.
+Expected_errors *expected_errors = new Expected_errors();
+
+// List of warnings disabled with 'disable_warnings' command.
+Expected_warnings *disabled_warnings = new Expected_warnings();
+
+// List of warnings enabled with 'enable_warnings' command.
+Expected_warnings *enabled_warnings = new Expected_warnings();
 
 enum {
   OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
   OPT_CURSOR_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
+  OPT_LOAD_POOL,
   OPT_LOG_DIR,
   OPT_MARK_PROGRESS,
   OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS,
   OPT_NO_SKIP,
+  OPT_OFFLOAD_COUNT_FILE,
   OPT_PS_PROTOCOL,
   OPT_RESULT_FORMAT_VERSION,
 #ifdef _WIN32
   OPT_SAFEPROCESS_PID,
 #endif
+  OPT_SECONDARY_ENGINE,
   OPT_SP_PROTOCOL,
   OPT_TAIL_LINES,
   OPT_TRACE_EXEC,
@@ -206,6 +223,22 @@ static const char *load_default_groups[] = {"mysqltest", "client", 0};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
 
+/*
+  These variables control the behavior of the asynchronous operations for
+  mysqltest client. If --async-client is specified, use_async_client is true.
+  Each command checks enable_async_client (which can be forced off or
+  disabled for a single command) to decide the mode it uses to run.
+*/
+static bool use_async_client = false;
+static bool enable_async_client = false;
+
+// Secondary engine options
+static const char *opt_load_pool = 0;
+static const char *opt_offload_count_file;
+static const char *opt_secondary_engine;
+
+static Secondary_engine *secondary_engine = nullptr;
+
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
 static HANDLE mysqltest_thread;
@@ -214,26 +247,27 @@ static HANDLE stacktrace_request_event = NULL;
 static std::thread wait_for_stacktrace_request_event_thread;
 #endif
 
-/* Info on properties that can be set with --enable_X and --disable_X */
-
-struct property {
-  bool *var;            /* Actual variable */
-  bool set;             /* Has been set for ONE command */
-  bool old;             /* If set, thus is the old value */
-  bool reverse;         /* Variable is true if disabled */
-  const char *env_name; /* Env. variable name */
+/// Info on properties that can be set with '--disable_X' and
+/// '--disable_X' commands.
+struct Property {
+  bool *var;             // Actual variable
+  bool set;              // Has been set for ONCE command
+  bool old;              // If set, thus is the old value
+  bool reverse;          // Variable is true if disabled
+  const char *env_name;  // Environment variable name
 };
 
-static struct property prop_list[] = {
-    {&abort_on_error, 0, 1, 0, "$ENABLED_ABORT_ON_ERROR"},
-    {&disable_connect_log, 0, 1, 1, "$ENABLED_CONNECT_LOG"},
-    {&disable_info, 0, 1, 1, "$ENABLED_INFO"},
-    {&display_session_track_info, 0, 1, 1, "$ENABLED_STATE_CHANGE_INFO"},
-    {&display_metadata, 0, 0, 0, "$ENABLED_METADATA"},
-    {&ps_protocol_enabled, 0, 0, 0, "$ENABLED_PS_PROTOCOL"},
-    {&disable_query_log, 0, 0, 1, "$ENABLED_QUERY_LOG"},
-    {&disable_result_log, 0, 0, 1, "$ENABLED_RESULT_LOG"},
-    {&disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS"}};
+static struct Property prop_list[] = {
+    {&abort_on_error, 0, 1, 0, "$ENABLE_ABORT_ON_ERROR"},
+    {&disable_connect_log, 0, 1, 1, "$ENABLE_CONNECT_LOG"},
+    {&disable_info, 0, 1, 1, "$ENABLE_INFO"},
+    {&display_session_track_info, 0, 1, 1, "$ENABLE_STATE_CHANGE_INFO"},
+    {&display_metadata, 0, 0, 0, "$ENABLE_METADATA"},
+    {&ps_protocol_enabled, 0, 0, 0, "$ENABLE_PS_PROTOCOL"},
+    {&disable_query_log, 0, 0, 1, "$ENABLE_QUERY_LOG"},
+    {&disable_result_log, 0, 0, 1, "$ENABLE_RESULT_LOG"},
+    {&disable_warnings, 0, 0, 1, "$ENABLE_WARNINGS"},
+    {&enable_async_client, 0, 0, 0, "$ENABLE_ASYNC_CLIENT"}};
 
 static bool once_property = false;
 
@@ -247,6 +281,7 @@ enum enum_prop {
   P_QUERY,
   P_RESULT,
   P_WARN,
+  P_ASYNC,
   P_MAX
 };
 
@@ -304,17 +339,105 @@ static ulong connection_retry_sleep = 100000; /* Microseconds */
 
 static char *opt_plugin_dir = 0;
 
-/* Precompiled re's */
-static my_regex_t ps_re;   /* the query can be run using PS protocol */
-static my_regex_t sp_re;   /* the query can be run as a SP */
-static my_regex_t view_re; /* the query can be run as a view*/
-/* the query can be traced with optimizer trace*/
-static my_regex_t opt_trace_re;
-static my_regex_t explain_re; /* the query can be converted to EXPLAIN */
+/*
+  Filter for queries that can be run using the
+  MySQL Prepared Statements C API.
+*/
+static const char *const ps_re_str =
+    "^("
+    "[[:space:]]*REPLACE[[:space:]]|"
+    "[[:space:]]*INSERT[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]|"
+    "[[:space:]]*SELECT[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+DATABASE[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+INDEX[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+DATABASE[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+INDEX[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+VIEW[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*ALTER[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*RENAME[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*RENAME[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*TRUNCATE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*ANALYZE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*CHECKSUM[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*CHECKSUM[[:space:]]+TABLES[[:space:]]|"
+    "[[:space:]]*OPTIMIZE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*REPAIR[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*GRANT[[:space:]]|"
+    "[[:space:]]*KILL[[:space:]]|"
+    "[[:space:]]*REVOKE[[:space:]]+ALL[[:space:]]+PRIVILEGES[[:space:]]|"
+    "[[:space:]]*DO[[:space:]]|"
+    "[[:space:]]*CALL[[:space:]]|"
+    "[[:space:]]*COMMIT[[:space:]]|"
+    "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+PROCEDURE[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+FUNCTION[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+VIEW[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+EVENT[[:space:]]|"
+    "[[:space:]]*INSTALL[[:space:]]+PLUGIN[[:space:]]|"
+    "[[:space:]]*UNINSTALL[[:space:]]+PLUGIN[[:space:]]|"
+    "[[:space:]]*RESET[[:space:]]+MASTER[[:space:]]|"
+    "[[:space:]]*RESET[[:space:]]+SLAVE[[:space:]]|"
+    "[[:space:]]*RESET[[:space:]]+QUERY[[:space:]]+CACHE[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+BINLOG[[:space:]]+EVENTS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+LOGS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+STATUS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+BINARY[[:space:]]+LOGS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+SLAVE[[:space:]]+STATUS[[:space:]]|"
+    "[[:space:]]*SLAVE[[:space:]]+START[[:space:]]|"
+    "[[:space:]]*SLAVE[[:space:]]+STOP[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]+MULTI[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
+    "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
 
-static void init_re(void);
-static int match_re(my_regex_t *, char *);
-static void free_re(void);
+/*
+  Filter for queries that can be run using the
+  Stored procedures.
+*/
+static const char *const sp_re_str = ps_re_str;
+
+/*
+  Filter for queries that can be run as views.
+*/
+static const char *const view_re_str =
+    "^("
+    "[[:space:]]*SELECT[[:space:]])";
+
+const char *const opt_trace_re_str =
+    "^("
+    "[[:space:]]*INSERT[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]|"
+    "[[:space:]]*EXPLAIN[[:space:]]|"
+    "[[:space:]]*SELECT[[:space:]])";
+
+/* Filter for queries that can be converted to EXPLAIN. */
+static const char *const explain_re_str =
+    "^("
+    "[[:space:]]*(SELECT|DELETE|UPDATE|INSERT|REPLACE)[[:space:]])";
+
+/* Precompiled regular expressions. */
+static std::regex ps_re(ps_re_str, std::regex_constants::nosubs |
+                                       std::regex_constants::icase);
+static std::regex sp_re(sp_re_str, std::regex_constants::nosubs |
+                                       std::regex_constants::icase);
+static std::regex view_re(view_re_str, std::regex_constants::nosubs |
+                                           std::regex_constants::icase);
+static std::regex opt_trace_re(opt_trace_re_str,
+                               std::regex_constants::nosubs |
+                                   std::regex_constants::icase);
+static std::regex explain_re(explain_re_str, std::regex_constants::nosubs |
+                                                 std::regex_constants::icase);
+
+static int search_protocol_re(std::regex *re, char *str);
 
 /* To retrieve a filename from a filepath */
 const char *get_filename_from_path(const char *path) {
@@ -434,6 +557,8 @@ enum enum_commands {
   Q_DISABLE_SESSION_TRACK_INFO,
   Q_ENABLE_METADATA,
   Q_DISABLE_METADATA,
+  Q_ENABLE_ASYNC_CLIENT,
+  Q_DISABLE_ASYNC_CLIENT,
   Q_EXEC,
   Q_EXECW,
   Q_EXEC_BACKGROUND,
@@ -507,15 +632,15 @@ const char *command_names[] = {
     "disable_connect_log", "wait_for_slave_to_stop", "enable_warnings",
     "disable_warnings", "enable_info", "disable_info",
     "enable_session_track_info", "disable_session_track_info",
-    "enable_metadata", "disable_metadata", "exec", "execw",
-    "exec_in_background", "delimiter", "disable_abort_on_error",
-    "enable_abort_on_error", "vertical_results", "horizontal_results",
-    "query_vertical", "query_horizontal", "sorted_result", "lowercase_result",
-    "start_timer", "end_timer", "character_set", "disable_ps_protocol",
-    "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
-    "disable_testcase", "enable_testcase", "replace_regex",
-    "replace_numeric_round", "remove_file", "file_exists", "write_file",
-    "copy_file", "perl", "die",
+    "enable_metadata", "disable_metadata", "enable_async_client",
+    "disable_async_client", "exec", "execw", "exec_in_background", "delimiter",
+    "disable_abort_on_error", "enable_abort_on_error", "vertical_results",
+    "horizontal_results", "query_vertical", "query_horizontal", "sorted_result",
+    "lowercase_result", "start_timer", "end_timer", "character_set",
+    "disable_ps_protocol", "enable_ps_protocol", "disable_reconnect",
+    "enable_reconnect", "if", "disable_testcase", "enable_testcase",
+    "replace_regex", "replace_numeric_round", "remove_file", "file_exists",
+    "write_file", "copy_file", "perl", "die",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -526,9 +651,6 @@ const char *command_names[] = {
     "reset_connection",
 
     0};
-
-// Vector to store the list of error codes specified with '--error' command
-Expected_errors *expected_errors = new Expected_errors();
 
 struct st_command {
   char *query, *query_buf, *first_argument, *last_argument, *end;
@@ -615,8 +737,7 @@ void str_to_file(const char *fname, char *str, size_t size);
 void str_to_file2(const char *fname, char *str, size_t size, bool append);
 
 void fix_win_paths(const char *val, size_t len);
-const char *get_errname_from_code(uint error_code);
-int multi_reg_replace(struct st_replace_regex *r, char *val);
+int multi_reg_replace(struct st_replace_regex *r, char *val, size_t *len);
 
 #ifdef _WIN32
 void free_win_path_patterns();
@@ -655,6 +776,334 @@ static void free_all_replace() {
   free_replace_column();
   free_replace_numeric_round();
 }
+
+/*
+  To run tests via the async API, invoke mysqltest with --async-client.
+*/
+class AsyncTimer {
+ public:
+  explicit AsyncTimer(std::string label)
+      : label_(label), time_(std::chrono::system_clock::now()), start_(time_) {}
+
+  ~AsyncTimer() {
+    auto now = std::chrono::system_clock::now();
+    auto delta = now - start_;
+    ulonglong MY_ATTRIBUTE((unused)) micros =
+        std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
+    DBUG_PRINT("async_timing",
+               ("%s total micros: %llu", label_.c_str(), micros));
+  }
+
+  void check() {
+    auto now = std::chrono::system_clock::now();
+    auto delta = now - time_;
+    time_ = now;
+    ulonglong MY_ATTRIBUTE((unused)) micros =
+        std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
+    DBUG_PRINT("async_timing", ("%s op micros: %llu", label_.c_str(), micros));
+  }
+
+ private:
+  std::string label_;
+  std::chrono::system_clock::time_point time_;
+  std::chrono::system_clock::time_point start_;
+};
+
+#ifdef _WIN32
+/*
+  Check if any data is available in the socket to be read or written.
+*/
+static int socket_event_listen(net_async_block_state async_blocking_state,
+                               my_socket fd) {
+  int result;
+  fd_set readfds, writefds, exceptfds;
+
+  FD_ZERO(&readfds);
+  FD_ZERO(&writefds);
+  FD_ZERO(&exceptfds);
+
+  FD_SET(fd, &exceptfds);
+
+  switch (async_blocking_state) {
+    case NET_NONBLOCKING_READ:
+      FD_SET(fd, &readfds);
+      break;
+    case NET_NONBLOCKING_WRITE:
+    case NET_NONBLOCKING_CONNECT:
+      FD_SET(fd, &writefds);
+      break;
+    default:
+      DBUG_ASSERT(false);
+  }
+  result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, NULL);
+  if (result < 0) {
+    perror("select");
+  }
+  return result;
+}
+#else
+static int socket_event_listen(net_async_block_state async_blocking_state,
+                               my_socket fd) {
+  int result;
+  pollfd pfd;
+  pfd.fd = fd;
+  switch (async_blocking_state) {
+    case NET_NONBLOCKING_READ:
+      pfd.events = POLLIN;
+      break;
+    case NET_NONBLOCKING_WRITE:
+      pfd.events = POLLOUT;
+      break;
+    case NET_NONBLOCKING_CONNECT:
+      pfd.events = POLLIN | POLLOUT;
+      break;
+    default:
+      DBUG_ASSERT(false);
+  }
+  result = poll(&pfd, 1, -1);
+  if (result < 0) {
+    perror("poll");
+  }
+  return result;
+}
+#endif
+
+/*
+  Below async_mysql_*_wrapper functions are used to measure how much time
+  each nonblocking call spends before completing the operations.
+i*/
+static MYSQL_ROW async_mysql_fetch_row_wrapper(MYSQL_RES *res) {
+  MYSQL_ROW row;
+  MYSQL *mysql = res->handle;
+  AsyncTimer t(__func__);
+  while (mysql_fetch_row_nonblocking(res, &row) == NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA((&(mysql->net)));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return NULL;
+  }
+  return row;
+}
+
+static MYSQL_RES *async_mysql_store_result_wrapper(MYSQL *mysql) {
+  MYSQL_RES *result;
+  AsyncTimer t(__func__);
+  while (mysql_store_result_nonblocking(mysql, &result) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return NULL;
+  }
+  return result;
+}
+
+static int async_mysql_real_query_wrapper(MYSQL *mysql, const char *query,
+                                          ulong length) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = mysql_real_query_nonblocking(mysql, query, length)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return 1;
+  }
+  return 0;
+}
+
+static int async_mysql_send_query_wrapper(MYSQL *mysql, const char *query,
+                                          ulong length) {
+  net_async_status status;
+  ASYNC_DATA(mysql)->async_query_length = length;
+  ASYNC_DATA(mysql)->async_query_state = QUERY_SENDING;
+
+  AsyncTimer t(__func__);
+  while ((status = mysql_send_query_nonblocking(mysql, query, length)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return 1;
+  }
+  return 0;
+}
+
+static bool async_mysql_read_query_result_wrapper(MYSQL *mysql) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = (*mysql->methods->read_query_result_nonblocking)(mysql)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return true;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return true;
+  }
+  return false;
+}
+
+static int async_mysql_next_result_wrapper(MYSQL *mysql) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = mysql_next_result_nonblocking(mysql)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR)
+    return 1;
+  else if (status == NET_ASYNC_COMPLETE_NO_MORE_RESULTS)
+    return -1;
+  else
+    return 0;
+}
+
+static MYSQL *async_mysql_real_connect_wrapper(
+    MYSQL *mysql, const char *host, const char *user, const char *passwd,
+    const char *db, uint port, const char *unix_socket, ulong client_flag) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+
+  while ((status = mysql_real_connect_nonblocking(
+              mysql, host, user, passwd, db, port, unix_socket, client_flag)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    socket_event_listen(net_async->async_blocking_state,
+                        mysql_get_socket_descriptor(mysql));
+  }
+  if (status == NET_ASYNC_ERROR)
+    return nullptr;
+  else
+    return mysql;
+}
+
+static int async_mysql_query_wrapper(MYSQL *mysql, const char *query) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = mysql_real_query_nonblocking(mysql, query, strlen(query))) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return 1;
+  }
+  return 0;
+}
+
+static void async_mysql_free_result_wrapper(MYSQL_RES *result) {
+  AsyncTimer t(__func__);
+  while (mysql_free_result_nonblocking(result) == NET_ASYNC_NOT_READY) {
+    t.check();
+    MYSQL *mysql = result->handle;
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return;
+  }
+  return;
+}
+
+/*
+  Below are the wrapper functions which are defined on top of standard C APIs
+  to make a decision on whether to call blocking or non blocking API based on
+  --async-client option is set or not.
+*/
+static MYSQL_ROW mysql_fetch_row_wrapper(MYSQL_RES *res) {
+  if (enable_async_client)
+    return async_mysql_fetch_row_wrapper(res);
+  else
+    return mysql_fetch_row(res);
+}
+
+static MYSQL_RES *mysql_store_result_wrapper(MYSQL *mysql) {
+  if (enable_async_client)
+    return async_mysql_store_result_wrapper(mysql);
+  else
+    return mysql_store_result(mysql);
+}
+
+static int mysql_real_query_wrapper(MYSQL *mysql, const char *query,
+                                    ulong length) {
+  if (enable_async_client)
+    return async_mysql_real_query_wrapper(mysql, query, length);
+  else
+    return mysql_real_query(mysql, query, length);
+}
+
+static int mysql_send_query_wrapper(MYSQL *mysql, const char *query,
+                                    ulong length) {
+  if (enable_async_client)
+    return async_mysql_send_query_wrapper(mysql, query, length);
+  else
+    return mysql_send_query(mysql, query, length);
+}
+
+static bool mysql_read_query_result_wrapper(MYSQL *mysql) {
+  bool ret;
+  if (enable_async_client)
+    ret = async_mysql_read_query_result_wrapper(mysql);
+  else
+    ret = mysql_read_query_result(mysql);
+  return ret;
+}
+
+static int mysql_query_wrapper(MYSQL *mysql, const char *query) {
+  if (enable_async_client)
+    return async_mysql_query_wrapper(mysql, query);
+  else
+    return mysql_query(mysql, query);
+}
+
+static int mysql_next_result_wrapper(MYSQL *mysql) {
+  if (enable_async_client)
+    return async_mysql_next_result_wrapper(mysql);
+  else
+    return mysql_next_result(mysql);
+}
+
+static MYSQL *mysql_real_connect_wrapper(MYSQL *mysql, const char *host,
+                                         const char *user, const char *passwd,
+                                         const char *db, uint port,
+                                         const char *unix_socket,
+                                         ulong client_flag) {
+  if (enable_async_client)
+    return async_mysql_real_connect_wrapper(mysql, host, user, passwd, db, port,
+                                            unix_socket, client_flag);
+  else
+    return mysql_real_connect(mysql, host, user, passwd, db, port, unix_socket,
+                              client_flag);
+}
+
+static void mysql_free_result_wrapper(MYSQL_RES *result) {
+  if (enable_async_client)
+    return async_mysql_free_result_wrapper(result);
+  else
+    return mysql_free_result(result);
+}
+
+/* async client test code (end) */
 
 class LogFile {
   FILE *m_file;
@@ -880,13 +1329,13 @@ static void show_query(MYSQL *mysql, const char *query) {
 
   if (!mysql) DBUG_VOID_RETURN;
 
-  if (mysql_query(mysql, query)) {
+  if (mysql_query_wrapper(mysql, query)) {
     log_msg("Error running query '%s': %d %s", query, mysql_errno(mysql),
             mysql_error(mysql));
     DBUG_VOID_RETURN;
   }
 
-  if ((res = mysql_store_result(mysql)) == NULL) {
+  if ((res = mysql_store_result_wrapper(mysql)) == NULL) {
     /* No result set returned */
     DBUG_VOID_RETURN;
   }
@@ -899,7 +1348,7 @@ static void show_query(MYSQL *mysql, const char *query) {
     MYSQL_FIELD *fields = mysql_fetch_fields(res);
 
     fprintf(stderr, "=== %s ===\n", query);
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       unsigned long *lengths = mysql_fetch_lengths(res);
       row_num++;
 
@@ -914,7 +1363,7 @@ static void show_query(MYSQL *mysql, const char *query) {
     for (i = 0; i < std::strlen(query) + 8; i++) fprintf(stderr, "=");
     fprintf(stderr, "\n\n");
   }
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   DBUG_VOID_RETURN;
 }
@@ -939,13 +1388,13 @@ static void show_warnings_before_error(MYSQL *mysql) {
 
   if (!mysql) DBUG_VOID_RETURN;
 
-  if (mysql_query(mysql, query)) {
+  if (mysql_query_wrapper(mysql, query)) {
     log_msg("Error running query '%s': %d %s", query, mysql_errno(mysql),
             mysql_error(mysql));
     DBUG_VOID_RETURN;
   }
 
-  if ((res = mysql_store_result(mysql)) == NULL) {
+  if ((res = mysql_store_result_wrapper(mysql)) == NULL) {
     /* No result set returned */
     DBUG_VOID_RETURN;
   }
@@ -958,7 +1407,7 @@ static void show_warnings_before_error(MYSQL *mysql) {
     unsigned int num_fields = mysql_num_fields(res);
 
     fprintf(stderr, "\nWarnings from just before the error:\n");
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       unsigned int i;
       unsigned long *lengths = mysql_fetch_lengths(res);
 
@@ -975,7 +1424,7 @@ static void show_warnings_before_error(MYSQL *mysql) {
       fprintf(stderr, "\n");
     }
   }
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   DBUG_VOID_RETURN;
 }
@@ -1325,6 +1774,10 @@ static void free_used_memory() {
   // Delete the exptected errors pointer
   delete expected_errors;
 
+  // Delete disabled and enabled warning list
+  delete disabled_warnings;
+  delete enabled_warnings;
+
   if (connections) close_connections();
   close_files();
   delete var_hash;
@@ -1347,7 +1800,6 @@ static void free_used_memory() {
   if (ds_warn) dynstr_free(ds_warn);
   free_all_replace();
   my_free(opt_pass);
-  free_re();
 #ifdef _WIN32
   free_win_path_patterns();
 #endif
@@ -1360,6 +1812,20 @@ static void free_used_memory() {
 }
 
 static void cleanup_and_exit(int exit_code) {
+  if (opt_offload_count_file) {
+    // Check if the current connection is active, if not create one.
+    if (cur_con->mysql.net.vio == 0) {
+      mysql_real_connect(&cur_con->mysql, opt_host, opt_user, opt_pass, opt_db,
+                         opt_port, unix_sock,
+                         CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS);
+    }
+
+    // Save the final value of secondary engine execution status.
+    if (secondary_engine->offload_count(&cur_con->mysql, "after"))
+      exit_code = 1;
+    secondary_engine->report_offload_count(opt_offload_count_file);
+  }
+
   free_used_memory();
   my_end(my_end_arg);
 
@@ -2142,40 +2608,99 @@ static void var_set_errno(int sql_errno) {
   var_set_string("$mysql_errname", get_errname_from_code(sql_errno));
 }
 
-/* Functions to handle --disable and --enable properties */
+/// Variable '$DISABLED_WARNINGS_LIST' contains comma separated list
+/// of disabled warnings and variable '$ENABLED_WARNINGS_LIST' contains
+/// comma separated list of enabled warnings.
+///
+/// Update the value of these two variables with the latest list of
+/// disabled and enabled warnings. The value of these variables will be
+/// empty if there are no disabled or enabled warnings.
+///
+/// These variables will  always contain the latest list of disabled
+/// and enabled warnings, and can be referenced inside a test or inside
+/// a test utility file to access the current list of disabled or
+/// enabled warnings.
+static void update_disabled_enabled_warnings_list_var() {
+  // Update '$DISABLED_WARNINGS_LIST' variable
+  std::string disabled_warning_list = disabled_warnings->warnings_list();
+  var_set_string("DISABLED_WARNINGS_LIST", disabled_warning_list.c_str());
 
-static void set_once_property(enum_prop prop, bool val) {
-  property &pr = prop_list[prop];
-  pr.set = 1;
-  pr.old = *pr.var;
-  *pr.var = val;
-  var_set_int(pr.env_name, (val != pr.reverse));
+  // Update '$ENABLED_WARNINGS_LIST' variable
+  std::string enabled_warning_list = enabled_warnings->warnings_list();
+  var_set_string("ENABLED_WARNINGS_LIST", enabled_warning_list.c_str());
+}
+
+/// Set a property value to either 0 or 1 for a disable_X or a enable_X
+/// command, and the new value set will be applicable for next statement
+/// only. After that, property value will be reset back to the old value.
+///
+/// @param property Enum value representing a Property
+/// @param value    Value for the property, either 0 or 1
+static void set_once_property(enum_prop property, bool value) {
+  Property &prop = prop_list[property];
+  prop.set = 1;
+  prop.old = *prop.var;
+  *prop.var = value;
+  var_set_int(prop.env_name, (value != prop.reverse));
   once_property = true;
 }
 
-static void set_property(st_command *command, enum_prop prop, bool val) {
-  char *p = command->first_argument;
-  if (p && !std::strcmp(p, "ONCE")) {
-    command->last_argument = p + 4;
-    set_once_property(prop, val);
-    return;
-  }
-  property &pr = prop_list[prop];
-  *pr.var = val;
-  pr.set = 0;
-  var_set_int(pr.env_name, (val != pr.reverse));
-}
+/// Set a property value to either 0 or 1 for a disable_X or a enable_X
+/// command.
+///
+/// @param command  Pointer to the st_command structure which holds the
+///                 arguments and information for the command.
+/// @param property Enum value representing a Property
+/// @param value    Value for the property, either 0 or 1
+static void set_property(st_command *command, enum_prop property, bool value) {
+  char *arg = command->first_argument;
 
-void revert_properties() {
-  if (!once_property) return;
-  for (int i = 0; i < (int)P_MAX; i++) {
-    property &pr = prop_list[i];
-    if (pr.set) {
-      *pr.var = pr.old;
-      pr.set = 0;
-      var_set_int(pr.env_name, (pr.old != pr.reverse));
+  // If "ONCE" argument is specified, the new value for the property is
+  // set for next statement only. After that, property value will be
+  // reset back to the old value.
+  if (arg) {
+    // "ONCE" is the second argument to 'disable_warnings/enable_warnings'
+    // command.
+    if (((command->type == Q_DISABLE_WARNINGS ||
+          command->type == Q_ENABLE_WARNINGS) &&
+         std::strstr(arg, "ONCE") != NULL) ||
+        !std::strcmp(arg, "ONCE")) {
+      command->last_argument = arg + std::strlen(arg);
+      set_once_property(property, value);
+      return;
     }
   }
+
+  Property &prop = prop_list[property];
+  prop.set = 0;
+  *prop.var = value;
+  var_set_int(prop.env_name, (value != prop.reverse));
+}
+
+/// Reset property value to the old value for all properties which are
+/// set for the next statement only, i.e properties specified using
+/// keyword "ONCE" argument.
+void revert_properties() {
+  if (!once_property) return;
+
+  for (std::size_t i = 0; i < P_MAX; i++) {
+    Property &prop = prop_list[i];
+    if (prop.set) {
+      *prop.var = prop.old;
+      prop.set = 0;
+      var_set_int(prop.env_name, (prop.old != prop.reverse));
+    }
+  }
+
+  // Remove warnings which are disabled or enabled for the next
+  // statement only.
+  disabled_warnings->update_list();
+  enabled_warnings->update_list();
+
+  // Update $DISABLED_WARNINGS_LIST and $ENABLED_WARNINGS_LIST
+  // variable value.
+  update_disabled_enabled_warnings_list_var();
+
   once_property = false;
 }
 
@@ -2225,8 +2750,8 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
   do_eval(&ds_query, query, end, false);
 
-  if (mysql_real_query(mysql, ds_query.str,
-                       static_cast<ulong>(ds_query.length))) {
+  if (mysql_real_query_wrapper(mysql, ds_query.str,
+                               static_cast<ulong>(ds_query.length))) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
     /* If error was acceptable, return empty string */
@@ -2235,11 +2760,11 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
     DBUG_VOID_RETURN;
   }
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("Query '%s' didn't return a result set", ds_query.str);
   dynstr_free(&ds_query);
 
-  if ((row = mysql_fetch_row(res)) && row[0]) {
+  if ((row = mysql_fetch_row_wrapper(res)) && row[0]) {
     /*
       Concatenate all fields in the first row with tab in between
       and assign that string to the $variable
@@ -2257,10 +2782,12 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
         size_t len = lengths[i];
 
         if (glob_replace_regex) {
-          /* Regex replace */
-          if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
+          size_t orig_len = len;
+          // Regex replace
+          if (!multi_reg_replace(glob_replace_regex, (char *)val, &len)) {
             val = glob_replace_regex->buf;
-            len = std::strlen(val);
+          } else {
+            len = orig_len;
           }
         }
         DYNAMIC_STRING ds_temp;
@@ -2304,7 +2831,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
   } else
     eval_expr(var, "", 0);
 
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
   DBUG_VOID_RETURN;
 }
 
@@ -2354,81 +2881,48 @@ static void do_result_format_version(struct st_command *command) {
   DBUG_VOID_RETURN;
 }
 
-/* List of error names to error codes */
-typedef struct {
-  const char *name;
-  uint code;
-  const char *text;
-  /* SQLSTATE */
-  const char *odbc_state;
-  const char *jdbc_state;
-  uint error_index;
-} st_error;
-
-static st_error global_error_names[] = {{"<No error>", (uint)-1, "", "", "", 0},
-#ifndef IN_DOXYGEN
-#include <mysqlclient_ername.h>
-#include <mysqld_ername.h>
-#endif /* IN_DOXYGEN */
-                                        {0, 0, 0, 0, 0, 0}};
-
-uint get_errcode_from_name(char *, char *);
-
-/*
-
-  This function is useful when one needs to convert between error numbers and
-  error strings
-
-  SYNOPSIS
-  var_set_convert_error(struct st_command *command,VAR *var)
-
-  DESCRIPTION
-  let $var=convert_error(ER_UNKNOWN_ERROR);
-  let $var=convert_error(1234);
-
-  The variable var will be populated with error number if the argument is
-  string. The variable var will be populated with error string if the argument
-  is number.
-
-*/
+/// Convert between error numbers and error names/strings.
+///
+/// @code
+/// let $var = convert_error(ER_UNKNOWN_ERROR);
+/// let $var = convert_error(1234);
+/// @endcode
+///
+/// The variable '$var' will be populated with error number if the
+/// argument is string. The variable var will be populated with error
+/// string if the argument is number.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+/// @param var     Pointer to VAR object containing a variable
+///                information.
 static void var_set_convert_error(struct st_command *command, VAR *var) {
-  char *last;
-  char *first = command->query;
-  const char *err_name;
+  // The command->query contains the statement convert_error(1234)
+  char *first = std::strchr(command->query, '(') + 1;
+  char *last = std::strchr(command->query, ')');
 
-  DBUG_ENTER("var_set_convert_error");
-
-  DBUG_PRINT("info", ("query: %s", command->query));
-
-  /* the command->query contains the statement convert_error(1234) */
-  first = strchr(command->query, '(') + 1;
-  last = strchr(command->query, ')');
-
-  if (last == first) /* denoting an empty string */
-  {
+  // Denoting an empty string
+  if (last == first) {
     eval_expr(var, "0", 0);
-    DBUG_VOID_RETURN;
+    return;
   }
 
-  /* if the string is an error string , it starts with 'E' as is the norm*/
+  // If the string is an error string , it starts with 'E' as is the norm
   if (*first == 'E') {
+    std::string error_name(first, int(last - first));
+    int error = get_errcode_from_name(error_name);
+    if (error == -1) die("Unknown SQL error name '%s'.", error_name.c_str());
     char str[100];
-    uint num;
-    num = get_errcode_from_name(first, last);
-    sprintf(str, "%i", num);
+    std::sprintf(str, "%d", error);
     eval_expr(var, str, 0);
-  } else if (my_isdigit(charset_info, *first)) /* if the error is a number */
-  {
-    long int err;
-
-    err = strtol(first, &last, 0);
-    err_name = get_errname_from_code(err);
+  } else if (my_isdigit(charset_info, *first)) {
+    // Error number argument
+    long int err = std::strtol(first, &last, 0);
+    const char *err_name = get_errname_from_code(err);
     eval_expr(var, err_name, 0);
   } else {
     die("Invalid error in input");
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -2489,8 +2983,8 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     die("Mismatched \"'s around query '%s'", ds_query.str);
 
   /* Run the query */
-  if (mysql_real_query(mysql, ds_query.str,
-                       static_cast<ulong>(ds_query.length))) {
+  if (mysql_real_query_wrapper(mysql, ds_query.str,
+                               static_cast<ulong>(ds_query.length))) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
     /* If error was acceptable, return empty string */
@@ -2500,7 +2994,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     DBUG_VOID_RETURN;
   }
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("Query '%s' didn't return a result set", ds_query.str);
 
   {
@@ -2517,7 +3011,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
       }
     }
     if (col_no == -1) {
-      mysql_free_result(res);
+      mysql_free_result_wrapper(res);
       die("Could not find column '%s' in the result of '%s'", ds_col.str,
           ds_query.str);
     }
@@ -2531,7 +3025,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     long rows = 0;
     const char *value = "No such row";
 
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       if (++rows == row_no) {
         DBUG_PRINT("info", ("At row %ld, column %d is '%s'", row_no, col_no,
                             row[col_no]));
@@ -2547,7 +3041,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     eval_expr(var, value, 0, false, false);
   }
   dynstr_free(&ds_query);
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   DBUG_VOID_RETURN;
 }
@@ -2998,6 +3492,14 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 #endif
   }
 
+  if (error != 0 && command->abort_on_error) {
+    log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d.",
+            ds_cmd.str, error, status, errno);
+    dynstr_free(&ds_cmd);
+    die("Command \"%s\" failed.\n\nOutput from before failure:\n%s",
+        command->first_argument, ds_res.str);
+  }
+
   dynstr_free(&ds_cmd);
   handle_command_error(command, status);
 
@@ -3008,31 +3510,6 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 }
 
 enum enum_operator { DO_DEC, DO_INC };
-
-/// Use stoi function to get the integer value from a string.
-///
-/// @param str String which may contain an integer or an alphanumeric
-///            string.
-///
-/// @retval Integer value corresponding to the contents of the string,
-///         if conversion is successful, or -1 if integer is out of
-///         range, or if the conversion fails.
-static int get_int_val(const char *str) {
-  int value;
-  size_t size;
-
-  try {
-    value = std::stoi(str, &size, 10);
-    if (size != std::strlen(str)) value = -1;
-  } catch (const std::out_of_range &) {
-    fprintf(stderr, "Interger value '%s' is out of range. ", str);
-    value = -1;
-  } catch (const std::invalid_argument &) {
-    value = -1;
-  }
-
-  return value;
-}
 
 /// Template function that frees memory of the dynamic string
 /// passed to the function.
@@ -4511,23 +4988,23 @@ static void do_wait_for_slave_to_stop(
     MYSQL_ROW row;
     int done;
 
-    if (mysql_query(
+    if (mysql_query_wrapper(
             mysql,
             "SELECT 'Slave_running' as Variable_name,"
             " IF(count(*)>0,'ON','OFF') as Value FROM"
             " performance_schema.replication_applier_status ras,"
             "performance_schema.replication_connection_status rcs WHERE "
             "ras.SERVICE_STATE='ON' AND rcs.SERVICE_STATE='ON'") ||
-        !(res = mysql_store_result(mysql)))
+        !(res = mysql_store_result_wrapper(mysql)))
 
       die("Query failed while probing slave for stop: %s", mysql_error(mysql));
 
-    if (!(row = mysql_fetch_row(res)) || !row[1]) {
-      mysql_free_result(res);
+    if (!(row = mysql_fetch_row_wrapper(res)) || !row[1]) {
+      mysql_free_result_wrapper(res);
       die("Strange result from query while probing slave for stop");
     }
     done = !std::strcmp(row[1], "OFF");
-    mysql_free_result(res);
+    mysql_free_result_wrapper(res);
     if (done) break;
     my_sleep(SLAVE_POLL_INTERVAL);
   }
@@ -4547,14 +5024,14 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   sprintf(query_buf, "select master_pos_wait('%s', %ld, %d)", master_pos.file,
           master_pos.pos + offset, timeout);
 
-  if (mysql_query(mysql, query_buf))
+  if (mysql_query_wrapper(mysql, query_buf))
     die("failed in '%s': %d: %s", query_buf, mysql_errno(mysql),
         mysql_error(mysql));
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("mysql_store_result() returned NULL for '%s'", query_buf);
-  if (!(row = mysql_fetch_row(res))) {
-    mysql_free_result(res);
+  if (!(row = mysql_fetch_row_wrapper(res))) {
+    mysql_free_result_wrapper(res);
     die("empty result in %s", query_buf);
   }
 
@@ -4562,7 +5039,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   const char *result_str = row[0];
   if (result_str) result = atoi(result_str);
 
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   if (!result_str || result < 0) {
     /* master_pos_wait returned NULL or < 0 */
@@ -4623,18 +5100,18 @@ static void ndb_wait_for_binlog_injector(void) {
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
   ulong have_ndbcluster;
-  if (mysql_query(mysql, query =
-                             "select count(*) from information_schema.engines"
-                             "  where engine = 'ndbcluster' and"
-                             "        support in ('YES', 'DEFAULT')"))
+  if (mysql_query_wrapper(
+          mysql, query = "select count(*) from information_schema.engines"
+                         "  where engine = 'ndbcluster' and"
+                         "        support in ('YES', 'DEFAULT')"))
     die("'%s' failed: %d %s", query, mysql_errno(mysql), mysql_error(mysql));
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("mysql_store_result() returned NULL for '%s'", query);
-  if (!(row = mysql_fetch_row(res)))
+  if (!(row = mysql_fetch_row_wrapper(res)))
     die("Query '%s' returned empty result", query);
 
   have_ndbcluster = std::strcmp(row[0], "1") == 0;
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   if (!have_ndbcluster) {
     return;
@@ -4653,14 +5130,14 @@ static void ndb_wait_for_binlog_injector(void) {
         "latest_handled_binlog_epoch=";
     if (count) my_sleep(100 * 1000); /* 100ms */
 
-    if (mysql_query(mysql, query = "show engine ndb status"))
+    if (mysql_query_wrapper(mysql, query = "show engine ndb status"))
       die("failed in '%s': %d %s", query, mysql_errno(mysql),
           mysql_error(mysql));
 
-    if (!(res = mysql_store_result(mysql)))
+    if (!(res = mysql_store_result_wrapper(mysql)))
       die("mysql_store_result() returned NULL for '%s'", query);
 
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       if (std::strcmp(row[1], binlog) == 0) {
         const char *status = row[2];
 
@@ -4714,7 +5191,7 @@ static void ndb_wait_for_binlog_injector(void) {
           start_handled_binlog_epoch & 0xffffffff);
     }
 
-    mysql_free_result(res);
+    mysql_free_result_wrapper(res);
   }
 }
 
@@ -4730,16 +5207,17 @@ static int do_save_master_pos() {
   */
   ndb_wait_for_binlog_injector();
 
-  if (mysql_query(mysql, query = "show master status"))
+  if (mysql_query_wrapper(mysql, query = "show master status"))
     die("failed in 'show master status': %d %s", mysql_errno(mysql),
         mysql_error(mysql));
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("mysql_store_result() retuned NULL for '%s'", query);
-  if (!(row = mysql_fetch_row(res))) die("empty result in show master status");
+  if (!(row = mysql_fetch_row_wrapper(res)))
+    die("empty result in show master status");
   my_stpnmov(master_pos.file, row[0], sizeof(master_pos.file) - 1);
   master_pos.pos = strtoul(row[1], (char **)0, 10);
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
   DBUG_RETURN(0);
 }
 
@@ -5069,7 +5547,6 @@ static void do_let(struct st_command *command) {
 
 static int do_sleep(struct st_command *command, bool real_sleep) {
   int error = 0;
-  char *sleep_start, *sleep_end;
   double sleep_val;
   char *p;
   static DYNAMIC_STRING ds_sleep;
@@ -5080,12 +5557,12 @@ static int do_sleep(struct st_command *command, bool real_sleep) {
                      sizeof(sleep_args) / sizeof(struct command_arg), ' ');
 
   p = ds_sleep.str;
-  sleep_end = ds_sleep.str + ds_sleep.length;
+  const char *sleep_end = ds_sleep.str + ds_sleep.length;
   while (my_isspace(charset_info, *p)) p++;
   if (!*p)
     die("Missing argument to %.*s", static_cast<int>(command->first_word_len),
         command->query);
-  sleep_start = p;
+  const char *sleep_start = p;
   /* Check that arg starts with a digit, not handled by my_strtod */
   if (!my_isdigit(charset_info, *sleep_start))
     die("Invalid argument to %.*s \"%s\"",
@@ -5192,32 +5669,6 @@ static void do_disable_testcase(struct st_command *command) {
   free_dynamic_strings(&ds_bug_number);
 }
 
-/*
-  Run query and return one field in the result set from the
-  first row and <column>
-*/
-
-static int query_get_string(MYSQL *mysql, const char *query, int column,
-                            std::string *ds) {
-  MYSQL_RES *res = NULL;
-  MYSQL_ROW row;
-
-  if (mysql_query(mysql, query))
-    die("'%s' failed: %d %s", query, mysql_errno(mysql), mysql_error(mysql));
-  if ((res = mysql_store_result(mysql)) == NULL)
-    die("Failed to store result: %d %s", mysql_errno(mysql),
-        mysql_error(mysql));
-
-  if ((row = mysql_fetch_row(res)) == NULL) {
-    mysql_free_result(res);
-    ds = 0;
-    return 1;
-  }
-  ds->assign(row[column] ? row[column] : "NULL");
-  mysql_free_result(res);
-  return 0;
-}
-
 /**
   Check if process is active.
 
@@ -5321,263 +5772,490 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused))) {
 #endif
 }
 
-/**
-  Shutdown or kill the server.
-  If timeout is set to 0 the server is killed/terminated
-  immediately. Otherwise the shutdown command is first sent
-  and then it waits for the server to terminate within
-  @<timeout@> seconds. If it has not terminated before @<timeout@>
-  seconds the command will fail.
-
-  @note Currently only works with local server
-
-  @param command  Optionally including a timeout else the
-  default of 60 seconds is used.
-*/
-
+/// Shutdown or kill the server. If timeout is set to 0 the server is
+/// killed or terminated immediately. Otherwise the shutdown command
+/// is first sent and then it waits for the server to terminate within
+/// 'timeout' seconds. If it has not terminated before 'timeout'
+/// seconds the command will fail.
+///
+/// @note
+/// Currently only works with local server
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command. Optionally
+///                including a timeout else the default of 60 seconds
 static void do_shutdown_server(struct st_command *command) {
-  long timeout = 60;
-  int pid, error = 0;
-  std::string ds_file_name;
-  MYSQL *mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
       {"timeout", ARG_STRING, false, &ds_timeout,
        "Timeout before killing server"}};
-  DBUG_ENTER("do_shutdown_server");
 
   check_command_args(command, command->first_argument, shutdown_args,
                      sizeof(shutdown_args) / sizeof(struct command_arg), ' ');
+  if (opt_offload_count_file) {
+    // Save the value of secondary engine execution status
+    // before shutting down the server.
+    if (secondary_engine->offload_count(&cur_con->mysql, "after"))
+      cleanup_and_exit(1);
+  }
+
+  long timeout = 60;
 
   if (ds_timeout.length) {
     char *endptr;
-    timeout = strtol(ds_timeout.str, &endptr, 10);
+    timeout = std::strtol(ds_timeout.str, &endptr, 10);
     if (*endptr != '\0')
       die("Illegal argument for timeout: '%s'", ds_timeout.str);
   }
+
   dynstr_free(&ds_timeout);
 
-  /* Get the servers pid_file name and use it to read pid */
+  MYSQL *mysql = &cur_con->mysql;
+  std::string ds_file_name;
+
+  // Get the servers pid_file name and use it to read pid
   if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
                        &ds_file_name))
     die("Failed to get pid_file from server");
 
-  /* Read the pid from the file */
-  {
-    int fd;
-    char buff[32];
+  // Read the pid from the file
+  int fd;
+  char buff[32];
 
-    if ((fd = my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
-      die("Failed to open file '%s'", ds_file_name.c_str());
+  if ((fd = my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
+    die("Failed to open file '%s'", ds_file_name.c_str());
 
-    if (my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0)) <= 0) {
-      my_close(fd, MYF(0));
-      die("pid file was empty");
-    }
+  if (my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0)) <= 0) {
     my_close(fd, MYF(0));
-
-    pid = atoi(buff);
-    if (pid == 0) die("Pidfile didn't contain a valid number");
+    die("pid file was empty");
   }
-  DBUG_PRINT("info", ("Got pid %d", pid));
 
+  my_close(fd, MYF(0));
+
+  int pid = std::atoi(buff);
+  if (pid == 0) die("Pidfile didn't contain a valid number");
+
+  int error = 0;
   if (timeout) {
-    /* Check if we should generate a minidump on timeout. */
+    // Check if we should generate a minidump on timeout.
     if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
                          &ds_file_name) ||
         std::strcmp("ON", ds_file_name.c_str())) {
     } else {
-      /* Get the data dir and use it as path for a minidump if needed. */
+      // Get the data dir and use it as path for a minidump if needed.
       if (query_get_string(mysql, "SHOW VARIABLES LIKE 'datadir'", 1,
                            &ds_file_name))
         die("Failed to get datadir from server");
     }
 
-    /* Tell server to shutdown if timeout > 0. */
-    if (timeout > 0 && mysql_query(mysql, "shutdown")) {
-      error = 1; /* Failed to issue shutdown command. */
-      goto end;
-    }
-
-    /* Check that server dies */
-    do {
-      if (!is_process_active(pid)) {
-        DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
+    const char *var_name = "$MTR_MANUAL_DEBUG";
+    VAR *var = var_get(var_name, &var_name, 0, 0);
+    if (var->int_val) {
+      if (!kill_process(pid) && is_process_active(pid)) error = 3;
+    } else {
+      // Tell server to shutdown if timeout > 0.
+      if (timeout > 0 && mysql_query_wrapper(mysql, "shutdown")) {
+        // Failed to issue shutdown command.
+        error = 1;
         goto end;
       }
-      if (timeout > 0) {
-        DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
-        my_sleep(1000000L);
-      }
-    } while (timeout-- > 0);
-    error = 2;
-    /*
-      Abort to make it easier to find the hang/problem.
-    */
-    abort_process(pid, ds_file_name.c_str());
-  } else /* timeout == 0 */
-  {
-    /* Kill the server */
+
+      // Check that server dies
+      do {
+        if (!is_process_active(pid)) {
+          DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
+          goto end;
+        }
+        if (timeout > 0) {
+          DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
+          my_sleep(1000000L);
+        }
+      } while (timeout-- > 0);
+
+      error = 2;
+
+      // Abort to make it easier to find the hang/problem.
+      abort_process(pid, ds_file_name.c_str());
+    }
+  } else {
+    // timeout value is 0, kill the server
     DBUG_PRINT("info", ("Killing server, pid: %d", pid));
-    /*
-      kill_process can fail (bad privileges, non existing process on *nix etc),
-      so also check if the process is active before setting error.
-    */
+
+    // kill_process can fail (bad privileges, non existing process on
+    // *nix etc), so also check if the process is active before setting
+    // error.
     if (!kill_process(pid) && is_process_active(pid)) error = 3;
   }
 
 end:
   if (error) handle_command_error(command, error);
-  DBUG_VOID_RETURN;
 }
 
-uint get_errcode_from_name(char *error_name, char *error_end) {
-  /* SQL error as string */
-  st_error *e = global_error_names;
+/// Evaluate the warning list argument specified with either
+/// disable_warnings or enable_warnings command and replace the
+/// variables with actual values if there exist any.
+///
+/// @param command     Pointer to the st_command structure which holds
+///                    the arguments and information for the command.
+/// @param ds_warnings DYNAMIC_STRING object containing the argument.
+///
+/// @retval Evaluated string after replacing the variables with values.
+const char *eval_warning_argument(struct st_command *command,
+                                  DYNAMIC_STRING *ds_warnings) {
+  dynstr_trunc(ds_warnings, ds_warnings->length);
+  do_eval(ds_warnings, command->first_argument, command->end, false);
+  return ds_warnings->str;
+}
 
-  DBUG_ENTER("get_errcode_from_name");
-  DBUG_PRINT("enter", ("error_name: %s", error_name));
+/// Check if second argument "ONCE" to disable_warnings or enable_warnings
+/// command is specified. If yes, filter out the keyword "ONCE" from the
+/// argument string.
+///
+/// @param ds_property   DYNAMIC_STRING object containing the second argument
+/// @param warn_argument String to store the argument string containing only
+///                      the list of warnings.
+///
+/// @retval True if the second argument is specified, false otherwise.
+static bool check_and_filter_once_property(DYNAMIC_STRING ds_property,
+                                           std::string *warn_argument) {
+  if (ds_property.length) {
+    // Second argument exists, and it should be "ONCE" keyword.
+    if (std::strcmp(ds_property.str, "ONCE"))
+      die("Second argument to '%s' command should always be \"ONCE\" keyword.",
+          command_names[curr_command->type - 1]);
 
-  /* Loop through the array of known error names */
-  for (; e->name; e++) {
-    /*
-      If we get a match, we need to check the length of the name we
-      matched against in case it was longer than what we are checking
-      (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
-    */
-    if (!std::strncmp(error_name, e->name, (int)(error_end - error_name)) &&
-        (uint)std::strlen(e->name) == (uint)(error_end - error_name)) {
-      DBUG_RETURN(e->code);
+    // Filter out the keyword and save only the warnings.
+    std::size_t position = warn_argument->find(" ONCE");
+    DBUG_ASSERT(position != std::string::npos);
+    warn_argument->erase(position, 5);
+    return true;
+  }
+
+  return false;
+}
+
+/// Handle disabling of warnings.
+///
+/// * If all warnings are disabled, don't add the warning to disabled
+///   warning list.
+/// * If there exist enabled warnings, remove the disabled warning from
+///   the list of enabled warnings.
+/// * If all the warnings are enabled or if there exist disabled warnings,
+///   add or append the new warning to the list of disabled warnings.
+///
+/// @param warning_code Warning code
+/// @param warning      Warning string
+/// @param once_prop    Flag specifying whether a property should be set
+///                     for next statement only.
+static void handle_disable_warnings(std::uint32_t warning_code,
+                                    std::string warning, bool once_prop) {
+  if (enabled_warnings->count()) {
+    // Remove the warning from list of enabled warnings.
+    enabled_warnings->remove_warning(warning_code, once_prop);
+  } else if (!disable_warnings || disabled_warnings->count()) {
+    // Add the warning to list of expected warnings only if all the
+    // warnings are not disabled.
+    disabled_warnings->add_warning(warning_code, warning.c_str(), once_prop);
+  }
+}
+
+/// Handle enabling of warnings.
+///
+/// * If all the warnings are enabled, don't add the warning to enabled
+///   warning list.
+/// * If there exist disabled warnings, remove the enabled warning from
+///   the list of disabled warnings.
+/// * If all the warnings are disabled or if there exist enabled warnings,
+///   add or append the new warning to the list of enabled warnings.
+///
+/// @param warning_code Warning code
+/// @param warning      Warning string
+/// @param once_prop    Flag specifying whether a property should be set
+///                     for next statement only.
+static void handle_enable_warnings(std::uint32_t warning_code,
+                                   std::string warning, bool once_prop) {
+  if (disabled_warnings->count()) {
+    // Remove the warning from list of disabled warnings.
+    disabled_warnings->remove_warning(warning_code, once_prop);
+  } else if (disabled_warnings) {
+    // All the warnings are disabled, enable only the warnings specified
+    // in the argument.
+    enabled_warnings->add_warning(warning_code, warning.c_str(), once_prop);
+  }
+}
+
+/// Get an error code corresponding to a warning name. The warning name
+/// specified is in symbolic error name format.
+///
+/// @param command       Pointer to the st_command structure which holds the
+///                      arguments and information for the command.
+/// @param warn_argument String containing warning argument
+/// @param once_prop     Flag specifying whether a property should be set for
+///                      next statement only.
+static void get_warning_codes(struct st_command *command,
+                              std::string warn_argument, bool once_prop) {
+  std::string warning;
+  std::stringstream warnings(warn_argument);
+
+  if (!my_isalnum(charset_info, warn_argument.back())) {
+    die("Invalid argument '%s' to '%s' command.", command->first_argument,
+        command_names[command->type - 1]);
+  }
+
+  while (std::getline(warnings, warning, ',')) {
+    // Remove any space in a string representing a warning.
+    warning.erase(remove_if(warning.begin(), warning.end(), isspace),
+                  warning.end());
+
+    // Check if a warning name is a valid symbolic error name.
+    if (warning.front() == 'E' || warning.front() == 'W') {
+      int warning_code = get_errcode_from_name(warning);
+      if (warning_code == -1)
+        die("Unknown SQL error name '%s'.", warning.c_str());
+      if (command->type == Q_DISABLE_WARNINGS)
+        handle_disable_warnings(warning_code, warning, once_prop);
+      else if (command->type == Q_ENABLE_WARNINGS) {
+        handle_enable_warnings(warning_code, warning, once_prop);
+        // If disable_warnings flag is set, and there are no disabled or
+        // enabled warnings, set the disable_warnings flag to 0.
+        if (disable_warnings) {
+          if (!disabled_warnings->count() && !enabled_warnings->count())
+            set_property(command, P_WARN, 0);
+        }
+      }
+    } else {
+      // Invalid argument, should only consist of warnings specified in
+      // symbolic error name format.
+      die("Invalid argument '%s' to '%s' command, list of disabled or enabled "
+          "warnings may only consist of symbolic error names.",
+          command->first_argument, command_names[command->type - 1]);
     }
   }
-  if (!e->name) die("Unknown SQL error name '%s'", error_name);
-  DBUG_RETURN(0);
 }
 
-const char *get_errname_from_code(uint error_code) {
-  st_error *e = global_error_names;
-
-  DBUG_ENTER("get_errname_from_code");
-  DBUG_PRINT("enter", ("error_code: %d", error_code));
-
-  if (!error_code) {
-    DBUG_RETURN("");
-  }
-  for (; e->name; e++) {
-    if (e->code == error_code) {
-      DBUG_RETURN(e->name);
-    }
-  }
-  /* Apparently, errors without known names may occur */
-  DBUG_RETURN("<Unknown>");
-}
-
-/// Get the error code corresponding to an error string or to a
-/// SQLSTATE string.
+/// Parse the warning list argument specified with disable_warnings or
+/// enable_warnings command. Check if the second argument "ONCE" is
+/// specified, if yes, set once_property flag.
 ///
 /// @param command Pointer to the st_command structure which holds the
 ///                arguments and information for the command.
-static void do_get_errcodes(struct st_command *command) {
-  DBUG_ENTER("do_get_errcodes");
+///
+/// @retval True if second argument "ONCE" is specified, false otherwise.
+static bool parse_warning_list_argument(struct st_command *command) {
+  DYNAMIC_STRING ds_warnings, ds_property;
+  const struct command_arg warning_args[] = {
+      {"Warnings", ARG_STRING, false, &ds_warnings,
+       "Comma separated list of warnings to be disabled or enabled."},
+      {"Property", ARG_STRING, false, &ds_property,
+       "Keyword \"ONCE\" repesenting the property should be set for next "
+       "statement only."}};
 
-  char *p = command->first_argument;
-  if (!*p) die("Missing argument(s) to 'error'");
+  check_command_args(command, command->first_argument, warning_args,
+                     sizeof(warning_args) / sizeof(struct command_arg), ' ');
 
-  char *next;
-  do {
-    char *end;
+  // Waning list argument can't be an empty string.
+  if (!ds_warnings.length)
+    die("Warning list argument to command '%s' can't be an empty string.",
+        command_names[command->type - 1]);
 
-    // Skip leading spaces
-    while (*p && *p == ' ') p++;
+  // Evaluate warning list argument and replace the variables with
+  // actual values
+  std::string warn_argument = eval_warning_argument(command, &ds_warnings);
 
-    /* Find end */
-    end = p;
-    while (*end && *end != ',' && *end != ' ') end++;
-    next = end;
+  // Set once_prop flag to true if keyword "ONCE" is specified as an
+  // argument to a disable_warnings or a enable_warnings command.
+  // Filter this keyword from the argument string and save only the
+  // list of warnings.
+  bool once_prop = check_and_filter_once_property(ds_property, &warn_argument);
 
-    // Code to handle variables passed to mysqltest
-    if (*p == '$') {
-      const char *fin = NULL;
-      VAR *var = var_get(p, &fin, 0, 0);
-      p = var->str_val;
-      end = p + var->str_val_len;
+  // Free all the DYNAMIC_STRING objects created
+  free_dynamic_strings(&ds_warnings, &ds_property);
+
+  // Get warning codes
+  get_warning_codes(command, warn_argument, once_prop);
+
+  return once_prop;
+}
+
+/// Create a list of disabled warnings that should be suppressed for
+/// the next statements until enabled by enable_warnings command.
+///
+/// disable_warnings command can take an optional argument specifying
+/// a warning or a comma separated list of warnings to be disabled.
+/// The warnings specified should be in symbolic error name format.
+///
+/// disable_warnings command can also take a second optional argument,
+/// which when specified will suppress the warnings for next statement
+/// only. The second argument must be a "ONCE" keyword.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+static void do_disable_warnings(struct st_command *command) {
+  // Revert the previously set properties
+  if (once_property) revert_properties();
+
+  // Check if disable_warnings command has warning list argument.
+  if (!*command->first_argument) {
+    // disable_warnings without an argument, disable all the warnings.
+    if (disabled_warnings->count()) disabled_warnings->clear_list();
+    if (enabled_warnings->count()) enabled_warnings->clear_list();
+
+    // Update the environment variables containing the list of disabled
+    // and enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+
+    // Set 'disable_warnings' property value to 1
+    set_property(command, P_WARN, 1);
+    return;
+  } else {
+    // Parse the warning list argument specified with disable_warnings
+    // command.
+    parse_warning_list_argument(command);
+
+    // Update the environment variables containing the list of disabled
+    // and enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+
+    // Set 'disable_warnings' property value to 1
+    set_property(command, P_WARN, 1);
+  }
+
+  command->last_argument = command->end;
+}
+
+/// Create a list of enabled warnings that should be enabled for the
+/// next statements until disabled by disable_warnings command.
+///
+/// enable_warnings command can take an optional argument specifying
+/// a warning or a comma separated list of warnings to be enabled. The
+/// warnings specified should be in symbolic error name format.
+///
+/// enable_warnings command can also take a second optional argument,
+/// which when specified will enable the warnings for next statement
+/// only. The second argument must be a "ONCE" keyword.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+static void do_enable_warnings(struct st_command *command) {
+  // Revert the previously set properties
+  if (once_property) revert_properties();
+
+  bool once_prop = false;
+  if (!*command->first_argument) {
+    // enable_warnings without an argument, enable all the warnings.
+    if (disabled_warnings->count()) disabled_warnings->clear_list();
+    if (enabled_warnings->count()) enabled_warnings->clear_list();
+
+    // Update the environment variables containing the list of disabled
+    // and enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+
+    // Set 'disable_warnings' property value to 0
+    set_property(command, P_WARN, 0);
+  } else {
+    // Parse the warning list argument specified with enable_warnings command.
+    once_prop = parse_warning_list_argument(command);
+
+    // Update the environment variables containing the list of disabled and
+    // enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+  }
+
+  // Call set_once_property() to set once_propetry flag.
+  if (disable_warnings && once_prop) set_once_property(P_WARN, 1);
+
+  command->last_argument = command->end;
+}
+
+/// Create a list of error values that the next statement is expected
+/// to return. Each error must be an error number or an SQLSTATE value
+/// or a symbolic error name representing an error.
+///
+/// SQLSTATE value must start with 'S'. It is also possible to specify
+/// client errors with 'error' command.
+///
+/// @code
+/// --error 1064
+/// --error S42S01
+/// --error ER_TABLE_EXISTS_ERROR,ER_PARSE_ERROR
+/// --error CR_SERVER_GONE_ERROR
+/// @endcode
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+static void do_error(struct st_command *command) {
+  if (!*command->first_argument) die("Missing argument(s) to 'error' command.");
+
+  // Check if error command ends with a comment
+  char *end = command->first_argument + std::strlen(command->first_argument);
+  while (std::strlen(command->first_argument) > std::strlen(end)) {
+    end--;
+    if (*end == '#') break;
+  }
+
+  if (std::strlen(command->first_argument) == std::strlen(end))
+    end = command->first_argument + std::strlen(command->first_argument);
+
+  std::string error;
+  std::stringstream errors(std::string(command->first_argument, end));
+
+  // Get error codes
+  while (std::getline(errors, error, ',')) {
+    // Remove any space from the string representing an error.
+    error.erase(remove_if(error.begin(), error.end(), isspace), error.end());
+
+    // Code to handle a variable containing an error.
+    if (error.front() == '$') {
+      const char *varname_end = NULL;
+      VAR *var = var_get(error.c_str(), &varname_end, 0, 0);
+      error.assign(var->str_val);
     }
 
-    if (*p == 'S') {
+    if (error.front() == 'S') {
       // SQLSTATE string
-      //   - Must be SQLSTATE_LENGTH long
-      //   - May contain only digits[0-9] and _uppercase_ letters
-      std::string sqlstate;
+      //   * Must be SQLSTATE_LENGTH long
+      //   * May contain only digits[0-9] and _uppercase_ letters
 
       // Step pass 'S' character
-      p++;
+      error = error.substr(1, error.length());
 
-      if ((end - p) != SQLSTATE_LENGTH)
+      if (error.length() != SQLSTATE_LENGTH)
         die("The sqlstate must be exactly %d chars long.", SQLSTATE_LENGTH);
 
-      sqlstate.assign(p, SQLSTATE_LENGTH);
-
-      // Check sqlstate string validity
-      while (*p && p < end) {
-        if (my_isdigit(charset_info, *p) || my_isupper(charset_info, *p))
-          p++;
-        else
-          die("The sqlstate may only consist of digits[0-9] "
-              "and _uppercase_ letters.");
+      // Check the validity of an SQLSTATE string.
+      for (std::size_t i = 0; i < error.length(); i++) {
+        if (!my_isdigit(charset_info, error[i]) &&
+            !my_isupper(charset_info, error[i]))
+          die("The sqlstate may only consist of digits[0-9] and _uppercase_ "
+              "letters.");
       }
-
-      expected_errors->add_error(0, sqlstate.c_str(), ERR_SQLSTATE);
-      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", sqlstate.c_str()));
-    } else if (*p == 's') {
+      expected_errors->add_error(error.c_str(), ERR_SQLSTATE);
+    } else if (error.front() == 's') {
       die("The sqlstate definition must start with an uppercase S.");
     }
-    // Code to handle --error <error_string>.
     // Checking for both server error names as well as client error names.
-    else if (*p == 'E' || *p == 'C') {
-      // Error name string
-      DBUG_PRINT("info", ("Error name: %s", p));
-      std::uint32_t error_code = get_errcode_from_name(p, end);
-      expected_errors->add_error(error_code, "00000", ERR_ERRNO);
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", error_code));
-    } else if (*p == 'e' || *p == 'c') {
-      die("The error name definition must start with an uppercase E or C.");
+    else if (error.front() == 'C' || error.front() == 'E') {
+      // Code to handle --error <error_string>.
+      int error_code = get_errcode_from_name(error);
+      if (error_code == -1) die("Unknown SQL error name '%s'.", error.c_str());
+      expected_errors->add_error(error_code, ERR_ERRNO);
+    } else if (error.front() == 'c' || error.front() == 'e') {
+      die("The error name definition must start with an uppercase C or E.");
     } else {
-      char *start = p;
-      long val;
-
-      // Check that the string passed to str2int only contain digits
-      while (*p && p != end) {
-        if (!my_isdigit(charset_info, *p))
-          die("Invalid argument to error: '%s', the errno may only consist "
-              "of digits[0-9]",
-              command->first_argument);
-        p++;
-      }
-
-      // Convert the sting to int
-      if (!str2int(start, 10, (long)INT_MIN, (long)INT_MAX, &val))
-        die("Invalid argument to error: '%s'.", command->first_argument);
-
-      expected_errors->add_error((unsigned int)val, "00000", ERR_ERRNO);
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", (unsigned int)val));
+      // Check that the string passed to error command contains only digits.
+      int error_code = get_int_val(error.c_str());
+      if (error_code == -1)
+        die("Invalid argument '%s' to 'error' command, the argument may "
+            "consist of either symbolic error names or error codes.",
+            command->first_argument);
+      expected_errors->add_error((std::uint32_t)error_code, ERR_ERRNO);
     }
 
     if (expected_errors->count() >= MAX_ERROR_COUNT)
       die("Too many errorcodes specified.");
+  }
 
-    // Set pointer to the end of the last error code
-    p = next;
-
-    // Find next ','
-    while (*p && *p != ',') p++;
-
-    // Step past ','
-    if (*p) p++;
-  } while (*p);
-
-  command->last_argument = p;
-  DBUG_PRINT("info", ("Expected errors: %zu", expected_errors->count()));
-  DBUG_VOID_RETURN;
+  command->last_argument = command->end;
 }
 
 /*
@@ -5811,9 +6489,9 @@ static void safe_connect(MYSQL *mysql, const char *name, const char *host,
                  "mysqltest");
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_expired_passwords);
-  while (
-      !mysql_real_connect(mysql, host, user, pass, db, port, sock,
-                          CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS)) {
+  while (!mysql_real_connect_wrapper(
+      mysql, host, user, pass, db, port, sock,
+      CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS)) {
     /*
       Connect failed
 
@@ -5904,8 +6582,9 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
   mysql_options4(con, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqltest");
   mysql_options(con, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_expired_passwords);
-  while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock : 0,
-                             CLIENT_MULTI_STATEMENTS)) {
+  while (!mysql_real_connect_wrapper(con, host, user, pass, db, port,
+                                     sock ? sock : 0,
+                                     CLIENT_MULTI_STATEMENTS)) {
     /*
       If we have used up all our connections check whether this
       is expected (by --error). If so, handle the error right away.
@@ -6123,13 +6802,17 @@ static void do_connect(struct st_command *command) {
   /* keep the compiler happy about con_ssl */
   con_ssl = con_ssl ? true : false;
 #endif
-  SSL_SET_OPTIONS(&con_slot->mysql);
+  if (SSL_SET_OPTIONS(&con_slot->mysql)) die("%s", SSL_SET_OPTIONS_ERROR);
 #if defined(HAVE_OPENSSL)
   opt_ssl_mode = save_opt_ssl_mode;
 #endif
 
   if (con_pipe && !con_ssl) {
     opt_protocol = MYSQL_PROTOCOL_PIPE;
+  }
+
+  if (opt_compress || con_compress) {
+    enable_async_client = false;
   }
 
   if (opt_protocol) {
@@ -6994,6 +7677,9 @@ static struct my_option my_long_options[] = {
      "FORMAT=JSON",
      &json_explain_protocol, &json_explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0,
      0, 0, 0, 0},
+    {"load-pool", OPT_LOAD_POOL, "Load pool value for secondary engine.",
+     &opt_load_pool, &opt_load_pool, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
+     0},
     {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir, &opt_logdir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"mark-progress", OPT_MARK_PROGRESS,
@@ -7013,6 +7699,9 @@ static struct my_option my_long_options[] = {
      "Contains comma seperated list of to be excluded inc files.",
      &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
      0, 0},
+    {"offload-count-file", OPT_OFFLOAD_COUNT_FILE, "Offload count report file",
+     &opt_offload_count_file, &opt_offload_count_file, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
     {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
      "Trace DML statements with optimizer trace", &opt_trace_protocol,
      &opt_trace_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7050,6 +7739,9 @@ static struct my_option my_long_options[] = {
      &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
      0, 0, 0, 0, 0},
 #endif
+    {"secondary-engine", OPT_SECONDARY_ENGINE, "Secondary engine name.",
+     &opt_secondary_engine, &opt_secondary_engine, 0, GET_STR, REQUIRED_ARG, 0,
+     0, 0, 0, 0, 0},
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7081,6 +7773,9 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
      &view_protocol, &view_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"async-client", '*', "Use async client.", &use_async_client,
+     &use_async_client, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage() {
@@ -7302,15 +7997,6 @@ void str_to_file(const char *fname, char *str, size_t size) {
   str_to_file2(fname, str, size, false);
 }
 
-static void check_regerr(my_regex_t *r, int err) {
-  char err_buf[1024];
-
-  if (err) {
-    my_regerror(err, r, err_buf, sizeof(err_buf));
-    die("Regex error: %s\n", err_buf);
-  }
-}
-
 #ifdef _WIN32
 
 typedef Prealloced_array<const char *, 16> Patterns;
@@ -7477,7 +8163,7 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res) {
   MYSQL_FIELD *fields = mysql_fetch_fields(res);
   ulong *lengths;
 
-  while ((row = mysql_fetch_row(res))) {
+  while ((row = mysql_fetch_row_wrapper(res))) {
     uint i;
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < num_fields; i++) {
@@ -7656,86 +8342,190 @@ static void append_table_headings(DYNAMIC_STRING *ds, MYSQL_FIELD *field,
   dynstr_append_mem(ds, "\n", 1);
 }
 
-/*
-  Fetch warnings from server and append to ds
+/// Check whether a given warning is in list of disabled or enabled warnings.
+///
+/// @param warnings      List of either disabled or enabled warnings.
+/// @param error         Error number
+/// @param warning_found Boolean value, should be set to true if warning
+///                      is found in the list, false otherwise.
+///
+/// @retval True if the given warning is present in the list, and
+///         ignore flag for that warning is not set, false otherwise.
+static bool match_warnings(Expected_warnings *warnings, std::uint32_t error,
+                           bool *warning_found) {
+  bool match_found = false;
+  std::vector<std::unique_ptr<Warning>>::iterator warning = warnings->begin();
 
-  RETURN VALUE
-  Number of warnings appended to ds
-*/
+  for (; warning != warnings->end(); warning++) {
+    if ((*warning)->warning_code() == error) {
+      *warning_found = true;
+      if (!(*warning)->ignore_warning()) {
+        match_found = true;
+        break;
+      }
+    }
+  }
 
-static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
-  uint count;
-  MYSQL_RES *warn_res;
-  DBUG_ENTER("append_warnings");
-
-  if (!(count = mysql_warning_count(mysql))) DBUG_RETURN(0);
-
-  /*
-    If one day we will support execution of multi-statements
-    through PS API we should not issue SHOW WARNINGS until
-    we have not read all results...
-  */
-  DBUG_ASSERT(!mysql_more_results(mysql));
-
-  if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
-    die("Error running query \"SHOW WARNINGS\": %s", mysql_error(mysql));
-
-  if (!(warn_res = mysql_store_result(mysql)))
-    die("Warning count is %u but didn't get any warnings", count);
-
-  append_result(ds, warn_res);
-  mysql_free_result(warn_res);
-
-  DBUG_PRINT("warnings", ("%s", ds->str));
-
-  DBUG_RETURN(count);
+  return match_found;
 }
 
-/*
-  Run query using MySQL C API
+/// Handle one warning which occurred during execution of a query.
+///
+/// @param ds      DYNAMIC_STRING object to store the warnings.
+/// @param warning Warning string
+///
+/// @retval True if a warning is found in the list of disabled or enabled
+///         warnings, false otherwise.
+static bool handle_one_warning(DYNAMIC_STRING *ds, std::string warning) {
+  // Each line of show warnings output contains information about
+  // error level, error code and the error/warning message separated
+  // by '\t'. Parse each line from the show warnings output to
+  // extract the error code and compare it with list of expected
+  // warnings.
+  bool warning_found = false;
+  std::string error_code;
+  std::stringstream warn_msg(warning);
 
-  SYNOPSIS
-    run_query_normal()
-    mysql	mysql handle
-    command	current command pointer
-    flags	flags indicating if we should SEND and/or REAP
-    query	query string to execute
-    query_len	length query string to execute
-    ds		output buffer where to store result form query
-*/
+  while (std::getline(warn_msg, error_code, '\t')) {
+    int errcode = get_int_val(error_code.c_str());
+    if (errcode != -1) {
+      if (disabled_warnings->count()) {
+        // Print the warning if it doesn't match with any of the
+        // disabled warnings.
+        if (!match_warnings(disabled_warnings, errcode, &warning_found)) {
+          dynstr_append_mem(ds, warning.c_str(), warning.length());
+          dynstr_append_mem(ds, "\n", 1);
+        }
+      } else if (enabled_warnings->count()) {
+        if (match_warnings(enabled_warnings, errcode, &warning_found)) {
+          dynstr_append_mem(ds, warning.c_str(), warning.length());
+          dynstr_append_mem(ds, "\n", 1);
+        }
+      }
+    }
+  }
 
+  return warning_found;
+}
+
+/// Handle warnings which occurred during execution of a query.
+///
+/// @param ds          DYNAMIC_STRING object to store the warnings.
+/// @param ds_warnings String containing all the generated warnings.
+static void handle_warnings(DYNAMIC_STRING *ds, const char *ds_warnings) {
+  bool warning_found = false;
+  std::string warning;
+  std::stringstream warnings(ds_warnings);
+
+  // Set warning_found only if at least one of the warning exist
+  // in expected list of warnings.
+  while (std::getline(warnings, warning))
+    if (handle_one_warning(ds, warning)) warning_found = true;
+
+  // Throw an error and abort the test run if a query generates warnings
+  // which are not listed as expected.
+  if (!warning_found) {
+    std::string warning_list;
+
+    if (disabled_warnings->count())
+      warning_list = disabled_warnings->warnings_list();
+    else if (enabled_warnings->count())
+      warning_list = enabled_warnings->warnings_list();
+
+    die("Query '%s' didn't generate any of the expected warning(s) '%s'.",
+        curr_command->query, warning_list.c_str());
+  }
+}
+
+/// Fetch warnings generated by server while executing a query and
+/// append them to warnings buffer 'ds'.
+///
+/// @param ds    DYNAMIC_STRING object to store the warnings
+/// @param mysql mysql handle object
+///
+/// @retval Number of warnings appended to ds
+static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
+  unsigned int count;
+  if (!(count = mysql_warning_count(mysql))) return 0;
+
+  // If one day we will support execution of multi-statements
+  // through PS API we should not issue SHOW WARNINGS until
+  // we have not read all results.
+  DBUG_ASSERT(!mysql_more_results(mysql));
+
+  MYSQL_RES *warn_res;
+  if (mysql_real_query_wrapper(mysql, "SHOW WARNINGS", 13))
+    die("Error running query \"SHOW WARNINGS\": %s", mysql_error(mysql));
+
+  if (!(warn_res = mysql_store_result_wrapper(mysql)))
+    die("Warning count is %u but didn't get any warnings", count);
+
+  DYNAMIC_STRING ds_warnings;
+  init_dynamic_string(&ds_warnings, "", 1024, 1024);
+  append_result(&ds_warnings, warn_res);
+  mysql_free_result_wrapper(warn_res);
+
+  if (disable_warnings &&
+      (disabled_warnings->count() || enabled_warnings->count()))
+    handle_warnings(ds, ds_warnings.str);
+  else if (!disable_warnings)
+    dynstr_append_mem(ds, ds_warnings.str, ds_warnings.length);
+
+  dynstr_free(&ds_warnings);
+  return ds->length;
+}
+
+/// Run query using MySQL C API
+///
+/// @param cn          Connection object
+/// @param command     Pointer to the st_command structure which holds the
+///                    arguments and information for the command.
+/// @param flags       Flags indicating if we should SEND and/or REAP.
+/// @param query       Query string
+/// @param query_len   Length of the query string
+/// @param ds          Output buffer to store the query result.
+/// @param ds_warnings Buffer to store the warnings generated while
+///                    executing the query.
 static void run_query_normal(struct st_connection *cn,
                              struct st_command *command, int flags, char *query,
                              size_t query_len, DYNAMIC_STRING *ds,
                              DYNAMIC_STRING *ds_warnings) {
-  MYSQL_RES *res = 0;
+  int error = 0;
+  std::uint32_t counter = 0;
   MYSQL *mysql = &cn->mysql;
-  int err = 0, counter = 0;
-  DBUG_ENTER("run_query_normal");
-  DBUG_PRINT("enter", ("flags: %d", flags));
-  DBUG_PRINT("enter", ("query: '%-.60s'", query));
+  MYSQL_RES *res = 0;
+
+  if (opt_load_pool) {
+    secondary_engine->match_statement(query, expected_errors->count());
+    if (secondary_engine->statement_type()) {
+      std::vector<unsigned int> ignore_errors = expected_errors->errors();
+      // Run secondary engine unload statements.
+      if (secondary_engine->run_unload_statements(mysql, ignore_errors))
+        die("Original query '%s'.", query);
+    }
+  }
 
   if (flags & QUERY_SEND_FLAG) {
-    /*
-      Send the query
-    */
-    if (mysql_send_query(&cn->mysql, query, static_cast<ulong>(query_len))) {
+    /* Send the query */
+    if (mysql_send_query_wrapper(&cn->mysql, query,
+                                 static_cast<ulong>(query_len))) {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
     }
   }
+
   if (!(flags & QUERY_REAP_FLAG)) {
     cn->pending = true;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   do {
     /*
-      When  on first result set, call mysql_read_query_result to retrieve
-      answer to the query sent earlier
+      When  on first result set, call mysql_read_query_result_wrapper to
+      retrieve answer to the query sent earlier
     */
-    if ((counter == 0) && mysql_read_query_result(&cn->mysql)) {
+    if ((counter == 0) && mysql_read_query_result_wrapper(&cn->mysql)) {
       /* we've failed to collect the result set */
       cn->pending = true;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
@@ -7746,7 +8536,8 @@ static void run_query_normal(struct st_connection *cn,
     /*
       Store the result of the query if it will return any fields
     */
-    if (mysql_field_count(mysql) && ((res = mysql_store_result(mysql)) == 0)) {
+    if (mysql_field_count(mysql) &&
+        ((res = mysql_store_result_wrapper(mysql)) == 0)) {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
@@ -7755,7 +8546,7 @@ static void run_query_normal(struct st_connection *cn,
     if (!disable_result_log) {
       if (res) {
         MYSQL_FIELD *fields = mysql_fetch_fields(res);
-        uint num_fields = mysql_num_fields(res);
+        std::uint32_t num_fields = mysql_num_fields(res);
 
         if (display_metadata) append_metadata(ds, fields, num_fields);
 
@@ -7765,21 +8556,19 @@ static void run_query_normal(struct st_connection *cn,
         append_result(ds, res);
       }
 
-      /*
-        Need to call mysql_affected_rows() before the "new"
-        query to find the warnings.
-      */
+      // Need to call mysql_affected_rows() before the "new"
+      // query to find the warnings.
       if (!disable_info)
         append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
 
       if (display_session_track_info) append_session_track_info(ds, mysql);
 
-      /*
-        Add all warnings to the result. We can't do this if we are in
-        the middle of processing results from multi-statement, because
-        this will break protocol.
-      */
-      if (!disable_warnings && !mysql_more_results(mysql)) {
+      // Add all warnings to the result. We can't do this if we are in
+      // the middle of processing results from multi-statement, because
+      // this will break protocol.
+      if ((!disable_warnings || disabled_warnings->count() ||
+           enabled_warnings->count()) &&
+          !mysql_more_results(mysql)) {
         if (append_warnings(ds_warnings, mysql) || ds_warnings->length) {
           dynstr_append_mem(ds, "Warnings:\n", 10);
           dynstr_append_mem(ds, ds_warnings->str, ds_warnings->length);
@@ -7788,126 +8577,125 @@ static void run_query_normal(struct st_connection *cn,
     }
 
     if (res) {
-      mysql_free_result(res);
+      mysql_free_result_wrapper(res);
       res = 0;
     }
     counter++;
-  } while (!(err = mysql_next_result(mysql)));
-  if (err > 0) {
-    /* We got an error from mysql_next_result, maybe expected */
+  } while (!(error = mysql_next_result_wrapper(mysql)));
+  if (error > 0) {
+    // We got an error from mysql_next_result, maybe expected.
     handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), ds);
     goto end;
   }
-  DBUG_ASSERT(err == -1); /* Successful and there are no more results */
 
-  /* If we come here the query is both executed and read successfully */
+  // Successful and there are no more results.
+  DBUG_ASSERT(error == -1);
+
+  // If we come here the query is both executed and read successfully.
   handle_no_error(command);
   revert_properties();
 
 end:
-
   cn->pending = false;
-  /*
-    We save the return code (mysql_errno(mysql)) from the last call sent
-    to the server into the mysqltest builtin variable $mysql_errno. This
-    variable then can be used from the test case itself.
-  */
+
+  // We save the return code (mysql_errno(mysql)) from the last call sent
+  // to the server into the mysqltest builtin variable $mysql_errno. This
+  // variable then can be used from the test case itself.
   var_set_errno(mysql_errno(mysql));
-  DBUG_VOID_RETURN;
+
+  if (opt_load_pool && secondary_engine->statement_type()) {
+    std::vector<unsigned int> ignore_errors = expected_errors->errors();
+    // Run secondary engine load statements.
+    if (secondary_engine->run_load_statements(mysql, ignore_errors))
+      die("Original query '%s'.", query);
+  }
 }
 
-/*
-  Run query using prepared statement C API
-
-  SYNPOSIS
-  run_query_stmt
-  mysql - mysql handle
-  command - currrent command pointer
-  query - query string to execute
-  query_len - length query string to execute
-  ds - output buffer where to store result form query
-
-  RETURN VALUE
-  error - function will not return
-*/
-
+/// Run query using prepared statement C API
+///
+/// @param mysql       mysql handle
+/// @param command     Pointer to the st_command structure which holds the
+///                    arguments and information for the command.
+/// @param query       Query string
+/// @param query_len   Length of the query string
+/// @param ds          Output buffer to store the query result.
+/// @param ds_warnings Buffer to store the warnings generated while
+///                    executing the query.
 static void run_query_stmt(MYSQL *mysql, struct st_command *command,
                            char *query, size_t query_len, DYNAMIC_STRING *ds,
                            DYNAMIC_STRING *ds_warnings) {
-  MYSQL_RES *res = NULL; /* Note that here 'res' is meta data result set */
+  // Init a new stmt if it's not already one created for this connection.
   MYSQL_STMT *stmt;
-  int err = 0;
-  DYNAMIC_STRING ds_prepare_warnings = DYNAMIC_STRING();
-  DYNAMIC_STRING ds_execute_warnings = DYNAMIC_STRING();
-  DBUG_ENTER("run_query_stmt");
-  DBUG_PRINT("query", ("'%-.60s'", query));
-
-  /*
-    Init a new stmt if it's not already one created for this connection
-  */
   if (!(stmt = cur_con->stmt)) {
     if (!(stmt = mysql_stmt_init(mysql))) die("unable to init stmt structure");
     cur_con->stmt = stmt;
   }
 
-  /* Init dynamic strings for warnings */
-  if (!disable_warnings) {
+  if (opt_load_pool) {
+    secondary_engine->match_statement(query, expected_errors->count());
+    if (secondary_engine->statement_type()) {
+      std::vector<unsigned int> ignore_errors = expected_errors->errors();
+      // Run secondary engine unload statements.
+      if (secondary_engine->run_unload_statements(mysql, ignore_errors))
+        die("Original query '%s'.", query);
+    }
+  }
+
+  DYNAMIC_STRING ds_prepare_warnings;
+  DYNAMIC_STRING ds_execute_warnings;
+
+  // Init dynamic strings for warnings.
+  if (!disable_warnings || disabled_warnings->count() ||
+      enabled_warnings->count()) {
     init_dynamic_string(&ds_prepare_warnings, NULL, 0, 256);
     init_dynamic_string(&ds_execute_warnings, NULL, 0, 256);
   }
 
-  /*
-    Prepare the query
-  */
+  // Note that here 'res' is meta data result set
+  MYSQL_RES *res = NULL;
+  int err = 0;
+
+  // Prepare the query
   if (mysql_stmt_prepare(stmt, query, static_cast<ulong>(query_len))) {
     handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                  mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
-  /*
-    Get the warnings from mysql_stmt_prepare and keep them in a
-    separate string
-  */
-  if (!disable_warnings) append_warnings(&ds_prepare_warnings, mysql);
+  // Get the warnings from mysql_stmt_prepare and keep them in a
+  // separate string.
+  if (!disable_warnings || disabled_warnings->count() ||
+      enabled_warnings->count())
+    append_warnings(&ds_prepare_warnings, mysql);
 
-  /*
-    No need to call mysql_stmt_bind_param() because we have no
-    parameter markers.
-  */
-
+  // No need to call mysql_stmt_bind_param() because we have no
+  // parameter markers.
   if (cursor_protocol_enabled) {
-    /*
-      Use cursor when retrieving result
-    */
-    ulong type = CURSOR_TYPE_READ_ONLY;
+    // Use cursor when retrieving result.
+    unsigned long type = CURSOR_TYPE_READ_ONLY;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&type))
       die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s",
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
-  /*
-    Execute the query
-  */
+  // Execute the query
   if (mysql_stmt_execute(stmt)) {
     handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                  mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
-  /*
-    When running in cursor_protocol get the warnings from execute here
-    and keep them in a separate string for later.
-  */
-  if (cursor_protocol_enabled && !disable_warnings)
+  // When running in cursor_protocol get the warnings from execute here
+  // and keep them in a separate string for later.
+  if (cursor_protocol_enabled &&
+      (!disable_warnings || disabled_warnings->count() ||
+       enabled_warnings->count()))
     append_warnings(&ds_execute_warnings, mysql);
 
-  /*
-    We instruct that we want to update the "max_length" field in
-    mysql_stmt_store_result(), this is our only way to know how much
-    buffer to allocate for result data
-  */
+  // We instruct that we want to update the "max_length" field in
+  // mysql_stmt_store_result(), this is our only way to know how much
+  // buffer to allocate for result data
   {
     bool one = 1;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void *)&one))
@@ -7916,11 +8704,9 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   }
 
   do {
-    /*
-      If we got here the statement succeeded and was expected to do so,
-      get data. Note that this can still give errors found during execution!
-      Store the result of the query if if will return any fields
-    */
+    // If we got here the statement succeeded and was expected to do so,
+    // get data. Note that this can still give errors found during execution.
+    // Store the result of the query if if will return any fields
     if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt)) {
       handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                    mysql_stmt_sqlstate(stmt), ds);
@@ -7928,16 +8714,14 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
     }
 
     if (!disable_result_log) {
-      /*
-        Not all statements creates a result set. If there is one we can
-        now create another normal result set that contains the meta
-        data. This set can be handled almost like any other non prepared
-        statement result set.
-      */
+      // Not all statements creates a result set. If there is one we can
+      // now create another normal result set that contains the meta
+      // data. This set can be handled almost like any other non prepared
+      // statement result set.
       if ((res = mysql_stmt_result_metadata(stmt)) != NULL) {
-        /* Take the column count from meta info */
+        // Take the column count from meta info
         MYSQL_FIELD *fields = mysql_fetch_fields(res);
-        uint num_fields = mysql_num_fields(res);
+        std::uint32_t num_fields = mysql_num_fields(res);
 
         if (display_metadata) append_metadata(ds, fields, num_fields);
 
@@ -7946,49 +8730,47 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
         append_stmt_result(ds, stmt, fields, num_fields);
 
-        /* Free normal result set with meta data */
-        mysql_free_result(res);
+        // Free normal result set with meta data
+        mysql_free_result_wrapper(res);
 
-        /*
-          Clear prepare warnings if there are execute warnings,
-          since they are probably duplicated.
-        */
+        // Clear prepare warnings if there are execute warnings,
+        // since they are probably duplicated.
         if (ds_execute_warnings.length || mysql->warning_count)
           dynstr_set(&ds_prepare_warnings, NULL);
       } else {
-        /*
-          This is a query without resultset
-        */
+        // This is a query without resultset
       }
 
-      /*
-        Fetch info before fetching warnings, since it will be reset
-        otherwise.
-      */
-
+      // Fetch info before fetching warnings, since it will be reset
+      // otherwise.
       if (!disable_info)
         append_info(ds, mysql_affected_rows(stmt->mysql), mysql_info(mysql));
 
       if (display_session_track_info) append_session_track_info(ds, mysql);
 
-      /*
-        Add all warnings to the result. We can't do this if we are in
-        the middle of processing results from multi-statement, because
-        this will break protocol.
-      */
-      if (!disable_warnings && !mysql_more_results(stmt->mysql)) {
-        /* Get the warnings from execute */
-
-        /* Append warnings to ds - if there are any */
-        if (append_warnings(&ds_execute_warnings, mysql) ||
-            ds_execute_warnings.length || ds_prepare_warnings.length ||
+      // Add all warnings to the result. We can't do this if we are in
+      // the middle of processing results from multi-statement, because
+      // this will break protocol.
+      if ((!disable_warnings || disabled_warnings->count() ||
+           enabled_warnings->count()) &&
+          !mysql_more_results(stmt->mysql)) {
+        // Get the warnings from execute. Append warnings to ds,
+        // if there are any.
+        append_warnings(&ds_execute_warnings, mysql);
+        if (ds_execute_warnings.length || ds_prepare_warnings.length ||
             ds_warnings->length) {
           dynstr_append_mem(ds, "Warnings:\n", 10);
+
+          // Append warnings if exist any
           if (ds_warnings->length)
             dynstr_append_mem(ds, ds_warnings->str, ds_warnings->length);
+
+          // Append prepare warnings if exist any
           if (ds_prepare_warnings.length)
             dynstr_append_mem(ds, ds_prepare_warnings.str,
                               ds_prepare_warnings.length);
+
+          // Append execute warnings if exist any
           if (ds_execute_warnings.length)
             dynstr_append_mem(ds, ds_execute_warnings.str,
                               ds_execute_warnings.length);
@@ -7998,37 +8780,40 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   } while ((err = mysql_stmt_next_result(stmt)) == 0);
 
   if (err > 0) {
-    /* We got an error from mysql_stmt_next_result, maybe expected */
+    // We got an error from mysql_stmt_next_result, maybe expected.
     handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                  mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
-  /* If we got here the statement was both executed and read successfully */
+  // If we got here the statement was both executed and read successfully.
   handle_no_error(command);
 
 end:
-  if (!disable_warnings) {
+  if (!disable_warnings || disabled_warnings->count() ||
+      enabled_warnings->count()) {
     dynstr_free(&ds_prepare_warnings);
     dynstr_free(&ds_execute_warnings);
   }
   revert_properties();
 
-  /*
-    We save the return code (mysql_stmt_errno(stmt)) from the last call sent
-    to the server into the mysqltest builtin variable $mysql_errno. This
-    variable then can be used from the test case itself.
-  */
-
+  // We save the return code (mysql_stmt_errno(stmt)) from the last call sent
+  // to the server into the mysqltest builtin variable $mysql_errno. This
+  // variable then can be used from the test case itself.
   var_set_errno(mysql_stmt_errno(stmt));
 
-  /* Close the statement if - no reconnect, need new prepare */
+  // Close the statement if no reconnect, need new prepare.
   if (mysql->reconnect) {
     mysql_stmt_close(stmt);
     cur_con->stmt = NULL;
   }
 
-  DBUG_VOID_RETURN;
+  if (opt_load_pool && secondary_engine->statement_type()) {
+    std::vector<unsigned int> ignore_errors = expected_errors->errors();
+    // Run secondary engine load statements.
+    if (secondary_engine->run_load_statements(mysql, ignore_errors))
+      die("Original query '%s'.", query);
+  }
 }
 
 /*
@@ -8059,7 +8844,7 @@ static int util_query(MYSQL *org_mysql, const char *query) {
     cur_con->util_mysql = mysql;
   }
 
-  DBUG_RETURN(mysql_query(mysql, query));
+  DBUG_RETURN(mysql_query_wrapper(mysql, query));
 }
 
 /*
@@ -8131,7 +8916,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     dynstr_append_mem(ds, "\n", 1);
   }
 
-  if (view_protocol_enabled && complete_query && match_re(&view_re, query)) {
+  if (view_protocol_enabled && complete_query &&
+      search_protocol_re(&view_re, query)) {
     /*
       Create the query as a view.
       Use replace since view can exist from a failed mysqltest run
@@ -8171,7 +8957,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     dynstr_free(&query_str);
   }
 
-  if (sp_protocol_enabled && complete_query && match_re(&sp_re, query)) {
+  if (sp_protocol_enabled && complete_query &&
+      search_protocol_re(&sp_re, query)) {
     /*
       Create the query as a stored procedure
       Drop first since sp can exist from a failed mysqltest run
@@ -8225,7 +9012,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     If it is a '?' in the query it may be a SQL level prepared
     statement already and we can't do it twice
   */
-  if (ps_protocol_enabled && complete_query && match_re(&ps_re, query))
+  if (ps_protocol_enabled && complete_query &&
+      search_protocol_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
     run_query_normal(cn, command, flags, query, query_len, ds, &ds_warnings);
@@ -8268,7 +9056,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
 static void display_opt_trace(struct st_connection *cn,
                               struct st_command *command, int flags) {
   if (!disable_query_log && opt_trace_protocol_enabled && !cn->pending &&
-      !expected_errors->count() && match_re(&opt_trace_re, command->query)) {
+      !expected_errors->count() &&
+      search_protocol_re(&opt_trace_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
@@ -8294,7 +9083,7 @@ static void display_opt_trace(struct st_connection *cn,
 static void run_explain(struct st_connection *cn, struct st_command *command,
                         int flags, bool json) {
   if ((flags & QUERY_REAP_FLAG) && !expected_errors->count() &&
-      match_re(&explain_re, command->query)) {
+      search_protocol_re(&explain_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
     DYNAMIC_STRING ds_warning_messages;
@@ -8318,124 +9107,18 @@ static void run_explain(struct st_connection *cn, struct st_command *command,
   }
 }
 
-/****************************************************************************/
-/*
-  Functions to detect different SQL statements
+/**
+  Function to check if a protocol's regular expression matches the query
+  string.
+
+  @param re  Pointer to a precompiled regular expression.
+  @param str Pointer to character string in which the pattern needs to be
+             searched.
+
+  @retval 1 If the pattern is found.
+  @retval 0 If the pattern is not found.
 */
-
-static char *re_eprint(int err) {
-  static char epbuf[100];
-  size_t len MY_ATTRIBUTE((unused)) =
-      my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
-  assert(len <= sizeof(epbuf));
-  return (epbuf);
-}
-
-static void init_re_comp(my_regex_t *re, const char *str) {
-  int err = my_regcomp(re, str, (MY_REG_EXTENDED | MY_REG_ICASE | MY_REG_NOSUB),
-                       &my_charset_latin1);
-  if (err) {
-    char erbuf[100];
-    size_t len = my_regerror(err, re, erbuf, sizeof(erbuf));
-    die("error %s, %d/%d `%s'\n", re_eprint(err), (int)len, (int)sizeof(erbuf),
-        erbuf);
-  }
-}
-
-void init_re(void) {
-  /*
-    Filter for queries that can be run using the
-    MySQL Prepared Statements C API
-  */
-  const char *ps_re_str =
-      "^("
-      "[[:space:]]*REPLACE[[:space:]]|"
-      "[[:space:]]*INSERT[[:space:]]|"
-      "[[:space:]]*UPDATE[[:space:]]|"
-      "[[:space:]]*DELETE[[:space:]]|"
-      "[[:space:]]*SELECT[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+DATABASE[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+INDEX[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+DATABASE[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+INDEX[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+VIEW[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*ALTER[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*RENAME[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*RENAME[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*TRUNCATE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*ANALYZE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*CHECKSUM[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*CHECKSUM[[:space:]]+TABLES[[:space:]]|"
-      "[[:space:]]*OPTIMIZE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*REPAIR[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*GRANT[[:space:]]|"
-      "[[:space:]]*KILL[[:space:]]|"
-      "[[:space:]]*REVOKE[[:space:]]+ALL[[:space:]]+PRIVILEGES[[:space:]]|"
-      "[[:space:]]*DO[[:space:]]|"
-      "[[:space:]]*CALL[[:space:]]|"
-      "[[:space:]]*COMMIT[[:space:]]|"
-      "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+PROCEDURE[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+FUNCTION[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+VIEW[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+EVENT[[:space:]]|"
-      "[[:space:]]*INSTALL[[:space:]]+PLUGIN[[:space:]]|"
-      "[[:space:]]*UNINSTALL[[:space:]]+PLUGIN[[:space:]]|"
-      "[[:space:]]*RESET[[:space:]]+MASTER[[:space:]]|"
-      "[[:space:]]*RESET[[:space:]]+SLAVE[[:space:]]|"
-      "[[:space:]]*RESET[[:space:]]+QUERY[[:space:]]+CACHE[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+BINLOG[[:space:]]+EVENTS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+LOGS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+STATUS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+BINARY[[:space:]]+LOGS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+SLAVE[[:space:]]+STATUS[[:space:]]|"
-      "[[:space:]]*SLAVE[[:space:]]+START[[:space:]]|"
-      "[[:space:]]*SLAVE[[:space:]]+STOP[[:space:]]|"
-      "[[:space:]]*DELETE[[:space:]]+MULTI[[:space:]]|"
-      "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
-      "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])[^;]*$";
-
-  /*
-    Filter for queries that can be run using the
-    Stored procedures
-  */
-  const char *sp_re_str = ps_re_str;
-
-  /*
-    Filter for queries that can be run as views
-  */
-  const char *view_re_str =
-      "^("
-      "[[:space:]]*SELECT[[:space:]])";
-
-  const char *opt_trace_re_str =
-      "^("
-      "[[:space:]]*INSERT[[:space:]]|"
-      "[[:space:]]*UPDATE[[:space:]]|"
-      "[[:space:]]*DELETE[[:space:]]|"
-      "[[:space:]]*EXPLAIN[[:space:]]|"
-      "[[:space:]]*SELECT[[:space:]])";
-
-  /* Filter for queries that can be converted to EXPLAIN */
-  const char *explain_re_str =
-      "^("
-      "[[:space:]]*(SELECT|DELETE|UPDATE|INSERT|REPLACE)[[:space:]])";
-
-  init_re_comp(&ps_re, ps_re_str);
-  init_re_comp(&sp_re, sp_re_str);
-  init_re_comp(&view_re, view_re_str);
-  init_re_comp(&opt_trace_re, opt_trace_re_str);
-  init_re_comp(&explain_re, explain_re_str);
-}
-
-int match_re(my_regex_t *re, char *str) {
+static int search_protocol_re(std::regex *re, char *str) {
   while (my_isspace(charset_info, *str)) str++;
   if (str[0] == '/' && str[1] == '*') {
     char *comm_end = strstr(str, "*/");
@@ -8443,32 +9126,22 @@ int match_re(my_regex_t *re, char *str) {
     str = comm_end + 2;
   }
 
-  int err = my_regexec(re, str, (size_t)0, NULL, 0);
+  // Check if statement matches the pattern string
+  if (std::regex_search(str, *re, std::regex_constants::match_continuous)) {
+    /*
+      Simulate the "[^;]*$" check which follows the SQL prefix
+      in the regex used to filter statements to be run with ps/
+      sp protocol as using it directly in the regex is currently
+      not possible due to an issue in the standard regex library.
+    */
+    if ((re == &ps_re || re == &sp_re) && strchr(str, ';') != NULL) return 0;
 
-  if (err == 0)
+    // Match found
     return 1;
-  else if (err == MY_REG_NOMATCH)
+  } else {
     return 0;
-
-  {
-    char erbuf[100];
-    size_t len = my_regerror(err, re, erbuf, sizeof(erbuf));
-    die("error %s, %d/%d `%s'\n", re_eprint(err), (int)len, (int)sizeof(erbuf),
-        erbuf);
   }
-  return 0;
 }
-
-void free_re(void) {
-  my_regfree(&ps_re);
-  my_regfree(&sp_re);
-  my_regfree(&view_re);
-  my_regfree(&opt_trace_re);
-  my_regfree(&explain_re);
-  my_regex_end();
-}
-
-/****************************************************************************/
 
 static void get_command_type(struct st_command *command) {
   char save;
@@ -8746,7 +9419,8 @@ static void init_signal_handling(void) {
 
 int main(int argc, char **argv) {
   struct st_command *command;
-  bool q_send_flag = 0, abort_flag = 0;
+  bool abort_flag = 0;
+  int q_send_flag = 0;
   uint command_executed = 0, last_command_executed = 0;
   char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
@@ -8826,13 +9500,14 @@ int main(int argc, char **argv) {
   var_set_int("$JSON_EXPLAIN_PROTOCOL", json_explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
-  var_set_int("$ENABLED_QUERY_LOG", 1);
-  var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
-  var_set_int("$ENABLED_RESULT_LOG", 1);
-  var_set_int("$ENABLED_CONNECT_LOG", 0);
-  var_set_int("$ENABLED_WARNINGS", 1);
-  var_set_int("$ENABLED_INFO", 0);
-  var_set_int("$ENABLED_METADATA", 0);
+  var_set_int("$ENABLE_QUERY_LOG", 1);
+  var_set_int("$ENABLE_ABORT_ON_ERROR", 1);
+  var_set_int("$ENABLE_RESULT_LOG", 1);
+  var_set_int("$ENABLE_CONNECT_LOG", 0);
+  var_set_int("$ENABLE_WARNINGS", 1);
+  var_set_int("$ENABLE_INFO", 0);
+  var_set_int("$ENABLE_METADATA", 0);
+  var_set_int("$ENABLE_ASYNC_CLIENT", 0);
 
   DBUG_PRINT("info",
              ("result_file: '%s'", result_file_name ? result_file_name : ""));
@@ -8850,6 +9525,7 @@ int main(int argc, char **argv) {
 
   log_file.open(opt_logdir, result_file_name, ".log");
   verbose_msg("Logging to '%s'.", log_file.file_name());
+  enable_async_client = use_async_client;
 
   /*
     Creating a temporary log file using current file name if
@@ -8875,7 +9551,6 @@ int main(int argc, char **argv) {
   }
 
   var_set_string("MYSQLTEST_FILE", cur_file->file_name);
-  init_re();
 
   /* Cursor protcol implies ps protocol */
   if (cursor_protocol) ps_protocol = 1;
@@ -8913,8 +9588,10 @@ int main(int argc, char **argv) {
       opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 #endif
-  SSL_SET_OPTIONS(&con->mysql);
-
+  if (opt_compress) {
+    enable_async_client = false;
+  }
+  if (SSL_SET_OPTIONS(&con->mysql)) die("%s", SSL_SET_OPTIONS_ERROR);
 #if defined(_WIN32)
   if (shared_memory_base_name)
     mysql_options(&con->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -8947,6 +9624,19 @@ int main(int argc, char **argv) {
     open_file(opt_include);
   }
 
+  if (opt_load_pool) {
+    secondary_engine =
+        new Secondary_engine(opt_load_pool, opt_secondary_engine);
+  } else if (opt_offload_count_file) {
+    secondary_engine = new Secondary_engine();
+  }
+
+  if (opt_offload_count_file) {
+    // Save the initial value of secondary engine execution status.
+    if (secondary_engine->offload_count(&cur_con->mysql, "before"))
+      cleanup_and_exit(1);
+  }
+
   verbose_msg("Start processing test commands from '%s' ...",
               cur_file->file_name);
   while (!read_command(&command) && !abort_flag) {
@@ -8956,7 +9646,7 @@ int main(int argc, char **argv) {
 
     if (command->type == Q_ERROR && expected_errors->count())
       // Delete all the error codes from previous 'error' command.
-      expected_errors->clear_error_list();
+      expected_errors->clear_list();
 
     if (testcase_disabled && command->type != Q_ENABLE_TESTCASE &&
         command->type != Q_DISABLE_TESTCASE) {
@@ -9035,10 +9725,10 @@ int main(int argc, char **argv) {
           set_property(command, P_CONNECT, 1);
           break;
         case Q_ENABLE_WARNINGS:
-          set_property(command, P_WARN, 0);
+          do_enable_warnings(command);
           break;
         case Q_DISABLE_WARNINGS:
-          set_property(command, P_WARN, 1);
+          do_disable_warnings(command);
           break;
         case Q_ENABLE_INFO:
           set_property(command, P_INFO, 0);
@@ -9191,8 +9881,13 @@ int main(int argc, char **argv) {
           int flags = QUERY_REAP_FLAG | QUERY_SEND_FLAG;
 
           if (q_send_flag) {
-            /* Last command was an empty 'send' */
+            // Last command was an empty 'send' or 'send_eval'
             flags = QUERY_SEND_FLAG;
+            if (q_send_flag == 2)
+              // Last command was an empty 'send_eval' command. Set the command
+              // type to Q_SEND_EVAL so that the variable gets replaced with its
+              // value before executing.
+              command->type = Q_SEND_EVAL;
             q_send_flag = 0;
           } else if (command->type == Q_REAP) {
             flags = QUERY_REAP_FLAG;
@@ -9228,11 +9923,12 @@ int main(int argc, char **argv) {
         case Q_SEND:
         case Q_SEND_EVAL:
           if (!*command->first_argument) {
-            /*
-              This is a send without arguments, it indicates that _next_ query
-              should be send only
-            */
-            q_send_flag = 1;
+            // This is a 'send' or 'send_eval' command without arguments, it
+            // indicates that _next_ query should be send only.
+            if (command->type == Q_SEND)
+              q_send_flag = 1;
+            else if (command->type == Q_SEND_EVAL)
+              q_send_flag = 2;
             break;
           }
 
@@ -9251,7 +9947,7 @@ int main(int argc, char **argv) {
           command->last_argument = command->end;
           break;
         case Q_ERROR:
-          do_get_errcodes(command);
+          do_error(command);
           break;
         case Q_REPLACE:
           do_get_replace(command);
@@ -9313,8 +10009,15 @@ int main(int argc, char **argv) {
           do_reset_connection();
           break;
         case Q_SEND_SHUTDOWN:
-          handle_command_error(command,
-                               mysql_query(&cur_con->mysql, "shutdown"));
+          if (opt_offload_count_file) {
+            // Save the value of secondary engine execution status
+            // before shutting down the server.
+            if (secondary_engine->offload_count(&cur_con->mysql, "after"))
+              cleanup_and_exit(1);
+          }
+
+          handle_command_error(
+              command, mysql_query_wrapper(&cur_con->mysql, "shutdown"));
           break;
         case Q_SHUTDOWN_SERVER:
           do_shutdown_server(command);
@@ -9352,8 +10055,15 @@ int main(int argc, char **argv) {
           break;
         case Q_ENABLE_RECONNECT:
           set_reconnect(&cur_con->mysql, 1);
+          enable_async_client = false;
           /* Close any open statements - no reconnect, need new prepare */
           close_statements();
+          break;
+        case Q_ENABLE_ASYNC_CLIENT:
+          set_property(command, P_ASYNC, 1);
+          break;
+        case Q_DISABLE_ASYNC_CLIENT:
+          set_property(command, P_ASYNC, 0);
           break;
         case Q_DISABLE_TESTCASE:
           if (testcase_disabled == 0)
@@ -9446,7 +10156,7 @@ int main(int argc, char **argv) {
         command->type != Q_IF && command->type != Q_END_BLOCK) {
       // As soon as any non "error" command or comment has been executed,
       // the array with expected errors should be cleared
-      expected_errors->clear_error_list();
+      expected_errors->clear_list();
     }
 
     if (command_executed != last_command_executed || command->used_replace) {
@@ -9484,6 +10194,10 @@ int main(int argc, char **argv) {
   verbose_msg("... Done processing test commands.");
 
   if (testcase_disabled) die("Test ended with test case execution disabled.");
+
+  if (disable_warnings || disabled_warnings->count())
+    die("The test didn't enable all the disabled warnings, enable "
+        "all of them before end of the test.");
 
   bool empty_result = false;
 
@@ -9880,42 +10594,40 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
   }
 }
 
-/*
-  Regex replace  functions
-*/
-
-int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
-                char *string, int icase);
-
-/*
-  Finds the next (non-escaped) '/' in the expression.
-  (If the character '/' is needed, it can be escaped using '\'.)
-*/
-
-#define PARSE_REGEX_ARG                                                 \
-  while (p < expr_end) {                                                \
-    char c = *p;                                                        \
-    if (c == '/') {                                                     \
-      if (last_c == '\\') {                                             \
-        buf_p[-1] = '/';                                                \
-      } else {                                                          \
-        *buf_p++ = 0;                                                   \
-        break;                                                          \
-      }                                                                 \
-    } else                                                              \
-      *buf_p++ = c;                                                     \
-                                                                        \
-    last_c = c;                                                         \
-    p++;                                                                \
-  }                                                                     \
-                                                                        \
-  /*                                                                    \
-    Initializes the regular substitution expression to be used in the   \
-    result output of test.                                              \
-                                                                      \ \
-    Returns: st_replace_regex struct with pairs of substitutions        \
+  /*
+    Regex replace  functions
   */
 
+  /*
+    Finds the next (non-escaped) '/' in the expression.
+    (If the character '/' is needed, it can be escaped using '\'.)
+  */
+
+#define PARSE_REGEX_ARG     \
+  while (p < expr_end) {    \
+    char c = *p;            \
+    if (c == '/') {         \
+      if (last_c == '\\') { \
+        buf_p[-1] = '/';    \
+      } else {              \
+        *buf_p++ = 0;       \
+        break;              \
+      }                     \
+    } else                  \
+      *buf_p++ = c;         \
+                            \
+    last_c = c;             \
+    p++;                    \
+  }
+
+/**
+  Initializes the regular substitution expression to be used in the
+  result output of test.
+
+  @param  expr  Pointer to string having regular expression to be used
+                for substitution.
+  @retval st_replace_regex structure with pairs of substitutions.
+*/
 static struct st_replace_regex *init_replace_regex(char *expr) {
   struct st_replace_regex *res;
   char *buf, *expr_end;
@@ -9990,26 +10702,28 @@ err:
   return 0;
 }
 
-/*
+/**
   Execute all substitutions on val.
 
-  Returns: true if substituition was made, false otherwise
-  Side-effect: Sets r->buf to be the buffer with all substitutions done.
+  @param[in]      val  Pointer to the character string to be used as
+                       input for the regex replace operation.
+  @param[in,out]  r    Pointer to the st_replace_regex structure which
+                       holds arguments and information for the command.
+  @param[in,out]  len  Pointer to variable holding length of input string.
 
-  IN:
-  struct st_replace_regex* r
-  char* val
-  Out:
-  struct st_replace_regex* r
-  r->buf points at the resulting buffer
-  r->even_buf and r->odd_buf might have been reallocated
-  r->even_buf_len and r->odd_buf_len might have been changed
+  @retval True  If substituition was made.
+  @retval False If no substituition was made.
 
-  TODO:  at some point figure out if there is a way to do everything
-  in one pass
+  @note
+  r->buf points at the resulting buffer with all substitutions done.
+  len points at length of resulting buffer.
+  r->even_buf and r->odd_buf might have been reallocated.
+  r->even_buf_len and r->odd_buf_len might have been changed.
+
+  @todo
+  At some point figure out if there is a way to do everything in one pass.
 */
-
-int multi_reg_replace(struct st_replace_regex *r, char *val) {
+int multi_reg_replace(struct st_replace_regex *r, char *val, size_t *len) {
   size_t i;
   char *in_buf, *out_buf;
   int *buf_len_p;
@@ -10019,27 +10733,68 @@ int multi_reg_replace(struct st_replace_regex *r, char *val) {
   buf_len_p = &r->even_buf_len;
   r->buf = 0;
 
-  /* For each substitution, do the replace */
-  for (i = 0; i < r->regex_arr.size(); i++) {
-    struct st_regex re(r->regex_arr[i]);
-    char *save_out_buf = out_buf;
+  /*
+    For each substitution, perform replacement only if the input buffer
+    is not empty.
+  */
+  if (*len > 0) {
+    for (i = 0; i < r->regex_arr.size(); i++) {
+      try {
+        struct st_regex re(r->regex_arr[i]);
+        char *save_out_buf = out_buf;
 
-    if (!reg_replace(&out_buf, buf_len_p, re.pattern, re.replace, in_buf,
-                     re.icase)) {
-      /* if the buffer has been reallocated, make adjustements */
-      if (save_out_buf != out_buf) {
-        if (save_out_buf == r->even_buf)
-          r->even_buf = out_buf;
-        else
-          r->odd_buf = out_buf;
+        std::regex rpat(re.pattern, (re.icase == 0)
+                                        ? std::regex_constants::ECMAScript
+                                        : std::regex_constants::icase);
+
+        std::string sin = std::string(in_buf, *len);
+        std::string sout;
+
+        /*
+          We use iterators instead of using the input buffer directly as
+          it may include the null character (0x00) and characters succeeding
+          them will be ignored unless we specify the start and end positions
+          of the input string explicitly.
+        */
+        std::regex_replace(std::back_inserter(sout), sin.begin(), sin.end(),
+                           rpat, re.replace, std::regex_constants::format_sed);
+
+        /*
+          If some replacement is performed, write the replaced string into the
+          output buffer.
+        */
+        if (sout.compare(sin) != 0) {
+          *len = sout.length();
+          if (*len >= (uint)*buf_len_p) {
+            uint need_buf_len = (*len) + 1;
+            out_buf = (char *)my_realloc(PSI_NOT_INSTRUMENTED, out_buf,
+                                         need_buf_len, MYF(MY_WME + MY_FAE));
+            *buf_len_p = need_buf_len;
+          }
+
+          // Copy result to output buffer.
+          strncpy(out_buf, sout.c_str(), *len + 1);
+
+          // If the buffer has been reallocated, make adjustements
+          if (save_out_buf != out_buf) {
+            if (save_out_buf == r->even_buf)
+              r->even_buf = out_buf;
+            else
+              r->odd_buf = out_buf;
+          }
+
+          r->buf = out_buf;
+          if (in_buf == val) in_buf = r->odd_buf;
+
+          std::swap(in_buf, out_buf);
+
+          buf_len_p =
+              (out_buf == r->even_buf) ? &r->even_buf_len : &r->odd_buf_len;
+        }
+      } catch (const std::regex_error &e) {
+        die("Error in replace_regex for `/%s/%s/` : %s",
+            (r->regex_arr[i]).pattern, (r->regex_arr[i]).replace, e.what());
       }
-
-      r->buf = out_buf;
-      if (in_buf == val) in_buf = r->odd_buf;
-
-      std::swap(in_buf, out_buf);
-
-      buf_len_p = (out_buf == r->even_buf) ? &r->even_buf_len : &r->odd_buf_len;
     }
   }
 
@@ -10076,180 +10831,6 @@ void free_replace_regex() {
     my_free(glob_replace_regex);
     glob_replace_regex = NULL;
   }
-}
-
-/*
-  auxiluary macro used by reg_replace
-  makes sure the result buffer has sufficient length
-*/
-#define SECURE_REG_BUF                                                         \
-  if (buf_len < need_buf_len) {                                                \
-    my_ptrdiff_t off = res_p - buf;                                            \
-    buf = (char *)my_realloc(PSI_NOT_INSTRUMENTED, buf, need_buf_len,          \
-                             MYF(MY_WME + MY_FAE));                            \
-    res_p = buf + off;                                                         \
-    buf_len = need_buf_len;                                                    \
-  }                                                                            \
-                                                                               \
-/*                                                                             \
-  Performs a regex substitution                                                \
-                                                                             \ \
-  IN:                                                                          \
-                                                                             \ \
-  buf_p - result buffer pointer. Will change if reallocated                    \
-  buf_len_p - result buffer length. Will change if the buffer is reallocated   \
-  pattern - regexp pattern to match                                            \
-  replace - replacement expression                                             \
-  string - the string to perform substituions in                               \
-  icase - flag, if set to 1 the match is case insensitive                      \
-*/
-int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
-                char *string, int icase) {
-  my_regex_t r;
-  my_regmatch_t *subs;
-  char *replace_end;
-  char *buf = *buf_p;
-  size_t len;
-  size_t buf_len, need_buf_len;
-  int cflags = MY_REG_EXTENDED;
-  int err_code;
-  char *res_p, *str_p, *str_end;
-
-  buf_len = *buf_len_p;
-  len = std::strlen(string);
-  str_end = string + len;
-
-  /* start with a buffer of a reasonable size that hopefully will not
-     need to be reallocated
-  */
-  need_buf_len = len * 2 + 1;
-  res_p = buf;
-
-  SECURE_REG_BUF
-
-  if (icase) cflags |= MY_REG_ICASE;
-
-  if ((err_code = my_regcomp(&r, pattern, cflags, &my_charset_latin1))) {
-    check_regerr(&r, err_code);
-    return 1;
-  }
-
-  subs = (my_regmatch_t *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                    sizeof(my_regmatch_t) * (r.re_nsub + 1),
-                                    MYF(MY_WME + MY_FAE));
-
-  *res_p = 0;
-  str_p = string;
-  replace_end = replace + std::strlen(replace);
-
-  /* for each pattern match instance perform a replacement */
-  while (!err_code) {
-    /* find the match */
-    err_code = my_regexec(&r, str_p, r.re_nsub + 1, subs,
-                          (str_p != string) ? MY_REG_NOTBOL : 0);
-
-    /* if regular expression error (eg. bad syntax, or out of memory) */
-    if (err_code && err_code != MY_REG_NOMATCH) {
-      check_regerr(&r, err_code);
-      my_regfree(&r);
-      return 1;
-    }
-
-    /* if match found */
-    if (!err_code) {
-      char *expr_p = replace;
-      int c;
-
-      /*
-        we need at least what we have so far in the buffer + the part
-        before this match
-      */
-      need_buf_len = (res_p - buf) + (int)subs[0].rm_so;
-
-      /* on this pass, calculate the memory for the result buffer */
-      while (expr_p < replace_end) {
-        int back_ref_num = -1;
-        c = *expr_p;
-
-        if (c == '\\' && expr_p + 1 < replace_end) {
-          back_ref_num = (int)(expr_p[1] - '0');
-        }
-
-        /* found a valid back_ref (eg. \1)*/
-        if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub) {
-          my_regoff_t start_off, end_off;
-          if ((start_off = subs[back_ref_num].rm_so) > -1 &&
-              (end_off = subs[back_ref_num].rm_eo) > -1) {
-            need_buf_len += (int)(end_off - start_off);
-          }
-          expr_p += 2;
-        } else {
-          expr_p++;
-          need_buf_len++;
-        }
-      }
-      need_buf_len++;
-      /*
-        now that we know the size of the buffer,
-        make sure it is big enough
-      */
-      SECURE_REG_BUF
-
-      /* copy the pre-match part */
-      if (subs[0].rm_so) {
-        memcpy(res_p, str_p, (size_t)subs[0].rm_so);
-        res_p += subs[0].rm_so;
-      }
-
-      expr_p = replace;
-
-      /* copy the match and expand back_refs */
-      while (expr_p < replace_end) {
-        int back_ref_num = -1;
-        c = *expr_p;
-
-        if (c == '\\' && expr_p + 1 < replace_end) {
-          back_ref_num = expr_p[1] - '0';
-        }
-
-        if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub) {
-          my_regoff_t start_off, end_off;
-          if ((start_off = subs[back_ref_num].rm_so) > -1 &&
-              (end_off = subs[back_ref_num].rm_eo) > -1) {
-            int block_len = (int)(end_off - start_off);
-            memcpy(res_p, str_p + start_off, block_len);
-            res_p += block_len;
-          }
-          expr_p += 2;
-        } else {
-          *res_p++ = *expr_p++;
-        }
-      }
-
-      /* handle the post-match part */
-      if (subs[0].rm_so == subs[0].rm_eo) {
-        if (str_p + subs[0].rm_so >= str_end) break;
-        str_p += subs[0].rm_eo;
-        *res_p++ = *str_p++;
-      } else {
-        str_p += subs[0].rm_eo;
-      }
-    } else /* no match this time, just copy the string as is */
-    {
-      size_t left_in_str = str_end - str_p;
-      need_buf_len = (res_p - buf) + left_in_str;
-      SECURE_REG_BUF
-      memcpy(res_p, str_p, left_in_str);
-      res_p += left_in_str;
-      str_p = str_end;
-    }
-  }
-  my_free(subs);
-  my_regfree(&r);
-  *res_p = 0;
-  *buf_p = buf;
-  *buf_len_p = static_cast<int>(buf_len);
-  return 0;
 }
 
 #ifndef WORD_BIT
@@ -10803,10 +11384,12 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   }
 
   if (glob_replace_regex) {
-    /* Regex replace */
-    if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
+    size_t orig_len = len;
+    // Regex replace
+    if (!multi_reg_replace(glob_replace_regex, (char *)val, &len)) {
       val = glob_replace_regex->buf;
-      len = std::strlen(val);
+    } else {
+      len = orig_len;
     }
   }
 

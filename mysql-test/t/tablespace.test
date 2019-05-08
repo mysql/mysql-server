@@ -501,13 +501,15 @@ let DEFAULT_STORAGE_ENGINE= `select @@default_storage_engine`;
 SET default_storage_engine=myisam;
 
 --echo # No need to add ENGINE - looked up in DD
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
+SHOW WARNINGS;
 
 --echo # Specifying correct ENGINE is allowed, but triggers deprecation
 --echo # warning
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=INNODB;
+SHOW WARNINGS;
 
 --echo # Specifying a different ENGINE than the one stored in the DD is an
 --echo # error
@@ -737,3 +739,79 @@ ALTER TABLESPACE ts1 RENAME TO ts11;
 TRUNCATE TABLE t1; 
 DROP TABLE t1;
 DROP TABLESPACE ts11;
+
+--echo #
+--echo # WL#12236 - CREATE TABLESPACE without DATAFILE clause.
+--echo #
+
+CREATE TABLESPACE ts Engine=InnoDB;
+CREATE TABLESPACE ts1 Engine=InnoDB;
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME LIKE 'ts%';
+CREATE TABLE t1(c INT) ENGINE=InnoDB TABLESPACE=ts;
+INSERT INTO t1 VALUES(1);
+ALTER TABLE t1 TABLESPACE ts1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts;
+
+--echo #
+--echo # BUG#28656211 - DEBUG SERVER CRASHES WHEN CALL CREATE TABLESPACE WITHOUT DATAFILE
+--echo #                FROM PROCEDURE.
+--echo #
+
+DELIMITER |;
+CREATE PROCEDURE cr(IN start BIGINT)
+BEGIN
+SET @idx =start;
+WHILE (@idx > 0) DO
+CREATE TABLESPACE x;
+DROP TABLESPACE x;
+SET @idx = @idx - 1;
+END WHILE;
+END |
+DELIMITER ;|
+CALL cr(3);
+DROP PROCEDURE cr;
+
+--echo #
+--echo # perform table join with two different tablespaces
+--echo # alter tablespace and then perform table join
+--echo #
+
+CREATE TABLESPACE ts1 Engine=InnoDB;
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd' Engine=InnoDB;
+CREATE TABLE t1(c1 INT, c2 CHAR(1)) ENGINE=InnoDB TABLESPACE=ts1;
+INSERT INTO t1 VALUES(1,'a');
+CREATE TABLE t2(c1 INT, c2 CHAR(1)) ENGINE=InnoDB TABLESPACE=ts2;
+INSERT INTO t2 VALUES(1,'b');
+SELECT * FROM t1 JOIN t2 WHERE t1.c1 = t2.c1;
+ALTER TABLESPACE ts2 RENAME TO ts3;
+SELECT * FROM t1 JOIN t2 WHERE t1.c1 = t2.c1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts3;
+
+
+--echo #
+--echo # tablespace creation fails if user does'nt have CREATE TABLESPACE privilege
+--echo #
+CREATE USER user1@localhost;
+connect (con1, localhost, user1,,);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE TABLESPACE ts2 Engine=InnoDB;
+
+connection default;
+disconnect con1;
+GRANT CREATE TABLESPACE on *.* TO user1@localhost;
+
+connect (con1, localhost, user1,,);
+CREATE TABLESPACE ts2 Engine=InnoDB;
+CREATE TABLE t2(c INT) ENGINE=InnoDB TABLESPACE=ts2;
+DROP TABLE t2;
+DROP TABLESPACE ts2;
+
+connection default;
+disconnect con1;
+DROP USER user1@localhost;

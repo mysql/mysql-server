@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ typedef struct NDB_TICKS {
 
 public:
   NDB_TICKS()
-  { t = 0; };
+  { t = 0; }
 
   /**
    * Provide functionality for fetch and reconstruct of tick value.
@@ -59,10 +59,10 @@ public:
    * the clock is used to generate a pseudo random number.
    */
   Uint64 getUint64() const
-  { return t; };
+  { return t; }
 
   explicit NDB_TICKS(Uint64 val)
-  { t = val; };
+  { t = val; }
 
 } NDB_TICKS; 
 
@@ -140,7 +140,7 @@ private:
 
   friend void NdbTick_Init();
 
-  NdbDuration(Uint64 ticks) : t(ticks) {};
+  NdbDuration(Uint64 ticks) : t(ticks) {}
 }; //class NdbDuration
 
 

@@ -116,7 +116,7 @@ binlog.000001	#	Query	#	#	drop database if exists my_replicated_db
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (mtr.test_suppressions)
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Xid	#	#	COMMIT /* XID */
 binlog.000001	#	Query	#	#	create database my_replicated_db
 binlog.000001	#	Query	#	#	use `test`; create table my_replicated_db.my_tx_table(a bigint) engine = innodb
 binlog.000001	#	Query	#	#	use `test`; create table my_replicated_db.my_non_tx_table(a bigint) engine = myisam

@@ -767,16 +767,18 @@ UPDATE series set val=0;
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 t	r
-11	1
-12	1
-15	1
-17	1
+11	0
+12	0
+14	0
+15	0
+16	0
+17	0
 PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
 SELECT * FROM series, seq_calls;
 val	c
-0	17
+1	22
 UPDATE series set val=0;
 EXECUTE stmt;
 t	r
@@ -785,7 +787,7 @@ t	r
 16	1
 SELECT * FROM series, seq_calls;
 val	c
-1	24
+1	29
 UPDATE series set val=1;
 EXECUTE stmt;
 t	r
@@ -801,7 +803,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SELECT * FROM series, seq_calls;
 val	c
-0	31
+0	36
 UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 r	MIN(u)

@@ -517,7 +517,7 @@ show grants for root@localhost;
 flush privileges;
 show grants for root@localhost;
 drop database ÂÄ;
-revoke all privileges on ÂÄ.* from root@localhost;
+revoke select on ÂÄ.* from root@localhost;
 show grants for root@localhost;
 set names latin1;
 

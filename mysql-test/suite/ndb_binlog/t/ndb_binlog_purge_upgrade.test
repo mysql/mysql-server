@@ -21,7 +21,12 @@ if ($using_innodb)
 enable_query_log;
 enable_result_log;
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
---exec $MYSQL_UPGRADE --force --upgrade-system-tables
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_2_upgrade.log
+--let $restart_parameters= restart:--upgrade=FORCE --log-error=$MYSQLD_LOG
+--let $mysqld_name=mysqld.2.1
+--let $wait_counter= 10000
+--replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD MYSQLD
+--source include/restart_mysqld.inc
 
 connection server1;
 disable_query_log;
@@ -33,8 +38,15 @@ if ($using_innodb)
 enable_query_log;
 enable_result_log;
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
---exec $MYSQL_UPGRADE --force --upgrade-system-tables
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_1_upgrade.log
+--let $restart_parameters= restart:--upgrade=FORCE --log-error=$MYSQLD_LOG
+--let $mysqld_name=mysqld.1.1
+--let $wait_counter= 10000
+disconnect default;
+--replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD MYSQLD
+--source include/restart_mysqld.inc
 
+connect (default,127.0.0.1,root,,test,$MASTER_MYPORT,);
 --source suite/ndb_binlog/t/ndb_binlog_purge_lock.inc
 
 disable_query_log;

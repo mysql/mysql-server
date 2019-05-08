@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
   @file storage/perfschema/table_socket_instances.h
   Table SOCKET_INSTANCES (declarations).
 */
+
+#include "my_config.h"
 
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>

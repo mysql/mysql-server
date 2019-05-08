@@ -1,0 +1,49 @@
+#
+# The server allows ENCRYPTION='Y' clause for even the
+# storage engine that does not support tablespace encryption.
+# Infact we see that the storage engine would silently ignore
+# 'Y' and the SQL server stores the flag in data dictionary.
+#
+# This gives wrong information about the NDB table to the user.
+# This test makes sure that SQL server rejects encryption
+# request for storage engines that does not support tablespace
+# encryption. We allow 'N' and '' which both mean that
+# tablespace is not encrypted.
+#
+--source include/have_ndb.inc
+CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' ENGINE=NDB;
+# Create tablespace using the logfile group
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  ENGINE=NDB ENCRYPTION='n';
+ALTER TABLESPACE ts1 DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  ENGINE=NDB ENCRYPTION='N';
+ALTER TABLESPACE ts1 DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  ENGINE=NDB ENCRYPTION='';
+ALTER TABLESPACE ts1 DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+
+--error ER_CHECK_NOT_IMPLEMENTED
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  ENGINE=NDB ENCRYPTION='Y';
+
+--error ER_CHECK_NOT_IMPLEMENTED
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  ENGINE=NDB ENCRYPTION='R';
+
+DROP LOGFILE GROUP lg1 ENGINE=NDB;

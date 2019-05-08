@@ -39,6 +39,9 @@ namespace mysql_harness {
  */
 class HARNESS_EXPORT Keyring {
  public:
+  explicit Keyring() = default;
+  explicit Keyring(const Keyring &) = default;
+  Keyring &operator=(const Keyring &) = default;
   virtual ~Keyring() = default;
 
   /**

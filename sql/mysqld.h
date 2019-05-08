@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ void refresh_status();
 bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 
-struct System_status_var *get_thd_status_var(THD *thd);
+struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated);
 
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
@@ -150,6 +150,7 @@ extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern ulonglong log_output_options;
 extern bool opt_log_queries_not_using_indexes;
 extern ulong opt_log_throttle_queries_not_using_indexes;
+extern bool opt_log_slow_extra;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_help;
@@ -158,6 +159,7 @@ extern bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT std::atomic<int32>
     connection_events_loop_aborted_flag;
 extern bool opt_no_dd_upgrade;
+extern long opt_upgrade_mode;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
@@ -170,6 +172,7 @@ extern int32_t opt_regexp_stack_limit;
 extern bool opt_no_monitor;
 #endif  // _WIN32
 extern bool opt_debugging;
+extern bool opt_validate_config;
 
 enum enum_slave_type_conversions {
   SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
@@ -199,7 +202,9 @@ extern uint slave_rows_last_search_algorithm_used;
 extern ulong mts_parallel_option;
 #ifdef _WIN32
 extern bool opt_enable_named_pipe;
+extern char *named_pipe_full_access_group;
 extern bool opt_enable_shared_memory;
+extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern char *opt_secure_file_priv;
@@ -208,13 +213,16 @@ extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
     sha256_password_proxy_users;
-extern char *shared_memory_base_name, *mysqld_unix_port;
+#ifdef _WIN32
+extern const char *shared_memory_base_name;
+#endif
+extern char *mysqld_unix_port;
 extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;
 extern char *default_tmp_storage_engine;
-extern ulong internal_tmp_disk_storage_engine;
 extern ulonglong temptable_max_ram;
+extern bool temptable_use_mmap;
 extern bool using_udf_functions;
 extern bool locked_in_memory;
 extern bool opt_using_transactions;
@@ -227,7 +235,7 @@ extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern bool relay_log_purge;
 extern bool relay_log_recovery;
-extern bool offline_mode;
+extern std::atomic<bool> offline_mode;
 extern uint test_flags, select_errors, ha_open_options;
 extern uint protocol_version, mysqld_port;
 
@@ -246,7 +254,23 @@ extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
 extern uint default_password_lifetime;
 extern volatile bool password_require_current;
+/*
+  @warning : The real value is in @ref partial_revokes. The @ref
+  opt_partial_revokes is just a tool to trick the Sys_var class into
+  operating on an atomic variable.
+
+  Thus : do not use or access @ref opt_partial_revokes in your code.
+         If you need the value of the flag please use the @ref partial_revokes
+         global.
+  @todo :
+    @ref opt_partial_revokes to be removed when the Sys_var classes can operate
+         safely on an atomic.
+ */
+extern bool opt_partial_revokes;
 extern char *my_bind_addr_str;
+extern char *my_admin_bind_addr_str;
+extern uint mysqld_admin_port;
+extern bool listen_admin_interface_in_separate_thread;
 extern char glob_hostname[FN_REFLEN];
 extern char system_time_zone[30], *opt_init_file;
 extern char *opt_tc_log_file;
@@ -285,7 +309,7 @@ extern long opt_binlog_group_commit_sync_delay;
 extern ulong opt_binlog_group_commit_sync_no_delay_count;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong slave_max_allowed_packet;
-extern ulong opt_binlog_rows_event_max_size;
+extern ulong binlog_row_event_max_size;
 extern ulong binlog_checksum_options;
 extern ulong binlog_row_metadata;
 extern const char *binlog_checksum_type_names[];
@@ -343,6 +367,7 @@ extern ulong log_error_verbosity;
 
 extern bool persisted_globals_load;
 extern bool opt_keyring_operations;
+extern bool opt_table_encryption_privilege_check;
 extern char *opt_keyring_migration_user;
 extern char *opt_keyring_migration_host;
 extern char *opt_keyring_migration_password;
@@ -376,6 +401,7 @@ extern PSI_mutex_key key_master_info_data_lock;
 extern PSI_mutex_key key_master_info_run_lock;
 extern PSI_mutex_key key_master_info_sleep_lock;
 extern PSI_mutex_key key_master_info_thd_lock;
+extern PSI_mutex_key key_master_info_rotate_lock;
 extern PSI_mutex_key key_mutex_slave_reporting_capability_err_lock;
 extern PSI_mutex_key key_relay_log_info_data_lock;
 extern PSI_mutex_key key_relay_log_info_sleep_lock;
@@ -426,6 +452,7 @@ extern PSI_cond_key key_master_info_data_cond;
 extern PSI_cond_key key_master_info_start_cond;
 extern PSI_cond_key key_master_info_stop_cond;
 extern PSI_cond_key key_master_info_sleep_cond;
+extern PSI_cond_key key_master_info_rotate_cond;
 extern PSI_cond_key key_relay_log_info_data_cond;
 extern PSI_cond_key key_relay_log_info_log_space_cond;
 extern PSI_cond_key key_relay_log_info_start_cond;
@@ -446,6 +473,7 @@ extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;
 extern PSI_thread_key key_thread_compress_gtid_table;
 extern PSI_thread_key key_thread_parser_service;
+extern PSI_thread_key key_thread_handle_con_admin_sockets;
 
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;
@@ -482,21 +510,17 @@ extern PSI_socket_key key_socket_client_connection;
   Hint: grep PSI_stage_info | sort -u
 */
 extern PSI_stage_info stage_after_create;
-extern PSI_stage_info stage_allocating_local_table;
 extern PSI_stage_info stage_alter_inplace_prepare;
 extern PSI_stage_info stage_alter_inplace;
 extern PSI_stage_info stage_alter_inplace_commit;
 extern PSI_stage_info stage_changing_master;
 extern PSI_stage_info stage_checking_master_version;
 extern PSI_stage_info stage_checking_permissions;
-extern PSI_stage_info stage_checking_privileges_on_cached_query;
 extern PSI_stage_info stage_cleaning_up;
 extern PSI_stage_info stage_closing_tables;
 extern PSI_stage_info stage_compressing_gtid_table;
 extern PSI_stage_info stage_connecting_to_master;
 extern PSI_stage_info stage_converting_heap_to_ondisk;
-extern PSI_stage_info stage_copying_to_group_table;
-extern PSI_stage_info stage_copying_to_tmp_table;
 extern PSI_stage_info stage_copy_to_tmp_table;
 extern PSI_stage_info stage_creating_sort_index;
 extern PSI_stage_info stage_creating_table;
@@ -514,14 +538,10 @@ extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
 extern PSI_stage_info stage_flushing_relay_log_info_file;
 extern PSI_stage_info stage_freeing_items;
 extern PSI_stage_info stage_fulltext_initialization;
-extern PSI_stage_info stage_got_handler_lock;
-extern PSI_stage_info stage_got_old_table;
 extern PSI_stage_info stage_init;
-extern PSI_stage_info stage_insert;
 extern PSI_stage_info stage_killing_slave;
 extern PSI_stage_info stage_logging_slow_query;
 extern PSI_stage_info stage_making_temp_file_append_before_load_data;
-extern PSI_stage_info stage_making_temp_file_create_before_load_data;
 extern PSI_stage_info stage_manage_keys;
 extern PSI_stage_info stage_master_has_sent_all_binlog_to_slave;
 extern PSI_stage_info stage_opening_tables;
@@ -537,10 +557,8 @@ extern PSI_stage_info stage_removing_tmp_table;
 extern PSI_stage_info stage_rename;
 extern PSI_stage_info stage_rename_result_table;
 extern PSI_stage_info stage_requesting_binlog_dump;
-extern PSI_stage_info stage_reschedule;
 extern PSI_stage_info stage_searching_rows_for_update;
 extern PSI_stage_info stage_sending_binlog_event_to_slave;
-extern PSI_stage_info stage_sending_cached_result_to_client;
 extern PSI_stage_info stage_sending_data;
 extern PSI_stage_info stage_setup;
 extern PSI_stage_info stage_slave_has_read_all_relay_log;
@@ -558,21 +576,15 @@ extern PSI_stage_info stage_sorting_for_order;
 extern PSI_stage_info stage_sorting_result;
 extern PSI_stage_info stage_sql_thd_waiting_until_delay;
 extern PSI_stage_info stage_statistics;
-extern PSI_stage_info stage_storing_row_into_queue;
 extern PSI_stage_info stage_system_lock;
 extern PSI_stage_info stage_update;
 extern PSI_stage_info stage_updating;
 extern PSI_stage_info stage_updating_main_table;
 extern PSI_stage_info stage_updating_reference_tables;
-extern PSI_stage_info stage_upgrading_lock;
 extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
 extern PSI_stage_info stage_waiting_for_gtid_to_be_committed;
 extern PSI_stage_info stage_waiting_for_handler_commit;
-extern PSI_stage_info stage_waiting_for_handler_insert;
-extern PSI_stage_info stage_waiting_for_handler_lock;
-extern PSI_stage_info stage_waiting_for_handler_open;
-extern PSI_stage_info stage_waiting_for_insert;
 extern PSI_stage_info stage_waiting_for_master_to_send_event;
 extern PSI_stage_info stage_waiting_for_master_update;
 extern PSI_stage_info stage_waiting_for_relay_log_space;
@@ -587,6 +599,7 @@ extern PSI_stage_info stage_worker_waiting_for_commit_parent;
 extern PSI_stage_info stage_suspending;
 extern PSI_stage_info stage_starting;
 extern PSI_stage_info stage_waiting_for_no_channel_reference;
+extern PSI_stage_info stage_hook_begin_trans;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
@@ -632,6 +645,7 @@ extern MYSQL_PLUGIN_IMPORT struct System_variables global_system_variables;
 extern char default_logfile_name[FN_REFLEN];
 extern bool log_bin_supplied;
 extern char default_binlogfile_name[FN_REFLEN];
+extern MYSQL_PLUGIN_IMPORT char pidfile_name[];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
@@ -649,7 +663,7 @@ extern mysql_mutex_t LOCK_prepared_stmt_count;
 extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
-extern mysql_mutex_t LOCK_offline_mode;
+extern mysql_mutex_t LOCK_slave_trans_dep_tracker;
 extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_password_history;
 extern mysql_mutex_t LOCK_password_reuse_interval;
@@ -659,6 +673,8 @@ extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
 extern mysql_mutex_t LOCK_keyring_operations;
 extern mysql_mutex_t LOCK_collect_instance_log;
+extern mysql_mutex_t LOCK_tls_ctx_options;
+extern mysql_mutex_t LOCK_rotate_binlog_master_key;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -667,9 +683,6 @@ extern mysql_cond_t COND_manager;
 extern mysql_rwlock_t LOCK_sys_init_connect;
 extern mysql_rwlock_t LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
-
-extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
-    *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
 
 extern ulong opt_ssl_fips_mode;
 
@@ -701,10 +714,54 @@ static inline void set_connection_events_loop_aborted(bool value) {
   connection_events_loop_aborted_flag.store(value);
 }
 
+/**
+
+  Check if --help option or --validate-config is specified.
+
+  @retval false   Neither 'help' or 'validate-config' option is enabled.
+  @retval true    Either 'help' or 'validate-config' or both options
+                  are enabled.
+*/
+inline bool is_help_or_validate_option() {
+  return (opt_help || opt_validate_config);
+}
+
+/**
+  Get mysqld offline mode.
+
+  @return a bool indicating the offline mode status of the server.
+*/
+inline bool mysqld_offline_mode() { return offline_mode.load(); }
+
+/**
+  Set offline mode with a given value
+
+  @param value true or false indicating the offline mode status of server.
+*/
+inline void set_mysqld_offline_mode(bool value) { offline_mode.store(value); }
+
+/**
+  Get status partial_revokes on server
+
+  @return a bool indicating partial_revokes status of the server.
+    @retval true  Parital revokes is ON
+    @retval flase Partial revokes is OFF
+*/
+bool mysqld_partial_revokes();
+
+/**
+  Set partial_revokes with a given value
+
+  @param value true or false indicating the status of partial revokes
+               turned ON/OFF on server.
+*/
+void set_mysqld_partial_revokes(bool value);
+
 #ifdef _WIN32
 
 bool is_windows_service();
 NTService *get_win_service_ptr();
+bool update_named_pipe_full_access_group(const char *new_group_name);
 
 #endif
 

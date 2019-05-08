@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -1438,7 +1438,7 @@ TESTCASE("StopDuringStart", "")
   INITIALIZER(runStopDuringStart);
 }
 
-NDBT_TESTSUITE_END(testMgmd);
+NDBT_TESTSUITE_END(testMgmd)
 
 int main(int argc, const char** argv)
 {

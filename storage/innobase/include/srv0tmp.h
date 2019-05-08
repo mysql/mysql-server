@@ -102,7 +102,7 @@ class Tablespace {
 
  private:
   /** The id used for name on disk temp_1.ibt, temp_2.ibt, etc
-  @return the offset based on s_m_temp_space_id. The minimum offset is 1 */
+  @return the offset based on s_min_temp_space_id. The minimum offset is 1 */
   uint32_t file_id() const;
 
   /** @return the file_name only excluding the path */

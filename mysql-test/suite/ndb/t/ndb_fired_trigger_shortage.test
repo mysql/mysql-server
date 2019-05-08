@@ -1,8 +1,11 @@
 --source include/have_ndb.inc
+--source include/have_ndb_debug.inc
 
-# 'high' used to be equal to 'total' at all times. Check that this is not so.
-select sum(high) < sum(total) from ndbinfo.ndb$pools 
-  where pool_name='Fired Trigger'; 
+# Send DUMP to all data nodes to set new max size of pool for fired triggers.
+#   TcSetTransientPoolMaxSize(2556)
+#   DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX(2)
+#   MAX_SIZE(5)
+exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 2556 2 7";
 
 # A helper table for generating inserts into t1.
 create table num (n int);
@@ -35,3 +38,8 @@ select sum(used) from ndbinfo.ndb$pools where pool_name='Fired Trigger';
 
 drop table num;
 drop table t1;
+
+# Send DUMP to all data nodes to reset max size of pool for fired triggers.
+#   TcResetTransientPoolMaxSize(2557)
+#   DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX(2)
+exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 2557 2";

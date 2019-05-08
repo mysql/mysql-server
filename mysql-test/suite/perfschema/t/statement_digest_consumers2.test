@@ -27,8 +27,8 @@ TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 --echo ####################################
 --echo # QUERYING PS STATEMENT DIGEST
 --echo ####################################
-SELECT schema_name, digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
-SELECT digest, digest_text FROM performance_schema.events_statements_current;
+SELECT schema_name, digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest WHERE schema_name IS NOT NULL;
+SELECT digest, digest_text FROM performance_schema.events_statements_current WHERE source NOT LIKE 'srv_session.cc%';
 
 # Cleanup for Digest
 --source ../include/digest_cleanup.inc

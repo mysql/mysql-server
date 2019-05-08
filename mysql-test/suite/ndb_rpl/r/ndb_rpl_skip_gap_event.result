@@ -9,6 +9,7 @@ count(*)
 1000
 Restarting mysqld
 # restart
+include/rpl_reconnect.inc
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Incident	#	#	#1 (LOST_EVENTS)
@@ -26,4 +27,4 @@ select count(*) from t1;
 count(*)
 1001
 drop table t1;
-include/stop_slave.inc
+include/rpl_end.inc

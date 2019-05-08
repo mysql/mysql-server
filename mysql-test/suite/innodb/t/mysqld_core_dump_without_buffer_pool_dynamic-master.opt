@@ -1,0 +1,3 @@
+--core-file
+--innodb-buffer-pool-in-core-file
+--innodb-buffer-pool-size=1G

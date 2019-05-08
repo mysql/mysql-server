@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,16 @@
 
 #define JAM_FILE_ID 462
 
+/**
+ * ndbd has only one pgman sharing the single disk page buffer between
+ * the locked extent pages and the dynamic caching of data pages from
+ * data files.  Limit the extent page usage to 25% of the buffer. One
+ * extent page can describe 1022 extents.  25% of the default
+ * DiskPageBufferMemory of 64 MB (512 pages) will be sufficient to
+ * open a single data file of max recommended size 32GB, needing 33
+ * extent pages.
+ */
+#define NDBD_EXTENT_PAGE_PERCENT 25
 
 /*
  * PGMAN
@@ -251,10 +261,12 @@ public:
   virtual ~Pgman();
 
   /* Special function to indicate the block is the extra PGMAN worker */
-  void set_extra_pgman(void);
+  void init_extra_pgman();
+
   BLOCK_DEFINES(Pgman);
 
 private:
+  friend class Tsman;
   friend class Page_cache_client;
   friend class PgmanProxy;
 
@@ -306,26 +318,6 @@ private:
   typedef SLFifoList<Page_request_pool> Page_request_list;
   typedef LocalSLFifoList<Page_request_pool> Local_page_request_list;
   
-  struct Page_entry_stack_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
-  struct Page_entry_queue_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
-  struct Page_entry_sublist_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
-  struct Page_entry_dirty_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
   typedef Uint32 Page_state;
   
   enum DirtyState {
@@ -335,10 +327,8 @@ private:
     IN_NO_DIRTY_LIST = 3
   };
 
-  struct Page_entry : Page_entry_stack_ptr,
-                      Page_entry_queue_ptr,
-                      Page_entry_sublist_ptr,
-                      Page_entry_dirty_ptr {
+  struct Page_entry
+  {
     Page_entry() {}
     Page_entry(Uint32 file_no,
                Uint32 page_no,
@@ -402,6 +392,18 @@ private:
     
     Page_request_list::Head m_requests;
     
+    Uint32 nextStack;
+    Uint32 prevStack;
+
+    Uint32 nextQueue;
+    Uint32 prevQueue;
+
+    Uint32 nextSublist;
+    Uint32 prevSublist;
+
+    Uint32 nextDirty;
+    Uint32 prevDirty;
+
     Uint32 nextHash;
     Uint32 prevHash;
     
@@ -418,12 +420,11 @@ private:
 
   typedef ArrayPool<Page_entry> Page_entry_pool;
   typedef DLCHashTable<Page_entry_pool> Page_hashlist;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_stack_ptr> Page_stack;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_queue_ptr> Page_queue;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_sublist_ptr> Page_sublist;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_dirty_ptr> Page_dirty_list;
-  typedef LocalDLCFifoList<Page_entry_pool, Page_entry_dirty_ptr>
-    LocalPage_dirty_list;
+  typedef DLCFifoList<Page_entry_pool, IA_Stack> Page_stack;
+  typedef DLCFifoList<Page_entry_pool, IA_Queue> Page_queue;
+  typedef DLCFifoList<Page_entry_pool, IA_Sublist> Page_sublist;
+  typedef DLCFifoList<Page_entry_pool, IA_Dirty> Page_dirty_list;
+  typedef LocalDLCFifoList<Page_entry_pool, IA_Dirty> LocalPage_dirty_list;
 
   /**
    * We keep all page entries in a linked list on the fragment record.
@@ -514,7 +515,23 @@ private:
   void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
   void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
 
+  /**
+   * In ndbmtd, there is an extra pgman instance not associated with
+   * an LDM, which is mostly used for accessing extent pages
+   * containing metadata about extents.
+   */
   bool m_extra_pgman;
+  /**
+   * extra_pgman reserves 'm_extra_pgman_reserve' slots of the disk
+   * page buffer memory for undo log execution during restart. These
+   * will be used to read in data pages in order to find the tableid
+   * and fragmentid of an undo log record (in order to decide the ldm
+   * that will undo this log record), if they cannot be retrieved from
+   * tsman extent info.  These pages can be evicted after retrieving
+   * table/fragids, and not given to the ldm for undo. The ldm will
+   * read the page itself into its share of the disk page buffer memory.
+   */
+  Uint32 m_extra_pgman_reserve_pages;
 
   class Dbtup *c_tup;
   class Lgman *c_lgman;
@@ -568,7 +585,8 @@ private:
       m_page_requests_direct_return(0),
       m_page_requests_wait_q(0),
       m_page_requests_wait_io(0),
-      m_entries_high(0)
+      m_entries_high(0),
+      m_num_locked_pages(0)
     {}
     Uint32 m_num_pages;         // current number of cache pages
     Uint32 m_num_hot_pages;
@@ -583,6 +601,7 @@ private:
     Uint64 m_page_requests_wait_q;
     Uint64 m_page_requests_wait_io;
     Uint32 m_entries_high;
+    Uint32 m_num_locked_pages;
   } m_stats;
 
   enum CallbackIndex {
@@ -687,6 +706,7 @@ private:
   void map_file_no(Uint32 file_no, Uint32 fd);
   void free_data_file(Uint32 file_no, Uint32 fd = RNIL);
   int drop_page(Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
+  bool extent_pages_available(Uint32 pages_needed);
   
 #ifdef VM_TRACE
   bool debugFlag;        // not yet in use in 7.0
@@ -772,7 +792,13 @@ public:
    *         >0 is ok
    */
   int drop_page(Local_key, Uint32 page_id);
-  
+
+  /**
+   * Check whether there are 'pages_needed' pages available
+   * to be used as extent pages by the extra_pgman.
+   */
+  bool extent_pages_available(Uint32 pages_needed);
+
   /**
    * Create file record
    */

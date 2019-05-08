@@ -164,7 +164,8 @@ INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
 --eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ENCLOSED BY 'ъ'
 --enable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error ER_WRONG_FIELD_TERMINATORS # backward compatibility
+# backward compatibility
+--error ER_WRONG_FIELD_TERMINATORS
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS ENCLOSED BY 'ъ'
 --remove_file $file
 
@@ -174,7 +175,8 @@ INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
 --eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ESCAPED BY 'ъ'
 --enable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error ER_WRONG_FIELD_TERMINATORS # backward compatibility
+# backward compatibility
+--error ER_WRONG_FIELD_TERMINATORS
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS ESCAPED BY 'ъ'
 --remove_file $file
 

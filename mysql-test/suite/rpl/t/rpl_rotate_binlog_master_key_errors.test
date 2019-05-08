@@ -1,0 +1,79 @@
+# ==== Purpose ====
+#
+# To cover error branches when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' on a binlogless slave.
+#
+# ==== Implementation ====
+#
+# Please see rpl_rotate_binlog_master_key_errors.inc
+#
+# ==== References ====
+#
+# Wl#12080 Add support to binary log encryption key rotation and cleanup
+
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+--let $SLAVE_DATADIR= `select @@datadir`
+--let $relay_log_base=`SELECT @@GLOBAL.relay_log`
+
+--let $first_relay_log_suffix=.000001
+--let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$first_relay_log_suffix
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=The first relay log is encrypted using first master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+
+--source include/sync_slave_sql_with_master.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side on binlogless slave when executing the
+# command 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# decrypting file password when re-encrypting a log file.
+--echo # Part 1: fail_to_decrypt_file_password
+--let $debug_point=fail_to_decrypt_file_password
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=2
+--let $rotated_master_key_id=3
+--let $before_relay_log_suffix=.000003
+--let $after_relay_log_suffix=.000004
+--source suite/rpl/include/rpl_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG' is emitted
+# to the client side on binlogless slave when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when opening a log file for re-encryption.
+--echo # Part 2: fail_to_open_log_file
+--let $debug_point=fail_to_open_log_file
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=4
+--let $rotated_master_key_id=5
+--let $before_relay_log_suffix=.000005
+--let $after_relay_log_suffix=.000006
+--source suite/rpl/include/rpl_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG' is emitted
+# to the client side on binlogless slave when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when opening an index file for re-encryption.
+--echo # Part 3: fail_to_open_index_file
+--let $debug_point=fail_to_open_index_file
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=6
+--let $rotated_master_key_id=7
+--let $before_relay_log_suffix=.000007
+--let $after_relay_log_suffix=.000008
+--source suite/rpl/include/rpl_rotate_binlog_master_key_errors.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

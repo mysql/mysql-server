@@ -397,3 +397,4 @@ select * from t1 /* force discovery */;
 select * from t2 /* force discovery */;
 
 --source suite/ndb/include/ndb_share_check_shares.inc
+--remove_file $NDB_TOOLS_OUTPUT

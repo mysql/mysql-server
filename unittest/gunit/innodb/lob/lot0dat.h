@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,6 +39,6 @@ byte *generate_lob(lobid_t *id, char x, ulint size);
 std::pair<byte *, ulint> get_lob(lobid_t *id, const char *filename);
 void remove_lob(lobid_t id);
 
-};  // namespace lob_data
+}  // namespace lob_data
 
 #endif  // _lot0dat_h_

@@ -3,7 +3,7 @@ Database (performance_schema)
 performance_schema
 show create database performance_schema;
 Database	Create Database
-performance_schema	CREATE DATABASE `performance_schema` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+performance_schema	CREATE DATABASE `performance_schema` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 use performance_schema;
 show tables;
 Tables_in_performance_schema
@@ -60,6 +60,7 @@ global_status
 global_variables
 host_cache
 hosts
+keyring_keys
 log_status
 memory_summary_by_account_by_event_name
 memory_summary_by_host_by_event_name
@@ -280,6 +281,7 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL,
+  `STATEMENT_ID` bigint(20) unsigned DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_history;
@@ -326,6 +328,7 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL,
+  `STATEMENT_ID` bigint(20) unsigned DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_history_long;
@@ -371,7 +374,8 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
-  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL,
+  `STATEMENT_ID` bigint(20) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_summary_by_digest;
 Table	Create Table

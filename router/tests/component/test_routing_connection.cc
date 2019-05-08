@@ -22,31 +22,25 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
-#include "my_rapidjson_size_t.h"
-#endif
-
 #include "dim.h"
-#include "keyring/keyring_manager.h"
+#include "mock_server_rest_client.h"
 #include "mysql_session.h"
 #include "random_generator.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
 #include "mysqlrouter/rest_client.h"
-#include "rapidjson/document.h"
 
 #include "gmock/gmock.h"
 
 #include <fstream>
+#include <stdexcept>
 #include <thread>
 
 Path g_origin_path;
 using mysqlrouter::MySQLSession;
-
-const std::string kMockServerGlobalsRestUri = "/api/v1/mock_server/globals/";
+static constexpr const char kMockServerConnectionsUri[] =
+    "/api/v1/mock_server/connections/";
 
 class ConfigGenerator {
   std::map<std::string, std::string> defaults_;
@@ -87,6 +81,12 @@ class ConfigGenerator {
   void metadata_refresh_ttl(unsigned ttl) { metadata_refresh_ttl_ = ttl; }
 
   void add_metadata_cache_section(unsigned ttl = 1) {
+    // NOT: Those tests are using bootstrap_server_addresses in the static
+    // configuration which is now moved to the dynamic state file. This way we
+    // are testing the backward compatibility of the old
+    // bootstrap_server_addresses still working. If this is ever changed to use
+    // dynamic state file,  a new test should be added to test that
+    // bootstrap_server_addresses is still handled properly.
     metadata_cache_section_ =
         "[logger]\n"
         "level = INFO\n\n"
@@ -184,21 +184,6 @@ class ConfigGenerator {
     return file_path.str();
   }
 
-  void set_keyring(const std::string &temp_test_dir) {
-    const std::string masterkey_file =
-        Path(temp_test_dir).join("master.key").str();
-    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
-    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-    keyring->store("mysql_router1_user", "password", "root");
-    mysql_harness::flush_keyring();
-    mysql_harness::reset_keyring();
-
-    // launch the router with metadata-cache configuration
-    defaults_["keyring_path"] = keyring_file;
-    defaults_["master_key_path"] = masterkey_file;
-  }
-
   std::string build_config_file(const std::string &temp_test_dir,
                                 bool is_primary_and_secondary = false) {
     add_metadata_cache_section(metadata_refresh_ttl_);
@@ -210,7 +195,7 @@ class ConfigGenerator {
       add_routing_secondary_section();
     }
 
-    set_keyring(temp_test_dir);
+    RouterComponentTest::init_keyring(defaults_, temp_test_dir);
 
     return create_config_file(&defaults_, config_dir_);
   }
@@ -220,7 +205,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
  public:
   void init() {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator
@@ -267,7 +252,6 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
 
     http_port_ = port_pool_.get_next_available();
     http_hostname_ = "127.0.0.1";
-    http_uri_ = kMockServerGlobalsRestUri;
   }
 
   void clean() {
@@ -330,85 +314,8 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
       ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_[ndx], 1000))
           << cluster_nodes_.at(ndx).get_full_output();
     }
-  }
-
-  void set_global(const std::string &global) { set_global(global, http_port_); }
-
-  void set_global(const std::string &global, unsigned http_port) {
-    IOContext io_ctx;
-    RestClient rest_client(io_ctx, http_hostname_, http_port);
-    auto put_req = rest_client.request_sync(HttpMethod::Put, http_uri_, global);
-
-    ASSERT_TRUE(put_req) << "HTTP Request to " << http_hostname_ << ":"
-                         << std::to_string(http_port)
-                         << " failed (early): " << put_req.error_msg()
-                         << std::endl;
-
-    ASSERT_GT(put_req.get_response_code(), 0u)
-        << "HTTP Request to " << http_hostname_ << ":"
-        << std::to_string(http_port) << " failed: " << put_req.error_msg()
-        << std::endl;
-
-    EXPECT_EQ(put_req.get_response_code(), 204u);
-
-    auto put_resp_body = put_req.get_input_buffer();
-    EXPECT_EQ(put_resp_body.length(), 0u);
-  }
-
-  void send_delete(unsigned http_port, int node_id) {
-    IOContext io_ctx;
-    RestClient rest_client(io_ctx, http_hostname_, http_port);
-    auto kill_req = rest_client.request_sync(
-        HttpMethod::Delete, "/api/v1/mock_server/connections/");
-
-    ASSERT_TRUE(kill_req) << "HTTP Request to " << http_hostname_ << ":"
-                          << std::to_string(http_port)
-                          << " failed (early): " << kill_req.error_msg()
-                          << std::endl
-                          << cluster_nodes_[node_id].get_full_output()
-                          << std::endl;
-
-    ASSERT_GT(kill_req.get_response_code(), 0u)
-        << "HTTP Request to " << http_hostname_ << ":"
-        << std::to_string(http_port) << " failed: " << kill_req.error_msg()
-        << std::endl
-        << cluster_nodes_[node_id].get_full_output() << std::endl;
-
-    EXPECT_EQ(kill_req.get_response_code(), 200u);
-
-    auto put_resp_body = kill_req.get_input_buffer();
-    EXPECT_EQ(put_resp_body.length(), 0u);
-  }
-
-  rapidjson::Document get_global_json(const std::string &global_name) {
-    IOContext io_ctx;
-    auto req_get = RestClient(io_ctx, http_hostname_, http_port_)
-                       .request_sync(HttpMethod::Get, http_uri_);
-    EXPECT_TRUE(req_get);
-    EXPECT_EQ(req_get.get_response_code(), 200u);
-    EXPECT_THAT(req_get.get_input_headers().get("Content-Type"),
-                ::testing::StrEq("application/json"));
-    auto resp_body = req_get.get_input_buffer();
-    EXPECT_GT(resp_body.length(), 0u);
-    auto resp_body_content = resp_body.pop_front(resp_body.length());
-
-    // parse json
-    std::string json_payload(resp_body_content.begin(),
-                             resp_body_content.end());
-
-    rapidjson::Document json_doc;
-    json_doc.Parse(json_payload.c_str());
-    EXPECT_TRUE(json_doc.HasMember(global_name.c_str()));
-    EXPECT_TRUE(json_doc[global_name.c_str()].IsInt());
-    return json_doc;
-  }
-
-  int get_int_global(const std::string &global_name) {
-    return get_global_json(global_name)[global_name.c_str()].GetInt();
-  }
-
-  bool get_bool_global(const std::string &global_name) {
-    return get_global_json(global_name)[global_name.c_str()].GetBool();
+    ASSERT_TRUE(
+        MockServerRestClient(http_port_).wait_for_rest_endpoint_ready());
   }
 
   TcpPortPool port_pool_;
@@ -417,16 +324,15 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
   std::unique_ptr<ConfigGenerator> config_generator_;
   std::string temp_test_dir_;
   std::string temp_conf_dir_;
-  std::vector<unsigned> cluster_nodes_ports_;
+  std::vector<uint16_t> cluster_nodes_ports_;
   std::map<std::string, std::string> primary_json_env_vars_;
   std::vector<RouterComponentTest::CommandHandle> cluster_nodes_;
-  unsigned router_rw_port_;
-  unsigned router_ro_port_;
+  uint16_t router_rw_port_;
+  uint16_t router_ro_port_;
 
   // http properties
-  unsigned http_port_;
+  uint16_t http_port_;
   std::string http_hostname_;
-  std::string http_uri_;
 };
 
 class RouterRoutingConnectionTest : public RouterRoutingConnectionCommonTest,
@@ -461,7 +367,7 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
       get_DEFAULT_defaults(), get_tmp_dir("conf"), {cluster_nodes_ports_[0]},
       router_rw_port_, router_ro_port_));
 
-  unsigned http_port_primary = port_pool_.get_next_available();
+  uint16_t http_port_primary = port_pool_.get_next_available();
 
   SCOPED_TRACE("// [prep] launch the primary node on port " +
                std::to_string(cluster_nodes_ports_.at(0)) +
@@ -561,7 +467,7 @@ TEST_F(RouterRoutingConnectionTest,
                           {cluster_nodes_ports_[0], cluster_nodes_ports_[1]},
                           router_rw_port_, router_ro_port_));
 
-  unsigned http_port_primary = port_pool_.get_next_available();
+  uint16_t http_port_primary = port_pool_.get_next_available();
 
   SCOPED_TRACE("// launch the primary node on port " +
                std::to_string(cluster_nodes_ports_.at(0)) +
@@ -594,6 +500,7 @@ TEST_F(RouterRoutingConnectionTest,
     ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_[ndx], 1000))
         << cluster_nodes_.at(ndx).get_full_output();
   }
+  ASSERT_TRUE(MockServerRestClient(http_port_).wait_for_rest_endpoint_ready());
 
   SCOPED_TRACE("// launching router");
   auto router = launch_router(
@@ -630,10 +537,12 @@ TEST_F(RouterRoutingConnectionTest,
 
   // set primary_removed variable in javascript for cluster_nodes_[0]
   // which acts as primary node in cluster
-  set_global("{\"primary_removed\": true}", http_port_primary);
+  ASSERT_TRUE(
+      MockServerRestClient(http_port_primary).wait_for_rest_endpoint_ready());
+  MockServerRestClient(http_port_primary)
+      .set_globals("{\"primary_removed\": true}");
   // set primary_removed variable in javascript for cluster_nodes_[1]
   // which uses default port http_port_
-  set_global("{\"primary_removed\": true}", http_port_);
 
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
@@ -680,7 +589,7 @@ TEST_F(RouterRoutingConnectionTest,
     client_and_port.second = std::stoul(std::string((*result)[0]));
   }
 
-  set_global("{\"secondary_removed\": true}");
+  MockServerRestClient(http_port_).set_globals("{\"secondary_removed\": true}");
 
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
@@ -731,7 +640,7 @@ TEST_F(RouterRoutingConnectionTest, IsRWConnectionsClosedWhenPrimaryFailover) {
     client_and_port.second = std::stoul(std::string((*result)[0]));
   }
 
-  set_global("{\"primary_failover\": true}");
+  MockServerRestClient(http_port_).set_globals("{\"primary_failover\": true}");
 
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
@@ -779,7 +688,7 @@ TEST_F(RouterRoutingConnectionTest, IsROConnectionsKeptWhenPrimaryFailover) {
     client_and_port.second = std::stoul(std::string((*result)[0]));
   }
 
-  set_global("{\"primary_failover\": true}");
+  MockServerRestClient(http_port_).set_globals("{\"primary_failover\": true}");
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
 
@@ -837,7 +746,7 @@ TEST_P(RouterRoutingConnectionPromotedTest,
     client_and_port.second = std::stoul(std::string((*result)[0]));
   }
 
-  set_global("{\"primary_failover\": true}");
+  MockServerRestClient(http_port_).set_globals("{\"primary_failover\": true}");
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
 
@@ -897,7 +806,7 @@ TEST_F(RouterRoutingConnectionTest,
     client_and_port.second = std::stoul(std::string((*result)[0]));
   }
 
-  set_global("{\"primary_failover\": true}");
+  MockServerRestClient(http_port_).set_globals("{\"primary_failover\": true}");
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
 
@@ -983,7 +892,7 @@ TEST_F(RouterRoutingConnectionTest,
    * Since only 2 servers are ONLINE (minority) connections to them should be
    * closed as well.
    */
-  set_global("{\"cluster_partition\": true}");
+  MockServerRestClient(http_port_).set_globals("{\"cluster_partition\": true}");
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
 
@@ -1056,7 +965,7 @@ TEST_F(RouterRoutingConnectionTest, IsConnectionClosedWhenClusterOverloaded) {
    * There is only 1 metadata server, so then primary
    * goes away, metadata is unavailable.
    */
-  send_delete(http_port_, 0);
+  MockServerRestClient(http_port_).send_delete(kMockServerConnectionsUri);
   cluster_nodes_[0].kill();
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
@@ -1116,7 +1025,7 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
    * There is only 1 metadata server, so then primary
    * goes away, metadata is unavailable.
    */
-  send_delete(http_port_, 0);
+  MockServerRestClient(http_port_).send_delete(kMockServerConnectionsUri);
   cluster_nodes_[0].kill();
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
@@ -1170,7 +1079,7 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
                           {cluster_nodes_ports_[0], cluster_nodes_ports_[1]},
                           router_rw_port_, router_ro_port_));
 
-  unsigned http_port_primary = port_pool_.get_next_available();
+  uint16_t http_port_primary = port_pool_.get_next_available();
 
   // launch the primary node working also as metadata server
   const std::string json_for_primary =
@@ -1228,7 +1137,9 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
     clients[i].second = std::stoul(std::string((*result)[0]));
   }
 
-  set_global(GetParam(), http_port_primary);
+  ASSERT_TRUE(
+      MockServerRestClient(http_port_primary).wait_for_rest_endpoint_ready());
+  MockServerRestClient(http_port_primary).set_globals(GetParam());
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_update_timeout));
 

@@ -2,8 +2,6 @@
 # Bug#27502530: DISABLING NO_ENGINE_SUBSTITUTION DOES NOT BEHAVE AS
 #               DOCUMENTED
 #
-CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
-CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
 # Started the server by disabling InnoDB using system variable 'disabled_storage_engines'
 SELECT @@disabled_storage_engines;
 @@disabled_storage_engines

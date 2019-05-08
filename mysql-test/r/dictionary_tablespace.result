@@ -14,6 +14,7 @@ mysql.tablespaces ON tables1.tablespace_id = tablespaces.id
 WHERE tables1.name NOT IN ('ndb_binlog_index') ORDER BY tables1.name;
 catalogs	mysql
 character_sets	mysql
+check_constraints	mysql
 collations	mysql
 column_statistics	mysql
 column_type_elements	mysql
@@ -82,6 +83,7 @@ name NOT IN ('ndb_binlog_index')
 ORDER BY name ASC;
 catalogs
 character_sets
+check_constraints
 collations
 column_statistics
 column_type_elements
@@ -156,7 +158,7 @@ call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is execute
 call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("The privilege system failed to initialize correctly.*");
-call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression(".*The system table mysql.global_grants is missing.*");
 call mtr.add_suppression("ACL table mysql.[a-z_]* missing. Some operations may fail.");
 call mtr.add_suppression("Info table is not ready to be used. Table 'mysql.slave_master_info' cannot be opened");
 call mtr.add_suppression("Error in checking mysql.slave_master_info repository info type of TABLE");
@@ -179,49 +181,10 @@ t1	CREATE TABLE `t1` (
 /*!50500 PARTITION BY RANGE  COLUMNS(a)
 (PARTITION p0 VALUES LESS THAN ('ц├ц┤') ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
-# Execute mysql_upgrade
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
-partitions.t1                                      OK
-sys.sys_config                                     OK
 #files in mysql schema
 general_log.CSM
 general_log.CSV
 general_log_XXX.sdi
-innodb_index_stats_backup57.ibd
-innodb_table_stats_backup57.ibd
 slow_log.CSM
 slow_log.CSV
 slow_log_XXX.sdi

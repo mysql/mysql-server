@@ -23,8 +23,6 @@
 */
 
 #include "gmock/gmock.h"
-#include "keyring/keyring_manager.h"
-#include "mysql_session.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -32,13 +30,12 @@
 #include <thread>
 
 Path g_origin_path;
-using mysqlrouter::MySQLSession;
 
 class RouterRoutingStrategyTest : public RouterComponentTest {
  protected:
   virtual void SetUp() {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
 
     // Valgrind needs way more time
     if (getenv("WITH_VALGRIND")) {
@@ -124,30 +121,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     return result;
   }
 
-  // need to return void to be able to use ASSERT_ macros
-  void connect_client_and_query_port(unsigned router_port,
-                                     std::string &out_port,
-                                     bool should_fail = false) {
-    MySQLSession client;
-
-    if (should_fail) {
-      EXPECT_THROW_LIKE(client.connect("127.0.0.1", router_port, "username",
-                                       "password", "", ""),
-                        std::exception, "Error connecting to MySQL server");
-      out_port = "";
-      return;
-    } else {
-      ASSERT_NO_THROW(client.connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
-    }
-
-    std::unique_ptr<MySQLSession::ResultRow> result{
-        client.query_one("select @@port")};
-    ASSERT_NE(nullptr, result.get());
-    ASSERT_EQ(1u, result->size());
-    out_port = std::string((*result)[0]);
-  }
-
   RouterComponentTest::CommandHandle launch_cluster_node(
       unsigned cluster_port, const std::string &data_dir,
       const std::string &tmp_dir) {
@@ -178,15 +151,16 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   }
 
   RouterComponentTest::CommandHandle launch_router_static(
-      unsigned router_port, const std::string &routing_section,
-      bool expect_error = false, bool log_to_console = true) {
+      const std::string &conf_dir, unsigned router_port,
+      const std::string &routing_section, bool expect_error = false,
+      bool log_to_console = true) {
     auto def_section = get_DEFAULT_defaults();
     if (log_to_console) {
       def_section["logging_folder"] = "";
     }
     // launch the router with the static routing configuration
     const std::string conf_file =
-        create_config_file(routing_section, &def_section);
+        create_config_file(conf_dir, routing_section, &def_section);
     auto router = RouterComponentTest::launch_router("-c " + conf_file);
     if (!expect_error) {
       bool ready = wait_for_port_ready(router_port, 1000);
@@ -203,24 +177,18 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
       const std::string &routing_section, bool catch_stderr = true,
       bool with_sudo = false, bool wait_ready = true,
       bool log_to_stdout = false) {
-    const std::string masterkey_file =
-        Path(temp_test_dir).join("master.key").str();
-    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
-    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-    keyring->store("mysql_router1_user", "password", "root");
-    mysql_harness::flush_keyring();
-    mysql_harness::reset_keyring();
+    auto default_section = get_DEFAULT_defaults();
+    init_keyring(default_section, temp_test_dir);
 
     // launch the router with metadata-cache configuration
-    auto default_section = get_DEFAULT_defaults();
-    default_section["keyring_path"] = keyring_file;
-    default_section["master_key_path"] = masterkey_file;
     if (log_to_stdout) {
       default_section["logging_folder"] = "";
     }
+    const std::string conf_dir = get_tmp_dir("conf");
+    std::shared_ptr<void> exit_guard(nullptr,
+                                     [&](void *) { purge_dir(conf_dir); });
     const std::string conf_file = create_config_file(
-        metadata_cache_section + routing_section, &default_section);
+        conf_dir, metadata_cache_section + routing_section, &default_section);
     auto router = RouterComponentTest::launch_router("-c " + conf_file,
                                                      catch_stderr, with_sudo);
     if (wait_ready) {
@@ -342,7 +310,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   }
 
   // give the router a chance to initialise metadata-cache module
-  // there is currently now easy way to check that
+  // there is currently no easy way to check that
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_ready_timeout));
 
@@ -359,13 +327,13 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
     // for round-robin we can't be sure which server will be the starting one
     // on Solaris wait_for_port_ready() causes the router to switch to the next
     // server while on other OSes it does not. We check it the round robin is
-    // done on provided set od ids.
+    // done on provided set of ids.
     const auto &expected_nodes = test_params.expected_node_connections;
     std::string node_port;
     size_t first_port_id{0};
     for (size_t i = 0; i < expected_nodes.size() + 1;
          ++i) {  // + 1 to check that after
-                 // full round it strats from beginning
+                 // full round it starts from beginning
       ASSERT_NO_FATAL_FAILURE(
           connect_client_and_query_port(router_port, node_port));
       if (i == 0) {  // first-connection
@@ -449,9 +417,13 @@ class RouterRoutingStrategyTestRoundRobin
 };
 
 TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
@@ -472,7 +444,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  auto router = launch_router_static(router_port, routing_section);
+  auto router = launch_router_static(conf_dir, router_port, routing_section);
 
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_static_ready_timeout));
@@ -511,9 +483,13 @@ class RouterRoutingStrategyTestFirstAvailable
 
 TEST_P(RouterRoutingStrategyTestFirstAvailable,
        StaticRoutingStrategyFirstAvailable) {
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
@@ -534,7 +510,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  auto router = launch_router_static(router_port, routing_section);
+  auto router = launch_router_static(conf_dir, router_port, routing_section);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -587,9 +563,13 @@ class RouterRoutingStrategyStatic : public RouterRoutingStrategyTest,
 };
 
 TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
@@ -607,7 +587,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section(router_port, server_ports, "next-available");
-  auto router = launch_router_static(router_port, routing_section);
+  auto router = launch_router_static(conf_dir, router_port, routing_section);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -642,16 +622,20 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
 // configuration error scenarios
 
 TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "round-robin-with-fallback", "read-only");
-  auto router =
-      launch_router_static(router_port, routing_section, /*expect_error=*/true);
+  auto router = launch_router_static(conf_dir, router_port, routing_section,
+                                     /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(
@@ -664,15 +648,18 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
 
 TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "invalid", "read-only");
-  auto router =
-      launch_router_static(router_port, routing_section, /*expect_error=*/true);
+  auto router = launch_router_static(conf_dir, router_port, routing_section,
+                                     /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(router.expect_output(
@@ -682,16 +669,20 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
 }
 
 TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section(router_port, {1, 2}, "");
-  auto router =
-      launch_router_static(router_port, routing_section, /*expect_error=*/true);
+  auto router = launch_router_static(conf_dir, router_port, routing_section,
+                                     /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(
@@ -701,16 +692,20 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
 }
 
 TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section_error(router_port, {1, 2}, "", "read-only");
-  auto router =
-      launch_router_static(router_port, routing_section, /*expect_error=*/true);
+  auto router = launch_router_static(conf_dir, router_port, routing_section,
+                                     /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(
@@ -720,16 +715,20 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
 }
 
 TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   // launch the router with the static configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "first-available", "");
-  auto router =
-      launch_router_static(router_port, routing_section, /*expect_error=*/true);
+  auto router = launch_router_static(conf_dir, router_port, routing_section,
+                                     /*expect_error=*/true);
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(

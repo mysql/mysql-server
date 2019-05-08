@@ -40,7 +40,8 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DWITH_INNODB_MEMCACHED=1 \\
 		-DWITH_MECAB=system \\
 		-DWITH_NUMA=ON \\
-		-DCOMPILATION_COMMENT=\"MySQL ${DEB_PRODUCTNAMEC} Server - ${DEB_LICENSENAME} - Debug\" \\
+		-DCOMPILATION_COMMENT=\"MySQL ${DEB_PRODUCTNAMEC} - ${DEB_LICENSENAME} - Debug\" \\
+		-DCOMPILATION_COMMENT_SERVER=\"MySQL ${DEB_PRODUCTNAMEC} Server - ${DEB_LICENSENAME} - Debug\" \\
 		-DINSTALL_LAYOUT=DEB \\
 		-DREPRODUCIBLE_BUILD=OFF \\
 		-DDEB_PRODUCT=${DEB_PRODUCT} \\
@@ -75,6 +76,7 @@ usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/debug/component_log_sink_json.so
 usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
 usr/lib/mysql/plugin/debug/component_validate_password.so
+usr/lib/mysql/plugin/debug/ddl_rewriter.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
@@ -90,6 +92,7 @@ usr/lib/mysql/plugin/debug/semisync_master.so
 usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
+usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
 ")
 
 SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
@@ -106,6 +109,8 @@ usr/lib/mysql/plugin/debug/component_test_string_service_long.so
 usr/lib/mysql/plugin/debug/component_test_pfs_notification.so
 usr/lib/mysql/plugin/debug/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/debug/component_test_udf_registration.so
+usr/lib/mysql/plugin/debug/component_test_host_application_signal.so
+usr/lib/mysql/plugin/debug/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/debug/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_avg_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_int_func.so
@@ -140,6 +145,7 @@ usr/lib/mysql/plugin/debug/libtest_sql_stmt.so
 usr/lib/mysql/plugin/debug/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
 usr/lib/mysql/plugin/debug/libtest_sql_views_triggers.so
+usr/lib/mysql/plugin/debug/libtest_sql_reset_connection.so
 usr/lib/mysql/plugin/debug/libtest_x_sessions_deinit.so
 usr/lib/mysql/plugin/debug/libtest_x_sessions_init.so
 usr/lib/mysql/plugin/debug/qa_auth_client.so
@@ -151,6 +157,7 @@ usr/lib/mysql/plugin/debug/test_udf_services.so
 usr/lib/mysql/plugin/debug/udf_example.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
+usr/lib/mysql/plugin/debug/test_services_host_application_signal.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_int.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_reg_only.so
@@ -166,4 +173,5 @@ usr/lib/mysql/plugin/debug/component_test_backup_lock_service.so
 usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
+usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
 ")

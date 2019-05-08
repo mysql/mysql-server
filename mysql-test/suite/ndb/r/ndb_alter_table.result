@@ -34,8 +34,6 @@ show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL		#
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values
 (0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 show table status;
@@ -133,8 +131,6 @@ a	b
 0	1
 17	18
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table  t1 modify column a int not null auto_increment;
 SET SQL_MODE='';
 select * from t1 order by a;
@@ -313,11 +309,13 @@ a	b	c
 drop table t1;
 create table t1(a int not null) engine=ndb;
 Primary keys:
+Number of primary keys: 1
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 insert into t1 values (1),(2),(3);
 alter table t1 add primary key (a);
 Primary keys:
+Number of primary keys: 1
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -329,6 +327,7 @@ a
 17
 alter table t1 drop primary key;
 Primary keys:
+Number of primary keys: 1
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 update t1 set a = 1 where a = 17;
@@ -340,11 +339,13 @@ a
 drop table t1;
 create table t1(a int not null) engine=ndb;
 Primary keys:
+Number of primary keys: 1
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 insert into t1 values (1),(2),(3);
 create unique index pk on t1(a);
 Primary keys:
+Number of primary keys: 1
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 update t1 set a = 17 where a = 1;
@@ -355,6 +356,7 @@ a
 17
 alter table t1 drop index pk;
 Primary keys:
+Number of primary keys: 1
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 update t1 set a = 1 where a = 17;

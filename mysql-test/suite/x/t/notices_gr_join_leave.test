@@ -175,15 +175,15 @@ query_result;
 -->echo
 -->echo ### Postcheck: Assert session status variables
 -->echo ### Expected:
--->echo ### - Myself 9 global-notices (7 from the tests scenarios + 2 from cleanup)
--->echo ### - Other 6 global-notices (6 from the tests scenarios)
+-->echo ### - Myself 10 global-notices (7 from the tests scenarios + 2 from cleanup + 1 from connection)
+-->echo ### - Other 7 global-notices (6 from the tests scenarios + 1 from connection)
 -->echo ##########################################################################
 callmacro Setsession verify_1;
-callmacro %ASSERT_STATUS%	Mysqlx_notice_global_sent	9;
+callmacro %ASSERT_STATUS%	Mysqlx_notice_global_sent	10;
 callmacro Assert_received_notices;
 
 callmacro Setsession verify_2;
-callmacro %ASSERT_STATUS%	Mysqlx_notice_global_sent	6;
+callmacro %ASSERT_STATUS%	Mysqlx_notice_global_sent	7;
 callmacro Assert_received_notices;
 EOF
 
@@ -250,8 +250,9 @@ exec $MYSQLXTEST
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+## Assert from xtest (Mysqlx_notice_global_sent 9) + additional one notice per connection (3 conn * 2 tests)
 --let $assert_text= Verify if the number of send global notices matches Mysqlx_notice_global_sent.
---let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_global_sent", Value, 1] = 9
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_global_sent", Value, 1] = 15
 --source include/assert.inc
 
 --let $assert_text= Verify if the number of send global notices matches Mysqlx_notified_by_group_replication.
@@ -261,8 +262,9 @@ exec $MYSQLXTEST
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+## Assert from xtest (Mysqlx_notice_global_sent 6) + additional one notice per connection (2 conn * 2 tests)
 --let $assert_text= Verify if the number of send global notices matches Mysqlx_notice_global_sent.
---let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_global_sent", Value, 1] = 6
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_global_sent", Value, 1] = 10
 --source include/assert.inc
 
 --let $assert_text= Verify if the number of send global notices matches Mysqlx_notified_by_group_replication.

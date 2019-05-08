@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,12 +33,18 @@ const std::string Gcs_operations::gcs_engine = "xcom";
 
 Gcs_operations::Gcs_operations()
     : gcs_interface(NULL),
+      injected_view_modification(false),
       leave_coordination_leaving(false),
       leave_coordination_left(false),
       finalize_ongoing(false) {
   gcs_operations_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
       key_GR_RWLOCK_gcs_operations
+#endif
+  );
+  view_observers_lock = new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+      key_GR_RWLOCK_gcs_operations_view_change_observers
 #endif
   );
   finalize_ongoing_lock = new Checkable_rwlock(
@@ -50,6 +56,7 @@ Gcs_operations::Gcs_operations()
 
 Gcs_operations::~Gcs_operations() {
   delete gcs_operations_lock;
+  delete view_observers_lock;
   delete finalize_ongoing_lock;
 }
 
@@ -168,7 +175,8 @@ enum enum_gcs_error Gcs_operations::set_debug_options(
 
 enum enum_gcs_error Gcs_operations::join(
     const Gcs_communication_event_listener &communication_event_listener,
-    const Gcs_control_event_listener &control_event_listener) {
+    const Gcs_control_event_listener &control_event_listener,
+    Plugin_gcs_view_modification_notifier *view_notifier) {
   DBUG_ENTER("Gcs_operations::join");
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
@@ -197,6 +205,10 @@ enum enum_gcs_error Gcs_operations::join(
 
   gcs_control->add_event_listener(control_event_listener);
   gcs_communication->add_event_listener(communication_event_listener);
+  view_observers_lock->wrlock();
+  injected_view_modification = false;
+  view_change_notifier_list.push_back(view_notifier);
+  view_observers_lock->unlock();
 
   /*
     Fake a GCS join error by not invoking join(), the
@@ -232,7 +244,8 @@ bool Gcs_operations::belongs_to_group() {
   DBUG_RETURN(res);
 }
 
-Gcs_operations::enum_leave_state Gcs_operations::leave() {
+Gcs_operations::enum_leave_state Gcs_operations::leave(
+    Plugin_gcs_view_modification_notifier *view_notifier) {
   DBUG_ENTER("Gcs_operations::leave");
   enum_leave_state state = ERROR_WHEN_LEAVING;
   gcs_operations_lock->wrlock();
@@ -241,6 +254,13 @@ Gcs_operations::enum_leave_state Gcs_operations::leave() {
     state = ALREADY_LEFT;
     goto end;
   }
+
+  view_observers_lock->wrlock();
+  injected_view_modification = false;
+  if (nullptr != view_notifier)
+    view_change_notifier_list.push_back(view_notifier);
+  view_observers_lock->unlock();
+
   if (leave_coordination_leaving) {
     state = ALREADY_LEAVING;
     goto end;
@@ -272,6 +292,40 @@ Gcs_operations::enum_leave_state Gcs_operations::leave() {
 end:
   gcs_operations_lock->unlock();
   DBUG_RETURN(state);
+}
+
+void Gcs_operations::notify_of_view_change_end() {
+  view_observers_lock->rdlock();
+  for (Plugin_gcs_view_modification_notifier *view_notifier :
+       view_change_notifier_list) {
+    view_notifier->end_view_modification();
+  }
+  view_observers_lock->unlock();
+}
+
+void Gcs_operations::notify_of_view_change_cancellation(int error) {
+  view_observers_lock->rdlock();
+  for (Plugin_gcs_view_modification_notifier *view_notifier :
+       view_change_notifier_list) {
+    view_notifier->cancel_view_modification(error);
+  }
+  view_observers_lock->unlock();
+}
+
+bool Gcs_operations::is_injected_view_modification() {
+  view_observers_lock->rdlock();
+  bool result = injected_view_modification;
+  view_observers_lock->unlock();
+  return result;
+}
+
+void Gcs_operations::remove_view_notifer(
+    Plugin_gcs_view_modification_notifier *view_notifier) {
+  if (nullptr == view_notifier) return;
+
+  view_observers_lock->wrlock();
+  view_change_notifier_list.remove(view_notifier);
+  view_observers_lock->unlock();
 }
 
 void Gcs_operations::leave_coordination_member_left() {
@@ -400,6 +454,16 @@ int Gcs_operations::force_members(const char *members) {
     /* purecov: end */
   }
 
+  /*
+     If we are already leaving the group, maybe because an error happened then
+     it makes no sense to force a new membership in this member.
+  */
+  if (leave_coordination_leaving) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING);
+    error = 1;
+    goto end;
+  }
+
   if (local_member_info->get_recovery_status() ==
       Group_member_info::MEMBER_ONLINE) {
     std::string group_id_str(group_name_var);
@@ -415,7 +479,13 @@ int Gcs_operations::force_members(const char *members) {
       /* purecov: end */
     }
 
-    view_change_notifier->start_injected_view_modification();
+    Plugin_gcs_view_modification_notifier view_change_notifier;
+    view_change_notifier.start_view_modification();
+
+    view_observers_lock->wrlock();
+    injected_view_modification = true;
+    view_change_notifier_list.push_back(&view_change_notifier);
+    view_observers_lock->unlock();
 
     Gcs_interface_parameters gcs_interface_parameters;
     gcs_interface_parameters.add_parameter("peer_nodes", std::string(members));
@@ -426,18 +496,20 @@ int Gcs_operations::force_members(const char *members) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET_ERROR,
                    members);
       error = 1;
+      view_change_notifier.cancel_view_modification();
+      remove_view_notifer(&view_change_notifier);
       goto end;
       /* purecov: end */
     }
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET, members);
-    if (view_change_notifier->wait_for_view_modification()) {
+    if (view_change_notifier.wait_for_view_modification()) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT,
                    members);
       error = 1;
-      goto end;
       /* purecov: end */
     }
+    remove_view_notifer(&view_change_notifier);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
     error = 1;
@@ -456,7 +528,6 @@ Gcs_group_management_interface *Gcs_operations::get_gcs_group_manager() const {
   Gcs_group_management_interface *gcs_group_manager = nullptr;
   if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
     goto end;
     /* purecov: end */
   }
@@ -528,4 +599,98 @@ uint32_t Gcs_operations::get_maximum_write_concurrency() const {
   DBUG_RETURN(result);
 }
 
+Gcs_communication_interface *Gcs_operations::get_gcs_communication() const {
+  std::string const group_name(group_name_var);
+  Gcs_group_identifier const group_id(group_name);
+  Gcs_control_interface *gcs_control = nullptr;
+  Gcs_communication_interface *gcs_communication = nullptr;
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
+    goto end;
+    /* purecov: end */
+  }
+  gcs_control = gcs_interface->get_control_session(group_id);
+  if (gcs_control == nullptr || !gcs_control->belongs_to_group()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
+    goto end;
+    /* purecov: end */
+  }
+  gcs_communication = gcs_interface->get_communication_session(group_id);
+  if (gcs_communication == nullptr) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
+    goto end;
+    /* purecov: end */
+  }
+end:
+  return gcs_communication;
+}
+
+Gcs_protocol_version Gcs_operations::get_protocol_version() {
+  DBUG_ENTER("Gcs_operations::get_protocol_version");
+  Gcs_protocol_version protocol = Gcs_protocol_version::UNKNOWN;
+  gcs_operations_lock->rdlock();
+  Gcs_communication_interface *gcs_communication = get_gcs_communication();
+  if (gcs_communication != nullptr) {
+    protocol = gcs_communication->get_protocol_version();
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(protocol);
+}
+
+Gcs_protocol_version Gcs_operations::get_maximum_protocol_version() {
+  DBUG_ENTER("Gcs_operations::get_maximum_protocol_version");
+  Gcs_protocol_version protocol = Gcs_protocol_version::UNKNOWN;
+  gcs_operations_lock->rdlock();
+  Gcs_communication_interface *gcs_communication = get_gcs_communication();
+  if (gcs_communication != nullptr) {
+    protocol = gcs_communication->get_maximum_supported_protocol_version();
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(protocol);
+}
+
+std::pair<bool, std::future<void>> Gcs_operations::set_protocol_version(
+    Gcs_protocol_version gcs_protocol) {
+  DBUG_ENTER("Gcs_operations::set_protocol_version");
+  bool will_change_protocol = false;
+  std::future<void> future;
+
+  gcs_operations_lock->wrlock();
+  Gcs_communication_interface *gcs_communication = get_gcs_communication();
+  if (gcs_communication != nullptr) {
+    std::tie(will_change_protocol, future) =
+        gcs_communication->set_protocol_version(gcs_protocol);
+  }
+  gcs_operations_lock->unlock();
+
+  DBUG_RETURN(std::make_pair(will_change_protocol, std::move(future)));
+}
+
+enum enum_gcs_error Gcs_operations::set_xcom_cache_size(uint64_t new_size) {
+  DBUG_ENTER("Gcs_operations::set_xcom_cache_size");
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->wrlock();
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
+    std::string group_name(group_name_var);
+    Gcs_group_identifier group_id(group_name);
+    Gcs_control_interface *gcs_control =
+        gcs_interface->get_control_session(group_id);
+    if (gcs_control != nullptr) {
+      result = gcs_control->set_xcom_cache_size(new_size);
+    }
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(result);
+}
+
 const std::string &Gcs_operations::get_gcs_engine() { return gcs_engine; }
+
+bool Gcs_operations::is_initialized() {
+  gcs_operations_lock->rdlock();
+  bool ret = nullptr != gcs_interface;
+  gcs_operations_lock->unlock();
+  return ret;
+}

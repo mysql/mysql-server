@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,6 @@
 #include <string.h>
 #include <algorithm>
 
-#include "binary_log_types.h"
 #include "decimal.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -99,38 +98,28 @@ int fill_query_profile_statistics_info(
 
 ST_FIELD_INFO query_profile_statistics_info[] = {
     /* name, length, type, value, maybe_null, old_name, open_method */
-    {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, "Query_id", SKIP_OPEN_TABLE},
-    {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, "Seq", SKIP_OPEN_TABLE},
-    {"STATE", 30, MYSQL_TYPE_STRING, 0, false, "Status", SKIP_OPEN_TABLE},
+    {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, "Query_id", 0},
+    {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, "Seq", 0},
+    {"STATE", 30, MYSQL_TYPE_STRING, 0, false, "Status", 0},
     {"DURATION", TIME_I_S_DECIMAL_SIZE, MYSQL_TYPE_DECIMAL, 0, false,
-     "Duration", SKIP_OPEN_TABLE},
+     "Duration", 0},
     {"CPU_USER", TIME_I_S_DECIMAL_SIZE, MYSQL_TYPE_DECIMAL, 0, true, "CPU_user",
-     SKIP_OPEN_TABLE},
+     0},
     {"CPU_SYSTEM", TIME_I_S_DECIMAL_SIZE, MYSQL_TYPE_DECIMAL, 0, true,
-     "CPU_system", SKIP_OPEN_TABLE},
-    {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_voluntary",
-     SKIP_OPEN_TABLE},
+     "CPU_system", 0},
+    {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_voluntary", 0},
     {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_involuntary",
-     SKIP_OPEN_TABLE},
-    {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_in",
-     SKIP_OPEN_TABLE},
-    {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_out",
-     SKIP_OPEN_TABLE},
-    {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, "Messages_sent",
-     SKIP_OPEN_TABLE},
-    {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, "Messages_received",
-     SKIP_OPEN_TABLE},
-    {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_major",
-     SKIP_OPEN_TABLE},
-    {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_minor",
-     SKIP_OPEN_TABLE},
-    {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, "Swaps", SKIP_OPEN_TABLE},
-    {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, "Source_function",
-     SKIP_OPEN_TABLE},
-    {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, "Source_file",
-     SKIP_OPEN_TABLE},
-    {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, "Source_line",
-     SKIP_OPEN_TABLE},
+     0},
+    {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_in", 0},
+    {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_out", 0},
+    {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, "Messages_sent", 0},
+    {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, "Messages_received", 0},
+    {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_major", 0},
+    {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_minor", 0},
+    {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, "Swaps", 0},
+    {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, "Source_function", 0},
+    {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, "Source_file", 0},
+    {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, "Source_line", 0},
     {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL, 0}};
 
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table) {

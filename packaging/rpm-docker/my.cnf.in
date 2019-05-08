@@ -29,5 +29,4 @@ socket=@MYSQL_UNIX_ADDR@
 secure-file-priv=/var/lib/mysql-files
 user=mysql
 
-log-error=@LOGFILE_RPM@
 pid-file=@PIDFILE_RPM@

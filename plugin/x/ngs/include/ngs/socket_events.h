@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 struct event_base;
 
@@ -46,9 +47,9 @@ class Socket_events : public Socket_events_interface {
   ~Socket_events();
 
   bool listen(Socket_interface::Shared_ptr s,
-              ngs::function<void(Connection_acceptor_interface &)> callback);
+              std::function<void(Connection_acceptor_interface &)> callback);
 
-  void add_timer(const std::size_t delay_ms, ngs::function<bool()> callback);
+  void add_timer(const std::size_t delay_ms, std::function<bool()> callback);
   void loop();
   void break_loop();
 
@@ -61,7 +62,7 @@ class Socket_events : public Socket_events_interface {
   struct event_base *m_evbase;
   std::vector<Socket_data *> m_socket_events;
   std::vector<Timer_data *> m_timer_events;
-  xpl::Mutex m_timers_mutex;
+  xpl::Mutex m_timers_mutex{KEY_mutex_x_socket_events_timers};
 };
 
 }  // namespace ngs

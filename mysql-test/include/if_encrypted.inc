@@ -1,7 +1,9 @@
 #################### Perl module starts ####################
 perl;
 my $d_dir = $ENV{'datadir'};
-my $ts_filename="$d_dir/encrypt_ts.ibd";
+my $s_pattern = $ENV{'search_pattern'};
+my $filename = $ENV{'ts_name'};
+my $ts_filename="$d_dir/$filename";
 open TS_FILE, "<$ts_filename" or die "$!";
 @lines = <TS_FILE>;
 close TS_FILE;
@@ -14,7 +16,7 @@ my $found = 0;
 foreach $line (@lines) {
         chomp( $line );
         print OP_FILE;
-        if($line =~ /samplerecord/) {
+        if($line =~ /$s_pattern/) {
                 $found=1;
         }
 }

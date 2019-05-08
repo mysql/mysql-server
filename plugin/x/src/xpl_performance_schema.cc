@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,19 +28,31 @@
 
 #ifdef HAVE_PSI_INTERFACE
 
-PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;
-PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
+PSI_thread_key KEY_thread_x_acceptor;
+PSI_thread_key KEY_thread_x_worker;
 
 static PSI_thread_info all_x_threads[] = {
     {&KEY_thread_x_acceptor, "acceptor_network", 0, 0, PSI_DOCUMENT_ME},
     {&KEY_thread_x_worker, "worker", 0, 0, PSI_DOCUMENT_ME},
 };
 
-PSI_mutex_key KEY_mutex_x_lock_list_access = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending =
-    PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_document_id_generate = PSI_NOT_INSTRUMENTED;
+PSI_mutex_key KEY_mutex_x_lock_list_access;
+PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending;
+PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit;
+PSI_mutex_key KEY_mutex_x_document_id_generate;
+PSI_mutex_key KEY_mutex_x_notice_output_queue;
+PSI_mutex_key KEY_mutex_x_xpl_server_accepting;
+PSI_mutex_key KEY_mutex_x_client_session_exit;
+PSI_mutex_key KEY_mutex_x_socket_events_timers;
+PSI_mutex_key KEY_mutex_x_scheduler_post;
+PSI_mutex_key KEY_mutex_x_server_client_exit;
+PSI_mutex_key KEY_mutex_x_vio_shutdown;
+PSI_mutex_key KEY_mutex_x_page_pool;
+PSI_mutex_key KEY_mutex_x_listener_tcp_sync;
+PSI_mutex_key KEY_mutex_x_listener_unix_socket_sync;
+PSI_mutex_key KEY_mutex_x_broker_context_sync;
+PSI_mutex_key KEY_mutex_x_server_state_sync;
+PSI_mutex_key KEY_mutex_x_socket_acceptors_sync;
 
 static PSI_mutex_info all_x_mutexes[] = {
     {&KEY_mutex_x_lock_list_access, "lock_list_access", 0, 0, PSI_DOCUMENT_ME},
@@ -50,36 +62,77 @@ static PSI_mutex_info all_x_mutexes[] = {
      "scheduler_dynamic_thread_exit", 0, 0, PSI_DOCUMENT_ME},
     {&KEY_mutex_x_document_id_generate, "document_id_generate", 0, 0,
      PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_notice_output_queue, "notice_output_queue", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_xpl_server_accepting, "xpl_server_accepting", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_client_session_exit, "client_session_exit", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_socket_events_timers, "socket_events_timers", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_scheduler_post, "scheduler_post", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_server_client_exit, "server_client_exit", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_vio_shutdown, "vio_shutdown", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_page_pool, "page_pool", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_listener_tcp_sync, "listener_tcp_sync", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_listener_unix_socket_sync, "listener_unix_socket_sync", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_broker_context_sync, "broker_context_sync", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_server_state_sync, "server_state_sync", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_mutex_x_socket_acceptors_sync, "socket_acceptors_sync", 0, 0,
+     PSI_DOCUMENT_ME},
 };
 
-PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
-PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
+PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending;
+PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit;
+PSI_cond_key KEY_cond_x_listener_tcp_sync;
+PSI_cond_key KEY_cond_x_listener_unix_socket_sync;
+PSI_cond_key KEY_cond_x_broker_context_sync;
+PSI_cond_key KEY_cond_x_server_state_sync;
+PSI_cond_key KEY_cond_x_socket_acceptors_sync;
 
 static PSI_cond_info all_x_conds[] = {
     {&KEY_cond_x_scheduler_dynamic_worker_pending,
      "scheduler_dynamic_worker_pending", 0, 0, PSI_DOCUMENT_ME},
     {&KEY_cond_x_scheduler_dynamic_thread_exit, "scheduler_dynamic_thread_exit",
      0, 0, PSI_DOCUMENT_ME},
+    {&KEY_cond_x_listener_tcp_sync, "listener_tcp_sync", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_cond_x_listener_unix_socket_sync, "listener_unix_socket_sync", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_cond_x_broker_context_sync, "broker_context_sync", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&KEY_cond_x_server_state_sync, "server_state_sync", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_cond_x_socket_acceptors_sync, "socket_acceptors_sync", 0, 0,
+     PSI_DOCUMENT_ME},
 };
 
-PSI_rwlock_key KEY_rwlock_x_client_list_clients = PSI_NOT_INSTRUMENTED;
-PSI_rwlock_key KEY_rwlock_x_sha256_password_cache = PSI_NOT_INSTRUMENTED;
+PSI_rwlock_key KEY_rwlock_x_client_list_clients;
+PSI_rwlock_key KEY_rwlock_x_sha256_password_cache;
+PSI_rwlock_key KEY_rwlock_x_xpl_server_instance;
 
 static PSI_rwlock_info all_x_rwlocks[] = {
     {&KEY_rwlock_x_client_list_clients, "client_list_clients", 0, 0,
      PSI_DOCUMENT_ME},
     {&KEY_rwlock_x_sha256_password_cache, "sha256_password_cache", 0, 0,
      PSI_DOCUMENT_ME},
+    {&KEY_rwlock_x_xpl_server_instance, "xpl_server_instance", 0, 0,
+     PSI_DOCUMENT_ME},
 };
 
-PSI_socket_key KEY_socket_x_tcpip = PSI_NOT_INSTRUMENTED;
-PSI_socket_key KEY_socket_x_unix = PSI_NOT_INSTRUMENTED;
-PSI_socket_key KEY_socket_x_client_connection = PSI_NOT_INSTRUMENTED;
+PSI_socket_key KEY_socket_x_tcpip;
+PSI_socket_key KEY_socket_x_diagnostics;
+PSI_socket_key KEY_socket_x_unix;
+PSI_socket_key KEY_socket_x_client_connection;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 
 static PSI_socket_info all_x_sockets[] = {
     {&KEY_socket_x_tcpip, "tcpip_socket", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_socket_x_diagnostics, "diagnostics_socket", 0, 0, PSI_DOCUMENT_ME},
     {&KEY_socket_x_unix, "unix_socket", 0, 0, PSI_DOCUMENT_ME},
     {&KEY_socket_x_client_connection, "client_connection", 0, 0,
      PSI_DOCUMENT_ME},
@@ -88,9 +141,9 @@ static PSI_socket_info all_x_sockets[] = {
 
 #endif  // HAVE_PSI_SOCKET_INTERFACE
 
-PSI_memory_key KEY_memory_x_objects = PSI_NOT_INSTRUMENTED;
-PSI_memory_key KEY_memory_x_recv_buffer = PSI_NOT_INSTRUMENTED;
-PSI_memory_key KEY_memory_x_send_buffer = PSI_NOT_INSTRUMENTED;
+PSI_memory_key KEY_memory_x_objects;
+PSI_memory_key KEY_memory_x_recv_buffer;
+PSI_memory_key KEY_memory_x_send_buffer;
 
 static PSI_memory_info all_x_memory[] = {
     {&KEY_memory_x_objects, "objects", PSI_FLAG_ONLY_GLOBAL_STAT, 0,

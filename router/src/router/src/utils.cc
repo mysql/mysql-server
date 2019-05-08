@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,10 @@
 */
 
 #include "mysqlrouter/utils.h"
+
 #include "common.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/string_utils.h"
 
 #include <string.h>
 #include <algorithm>
@@ -57,6 +59,7 @@ extern "C" bool g_windows_service;
 }
 #endif
 
+using mysql_harness::trim;
 using std::string;
 
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
@@ -186,14 +189,6 @@ int rename_file(const std::string &from, const std::string &to) {
     return 0;
   else
     return -1;
-#endif
-}
-
-int mkdir(const std::string &dir, perm_mode mode) {
-#ifndef _WIN32
-  return ::mkdir(dir.c_str(), mode);
-#else
-  return _mkdir(dir.c_str());
 #endif
 }
 
@@ -344,46 +339,6 @@ uint16_t get_tcp_port(const string &data) {
     throw std::runtime_error("impossible port number");
   }
   return static_cast<uint16_t>(port);
-}
-
-std::vector<string> split_string(const string &data, const char delimiter,
-                                 bool allow_empty) {
-  std::stringstream ss(data);
-  std::string token;
-  std::vector<string> result;
-
-  if (data.empty()) {
-    return {};
-  }
-
-  while (std::getline(ss, token, delimiter)) {
-    if (token.empty() && !allow_empty) {
-      // Skip empty
-      continue;
-    }
-    result.push_back(token);
-  }
-
-  // When last character is delimiter, it denotes an empty token
-  if (allow_empty && data.back() == delimiter) {
-    result.push_back("");
-  }
-
-  return result;
-}
-
-void left_trim(string &str) {
-  str.erase(str.begin(), std::find_if_not(str.begin(), str.end(), ::isspace));
-}
-
-void right_trim(string &str) {
-  str.erase(std::find_if_not(str.rbegin(), str.rend(), ::isspace).base(),
-            str.end());
-}
-
-void trim(string &str) {
-  left_trim(str);
-  right_trim(str);
 }
 
 string hexdump(const unsigned char *buffer, size_t count, long start,
@@ -548,7 +503,12 @@ void write_windows_event_log(const std::string &msg) {
     strings[1] = msg.c_str();
     ReportEventA(event_src, EVENTLOG_ERROR_TYPE, 0, 0, NULL, 2, 0, strings,
                  NULL);
-    DeregisterEventSource(event_src);
+    BOOL ok = DeregisterEventSource(event_src);
+    if (!ok) {
+      throw std::runtime_error(
+          "Cannot destroy event log source after logging '" + msg +
+          "', error: " + std::to_string(GetLastError()));
+    }
   } else {
     throw std::runtime_error("Cannot create event log source, error: " +
                              std::to_string(GetLastError()));

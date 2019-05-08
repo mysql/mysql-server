@@ -1,0 +1,14 @@
+use test;
+create table test.t1 (a int primary key, b int) engine=ndb;
+insert into test.t1 values (1,1), (2,2), (3,3), (4,4);
+Set TC Transaction Inactive Timeout to 5s
+begin;
+insert ignore into test.t1 values (5,5), (3,6), (7,7);
+Warnings:
+Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Waiting for a while so that TC rolls back
+the transaction
+Committing the transaction, expect already rolled back error
+commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+drop table test.t1;

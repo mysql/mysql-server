@@ -29,9 +29,9 @@ SELECT @@GLOBAL.LOG_ERROR_SERVICES;
 @@GLOBAL.LOG_ERROR_SERVICES
 log_filter_internal; log_sink_internal
 SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
-Pattern "\[Note\].*Cannot set services "abcd" requested in --log-error-services, using defaults" found
+Pattern "\[Warning\].*Cannot set services "abcd" requested in --log-error-services, using defaults" found
 # restart: --log-error=LOG_FILE10 --log-error-verbosity=3 --log-error-services=log_sink_json 
-Pattern "\[Note\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults" found
+Pattern "\[Warning\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults" found
 INSTALL COMPONENT "file://component_log_sink_json";
 # restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
@@ -104,6 +104,16 @@ SELECT @@global.log_error_suppression_list;
 @@global.log_error_suppression_list
 
 Pattern "log_error_suppression_list: Could not add suppression rule for code .invalid." found
+INSTALL COMPONENT "file://component_log_sink_json";
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+SET PERSIST dragnet.log_error_filter_rules="IF EXISTS msg THEN drop.";
+# restart: --log-error-services=log_filter_dragnet;log_sink_json --log-error=LOG_FILE19
+# JSON error log content - begin
+# JSON error log content - end
+RESET PERSIST `dragnet.log_error_filter_rules`;
+SET GLOBAL log_error_services= DEFAULT;
+UNINSTALL COMPONENT "file://component_log_sink_json";
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 
 Reading error logs for validation
 ---------------------------------
@@ -116,7 +126,8 @@ Reading error logs for validation
 [ PASS ] Error log contains NOTE's with --log-error-verbosity=7 (adjusted to 3) during initialization.
 [ PASS ] Error log contains a NOTE with compiled-in message 'Access denied' when lc_messages_dir does not contain error messages
 [ PASS ] Error log successfully parsed as a json document
-[ PASS ] Expected entry found in the json error log:-Access denied for user 'unknown_user'@'localhost' (using password: NO)
+[ PASS ] Expected entry found in the json error log: ER_STARTING_AS
+[ PASS ] Expected entry found in the json error log: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 [ PASS ] Error log messages throttled at three for 'Access denied' messages
 [ PASS ] 'Access denied' messages filtered as per suppression list
 [ PASS ] 'Access denied' messages not filtered, as per suppression list.

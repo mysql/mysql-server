@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,11 +26,11 @@
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
 
 #include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
+#include "plugin/x/src/ssl_session_options.h"
 
 namespace ngs {
 
@@ -136,8 +136,8 @@ class Mock_socket_events : public Socket_events_interface {
  public:
   MOCK_METHOD2(listen,
                bool(Socket_interface::Shared_ptr,
-                    ngs::function<void(Connection_acceptor_interface &)>));
-  MOCK_METHOD2(add_timer, void(const std::size_t, ngs::function<bool()>));
+                    std::function<void(Connection_acceptor_interface &)>));
+  MOCK_METHOD2(add_timer, void(const std::size_t, std::function<bool()>));
   MOCK_METHOD0(loop, void());
   MOCK_METHOD0(break_loop, void());
 };
@@ -149,8 +149,9 @@ class Mock_listener_factory_interface : public Listener_factory_interface {
                                     Socket_events_interface &event,
                                     const uint32 backlog));
 
-  MOCK_METHOD5(create_tcp_socket_listener_ptr,
+  MOCK_METHOD6(create_tcp_socket_listener_ptr,
                Listener_interface *(std::string &bind_address,
+                                    const std::string &network_namespace,
                                     const unsigned short port,
                                     const uint32 port_open_timeout,
                                     Socket_events_interface &event,
@@ -164,11 +165,12 @@ class Mock_listener_factory_interface : public Listener_factory_interface {
   }
 
   Listener_interface_ptr create_tcp_socket_listener(
-      std::string &bind_address, const unsigned short port,
-      const uint32 port_open_timeout, Socket_events_interface &event,
-      const uint32 backlog) {
-    return Listener_interface_ptr{create_tcp_socket_listener_ptr(
-        bind_address, port, port_open_timeout, event, backlog)};
+      std::string &bind_address, const std::string &network_namespace,
+      const unsigned short port, const uint32 port_open_timeout,
+      Socket_events_interface &event, const uint32 backlog) {
+    return Listener_interface_ptr{
+        create_tcp_socket_listener_ptr(bind_address, network_namespace, port,
+                                       port_open_timeout, event, backlog)};
   }
 };
 

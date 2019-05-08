@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,15 @@
 #ifndef SQL_TIME_INCLUDED
 #define SQL_TIME_INCLUDED
 
+/**
+  @ingroup SQL_TIME
+  @{
+
+  @file sql/sql_time.h
+
+  Interface for server time utilities.
+*/
+
 #include "my_config.h"
 
 #include <stddef.h>
@@ -31,30 +40,30 @@
 #endif
 #include <sys/types.h>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
-#include "mysql_time.h"    /* timestamp_type */
+#include "mysql_time.h"    /* enum_mysql_timestamp_type */
 #include "sql/sql_error.h" /* Sql_condition */
 #include "sql_string.h"
 
 class THD;
 class my_decimal;
 
+/**
+   Representation of time formats.
+ */
 struct Date_time_format {
   uchar positions[8];
   LEX_STRING format;
 };
 
-struct Interval {
-  ulong year, month, day, hour;
-  ulonglong minute, second, second_part;
-  bool neg;
-};
-
+/**
+   Collection of strings describing date/time formats.
+ */
 struct Known_date_time_format {
   const char *format_name;
   const char *date_format;
@@ -62,16 +71,6 @@ struct Known_date_time_format {
   const char *time_format;
 };
 
-/* Flags for calc_week() function.  */
-#define WEEK_MONDAY_FIRST 1
-#define WEEK_YEAR 2
-#define WEEK_FIRST_WEEKDAY 4
-
-bool valid_period(ulong period);
-ulong convert_period_to_month(ulong period);
-ulong convert_month_to_period(ulong month);
-void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime);
-void get_date_from_daynr(long daynr, uint *year, uint *month, uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, bool *not_exist);
 bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *t,
                                               struct timeval *tm,
@@ -91,24 +90,15 @@ bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime);
 bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime);
 bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time);
 void time_to_datetime(THD *thd, const MYSQL_TIME *tm, MYSQL_TIME *dt);
-inline void datetime_to_time(MYSQL_TIME *ltime) {
-  ltime->year = ltime->month = ltime->day = 0;
-  ltime->time_type = MYSQL_TIMESTAMP_TIME;
-}
-inline void datetime_to_date(MYSQL_TIME *ltime) {
-  ltime->hour = ltime->minute = ltime->second = ltime->second_part = 0;
-  ltime->time_type = MYSQL_TIMESTAMP_DATE;
-}
-inline void date_to_datetime(MYSQL_TIME *ltime) {
-  ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
-}
+
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
-                                  ErrConvString val, timestamp_type time_type,
+                                  const ErrConvString &val,
+                                  enum_mysql_timestamp_type time_type,
                                   const char *field_name);
 
-const char *get_date_time_format_str(Known_date_time_format *format,
-                                     timestamp_type type);
+const char *get_date_time_format_str(const Known_date_time_format *format,
+                                     enum_mysql_timestamp_type type);
 void make_date(const Date_time_format *format, const MYSQL_TIME *l_time,
                String *str);
 void make_time(const Date_time_format *format, const MYSQL_TIME *l_time,
@@ -117,141 +107,90 @@ void make_datetime(const Date_time_format *format, const MYSQL_TIME *l_time,
                    String *str, uint dec);
 bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec);
 
-/* MYSQL_TIME operations */
-bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
-                       Interval interval);
-bool calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
-                    int l_sign, longlong *seconds_out, long *microseconds_out);
-int my_time_compare(const MYSQL_TIME *a, const MYSQL_TIME *b);
-void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
-void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds);
-uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
+void propagate_datetime_overflow_helper(THD *thd, int *warnings);
 
-int calc_weekday(long daynr, bool sunday_first_day_of_week);
+/**
+   Wrapper function which will propagate any DATETIME_OVERFLOW warnings
+   to the THD. Overload for the case where a warnings bitset already
+   exists which can be inspected before the value of the mysys
+   function is passed on.
 
-/* Character set-aware version of str_to_time() */
+   @param thd Thread context
+   @param warnings bitset used mysys function
+   @param t value mysys function which is passed on
+   @retval t
+ */
+template <class T>
+inline T propagate_datetime_overflow(THD *thd, int *warnings, T t) {
+  propagate_datetime_overflow_helper(thd, warnings);
+  return t;
+}
+
+/**
+   Wrapper function which will propagate any DATETIME_OVERFLOW warnings
+   to the THD. Overload for the case when a warnings bitset must be
+   created and inspected to call a mysys function. The mysys function
+   must be invoked by the closure argument which invoked with a
+   pointer to the warnings bitset as argument.
+
+   @param thd Thread context
+   @param clos closure to call with empty warnings bitset
+   @return return value of closure
+ */
+template <class CLOS>
+inline auto propagate_datetime_overflow(THD *thd, CLOS &&clos) {
+  int warnings = 0;
+  return propagate_datetime_overflow(thd, &warnings, clos(&warnings));
+}
+
+bool date_add_interval_with_warn(THD *, MYSQL_TIME *ltime,
+                                 interval_type int_type, Interval interval);
+
 bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
                  MYSQL_TIME *l_time, my_time_flags_t flags,
                  MYSQL_TIME_STATUS *status);
-static inline bool str_to_time(const String *str, MYSQL_TIME *ltime,
-                               my_time_flags_t flags,
-                               MYSQL_TIME_STATUS *status) {
+
+/**
+   Converts a time String value to MYSQL_TIME. Forwards to the version
+   taking an explicit charset, c-string and length.
+
+   @return False on success, true on error.
+ */
+inline bool str_to_time(const String *str, MYSQL_TIME *ltime,
+                        my_time_flags_t flags, MYSQL_TIME_STATUS *status) {
   return str_to_time(str->charset(), str->ptr(), str->length(), ltime, flags,
                      status);
 }
 
-bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
-                                     int *warnings);
-/* Character set-aware version of str_to_datetime() */
 bool str_to_datetime(const CHARSET_INFO *cs, const char *str, size_t length,
                      MYSQL_TIME *l_time, my_time_flags_t flags,
                      MYSQL_TIME_STATUS *status);
-static inline bool str_to_datetime(const String *str, MYSQL_TIME *ltime,
-                                   my_time_flags_t flags,
-                                   MYSQL_TIME_STATUS *status) {
+
+/**
+   Converts a datetime String value to MYSQL_TIME. Forwards to the
+   version taking an explicit charset, c-string and length.
+
+   @return False on success, true on error.
+*/
+inline bool str_to_datetime(const String *str, MYSQL_TIME *ltime,
+                            my_time_flags_t flags, MYSQL_TIME_STATUS *status) {
   return str_to_datetime(str->charset(), str->ptr(), str->length(), ltime,
                          flags, status);
 }
 
-bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
-                                         int *warnings);
+extern const LEX_STRING interval_type_to_name[];
 
-bool parse_date_time_format(timestamp_type format_type,
-                            Date_time_format *date_time_format);
-
-extern Known_date_time_format known_date_time_formats[];
-extern LEX_STRING interval_type_to_name[];
-
-/* Date/time rounding and truncation functions */
-inline long my_time_fraction_remainder(long nr, uint decimals) {
-  DBUG_ASSERT(decimals <= DATETIME_MAX_DECIMALS);
-  return nr % (long)log_10_int[DATETIME_MAX_DECIMALS - decimals];
-}
-inline void my_time_trunc(MYSQL_TIME *ltime, uint decimals) {
-  ltime->second_part -=
-      my_time_fraction_remainder(ltime->second_part, decimals);
-}
-inline void my_datetime_trunc(MYSQL_TIME *ltime, uint decimals) {
-  return my_time_trunc(ltime, decimals);
-}
-inline void my_timeval_trunc(struct timeval *tv, uint decimals) {
-  tv->tv_usec -= my_time_fraction_remainder(tv->tv_usec, decimals);
-}
-bool my_time_adjust_frac(MYSQL_TIME *ltime, uint decimals, bool truncate);
-bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint decimals, int *warnings,
-                             bool truncate);
-
-bool my_timeval_round(struct timeval *tv, uint decimals);
-ulonglong TIME_to_ulonglong_datetime_round(const MYSQL_TIME *ltime);
-ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME *ltime);
-
-bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
-                                        int *warnings);
-bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
-                                            uint nanoseconds);
-bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
-                                      int *warnings, bool truncate);
-bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
-                                          int *warnings, bool truncate);
-
-inline ulonglong TIME_to_ulonglong_round(const MYSQL_TIME *ltime) {
-  switch (ltime->time_type) {
-    case MYSQL_TIMESTAMP_TIME:
-      return TIME_to_ulonglong_time_round(ltime);
-    case MYSQL_TIMESTAMP_DATETIME:
-      return TIME_to_ulonglong_datetime_round(ltime);
-    case MYSQL_TIMESTAMP_DATE:
-      return TIME_to_ulonglong_date(ltime);
-    default:
-      DBUG_ASSERT(0);
-      return 0;
-  }
-}
-
-inline double TIME_microseconds(const MYSQL_TIME *ltime) {
-  return (double)ltime->second_part / 1000000;
-}
-
-inline double TIME_to_double_datetime(const MYSQL_TIME *ltime) {
-  return (double)TIME_to_ulonglong_datetime(ltime) + TIME_microseconds(ltime);
-}
-
-inline double TIME_to_double_time(const MYSQL_TIME *ltime) {
-  return (double)TIME_to_ulonglong_time(ltime) + TIME_microseconds(ltime);
-}
-
-inline double TIME_to_double(const MYSQL_TIME *ltime) {
-  return (double)TIME_to_ulonglong(ltime) + TIME_microseconds(ltime);
-}
-
-static inline bool check_fuzzy_date(const MYSQL_TIME *ltime,
-                                    my_time_flags_t fuzzydate) {
-  return !(fuzzydate & TIME_FUZZY_DATE) && (!ltime->month || !ltime->day);
-}
-
-static inline bool non_zero_date(const MYSQL_TIME *ltime) {
-  return ltime->year || ltime->month || ltime->day;
-}
-
-static inline bool non_zero_time(const MYSQL_TIME *ltime) {
-  return ltime->hour || ltime->minute || ltime->second || ltime->second_part;
-}
-
-longlong TIME_to_longlong_packed(const MYSQL_TIME *tm,
-                                 enum enum_field_types type);
-void TIME_from_longlong_packed(MYSQL_TIME *ltime, enum enum_field_types type,
-                               longlong packed_value);
 my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
                                             enum enum_field_types type,
                                             longlong packed_value);
 
-longlong longlong_from_datetime_packed(enum enum_field_types type,
-                                       longlong packed_value);
+/**
+   Return the timstamp value corresponding the field type passed as argument.
 
-double double_from_datetime_packed(enum enum_field_types type,
-                                   longlong packed_value);
-
-static inline timestamp_type field_type_to_timestamp_type(
+   @param type field type
+   @return corresponding timestamp type
+ */
+inline enum_mysql_timestamp_type field_type_to_timestamp_type(
     enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_TIME:
@@ -270,8 +209,40 @@ static inline timestamp_type field_type_to_timestamp_type(
   This function gets GMT time and adds value of time_zone to get
   the local time. This function is used when server wants a timestamp
   value from dictionary system.
+
+  @return time converted to local time
 */
 
 ulonglong gmt_time_to_local_time(ulonglong time);
+
+/**
+  In lieu of a proper constructor for the C struct MYSQL_TIME, this method
+  initializes the struct.
+*/
+MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
+                       unsigned long ms, bool negative,
+                       enum_mysql_timestamp_type type);
+/**
+  Return the number of significant second fraction decimals in ts, e.g.
+  for ts->second_part == 120300, return 4.
+
+  @param ts the time value for which we wnat the number of decmals
+  @return the number of decimals
+*/
+uint actual_decimals(const MYSQL_TIME *ts);
+
+/**
+  For a time fraction with a given number of decimals, return maximum fraction,
+  if any, can be are present in a time value. For example, if 2 decimals are
+  specified, return 990000. If none, 0.
+
+  @param decimals the number of decimals
+  @return the maximum fraction
+*/
+size_t max_fraction(uint decimals);
+
+/**
+   @} (end of ingroup SQL_TIME)
+*/
 
 #endif /* SQL_TIME_INCLUDED */

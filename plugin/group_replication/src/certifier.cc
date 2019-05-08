@@ -34,6 +34,8 @@
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME = "gtid_extracted";
+const std::string Certifier::CERTIFICATION_INFO_ERROR_NAME =
+    "certification_info_error";
 
 static void *launch_broadcast_thread(void *arg) {
   Certifier_broadcast_thread *handler = (Certifier_broadcast_thread *)arg;
@@ -1392,6 +1394,18 @@ int Certifier::set_certification_info(
     std::map<std::string, std::string> *cert_info) {
   DBUG_ENTER("Certifier::set_certification_info");
   DBUG_ASSERT(cert_info != NULL);
+
+  if (cert_info->size() == 1) {
+    std::map<std::string, std::string>::iterator it =
+        cert_info->find(CERTIFICATION_INFO_ERROR_NAME);
+    if (it != cert_info->end()) {
+      // The certification database could not be transmitted
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_ON_CERT_DB_INSTALL,
+                   it->second.c_str());
+      DBUG_RETURN(1);
+    }
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
 
   clear_certification_info();
@@ -1469,8 +1483,9 @@ void Certifier::update_certified_transaction_count(bool result,
   else
     negative_cert++;
 
-  if (local_member_info->get_recovery_status() ==
-      Group_member_info::MEMBER_ONLINE) {
+  const Group_member_info::Group_member_status member_status =
+      local_member_info->get_recovery_status();
+  if (member_status == Group_member_info::MEMBER_ONLINE) {
     applier_module->get_pipeline_stats_member_collector()
         ->increment_transactions_certified();
 
@@ -1481,6 +1496,14 @@ void Certifier::update_certified_transaction_count(bool result,
     if (local_transaction && !result) {
       applier_module->get_pipeline_stats_member_collector()
           ->increment_transactions_local_rollback();
+    }
+  } else if (member_status == Group_member_info::MEMBER_IN_RECOVERY) {
+    applier_module->get_pipeline_stats_member_collector()
+        ->increment_transactions_certified_during_recovery();
+
+    if (!result) {
+      applier_module->get_pipeline_stats_member_collector()
+          ->increment_transactions_certified_negatively_during_recovery();
     }
   }
 }

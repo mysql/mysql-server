@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,8 @@ Schemata::Schemata() {
   m_target_def.add_field(FIELD_DEFAULT_COLLATION_NAME, "DEFAULT_COLLATION_NAME",
                          "col.name");
   m_target_def.add_field(FIELD_SQL_PATH, "SQL_PATH", "NULL");
+  m_target_def.add_field(FIELD_DEFAULT_ENCRYPTION, "DEFAULT_ENCRYPTION",
+                         "sch.default_encryption");
 
   m_target_def.add_from("mysql.schemata sch");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");

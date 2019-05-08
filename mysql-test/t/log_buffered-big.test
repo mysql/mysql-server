@@ -1,0 +1,193 @@
+# WL#11875
+
+# 11875 completely rewrites the "buffered logging" subsystem, wherein we
+# collect error log events until we receive command-line options telling
+# us where to actually send them.
+# Previously, info was formatted when the event was created, and appended
+# to a string containing all buffered lines which would eventually be
+# flushed.
+# Now, we keep all key/value pairs around, and flush them only once
+# a) we know where to (as before)
+# b) external components are available (as the user may wish to use
+#    a loadable log-writer or log-filter).
+#    This requires the availability of the component framework
+#    as well as InnoDB (wherein the framework stores its setup).
+# This allows us to flush the data in one or several log formats
+# of the user's choice, and lets us apply filtering of the user's
+# choice. (It also handles local<->UTC timestamps correctly).
+# All of the above is tested in log_components*.test and
+# log_options_cmdline.test.
+
+# As a final new feature, if InnoDB initialization takes very long
+# (e.g. when another instance of the server has already claimed
+# the database file), we start giving updates using the built-in
+# log-writer (which is already available), which deferring the
+# writing of any other formats (the writers for which haven't been,
+# and can't be, loaded yet). As this mechanism only kicks in once
+# a certain time-out has been reached, this test must needs take a
+# bit of time (in the ballpark of 2 minutes), so we don't run it by
+# default:
+
+# This test takes rather long time so let us run it only in --big-test mode
+--source include/big_test.inc
+--source include/not_windows.inc
+--source include/not_asan.inc
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+
+# Case 1: Let the second server abort as it uses the same data
+#         directory as the first server
+
+--let $MYSQLD_LOG=$MYSQL_TMP_DIR/buffered.log
+--exec_in_background $MYSQLD --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK
+--sleep 55
+--copy_file $MYSQLD_LOG $MYSQL_TMP_DIR/errlog_after_55s
+--sleep 10
+--copy_file $MYSQLD_LOG $MYSQL_TMP_DIR/errlog_after_65s
+--sleep 10
+--copy_file $MYSQLD_LOG $MYSQL_TMP_DIR/errlog_after_75s
+--sleep 30
+
+# Verify that the second server has aborted
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=ERROR.*InnoDB.*Resource temporarily unavailable
+--source include/search_pattern.inc
+--let SEARCH_PATTERN=ERROR.*Server.*Aborting
+--source include/search_pattern.inc
+--let SEARCH_PATTERN=System.*Server.*Shutdown complete
+--source include/search_pattern.inc
+
+# Verify that buffered log messages are flushed initially after a
+# timeout of 60s and that further buffered messages are flushed
+# after regular intervals of 10s
+--perl
+  open(FILE55,$ENV{'MYSQL_TMP_DIR'}."/errlog_after_55s")
+    or die("Unable to open log file after 55s $!\n");
+  my @log_lines_55s=<FILE55>;
+  close(FILE55);
+  if (scalar(@log_lines_55s) != 0 ) {
+    die("Error log after 55 seconds should not contain any entries");
+  }
+
+  open(FILE65,$ENV{'MYSQL_TMP_DIR'}."/errlog_after_65s")
+    or die("Unable to open log file after 65s $!\n");
+  my @log_lines_65s=<FILE65>;
+  close(FILE65);
+  if (scalar(@log_lines_65s) == 0 ) {
+    die("Error log after 65 seconds should have flushed log messages".
+        "as initial timeout is exceeded");
+  }
+
+  open(FILE75,$ENV{'MYSQL_TMP_DIR'}."/errlog_after_75s")
+    or die("Unable to open log file after 75s $!\n");
+  my @log_lines_75s=<FILE75>;
+  close(FILE75);
+  if (not (scalar(@log_lines_75s) > scalar(@log_lines_65s))) {
+    die("Error log after 75 seconds should have more flushed ".
+        "messages as the incremental timeout is exceeded");
+  }
+EOF
+
+# Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR errlog_after_*
+--remove_file $MYSQLD_LOG
+
+# Case 2: Shutdown the first server during the waiting period of the
+#         second server and verify that the content of JSON and the
+#         traditional log of the second server has the same messages
+
+INSTALL COMPONENT "file://component_log_sink_json";
+
+--let LOG_FILE_TRAD=$MYSQL_TMP_DIR/buffered1.err
+--let LOG_FILE_JSON=$MYSQL_TMP_DIR/buffered1.err.00.json
+--let LOG_FILE_JSON_TO_TRAD=$MYSQL_TMP_DIR/buffered1.converted.err
+# To test filtering on buffered messages
+--let SUPPRESSED_ERRCODE1=convert_error(ER_CHANGED_MAX_OPEN_FILES)
+# To test filtering on non-buffered messages
+--let SUPPRESSED_ERRCODE2=convert_error(ER_DD_INIT_FAILED)
+
+--let $log_services="log_filter_internal;log_sink_internal;log_sink_json"
+--let $log_sup_list="ER_CHANGED_MAX_OPEN_FILES,ER_DD_INIT_FAILED"
+
+--exec_in_background $MYSQLD_CMD --socket=$MASTER_MYSOCK --port $MASTER_MYPORT --log-error=$LOG_FILE_TRAD $LOGGING_COMPONENTS_OPT --log-error-services=$log_services --log-error-suppression-list=$log_sup_list
+--enable_reconnect
+
+# Wait for some time before taking down the first server
+--sleep 10
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+--exec echo "wait" > $_expect_file_name
+--shutdown_server
+
+# The second instance should automatically be up and running now
+--source include/wait_until_connected_again.inc
+SELECT @@log_error_services;
+--disable_reconnect
+
+# Restart with default parameters
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+# Now compare the content of traditional and JSON error log
+--perl
+   use strict;
+   use JSON;
+   my $file_trad= $ENV{'LOG_FILE_TRAD'};
+   my $file_json= $ENV{'LOG_FILE_JSON'};
+   my $file_conv= $ENV{'LOG_FILE_JSON_TO_TRAD'};
+
+   open(my $outfh,">",$file_conv) or
+     die("Unable to open file '$file_conv' for writing $!\n");
+
+   open(FILET,"$file_trad") or die("Unable to open $file_trad $!\n");
+   my @log_lines_trad=<FILET>;
+   close(FILET);
+
+   open(FILEJ,"$file_json") or die("Unable to open $file_json $!\n");
+   my @log_lines_json=<FILEJ>;
+   close(FILEJ);
+
+   # Test for validity of the json docs in error log
+   my $string = "[\n".join("", @log_lines_json)."\n]";
+   $string =~ s/\}\n\{/\},\n\{/g ;
+   my $parsed_json;
+   my $success=1;
+   $parsed_json = decode_json $string;
+   unless ( $parsed_json )
+   {
+     print "[ FAIL ] Error while parsing the error log as a json document:".
+           "\n$@\n";
+     $success=0;
+   }
+   if($success)
+   {
+     print "[ PASS ] Error log successfully parsed as a json document\n";
+     for my $item( @$parsed_json ){
+        my $errcode_formatted= sprintf("%06d", $item->{'err_code'});
+
+        # Verify that the --log-error-suppression-list works for
+        # buffered messages flushed after timeout as well as non
+        # buffered messages
+        if ($errcode_formatted =~ $ENV{'SUPPRESSED_ERRCODE1'} or
+            $errcode_formatted =~ $ENV{'SUPPRESSED_ERRCODE2'}) {
+          die("Error message with error code suppressed using ".
+              "--log-error-suppression-list is seen in the error log");
+        }
+        my $thread_id= defined $item->{'thread'} ? $item->{'thread'} : 0;
+        my $label= ($item->{'label'} =~ "Error") ? uc $item->{'label'}
+                                                 : $item->{'label'};
+        print $outfh $item->{'time'}." ".$thread_id." [".$label."] [MY-".
+                     $errcode_formatted."] [".$item->{'subsystem'}."] ".
+                     $item->{'msg'} . "\n";
+
+     }
+   }
+   close($outfh);
+ EOF
+
+--diff_files $LOG_FILE_JSON_TO_TRAD $LOG_FILE_TRAD
+
+# Cleanup
+SET GLOBAL log_error_services=default;
+UNINSTALL COMPONENT "file://component_log_sink_json";
+--remove_files_wildcard $MYSQL_TMP_DIR buffered1*

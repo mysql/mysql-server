@@ -108,7 +108,14 @@ int ClassicProtocol::copy_packets(int sender, int receiver,
                 static_cast<RoutingProtocolBuffer::iterator::difference_type>(
                     bytes_read));
 
-        auto server_error = mysql_protocol::ErrorPacket(buffer_err);
+        mysql_protocol::ErrorPacket server_error;
+        try {
+          server_error = mysql_protocol::ErrorPacket(buffer_err);
+        } catch (const mysql_protocol::packet_error &e) {
+          log_debug("Received packet that failed to parse correctly; aborting");
+          return -1;
+        }
+
         if (so->write_all(receiver, server_error.data(), server_error.size()) <
             0) {
           log_debug("fd=%d write error: %s", receiver,

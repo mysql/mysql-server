@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,6 +152,22 @@ struct MY_UCA_INFO {
   my_wc_t last_trailing;
   my_wc_t first_variable;
   my_wc_t last_variable;
+  /*
+    extra_ce_pri_base, extra_ce_sec_base and extra_ce_ter_base are only used for
+    the UCA collations whose UCA version is not smaller than UCA_V900. For why
+    we need this extra CE, please see the comment in my_char_weight_put_900()
+    and apply_primary_shift_900().
+
+    The value of these three variables is set by the definition of my_uca_v900.
+    The value of extra_ce_pri_base is usually 0x54A4 (which is the maximum
+    regular weight value pluses one, 0x54A3 + 1 = 0x54A4). But for the Chinese
+    collation, the extra_ce_pri_base needs to change. This is because 0x54A4 has
+    been occupied to do reordering. There might be weight conflict if we still
+    use 0x54A4. Please also see the comment on modify_all_zh_pages().
+   */
+  uint16 extra_ce_pri_base;  // Primary weight of extra CE
+  uint16 extra_ce_sec_base;  // Secondary weight of extra CE
+  uint16 extra_ce_ter_base;  // Tertiary weight of extra CE
 };
 
 #define MY_UCA_CNT_FLAG_SIZE 4096

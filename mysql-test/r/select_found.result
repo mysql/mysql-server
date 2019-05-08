@@ -50,6 +50,11 @@ a	b	a	b
 select found_rows();
 found_rows()
 8
+select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
+a	b
+select found_rows();
+found_rows()
+8
 drop table t1;
 create table t1 (a int not null primary key);
 insert into t1 values (1),(2),(3),(4),(5);

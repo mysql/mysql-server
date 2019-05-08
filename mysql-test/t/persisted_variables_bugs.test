@@ -162,7 +162,6 @@ RESET PERSIST;
 SELECT @@global.binlog_cache_size;
 SELECT @@global.disabled_storage_engines;
 SELECT @@global.collation_database;
-SELECT @@global.innodb_open_files;
 # test SIGNED long value
 SELECT @@global.optimizer_trace_offset;
 # test Sys_var_flagset type
@@ -178,7 +177,6 @@ SET @@global.binlog_cache_size= 4096;
 SET @@persist_only.binlog_cache_size= default,
     @@persist_only.collation_database= default,
     @@persist_only.disabled_storage_engines= default,
-    @@persist_only.innodb_open_files= default,
     @@persist_only.optimizer_trace_offset= default,
     @@persist_only.optimizer_switch= default,
     @@persist_only.enforce_gtid_consistency= default,
@@ -193,7 +191,6 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SELECT @@global.binlog_cache_size;
 SELECT @@global.disabled_storage_engines;
 SELECT @@global.collation_database;
-SELECT @@global.innodb_open_files;
 SELECT @@global.optimizer_trace_offset;
 SELECT @@global.optimizer_switch;
 SELECT @@global.enforce_gtid_consistency;
@@ -209,9 +206,6 @@ RESET PERSIST;
 --echo #
 
 SET PERSIST mandatory_roles= default;
---echo # Restart server and check if server starts
---source include/restart_mysqld.inc
-SET PERSIST keyring_operations= default;
 --echo # Restart server and check if server starts
 --source include/restart_mysqld.inc
 
@@ -251,6 +245,140 @@ SELECT variable_name FROM performance_schema.variables_info WHERE variable_sourc
 SELECT @@global.innodb_tmpdir, @@global.innodb_ft_user_stopword_table;
 # Cleanup
 RESET PERSIST;
+
+--echo #
+--echo # Bug #28564239: RESET PERSIST REQUIRES NO PRIVILEGES
+--echo #
+
+CREATE USER u1;
+# persist some static and dynamic variables
+SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
+SET PERSIST sort_buffer_size=156000,max_connections= 52;
+SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST max_heap_table_size;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+GRANT SUPER ON *.* TO u1;
+disconnect con1;
+
+# grant SUPER only
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+RESET PERSIST max_heap_table_size;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+REVOKE SUPER ON *.* FROM u1;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+disconnect con1;
+
+# grant SYSTEM_VARIABLES_ADMIN only
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+RESET PERSIST max_connections;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1;
+disconnect con1;
+
+# grant PERSIST_RO_VARIABLES_ADMIN only
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST slave_net_timeout;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+disconnect con1;
+
+# grant SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+RESET PERSIST slave_net_timeout;
+RESET PERSIST ft_query_expansion_limit;
+RESET PERSIST;
+
+connection default;
+# ensure no persisted variables exists
+SELECT * FROM performance_schema.persisted_variables;
+# set variables to default
+SET GLOBAL sort_buffer_size = default, max_connections = default,
+  slave_net_timeout = default, max_heap_table_size = default;
+DROP USER u1;
+disconnect con1;
+
+--echo #
+--echo # Bug #28466045: SET PERSIST NOT SETTING CORRECT VALUES FOR VARIABLES
+--echo #                LIKE INNODB_STRICT_MODE
+--echo #
+
+SELECT @@global.innodb_strict_mode, @@global.innodb_lock_wait_timeout;
+SELECT @@global.myisam_repair_threads, @@global.myisam_sort_buffer_size;
+# enum variable type
+SELECT @@global.myisam_stats_method;
+SET PERSIST innodb_strict_mode=0;
+SET GLOBAL innodb_lock_wait_timeout = 150;
+SELECT @@global.innodb_lock_wait_timeout;
+SET PERSIST innodb_lock_wait_timeout = 110;
+SELECT @@global.innodb_lock_wait_timeout;
+SET GLOBAL myisam_repair_threads=27;
+SET PERSIST myisam_repair_threads=12;
+SET GLOBAL myisam_sort_buffer_size=16777216;
+SET PERSIST myisam_sort_buffer_size=default;
+SELECT @@global.innodb_lock_wait_timeout;
+SET PERSIST myisam_stats_method=nulls_equal;
+--echo # Restart server
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_strict_mode;
+SELECT @@global.innodb_lock_wait_timeout;
+SELECT @@global.myisam_repair_threads;
+SELECT @@global.myisam_sort_buffer_size;
+SELECT @@global.myisam_stats_method;
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
+  myisam_repair_threads=default, myisam_stats_method=default;
+RESET PERSIST;
+
+--echo #
+--echo # Bug #28749668: SKIP_NAME_RESOLVE CAN BE PERSIT_ONLY-ED TO ON, BUT NOT OFF
+--echo #
+
+SELECT @@global.skip_name_resolve;
+CREATE USER 'bug28749668'@'%';
+GRANT ALL ON *.* TO 'bug28749668'@'%';
+--connect(con1, localhost, bug28749668)
+SET PERSIST_ONLY skip_name_resolve=0;
+
+--echo # Restart server and check if server starts
+--source include/restart_mysqld.inc
+
+connection con1;
+SELECT @@global.skip_name_resolve;
+SELECT * FROM performance_schema.persisted_variables;
+RESET PERSIST;
+#cleanup
+DROP USER 'bug28749668'@'%';
+disconnect con1;
 
 --echo # End of the 8.0 tests
 

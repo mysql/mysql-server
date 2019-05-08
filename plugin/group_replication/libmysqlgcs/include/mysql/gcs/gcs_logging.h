@@ -29,7 +29,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 /**
-  @interface Common_interface
+  @class Common_interface
 
   Common interface that defines the sink, logger and debugger.
 */
@@ -72,7 +72,7 @@ class Common_interface {
 };
 
 /**
-  @interface Sink_interface
+  @class Sink_interface
 
   Common sink that may be shared by the logging and debugging systems.
 
@@ -139,7 +139,7 @@ static const char *const gcs_log_levels[] = {
     "[MYSQL_GCS_INFO] "};
 
 /**
-  @interface Logger_interface
+  @class Logger_interface
 
   Sink that must be implemented and used by any logging systems and inserted
   in the MySQL GCS logging infrastructure. The actual implementation can be
@@ -289,13 +289,16 @@ typedef enum {
   GCS_DEBUG_TRACE = 0x00000002,
   XCOM_DEBUG_BASIC = 0x00000004,
   XCOM_DEBUG_TRACE = 0x00000008,
+  GCS_DEBUG_MSG_FLOW = 0x00000010,
+  XCOM_DEBUG_MSG_FLOW = 0x00000020,
   GCS_INVALID_DEBUG = ~(0x7FFFFFFF),
   GCS_DEBUG_ALL = ~(GCS_DEBUG_NONE)
 } gcs_xcom_debug_option_t;
 
 static const char *const gcs_xcom_debug_strings[] = {
-    "GCS_DEBUG_BASIC",  "GCS_DEBUG_TRACE", "XCOM_DEBUG_BASIC",
-    "XCOM_DEBUG_TRACE", "GCS_DEBUG_ALL",   "GCS_DEBUG_NONE",
+    "GCS_DEBUG_BASIC",  "GCS_DEBUG_TRACE",    "XCOM_DEBUG_BASIC",
+    "XCOM_DEBUG_TRACE", "GCS_DEBUG_MSG_FLOW", "XCOM_DEBUG_MSG_FLOW",
+    "GCS_DEBUG_ALL",    "GCS_DEBUG_NONE",
 };
 
 /*

@@ -81,6 +81,10 @@ public:
   void execNODE_FAILREP(Signal*); 
   void printNODE_FAILREP(); 
 
+#ifdef ERROR_INSERT
+  void setFakeEmpty(bool val);
+#endif
+
 private:
   struct ActiveCounter { /** sizeof = 7words = 28bytes */ 
   public:
@@ -113,6 +117,9 @@ private:
   SimulatedBlock & m_block;
   ActiveCounter_pool m_counterPool;
   ActiveCounter_list m_activeCounters;
+#ifdef ERROR_INSERT
+  bool m_fakeEmpty;
+#endif
 
   BlockReference reference() const;
   [[noreturn]] void progError(int line,

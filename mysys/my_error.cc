@@ -45,11 +45,13 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/my_handler_errors.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
 #include "strings/mb_wc.h"
+#include "template_utils.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE.
  */
@@ -105,7 +107,7 @@ static struct my_err_head *my_errmsgs_list = &my_errmsgs_globerrs;
 */
 
 char *my_strerror(char *buf, size_t len, int nr) {
-  char *msg = NULL;
+  const char *msg = nullptr;
 
   buf[0] = '\0'; /* failsafe */
 
@@ -114,7 +116,7 @@ char *my_strerror(char *buf, size_t len, int nr) {
     by the principle of least surprise.
   */
   if ((nr >= HA_ERR_FIRST) && (nr <= HA_ERR_LAST))
-    msg = (char *)handler_error_messages[nr - HA_ERR_FIRST];
+    msg = handler_error_messages[nr - HA_ERR_FIRST];
 
   if (msg != NULL)
     strmake(buf, msg, len - 1);
@@ -188,7 +190,7 @@ const char *my_get_err_msg(int nr) {
 
   /*
     If we found the range this error number is in, get the format string.
-    If the string is empty, or a NULL pointer, or if we're out of return,
+    If the string is empty, or a NULL pointer, or if we're out of ranges,
     we return NULL.
   */
   if (!(format = (meh_p && (nr >= meh_p->meh_first)) ? meh_p->get_errmsg(nr)

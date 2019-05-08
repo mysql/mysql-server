@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,7 @@
 #include "sql/item_geofunc.h"      // Item_func_st_area
 #include "sql/item_inetfunc.h"     // Item_func_inet_ntoa
 #include "sql/item_json_func.h"    // Item_func_json
+#include "sql/item_pfs_func.h"     // Item_pfs_func_thread_id
 #include "sql/item_regexp_func.h"  // Item_func_regexp_xxx
 #include "sql/item_strfunc.h"      // Item_func_aes_encrypt
 #include "sql/item_sum.h"          // Item_sum_udf_str
@@ -1074,7 +1075,7 @@ class Internal_function_factory : public Create_func {
 
   Item *create_func(THD *thd, LEX_STRING function_name,
                     PT_item_list *item_list) override {
-    if (!thd->parsing_system_view &&
+    if (!thd->parsing_system_view && !thd->is_dd_system_thread() &&
         DBUG_EVALUATE_IF("skip_dd_table_access_check", false, true)) {
       my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), function_name.str);
       return nullptr;
@@ -1099,9 +1100,8 @@ Internal_function_factory<Instantiator_fn>
 }  // namespace
 
 /**
-  Function builder for Stored Functions.
+  Function builder for stored functions.
 */
-
 class Create_sp_func : public Create_qfunc {
  public:
   virtual Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
@@ -1326,7 +1326,6 @@ Item *Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   - Use uppercase (tokens are converted to uppercase before lookup.)
 
   This can't be constexpr because
-  - std::pair does not have a constexpr constructor in C++11, not until C++14.
   - Sun Studio does not allow the Create_func pointer to be constexpr.
 */
 static const std::pair<const char *, Create_func *> func_array[] = {
@@ -1373,6 +1372,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"FIELD", SQL_FN_V(Item_func_field, 2, MAX_ARGLIST_SIZE)},
     {"FIND_IN_SET", SQL_FN(Item_func_find_in_set, 2)},
     {"FLOOR", SQL_FN(Item_func_floor, 1)},
+    {"FORMAT_BYTES", SQL_FN(Item_func_pfs_format_bytes, 1)},
+    {"FORMAT_PICO_TIME", SQL_FN(Item_func_pfs_format_pico_time, 1)},
     {"FOUND_ROWS", SQL_FN(Item_func_found_rows, 0)},
     {"FROM_BASE64", SQL_FN(Item_func_from_base64, 1)},
     {"FROM_DAYS", SQL_FN(Item_func_from_days, 1)},
@@ -1473,6 +1474,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"PI", SQL_FN(Item_func_pi, 0)},
     {"POW", SQL_FN(Item_func_pow, 2)},
     {"POWER", SQL_FN(Item_func_pow, 2)},
+    {"PS_CURRENT_THREAD_ID", SQL_FN(Item_func_pfs_current_thread_id, 0)},
+    {"PS_THREAD_ID", SQL_FN(Item_func_pfs_thread_id, 1)},
     {"QUOTE", SQL_FN(Item_func_quote, 1)},
     {"RADIANS", SQL_FACTORY(Radians_instantiator)},
     {"RAND", SQL_FN_V(Item_func_rand, 0, 1)},
@@ -1521,7 +1524,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_DIFFERENCE", SQL_FN(Item_func_st_difference, 2)},
     {"ST_DIMENSION", SQL_FN(Item_func_dimension, 1)},
     {"ST_DISJOINT", SQL_FN(Item_func_st_disjoint, 2)},
-    {"ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2)},
+    {"ST_DISTANCE", SQL_FN_V_LIST(Item_func_distance, 2, 3)},
     {"ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_st_distance_sphere, 2, 3)},
     {"ST_ENDPOINT", SQL_FACTORY(Endpoint_instantiator)},
     {"ST_ENVELOPE", SQL_FN(Item_func_envelope, 1)},
@@ -1551,7 +1554,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_ISVALID", SQL_FN(Item_func_isvalid, 1)},
     {"ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1)},
     {"ST_LATITUDE", SQL_FACTORY(Latitude_instantiator)},
-    {"ST_LENGTH", SQL_FN(Item_func_st_length, 1)},
+    {"ST_LENGTH", SQL_FN_V_LIST(Item_func_st_length, 1, 2)},
     {"ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator)},
     {"ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator)},
     {"ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator)},
@@ -1628,7 +1631,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"GET_DD_INDEX_SUB_PART_LENGTH",
      SQL_FN_LIST_INTERNAL(Item_func_get_dd_index_sub_part_length, 5)},
     {"GET_DD_CREATE_OPTIONS",
-     SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2)},
+     SQL_FN_INTERNAL(Item_func_get_dd_create_options, 3)},
     {"GET_DD_TABLESPACE_PRIVATE_DATA",
      SQL_FN_INTERNAL(Item_func_get_dd_tablespace_private_data, 2)},
     {"GET_DD_INDEX_PRIVATE_DATA",
@@ -1706,7 +1709,15 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"INTERNAL_TABLESPACE_DATA_FREE",
      SQL_FN_INTERNAL(Item_func_internal_tablespace_data_free, 4)},
     {"INTERNAL_TABLESPACE_STATUS",
-     SQL_FN_INTERNAL(Item_func_internal_tablespace_status, 4)}};
+     SQL_FN_INTERNAL(Item_func_internal_tablespace_status, 4)},
+    {"INTERNAL_TABLESPACE_EXTRA",
+     SQL_FN_INTERNAL(Item_func_internal_tablespace_extra, 4)},
+    {"GET_DD_PROPERTY_KEY_VALUE",
+     SQL_FN_INTERNAL(Item_func_get_dd_property_key_value, 2)},
+    {"REMOVE_DD_PROPERTY_KEY",
+     SQL_FN_INTERNAL(Item_func_remove_dd_property_key, 2)},
+    {"CONVERT_INTERVAL_TO_USER_INTERVAL",
+     SQL_FN_INTERNAL(Item_func_convert_interval_to_user_interval, 2)}};
 
 using Native_functions_hash = std::unordered_map<std::string, Create_func *>;
 static const Native_functions_hash *native_functions_hash;
@@ -1900,12 +1911,16 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
   switch (type) {
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
-      if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+      if (!propagate_datetime_overflow(
+              thd, &status.warnings,
+              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
           ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings)
         item = new (thd->mem_root) Item_date_literal(&ltime);
       break;
     case MYSQL_TYPE_DATETIME:
-      if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+      if (!propagate_datetime_overflow(
+              thd, &status.warnings,
+              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
           ltime.time_type == MYSQL_TIMESTAMP_DATETIME && !status.warnings)
         item = new (thd->mem_root)
             Item_datetime_literal(&ltime, status.fractional_digits);

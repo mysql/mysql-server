@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,10 +194,10 @@ public:
     : m_pk_cols(0), m_cols(0), m_xcols(0), m_ex_tab(NULL),
     m_count(0), m_extended(false), m_op_type_pos(0), m_conflict_cause_pos(0),
     m_orig_transid_pos(0)
-  {};
+  {}
 
   ~ExceptionsTableWriter()
-  {};
+  {}
 
   /**
      hasTable
@@ -207,7 +207,7 @@ public:
   bool hasTable() const
   {
     return m_ex_tab != NULL;
-  };
+  }
 
   /**
     init

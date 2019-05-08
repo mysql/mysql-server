@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +130,7 @@ class Sql_cmd_drop_resource_group : public Sql_cmd {
   Sql_cmd_set_resource_group represents SET RESOURCE GROUP statement.
 */
 
-class Sql_cmd_set_resource_group : public Sql_cmd {
+class Sql_cmd_set_resource_group final : public Sql_cmd {
   friend class ::PT_set_resource_group;
 
  public:
@@ -143,6 +143,7 @@ class Sql_cmd_set_resource_group : public Sql_cmd {
   }
 
   bool execute(THD *thd) override;
+  bool prepare(THD *thd) override;
 
  private:
   const LEX_CSTRING m_name;

@@ -161,12 +161,16 @@ public:
    */
   bool first(Iterator & iter) const;
 
+  bool first(Ptr<T>& p) const;
+
   /**
    * Next Element
    *
    * param iter - A "fully set" iterator
    */
   bool next(Iterator & iter) const;
+
+  bool next(Ptr<T>& p) const;
 
   /**
    * Get next element starting from bucket
@@ -282,6 +286,24 @@ DLMHashTable<P, M>::first(Iterator & iter) const
 template <typename P, typename M>
 inline
 bool
+DLMHashTable<P, M>::first(Ptr<T>& p) const
+{
+  for (Uint32 bucket = 0; bucket <= mask; bucket++)
+  {
+    if (hashValues[bucket] != RNIL)
+    {
+      p.i = hashValues[bucket];
+      p.p = thePool.getPtr(p.i);
+      return true;
+    }
+  }
+  p.i = RNIL;
+  return false;
+}
+
+template <typename P, typename M>
+inline
+bool
 DLMHashTable<P, M>::next(Iterator & iter) const
 {
   if (M::nextHash(*iter.curr.p) == RNIL)
@@ -304,6 +326,30 @@ DLMHashTable<P, M>::next(Iterator & iter) const
 
   iter.curr.i = M::nextHash(*iter.curr.p);
   iter.curr.p = thePool.getPtr(iter.curr.i);
+  return true;
+}
+
+template <typename P, typename M>
+inline
+bool
+DLMHashTable<P, M>::next(Ptr<T>& p) const
+{
+  p.i = M::nextHash(*p.p);
+  if (p.i == RNIL)
+  {
+    Uint32 bucket = M::hashValue(*p.p) & mask;
+    bucket++;
+    while (bucket <= mask && hashValues[bucket] == RNIL)
+    {
+      bucket++;
+    }
+    if (bucket > mask)
+    {
+      return false;
+    }
+    p.i = hashValues[bucket];
+  }
+  p.p = thePool.getPtr(p.i);
   return true;
 }
 

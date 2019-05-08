@@ -1,5 +1,4 @@
-/* Copyright (C) 2008 Sun Microsystems, Inc.
-    Use is subject to license terms.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +27,7 @@
 class ConfigSubscriber {
 public:
   virtual void config_changed(NodeId, const class Config*)= 0;
-  virtual ~ConfigSubscriber() {};
+  virtual ~ConfigSubscriber() {}
 };
 
 #endif

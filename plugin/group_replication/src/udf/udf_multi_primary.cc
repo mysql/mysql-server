@@ -57,32 +57,54 @@ static bool group_replication_switch_to_multi_primary_mode_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_ENTER("group_replication_switch_to_multi_primary_mode_init");
 
+  UDF_counter udf_counter;
+
+  if (plugin_is_stopping) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    DBUG_RETURN(true);
+  }
+
   if (args->arg_count > 0) {
     my_stpcpy(message, "Wrong arguments: This function takes no arguments.");
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
 
   privilege_result privilege = user_has_gr_admin_privilege();
   bool has_privileges = (privilege.status == privilege_status::ok);
   if (!has_privileges) {
     log_privilege_status_result(privilege, message);
-    DBUG_RETURN(2);
+    DBUG_RETURN(true);
   }
 
   bool has_locked_tables = check_locked_tables(message);
-  if (!has_locked_tables) DBUG_RETURN(3);
+  if (!has_locked_tables) DBUG_RETURN(true);
 
   bool plugin_online = member_online_with_majority();
   if (!plugin_online) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
-    DBUG_RETURN(4);
+    DBUG_RETURN(true);
+  }
+
+  bool is_a_member_in_recovery = group_contains_recovering_member();
+  if (is_a_member_in_recovery) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, recovering_member_on_group_str);
+    DBUG_RETURN(true);
+  }
+
+  bool is_a_member_unreachable = group_contains_unreachable_member();
+  if (is_a_member_unreachable) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, unreachable_member_on_group_str);
+    DBUG_RETURN(true);
   }
 
   initid->maybe_null = 0;
-  DBUG_RETURN(0);
+  udf_counter.succeeded();
+  DBUG_RETURN(false);
 }
 
-static void group_replication_switch_to_multi_primary_mode_deinit(UDF_INIT *) {}
+static void group_replication_switch_to_multi_primary_mode_deinit(UDF_INIT *) {
+  UDF_counter::terminated();
+}
 
 udf_descriptor switch_to_multi_primary_udf() {
   return {"group_replication_switch_to_multi_primary_mode",

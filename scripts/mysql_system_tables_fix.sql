@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -48,70 +48,6 @@ SET @old_sql_mode = @@session.sql_mode, @@session.sql_mode = '';
 INSERT IGNORE INTO mysql.user
 (host, user, select_priv, plugin, authentication_string, ssl_cipher, x509_issuer, x509_subject)
 VALUES ('localhost','mysql.infoschema','Y','caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','','','');
-
-FLUSH PRIVILEGES;
-
-# Move distributed grant tables to default engine during upgrade, remember
-# which tables was moved so they can be moved back after upgrade
-SET @had_distributed_user =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'user' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.user ENGINE=InnoDB";
-SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_db =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'db' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.db ENGINE=InnoDB";
-SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_tables_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'tables_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_columns_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'columns_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_procs_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'procs_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_proxies_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'proxies_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER' );
-SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
@@ -290,8 +226,7 @@ ALTER TABLE db
   MODIFY  Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 
-ALTER TABLE func
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE func CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE func
   MODIFY type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL;
 
@@ -301,6 +236,8 @@ ALTER TABLE func
 
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
+SET @old_sql_require_primary_key = @@session.sql_require_primary_key;
+SET @@session.sql_require_primary_key = 0;
 ALTER TABLE general_log
   MODIFY event_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   MODIFY user_host MEDIUMTEXT NOT NULL,
@@ -332,6 +269,7 @@ ALTER TABLE slow_log
   MODIFY thread_id BIGINT(21) UNSIGNED NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
+SET @@session.sql_require_primary_key = @old_sql_require_primary_key;
 ALTER TABLE plugin
   MODIFY name varchar(64) COLLATE utf8_general_ci NOT NULL DEFAULT '',
   MODIFY dl varchar(128) COLLATE utf8_general_ci NOT NULL DEFAULT '',
@@ -684,11 +622,43 @@ INSERT INTO global_grants SELECT user, host, 'RESOURCE_GROUP_ADMIN',
 IF(grant_priv = 'Y', 'Y', 'N') FROM mysql.user WHERE super_priv = 'Y' AND @hadResourceGroupAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege SERVICE_CONNECTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege SERVICE_CONNECTION_ADMIN.
+SET @hadServiceConnectionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SERVICE_CONNECTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'SERVICE_CONNECTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadServiceConnectionAdminPriv = 0;
+
+-- Add the privilege APPLICATION_PASSWORD_ADMIN for every user who has the
+-- privilege CREATE USER provided that there isn't a user who already has
+-- privilege APPLICATION_PASSWORD_ADMIN
+SET @hadApplicationPasswordAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'APPLICATION_PASSWORD_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'APPLICATION_PASSWORD_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadApplicationPasswordAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege SYSTEM_USER for every user who has privilege SET_USER_ID privilege
+SET @hadSystemUserPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SYSTEM_USER');
+INSERT INTO global_grants SELECT user, host, 'SYSTEM_USER',
+IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'SET_USER_ID' AND @hadSystemUserPriv = 0;
+COMMIT;
+
+-- Add the privilege SYSTEM_USER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege SYSTEM_USER
+SET @hadSystemUserPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SYSTEM_USER');
+INSERT INTO global_grants SELECT user, host, 'SYSTEM_USER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSystemUserPriv = 0;
+COMMIT;
+
+-- Add the privilege TABLE_ENCRYPTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige TABLE_ENCRYPTION_ADMIN.
+SET @hadTableEncryptionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'TABLE_ENCRYPTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'TABLE_ENCRYPTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
-
-flush privileges;
 
 ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
 ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';
@@ -731,6 +701,8 @@ ALTER TABLE slave_master_info ADD Public_key_path TEXT CHARACTER SET utf8 COLLAT
 # The Get_public_key field at slave_master_info should be added after the slave_master_info field
 ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.';
 
+ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.';
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -740,10 +712,25 @@ ALTER TABLE slave_master_info
   MODIFY COLUMN Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.'
   AFTER Public_key_path;
 
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin
+  COMMENT 'Network namespace used for communication with the master server.'
+  AFTER Get_public_key;
+
+#
+# Drop legacy NDB distributed privileges function & procedures
+#
+DROP function  IF EXISTS mysql.mysql_cluster_privileges_are_distributed;
+DROP procedure IF EXISTS mysql.mysql_cluster_backup_privileges;
+DROP procedure IF EXISTS mysql.mysql_cluster_move_grant_tables;
+DROP procedure IF EXISTS mysql.mysql_cluster_restore_local_privileges;
+DROP procedure IF EXISTS mysql.mysql_cluster_restore_privileges;
+DROP procedure IF EXISTS mysql.mysql_cluster_restore_privileges_from_local;
+DROP procedure IF EXISTS mysql.mysql_cluster_move_privileges;
+
 #
 # Alter mysql.ndb_binlog_index only if it exists already.
 #
-
 SET @cmd="ALTER TABLE ndb_binlog_index
   ADD COLUMN next_position BIGINT UNSIGNED NOT NULL";
 
@@ -830,43 +817,6 @@ ALTER TABLE columns_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE procs_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE proxies_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 
-# Move any distributed grant tables back to NDB after upgrade
-SET @cmd="ALTER TABLE mysql.user ENGINE=NDB";
-SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.db ENGINE=NDB";
-SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
 --
 -- CREATE_ROLE_ACL and DROP_ROLE_ACL
 --
@@ -883,6 +833,7 @@ ALTER TABLE user ADD Password_reuse_history smallint unsigned NULL DEFAULT NULL 
 ALTER TABLE user ADD Password_reuse_time smallint unsigned NULL DEFAULT NULL AFTER Password_reuse_history;
 ALTER TABLE user ADD Password_require_current enum('N', 'Y') COLLATE utf8_general_ci DEFAULT NULL AFTER Password_reuse_time;
 ALTER TABLE user MODIFY Password_require_current enum('N','Y') COLLATE utf8_general_ci DEFAULT NULL AFTER Password_reuse_time;
+ALTER TABLE user ADD User_attributes JSON DEFAULT NULL AFTER Password_require_current;
 
 --
 -- Change engine of the firewall tables to InnoDB
@@ -1031,7 +982,7 @@ DROP PREPARE stmt;
 # SUPER, PERSIST_RO_VARIABLES_ADMIN, SYSTEM_VARIABLES_ADMIN privileges
 #
 
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL,NULL);
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
 
 UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session';
 
@@ -1043,44 +994,43 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'PE
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_VARIABLES_ADMIN', 'N');
 
-FLUSH PRIVILEGES;
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SESSION_VARIABLES_ADMIN', 'N');
+
+# mysql.session is granted the SUPER and other administrative privileges.
+# This user should not be modified inadvertently. Therefore, server grants
+# the SYSTEM_USER privilege to this user at the time of initialization or
+# upgrade.
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_USER', 'N');
 
 # Move all system tables with InnoDB storage engine to mysql tablespace.
-# Move privilege tables to InnoDB only if they were not in NDB.
 SET @cmd="ALTER TABLE mysql.db TABLESPACE = mysql";
-SET @str = IF(@had_distributed_db > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.user TABLESPACE = mysql";
-SET @str = IF(@had_distributed_user > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.tables_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_tables_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 
 SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_columns_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_procs_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.proxies_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_proxies_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 

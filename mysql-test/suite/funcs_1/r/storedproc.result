@@ -2860,7 +2860,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE with()
 SELECT * from t1 where f2=f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with()
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE write()
 SELECT * from t1 where f2=f1;
@@ -3619,7 +3619,6 @@ database.
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS db_storedproc_3122;
 CREATE DATABASE db_storedproc_3122;
 USE db_storedproc;
 SET @x = NULL;
@@ -3740,7 +3739,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 USE db_storedproc;
 set @x=null;
 set @y=null;
-DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
@@ -9393,7 +9391,7 @@ CREATE PROCEDURE sp1()
 BEGIN
 declare with char;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'char;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with char;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
@@ -11753,9 +11751,8 @@ BEGIN
 declare with condition for sqlstate '02000';
 declare exit handler for with set @var2 = 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'condition for sqlstate '02000';
-declare exit handler for with set @var2 = 1;
-END' at line 3
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with condition for sqlstate '02000';
+declare exit handler for with set @var2 = 1' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist
@@ -13863,7 +13860,7 @@ CREATE PROCEDURE sp1( )
 BEGIN
 declare with handler for sqlstate '02000' set @var2 = 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'handler for sqlstate '02000' set @var2 = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with handler for sqlstate '02000' set @var2 = 1;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
@@ -16588,7 +16585,6 @@ Testcase 4.4.4:
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS d1;
 CREATE DATABASE d1;
 USE d1;
 CREATE PROCEDURE sp3()
@@ -16605,7 +16601,6 @@ Testcase 4.4.5:
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS d1;
 CREATE DATABASE d1;
 USE d1;
 create table t43(a char(5), b char(10));
@@ -16745,7 +16740,6 @@ Functions with all data types
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS d1;
 CREATE DATABASE d1;
 USE d1;
 DROP FUNCTION IF EXISTS fn1;
@@ -17745,7 +17739,6 @@ fn107(20050510080451)
 returned
 USE db_storedproc;
 DROP DATABASE d1;
-DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 USE db1;
 DROP PROCEDURE IF EXISTS sp1;
@@ -18783,7 +18776,6 @@ Warnings:
 returned	1265	Data truncated for column 'f1' at row 1
 USE db_storedproc;
 DROP DATABASE db1;
-DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 USE db1;
 DROP PROCEDURE IF EXISTS sp1;

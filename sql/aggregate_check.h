@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -535,7 +535,7 @@ class List;
 /**
    Utility mixin class to be able to walk() only parts of item trees.
 
-   Used with WALK_PREFIX+POSTFIX walk: in the prefix call of the Item
+   Used with PREFIX+POSTFIX walk: in the prefix call of the Item
    processor, we process the item X, may decide that its children should not
    be processed (just like if they didn't exist): processor calls stop_at(X)
    for that. Then walk() goes to a child Y; the processor tests is_stopped(Y)
@@ -570,7 +570,7 @@ class Item_tree_walker {
       if (stopped_at_item == i) {
         /*
           Walking was disabled for the tree part rooted at 'i'; we have now just
-          returned back to this root (WALK_POSTFIX call), left the tree part:
+          returned back to this root (POSTFIX call), left the tree part:
           enable the walk again, for other tree parts.
         */
         stopped_at_item = NULL;

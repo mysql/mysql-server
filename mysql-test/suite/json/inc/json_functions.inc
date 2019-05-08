@@ -3878,7 +3878,7 @@ ANALYZE TABLE t1, t2;
 let $query= UPDATE t1, t2
                    SET t1.j = JSON_SET(t1.j, '\$.a', t2.j->'\$.b')
                    WHERE t1.id = t2.id;
---replace_regex /"used_columns": \[[^]]*\]/"used_columns": "filtered due to bug#22472365"/
+--replace_regex /("used_columns": )\[(?:[^\]]*\r?\n)*\s*\]/\1"filtered due to bug#22472365"/
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query
@@ -3899,7 +3899,7 @@ SELECT trace->'$**.json_partial_update'
 --eval $dump_t1
 --eval $dump_t2
 let $query= UPDATE t1, t2 SET t1.j = '[123]', t2.j = JSON_SET(t2.j, '\$.b', 99);
---replace_regex /"used_columns": \[[^]]*\]/"used_columns": "filtered due to bug#22472365"/
+--replace_regex /("used_columns": )\[(?:[^\]]*\r?\n)*\s*\]/\1"filtered due to bug#22472365"/
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query

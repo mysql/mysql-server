@@ -21,13 +21,13 @@ SET DEBUG ='-d, simulate_max_char_col';
 # Bug #27361662  ERROR NOT THROWN ON CREATING TEMPORARY TABLE IN
 # INNODB_FILE_PER_TABLE TABLESPACE
 #
-"Try creating temporary table with innodb_file_per_table option with STRICT mode"
+# Try creating temporary table with innodb_file_per_table option with STRICT mode
 SET innodb_strict_mode = ON;
 CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
 ERROR HY000: InnoDB: TABLESPACE=innodb_file_per_table option is disallowed for temporary tables with INNODB_STRICT_MODE=ON. This option is deprecated and will be removed in a future release
 SELECT COUNT(*) FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-"Try creating temporary table with innodb_file_per_table option without STRICT mode"
+# Try creating temporary table with innodb_file_per_table option without STRICT mode
 SET innodb_strict_mode = OFF;
 CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
 Warnings:
@@ -38,4 +38,11 @@ Warning	1478	InnoDB: TABLESPACE=innodb_file_per_table option is ignored. All tem
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
+# Try to create a table name that has the form of an FTS auxilliary table name.
+CREATE TABLE fts_0000000000000424_config (id int);
+ERROR 42000: Incorrect table name 'fts_0000000000000424_config'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1103	Invalid table name. `test/fts_0000000000000424_config` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_config'
 SET innodb_strict_mode = default;

@@ -20,17 +20,17 @@
 --cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 
 --echo ### Trying to connect with ssl-mode as REQUIRED. This should establish an encrypted connection.
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --ssl-mode=REQUIRED --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 
 --echo ### Trying to connect with ssl-mode as VERIFY_CA. This should establish an encrypted connection.
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 
 --echo ### Trying to connect with ssl-mode as VERIFY_IDENTITY. This should establish an encrypted connection.
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --ssl-mode=VERIFY_IDENTITY --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 
@@ -43,12 +43,12 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/bug24732452_stderr;
 --source include/search_pattern.inc
 
 --echo ### Trying to connect with ssl-mode as VERIFY_IDENTITY and hostname as localhost. This should establish an encrypted connection as localhost is present in Alternative Subject Name in the certificate.
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=localhost --ssl-mode=VERIFY_IDENTITY --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 
 --echo ### Trying to connect with ssl-mode as VERIFY_IDENTITY and hostname as 127.0.0.1. This should establish an encrypted connection as localhost is present in Alternative Subject Name in the certificate.
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=127.0.0.1 --ssl-mode=VERIFY_IDENTITY --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
 

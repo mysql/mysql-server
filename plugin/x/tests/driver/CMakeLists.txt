@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ FILE(GLOB XTEST_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/parsers/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/commands/*.cc"
+  "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
 )
 
 INCLUDE_DIRECTORIES(
@@ -41,10 +42,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-INCLUDE_DIRECTORIES(SYSTEM
-  ${PROTOBUF_INCLUDE_DIRS}
-  ${LIBEVENT_INCLUDE_DIRS}
-)
+MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
+MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 
 MYSQL_ADD_EXECUTABLE(${XTEST_EXE_NAME}
   ${XTEST_SRC} COMPONENT Test

@@ -14,7 +14,7 @@
 --echo =============================================
 --echo     CRUD DOC CRITERIA ARGS SCENARIOS
 --echo =============================================
---echo 
+--echo
 
 --echo ================================================================================
 --echo PREAMBLE
@@ -27,18 +27,20 @@
 --echo TEST START
 --echo ================================================================================
 
+create schema xtest;
+
 --write_file $MYSQL_TMP_DIR/crud_doc_criteria_args.tmp
 ## Test data
+-->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
+-->recvresult
+
 -->sql
-drop schema if exists xtest;
-create schema xtest;
 use xtest;
-create table mycoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
-insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Robb", "amount": 125.21}', json_unquote(json_extract(doc, '$._id')));
-insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Bran", "amount": 542.75}', json_unquote(json_extract(doc, '$._id')));
-insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Arya", "amount": 98.89}', json_unquote(json_extract(doc, '$._id')));
-insert into mycoll (doc, _id) values ('{"_id": "4", "name": "Tassadar", "amount": 57.52}', json_unquote(json_extract(doc, '$._id')));
-insert into mycoll (doc, _id) values ('{"_id": "5", "name": "Sansa", "amount": null}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc) values ('{"_id": "1", "name": "Robb", "amount": 125.21}');
+insert into mycoll (doc) values ('{"_id": "2", "name": "Bran", "amount": 542.75}');
+insert into mycoll (doc) values ('{"_id": "3", "name": "Arya", "amount": 98.89}');
+insert into mycoll (doc) values ('{"_id": "4", "name": "Tassadar", "amount": 57.52}');
+insert into mycoll (doc) values ('{"_id": "5", "name": "Sansa", "amount": null}');
 SELECT * FROM xtest.mycoll;
 -->endsql
 
@@ -927,9 +929,9 @@ Mysqlx.Crud.Update {
 SELECT * FROM xtest.mycoll;
 -->endsql
 
--->echo Update with ITEM_MERGE value and placeholder 
+-->echo Update with ITEM_MERGE value and placeholder
 Mysqlx.Crud.Update {
-  collection { 
+  collection {
     name: "mycoll"
     schema: "xtest"
   }
@@ -956,9 +958,9 @@ Mysqlx.Crud.Update {
     }
     operation: ITEM_MERGE
     value: {
-      type: LITERAL 
+      type: LITERAL
       literal {
-      	type: V_OCTETS 
+      	type: V_OCTETS
       	v_octets {value:'{"third":3.0, "fourth": "four"}'}
      	}
     }
@@ -974,12 +976,12 @@ Mysqlx.Crud.Update {
 
 -->sql
 SELECT * FROM xtest.mycoll;
-insert into mycoll (doc, _id) values ('{"_id": "6", "third": ["two"]}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc) values ('{"_id": "6", "third": ["two"]}');
 -->endsql
 
--->echo Update with ARRAY_INSERT value and placeholder 
+-->echo Update with ARRAY_INSERT value and placeholder
 Mysqlx.Crud.Update {
-  collection { 
+  collection {
     name: "mycoll"
     schema: "xtest"
   }
@@ -1008,9 +1010,9 @@ Mysqlx.Crud.Update {
     }
     operation: ARRAY_INSERT
     value: {
-      type: LITERAL 
+      type: LITERAL
       literal {
-      	type: V_OCTETS 
+      	type: V_OCTETS
       	v_octets {value:'two.1'}
      	}
     }

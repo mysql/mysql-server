@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@
    60 /* type, user_len, user, host_len, host */ + 1U +                       \
    1 /* type, explicit_def..ts*/ + 1U + 8 /* type, xid of DDL */ + 1U +       \
    2 /* type, default_collation_for_utf8mb4_number */ +                       \
-   1 /* sql_require_primary_key */)
+   1 /* sql_require_primary_key */ + 1 /* type, default_table_encryption */)
 
 /**
    Uninitialized timestamp value (for either last committed or sequence number).
@@ -143,6 +143,9 @@ const int64_t SEQ_UNINIT = 0;
   it still needs to be determined when computing it.
 */
 const int64_t UNDEFINED_COMMIT_TIMESTAMP = MAX_COMMIT_TIMESTAMP_VALUE;
+
+const uint32_t UNDEFINED_SERVER_VERSION = 999999;
+const uint32_t UNKNOWN_SERVER_VERSION = 0;
 
 /** Setting this flag will mark an event as Ignorable */
 #define LOG_EVENT_IGNORABLE_F 0x80
@@ -188,6 +191,22 @@ inline void do_server_version_split(const char *version,
     p = r;
     if (*r == '.') p++;  // skip the dot
   }
+}
+
+/**
+   Transforms the server version from 'XX.YY.ZZ-suffix' into an integer in the
+   format XXYYZZ.
+
+   @param version        String representing server version
+   @return               The server version in the format XXYYZZ
+*/
+inline uint32_t do_server_version_int(const char *version) {
+  unsigned char version_split[3];
+  do_server_version_split(version, version_split);
+  uint32_t ret = static_cast<uint32_t>(version_split[0]) * 10000 +
+                 static_cast<uint32_t>(version_split[1]) * 100 +
+                 static_cast<uint32_t>(version_split[2]);
+  return ret;
 }
 
 /**
@@ -661,8 +680,6 @@ class Log_event_header {
   */
   Log_event_header(Event_reader &reader);
 
-  ~Log_event_header() {}
-
   /**
     The get_is_valid function is related to event specific sanity checks to
     determine that the object was initialized without errors.
@@ -850,6 +867,11 @@ class Binary_log_event {
   virtual void print_long_info(std::ostream &info) = 0;
 #endif
   virtual ~Binary_log_event() = 0;
+
+  Binary_log_event(const Binary_log_event &) = default;
+  Binary_log_event(Binary_log_event &&) = default;
+  Binary_log_event &operator=(const Binary_log_event &) = default;
+  Binary_log_event &operator=(Binary_log_event &&) = default;
 
   /**
    * Helper method

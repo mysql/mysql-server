@@ -24,6 +24,8 @@
 
 #include <gtest/gtest_prod.h>  // must be the first header
 
+#include <stdexcept>
+
 #include "common.h"
 #include "mysql/harness/loader.h"
 #include "mysql_routing.h"
@@ -35,7 +37,6 @@
 #include "test/helpers.h"
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>

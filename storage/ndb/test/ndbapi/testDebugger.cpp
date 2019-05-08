@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ TESTCASE("TestEventLogger10",
 {
   STEPS(runTestEventLogger, 10);
 }
-NDBT_TESTSUITE_END(testDebugger);
+NDBT_TESTSUITE_END(testDebugger)
 
 
 int main(int argc, const char** argv){

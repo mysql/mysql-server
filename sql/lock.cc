@@ -23,7 +23,7 @@
 /**
   @file
 
-  Locking functions for mysql.
+  Locking functions.
 
   Because of the new concurrent inserts, we must first get external locks
   before getting internal locks.  If we do it in the other order, the status
@@ -73,10 +73,6 @@
   table_handler->external_lock(thd, F_UNLCK) for each table that was locked,
   excluding one that caused failure. That means handler must cleanup itself
   in case external_lock() fails.
-
-  @todo
-  Change to use my_malloc() ONLY when using LOCK TABLES command or when
-  we are forced to use mysql_lock_merge.
 */
 
 #include "sql/lock.h"
@@ -98,6 +94,10 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL
+#include "sql/dd/types/event.h"
+#include "sql/dd/types/function.h"
+#include "sql/dd/types/procedure.h"
+#include "sql/dd/types/resource_group.h"
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
 #include "sql/mysqld.h"  // opt_readonly
@@ -835,6 +835,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   MDL_request schema_request;
   MDL_request mdl_request;
   MDL_request backup_lock_request;
+  MDL_key mdl_key;
 
   if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
@@ -842,18 +843,24 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   }
 
   DBUG_ASSERT(name);
-  /*
-    Since name is converted to lowercase, check that this function
-    is only used for types which should be treated case insensitively.
-  */
-  DBUG_ASSERT(mdl_type == MDL_key::FUNCTION || mdl_type == MDL_key::PROCEDURE ||
-              mdl_type == MDL_key::EVENT ||
-              mdl_type == MDL_key::RESOURCE_GROUPS);
 
-  char lc_name[NAME_LEN + 1];
-  my_stpncpy(lc_name, name, NAME_LEN);
-  my_casedn_str(system_charset_info, lc_name);
-  lc_name[NAME_LEN] = '\0';
+  switch (mdl_type) {
+    case MDL_key::FUNCTION:
+      dd::Function::create_mdl_key(db, name, &mdl_key);
+      break;
+    case MDL_key::PROCEDURE:
+      dd::Procedure::create_mdl_key(db, name, &mdl_key);
+      break;
+    case MDL_key::EVENT:
+      dd::Event::create_mdl_key(db, name, &mdl_key);
+      break;
+    case MDL_key::RESOURCE_GROUPS:
+      dd::Resource_group::create_mdl_key(name, &mdl_key);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      return true;
+  }
 
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
@@ -862,8 +869,8 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                    MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
   MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA, db, "",
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
-  MDL_REQUEST_INIT(&mdl_request, mdl_type, db, lc_name, MDL_EXCLUSIVE,
-                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT_BY_KEY(&mdl_request, &mdl_key, MDL_EXCLUSIVE,
+                          MDL_TRANSACTION);
   MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
 

@@ -32,7 +32,6 @@
 #include <sys/un.h>
 #include <unistd.h>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -40,6 +39,7 @@
 
 #include <fcntl.h>
 #include <string.h>
+#include <stdexcept>
 
 #include "mysqlrouter/utils.h"
 #include "socket_operations.h"
@@ -119,7 +119,7 @@ std::string UniqueId::get_lock_file_dir() const {
 
 UniqueId::UniqueId(unsigned start_from, unsigned range) {
   const std::string lock_file_dir = get_lock_file_dir();
-  mysqlrouter::mkdir(lock_file_dir, 0777);
+  mysql_harness::mkdir(lock_file_dir, 0777);
 
   for (unsigned i = 0; i < range; i++) {
     id_ = start_from + i;
@@ -233,7 +233,7 @@ static bool try_to_connect(uint16_t port,
   return status >= 0;
 }
 
-unsigned TcpPortPool::get_next_available() {
+uint16_t TcpPortPool::get_next_available() {
   while (true) {
     if (number_of_ids_used_ >= kMaxPort) {
       throw std::runtime_error("No more available ports from UniquePortsGroup");

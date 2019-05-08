@@ -1,2 +1,2 @@
 --big-tables=1
---bootstrap --innodb_page_size=16k
+--initialize --innodb_page_size=16k

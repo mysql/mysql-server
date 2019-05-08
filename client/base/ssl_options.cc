@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,8 @@ void Mysql_connection_options::Ssl_options::create_options() {
                           "X509 cert in PEM format.");
   this->create_new_option(&::opt_ssl_cipher, "ssl-cipher",
                           "SSL cipher to use.");
+  this->create_new_option(&::opt_tls_ciphersuites, "tls-ciphersuites",
+                          "TLS v1.3 cipher to use.");
   this->create_new_option(&::opt_ssl_key, "ssl-key", "X509 key in PEM format.");
   this->create_new_option(&::opt_ssl_crl, "ssl-crl",
                           "Certificate revocation list.");
@@ -88,7 +90,11 @@ void Mysql_connection_options::Ssl_options::fips_mode_option_callback(
       find_type_or_exit(argument, &ssl_fips_mode_typelib, "ssl-fips-mode") - 1;
 }
 
-void Mysql_connection_options::Ssl_options::apply_for_connection(
+bool Mysql_connection_options::Ssl_options::apply_for_connection(
     MYSQL *connection) {
-  SSL_SET_OPTIONS(connection);
+  if (SSL_SET_OPTIONS(connection)) {
+    std::cerr << SSL_SET_OPTIONS_ERROR;
+    return 1;
+  }
+  return 0;
 }

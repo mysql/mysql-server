@@ -304,13 +304,13 @@ NULL
 with qn as (select "with" as a)
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # with comma
 with qn as (select "with" as a),
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # ORDER BY removed unless there is LIMIT or single table (check "Using filesort")
 explain
@@ -785,11 +785,6 @@ month	total	award
 1	300	best
 3	11	worst
 drop table sales_days;
-# Tmp table cannot be MyISAM
-set global internal_tmp_disk_storage_engine=myisam;
-with qn as (select 1) select * from qn;
-ERROR HY000: 'Materialization of a Common Table Expression' requires @@internal_tmp_disk_storage_engine=InnoDB
-set global internal_tmp_disk_storage_engine=default;
 # Special parser command not allowed to users.
 parse_cte ( select 1 ) ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'parse_cte ( select 1 )' at line 1
@@ -1321,13 +1316,13 @@ NULL
 with qn as (select "with" as a)
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # with comma
 with qn as (select "with" as a),
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # ORDER BY removed unless there is LIMIT or single table (check "Using filesort")
 explain
@@ -1802,11 +1797,6 @@ month	total	award
 1	300	best
 3	11	worst
 drop table sales_days;
-# Tmp table cannot be MyISAM
-set global internal_tmp_disk_storage_engine=myisam;
-with qn as (select 1) select * from qn;
-ERROR HY000: 'Materialization of a Common Table Expression' requires @@internal_tmp_disk_storage_engine=InnoDB
-set global internal_tmp_disk_storage_engine=default;
 # Special parser command not allowed to users.
 parse_cte ( select 1 ) ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'parse_cte ( select 1 )' at line 1

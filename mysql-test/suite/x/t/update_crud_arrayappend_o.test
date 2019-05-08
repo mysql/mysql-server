@@ -6,7 +6,7 @@
 ###  - update with different operators                                 #
 ###  - update on multiple rows                                         #
 ###  - update (ARRAY_APPEND) with data model as document               #
-###  - update with transaction (rollback/commit)                       # 
+###  - update with transaction (rollback/commit)                       #
 ###                                                                    #
 ########################################################################
 #
@@ -14,7 +14,7 @@
 --echo =============================================
 --echo     CRUD UPDATE ARRAY_APPEND SCENARIOS
 --echo =============================================
---echo 
+--echo
 
 --echo ================================================================================
 --echo PREAMBLE
@@ -24,28 +24,30 @@
 --source include/xplugin_preamble.inc
 create user updateitemremove@localhost identified by 'updateitemremove';
 grant all on *.* to updateitemremove@localhost;
+CREATE SCHEMA mysqlxcoll;
 
 ## TEST STARTS HERE
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
 --write_file $MYSQL_TMP_DIR/mysqlx-update_collection_remove.tmp
+
+-->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
+-->recvresult
+
 -->sql
  SET SQL_SAFE_UPDATES = 0;
-DROP SCHEMA if EXISTS mysqlxcoll;
-CREATE SCHEMA mysqlxcoll;
 USE mysqlxcoll;
-CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
-INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "6","name":null}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "7"}',json_unquote(json_extract(doc, '$._id')));
+INSERT INTO maincoll (doc) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}');
+INSERT INTO maincoll (doc) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}');
+INSERT INTO maincoll (doc) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}');
+INSERT INTO maincoll (doc) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}');
+INSERT INTO maincoll (doc) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}');
+INSERT INTO maincoll (doc) values ('{"_id": "6","name":null}');
+INSERT INTO maincoll (doc) values ('{"_id": "7"}');
 -->endsql
 
--->echo Update a valid collection with == operator 
+-->echo Update a valid collection with == operator
 Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -349,7 +351,7 @@ Mysqlx.Crud.Update {
 select * from maincoll;
 -->endsql
 
--->echo Update append a Double 
+-->echo Update append a Double
 Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -387,7 +389,7 @@ Mysqlx.Crud.Update {
       type: LITERAL
       literal {
        type: V_DOUBLE
-       v_double: 156.59874665 
+       v_double: 156.59874665
       }
     }
   }
@@ -398,7 +400,7 @@ Mysqlx.Crud.Update {
 select * from maincoll;
 -->endsql
 
--->echo Update append a Float 
+-->echo Update append a Float
 Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -447,7 +449,7 @@ Mysqlx.Crud.Update {
 select * from maincoll;
 -->endsql
 
--->echo Update append a NULL 
+-->echo Update append a NULL
 Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -524,7 +526,7 @@ Mysqlx.Crud.Update {
   }
   limit {
     row_count: 1
-  }  
+  }
   order {
     expr {
       type: IDENT
@@ -585,7 +587,7 @@ Mysqlx.Crud.Update {
   }
   limit {
     row_count: 2
-  }  
+  }
   order {
     expr {
       type: IDENT
@@ -924,7 +926,6 @@ Mysqlx.Crud.Update {
 -->echo CLEAN UP
 -->echo ================================================================================
 -->sql
-DROP SCHEMA if EXISTS mysqlxcoll;
 DROP USER updateitemremove@localhost;
 SET SQL_SAFE_UPDATES = 1;
 -->endsql
@@ -933,5 +934,6 @@ EOF
 --exec $MYSQLXTEST -u updateitemremove --password='updateitemremove' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_remove.tmp 2>&1
 
 ## Cleanup
+DROP SCHEMA if EXISTS mysqlxcoll;
 --remove_file $MYSQL_TMP_DIR/mysqlx-update_collection_remove.tmp
 

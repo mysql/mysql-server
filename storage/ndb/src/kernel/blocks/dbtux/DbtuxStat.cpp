@@ -95,8 +95,17 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
     const ScanBound& scanBound = scan.m_scanBound[idir];
     KeyDataC searchBoundData(index.m_keySpec, true);
     KeyBoundC searchBound(searchBoundData);
-    unpackBound(c_ctx, scanBound, searchBound);
-    searchToScan(frag, idir, searchBound, pos2);
+    unpackBound(c_ctx.c_searchKey, scanBound, searchBound);
+
+    KeyDataArray *searchKeyDataArray = new (&c_ctx.searchKeyDataArray)
+                                         KeyDataArray();
+    searchKeyDataArray->init_bound(searchBound, scanBound.m_cnt);
+    KeyBoundArray *searchBoundArray = new (&c_ctx.searchKeyBoundArray)
+      KeyBoundArray(&index.m_keySpec,
+                    &c_ctx.searchKeyDataArray,
+                    scanBound.m_side);
+
+    searchToScan(frag, idir, *searchBoundArray, pos2);
     // committed read (same timeslice) and range not empty
     ndbrequire(pos2.m_loc != NullTupLoc);
   }
@@ -128,7 +137,7 @@ Uint32
 Dbtux::getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir)
 {
   NodeHandle node(frag);
-  selectNode(node, pos.m_loc);
+  selectNode(c_ctx, node, pos.m_loc);
   Uint16 path[MaxTreeDepth + 1];
   unsigned depth = getPathToNode(node, path);
   ndbrequire(depth != 0 && depth <= MaxTreeDepth);
@@ -177,7 +186,7 @@ Dbtux::getPathToNode(NodeHandle node, Uint16* path)
   unsigned i = MaxTreeDepth;
   while (loc != NullTupLoc) {
     jam();
-    selectNode(node, loc);
+    selectNode(c_ctx, node, loc);
     path[i] = node.getSide() | (node.getOccup() << 8);
     loc = node.getLink(2);
     ndbrequire(i != 0);
@@ -351,7 +360,7 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
   {
     NodeHandle node(frag);
     TreePos pos = scan.m_scanPos;
-    selectNode(node, pos.m_loc);
+    selectNode(c_ctx, node, pos.m_loc);
     // more entries in this node
     const unsigned occup = node.getOccup();
     // funny cast to avoid signed vs unsigned warning
@@ -371,7 +380,7 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
     {
       jam();
       TupLoc loc = node.getLink(2);
-      selectNode(node, loc);
+      selectNode(c_ctx, node, loc);
     }
     // did not reach root
     if (node.getSide() != 2)

@@ -75,8 +75,8 @@ create table t2(
   a int,
   b int,
   c int unique key,
-  foreign key fk1(a) references t1(a),
-  foreign key fk2(b) references t1(b)
+  constraint fk1 foreign key (a) references t1(a),
+  constraint fk2 foreign key (b) references t1(b)
 )engine = ndb;
 
 --echo #t2 now has additional keys on col `a` and `b` to support fks.
@@ -103,7 +103,7 @@ insert into t2 values (5,50,500);
 --echo #create a table t3 with an fk refering to t2(c)
 create table t3(
   a int,
-  foreign key fk3(a) references t2(c)
+  constraint fk3 foreign key (a) references t2(c)
 )engine = ndb;
 
 --echo #create an index on col `b` on t2

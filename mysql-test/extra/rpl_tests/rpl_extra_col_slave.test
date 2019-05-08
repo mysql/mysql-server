@@ -410,11 +410,21 @@ if (`SELECT UPPER(LEFT($engine_type, 3)) != 'NDB'`)
   eval CREATE TABLE t9 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
                        ) ENGINE=$engine_type;
 
+  SET @previous_sql_mode = @@sql_mode;
+  --disable_warnings
+  SET sql_mode = (select concat('ALLOW_INVALID_DATES,',
+    replace(replace(@@sql_mode,'NO_ZERO_DATE',''), 'NO_ZERO_IN_DATE','')));
+  --enable_warnings
   --echo *** Start Slave ***
   connection slave;
   # reset master and slave and start slave
   --let $rpl_only_running_threads= 1
   --source include/rpl_reset.inc
+  SET @previous_sql_mode = @@sql_mode;
+  --disable_warnings
+  SET sql_mode = (select concat('ALLOW_INVALID_DATES,',
+    replace(replace(@@sql_mode,'NO_ZERO_DATE',''), 'NO_ZERO_IN_DATE','')));
+  --enable_warnings
 
   --echo *** Master Data Insert ***
   connection master;
@@ -446,10 +456,12 @@ if (`SELECT UPPER(LEFT($engine_type, 3)) != 'NDB'`)
   #--let $slave_skip_counter= 2
   #--let $show_slave_sql_error= 1
   #--source include/wait_for_slave_sql_error_and_skip.inc
+  SET sql_mode = @previous_sql_mode;
 
   #--echo *** Drop t9  ***
   connection master;
   DROP TABLE t9;
+  SET sql_mode = @previous_sql_mode;
   sync_slave_with_master;
 
 }

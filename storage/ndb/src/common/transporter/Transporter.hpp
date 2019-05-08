@@ -56,7 +56,7 @@ public:
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
-  virtual void resetBuffers() {};
+  virtual void resetBuffers() {}
 
   /**
    * None blocking
@@ -226,10 +226,10 @@ protected:
   Uint64 sendSize;
 
   TransporterRegistry &m_transporter_registry;
-  TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; };
-  void do_disconnect(int err){m_transporter_registry.do_disconnect(remoteNodeId,err);};
+  TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; }
+  void do_disconnect(int err){m_transporter_registry.do_disconnect(remoteNodeId,err);}
   void report_error(enum TransporterError err, const char *info = 0)
-    { m_transporter_registry.report_error(remoteNodeId, err, info); };
+    { m_transporter_registry.report_error(remoteNodeId, err, info); }
 
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);

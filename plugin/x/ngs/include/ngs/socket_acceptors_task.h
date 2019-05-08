@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -33,7 +34,6 @@
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs {
 
@@ -44,6 +44,7 @@ class Socket_acceptors_task : public Server_task_interface {
  public:
   Socket_acceptors_task(Listener_factory_interface &listener_factory,
                         const std::string &tcp_bind_address,
+                        const std::string &network_namespace,
                         const uint16 tcp_port,
                         const uint32 tcp_port_open_timeout,
                         const std::string &unix_socket_file,

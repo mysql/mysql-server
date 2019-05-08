@@ -43,8 +43,8 @@ ALTER TABLE t5 STORAGE DISK TABLESPACE ts1;
 #Check if the disk data is on disk
 --error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1
-  DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=ndb;
+  DROP DATAFILE 'ts1_datafile.dat';
+SHOW WARNINGS;
 
 # Moving implicit disk columns back to memory will be
 # an automatic  copy alter
@@ -52,12 +52,11 @@ ALTER TABLE t5 STORAGE memory;
 
 #Check if the disk data has been moved from disk
 ALTER TABLESPACE ts1
-  DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=ndb;
+  DROP DATAFILE 'ts1_datafile.dat';
 SELECT * FROM t5;
 
 DROP TABLE t5;
-DROP TABLESPACE ts1 ENGINE ndb;
+DROP TABLESPACE ts1;
 
 CREATE TABLESPACE ts1
   ADD DATAFILE 'ts1_datafile.dat'
@@ -75,20 +74,19 @@ ALTER TABLE t5 CHANGE t5b t5b int STORAGE disk, TABLESPACE ts1;
 #Check if the disk data has been moved to disk
 --error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1
-  DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE ndb;
+  DROP DATAFILE 'ts1_datafile.dat';
+SHOW WARNINGS;
 
 # Move an explicit disk column to memory
 ALTER TABLE t5 CHANGE t5b t5b int STORAGE memory;
 #Check if the disk data has been moved to disk
 ALTER TABLESPACE ts1
-  DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE ndb;
+  DROP DATAFILE 'ts1_datafile.dat';
 SELECT * FROM t5;
 
 DROP TABLE t5;
 
-DROP TABLESPACE ts1 ENGINE ndb;
+DROP TABLESPACE ts1;
 
 CREATE TABLESPACE ts1
   ADD DATAFILE 'ts1_datafile.dat'
@@ -142,9 +140,8 @@ ALTER TABLE t5 ADD INDEX 5d_i(t5d);
 # Clean up
 DROP TABLE t5;
 ALTER TABLESPACE ts1
-  DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=ndb;
-DROP TABLESPACE ts1 ENGINE=ndb;
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 ENGINE=ndb;
 
 # end test ndb_storage.

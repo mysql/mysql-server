@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
 
 # Supplemental test case for query repreparation. Test what happens if
 # EXECUTE fails to open the secondary tables after PREPARE has
@@ -20,13 +21,13 @@ PREPARE ps FROM 'SELECT * FROM t';
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# Now set the debug flag. Execution fails when opening the secondary
-# tables. The failure triggers a repreparation against the primary
+# Now set the debug flag. Execution fails when preparing the secondary
+# engine. The failure triggers a repreparation against the primary
 # storage engine.
 FLUSH STATUS;
-SET DEBUG = '+d,open_secondary_engine_tables_error';
+SET DEBUG = '+d,secondary_engine_mock_prepare_error';
 EXECUTE ps;
-SET DEBUG = '-d,open_secondary_engine_tables_error';
+SET DEBUG = '-d,secondary_engine_mock_prepare_error';
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # The statement remembers that the previous execution failed to open
@@ -37,6 +38,94 @@ EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 DROP TABLE t;
+
+--echo #
+--echo # WL#12389: Add interface for optimizing queries in secondary engines
+--echo #
+
+CREATE TABLE t1(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2(y INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t2 VALUES (3), (4), (5);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2;
+
+# Verify that the secondary engine optimization was invoked by
+# injecting an error in the secondary engine optimization. The error
+# prevents the queries from being offloaded to the MOCK engine.
+SET DEBUG = "+d,secondary_engine_mock_optimize_error";
+EXPLAIN SELECT * FROM t1;
+--error ER_SECONDARY_ENGINE
+EXPLAIN SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ x FROM t1;
+EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
+EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
+EXPLAIN SELECT * FROM t1 UNION DISTINCT SELECT * FROM t2;
+SET DEBUG = "-d,secondary_engine_mock_optimize_error";
+
+# The same queries should use the MOCK engine if no error is injected.
+EXPLAIN SELECT * FROM t1;
+EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
+EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
+EXPLAIN SELECT * FROM t1 UNION DISTINCT SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+# A query that is killed during secondary engine optimization, should
+# not be retried in the primary engine.
+CREATE TABLE t(x int) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1), (2), (3);
+ALTER TABLE t SECONDARY_LOAD;
+SET DEBUG_SYNC = 'before_mock_optimize SIGNAL mock WAIT_FOR continue';
+--send SELECT * FROM t
+--connect(conn1,localhost,root,,)
+SET DEBUG_SYNC = 'now WAIT_FOR mock';
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+       WHERE INFO = 'SELECT * FROM t' INTO @thread_id;
+KILL QUERY @thread_id;
+SET DEBUG_SYNC = 'now SIGNAL continue';
+--connection default
+--error ER_QUERY_INTERRUPTED
+--reap
+--disconnect conn1
+DROP TABLE t;
+
+--echo #
+--echo # Bug#29023387: GET PLAN COST FROM SECONDARY ENGINE
+--echo #
+CREATE TABLE t1(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t2(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t3(x INT, y INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 VALUES (1, 2), (3, 4);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t3 VALUES (1, 2), (3, 4);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+ALTER TABLE t3 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2, t3;
+SET @@optimizer_trace='enabled=on';
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+SELECT TRACE->'$**.secondary_engine_cost' FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace='enabled=off';
+# Set a debug flag so that the join order is chosen based on how early
+# a table with the alias X is.
+SET DEBUG = "+d,secondary_engine_mock_change_join_order";
+# The note in the warning from EXPLAIN shows the alias X in different case
+# on different platforms, so disable warnings to hide the differences.
+--disable_warnings
+EXPLAIN SELECT * FROM t1 AS X JOIN t2 ON X.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+EXPLAIN SELECT * FROM t1 JOIN t2 AS X ON t1.x = X.y LEFT JOIN t3 ON X.x = t3.y;
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 AS X ON t2.x = X.y;
+--enable_warnings
+SET DEBUG = "-d,secondary_engine_mock_change_join_order";
+SET DEBUG = "+d,secondary_engine_mock_compare_cost_error";
+# The injected error causes fallback to the primary engine.
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+SET DEBUG = "-d,secondary_engine_mock_compare_cost_error";
+DROP TABLE t1, t2, t3;
 
 --disable_query_log
 UNINSTALL PLUGIN mock;

@@ -1,0 +1,281 @@
+## Test of cursor fetch functionality
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/cursor_fetch.xpl
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: 'SELECT * FROM xtest.t1'
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: 'SELECT * FROM xtest.t2'
+    }
+  }
+}
+-->recvok
+
+-->title = Fetch all rows in Cursor.Open
+
+Mysqlx.Cursor.Open {
+  cursor_id: 1
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 1
+    }
+  }
+  fetch_rows: 3
+}
+-->recvresult_store_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 1
+  fetch_rows: 2
+}
+-->recverror 5123
+-->clear_stored_metadata
+
+-->title = Fetch no rows in Cursor.Open
+
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 1
+    }
+  }
+  fetch_rows: 0
+}
+-->recvresult_store_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 3
+}
+-->recv_with_stored_metadata META_ID
+-->clear_stored_metadata
+
+-->title = Fetch part of rows in Cursor.Open
+
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 1
+    }
+  }
+  fetch_rows: 1
+}
+-->recvresult_store_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 2
+}
+-->recv_with_stored_metadata META_ID
+-->clear_stored_metadata
+
+-->title = Multiple cursor fetch messages
+
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 1
+    }
+  }
+  fetch_rows: 0
+}
+-->recvresult_store_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata META_ID
+-->clear_stored_metadata
+
+-->title = Fetch more results than available in one fetch
+
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 1
+    }
+  }
+  fetch_rows: 0
+}
+-->recvresult_store_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 8
+}
+-->recvresult
+-->clear_stored_metadata
+
+-->title = Fetch more results than available in multiple fetches
+
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 1
+    }
+  }
+  fetch_rows: 0
+}
+-->recvresult_store_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 1
+}
+-->recverror 5123
+-->clear_stored_metadata
+
+-->title = Fetch result with multiple column metadata
+
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 2
+    }
+  }
+  fetch_rows: 0
+}
+-->recvresult_store_metadata META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 3
+}
+-->recv_with_stored_metadata META_ID
+-->clear_stored_metadata
+
+-->title = Alternating cursor fetch
+
+Mysqlx.Cursor.Open {
+  cursor_id: 1
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 1
+    }
+  }
+  fetch_rows: 0
+}
+-->recvresult_store_metadata CURSOR1_META_ID
+
+Mysqlx.Cursor.Open {
+  cursor_id: 2
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute: {
+      stmt_id: 2
+    }
+  }
+  fetch_rows: 0
+}
+-->recvresult_store_metadata CURSOR2_META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 1
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata CURSOR1_META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 2
+}
+-->recv_with_stored_metadata CURSOR2_META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 1
+  fetch_rows: 1
+}
+-->recv_with_stored_metadata CURSOR1_META_ID
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 2
+  fetch_rows: 2
+}
+-->recv_with_stored_metadata CURSOR2_META_ID
+
+-->clear_stored_metadata
+
+EOF
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+CREATE TABLE t1 (phrase VARCHAR(30));
+INSERT INTO t1 (phrase) VALUES ('Alice has a cat');
+INSERT INTO t1 (phrase) VALUES ('Bob has a dog');
+
+CREATE TABLE t2 (x INT, y FLOAT, z TINYINT);
+INSERT INTO t2 VALUES (1, 1.1, 11);
+INSERT INTO t2 VALUES (2, 2.22, 22);
+INSERT INTO t2 VALUES (3, 3.0, 33);
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/cursor_fetch.xpl 2>&1;
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

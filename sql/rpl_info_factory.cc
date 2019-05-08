@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,8 +103,9 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option, const char *channel,
 #ifdef HAVE_PSI_INTERFACE
             &key_master_info_run_lock, &key_master_info_data_lock,
             &key_master_info_sleep_lock, &key_master_info_thd_lock,
-            &key_master_info_data_cond, &key_master_info_start_cond,
-            &key_master_info_stop_cond, &key_master_info_sleep_cond,
+            &key_master_info_rotate_lock, &key_master_info_data_cond,
+            &key_master_info_start_cond, &key_master_info_stop_cond,
+            &key_master_info_sleep_cond, &key_master_info_rotate_cond,
 #endif
             instances, channel)))
     goto err;
@@ -230,15 +231,13 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
     goto err;
 
   if (!(rli = new Relay_log_info(
-            is_slave_recovery
+            is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
-            ,
             &key_relay_log_info_run_lock, &key_relay_log_info_data_lock,
             &key_relay_log_info_sleep_lock, &key_relay_log_info_thd_lock,
             &key_relay_log_info_data_cond, &key_relay_log_info_start_cond,
-            &key_relay_log_info_stop_cond, &key_relay_log_info_sleep_cond
+            &key_relay_log_info_stop_cond, &key_relay_log_info_sleep_cond,
 #endif
-            ,
             instances, channel,
             (rli_option != INFO_REPOSITORY_TABLE &&
              rli_option != INFO_REPOSITORY_FILE)))) {
@@ -422,15 +421,13 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   sprintf(pos, "%u", worker_id + 1);
 
   if (!(worker = new Slave_worker(
-            rli
+            rli,
 #ifdef HAVE_PSI_INTERFACE
-            ,
             &key_relay_log_info_run_lock, &key_relay_log_info_data_lock,
             &key_relay_log_info_sleep_lock, &key_relay_log_info_thd_lock,
             &key_relay_log_info_data_cond, &key_relay_log_info_start_cond,
-            &key_relay_log_info_stop_cond, &key_relay_log_info_sleep_cond
+            &key_relay_log_info_stop_cond, &key_relay_log_info_sleep_cond,
 #endif
-            ,
             worker_id, rli->get_channel())))
     goto err;
 
@@ -664,6 +661,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
     } else {
       DBUG_ASSERT(return_check_src == REPOSITORY_DOES_NOT_EXIST &&
                   return_check_dst == REPOSITORY_DOES_NOT_EXIST);
+      info->inited = false;
     }
 
     delete (*handler_src);
@@ -824,8 +822,8 @@ bool Rpl_info_factory::init_repositories(Rpl_info *info,
   @retval false No error
   @retval true  Failure
 */
-bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
-                                         const struct_file_data file_data,
+bool Rpl_info_factory::init_repositories(const struct_table_data &table_data,
+                                         const struct_file_data &file_data,
                                          uint rep_option,
                                          Rpl_info_handler **handler_src,
                                          Rpl_info_handler **handler_dest,
@@ -877,8 +875,8 @@ err:
 
 bool Rpl_info_factory::scan_repositories(uint *found_instances,
                                          uint *found_rep_option,
-                                         const struct_table_data table_data,
-                                         const struct_file_data file_data,
+                                         const struct_table_data &table_data,
+                                         const struct_file_data &file_data,
                                          const char **msg) {
   bool error = false;
   uint file_instances = 0;

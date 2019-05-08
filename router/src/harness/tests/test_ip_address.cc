@@ -36,6 +36,7 @@
 // Standard include files
 #include <exception>
 #include <iostream>
+#include <stdexcept>
 
 using mysql_harness::IPAddress;
 using mysql_harness::IPv4Address;

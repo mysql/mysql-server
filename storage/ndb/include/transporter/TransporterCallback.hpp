@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ public:
   /**
    *
    */
-  virtual ~TransporterReceiveHandle() { };
+  virtual ~TransporterReceiveHandle() {}
 
 #ifndef NDEBUG
   /**
@@ -128,7 +128,7 @@ public:
    * DEBUG to detect concurrent calls to ::update_connections and
    * ::performReceive() which isn't allowed.
    */
-  TransporterReceiveHandle() : m_active(false) {};
+  TransporterReceiveHandle() : m_active(false) {}
   volatile bool m_active;
 #endif
 };
@@ -244,7 +244,7 @@ public:
    */
   virtual Uint32 bytes_sent(NodeId node, Uint32 bytes) = 0;
 
-  virtual ~TransporterCallback() { };
+  virtual ~TransporterCallback() {}
 };
 
 
@@ -285,7 +285,7 @@ public:
    * The second is the config parameter ExtraSendBufferMemory
    */
   virtual void allocate_send_buffers(Uint64 total_send_buffer,
-			             Uint64 extra_send_buffer) {};
+			             Uint64 extra_send_buffer) {}
 
   /**
    * Check that send bufferes are enabled for the specified node.
@@ -303,7 +303,7 @@ public:
    * actually sent. The buffer contents is then silently discarded.
    */
   virtual bool isSendEnabled(NodeId node) const
-  { return true; };
+  { return true; }
 
   /**
    * Get space for packing a signal into, allocate more buffer as needed.
@@ -337,7 +337,7 @@ public:
    */
   virtual bool forceSend(NodeId node) = 0;
 
-  virtual ~TransporterSendBufferHandle() { };
+  virtual ~TransporterSendBufferHandle() {}
 };
 
 /**

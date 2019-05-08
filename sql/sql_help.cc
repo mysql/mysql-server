@@ -591,9 +591,10 @@ static bool prepare_simple_select(THD *thd, Item *cond, TABLE *table,
   Opt_trace_object wrapper(&thd->opt_trace);
   Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
   QUICK_SELECT_I *qck;
-  const bool impossible = test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR,
-                                            false, ORDER_NOT_RELEVANT, tab,
-                                            cond, &needed_reg_dummy, &qck) < 0;
+  const bool impossible =
+      test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
+                        ORDER_NOT_RELEVANT, tab, cond, &needed_reg_dummy, &qck,
+                        tab->table()->force_index) < 0;
   tab->set_quick(qck);
 
   return impossible || (tab->quick() && tab->quick()->reset());
@@ -618,7 +619,7 @@ static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
   Item *cond = new Item_func_like(
       new Item_field(pfname), new Item_string(mask, mlen, pfname->charset()),
       new Item_string("\\", 1, &my_charset_latin1), false);
-  if (thd->is_fatal_error) return true; /* purecov: inspected */
+  if (thd->is_fatal_error()) return true; /* purecov: inspected */
   return prepare_simple_select(thd, cond, table, tab);
 }
 

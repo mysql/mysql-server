@@ -1,9 +1,5 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3;
---enable_warnings
-
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile_lg1_01.dat'
 INITIAL_SIZE 3M
@@ -263,18 +259,17 @@ CREATE TABLE test.t (
 
  DROP TABLE test.t;
 
+ALTER TABLESPACE ts1 
+DROP DATAFILE './datafile_ts1_01.dat';
 
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile_ts1_01.dat';
-
-ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile_ts1_02.dat';
+DROP DATAFILE './datafile_ts1_02.dat';
 
 ALTER TABLESPACE ts2 
-DROP DATAFILE 'datafile_ts2_01.dat';
+DROP DATAFILE './datafile_ts2_01.dat';
 
 ALTER TABLESPACE ts3 
-DROP DATAFILE 'datafile_ts3_01.dat';
+DROP DATAFILE './datafile_ts3_01.dat';
 
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
@@ -282,4 +277,5 @@ DROP TABLESPACE ts3;
 
 DROP LOGFILE GROUP lg1 ENGINE = NDB;
 
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_dd_dump.sql
 #End 5.1 test case

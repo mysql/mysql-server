@@ -190,7 +190,7 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
    */
   NewVARIABLE *bat = allocateBat(1);
   bat[0].WA = &m_lcp_ctl_file_data[0][0];
-  bat[0].nrr = 2 * LCP_CTL_FILE_DATA_SIZE;
+  bat[0].nrr = 2 * (4 * BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -1331,7 +1331,8 @@ Restore::open_ctl_file_done_conf(Signal *signal, FilePtr file_ptr)
   /**
    * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
   req->data.memoryAddress.memoryOffset =
-    file_ptr.p->m_ctl_file_no * LCP_CTL_FILE_DATA_SIZE;
+    file_ptr.p->m_ctl_file_no *
+      (BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS * 4);
   req->data.memoryAddress.fileOffset = 0;
   req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 
@@ -2735,8 +2736,7 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
   SimpleProperties::UnpackStatus stat;
   stat = SimpleProperties::unpack(it, &tmpTab, 
 				  DictTabInfo::TableMapping, 
-				  DictTabInfo::TableMappingSize, 
-				  true, true);
+				  DictTabInfo::TableMappingSize);
   ndbrequire(stat == SimpleProperties::Break);
   
   if(tmpTab.TableId != file_ptr.p->m_table_id)
@@ -3375,9 +3375,9 @@ Restore::execute_operation(Signal *signal,
       sections.m_cnt++;
     }
     file_ptr.p->m_outstanding_operations++;
-    EXECUTE_DIRECT_SS(DBLQH, GSN_LQHKEYREQ, signal,
-                      LqhKeyReq::FixedSignalLength+pos,
-                      &sections);
+    EXECUTE_DIRECT_WITH_SECTIONS(DBLQH, GSN_LQHKEYREQ, signal,
+                                 LqhKeyReq::FixedSignalLength+pos,
+                                 &sections);
   }
 }
 

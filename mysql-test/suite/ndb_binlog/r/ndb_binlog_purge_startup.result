@@ -1,0 +1,27 @@
+show variables like 'log_bin';
+Variable_name	Value
+log_bin	ON
+reset master;
+use test;
+create table stuff (a int) engine=ndb;
+File 1
+insert into stuff values (1);
+flush logs;
+File 2
+insert into stuff values (1);
+flush logs;
+File 3
+insert into stuff values (1);
+flush logs;
+File 4
+insert into stuff values (1);
+flush logs;
+File 5
+insert into stuff values (1);
+flush logs;
+Now restart, should re-pickup the expire-log-days
+debug setting from the config file, and perform
+expire-logs action at restart...
+# restart
+drop table stuff;
+reset master;

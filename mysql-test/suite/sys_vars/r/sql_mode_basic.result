@@ -377,11 +377,11 @@ IGNORE_SPACE
 SET @@session.sql_mode= cast(pow(2,4) as unsigned integer);
 SELECT @@session.sql_mode;
 @@session.sql_mode
-,
+NOT_USED
 SET @@global.sql_mode= cast(pow(2,4) as unsigned integer);
 SELECT @@global.sql_mode;
 @@global.sql_mode
-,
+NOT_USED
 SET @@session.sql_mode= cast(pow(2,5) as unsigned integer);
 SELECT @@session.sql_mode;
 @@session.sql_mode
@@ -407,102 +407,102 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,8) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '256'
+ERROR HY000: sql_mode=0x00000100 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,8) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '256'
+ERROR HY000: sql_mode=0x00000100 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,9) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '512'
+ERROR HY000: sql_mode=0x00000200 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,9) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '512'
+ERROR HY000: sql_mode=0x00000200 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,10) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '1024'
+ERROR HY000: sql_mode=0x00000400 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,10) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '1024'
+ERROR HY000: sql_mode=0x00000400 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,11) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '2048'
+ERROR HY000: sql_mode=0x00000800 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,11) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '2048'
+ERROR HY000: sql_mode=0x00000800 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,12) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4096'
+ERROR HY000: sql_mode=0x00001000 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,12) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4096'
+ERROR HY000: sql_mode=0x00001000 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,13) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '8192'
+ERROR HY000: sql_mode=0x00002000 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,13) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '8192'
+ERROR HY000: sql_mode=0x00002000 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,14) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '16384'
+ERROR HY000: sql_mode=0x00004000 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,14) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '16384'
+ERROR HY000: sql_mode=0x00004000 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,15) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '32768'
+ERROR HY000: sql_mode=0x00008000 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,15) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '32768'
+ERROR HY000: sql_mode=0x00008000 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,16) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '65536'
+ERROR HY000: sql_mode=0x00010000 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,16) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '65536'
+ERROR HY000: sql_mode=0x00010000 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,17) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '131072'
+ERROR HY000: sql_mode=0x00020000 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,17) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '131072'
+ERROR HY000: sql_mode=0x00020000 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
@@ -607,12 +607,12 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode= cast(pow(2,28) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '268435456'
+ERROR HY000: sql_mode=0x10000000 is not supported
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode= cast(pow(2,28) as unsigned integer);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '268435456'
+ERROR HY000: sql_mode=0x10000000 is not supported
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
@@ -652,6 +652,59 @@ SET @@global.sql_mode= cast(pow(2,32) as unsigned integer);
 SELECT @@global.sql_mode;
 @@global.sql_mode
 TIME_TRUNCATE_FRACTIONAL
+#
+# Bug#27828236: ERROR 1231 WHEN 8.0 CLIENT TRIES TO READ THE OUTPUT OF
+#               MYSQLBINLOG 5.7
+#
+SET @@session.sql_mode = 0;
+CREATE TABLE t1 (i INT);
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @@session.sql_mode=1436549152;
+CREATE PROCEDURE p1() SET @@session.sql_mode=1436549152;
+# pseudo_slave_mode is "off", assignment should fail as before:
+SET @@session.sql_mode=1436549152;
+ERROR HY000: sql_mode=0x10000000 is not supported
+SELECT @@session.sql_mode;
+@@session.sql_mode
+
+INSERT INTO t1 VALUES (1);
+ERROR HY000: sql_mode=0x10000000 is not supported
+SELECT @@session.sql_mode;
+@@session.sql_mode
+
+CALL p1;
+ERROR HY000: sql_mode=0x10000000 is not supported
+SELECT @@session.sql_mode;
+@@session.sql_mode
+
+#
+SET @session_pseudo_slave_mode = @@session.pseudo_slave_mode;
+SET @@session.pseudo_slave_mode = TRUE;
+# pseudo_slave_mode is "on", assignment should succeed:
+SET @@session.sql_mode=1436549152;
+Warnings:
+Warning	13249	sql_mode=0x10000000 has been removed and will be ignored
+SELECT @@session.sql_mode;
+@@session.sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+# ... but the assignment in SBR-invoked triggers should continue to fail:
+SET @@session.sql_mode = 0;
+INSERT INTO t1 VALUES (1);
+ERROR HY000: sql_mode=0x10000000 is not supported
+SELECT @@session.sql_mode;
+@@session.sql_mode
+
+# ... and in procedure calls:
+CALL p1;
+ERROR HY000: sql_mode=0x10000000 is not supported
+SELECT @@session.sql_mode;
+@@session.sql_mode
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+SET @@session.pseudo_slave_mode = @session_pseudo_slave_mode;
+Warnings:
+Warning	1231	Slave applier execution mode not active, statement ineffective.
+SET @@session.sql_mode = DEFAULT;
 SET @@global.sql_mode = @global_start_value;
 SELECT @@global.sql_mode;
 @@global.sql_mode

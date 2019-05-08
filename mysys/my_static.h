@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_STATIC_INCLUDED
 #define MYSYS_MY_STATIC_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,5 @@ extern USED_MEM *my_once_root_block;
 extern uint my_once_extra;
 
 extern struct st_my_file_info my_file_info_default[MY_NFILE];
-
-extern ulonglong query_performance_frequency, query_performance_offset,
-    query_performance_offset_micros;
 
 #endif /* MYSYS_MY_STATIC_INCLUDED */

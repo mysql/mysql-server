@@ -17,6 +17,7 @@ set session sql_log_bin=0;
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
 call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("Error connecting to all peers. Member join failed. Local port: *.*");
 set session sql_log_bin=1;
 
 ############################################################

@@ -126,7 +126,7 @@ public:
   void unlock(){ NdbMutex_Unlock(m_mutex);}
   bool tryLock(){ return NdbMutex_Trylock(m_mutex) == 0;}
   
-  NdbMutex* getMutex() {return m_mutex;};
+  NdbMutex* getMutex() {return m_mutex;}
 
 protected:
   NdbMutex * m_mutex;
@@ -134,9 +134,9 @@ protected:
 
 class Guard {
 public:
-  Guard(NdbMutex *mtx) : m_mtx(mtx) { NdbMutex_Lock(m_mtx); };
-  Guard(NdbLockable & l) : m_mtx(l.m_mutex) { NdbMutex_Lock(m_mtx); }; 
-  ~Guard() { NdbMutex_Unlock(m_mtx); };
+  Guard(NdbMutex *mtx) : m_mtx(mtx) { NdbMutex_Lock(m_mtx); }
+  Guard(NdbLockable & l) : m_mtx(l.m_mutex) { NdbMutex_Lock(m_mtx); }
+  ~Guard() { NdbMutex_Unlock(m_mtx); }
 private:
   NdbMutex *m_mtx;
 };
@@ -144,9 +144,9 @@ private:
 class Guard2
 {
 public:
-  Guard2(NdbMutex *mtx) : m_mtx(mtx) { if (m_mtx) NdbMutex_Lock(m_mtx);};
-  Guard2(NdbLockable & l) : m_mtx(l.m_mutex) { if(m_mtx)NdbMutex_Lock(m_mtx);};
-  ~Guard2() { if (m_mtx) NdbMutex_Unlock(m_mtx); };
+  Guard2(NdbMutex *mtx) : m_mtx(mtx) { if (m_mtx) NdbMutex_Lock(m_mtx);}
+  Guard2(NdbLockable & l) : m_mtx(l.m_mutex) { if(m_mtx)NdbMutex_Lock(m_mtx);}
+  ~Guard2() { if (m_mtx) NdbMutex_Unlock(m_mtx); }
 private:
   NdbMutex *m_mtx;
 };

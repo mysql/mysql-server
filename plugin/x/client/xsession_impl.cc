@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <set>
@@ -295,6 +296,43 @@ const char *value_or_default_string(const char *value,
   return value;
 }
 
+class Notice_server_hello_ignore {
+ public:
+  Notice_server_hello_ignore(XProtocol *protocol) : m_protocol(protocol) {
+    m_handler_id = m_protocol->add_notice_handler(
+        *this, Handler_position::Begin,
+        Handler_priority_low);  // TODO(lkotula): end ?
+  }
+
+  ~Notice_server_hello_ignore() {
+    if (XCL_HANDLER_ID_NOT_VALID != m_handler_id) {
+      m_protocol->remove_notice_handler(m_handler_id);
+    }
+  }
+
+  Notice_server_hello_ignore(const Notice_server_hello_ignore &) = default;
+
+  Handler_result operator()(XProtocol *, const bool is_global,
+                            const Mysqlx::Notice::Frame::Type type,
+                            const char *, const uint32_t) {
+    const bool is_hello_notice =
+        Mysqlx::Notice::Frame_Type_SERVER_HELLO == type;
+
+    if (!is_global) return Handler_result::Continue;
+    if (!is_hello_notice) return Handler_result::Continue;
+
+    if (m_already_received) return Handler_result::Error;
+
+    m_already_received = true;
+
+    return Handler_result::Consumed;
+  }
+
+  bool m_already_received = false;
+  XProtocol::Handler_id m_handler_id = XCL_HANDLER_ID_NOT_VALID;
+  XProtocol *m_protocol;
+};
+
 }  // namespace details
 
 Session_impl::Session_impl(std::unique_ptr<Protocol_factory> factory)
@@ -378,6 +416,9 @@ XError Session_impl::set_mysql_option(const Mysqlx_option option,
     case Mysqlx_option::Ssl_crl_path:
       m_context->m_ssl_config.m_crl_path = value;
       break;
+    case Mysqlx_option::Network_namespace:
+      m_context->m_connection_config.m_network_namespace = value;
+      break;
 
     case Mysqlx_option::Authentication_method:
       return details::translate_texts_into_auth_types({value},
@@ -421,6 +462,10 @@ XError Session_impl::set_mysql_option(const Mysqlx_option option,
 
     case Mysqlx_option::Connect_timeout:
       m_context->m_connection_config.m_timeout_connect = value;
+      break;
+
+    case Mysqlx_option::Session_connect_timeout:
+      m_context->m_connection_config.m_timeout_session_connect = value;
       break;
 
     case Mysqlx_option::Datetime_length_discriminator:
@@ -492,14 +537,15 @@ XError Session_impl::connect(const char *host, const uint16_t port,
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED, ER_TEXT_ALREADY_CONNECTED};
 
-  auto result = get_protocol().get_connection().connect(
-      details::value_or_empty_string(host), port ? port : MYSQLX_TCP_PORT,
-      m_internet_protocol);
-
+  Session_connect_timeout_scope_guard timeout_guard{this};
+  auto &connection = get_protocol().get_connection();
+  const auto result =
+      connection.connect(details::value_or_empty_string(host),
+                         port ? port : MYSQLX_TCP_PORT, m_internet_protocol);
   if (result) return result;
 
-  auto connection_type =
-      get_protocol().get_connection().state().get_connection_type();
+  const auto connection_type = connection.state().get_connection_type();
+  details::Notice_server_hello_ignore notice_ignore(m_protocol.get());
 
   return authenticate(user, pass, schema, connection_type);
 }
@@ -509,14 +555,16 @@ XError Session_impl::connect(const char *socket_file, const char *user,
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED, ER_TEXT_ALREADY_CONNECTED};
 
-  auto result = get_protocol().get_connection().connect_to_localhost(
+  Session_connect_timeout_scope_guard timeout_guard{this};
+  auto &connection = get_protocol().get_connection();
+  const auto result = connection.connect_to_localhost(
       details::value_or_default_string(socket_file, MYSQLX_UNIX_ADDR));
 
   if (result) return result;
 
-  auto connection_type =
-      get_protocol().get_connection().state().get_connection_type();
+  const auto connection_type = connection.state().get_connection_type();
 
+  details::Notice_server_hello_ignore notice_ignore(m_protocol.get());
   return authenticate(user, pass, schema, connection_type);
 }
 
@@ -529,6 +577,7 @@ XError Session_impl::reauthenticate(const char *user, const char *pass,
 
   if (error) return error;
 
+  Session_connect_timeout_scope_guard timeout_guard{this};
   error = get_protocol().recv_ok();
 
   if (error) return error;
@@ -978,6 +1027,45 @@ std::string Session_impl::get_method_from_auth(const Auth auth) {
 bool Session_impl::needs_servers_capabilities() const {
   return m_use_auth_methods.size() == 1 &&
          m_use_auth_methods[0] == Auth::Auto_from_capabilities;
+}
+
+Session_impl::Session_connect_timeout_scope_guard::
+    Session_connect_timeout_scope_guard(Session_impl *parent)
+    : m_parent{parent}, m_start_time{std::chrono::steady_clock::now()} {
+  m_handler_id = m_parent->get_protocol().add_send_message_handler(
+      [this](xcl::XProtocol *, const xcl::XProtocol::Client_message_type_id,
+             const xcl::XProtocol::Message &) -> xcl::Handler_result {
+        const auto timeout =
+            m_parent->m_context->m_connection_config.m_timeout_session_connect;
+        // Infinite timeout, do not set message handler
+        if (timeout < 0) return Handler_result::Continue;
+
+        auto &connection = m_parent->get_protocol().get_connection();
+        const auto delta =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - m_start_time)
+                .count();
+        const auto new_timeout = (timeout - delta) / 1000;
+        connection.set_write_timeout(
+            details::make_vio_timeout((delta > timeout) ? 0 : new_timeout));
+        connection.set_read_timeout(
+            details::make_vio_timeout((delta > timeout) ? 0 : new_timeout));
+        return Handler_result::Continue;
+      });
+}
+
+Session_impl::Session_connect_timeout_scope_guard::
+    ~Session_connect_timeout_scope_guard() {
+  m_parent->get_protocol().remove_send_message_handler(m_handler_id);
+  auto &connection = m_parent->get_protocol().get_connection();
+  const auto read_timeout =
+      m_parent->m_context->m_connection_config.m_timeout_read;
+  connection.set_read_timeout(
+      details::make_vio_timeout((read_timeout < 0) ? -1 : read_timeout / 1000));
+  const auto write_timeout =
+      m_parent->m_context->m_connection_config.m_timeout_write;
+  connection.set_write_timeout(details::make_vio_timeout(
+      (write_timeout < 0) ? -1 : write_timeout / 1000));
 }
 
 static void initialize_xmessages() {

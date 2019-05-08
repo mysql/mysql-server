@@ -8,31 +8,25 @@ PREAMBLE
 ================================================================================
 TEST START
 ================================================================================
-RUN drop schema if exists xtest
+create schema xtest;
 
-0 rows affected
-RUN create schema xtest
-
-1 rows affected
+command ok
 RUN use xtest
 
 0 rows affected
-RUN create table mycoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
-
-0 rows affected
-RUN insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Robb", "amount": 125.21}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mycoll (doc) values ('{"_id": "1", "name": "Robb", "amount": 125.21}')
 
 1 rows affected
-RUN insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Bran", "amount": 542.75}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mycoll (doc) values ('{"_id": "2", "name": "Bran", "amount": 542.75}')
 
 1 rows affected
-RUN insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Arya", "amount": 98.89}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mycoll (doc) values ('{"_id": "3", "name": "Arya", "amount": 98.89}')
 
 1 rows affected
-RUN insert into mycoll (doc, _id) values ('{"_id": "4", "name": "Tassadar", "amount": 57.52}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mycoll (doc) values ('{"_id": "4", "name": "Tassadar", "amount": 57.52}')
 
 1 rows affected
-RUN insert into mycoll (doc, _id) values ('{"_id": "5", "name": "Sansa", "amount": null}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mycoll (doc) values ('{"_id": "5", "name": "Sansa", "amount": null}')
 
 1 rows affected
 RUN SELECT * FROM xtest.mycoll
@@ -1096,7 +1090,7 @@ doc	_id
 {"_id": "4", "name": "watermelon_replace", "amount": null}	4
 {"_id": "5", "name": "watermelon_replace", "amount": null}	5
 0 rows affected
-Update with ITEM_MERGE value and placeholder 
+Update with ITEM_MERGE value and placeholder
 send Mysqlx.Crud.Update {
   collection {
     name: "mycoll"
@@ -1151,10 +1145,10 @@ doc	_id
 {"_id": "4", "name": "watermelon_replace", "amount": null}	4
 {"_id": "5", "name": "watermelon_replace", "amount": null}	5
 0 rows affected
-RUN insert into mycoll (doc, _id) values ('{"_id": "6", "third": ["two"]}', json_unquote(json_extract(doc, '$._id')))
+RUN insert into mycoll (doc) values ('{"_id": "6", "third": ["two"]}')
 
 1 rows affected
-Update with ARRAY_INSERT value and placeholder 
+Update with ARRAY_INSERT value and placeholder
 send Mysqlx.Crud.Update {
   collection {
     name: "mycoll"

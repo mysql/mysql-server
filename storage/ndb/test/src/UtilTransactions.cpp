@@ -1131,7 +1131,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       return NDBT_FAILED;
     }
         
-    int eof;
+    int eof = 0;
     int rows = 0;
     while(check == 0 && (eof = pOp->nextResult()) == 0){
       rows++;

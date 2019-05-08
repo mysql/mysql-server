@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,6 @@
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_datetime.h"
 #include "unittest/gunit/test_utils.h"
-
-/*
-  HAVE_UBSAN: undefined behaviour in gmock.
-  runtime error: member call on null pointer of type 'const struct ResultHolder'
- */
-#if !defined(HAVE_UBSAN)
 
 namespace {
 
@@ -291,5 +285,3 @@ TEST_F(HandlerTest, SamplingInterfaceNoRows) {
 }
 
 }  // namespace
-
-#endif  // HAVE_UBSAN

@@ -115,6 +115,7 @@ diff_files $MYSQLTEST_VARDIR/tmp/trig001_master.sql $MYSQLTEST_VARDIR/tmp/trig00
 # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/trig001_master.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/trig001_slave.sql
+--enable_warnings
 
 # End of 5.0 test case
 --source include/rpl_end.inc

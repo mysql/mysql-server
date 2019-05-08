@@ -66,7 +66,8 @@ log                               (No default value)
 Number of pages:#
 Number of pages:#
 [4]:# Print the version of innochecksum and exit
-innochecksum Ver #.#.## Restart the DB server
+innochecksum Ver #.#.#
+# Restart the DB server
 # restart
 DROP TABLE t1;
 [5]:# Check the innochecksum for compressed table t1 with different key_block_size

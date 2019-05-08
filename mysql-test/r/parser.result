@@ -643,8 +643,8 @@ create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engin
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
 create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat';
-ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'LOGFILE GROUP'
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
+ERROR HY000: Feature LOGFILE GROUP is unsupported (by InnoDB).
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
@@ -2374,3 +2374,149 @@ Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
 SET parser_max_mem_size = 10000000;
 ERROR HY000: Memory capacity of 10000000 bytes for 'parser_max_mem_size' exceeded. Parser bailed out for this query.
 SET parser_max_mem_size = default;
+#
+# Bug #28968848: SIMPLIFY MYSQL_YYABORT
+#
+CREATE PROCEDURE p1 () wrong syntax;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'syntax' at line 1
+#
+# Bug #25220656: THE "PERSIST" EXTENSION IS A RESERVED KEYWORD
+#
+SELECT 1 AS PERSIST, 2 AS PERSIST_ONLY;
+PERSIST	PERSIST_ONLY
+1	2
+CREATE ROLE EVENT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EVENT' at line 1
+CREATE ROLE FILE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FILE' at line 1
+CREATE ROLE NONE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NONE' at line 1
+CREATE ROLE PROCESS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PROCESS' at line 1
+CREATE ROLE PROXY;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PROXY' at line 1
+CREATE ROLE RELOAD;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELOAD' at line 1
+CREATE ROLE REPLICATION;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REPLICATION' at line 1
+CREATE ROLE RESOURCE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RESOURCE' at line 1
+CREATE ROLE SUPER;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUPER' at line 1
+SET GLOBAL = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET LOCAL = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET PERSIST = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET PERSIST_ONLY = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET SESSION = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+#
+# Bug#29033659: SOME NON-RESERVED WORDS CAN'T BE USED AS SP LABELS
+#
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+ACCOUNT: LOOP RETURN 1; END LOOP;
+ALWAYS: LOOP RETURN 1; END LOOP;
+BACKUP: LOOP RETURN 1; END LOOP;
+CLOSE: LOOP RETURN 1; END LOOP;
+FORMAT: LOOP RETURN 1; END LOOP;
+GROUP_REPLICATION: LOOP RETURN 1; END LOOP;
+HOST: LOOP RETURN 1; END LOOP;
+INVISIBLE: LOOP RETURN 1; END LOOP;
+OPEN: LOOP RETURN 1; END LOOP;
+OPTIONS: LOOP RETURN 1; END LOOP;
+OWNER: LOOP RETURN 1; END LOOP;
+PARSER: LOOP RETURN 1; END LOOP;
+PORT: LOOP RETURN 1; END LOOP;
+REMOVE: LOOP RETURN 1; END LOOP;
+RESTORE: LOOP RETURN 1; END LOOP;
+ROLE: LOOP RETURN 1; END LOOP;
+SECONDARY: LOOP RETURN 1; END LOOP;
+SECONDARY_ENGINE: LOOP RETURN 1; END LOOP;
+SECONDARY_LOAD: LOOP RETURN 1; END LOOP;
+SECONDARY_UNLOAD: LOOP RETURN 1; END LOOP;
+SECURITY: LOOP RETURN 1; END LOOP;
+SERVER: LOOP RETURN 1; END LOOP;
+SOCKET: LOOP RETURN 1; END LOOP;
+SONAME: LOOP RETURN 1; END LOOP;
+UPGRADE: LOOP RETURN 1; END LOOP;
+VISIBLE: LOOP RETURN 1; END LOOP;
+WRAPPER: LOOP RETURN 1; END LOOP;
+END|
+DROP FUNCTION f1;
+#
+# Bug#29205289: PARSER ACCEPTS UNDOCUMENTED SYNTAX: `... = TABLE_ALIAS`
+#
+CREATE TABLE t1 (i INT);
+LOCK TABLES t1=a READ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a READ' at line 1
+HANDLER t1 OPEN=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+SELECT * FROM t1=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+SELECT * FROM (SELECT 1)=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+SELECT * FROM t1 JOIN t1=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+UPDATE t1=a SET i=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a SET i=0' at line 1
+DROP TABLE t1;
+#
+# Bug #22320942: ODBC OUTER JOIN ESCAPE SEQUENCE SYNTAX IS BROKEN
+#
+CREATE TEMPORARY TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+SELECT * FROM { OJ t1 LEFT JOIN t2 ON TRUE };
+i	i
+SELECT * FROM { `OJ` t1 LEFT JOIN t2 ON TRUE };
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`OJ` t1 LEFT JOIN t2 ON TRUE }' at line 1
+SELECT * FROM { random_identifier t1 LEFT JOIN t2 ON TRUE };
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'random_identifier t1 LEFT JOIN t2 ON TRUE }' at line 1
+DROP TABLE t1, t2;
+#
+# Bug #28997518: "COLLATE X GENERATED ALWAYS ... COLLATE Y": X HAS
+#                 A PRIORITY OVER Y
+#
+CREATE TABLE t1 (
+x VARCHAR(10)
+COLLATE ascii_bin
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+)' at line 4
+CREATE TABLE t2 (
+x VARCHAR(10)
+COLLATE ascii_bin
+COLLATE ascii_general_ci
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_general_ci
+)' at line 4
+CREATE TABLE t3 (
+x VARCHAR(10)
+COLLATE ascii_bin
+NOT NULL
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+)' at line 5
+CREATE TABLE t3 (
+x VARCHAR(10)
+COLLATE ascii_bin
+GENERATED ALWAYS AS(NULL)
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'COLLATE ascii_bin
+GENERATED ALWAYS AS(NULL)
+COLLATE ascii_bin
+)' at line 3
+CREATE TABLE t4 (
+x VARCHAR(10)
+GENERATED ALWAYS AS(NULL)
+COLLATE ascii_bin
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+)' at line 5

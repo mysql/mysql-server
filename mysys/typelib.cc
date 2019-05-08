@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option) {
   int res;
   const char **ptr;
 
-  if ((res = find_type((char *)x, typelib, FIND_TYPE_BASIC)) <= 0) {
+  if ((res = find_type(x, typelib, FIND_TYPE_BASIC)) <= 0) {
     ptr = typelib->type_names;
     if (!*x)
       fprintf(stderr, "No option given to %s\n", option);
@@ -172,10 +172,10 @@ const char *get_type(TYPELIB *typelib, uint nr) {
     a integer representation of the supplied string
 */
 
-my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err) {
+my_ulonglong find_typeset(const char *x, TYPELIB *lib, int *err) {
   my_ulonglong result;
   int find;
-  char *i;
+  const char *i;
   DBUG_ENTER("find_set");
   DBUG_PRINT("enter", ("x: '%s'  lib: %p", x, lib));
 
@@ -308,10 +308,10 @@ static uint parse_name(const TYPELIB *lib, const char **strpos,
     Parsed set value if (*errpos == NULL), otherwise undefined
 */
 
-my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
+my_ulonglong find_set_from_flags(const TYPELIB *lib, size_t default_name,
                                  my_ulonglong cur_set, my_ulonglong default_set,
-                                 const char *str, uint length, char **err_pos,
-                                 uint *err_len) {
+                                 const char *str, uint length,
+                                 const char **err_pos, uint *err_len) {
   const char *end = str + length;
   my_ulonglong flags_to_set = 0, flags_to_clear = 0, res;
   bool set_defaults = 0;
@@ -356,7 +356,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
       start = pos;
       continue;
     err:
-      *err_pos = (char *)start;
+      *err_pos = start;
       *err_len = (uint)(end - start);
       break;
     }

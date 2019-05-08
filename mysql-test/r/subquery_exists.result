@@ -1,0 +1,524 @@
+CREATE TABLE t1(
+pk INTEGER PRIMARY KEY,
+uk INTEGER UNIQUE,
+ukn INTEGER UNIQUE NOT NULL,
+ik INTEGER,
+d INTEGER,
+INDEX ik(ik));
+INSERT INTO t1 VALUES
+(0, NULL, 0, NULL, NULL),
+(1, 10, 20, 30, 40),
+(2, 20, 40, 60, 80);
+CREATE TABLE t2(
+pk INTEGER PRIMARY KEY);
+INSERT INTO t2 VALUES
+(1), (2), (3), (4), (5), (6), (7), (8), (9),(10),
+(11),(12),(13),(14),(15),(16),(17),(18),(19),(20),
+(21),(22),(23),(24),(25),(26),(27),(28),(29),(30),
+(31),(32),(33),(34),(35),(36),(37),(38),(39),(40),
+(41),(42),(43),(44),(45),(46),(47),(48),(49),(50),
+(51),(52),(53),(54),(55),(56),(57),(58),(59),(60),
+(61),(62),(63),(64),(65),(66),(67),(68),(69),(70),
+(71),(72),(73),(74),(75),(76),(77),(78),(79),(80);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT 1 FROM dual
+WHERE EXISTS (SELECT * FROM t1 AS it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from DUAL  where 1
+SELECT 1 FROM dual
+WHERE EXISTS (SELECT * FROM t1 AS it);
+1
+1
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT 1 FROM dual);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` where 1
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT 1 FROM dual);
+pk	uk	ukn	ik	d
+0	NULL	0	NULL	NULL
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT 1 FROM dual WHERE FALSE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` where 0
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT 1 FROM dual WHERE FALSE);
+pk	uk	ukn	ik	d
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using index; FirstMatch
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where 1
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it);
+pk	uk	ukn	ik	d
+0	NULL	0	NULL	NULL
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `it` join `test`.`t1` `ot` where 1
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk = 1);
+pk	uk	ukn	ik	d
+0	NULL	0	NULL	NULL
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `it` join `test`.`t1` `ot` where multiple equal(1, NULL)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk = 1);
+pk	uk	ukn	ik	d
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `it` join `test`.`t1` `ot` where multiple equal(1, NULL)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn = 1);
+pk	uk	ukn	ik	d
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	ref	ik	ik	5	const	1	100.00	Using index; FirstMatch
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`ik` = 1)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik = 1);
+pk	uk	ukn	ik	d
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`d` = 1)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = 1);
+pk	uk	ukn	ik	d
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk = ot.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	eq_ref	PRIMARY	PRIMARY	4	test.ot.pk	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `it` join `test`.`t1` `ot` where (`test`.`it`.`pk` = `test`.`ot`.`pk`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk = ot.pk);
+pk	uk	ukn	ik	d
+0	NULL	0	NULL	NULL
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk = ot.uk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	uk	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	it	NULL	ref	uk	uk	5	test.ot.uk	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.uk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `it` join `test`.`t1` `ot` where (`test`.`it`.`uk` = `test`.`ot`.`uk`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk = ot.uk);
+pk	uk	ukn	ik	d
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn = ot.ukn);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	ukn	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	eq_ref	ukn	ukn	4	test.ot.ukn	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.ukn' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `it` join `test`.`t1` `ot` where (`test`.`it`.`ukn` = `test`.`ot`.`ukn`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn = ot.ukn);
+pk	uk	ukn	ik	d
+0	NULL	0	NULL	NULL
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik = ot.ik);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	ik	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	it	NULL	ref	ik	ik	5	test.ot.ik	1	100.00	Using index; FirstMatch(ot)
+Warnings:
+Note	1276	Field or reference 'test.ot.ik' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`ik` = `test`.`ot`.`ik`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik = ot.ik);
+pk	uk	ukn	ik	d
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = ot.d);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`d` = `test`.`ot`.`d`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = ot.d);
+pk	uk	ukn	ik	d
+1	10	20	30	40
+2	20	40	60	80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk > ot.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x1); FirstMatch(ot)
+Warnings:
+Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`pk` > `test`.`ot`.`pk`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk > ot.pk);
+pk	uk	ukn	ik	d
+0	NULL	0	NULL	NULL
+1	10	20	30	40
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk > ot.uk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	uk	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	ALL	uk	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x4); FirstMatch(ot)
+Warnings:
+Note	1276	Field or reference 'test.ot.uk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`uk` > `test`.`ot`.`uk`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk > ot.uk);
+pk	uk	ukn	ik	d
+1	10	20	30	40
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn > ot.ukn);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	ukn	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	ALL	ukn	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x2); FirstMatch(ot)
+Warnings:
+Note	1276	Field or reference 'test.ot.ukn' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`ukn` > `test`.`ot`.`ukn`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn > ot.ukn);
+pk	uk	ukn	ik	d
+0	NULL	0	NULL	NULL
+1	10	20	30	40
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik > ot.ik);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	ik	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	ALL	ik	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x8); FirstMatch(ot)
+Warnings:
+Note	1276	Field or reference 'test.ot.ik' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`ik` > `test`.`ot`.`ik`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik > ot.ik);
+pk	uk	ukn	ik	d
+1	10	20	30	40
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d > ot.d);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`d` > `test`.`ot`.`d`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d > ot.d);
+pk	uk	ukn	ik	d
+1	10	20	30	40
+EXPLAIN SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik = ot.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	index	ik	ik	5	NULL	3	100.00	Using where; Using index; LooseScan
+1	SIMPLE	ot	NULL	eq_ref	PRIMARY	PRIMARY	4	test.it.ik	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where (`test`.`ot`.`pk` = `test`.`it`.`ik`)
+SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik = ot.pk);
+pk
+30
+60
+EXPLAIN SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk = ot.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	index	PRIMARY	ukn	4	NULL	3	100.00	Using index
+1	SIMPLE	ot	NULL	eq_ref	PRIMARY	PRIMARY	4	test.it.pk	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk` from `test`.`t1` `it` join `test`.`t2` `ot` where (`test`.`ot`.`pk` = `test`.`it`.`pk`)
+SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.pk = ot.pk);
+pk
+1
+2
+EXPLAIN SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk = ot.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	index	uk	uk	5	NULL	3	100.00	Using where; Using index
+1	SIMPLE	ot	NULL	eq_ref	PRIMARY	PRIMARY	4	test.it.uk	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk` from `test`.`t1` `it` join `test`.`t2` `ot` where (`test`.`ot`.`pk` = `test`.`it`.`uk`)
+SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.uk = ot.pk);
+pk
+10
+20
+EXPLAIN SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn = ot.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	it	NULL	index	ukn	ukn	4	NULL	3	100.00	Using index
+1	SIMPLE	ot	NULL	eq_ref	PRIMARY	PRIMARY	4	test.it.ukn	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk` from `test`.`t1` `it` join `test`.`t2` `ot` where (`test`.`ot`.`pk` = `test`.`it`.`ukn`)
+SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ukn = ot.pk);
+pk
+20
+40
+EXPLAIN SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = ot.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	ot	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.d	1	100.00	Using index
+2	MATERIALIZED	it	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where (`test`.`ot`.`pk` = `<subquery2>`.`d`)
+SELECT * FROM t2 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = ot.pk);
+pk
+40
+80
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t2 AS it WHERE ot.d = it.pk - 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	8	test.ot.d	1	100.00	Using where
+2	MATERIALIZED	it	NULL	index	NULL	PRIMARY	4	NULL	80	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`ot`.`d` = `<subquery2>`.`tmp_field_0`)
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t2 AS it WHERE ot.d = it.pk - 1);
+pk	uk	ukn	ik	d
+1	10	20	30	40
+EXPLAIN SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it1 JOIN t2 AS it2 ON it1.pk > it2.pk
+WHERE ot.d = it2.pk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	it2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.ot.d	1	100.00	Using index
+1	SIMPLE	it1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x1); FirstMatch(it2)
+Warnings:
+Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t2` `it2` semi join (`test`.`t1` `it1`) join `test`.`t1` `ot` where ((`test`.`it2`.`pk` = `test`.`ot`.`d`) and (`test`.`it1`.`pk` > `test`.`ot`.`d`))
+SELECT * FROM t1 AS ot
+WHERE EXISTS (SELECT * FROM t1 AS it1 JOIN t2 AS it2 ON it1.pk > it2.pk
+WHERE ot.d = it2.pk);
+pk	uk	ukn	ik	d
+DROP TABLE t1, t2;
+# Bug#28957660 Regression: Crash in select_lex::flatten_subqueries
+CREATE TABLE t1 (a INTEGER);
+explain SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE 127 = 55);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE 127 = 55);
+a
+explain SELECT * FROM t1
+WHERE EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) where 1
+SELECT * FROM t1
+WHERE EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1);
+a
+explain SELECT * FROM t1
+WHERE EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+32	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) where 0
+SELECT * FROM t1
+WHERE EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1) AND
+EXISTS (SELECT * FROM t1);
+a
+DROP TABLE t1;

@@ -1,0 +1,119 @@
+MySQL Server 1
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile1.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile1.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE=NDB;
+CREATE TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile1.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE=NDB;
+CREATE TABLESPACE ts3
+ADD DATAFILE 'ts3_datafile1.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE=NDB;
+MySQL Server 2
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE=NDB;
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile3.dat'
+  ENGINE=NDB;
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+ALTER TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile2.dat';
+ALTER TABLESPACE ts3
+ADD DATAFILE 'ts3_datafile2.dat';
+MySQL Server 1
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE=NDB;
+ERROR HY000: Failed to alter: CREATE UNDOFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create undofile 'lg1_undofile2.dat' in NDB
+Error	1533	Failed to alter: CREATE UNDOFILE FAILED
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile3.dat'
+  ENGINE=NDB;
+ERROR HY000: Failed to alter: CREATE UNDOFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create undofile 'lg1_undofile3.dat' in NDB
+Error	1533	Failed to alter: CREATE UNDOFILE FAILED
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create datafile 'ts1_datafile2.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
+ALTER TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile2.dat';
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create datafile 'ts2_datafile2.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
+ALTER TABLESPACE ts3
+ADD DATAFILE 'ts3_datafile2.dat';
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create datafile 'ts3_datafile2.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile1.dat';
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile1.dat';
+ALTER TABLESPACE ts3
+DROP DATAFILE 'ts3_datafile1.dat';
+MySQL Server 2
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile1.dat';
+ERROR HY000: Tablespace 'ts1' does not have a file named 'ts1_datafile1.dat'
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile1.dat';
+ERROR HY000: Tablespace 'ts2' does not have a file named 'ts2_datafile1.dat'
+ALTER TABLESPACE ts3
+DROP DATAFILE 'ts3_datafile1.dat';
+ERROR HY000: Tablespace 'ts3' does not have a file named 'ts3_datafile1.dat'
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile2.dat';
+DROP TABLESPACE ts2;
+ALTER TABLESPACE ts3
+DROP DATAFILE 'ts3_datafile2.dat';
+DROP TABLESPACE ts3;
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;
+MySQL Server 1
+DROP TABLESPACE ts1;
+ERROR HY000: Tablespace ts1 doesn't exist.
+DROP TABLESPACE ts2;
+ERROR HY000: Tablespace ts2 doesn't exist.
+DROP TABLESPACE ts3;
+ERROR HY000: Tablespace ts3 doesn't exist.
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;
+ERROR HY000: Failed to drop LOGFILE GROUP
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 723 'No such table existed' from NDB
+Warning	1296	Failed to get logfile group 'lg1' from NDB
+Error	1529	Failed to drop LOGFILE GROUP

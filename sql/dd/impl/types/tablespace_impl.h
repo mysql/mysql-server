@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,11 @@
 #include <new>
 #include <string>
 
+#include "sql/dd/impl/properties_impl.h"
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
-#include "sql/dd/properties.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/tablespace.h"       // dd::Tablespace
@@ -96,23 +96,27 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return *m_options; }
+  virtual const Properties &options() const { return m_options; }
 
-  virtual Properties &options() { return *m_options; }
+  virtual Properties &options() { return m_options; }
 
-  virtual bool set_options_raw(const String_type &options_raw);
+  virtual bool set_options(const String_type &options_raw) {
+    return m_options.insert_values(options_raw);
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
   virtual const Properties &se_private_data() const {
-    return *m_se_private_data;
+    return m_se_private_data;
   }
 
-  virtual Properties &se_private_data() { return *m_se_private_data; }
+  virtual Properties &se_private_data() { return m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
+  virtual bool set_se_private_data(const String_type &se_private_data_raw) {
+    return m_se_private_data.insert_values(se_private_data_raw);
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // m_engine.
@@ -150,8 +154,8 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   // Fields
 
   String_type m_comment;
-  std::unique_ptr<Properties> m_options;
-  std::unique_ptr<Properties> m_se_private_data;
+  Properties_impl m_options;
+  Properties_impl m_se_private_data;
   String_type m_engine;
 
   // Collections.

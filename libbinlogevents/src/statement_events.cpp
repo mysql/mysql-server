@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,8 @@ Query_event::Query_event(
       mts_accessed_dbs(0),
       ddl_xid(INVALID_XID),
       default_collation_for_utf8mb4_number(0),
-      sql_require_primary_key(0xff) {}
+      sql_require_primary_key(0xff),
+      default_table_encryption(0xff) {}
 
 /**
   Utility function for the Query_event constructor.
@@ -133,7 +134,8 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS),
       ddl_xid(INVALID_XID),
       default_collation_for_utf8mb4_number(0),
-      sql_require_primary_key(0xff) {
+      sql_require_primary_key(0xff),
+      default_table_encryption(0xff) {
   BAPI_ENTER("Query_event::Query_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
@@ -282,9 +284,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
           */
           if (binary_log_debug::debug_query_mts_corrupt_db_names) {
             if (mts_accessed_dbs == 2) {
-              const char *pos = READER_CALL(ptr);
+              char *pos = const_cast<char *>(READER_CALL(ptr));
               BAPI_ASSERT(pos[sizeof("d?") - 1] == 0);
-              ((char *)pos)[sizeof("d?") - 1] = 'a';
+              pos[sizeof("d?") - 1] = 'a';
               is_corruption_injected = true;
             }
           }
@@ -324,6 +326,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         break;
       case Q_SQL_REQUIRE_PRIMARY_KEY:
         READER_TRY_SET(sql_require_primary_key, read<uint8_t>);
+        break;
+      case Q_DEFAULT_TABLE_ENCRYPTION:
+        READER_TRY_SET(default_table_encryption, read<uint8_t>);
         break;
       default:
         /* That's why you must write status vars in growing order of code */
@@ -404,7 +409,7 @@ User_var_event::User_var_event(const char *buf,
 
   READER_TRY_SET(name_len, read_and_letoh<uint32_t>);
   if (name_len == 0) READER_THROW("Invalid name length");
-  name = READER_CALL(ptr, name_len);
+  name = READER_CALL(strndup<const char *>, name_len);
   READER_TRY_SET(is_null, read<uint8_t>);
 
   flags = User_var_event::UNDEF_F;  // defaults to UNDEF_F
@@ -421,9 +426,24 @@ User_var_event::User_var_event(const char *buf,
     uint8_t type_tmp;
     READER_TRY_SET(type_tmp, read<uint8_t>);
     type = (Value_type)type_tmp;
+    switch (type) {
+      case STRING_RESULT:
+      case DECIMAL_RESULT:
+      case REAL_RESULT:
+      case INT_RESULT:
+        break;
+      default:
+        READER_THROW("Invalid type found while deserializing User_var_event");
+    }
     READER_TRY_SET(charset_number, read_and_letoh<uint32_t>);
     READER_TRY_SET(val_len, read_and_letoh<uint32_t>);
     val = const_cast<char *>(READER_CALL(ptr, val_len));
+    // val[0] is precision and val[1] is scale so precision >= scale for decimal
+    if (type == DECIMAL_RESULT) {
+      if (val[0] < val[1])
+        READER_THROW(
+            "Invalid User value found while deserializing User_var_event");
+    }
     /**
       We need to check if this is from an old server
       that did not pack information for flags.
@@ -443,6 +463,8 @@ User_var_event::User_var_event(const char *buf,
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
 }
+
+User_var_event::~User_var_event() { bapi_free(const_cast<char *>(name)); }
 
 /**
   Constructor receives a packet from the MySQL master or the binary

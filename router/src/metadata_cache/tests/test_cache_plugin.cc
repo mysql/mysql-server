@@ -32,6 +32,7 @@
 #include "test/helpers.h"
 
 #include <chrono>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -41,6 +42,7 @@
  * Constants that are used throughout the test cases.
  */
 
+const std::string replication_group_id = "0000-0000-0001";
 const std::string kDefaultTestReplicaset_1 = "replicaset-1";  // replicaset-1
 const std::string kDefaultTestReplicaset_2 = "replicaset-2";  // replicaset-2
 const std::string kDefaultTestReplicaset_3 = "replicaset-3";  // replicaset-3
@@ -54,7 +56,7 @@ const std::string kDefaultMetadataReplicaset = "replicaset-1";
 
 const mysql_harness::TCPAddress bootstrap_server(kDefaultMetadataHost,
                                                  kDefaultMetadataPort);
-const std::vector<mysql_harness::TCPAddress> bootstrap_server_vector = {
+const std::vector<mysql_harness::TCPAddress> metadata_server_vector = {
     bootstrap_server};
 
 using metadata_cache::ManagedInstance;
@@ -71,9 +73,10 @@ class MetadataCachePluginTest : public ::testing::Test {
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::MetadataCacheAPI::instance()->cache_init(
-        bootstrap_server_vector, kDefaultMetadataUser, kDefaultMetadataPassword,
-        kDefaultMetadataTTL, mysqlrouter::SSLOptions(),
-        kDefaultMetadataReplicaset, 1, 1);
+        replication_group_id, metadata_server_vector, kDefaultMetadataUser,
+        kDefaultMetadataPassword, kDefaultMetadataTTL,
+        mysqlrouter::SSLOptions(), kDefaultMetadataReplicaset, 1, 1);
+    metadata_cache::MetadataCacheAPI::instance()->cache_start();
     int count = 1;
     /**
      * Wait until the plugin is completely initialized. Since

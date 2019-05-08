@@ -27,12 +27,13 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 
 struct CHARSET_INFO;
 
@@ -60,11 +61,21 @@ class Query_formatter {
     return put(value);
   }
 
+  std::size_t count_tags() const;
+
  private:
   template <typename Value_type>
   Query_formatter &put(const Value_type &value) {
     validate_next_tag();
-    std::string string_value = ngs::to_string(value);
+    std::string string_value = to_string(value);
+    put_value(string_value.c_str(), string_value.length());
+
+    return *this;
+  }
+
+  Query_formatter &put(const bool value) {
+    validate_next_tag();
+    std::string string_value = value ? "true" : "false";
     put_value(string_value.c_str(), string_value.length());
 
     return *this;
@@ -99,6 +110,14 @@ inline Query_formatter &Query_formatter::operator%
 template <>
 inline Query_formatter &Query_formatter::operator%<float>(const float &value) {
   return put_fp(value);
+}
+
+template <>
+inline Query_formatter &Query_formatter::put<bool>(const bool &value) {
+  validate_next_tag();
+  const std::string string_value = value ? "true" : "false";
+  put_value(string_value.c_str(), string_value.length());
+  return *this;
 }
 
 }  // namespace xpl

@@ -64,6 +64,7 @@
 #define ZTIMER_HANDLING 4
 #define ZARBIT_HANDLING 5
 #define ZSTART_FAILURE_LIMIT 6
+#define ZNOTIFY_STATE_CHANGE 7
 
 /* Error Codes ------------------------------*/
 #define ZERRTOOMANY 1101
@@ -384,6 +385,10 @@ private:
 
   // NDBCNTR informing us our node is fully started
   void execNODE_STARTED_REP(Signal *signal);
+
+  // NDBCNTR node state change
+  void execNODE_STATE_REP(Signal *signal);
+  void handleStateChange(Signal* signal, const Uint32 nodeId);
 
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);

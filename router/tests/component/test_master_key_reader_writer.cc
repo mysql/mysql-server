@@ -23,6 +23,7 @@
  */
 
 #include <fstream>
+#include <stdexcept>
 #include <system_error>
 
 #ifdef _WIN32
@@ -67,7 +68,7 @@ class MasterKeyReaderWriterTest : public RouterComponentTest,
  protected:
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
     tmp_dir_ = get_tmp_dir();
     bootstrap_dir_ = get_tmp_dir();
     logging_folder = Path(tmp_dir_).join("log").str();
@@ -228,9 +229,8 @@ TEST_F(MasterKeyReaderWriterTest,
 
   // check if the bootstraping was successful
   EXPECT_EQ(router.wait_for_exit(30000), 0);
-  EXPECT_TRUE(
-      router.expect_output("MySQL Router  has now been configured for the "
-                           "InnoDB cluster 'mycluster'"))
+  EXPECT_TRUE(router.expect_output(
+      "MySQL Router configured for the InnoDB cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -280,7 +280,7 @@ TEST_F(MasterKeyReaderWriterTest,
   // check if the bootstraping was successful
   EXPECT_EQ(router.wait_for_exit(30000), 0);
   EXPECT_TRUE(
-      router.expect_output("MySQL Router  has now been configured for the "
+      router.expect_output("MySQL Router configured for the "
                            "InnoDB cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
@@ -386,7 +386,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
  * option is used and bootstrap fails, then original keyring file is restored.
  */
 TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
-  mysqlrouter::mkdir(Path(tmp_dir_).join("data").str(), 0777);
+  mysql_harness::mkdir(Path(tmp_dir_).join("data").str(), 0777);
   // create keyring file
   Path keyring_path(Path(tmp_dir_).join("data").join("keyring").str());
 
@@ -479,7 +479,7 @@ TEST_F(MasterKeyReaderWriterTest,
   // check if the bootstraping was successful
   EXPECT_EQ(router.wait_for_exit(30000), 0);
   EXPECT_TRUE(
-      router.expect_output("MySQL Router  has now been configured for the "
+      router.expect_output("MySQL Router configured for the "
                            "InnoDB cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
@@ -548,8 +548,12 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
 
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &default_section_map));
 
@@ -592,8 +596,12 @@ TEST_F(MasterKeyReaderWriterTest,
 
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &default_section_map));
 
@@ -633,8 +641,12 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
 
   auto default_section_map = get_default_section_map(true, true);
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &default_section_map));
 
@@ -664,8 +676,12 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
   auto incorrect_master_key_default_section_map =
       get_incorrect_master_key_default_section_map();
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &incorrect_master_key_default_section_map));
 
@@ -684,7 +700,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
  protected:
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
     init_tmp_dir();
 
     set_mysqlrouter_exec(Path(exec_file_));
@@ -713,8 +729,8 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
    */
   void init_tmp_dir() {
     tmp_dir_ = get_tmp_dir();
-    mysqlrouter::mkdir(tmp_dir_ + "/stage", 0700);
-    mysqlrouter::mkdir(tmp_dir_ + "/stage/bin", 0700);
+    mysql_harness::mkdir(tmp_dir_ + "/stage", 0700);
+    mysql_harness::mkdir(tmp_dir_ + "/stage/bin", 0700);
     exec_file_ = tmp_dir_ + "/stage/bin/mysqlrouter";
     mysqlrouter::copy_file(get_mysqlrouter_exec().str(), exec_file_);
 #ifndef _WIN32
@@ -762,7 +778,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
   std::string library_link_file_;
 #endif
 
-  unsigned server_port_;
+  uint16_t server_port_;
 };
 
 /**
@@ -794,7 +810,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
       << router.get_full_output();
 
   EXPECT_TRUE(
-      router.expect_output("MySQL Router  has now been configured for the "
+      router.expect_output("MySQL Router configured for the "
                            "InnoDB cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
@@ -882,7 +898,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
  */
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
        KeyringFileRestoredWhenBootstrapFails) {
-  mysqlrouter::mkdir(Path(tmp_dir_).join("stage").join("data").str(), 0777);
+  mysql_harness::mkdir(Path(tmp_dir_).join("stage").join("data").str(), 0777);
   // create keyring file
   Path keyring_path(
       Path(tmp_dir_).join("stage").join("data").join("keyring").str());

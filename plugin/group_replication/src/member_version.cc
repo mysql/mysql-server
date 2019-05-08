@@ -89,5 +89,3 @@ bool Member_version::operator>=(const Member_version &other) const {
 bool Member_version::operator<=(const Member_version &other) const {
   return (*this == other || *this < other);
 }
-
-Member_version::~Member_version() {}

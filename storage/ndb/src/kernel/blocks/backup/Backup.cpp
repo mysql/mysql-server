@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,10 +93,11 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DEL_FILES 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
-//#define DEBUG_LCP_STAT 1
-//#define DEBUG_EXTENDED_LCP_STAT 1
 //#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_REDO_CONTROL_DETAIL 1
+//#define DEBUG_LCP_DD 1
+//#define DEBUG_LCP_STAT 1
+//#define DEBUG_EXTENDED_LCP_STAT 1
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -115,6 +116,12 @@ static NDB_TICKS startTime;
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_LCP_DD
+#define DEB_LCP_DD(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DD(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP_DEL_FILES
@@ -152,8 +159,9 @@ static NDB_TICKS startTime;
 
 static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
 
-#define SEND_BACKUP_STARTED_FLAG(A) (((A) & 0x3) > 0)
-#define SEND_BACKUP_COMPLETED_FLAG(A) (((A) & 0x3) > 1)
+#define SEND_BACKUP_STARTED_FLAG(A) (((A) & BackupReq::WAITCOMPLETED) > 0)
+#define SEND_BACKUP_COMPLETED_FLAG(A) (((A) & BackupReq::WAITCOMPLETED) > 1)
+#define MT_BACKUP_FLAG(A) (((A) & BackupReq::MT_BACKUP) > 0)
 
 /**
  * "Magic" constants used for adaptive LCP speed algorithm. These magic
@@ -1670,7 +1678,7 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
 
   const Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
 
-  if (m_is_backup_running && 
+  if (m_is_backup_running && m_skew_disk_speed &&
       num_ldm_threads > 1)
   {
     jam();
@@ -2147,7 +2155,7 @@ Backup::execCHECK_NODE_RESTARTCONF(Signal *signal)
     }
   }
   m_is_lcp_running = (signal->theData[0] == 1);
-  m_is_backup_running = g_is_backup_running;  /* Global from backup instance */
+  m_is_backup_running = g_is_single_thr_backup_running;  /* Global from backup instance */
   m_is_any_node_restarting = (signal->theData[1] == 1);
   const char* backup_text=NULL;
   const char* restart_text=NULL;
@@ -3206,13 +3214,15 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         c_backupPool.getSize(),
         c_backupPool.getEntrySize(),
         c_backupPool.getUsedHi(),
-        { CFG_DB_PARALLEL_BACKUPS,0,0,0 }},
+        { CFG_DB_PARALLEL_BACKUPS,0,0,0 },
+        0},
       { "Backup File",
         c_backupFilePool.getUsed(),
         c_backupFilePool.getSize(),
         c_backupFilePool.getEntrySize(),
         c_backupFilePool.getUsedHi(),
-        { CFG_DB_PARALLEL_BACKUPS,0,0,0 }},
+        { CFG_DB_PARALLEL_BACKUPS,0,0,0 },
+        0},
       { "Table",
         c_tablePool.getUsed(),
         c_tablePool.getSize(),
@@ -3221,7 +3231,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         { CFG_DB_PARALLEL_BACKUPS,
           CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES },
+        0},
       { "Trigger",
         c_triggerPool.getUsed(),
         c_triggerPool.getSize(),
@@ -3230,7 +3241,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         { CFG_DB_PARALLEL_BACKUPS,
           CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES },
+        0},
       { "Fragment",
         c_fragmentPool.getUsed(),
         c_fragmentPool.getSize(),
@@ -3238,15 +3250,17 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         c_fragmentPool.getUsedHi(),
         { CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+        0},
       { "Page",
         c_pagePool.getUsed(),
         c_pagePool.getSize(),
         c_pagePool.getEntrySize(),
         c_pagePool.getUsedHi(),
         { CFG_DB_BACKUP_MEM,
-          CFG_DB_BACKUP_DATA_BUFFER_MEM,0,0 }},
-      { NULL, 0,0,0,0, { 0,0,0,0 }}
+          CFG_DB_BACKUP_DATA_BUFFER_MEM,0,0 },
+        0},
+      { NULL, 0,0,0,0, { 0,0,0,0 }, 0}
     };
 
     const size_t num_config_params =
@@ -3268,6 +3282,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -3431,13 +3447,6 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     ndbrequire(c_backups.first(ptr));
 
     jam();
-
-    if (isNdbMtLqh() && instance() != UserBackupInstanceKey)
-    {
-      // only LDM1 participates in backup, so other threads
-      // always have buffer usage = 0
-      break;
-    }
     Uint32 files[2] = { ptr.p->dataFilePtr[0], ptr.p->logFilePtr };
     for (Uint32 i=0; i<NDB_ARRAY_SIZE(files); i++)
     {
@@ -3924,8 +3933,12 @@ Backup::checkNodeFail(Signal* signal,
      * Master died...abort
      */
     ptr.p->masterRef = reference();
+    ptr.p->senderRef = reference();
+    // Each ldm on each node becomes master and sends signals only to self
     ptr.p->nodes.clear();
     ptr.p->nodes.set(getOwnNodeId());
+    ptr.p->fragWorkers[getOwnNodeId()].clear();
+    ptr.p->fragWorkers[getOwnNodeId()].set(instance());
     ptr.p->setErrorCode(AbortBackupOrd::BackupFailureDueToNodeFail);
     switch(ptr.p->m_gsn){
     case GSN_DEFINE_BACKUP_REQ:
@@ -3952,10 +3965,11 @@ Backup::checkNodeFail(Signal* signal,
       return;
     }
   }
-  else if (newCoord == getOwnNodeId())
+  else if (newCoord == getOwnNodeId() &&
+           instance() == masterInstanceKey(ptr))
   {
     /**
-     * I'm master for this backup
+     * I'm master for this backup: LDM1 on master node
      */
     jam();
     CRASH_INSERTION((10001));
@@ -4028,10 +4042,28 @@ Backup::checkNodeFail(Signal* signal,
     for(Uint32 i = 0; (i = mask.find(i+1)) != NdbNodeBitmask::NotFound; )
     {
       signal->theData[pos] = i;
-      sendSignal(reference(), gsn, signal, len, JBB);
+      if (gsn == GSN_BACKUP_FRAGMENT_REF)
+      {
+        // Handle mt-backup case where all LDMs process BACKUP_FRAGMENT_REQs
+        // simultaneously. If any node fails, master sends REFs to self on
+        // behalf of every failed node. Extend handling for BACKUP_FRAGMENT_REQ
+        // so that master sends BACKUP_FRAGMENT_REFs to self from every LDM
+        // on every failed node.
+        Uint32 workers = getNodeInfo(i).m_lqh_workers;
+        for (Uint32 j=0; j<workers; j++)
+        {
+          sendSignal(reference(), gsn, signal, len, JBB);
+        }
+      }
+      else
+      {
+        // master sends REQs only to one instance (BackupProxy) on each node
+        // send only one reply to self per node on behalf of BackupProxy
+        sendSignal(reference(), gsn, signal, len, JBB);
 #ifdef DEBUG_ABORT
-      ndbout_c("sending %d to self from %d", gsn, i);
+        ndbout_c("sending %d to self from %d", gsn, i);
 #endif
+      }
     }
     return;
   }//if
@@ -4074,6 +4106,53 @@ Backup::execINCL_NODEREQ(Signal* signal)
 /*****************************************************************************
  * 
  * Master functionallity - Define backup
+ *
+ * Backup master = BACKUP instance 1 (LDM1) on master node.
+ * Backup master receives BACKUP_REQ and sends control signals to all slaves
+ * for mt-backup, slaves = all BACKUP instances(all LDMs) on all nodes
+ * for st-backup, slaves = BACKUP 1(LDM1) on all nodes
+ *
+ * File thread: A file-thread signal train of FSAPPENDREQ/FSAPPENDCONF is
+ * started for each backup file, i.e. one train each for the ctl, data and log
+ * file. The file-thread signal trains interleave with BACKUP-related signals
+ * on each slave thread. The BACKUP-related signals write data to dataBuffers
+ * as needed, using sendSignalWithDelay loops to wait in case a dataBuffer is
+ * not accepting writes. Each file-thread signal picks up data from its
+ * dataBuffer and writes it to the file.
+ *
+ * Control signals
+ * 1) DEFINE_BACKUP_REQ
+ * - seize BackupRecord, alloc and init file ptrs
+ * - send LIST_TABLES_REQ to DICT to get table info to create tablemap
+ * - send FSOPENREQ to open ctl, data and logfiles
+ * - write file headers for ctl, data and logfiles
+ * - start ctl file thread and write table list to ctl file
+ * - get table info for each table, save in thread-local list
+ * - lock tables
+ * - get frag counts for each table + frag info for each frag on each table,
+     save in thread-local list
+ * - reply to sender with DEFINE_BACKUP_CONF
+ *
+ * 2) START_BACKUP_REQ
+ * - start file threads for data and log files
+ * - tell DBTUP to create triggers for logfile writes
+ * - reply to sender with START_BACKUP_CONF
+ *
+ * 3) BACKUP_FRAGMENT_REQ
+ * - send SCAN_FRAGREQ to LQH to start scan
+ * - on receiving SCAN_FRAGCONF, reply to master with BACKUP_FRAGMENT_CONF
+ *
+ * 4) STOP_BACKUP_REQ
+ * - drop all triggers in TUP
+ * - insert footers in ctl and log files
+ * - unlock tables
+ * - close all files
+ * - reply to sender with STOP_BACKUP_CONF
+ *
+ * 5) ABORT_BACKUP_ORD
+ * - unlock tables
+ * - release file pages, file ptrs, thread-local lists of frag info, table data
+ * - release BackupRecord
  *
  *****************************************************************************/
 
@@ -4138,6 +4217,75 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->flags = flags;
   ptr.p->masterRef = reference();
   ptr.p->nodes = c_aliveNodes;
+
+  Uint32 node = ptr.p->nodes.find_first();
+  Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
+  ptr.p->idleFragWorkerCount = 0;
+  while(node != NdbNodeBitmask::NotFound)
+  {
+    const NodeInfo nodeInfo = getNodeInfo(node);
+    // setup fragWorkers[] for master to control BACKUP_FRAGMENT_REQs
+    ptr.p->fragWorkers[node].clear();
+    Uint32 ldmCount = nodeInfo.m_lqh_workers;
+    ldmCount += (nodeInfo.m_lqh_workers == 0); // set LDM1 as worker for ndbd
+
+    for(Uint32 i=0; i<=ldmCount; i++)
+      ptr.p->fragWorkers[node].set(i);
+
+    ptr.p->idleFragWorkerCount += ldmCount;
+
+    // Only support multithreaded backup if all nodes have multiple LDMs
+    if (ldmCount <= 1 && (m_cfg_mt_backup > 0))
+    {
+     /* The MT_BACKUP flag is set to false in these
+      * cases:
+      * - ndbds
+      * - ndbmtds with only one LDM worker
+      */
+      m_cfg_mt_backup = 0;
+      g_eventLogger->info("Running single-threaded backup since node %u has only one LDM", node);
+    }
+    if (getNodeInfo(node).m_version != version)
+    {
+      jam();
+      g_eventLogger->info("Detected incompatible versions, aborting backup");
+      ptr.p->setErrorCode(AbortBackupOrd::IncompatibleVersions);
+      sendBackupRef(senderRef, flags, signal, senderData,
+                    BackupRef::BackupDuringUpgradeUnsupported);
+      // clean up backup state
+      ptr.p->m_gsn = 0;
+      ptr.p->masterData.gsn = 0;
+      c_backups.release(ptr);
+      return;
+    }
+
+    node = ptr.p->nodes.find_next(node+1);
+  }
+
+   if(m_cfg_mt_backup)
+   {
+    /* Exec backup using all LDMs. To perform a backup, a BACKUP
+     * block must receive all these signals from master:
+     * 1) DEFINE_BACKUP_REQ, START_BACKUP_REQ, STOP_BACKUP_REQ to set
+     *   up and clean up filesets, file-write signal 'threads', triggers,
+     *   table locks, and to fetch metadata and write CTL and LOG files
+     * 2) BACKUP_FRAGMENT_REQs to write fragments to data file, master must
+     *    assign frags to LDMs by sending BACKUP_FRAGMENT_REQs
+     * 3) ABORT_BACKUP_ORD for failure-handling and cleanup
+     * If all these signals are received by an LDM, that LDM will independently
+     * execute a backup and write a restorable backup fileset.
+     *
+     * With MT_BACKUP enabled, all these signals will be sent to all
+     * LDMs on each node.
+     *
+     * With MT_BACKUP disabled, the node performs a single-threaded backup.
+     * In a single-threaded backup, all these signals are sent to LDM1 on each
+     * node. The remaining BACKUP instances do not participate in the backup.
+     */
+
+     ptr.p->flags |= BackupReq::MT_BACKUP;
+   }
+
   if (input_backupId)
   {
     jam();
@@ -4398,6 +4546,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   req->clientRef = ptr.p->clientRef;
   req->clientData = ptr.p->clientData;
   req->senderRef = reference();
+  req->masterRef = reference();
   req->backupPtr = ptr.i;
   req->backupKey[0] = ptr.p->backupKey[0];
   req->backupKey[1] = ptr.p->backupKey[1];
@@ -4405,6 +4554,24 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   req->backupDataLen = ptr.p->backupDataLen;
   req->flags = ptr.p->flags;
   
+  /**
+   * If backup is multithreaded, DEFINE_BACKUP_REQ sent to BackupProxy on
+   * all nodes. BackupProxy fwds REQ to all LDMs, collects CONF/REFs
+   * and replies to master. N backup filesets created per node, N=#ldms.
+   *
+   * If backup is not multithreaded, DEFINE_BACKUP_REQ sent only to LDM 1
+   * on all nodes. Only 1 backup fileset created per node.
+   *
+   * instanceKey() selects instance to send signal to:
+   * - for LCP, send to self
+   * - for single-threaded backup: only one LDM thread, send to that thread
+   * - for multithreaded backup, send to the BackupProxy LDM0, which then
+   *   broadcasts the signal to all the LDMs on its node
+   *
+   * On receiving DEFINE_BACKUP_REQ, the BACKUP block creates a
+   * backup fileset, queries DICT+DIH for table info, locks tables,
+   * and writes table metadata into the CTL file in its fileset.
+   */
   ptr.p->masterData.gsn = GSN_DEFINE_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
   BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
@@ -4547,7 +4714,7 @@ Backup::sendCreateTrig(Signal* signal,
       ref->backupId = ptr.p->backupId;
       ref->errorCode = StartBackupRef::FailedToAllocateTriggerRecord;
       ref->nodeId = getOwnNodeId();
-      sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
+      sendSignal(ptr.p->senderRef, GSN_START_BACKUP_REF, signal,
 		 StartBackupRef::SignalLength, JBB);
       return;
     } // if
@@ -4615,12 +4782,42 @@ Backup::sendCreateTrig(Signal* signal,
     TriggerInfo::setTriggerEvent(ti2, triggerEventValues[i]);
     req->triggerInfo = ti2;
 
-    LinearSectionPtr ptr[3];
-    ptr[0].p = attrMask.rep.data;
-    ptr[0].sz = attrMask.getSizeInWords();
+    LinearSectionPtr attrPtr[3];
+    attrPtr[0].p = attrMask.rep.data;
+    attrPtr[0].sz = attrMask.getSizeInWords();
 
-    sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ,
-	       signal, CreateTrigImplReq::SignalLength, JBB, ptr ,1);
+
+    if (MT_BACKUP_FLAG(ptr.p->flags))
+    {
+      // In mt-backup, the backup log is divided between LDMs. Each
+      // BACKUP block writes insert/update/delete logs for the tuples it owns.
+      // Each LDM in a multithreaded backup sends CREATE_TRIG_IMPL_REQs only to
+      // its local DBTUP. Each DBTUP processes changes on its own fragments
+      // and sends FIRE_TRIG_ORDs to its local BACKUP block. Since one DBTUP
+      // instance has no knowledge of changes in other DBTUPs, this ensures
+      // that a BACKUP block receives FIRE_TRIG_ORDs only for tuples it owns.
+      // Each BACKUP block sends a CREATE_TRIG_IMPL_REQ to its local DBTUP
+      // Each DBTUP processes changes on its frags and sends FIRE_TRIG_ORDs
+      // to the local BACKUP block. Since one DBTUP instance has no knowledge
+      // of changes in other DBTUPs, this ensures that a BACKUP block receives
+      // FIRE_TRIG_ORDs for all changes on frags owned by its LDM, and for
+      // no other frags.
+      BlockReference ref = numberToRef(DBTUP, instance(), getOwnNodeId());
+      sendSignal(ref, GSN_CREATE_TRIG_IMPL_REQ,
+          signal, CreateTrigImplReq::SignalLength, JBB, attrPtr ,1);
+    }
+    else
+    {
+      // In single-threaded backup, the BACKUP block on LDM1 sends
+      // CREATE_TRIG_IMPL_REQs for insert/update/delete on all tables to the
+      // DbtupProxy. The DbtupProxy broadcasts the CREATE_TRIG to all LDMs.
+      // So for every insert/update/delete, the DBTUP which owns the modified
+      // fragment sends a FIRE_TRIG_ORD to the trigger creator on LDM1. When
+      // the BACKUP block receives a FIRE_TRIG_ORD, it extracts the details of
+      // the insert/update/delete and writes it to the backup log.
+      sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ,
+          signal, CreateTrigImplReq::SignalLength, JBB, attrPtr ,1);
+    }
   }
 }
 
@@ -4713,7 +4910,7 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
     ref->nodeId = getOwnNodeId();
     ndbout_c("Backup::createTrigReply : CREATE_TRIG_IMPL error %d, backup id %u node %d",
              ref->errorCode, ref->backupId, ref->nodeId);
-    sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
+    sendSignal(ptr.p->senderRef, GSN_START_BACKUP_REF, signal,
                StartBackupRef::SignalLength, JBB);
     return;
   }//if
@@ -4740,7 +4937,7 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
   StartBackupConf* conf = (StartBackupConf*)signal->getDataPtrSend();
   conf->backupPtr = ptr.i;
   conf->backupId = ptr.p->backupId;
-  sendSignal(ptr.p->masterRef, GSN_START_BACKUP_CONF, signal,
+  sendSignal(ptr.p->senderRef, GSN_START_BACKUP_CONF, signal,
 	     StartBackupConf::SignalLength, JBB);
 }
 
@@ -4758,7 +4955,7 @@ Backup::sendStartBackup(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
   StartBackupReq* req = (StartBackupReq*)signal->getDataPtrSend();
   req->backupId = ptr.p->backupId;
   req->backupPtr = ptr.i;
-
+  req->senderRef = reference();
   /**
    * We use trigger Ids that are unique to BACKUP.
    * These don't interfere with other triggers (e.g. from DBDICT)
@@ -4964,49 +5161,54 @@ Backup::nextFragment(Signal* signal, BackupRecordPtr ptr)
   req->backupPtr = ptr.i;
   req->backupId = ptr.p->backupId;
 
-  NdbNodeBitmask nodes = ptr.p->nodes;
-  Uint32 idleNodes = nodes.count();
-  Uint32 saveIdleNodes = idleNodes;
-  ndbrequire(idleNodes > 0);
-
   TablePtr tabPtr;
+  Uint32 unscanned_frag_count = 0;
   ptr.p->tables.first(tabPtr);
-  for(; tabPtr.i != RNIL && idleNodes > 0; ptr.p->tables.next(tabPtr))
+  for(; tabPtr.i != RNIL && ptr.p->idleFragWorkerCount > 0; ptr.p->tables.next(tabPtr))
   {
     jam();
     FragmentPtr fragPtr;
     Array<Fragment> & frags = tabPtr.p->fragments;
     const Uint32 fragCount = frags.getSize();
     
-    for(Uint32 i = 0; i<fragCount && idleNodes > 0; i++)
+    for(Uint32 i = 0; i<fragCount && ptr.p->idleFragWorkerCount > 0; i++)
     {
       jam();
       tabPtr.p->fragments.getPtr(fragPtr, i);
       const Uint32 nodeId = fragPtr.p->node;
-      if(fragPtr.p->scanning != 0) {
-        jam();
-	ndbrequire(nodes.get(nodeId));
-	nodes.clear(nodeId);
-	idleNodes--;
-      } else if(fragPtr.p->scanned == 0 && nodes.get(nodeId)){
-	jam();
-	fragPtr.p->scanning = 1;
-	nodes.clear(nodeId);
-	idleNodes--;
-	
-	req->tableId = tabPtr.p->tableId;
-	req->fragmentNo = i;
-	req->count = 0;
+      /* Each frag is owned by a specific LDM on a specific node.
+       * Master assigns each frag to an LDM on one of the nodes.
+       * Frags are always assigned to nodes which own them, but
+       * may be assigned to non-owner LDMs on owner nodes.
+       * single-threaded backup -> always assign frag to LDM1
+       * multithreaded backup -> assign frag to owner LDM
+       * mapFragToLdm() detects backup type and selects LDM.
+       */
+      Uint32 ldm = mapFragToLdm(ptr, nodeId, fragPtr.p->lqhInstanceKey);
+      req->tableId = tabPtr.p->tableId;
+      req->fragmentNo = i;
+      req->count = 0;
+      req->senderRef = reference();
+      if (fragPtr.p->scanned == 0)
+        unscanned_frag_count++;
 
-	ptr.p->masterData.sendCounter++;
-	BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
-	sendSignal(ref, GSN_BACKUP_FRAGMENT_REQ, signal,
-		   BackupFragmentReq::SignalLength, JBB);
-      }//if
+      if ((fragPtr.p->scanned == 0) && (fragPtr.p->scanning == 0) &&
+                                  (ptr.p->fragWorkers[nodeId].get(ldm)))
+      {
+        ptr.p->fragWorkers[nodeId].clear(ldm);
+        fragPtr.p->scanning = 1;
+        ptr.p->idleFragWorkerCount--;
+        ptr.p->masterData.sendCounter++;
+        BlockReference ref = numberToRef(BACKUP, ldm, nodeId);
+        sendSignal(ref, GSN_BACKUP_FRAGMENT_REQ, signal,
+                   BackupFragmentReq::SignalLength, JBB);
+
+       }//if
     }//for
   }//for
-  
-  if(idleNodes != saveIdleNodes){
+
+  if (unscanned_frag_count > 0)
+  {
     jam();
     return;
   }//if
@@ -5087,26 +5289,9 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
   else
   {
     jam();
-    NdbNodeBitmask nodes = ptr.p->nodes;
-    nodes.clear(getOwnNodeId());
-    if (!nodes.isclear())
-    {
-      jam();
-      BackupFragmentCompleteRep *rep =
-        (BackupFragmentCompleteRep*)signal->getDataPtrSend();
-      rep->backupId = ptr.p->backupId;
-      rep->backupPtr = ptr.i;
-      rep->tableId = tableId;
-      rep->fragmentNo = fragmentNo;
-      rep->noOfTableRowsLow = (Uint32)(tabPtr.p->noOfRecords & 0xFFFFFFFF);
-      rep->noOfTableRowsHigh = (Uint32)(tabPtr.p->noOfRecords >> 32);
-      rep->noOfFragmentRowsLow = (Uint32)(noOfRecords & 0xFFFFFFFF);
-      rep->noOfFragmentRowsHigh = (Uint32)(noOfRecords >> 32);
-      BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
-      NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
-      sendSignal(rg, GSN_BACKUP_FRAGMENT_COMPLETE_REP, signal,
-                 BackupFragmentCompleteRep::SignalLength, JBA);
-    }
+    Uint32 ldm = mapFragToLdm(ptr, nodeId, fragPtr.p->lqhInstanceKey);
+    ptr.p->fragWorkers[nodeId].set(ldm);
+    ptr.p->idleFragWorkerCount++;
     nextFragment(signal, ptr);
   }
 }
@@ -5321,9 +5506,18 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
     Uint32 ti2 = ti;
     TriggerInfo::setTriggerEvent(ti2, triggerEventValues[i]);
     req->triggerInfo = ti2;
+    if (MT_BACKUP_FLAG(ptr.p->flags))
+    {
+      BlockReference ref = numberToRef(DBTUP, instance(), getOwnNodeId());
+      sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ,
+               signal, DropTrigImplReq::SignalLength, JBB);
+    }
+    else
+    {
+      sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
+               signal, DropTrigImplReq::SignalLength, JBB);
+    }
 
-    sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
-	       signal, DropTrigImplReq::SignalLength, JBB);
     ptr.p->slaveData.trigSendCounter ++;
   }
 }
@@ -5412,10 +5606,21 @@ Backup::sendStopBackup(Signal* signal, BackupRecordPtr ptr)
   stop->backupId = ptr.p->backupId;
   stop->startGCP = ptr.p->startGCP;
   stop->stopGCP = ptr.p->stopGCP;
+  stop->senderRef = reference();
 
   ptr.p->masterData.gsn = GSN_STOP_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
+  Uint32 receiverInstance = instanceKey(ptr);
+
+  if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
+      && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
+  {
+    // All signal-sender functions in abort protocol detect
+    // send-to-self bitmask settings and send signals accordingly.
+    ptr.p->senderRef = reference();
+    receiverInstance = instance();
+  }
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, receiverInstance);
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   sendSignal(rg, GSN_STOP_BACKUP_REQ, signal, 
 	     StopBackupReq::SignalLength, JBB);
@@ -5578,7 +5783,6 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
 #endif
 
   ndbassert(ptr.p->masterRef == reference());
-
   if(ptr.p->masterData.errorCode != 0)
   {
     jam();
@@ -5607,7 +5811,18 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   ord->backupId = ptr.p->backupId;
   ord->backupPtr = ptr.i;
   ord->senderData= ptr.i;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
+  Uint32 receiverInstance = instanceKey(ptr); // = BackupProxy for mt-backup
+
+  if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
+      && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
+  {
+    // All signal-sender functions in abort protocol detect
+    // send-to-self bitmask settings and send signals accordingly.
+    ptr.p->senderRef = reference();
+    receiverInstance = instance();
+  }
+
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, receiverInstance);
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   
   switch(ptr.p->masterData.gsn){
@@ -5657,8 +5872,8 @@ Backup::abort_scan(Signal * signal, BackupRecordPtr ptr)
       const Uint32 nodeId = fragPtr.p->node;
       if(fragPtr.p->scanning != 0 && ptr.p->nodes.get(nodeId)) {
         jam();
-	
-	BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
+        Uint32 ldm = mapFragToLdm(ptr, nodeId, fragPtr.p->lqhInstanceKey);
+        BlockReference ref = numberToRef(BACKUP, ldm, nodeId);
 	sendSignal(ref, GSN_ABORT_BACKUP_ORD, signal,
 		   AbortBackupOrd::SignalLength, JBB);
 	
@@ -5761,7 +5976,7 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
   ref->backupPtr = ptr.i;
   ref->errorCode = ptr.p->errorCode;
   ref->nodeId = getOwnNodeId();
-  sendSignal(ptr.p->masterRef, GSN_DEFINE_BACKUP_REF, signal, 
+  sendSignal(ptr.p->senderRef, GSN_DEFINE_BACKUP_REF, signal,
 	     DefineBackupRef::SignalLength, JBB);
 }
 
@@ -5785,12 +6000,12 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   BackupRecordPtr ptr;
   const Uint32 ptrI = req->backupPtr;
   const Uint32 backupId = req->backupId;
-  const BlockReference senderRef = req->senderRef;
 
-  if(senderRef == reference()){
-    /**
-     * Signal sent from myself -> record already seized
-     */
+  if(req->masterRef == reference())
+  {
+     /**
+      * Signal sent from myself -> record already seized
+      */
     jam();
     c_backupPool.getPtr(ptr, ptrI);
   } else { // from other node
@@ -5806,7 +6021,39 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   }//if
 
   CRASH_INSERTION((10014));
-  
+
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    // All LDMs participate in backup, not just LDM1
+    // Prevent allotment of extra resources for LDM1
+    m_skew_disk_speed = false;
+  }
+  else
+  {
+    // only LDM1 participates in backup, allot extra disk speed quota
+    m_skew_disk_speed = true;
+  }
+
+  // The masterRef is the BACKUP block which coordinates the backup
+  // across all the nodes, i.e. LDM1 on the master node. The senderRef
+  // is the BACKUP block which sent the last REQ signal. The masterRef
+  // sends signals to the BackupProxies on all the nodes, and each
+  // BackupProxy sends the signals to the LDMs. So the LDMs need to reply
+  // to the BackupProxy, not the master.
+  //
+  // - For single-threaded backup: backup master directly controls
+  // participants on all nodes, so
+  //   masterRef = senderRef = LDM1_on_master_node.
+  // - For multithreaded backup: backup master sends control signals to
+  // BackupProxy on each node + each BackupProxy controls backup exec
+  // across LDMs, so:
+  //   For all LDMs on node N, senderRef = BackupProxy_on_node_N
+  //   For all LDMs on all nodes, masterRef = LDM1_on_master_node.
+  //
+  // masterRef is passed in DEFINE_BACKUP_REQ so that all participants set a
+  // masterRef explicitly specified by the master.
+  ptr.p->masterRef = req->masterRef;
+  ptr.p->senderRef = req->senderRef;
   ptr.p->m_gsn = GSN_DEFINE_BACKUP_REQ;
   ptr.p->slaveState.forceState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
@@ -5815,14 +6062,15 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->errorCode = 0;
   ptr.p->clientRef = req->clientRef;
   ptr.p->clientData = req->clientData;
-  if(senderRef == reference())
+  if(req->masterRef == reference())
+  {
     ptr.p->flags = req->flags;
+  }
   else
     ptr.p->flags = req->flags & ~((Uint32)BackupReq::WAITCOMPLETED); /* remove waitCompleted flags
 						 * as non master should never
 						 * reply
 						 */
-  ptr.p->masterRef = senderRef;
   ptr.p->nodes = req->nodes;
   ptr.p->backupId = backupId;
   ptr.p->backupKey[0] = req->backupKey[0];
@@ -6229,6 +6477,54 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
+  /*
+   * NDBFS supports 2 backup formats: single-threaded backup and
+   * multithreaded backup format.
+   *
+   * Example of st-backup directory structure in backup path (backup
+   * files present in BACKUP-<backupID> directory):
+   *
+   * mysql@psangam-T460:~$ ls data2/BACKUP/
+   * BACKUP-1  BACKUP-2
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   *
+   * Example of mt-backup directory structure (backup subfolders in
+   * BACKUP-<backupID>, subfolders contain backup files):
+   *
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/
+   * BACKUP-1-PART-1-OF-4  BACKUP-1-PART-2-OF-4  BACKUP-1-PART-3-OF-4  BACKUP-1-PART-4-OF-4
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-1-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-3-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-4-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   *
+   * NDBFS is now aware of the backup part in the file-open operation, as
+   * well as the total number of backup parts. If a backup part number is set
+   * to 0, it creates files as per the single-threaded backup directory
+   * structure. If a non-zero part number is set, it creates files as per the
+   * mt-backup directory structure.
+   */
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    /*
+     * If the MT_BACKUP flag is set, a non-zero backup-part-ID is
+     * passed to NDBFS so that the multithreaded backup directory
+     * structure is used. If it is false, the old single-threaded
+     * backup structure is used.
+     */
+    FsOpenReq::v2_setPartNum(req->fileNumber, instance());
+    FsOpenReq::v2_setTotalParts(req->fileNumber, globalData.ndbMtLqhWorkers);
+  }
+  else
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+    FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
+  }
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 
   /**
@@ -6246,6 +6542,16 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_LOG);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, instance());
+    FsOpenReq::v2_setTotalParts(req->fileNumber, globalData.ndbMtLqhWorkers);
+  }
+  else
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+    FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
+  }
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 
   /**
@@ -6263,6 +6569,16 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, instance());
+    FsOpenReq::v2_setTotalParts(req->fileNumber, globalData.ndbMtLqhWorkers);
+  }
+  else
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+    FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
+  }
   FsOpenReq::v2_setCount(req->fileNumber, 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
@@ -6734,8 +7050,7 @@ Backup::parseTableDescription(Signal* signal,
   SimpleProperties::UnpackStatus stat;
   stat = SimpleProperties::unpack(it, &tmpTab, 
 				  DictTabInfo::TableMapping, 
-				  DictTabInfo::TableMappingSize, 
-				  true, true);
+				  DictTabInfo::TableMappingSize);
   ndbrequire(stat == SimpleProperties::Break);
 
   bool lcp = ptr.p->is_lcp();
@@ -6783,8 +7098,7 @@ Backup::parseTableDescription(Signal* signal,
     DictTabInfo::Attribute tmp; tmp.init();
     stat = SimpleProperties::unpack(it, &tmp, 
 				    DictTabInfo::AttributeMapping, 
-				    DictTabInfo::AttributeMappingSize,
-				    true, true);
+				    DictTabInfo::AttributeMappingSize);
     
     ndbrequire(stat == SimpleProperties::Break);
     it.next(); // Move Past EndOfAttribute
@@ -6970,7 +7284,7 @@ Backup::getFragmentInfoDone(Signal* signal, BackupRecordPtr ptr)
   DefineBackupConf * conf = (DefineBackupConf*)signal->getDataPtrSend();
   conf->backupPtr = ptr.i;
   conf->backupId = ptr.p->backupId;
-  sendSignal(ptr.p->masterRef, GSN_DEFINE_BACKUP_CONF, signal,
+  sendSignal(ptr.p->senderRef, GSN_DEFINE_BACKUP_CONF, signal,
 	     DefineBackupConf::SignalLength, JBB);
 }
 
@@ -7000,9 +7314,7 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
    * bulk file writes for this backup, so lets
    * record the fact
    */
-  ndbrequire(is_backup_worker());
-  ndbassert(!Backup::g_is_backup_running);
-  Backup::g_is_backup_running = true;
+  Backup::g_is_single_thr_backup_running = true;
 
   /**
    * Start file threads...
@@ -9019,6 +9331,15 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
       loop_op.scanConfExtra();
     }
   }
+
+
+  {
+    const bool senderIsThreadLocal =
+      (signal->senderBlockRef() == calcInstanceBlockRef(DBLQH));
+    ndbrequire(senderIsThreadLocal ||
+               !MT_BACKUP_FLAG(ptr.p->flags));
+  }
+
   const Uint32 completed = conf.fragmentCompleted;
   if(completed != 2) {
     jam();
@@ -10148,12 +10469,23 @@ Backup::sendAbortBackupOrd(Signal* signal, BackupRecordPtr ptr,
   ord->requestType = requestType;
   ord->senderData= ptr.i;
   NodePtr node;
+  Uint32 receiverInstance = instanceKey(ptr); // = BackupProxy for mt-backup
+
+  if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
+      && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
+  {
+    // All signal-sender functions in abort protocol detect
+    // send-to-self bitmask settings and send signals accordingly.
+    ptr.p->senderRef = reference();
+    receiverInstance = instance();
+  }
+
   for(c_nodes.first(node); node.i != RNIL; c_nodes.next(node)) {
     jam();
     const Uint32 nodeId = node.p->nodeId;
     if(node.p->alive && ptr.p->nodes.get(nodeId)) {
       jam();
-      BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
+      BlockReference ref = numberToRef(BACKUP, receiverInstance, nodeId);
       sendSignal(ref, GSN_ABORT_BACKUP_ORD, signal, 
 		 AbortBackupOrd::SignalLength, JBB);
     }//if
@@ -10189,49 +10521,70 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
 
-  ptr.p->slaveState.setState(STOPPING);
-  ptr.p->m_gsn = GSN_STOP_BACKUP_REQ;
   ptr.p->startGCP= startGCP;
   ptr.p->stopGCP= stopGCP;
 
-  /**
-   * Ensure that any in-flight changes are
-   * included in the backup log before
-   * dropping the triggers
-   *
-   * This is necessary as the trigger-drop
-   * signals are routed :
-   *
-   *   Backup Worker 1 <-> Proxy <-> TUP Worker 1..n
-   * 
-   * While the trigger firing signals are
-   * routed :
-   *
-   *   TUP Worker 1..n   -> Backup Worker 1
-   *
-   * So the arrival of signal-drop acks
-   * does not imply that all fired 
-   * triggers have been seen.
-   *
-   *  Backup Worker 1
-   *
-   *        |             SYNC_PATH_REQ
-   *        V
-   *     TUP Proxy
-   *    |  | ... |
-   *    V  V     V
-   *    1  2 ... n        (Workers)
-   *    |  |     |
-   *    |  |     |
-   *   
-   *   Backup Worker 1
-   */
-
-  Uint32 path[] = { DBTUP, 0 };
-  Callback cb = { safe_cast(&Backup::startDropTrig_synced), ptrI };
-  synchronize_path(signal,
-                   path,
-                   cb);
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    /**
+     * In multithreaded backup, each Backup Worker sends
+     * trigger-drop and trigger-firing signals only to its
+     * local TUP. No sync is needed to ensure ordering of
+     * trigger signals wrt STOP_BACKUP_REQ, since the
+     * signals are added in order to the signal queue.
+     */
+    Uint32 retVal = 0;
+    startDropTrig_synced(signal, ptrI, retVal);
+  }
+  else
+  {
+    /**
+     * Ensure that any in-flight changes are
+     * included in the backup log before
+     * dropping the triggers
+     *
+     * This is necessary as the trigger-drop
+     * signals are routed :
+     *
+     *   Backup Worker 1 <-> Proxy <-> TUP Worker 1..n
+     *
+     * While the trigger firing signals are
+     * routed :
+     *
+     *   TUP Worker 1..n   -> Backup Worker 1
+     *
+     * So the arrival of signal-drop acks
+     * does not imply that all fired
+     * triggers have been seen.
+     *
+     *  Backup Worker 1
+     *
+     *        |             SYNC_PATH_REQ
+     *        V
+     *     TUP Proxy
+     *    |  | ... |
+     *    V  V     V
+     *    1  2 ... n        (Workers)
+     *    |  |     |
+     *    |  |     |
+     *
+     *   Backup Worker 1
+     */
+    Uint32 path[] = { DBTUP, 0 };
+    Callback cb = { safe_cast(&Backup::startDropTrig_synced), ptrI };
+    synchronize_path(signal,
+                     path,
+                     cb);
+    if (ERROR_INSERTED(10049) && (ptr.p->masterRef == reference()))
+    {
+      AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
+      ord->backupId = ptr.p->backupId;
+      ord->backupPtr = ptr.i;
+      ord->requestType = AbortBackupOrd::LogBufferFull;
+      ord->senderData= ptr.i;
+      execABORT_BACKUP_ORD(signal);
+    }
+  }
 }
 
 void
@@ -10244,8 +10597,9 @@ Backup::startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
   
-  ndbrequire(ptr.p->m_gsn == GSN_STOP_BACKUP_REQ);
-  
+  ptr.p->slaveState.setState(STOPPING);
+  ptr.p->m_gsn = GSN_STOP_BACKUP_REQ;
+
   /**
    * Now drop the triggers
    */
@@ -10542,9 +10896,8 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
 {
   jam();
   /* Record end-of-backup */
-  ndbrequire(is_backup_worker());
-  //ndbassert(Backup::g_is_backup_running); /* !set on error paths */
-  Backup::g_is_backup_running = false;
+  //ndbassert(Backup::g_is_single_thr_backup_running); /* !set on error paths */
+  Backup::g_is_single_thr_backup_running = false;
 
   //error when do insert footer or close file
   if(ptr.p->checkError())
@@ -10554,7 +10907,7 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
     ref->backupId = ptr.p->backupId;
     ref->errorCode = ptr.p->errorCode;
     ref->nodeId = getOwnNodeId();
-    sendSignal(ptr.p->masterRef, GSN_STOP_BACKUP_REF, signal,
+    sendSignal(ptr.p->senderRef, GSN_STOP_BACKUP_REF, signal,
              StopBackupConf::SignalLength, JBB);
 
     ptr.p->m_gsn = GSN_STOP_BACKUP_REF;
@@ -10579,7 +10932,7 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
     conf->noOfLogRecords= 0;
   }
 
-  sendSignal(ptr.p->masterRef, GSN_STOP_BACKUP_CONF, signal,
+  sendSignal(ptr.p->senderRef, GSN_STOP_BACKUP_CONF, signal,
 	     StopBackupConf::SignalLength, JBB);
   
   ptr.p->m_gsn = GSN_STOP_BACKUP_CONF;
@@ -10601,7 +10954,6 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 {
   jamEntry();
   AbortBackupOrd* ord = (AbortBackupOrd*)signal->getDataPtr();
-
   const Uint32 backupId = ord->backupId;
   const AbortBackupOrd::RequestType requestType = 
     (AbortBackupOrd::RequestType)ord->requestType;
@@ -10617,18 +10969,6 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 
   BackupRecordPtr ptr;
   if(requestType == AbortBackupOrd::ClientAbort) {
-    if (getOwnNodeId() != getMasterNodeId()) {
-      jam();
-      // forward to master
-#ifdef DEBUG_ABORT
-      ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
-#endif
-      BlockReference ref = numberToRef(BACKUP, UserBackupInstanceKey, 
-                                       getMasterNodeId());
-      sendSignal(ref, GSN_ABORT_BACKUP_ORD, 
-		 signal, AbortBackupOrd::SignalLength, JBB);
-      return;
-    }
     jam();
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr)) {
       jam();
@@ -10641,6 +10981,17 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
       jam();
       return;
     }//if
+    if (ptr.p->masterRef != reference())
+    {
+      jam();
+      // forward to master
+#ifdef DEBUG_ABORT
+      ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
+#endif
+      sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD,
+		 signal, AbortBackupOrd::SignalLength, JBB);
+      return;
+    }
   } else {
     if (c_backupPool.findId(senderData)) {
       jam();
@@ -10712,7 +11063,20 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   ptr.p->nodes.clear();
   ptr.p->nodes.set(getOwnNodeId());
 
-
+  // Backup aborts on node failure are handled as follows for st-backup:
+  // - each node declares itself master
+  // - each node modifies 'nodes' bitmask of signal receivers
+  // to disable sending to any nodes except self
+  // For mt-backup,
+  // - each instance declares itself master
+  // - each instance modifies 'nodes' bitmask of signal receivers
+  // to disable sending to any nodes except self
+  // - each instance modifies 'fragWorkers' bitmask of signal receivers
+  // to disable sending to any LDM on this node except self
+  ptr.p->fragWorkers[getOwnNodeId()].clear();
+  ptr.p->fragWorkers[getOwnNodeId()].set(instance());
+  ptr.p->masterRef = reference();
+  ptr.p->senderRef = reference();
   ptr.p->stopGCP= ptr.p->startGCP + 1;
   sendStopBackup(signal, ptr);
 }
@@ -12840,8 +13204,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
 
   Uint32 maxGci = MAX(maxGciCompleted, maxGciWritten);
   if ((maxGci < fragPtr.p->createGci &&
-       maxGci != 0 &&
-       createTableVersion < lqhCreateTableVersion) ||
+       maxGci != 0) ||
        (c_initial_start_lcp_not_done_yet &&
         (ptr.p->preparePrevLocalLcpId != 0 ||
          ptr.p->preparePrevLcpId != 0)))
@@ -14766,12 +15129,12 @@ Backup::execSYNC_PAGE_CACHE_CONF(Signal *signal)
   ndbrequire(conf->tableId == tabPtr.p->tableId);
   ndbrequire(conf->fragmentId == fragPtr.p->fragmentId);
 
-  DEB_LCP(("(%u)Completed SYNC_PAGE_CACHE_CONF for tab(%u,%u)"
-                      ", diskDataExistFlag: %u",
-                      instance(),
-                      tabPtr.p->tableId,
-                      fragPtr.p->fragmentId,
-                      conf->diskDataExistFlag));
+  DEB_LCP_DD(("(%u)Completed SYNC_PAGE_CACHE_CONF for tab(%u,%u)"
+              ", diskDataExistFlag: %u",
+             instance(),
+             tabPtr.p->tableId,
+             fragPtr.p->fragmentId,
+             conf->diskDataExistFlag));
 
   ptr.p->m_wait_disk_data_sync = false;
   if (!conf->diskDataExistFlag)
@@ -15972,7 +16335,7 @@ Backup::openFilesReplyLCP(Signal* signal,
   }
   TablePtr tabPtr;
   bool prepare_phase;
-  Uint32 index;
+  Uint32 index = 0;
   if (filePtr.i == ptr.p->prepareDataFilePtr[0])
   {
     jam();
@@ -16519,4 +16882,4 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
   return;
 }
 
-bool Backup::g_is_backup_running = false;
+bool Backup::g_is_single_thr_backup_running = false;

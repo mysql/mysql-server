@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <cstring>
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -66,9 +67,8 @@
 
 char *fn_format(char *to, const char *name, const char *dir,
                 const char *extension, uint flag) {
-  char dev[FN_REFLEN], buff[FN_REFLEN], *pos, *startpos;
+  char dev[FN_REFLEN], buff[FN_REFLEN], *pos;
   const char *ext;
-  size_t length;
   size_t dev_length;
   DBUG_ENTER("fn_format");
   DBUG_ASSERT(name != NULL);
@@ -77,7 +77,9 @@ char *fn_format(char *to, const char *name, const char *dir,
                        extension, flag));
 
   /* Copy and skip directory */
-  name += (length = dirname_part(dev, (startpos = (char *)name), &dev_length));
+  const char *startpos = name;
+  size_t length = dirname_part(dev, name, &dev_length);
+  name += length;
   if (length == 0 || (flag & MY_REPLACE_DIR)) {
     DBUG_ASSERT(dir != NULL);
     /* Use given directory */
@@ -94,13 +96,13 @@ char *fn_format(char *to, const char *name, const char *dir,
     (void)unpack_dirname(dev, dev); /* Replace ~/.. with dir */
 
   if (!(flag & MY_APPEND_EXT) &&
-      (pos = (char *)strchr(name, FN_EXTCHAR)) != NullS) {
+      (pos = const_cast<char *>(std::strchr(name, FN_EXTCHAR))) != nullptr) {
     if ((flag & MY_REPLACE_EXT) == 0) /* If we should keep old ext */
     {
       length = strlength(name); /* Use old extension */
       ext = "";
     } else {
-      length = (size_t)(pos - (char *)name); /* Change extension */
+      length = pos - name; /* Change extension */
       ext = extension;
     }
   } else {

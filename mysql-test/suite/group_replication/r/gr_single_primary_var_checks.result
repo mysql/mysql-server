@@ -80,7 +80,7 @@ include/assert.inc ['group_replication_enforce_update_everywhere_checks should b
 include/start_and_bootstrap_group_replication.inc
 # PLUGIN VARIABLES SHOULD BE READ ONLY ON SERVER 1
 SET GLOBAL group_replication_single_primary_mode= TRUE;
-ERROR HY000: Cannot change into or from single primary mode while Group Replication is running.
+ERROR HY000: Cannot modify group replication mode by changing system variable. Please use the group_replication_switch_to_single_primary_mode([member_uuid]) OR group_replication_switch_to_multi_primary_mode() UDF.
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 ERROR HY000: Cannot turn ON/OFF update everywhere checks mode while Group Replication is running.
 #
@@ -93,7 +93,7 @@ include/assert.inc ['group_replication_single_primary_mode should be set to 1']
 include/start_group_replication.inc
 # PLUGIN VARIABLES SHOULD BE READ ONLY ON SERVER 2
 SET GLOBAL group_replication_single_primary_mode= TRUE;
-ERROR HY000: Cannot change into or from single primary mode while Group Replication is running.
+ERROR HY000: Cannot modify group replication mode by changing system variable. Please use the group_replication_switch_to_single_primary_mode([member_uuid]) OR group_replication_switch_to_multi_primary_mode() UDF.
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 ERROR HY000: Cannot turn ON/OFF update everywhere checks mode while Group Replication is running.
 include/group_replication_end.inc

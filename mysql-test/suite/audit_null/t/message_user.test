@@ -1,0 +1,23 @@
+--source include/no_ps_protocol.inc
+--source include/have_null_audit_plugin.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+INSTALL COMPONENT "file://component_test_audit_api_message";
+
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                     'MYSQL_AUDIT_MESSAGE_USER;component="test_audit_api_message" producer="test_audit_api_message" message="test_audit_api_message_user" key[0]="my_string_key" value[0]="my_string_value";;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                     'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                     'MYSQL_AUDIT_COMMAND_END;command_id="3";;';
+
+SELECT test_audit_api_message_user();
+SELECT @@null_audit_event_order_check;
+
+UNINSTALL COMPONENT "file://component_test_audit_api_message";
+UNINSTALL PLUGIN null_audit;

@@ -1,0 +1,44 @@
+/*
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
+ *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ */
+
+/* Version numbers for X Plugin */
+
+#ifndef _MYSQLX_VERSION_H_
+#define _MYSQLX_VERSION_H_
+
+#define MYSQLX_PLUGIN_VERSION_MAJOR @MYSQLX_PLUGIN_VERSION_MAJOR@
+#define MYSQLX_PLUGIN_VERSION_MINOR @MYSQLX_PLUGIN_VERSION_MINOR@
+#define MYSQLX_PLUGIN_VERSION_PATCH @MYSQLX_PLUGIN_VERSION_PATCH@
+
+#define MYSQLX_PLUGIN_NAME "@MYSQLX_PLUGIN_NAME@"
+#define MYSQLX_STATUS_VARIABLE_PREFIX(NAME) "@MYSQLX_STATUS_VARIABLE_NAME@_" NAME
+#define MYSQLX_SYSTEM_VARIABLE_PREFIX(NAME) "@MYSQLX_SYSTEM_VARIABLE_NAME@_" NAME
+
+#define MYSQLX_TCP_PORT             @MYSQLX_TCP_PORT@U
+#define MYSQLX_UNIX_ADDR            "@MYSQLX_UNIX_ADDR@"
+
+#define MYSQLX_PLUGIN_VERSION ( (MYSQLX_PLUGIN_VERSION_MAJOR << 8) | MYSQLX_PLUGIN_VERSION_MINOR )
+#define MYSQLX_PLUGIN_VERSION_STRING "@MYSQLX_PLUGIN_VERSION_MAJOR@.@MYSQLX_PLUGIN_VERSION_MINOR@.@MYSQLX_PLUGIN_VERSION_PATCH@"
+
+#endif // _MYSQLX_VERSION_H_

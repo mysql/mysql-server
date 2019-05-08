@@ -31,7 +31,6 @@
 #include <vector>
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -87,6 +86,13 @@ class MySQLProtocolDecoder {
    * @returns SQL statement
    **/
   std::string get_statement() const;
+
+  /**
+   * get payload of the mysql protocol frame
+   *
+   * @pre read_message() returned successfully
+   */
+  std::vector<byte> get_payload() const { return packet_.packet_buffer; }
 
  private:
   /** @brief Single protocol packet data.

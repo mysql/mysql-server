@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,6 +179,14 @@ void Ndb_component::set_server_started()
   mysql_mutex_unlock(&m_start_stop_mutex);
 }
 
+bool Ndb_component::is_server_started()
+{
+  bool server_started;
+  mysql_mutex_lock(&m_start_stop_mutex);
+  server_started = m_server_started;
+  mysql_mutex_unlock(&m_start_stop_mutex);
+  return server_started;
+}
 
 bool Ndb_component::wait_for_server_started(void)
 {

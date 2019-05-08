@@ -1204,9 +1204,6 @@ set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
-# Rename SQL modes that differ in name between the server and the table definition.
-select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
-select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select event_name from information_schema.events where event_name = 'e1' and sql_mode = @full_mode;
 drop event e1;
 
@@ -1336,6 +1333,48 @@ SELECT SLEEP(3);
 SET @@global.autocommit=@save_autocommit_value;
 SET @@session.TIMESTAMP=default;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+--echo #
+SET NAMES utf8;
+
+--echo #
+--echo # Test case to verify events with case and accent insensitive names.
+--echo #
+CREATE EVENT cafe ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--echo # Event names are case and accent insensitive. So from the data-dictionary
+--echo # "cafe" is obtained for the following statement. Since MDL key comparison
+--echo # is case and accent sensitive, assert condition to verify expected lock
+--echo # with name "test.cafe" fails (lock is obtained on the test.café)
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT café ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--echo # Following statement is to verify operation with the upper case name.
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT CAFE ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
+SHOW CREATE EVENT CaFé;
+DROP EVENT CaFé;
+
+--echo # Event with NAME_LEN size name.
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
+SHOW CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+DROP EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+
+SET NAMES default;
+
+--echo #
+--echo # BUG#29269819 - WRONG METADATA WHILE CREATE AN EVENT
+--echo #
+
+CREATE EVENT Fortnight_Event ON SCHEDULE EVERY 2 WEEK DO SELECT 1;
+SELECT EVENT_NAME, INTERVAL_VALUE, INTERVAL_FIELD FROM information_schema.events;
+DROP EVENT Fortnight_Event;
 
 ###########################################################################
 #

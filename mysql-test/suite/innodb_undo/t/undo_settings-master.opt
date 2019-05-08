@@ -1,0 +1,1 @@
+--initialize --innodb_rollback_segments=1

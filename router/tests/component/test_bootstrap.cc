@@ -23,8 +23,10 @@
 */
 
 #include <fstream>
+#include <string>
 
 #include "dim.h"
+#include "filesystem_utils.h"
 #include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
 #include "random_generator.h"
@@ -33,6 +35,10 @@
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
 #include "utils.h"
+
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
 
 /**
  * @file
@@ -50,7 +56,7 @@ class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
 
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
     bootstrap_dir = get_tmp_dir();
     tmp_dir = get_tmp_dir();
   }
@@ -130,7 +136,7 @@ void CommonBootstrapTest::bootstrap_failover(
     env_vars.emplace("MYSQL_SERVER_MOCK_PORT_" + std::to_string(ndx),
                      std::to_string(mock_server_config.port));
     ndx++;
-  };
+  }
 
   std::vector<std::tuple<CommandHandle, unsigned int>> mock_servers;
 
@@ -159,17 +165,19 @@ void CommonBootstrapTest::bootstrap_failover(
     EXPECT_TRUE(ready) << proc.get_full_output();
   }
 
-  std::string router_cmdline;
+  std::vector<std::string> router_cmdline;
 
   if (router_options.size()) {
-    for (const auto &piece : router_options) {
-      router_cmdline += piece;
-      router_cmdline += " ";
-    }
+    router_cmdline = router_options;
   } else {
-    router_cmdline = "--bootstrap=" + env_vars.at("MYSQL_SERVER_MOCK_HOST_1") +
-                     ":" + env_vars.at("MYSQL_SERVER_MOCK_PORT_1") +
-                     " --report-host " + my_hostname + " -d " + bootstrap_dir;
+    router_cmdline.emplace_back(
+        "--bootstrap=" + env_vars.at("MYSQL_SERVER_MOCK_HOST_1") + ":" +
+        env_vars.at("MYSQL_SERVER_MOCK_PORT_1"));
+
+    router_cmdline.emplace_back("--report-host");
+    router_cmdline.emplace_back(my_hostname);
+    router_cmdline.emplace_back("-d");
+    router_cmdline.emplace_back(bootstrap_dir);
   }
 
   // launch the router
@@ -205,20 +213,36 @@ void CommonBootstrapTest::bootstrap_failover(
     for (auto &mock_server : mock_servers) {
       std::get<0>(mock_server).get_full_output();
     }
-    EXPECT_THAT(
-        lines,
-        ::testing::Contains(
-            "MySQL Router  has now been configured for the InnoDB cluster '" +
-            cluster_name + "'."))
+    EXPECT_THAT(lines,
+                ::testing::Contains(
+                    "# MySQL Router configured for the InnoDB cluster '" +
+                    cluster_name + "'"))
         << "router:" << router.get_full_output() << std::endl
         << mock_servers;
 
     // check the output configuration file:
-    // we check if the valid default ttl has been put in the configuraion
+    // 1. check if the valid default ttl has been put in the configuraion:
     EXPECT_TRUE(find_in_file(
         bootstrap_dir + "/mysqlrouter.conf",
         [](const std::string &line) -> bool { return line == "ttl=0.5"; },
         std::chrono::milliseconds(0)));
+    // 2. check that bootstrap server addresses is no longer in cofiguration
+    // file (it has been replaced with dynamic_config)
+    const std::string conf_file = bootstrap_dir + "/mysqlrouter.conf";
+    EXPECT_FALSE(find_in_file(
+        conf_file,
+        [](const std::string &line) -> bool {
+          return line.find("bootstrap_server_addresses") != std::string::npos;
+        },
+        std::chrono::milliseconds(0)))
+        << get_file_output("mysqlrouter.conf", bootstrap_dir);
+    // 3. check that the config files (static and dynamic) have the proper
+    // access rights
+    ASSERT_NO_FATAL_FAILURE(
+        check_config_file_access_rights(conf_file, /*read_only=*/true));
+    const std::string state_file = bootstrap_dir + "/data/state.json";
+    ASSERT_NO_FATAL_FAILURE(
+        check_config_file_access_rights(state_file, /*read_only=*/false));
   }
 }
 
@@ -716,7 +740,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
     // check if the bootstraping was successful
     EXPECT_TRUE(router.expect_output(
-        "MySQL Router  has now been configured for the InnoDB cluster 'test'"))
+        "MySQL Router configured for the InnoDB cluster 'test'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
     EXPECT_EQ(router.wait_for_exit(), 0);
@@ -757,7 +781,8 @@ TEST_F(RouterAccountHostTest, argument_missing) {
                               std::to_string(server_port) + " --account-host");
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output("option '--account-host' requires a value."))
+  EXPECT_TRUE(router.expect_output(
+      "option '--account-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
   EXPECT_EQ(router.wait_for_exit(), 1);
 }
@@ -847,7 +872,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
 
     // check if the bootstraping was successful
     EXPECT_TRUE(
-        router.expect_output("MySQL Router  has now been configured for the "
+        router.expect_output("MySQL Router configured for the "
                              "InnoDB cluster 'mycluster'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
@@ -890,7 +915,8 @@ TEST_F(RouterReportHostTest, argument_missing) {
   auto router = launch_router("--bootstrap=1.2.3.4:5678 --report-host");
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output("option '--report-host' requires a value."))
+  EXPECT_TRUE(router.expect_output(
+      "option '--report-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
   EXPECT_EQ(router.wait_for_exit(), 1);
 }
@@ -986,9 +1012,9 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
       },
       [](mysql_harness::RandomGeneratorInterface *) {});
 
-  mysqlrouter::mkdir(Path(bootstrap_dir).str(), 0777);
+  mysql_harness::mkdir(Path(bootstrap_dir).str(), 0777);
   std::string master_key_path = Path(bootstrap_dir).join("master_key").str();
-  mysqlrouter::mkdir(Path(bootstrap_dir).join("data").str(), 0777);
+  mysql_harness::mkdir(Path(bootstrap_dir).join("data").str(), 0777);
   std::string keyring_path =
       Path(bootstrap_dir).join("data").join("keyring").str();
 

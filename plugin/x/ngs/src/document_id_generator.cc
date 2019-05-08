@@ -1,18 +1,25 @@
 /*
  * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
+ *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #include "plugin/x/ngs/include/ngs/document_id_generator.h"
@@ -20,14 +27,14 @@
 #include <cinttypes>
 #include <limits>
 
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
 Document_id_generator::Document_id_generator()
-    : m_timestamp{static_cast<uint64_t>(
-          chrono::to_seconds(chrono::system_clock::now().time_since_epoch()))},
+    : m_timestamp{static_cast<uint64_t>(xpl::chrono::to_seconds(
+          xpl::chrono::System_clock::now().time_since_epoch()))},
       m_serial{0},
       m_generate_mutex{KEY_mutex_x_document_id_generate} {}
 

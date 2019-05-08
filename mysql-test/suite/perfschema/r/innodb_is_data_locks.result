@@ -20,8 +20,8 @@ from performance_schema.data_locks
 where object_name="t1_is"
   order by lock_type, lock_mode, lock_status, lock_data;
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_is	RECORD	S	GRANTED	0
-test	t1_is	RECORD	X	WAITING	0
+test	t1_is	RECORD	S,REC_NOT_GAP	GRANTED	0
+test	t1_is	RECORD	X,REC_NOT_GAP	WAITING	0
 test	t1_is	TABLE	IS	GRANTED	NULL
 test	t1_is	TABLE	IX	GRANTED	NULL
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
@@ -29,8 +29,8 @@ from performance_schema.data_locks
 where object_name="t1_is"
   order by lock_type, lock_mode, lock_status, lock_data;
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_is	RECORD	S	GRANTED	0
-test	t1_is	RECORD	X	WAITING	0
+test	t1_is	RECORD	S,REC_NOT_GAP	GRANTED	0
+test	t1_is	RECORD	X,REC_NOT_GAP	WAITING	0
 test	t1_is	TABLE	IS	GRANTED	NULL
 test	t1_is	TABLE	IX	GRANTED	NULL
 select count(*) into @health_check

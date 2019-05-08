@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Could not parse key-value pairs in property string.*");
 #
 # Bug#24487414 - SIG 11 IN DD::INFO_SCHEMA::STATISTICS_CACHE::READ_STAT_BY_OPEN_TABLE
 #
@@ -42,3 +43,21 @@ SHOW CREATE TABLE t1;
 ERROR HY000: Got unknown error: 42
 SET SESSION debug="";
 DROP TABLE t1;
+#
+# Bug#28460158 SIG 11 IN ITEM_FUNC_GET_DD_CREATE_OPTIONS::VAL_STR AT SQL/ITEM_STRFUNC.CC:4167
+#
+CREATE TABLE t1(f1 INT, s VARCHAR(10));
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+SET debug = '+d,skip_dd_table_access_check';
+update mysql.tables set options=concat(options,"abc") where name='t1';
+SET debug = '+d,continue_on_property_string_parse_failure';
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+SET debug = DEFAULT;
+DROP TABLE t1;
+Pattern "Could not parse key-value pairs in property string.*" found

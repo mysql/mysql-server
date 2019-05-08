@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,15 +61,15 @@
        : X >= 'A' && X <= 'Z' ? X - 'A' + 10 \
                               : X >= 'a' && X <= 'z' ? X - 'a' + 10 : '\177')
 
-char *str2int(const char *src, int radix, long int lower, long int upper,
-              long int *val) {
+const char *str2int(const char *src, int radix, long int lower, long int upper,
+                    long int *val) {
   int sign;   /* is number negative (+1) or positive (-1) */
   int n;      /* number of digits yet to be converted */
   long limit; /* "largest" possible valid input */
   long scale; /* the amount to multiply next digit by */
   long sofar; /* the running value */
   int d;      /* (negative of) next digit */
-  char *start;
+  const char *start;
   int digits[32]; /* Room for numbers */
 
   /*  Make sure *val is sensible in case of error  */
@@ -81,7 +81,7 @@ char *str2int(const char *src, int radix, long int lower, long int upper,
 #ifndef DBUG_OFF
   if (radix < 2 || radix > 36) {
     errno = EDOM;
-    return NullS;
+    return nullptr;
   }
 #endif
 
@@ -121,7 +121,7 @@ char *str2int(const char *src, int radix, long int lower, long int upper,
       enough 0s in front of a number could cause the multiplication
       to overflow when it neededn't.
       */
-  start = (char *)src;
+  start = src;
   while (*src == '0') src++;
 
   /*  Move over the remaining digits.  We have to convert from left
@@ -135,7 +135,7 @@ char *str2int(const char *src, int radix, long int lower, long int upper,
 
   if (start == src) {
     errno = EDOM;
-    return NullS;
+    return nullptr;
   }
 
   /*  The invariant we want to maintain is that src is just
@@ -154,7 +154,7 @@ char *str2int(const char *src, int radix, long int lower, long int upper,
   for (sofar = 0, scale = -1; --n >= 1;) {
     if ((long)-(d = digits[n]) < limit) {
       errno = ERANGE;
-      return NullS;
+      return nullptr;
     }
     limit = (limit + d) / radix, sofar += d * scale;
     scale *= radix;
@@ -163,7 +163,7 @@ char *str2int(const char *src, int radix, long int lower, long int upper,
     if ((long)-(d = digits[n]) < limit) /* get last digit */
     {
       errno = ERANGE;
-      return NullS;
+      return nullptr;
     }
     sofar += d * scale;
   }
@@ -178,13 +178,13 @@ char *str2int(const char *src, int radix, long int lower, long int upper,
   if (sign < 0) {
     if (sofar < -LONG_MAX || (sofar = -sofar) > upper) {
       errno = ERANGE;
-      return NullS;
+      return nullptr;
     }
   } else if (sofar < lower) {
     errno = ERANGE;
-    return NullS;
+    return nullptr;
   }
   *val = sofar;
   errno = 0; /* indicate that all went well */
-  return (char *)src;
+  return src;
 }

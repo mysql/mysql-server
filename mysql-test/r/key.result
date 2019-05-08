@@ -252,7 +252,7 @@ EXPLAIN SELECT numeropost FROM t1 WHERE numreponse='1';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	numreponse	numreponse	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `numeropost` from `test`.`t1` where ('1' = '1')
+Note	1003	/* select#1 */ select '1' AS `numeropost` from `test`.`t1` where 1
 FLUSH TABLES;
 SELECT numeropost FROM t1 WHERE numreponse='1';
 numeropost
@@ -1201,6 +1201,18 @@ t1	CREATE TABLE `t1` (
   KEY `k` (`k`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
+#
+# Bug #27546306 MISSING VITAL ERROR INFORMATION IN ERROR MESSAGE WHEN FAILING TO CONVERT CHARSET
+#
+#
+CREATE TABLE `mytable` (   `id` INT(10) UNSIGNED NOT NULL DEFAULT '0',   `somefield` VARCHAR(1000) NOT NULL DEFAULT '',
+PRIMARY KEY (`id`,`somefield`) )
+DEFAULT CHARSET=UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE mytable CONVERT TO CHARACTER SET UTF8MB4;
+ERROR HY000: Could not change column 'somefield' of table 'mytable'. The resulting size of index 'PRIMARY' would exceed the max key length of 3072 bytes.
+DROP TABLE mytable;
 #
 # Bug 25647413 "ASSERTION FAILURE: HA_INNODB.CC:NNN:(TABLE->INDEXES).
 #               COUNT == DD_TABLE.INDEXES()".

@@ -11,19 +11,19 @@ create database mysqltest3;
 --- --master--
 show create database mysqltest2;
 Database	Create Database
-mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */ /*!80016 DEFAULT ENCRYPTION='N' */
 show create database mysqltest3;
 Database	Create Database
-mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET latin5 */
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET latin5 */ /*!80016 DEFAULT ENCRYPTION='N' */
 include/sync_slave_sql_with_master.inc
 
 --- --slave--
 show create database mysqltest2;
 Database	Create Database
-mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */ /*!80016 DEFAULT ENCRYPTION='N' */
 show create database mysqltest3;
 Database	Create Database
-mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET latin5 */
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET latin5 */ /*!80016 DEFAULT ENCRYPTION='N' */
 set @@collation_server=armscii8_bin;
 drop database mysqltest3;
 create database mysqltest3;
@@ -31,13 +31,13 @@ create database mysqltest3;
 --- --master--
 show create database mysqltest3;
 Database	Create Database
-mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
 include/sync_slave_sql_with_master.inc
 
 --- --slave--
 show create database mysqltest3;
 Database	Create Database
-mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
 use mysqltest2;
 create table t1 (a int auto_increment primary key, b varchar(100));
 set character_set_client=cp850, collation_connection=latin2_croatian_ci;

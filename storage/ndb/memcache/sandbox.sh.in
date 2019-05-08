@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ if test -d $BUILD_DIR
   MYSQL_CLIENT_DIR=$RUNTIME_OUTPUT_DIR
   MYSQL_SERVER_DIR=$RUNTIME_OUTPUT_DIR
   MYSQLD_SAFE_DIR=$BUILD_DIR/scripts
-  ENGINE_SO_DIR=$BUILD_DIR/storage/ndb/memcache
+  ENGINE_SO_DIR=$BUILD_DIR/library_output_directory
   METADATA_DIR=$BUILD_DIR/scripts/
  else
   # Use install dir
@@ -134,8 +134,7 @@ write_cluster_ini() {
     echo "[DB DEFAULT]"
     echo "NoOfReplicas=1"
     echo "TimeBetweenGlobalCheckpoints=12000"
-    echo "DataMemory=180M"
-    echo "IndexMemory=60M"
+    echo "DataMemory=200M"
     echo "HeartbeatIntervalDbApi=15000"
     echo
     echo "[NDBD]"

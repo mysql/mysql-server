@@ -75,9 +75,10 @@ Mysqlx.Crud.Insert {
 
 -->sql
 SELECT * FROM xtest.mytable;
-
-CREATE TABLE xtest.mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY);
 -->endsql
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
+-->recvresult
 
 Mysqlx.Crud.Insert {
   collection {

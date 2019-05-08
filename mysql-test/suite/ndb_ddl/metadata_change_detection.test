@@ -1,0 +1,170 @@
+--source setup.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+#
+# Basic schema detection test
+# - Cause mismatch between NDB Dictionary and DD
+# - Check if these mismatches are detected properly by
+#   Ndb_metadata_change_monitor thread
+#
+# Note: The test can only pass if run with --no-check-testcase
+#       option and cannot be run with --repeat. Explanation
+#       as to why is at the end of the test
+#
+
+# Create additional logfile group, tablespace, and tables
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+USE ndb_ddl_test;
+
+CREATE TABLE t10 (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB
+  TABLESPACE ts1
+  STORAGE DISK;
+
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+CREATE TABLE t2(
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+# backup
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+# Create few more databases and tests
+CREATE DATABASE ndb_ddl_test4;
+USE ndb_ddl_test4;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+CREATE TABLE t2(
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+CREATE DATABASE ndb_ddl_test5;
+USE ndb_ddl_test5;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+USE ndb_ddl_test;
+
+# Drop half the tables from ndb_ddl_test database
+--let $counter = 6
+while ($counter <= 10)
+{
+  let $tx=t$counter;
+  --eval DROP TABLE $tx
+  inc $counter;
+}
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+# Drop all tables in ndb_ddl_test3
+USE ndb_ddl_test3;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Restore into NDB, skip tables in ndb_ddl_test database that already exist
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m --exclude-tables=ndb_ddl_test.t1,ndb_ddl_test.t2,ndb_ddl_test.t3,ndb_ddl_test.t4,ndb_ddl_test.t5 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Drop tables from NDB only to cause mismatch
+--exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test4 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test5 t1 >> $NDB_TOOLS_OUTPUT
+
+SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+
+--let $current_changes_detected = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+
+# Check if both variables are global
+--error ER_GLOBAL_VARIABLE
+SET SESSION ndb_metadata_check = 1;
+--error ER_GLOBAL_VARIABLE
+SET SESSION ndb_metadata_check_interval = 5;
+
+# Enable metadata check with a low interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check_interval = 5;
+SET GLOBAL ndb_metadata_check = 1;
+
+--let $initial_count = $current_changes_detected
+--let $changes_detected = 0
+--let $max_wait = 60
+# Wait until the following 11 object changes are detected:
+# Logfile group 'lg1'
+# Tablespace 'ts1'
+# Database 'ndb_ddl_test3' (Table 't1' and 't2' to be synchronized)
+# Database 'ndb_ddl_test5' (Table 't1' to be synchronized)
+# Table 'ndb_ddl_test.t6'
+# Table 'ndb_ddl_test.t7'
+# Table 'ndb_ddl_test.t8'
+# Table 'ndb_ddl_test.t9'
+# Table 'ndb_ddl_test.t10'
+# Table 'ndb_ddl_test4.t1'
+while ($changes_detected <= 11)
+{
+  --sleep 1
+  --dec $max_wait
+  if ($max_wait == 0)
+  {
+    --echo $changes_detected
+    --die Timed out waiting for metadata changes to be detected
+  }
+  --let $current_changes_detected = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+  --expr $changes_detected = $current_changes_detected - $initial_count
+}
+
+# Reset values
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+DROP DATABASE ndb_ddl_test3;
+# The statements below have to be commented out since the mismatches
+# induced haven't been corrected. This means that the check-testcase
+# will complain about the metadata being left behind
+# DROP DATABASE ndb_ddl_test4;
+# DROP DATABASE ndb_ddl_test5;
+--source cleanup.inc
+
+#ALTER TABLESPACE ts1
+#  DROP DATAFILE 'ts1_datafile.dat';
+#DROP TABLESPACE ts1;
+#DROP LOGFILE GROUP lg1
+#  ENGINE NDB;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

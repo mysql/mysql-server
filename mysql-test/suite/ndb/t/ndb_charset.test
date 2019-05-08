@@ -343,4 +343,54 @@ create table t1 (
 
 drop table t1;
 
+####################################
+# Bug#29322313 ANGSTROM AND A-RING NOT EQUAL WITH CHAR(N) COLUMN AND UTF8MB4_0900_AI_CI
+#
+# NO_PAD collations did not ignore trailing spaces as supposed to
+# when hashing and comparing fix character columns.
+
+# Insert two strings being binary different, but compares equal
+# Require 2'nd insert to fail.
+
+create table t (
+ck char(1) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+
+insert into t values (_utf16 X'212B');
+--error ER_DUP_ENTRY
+insert into t values (_utf16 X'00C5');
+select count(*) from t;
+drop table t;
+
+create table t (
+ck char(10) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+
+insert into t values (_utf16 X'212B');
+--error ER_DUP_ENTRY
+insert into t values (_utf16 X'00C5');
+select count(*) from t;
+drop table t;
+
+create table t (
+ck varchar(1) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+
+insert into t values (_utf16 X'212B');
+--error ER_DUP_ENTRY
+insert into t values (_utf16 X'00C5');
+select count(*) from t;
+drop table t;
+
+create table t (
+ck varchar(10) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+
+insert into t values (_utf16 X'212B');
+--error ER_DUP_ENTRY
+insert into t values (_utf16 X'00C5');
+select count(*) from t;
+drop table t;
+
+
 # End of 8.0 tests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,6 +196,15 @@ class Gcs_control_interface {
    */
 
   virtual void remove_event_listener(int event_listener_handle) = 0;
+
+  /**
+    Sets a new value for the maximum size of the XCom cache.
+
+    @param[in] size the new maximum size of the XCom cache
+    @retval - GCS_OK if request was successfully scheduled in XCom,
+              GCS_NOK otherwise.
+  */
+  virtual enum_gcs_error set_xcom_cache_size(uint64_t size) = 0;
 
   virtual ~Gcs_control_interface() {}
 };

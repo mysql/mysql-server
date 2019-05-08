@@ -29,7 +29,7 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/client_close.tmp
-
+-->import connection.macro
 # number of seconds to sleep... increase to a higher value once killing sessions on disconnect works
 -->varlet %SLEEP% 2
 
@@ -159,13 +159,13 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
     stmt: "select 3"
 }
-Mysqlx.Session.Close {
+Mysqlx.Connection.Close {
 }
 # ALL results up to the Close must be readable by client
 -->recvresult
 -->recvresult
--->recv
--->expecterror 2006,2007
+-->recvok
+-->expecterror CR_SERVER_GONE_ERROR
 -->sleep 1
 -->sql
 select 4;
@@ -241,6 +241,7 @@ Mysqlx.Sql.StmtExecute {
 -->title -Kill a session that hasnt authenticated yet
 
 -->newsession sess	-
+-->callmacro Verify_its_xprotocol_connection
 -->varlet %SESS_CLIENT_ID% 11
 
 -->sleep 1
@@ -274,6 +275,7 @@ select 1;
 -->title -Kill a session that hasnt authenticated yet, with data queued
 
 -->newsession sess	-
+-->callmacro Verify_its_xprotocol_connection
 -->varlet %SESS_CLIENT_ID% 12
 
 -->sleep 1
@@ -314,7 +316,7 @@ Mysqlx.Sql.StmtExecute {
 -->title -Authentication error
 
 -->newsession sess	-
-
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Session.AuthenticateStart {
     mech_name: "invalid"
 }
@@ -324,7 +326,7 @@ Mysqlx.Session.AuthenticateStart {
 
 -->title -Authentication error (try to close normally)
 -->newsession sess	-
-
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Session.AuthenticateStart {
     mech_name: "invalid"
 }
@@ -336,7 +338,7 @@ Mysqlx.Session.AuthenticateStart {
 
 -->title -Disconnect while authenticating
 -->newsession sess	-
-
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Session.AuthenticateStart {
     mech_name: "MYSQL41"
 }
@@ -346,7 +348,7 @@ Mysqlx.Session.AuthenticateStart {
 -->title -Send unexpected message at handshake
 
 -->newsession sess	-
-
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Sql.StmtExecute {
     stmt: "select 1"
 }
@@ -357,13 +359,13 @@ Mysqlx.Sql.StmtExecute {
 
 -->title -Disconnect at handshake
 -->newsession sess	-
-
+-->callmacro Verify_its_xprotocol_connection
 -->closesession abort
 
 
 -->title -Disconnect at handshake
 -->newsession sess	-
-
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -374,6 +376,7 @@ Mysqlx.Connection.CapabilitiesGet {
 
 -->title -Send illegal message at handshake
 -->newsession sess	-
+-->callmacro Verify_its_xprotocol_connection
 -->binsend \x00\xff\xff\xff\xffxxxxx
 
 -->peerdisc 500 500
@@ -429,7 +432,7 @@ stmt:"SELECT %VALUE% as `Column`;"
 namespace: "sql"
 }
 -->endrepeat
-Mysqlx.Session.Close {
+Mysqlx.Connection.Close {
 }
 #-->abort
 -->repeat 200 %VALUE%

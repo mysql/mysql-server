@@ -771,6 +771,9 @@ struct st_mysql_storage_engine example_storage_engine = {
 static ulong srv_enum_var = 0;
 static ulong srv_ulong_var = 0;
 static double srv_double_var = 0;
+static int srv_signed_int_var = 0;
+static long srv_signed_long_var = 0;
+static longlong srv_signed_longlong_var = 0;
 
 const char *enum_var_names[] = {"e1", "e2", NullS};
 
@@ -798,13 +801,44 @@ static MYSQL_THDVAR_DOUBLE(double_thdvar, PLUGIN_VAR_RQCMDARG,
                            "0.500000..1000.500000", NULL, NULL, 8.5, 0.5,
                            1000.5, 0);
 
-static SYS_VAR *example_system_variables[] = {MYSQL_SYSVAR(enum_var),
-                                              MYSQL_SYSVAR(ulong_var),
-                                              MYSQL_SYSVAR(double_var),
-                                              MYSQL_SYSVAR(double_thdvar),
-                                              MYSQL_SYSVAR(last_create_thdvar),
-                                              MYSQL_SYSVAR(create_count_thdvar),
-                                              NULL};
+static MYSQL_SYSVAR_INT(signed_int_var, srv_signed_int_var, PLUGIN_VAR_RQCMDARG,
+                        "INT_MIN..INT_MAX", NULL, NULL, -10, INT_MIN, INT_MAX,
+                        0);
+
+static MYSQL_THDVAR_INT(signed_int_thdvar, PLUGIN_VAR_RQCMDARG,
+                        "INT_MIN..INT_MAX", NULL, NULL, -10, INT_MIN, INT_MAX,
+                        0);
+
+static MYSQL_SYSVAR_LONG(signed_long_var, srv_signed_long_var,
+                         PLUGIN_VAR_RQCMDARG, "LONG_MIN..LONG_MAX", NULL, NULL,
+                         -10, LONG_MIN, LONG_MAX, 0);
+
+static MYSQL_THDVAR_LONG(signed_long_thdvar, PLUGIN_VAR_RQCMDARG,
+                         "LONG_MIN..LONG_MAX", NULL, NULL, -10, LONG_MIN,
+                         LONG_MAX, 0);
+
+static MYSQL_SYSVAR_LONGLONG(signed_longlong_var, srv_signed_longlong_var,
+                             PLUGIN_VAR_RQCMDARG, "LLONG_MIN..LLONG_MAX", NULL,
+                             NULL, -10, LLONG_MIN, LLONG_MAX, 0);
+
+static MYSQL_THDVAR_LONGLONG(signed_longlong_thdvar, PLUGIN_VAR_RQCMDARG,
+                             "LLONG_MIN..LLONG_MAX", NULL, NULL, -10, LLONG_MIN,
+                             LLONG_MAX, 0);
+
+static SYS_VAR *example_system_variables[] = {
+    MYSQL_SYSVAR(enum_var),
+    MYSQL_SYSVAR(ulong_var),
+    MYSQL_SYSVAR(double_var),
+    MYSQL_SYSVAR(double_thdvar),
+    MYSQL_SYSVAR(last_create_thdvar),
+    MYSQL_SYSVAR(create_count_thdvar),
+    MYSQL_SYSVAR(signed_int_var),
+    MYSQL_SYSVAR(signed_int_thdvar),
+    MYSQL_SYSVAR(signed_long_var),
+    MYSQL_SYSVAR(signed_long_thdvar),
+    MYSQL_SYSVAR(signed_longlong_var),
+    MYSQL_SYSVAR(signed_longlong_thdvar),
+    NULL};
 
 // this is an example of SHOW_FUNC
 static int show_func_example(MYSQL_THD, SHOW_VAR *var, char *buf) {
@@ -812,8 +846,10 @@ static int show_func_example(MYSQL_THD, SHOW_VAR *var, char *buf) {
   var->value = buf;  // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
   snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
            "enum_var is %lu, ulong_var is %lu, "
-           "double_var is %f",
-           srv_enum_var, srv_ulong_var, srv_double_var);
+           "double_var is %f, signed_int_var is %d, "
+           "signed_long_var is %ld, signed_longlong_var is %lld",
+           srv_enum_var, srv_ulong_var, srv_double_var, srv_signed_int_var,
+           srv_signed_long_var, srv_signed_longlong_var);
   return 0;
 }
 

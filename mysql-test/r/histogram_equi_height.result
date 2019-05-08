@@ -343,12 +343,12 @@ EXPLAIN SELECT * FROM tbl_double WHERE col1 < 100.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_double	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (`test`.`tbl_double`.`col1` < 100.0)
+Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (`test`.`tbl_double`.`col1` < 100)
 EXPLAIN SELECT * FROM tbl_double WHERE 100.0 > col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_double	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (100.0 > `test`.`tbl_double`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (100 > `test`.`tbl_double`.`col1`)
 # Expect "40.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 >= 3.3e0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -365,12 +365,12 @@ EXPLAIN SELECT * FROM tbl_double WHERE col1 >= -2.0e0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_double	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (`test`.`tbl_double`.`col1` >= <cache>(-(2.0e0)))
+Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (`test`.`tbl_double`.`col1` >= -2)
 EXPLAIN SELECT * FROM tbl_double WHERE -2.0e0 <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_double	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (<cache>(-(2.0e0)) <= `test`.`tbl_double`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (-2 <= `test`.`tbl_double`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 != 0.0e0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -398,12 +398,12 @@ EXPLAIN SELECT * FROM tbl_double WHERE col1 = 100.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_double	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (`test`.`tbl_double`.`col1` = 100.0)
+Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (`test`.`tbl_double`.`col1` = 100)
 EXPLAIN SELECT * FROM tbl_double WHERE 100.0 = col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_double	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (100.0 = `test`.`tbl_double`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (100 = `test`.`tbl_double`.`col1`)
 # Expect "20.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -459,89 +459,89 @@ EXPLAIN SELECT * FROM tbl_time WHERE col1 > "00:00:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	40.66	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` > '00:00:00')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` > TIME'00:00:00')
 EXPLAIN SELECT * FROM tbl_time WHERE "00:00:00" < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	40.66	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('00:00:00' < `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'00:00:00' < `test`.`tbl_time`.`col1`)
 # Expect "10.0" in column "filtered" (we never estimate 0%)
 EXPLAIN SELECT * FROM tbl_time WHERE col1 > "03:00:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` > '03:00:00')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` > TIME'03:00:00')
 EXPLAIN SELECT * FROM tbl_time WHERE "03:00:00" < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('03:00:00' < `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'03:00:00' < `test`.`tbl_time`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 < "10:00:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` < '10:00:00')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` < TIME'10:00:00')
 EXPLAIN SELECT * FROM tbl_time WHERE "10:00:00" > col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('10:00:00' > `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'10:00:00' > `test`.`tbl_time`.`col1`)
 # Expect "40.64" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 >= "00:00:01";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	40.64	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` >= '00:00:01')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` >= TIME'00:00:01')
 EXPLAIN SELECT * FROM tbl_time WHERE "00:00:01" <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	40.64	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('00:00:01' <= `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'00:00:01' <= `test`.`tbl_time`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 >= "-01:00:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` >= '-01:00:00')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` >= TIME'-01:00:00')
 EXPLAIN SELECT * FROM tbl_time WHERE "-01:00:00" <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('-01:00:00' <= `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'-01:00:00' <= `test`.`tbl_time`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 != "01:01:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` <> '01:01:00')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` <> TIME'01:01:00')
 EXPLAIN SELECT * FROM tbl_time WHERE "01:01:00" != col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('01:01:00' <> `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'01:01:00' <> `test`.`tbl_time`.`col1`)
 EXPLAIN SELECT * FROM tbl_time WHERE col1 <> "01:01:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` <> '01:01:00')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` <> TIME'01:01:00')
 EXPLAIN SELECT * FROM tbl_time WHERE "01:01:00" <> col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('01:01:00' <> `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'01:01:00' <> `test`.`tbl_time`.`col1`)
 # Expect "10.0" in column "filtered", due to the fact that the optimizer
 # always assumes that at least one row will match.
 EXPLAIN SELECT * FROM tbl_time WHERE col1 = "10:00:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` = '10:00:00')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` = TIME'10:00:00')
 EXPLAIN SELECT * FROM tbl_time WHERE "10:00:00" = col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where ('10:00:00' = `test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (TIME'10:00:00' = `test`.`tbl_time`.`col1`)
 # Expect "20.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -597,7 +597,7 @@ EXPLAIN SELECT * FROM tbl_time WHERE col1 < "00:00:00.000004";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	6	75.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` < '00:00:00.000004')
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` < TIME'00:00:00.000004')
 DROP TABLE tbl_time;
 #
 # Date column, equi-height histogram
@@ -617,89 +617,89 @@ EXPLAIN SELECT * FROM tbl_date WHERE col1 > "2017-01-02";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` > '2017-01-02')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` > DATE'2017-01-02')
 EXPLAIN SELECT * FROM tbl_date WHERE "2017-01-02" < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where ('2017-01-02' < `test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (DATE'2017-01-02' < `test`.`tbl_date`.`col1`)
 # Expect "10.0" in column "filtered" (we never estimate 0%)
 EXPLAIN SELECT * FROM tbl_date WHERE col1 > "9999-12-31";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` > '9999-12-31')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` > DATE'9999-12-31')
 EXPLAIN SELECT * FROM tbl_date WHERE "9999-12-31" < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where ('9999-12-31' < `test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (DATE'9999-12-31' < `test`.`tbl_date`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 < "9999-12-31";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` < '9999-12-31')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` < DATE'9999-12-31')
 EXPLAIN SELECT * FROM tbl_date WHERE "9999-12-31" > col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where ('9999-12-31' > `test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (DATE'9999-12-31' > `test`.`tbl_date`.`col1`)
 # Expect "40.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 >= "2018-01-01";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` >= '2018-01-01')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` >= DATE'2018-01-01')
 EXPLAIN SELECT * FROM tbl_date WHERE "2018-01-01" <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where ('2018-01-01' <= `test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (DATE'2018-01-01' <= `test`.`tbl_date`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 >= "1000-01-01";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` >= '1000-01-01')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` >= DATE'1000-01-01')
 EXPLAIN SELECT * FROM tbl_date WHERE "1000-01-01" <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where ('1000-01-01' <= `test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (DATE'1000-01-01' <= `test`.`tbl_date`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 != "2017-01-02";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` <> '2017-01-02')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` <> DATE'2017-01-02')
 EXPLAIN SELECT * FROM tbl_date WHERE "2017-01-02" != col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where ('2017-01-02' <> `test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (DATE'2017-01-02' <> `test`.`tbl_date`.`col1`)
 EXPLAIN SELECT * FROM tbl_date WHERE col1 <> "2017-01-02";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` <> '2017-01-02')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` <> DATE'2017-01-02')
 EXPLAIN SELECT * FROM tbl_date WHERE "2017-01-02" <> col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where ('2017-01-02' <> `test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (DATE'2017-01-02' <> `test`.`tbl_date`.`col1`)
 # Expect "10.0" in column "filtered", due to the fact that the optimizer
 # always assumes that at least one row will match.
 EXPLAIN SELECT * FROM tbl_date WHERE col1 = "9999-12-31";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` = '9999-12-31')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` = DATE'9999-12-31')
 EXPLAIN SELECT * FROM tbl_date WHERE "9999-12-31" = col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` = '9999-12-31')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` = DATE'9999-12-31')
 # Expect "20.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -761,89 +761,89 @@ EXPLAIN SELECT * FROM tbl_datetime WHERE col1 > "2018-01-01 00:00:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` > '2018-01-01 00:00:00')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` > TIMESTAMP'2018-01-01 00:00:00')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "2018-01-01 00:00:00" < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where ('2018-01-01 00:00:00' < `test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (TIMESTAMP'2018-01-01 00:00:00' < `test`.`tbl_datetime`.`col1`)
 # Expect "10.0" in column "filtered" (we never estimate 0%)
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 > "9999-12-31 23:59:59.999999";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` > '9999-12-31 23:59:59.999999')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` > TIMESTAMP'9999-12-31 23:59:59.999999')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "9999-12-31 23:59:59.999999" < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where ('9999-12-31 23:59:59.999999' < `test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (TIMESTAMP'9999-12-31 23:59:59.999999' < `test`.`tbl_datetime`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 < "9999-12-31 23:59:59.999999";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` < '9999-12-31 23:59:59.999999')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` < TIMESTAMP'9999-12-31 23:59:59.999999')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "9999-12-31 23:59:59.999999" > col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where ('9999-12-31 23:59:59.999999' > `test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (TIMESTAMP'9999-12-31 23:59:59.999999' > `test`.`tbl_datetime`.`col1`)
 # Expect "40.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 >= "2018-01-01 00:00:00.999999";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` >= '2018-01-01 00:00:00.999999')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` >= TIMESTAMP'2018-01-01 00:00:00.999999')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "2018-01-01 00:00:00.999999" <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where ('2018-01-01 00:00:00.999999' <= `test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (TIMESTAMP'2018-01-01 00:00:00.999999' <= `test`.`tbl_datetime`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 >= "1000-01-01 00:00:00.000000";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` >= '1000-01-01 00:00:00.000000')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` >= TIMESTAMP'1000-01-01 00:00:00')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "1000-01-01 00:00:00.000000" <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where ('1000-01-01 00:00:00.000000' <= `test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (TIMESTAMP'1000-01-01 00:00:00' <= `test`.`tbl_datetime`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 != "3019-01-01 10:10:10.101010";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` <> '3019-01-01 10:10:10.101010')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` <> TIMESTAMP'3019-01-01 10:10:10.10101')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "3019-01-01 10:10:10.101010" != col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where ('3019-01-01 10:10:10.101010' <> `test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (TIMESTAMP'3019-01-01 10:10:10.10101' <> `test`.`tbl_datetime`.`col1`)
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 <> "3019-01-01 10:10:10.101010";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` <> '3019-01-01 10:10:10.101010')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` <> TIMESTAMP'3019-01-01 10:10:10.10101')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "3019-01-01 10:10:10.101010" <> col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where ('3019-01-01 10:10:10.101010' <> `test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (TIMESTAMP'3019-01-01 10:10:10.10101' <> `test`.`tbl_datetime`.`col1`)
 # Expect "10.0" in column "filtered", due to the fact that the optimizer
 # always assumes that at least one row will match.
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 = "9999-12-31 23:59:59.999999";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` = '9999-12-31 23:59:59.999999')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` = TIMESTAMP'9999-12-31 23:59:59.999999')
 EXPLAIN SELECT * FROM tbl_datetime WHERE "9999-12-31 23:59:59.999999" = col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` = '9999-12-31 23:59:59.999999')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` = TIMESTAMP'9999-12-31 23:59:59.999999')
 # Expect "20.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -905,23 +905,23 @@ EXPLAIN SELECT * FROM tbl_decimal WHERE col1 > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` > 1)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` > 1.000000000000000000000000000000)
 EXPLAIN SELECT * FROM tbl_decimal WHERE 1 < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (1 < `test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (1.000000000000000000000000000000 < `test`.`tbl_decimal`.`col1`)
 # Expect "10.0" in column "filtered" (we never estimate 0%)
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 > 100000000000000000000000000000000000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` > 100000000000000000000000000000000000)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where 0
 EXPLAIN SELECT * FROM tbl_decimal WHERE 100000000000000000000000000000000000 < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (100000000000000000000000000000000000 < `test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where 0
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 < 99999999999999999999999999999999999.999999999999999999999999999999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -938,56 +938,56 @@ EXPLAIN SELECT * FROM tbl_decimal WHERE col1 >= 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` >= 4)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` >= 4.000000000000000000000000000000)
 EXPLAIN SELECT * FROM tbl_decimal WHERE 4 <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (4 <= `test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (4.000000000000000000000000000000 <= `test`.`tbl_decimal`.`col1`)
 # Expect "40.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 >= -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` >= <cache>(-(1)))
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` >= -1.000000000000000000000000000000)
 EXPLAIN SELECT * FROM tbl_decimal WHERE -1 <= col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (<cache>(-(1)) <= `test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (-1.000000000000000000000000000000 <= `test`.`tbl_decimal`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 != 2.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` <> 2.0)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` <> 2.000000000000000000000000000000)
 EXPLAIN SELECT * FROM tbl_decimal WHERE 2.0 != col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (2.0 <> `test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (2.000000000000000000000000000000 <> `test`.`tbl_decimal`.`col1`)
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 <> 2.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` <> 2.0)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` <> 2.000000000000000000000000000000)
 EXPLAIN SELECT * FROM tbl_decimal WHERE 2.0 <> col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (2.0 <> `test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (2.000000000000000000000000000000 <> `test`.`tbl_decimal`.`col1`)
 # Expect "10.0" in column "filtered", due to the fact that the optimizer
 # always assumes that at least one row will match.
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 = "99999999999999999999999999999999999.999999999999999999999999999999";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` = '99999999999999999999999999999999999.999999999999999999999999999999')
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` = 99999999999999999999999999999999999.999999999999999999999999999999)
 EXPLAIN SELECT * FROM tbl_decimal WHERE "99999999999999999999999999999999999.999999999999999999999999999999" = col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where ('99999999999999999999999999999999999.999999999999999999999999999999' = `test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (99999999999999999999999999999999999.999999999999999999999999999999 = `test`.`tbl_decimal`.`col1`)
 # Expect "20.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1386,12 +1386,12 @@ EXPLAIN SELECT * FROM t1 WHERE col1 < 0.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` < 0.0)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` < 0)
 EXPLAIN SELECT * FROM t1 WHERE col1 < 1.0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` < 1.0)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` < 1)
 DROP TABLE t1;
 CREATE TABLE t1 (col1 BIGINT UNSIGNED);
 INSERT INTO t1 VALUES (100), (100), (100), (100), (100), (100), (100), (200),
@@ -1482,7 +1482,7 @@ EXPLAIN SELECT * FROM t1 WHERE col1 < "00:00:00";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` < '00:00:00')
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` < TIME'00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN "00:00:00" AND "";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	88.89	Using where

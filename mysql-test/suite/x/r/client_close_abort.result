@@ -27,18 +27,21 @@ send Mysqlx.Sql.StmtExecute {
   stmt: "select \'fail\'"
 }
 
-Got expected error (one of: 0 2007 )
 4.1
 4.1
 0 rows affected
 4.2
 4.2
 0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
+RUN recvok
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
 }
 
-Got expected error (one of: 2006 2007 )
 aborting session sess
 switched to session default
 Mysqlx.Ok {

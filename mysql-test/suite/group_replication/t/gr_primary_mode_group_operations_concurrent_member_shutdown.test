@@ -36,7 +36,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
 --echo
@@ -92,6 +92,7 @@ call mtr.add_suppression("Error running internal SQL query: SELECT @@GLOBAL.supe
 call mtr.add_suppression("Unable to read the server value for the super_read_only variable.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member.");
 call mtr.add_suppression("Error running internal SQL query: SET GLOBAL super_read_only= 1;. Internal failure.");
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server1

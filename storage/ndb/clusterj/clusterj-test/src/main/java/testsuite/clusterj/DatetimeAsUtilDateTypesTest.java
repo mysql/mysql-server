@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,14 +106,14 @@ public class DatetimeAsUtilDateTypesTest extends AbstractClusterJModelTest {
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
         failOnError();
-   }
+    }
 
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
-   }
+    }
 
-   static ColumnDescriptor not_null_hash = new ColumnDescriptor
+    static ColumnDescriptor not_null_hash = new ColumnDescriptor
             ("datetime_not_null_hash", new InstanceHandler() {
         public void setFieldValue(IdBase instance, Object value) {
             ((DatetimeAsUtilDateTypes)instance).setDatetime_not_null_hash((Date)value);

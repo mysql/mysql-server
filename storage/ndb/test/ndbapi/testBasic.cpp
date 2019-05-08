@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3194,7 +3194,7 @@ int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   return rc;
-};
+}
 
 // Regression test for bug #14208924
 static int
@@ -3944,6 +3944,80 @@ int deleteNdbWhileWaiting(NDBT_Context* ctx, NDBT_Step* step)
 /******* end TESTCASE DeleteNdbWhilePoll*******/
 
 
+int testAbortRace(NDBT_Context* ctx, NDBT_Step* step)
+{
+
+  /* Transaction 1 : Lock tuple */
+  /* Transaction 2 : Issue DELETE, INSERT */
+  /* ERROR INSERT 5091 */
+  /* Transaction 1 : Unlock tuple */
+  /* ... Transaction 2 should timeout due to ERROR INSERTS + ABORT */
+  /* Wait for Transaction 2 outcome */
+  /* Scan table via ACC */
+  
+  int result = NDBT_OK;
+  const NdbDictionary::Table *table= ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  for (int r=0; r < 10; r++)
+  {
+    ndbout_c("Locking row %u", r);
+    /* Lock the tuple */
+    HugoOperations hugoOp1(*table);
+    CHECK2(hugoOp1.startTransaction(pNdb) == 0);
+    CHECK2(hugoOp1.pkReadRecord(pNdb, r, 1, NdbOperation::LM_Exclusive) == 0);
+    
+    CHECK2(hugoOp1.execute_NoCommit(pNdb) == 0);
+    
+    ndbout_c("Defining DEL, INS on %u", r);
+    /* Define delete + insert ops which will queue on the row lock */
+    HugoOperations hugoOp2(*table);
+    CHECK2(hugoOp2.startTransaction(pNdb) == 0);
+    CHECK2(hugoOp2.pkDeleteRecord(pNdb, r, 1) == 0);
+    CHECK2(hugoOp2.pkInsertRecord(pNdb, r, 1) == 0);
+    
+    CHECK2(hugoOp2.execute_async(pNdb, NdbTransaction::NoCommit) == 0);
+    
+    ndbout_c("Setting error insert");
+    restarter.insertErrorInAllNodes(5094);
+    
+    /* Wait a little */
+    NdbSleep_MilliSleep(500);
+    
+    ndbout_c("Releasing the lock");
+    /* Release the lock */
+    CHECK2(hugoOp1.execute_Commit(pNdb) == 0);
+    CHECK2(hugoOp1.closeTransaction(pNdb) == 0);
+    
+    ndbout_c("Waiting for DEL,INS");
+    /* Wait for some outcome on the async T2 */
+    CHECK2(hugoOp2.wait_async(pNdb) != 0); /* Error? */
+    CHECK2(hugoOp2.closeTransaction(pNdb) == 0);
+    
+    ndbout_c("Scanning the table");
+    /* Now scan via ACC */
+    HugoTransactions hugoTrans(*table);
+    CHECK2(hugoTrans.scanReadRecords(pNdb,
+                                     ctx->getNumRecords()) == 0);
+
+    /* Check the table */
+    //ndbout_c("Checking the table");
+    //CHECK2(NdbCompareUtils::doScanPkReplicaCheck(pNdb,
+    //                                             table));
+  
+  } while (0);
+
+    
+  //ndbout_c("Hanging around a while");
+  //NdbSleep_MilliSleep(4*1000);
+
+  restarter.insertErrorInAllNodes(0);
+  
+  return result;
+}
+
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -4361,7 +4435,14 @@ TESTCASE("DeleteNdbWhilePoll",
   STEP(deleteNdbWhileWaiting);
   FINALIZER(runClearTable2);
 }
-NDBT_TESTSUITE_END(testBasic);
+TESTCASE("AbortRace",
+         "Test race between ABORT and PREPARE processing at LDM")
+{
+  INITIALIZER(runLoadTable);
+  STEP(testAbortRace);
+  FINALIZER(runClearTable);
+}
+NDBT_TESTSUITE_END(testBasic)
 
 #if 0
 TESTCASE("ReadConsistency",

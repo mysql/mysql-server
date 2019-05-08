@@ -25,10 +25,10 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITIES_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITIES_H_
 
-#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
+#include "plugin/x/src/capabilities/configurator.h"
+#include "plugin/x/src/capabilities/handler.h"
 
-namespace ngs {
+namespace xpl {
 
 namespace test {
 
@@ -47,20 +47,22 @@ class Mock_capabilities_configurator : public Capabilities_configurator {
 
 class Mock_capability_handler : public Capability_handler {
  public:
-  MOCK_CONST_METHOD0(name, const std::string());
-  MOCK_CONST_METHOD0(is_supported, bool());
-  MOCK_METHOD1(set, bool(const ::Mysqlx::Datatypes::Any &));
+  MOCK_CONST_METHOD0(name, std::string());
+  MOCK_CONST_METHOD0(is_supported_impl, bool());
+  MOCK_CONST_METHOD0(is_settable, bool());
+  MOCK_CONST_METHOD0(is_gettable, bool());
+  MOCK_METHOD1(set_impl, ngs::Error_code(const ::Mysqlx::Datatypes::Any &));
 
   // Workaround for GMOCK undefined behaviour with ResultHolder
   MOCK_METHOD1(get_void, bool(::Mysqlx::Datatypes::Any &));
   MOCK_METHOD0(commit_void, bool());
 
-  void get(::Mysqlx::Datatypes::Any &any) { get_void(any); }
+  void get_impl(::Mysqlx::Datatypes::Any &any) { get_void(any); }
 
   void commit() { commit_void(); }
 };
 
 }  // namespace test
-}  // namespace ngs
+}  // namespace xpl
 
 #endif  // UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITIES_H_

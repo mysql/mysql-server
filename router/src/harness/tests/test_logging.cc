@@ -25,8 +25,7 @@
 #define MYSQL_ROUTER_LOG_DOMAIN "my_domain"
 
 #ifdef _WIN32
-#define NOMINMAX
-#define getpid GetCurrentProcessId
+#include <process.h>  // getpid()
 #endif
 
 ////////////////////////////////////////
@@ -490,9 +489,11 @@ TEST_F(LoggingTest,
 #endif
 
 #ifdef _WIN32
-  EXPECT_THROW_LIKE(FileHandler(file_path.str()), std::system_error,
-                    "File exists, but cannot open for writing " +
-                        file_path.str() + ": Access is denied.");
+  EXPECT_THROW_LIKE(
+      FileHandler(file_path.str()), std::system_error,
+      "File exists, but cannot open for writing " + file_path.str() + ": " +
+          std::error_code(ERROR_ACCESS_DENIED, std::system_category())
+              .message());
 #else
   EXPECT_THROW_LIKE(FileHandler(file_path.str()), std::system_error,
                     "File exists, but cannot open for writing " +

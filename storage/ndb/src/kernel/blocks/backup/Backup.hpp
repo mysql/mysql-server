@@ -45,6 +45,7 @@
 
 #include <signaldata/RedoStateRep.hpp>
 #include "../dblqh/Dblqh.hpp"
+#include <signaldata/BackupSignalData.hpp>
 
 #define JAM_FILE_ID 474
 
@@ -321,6 +322,9 @@ public:
   Uint32 m_enable_partial_lcp;
   Uint32 m_recovery_work;
   Uint32 m_insert_recovery_work;
+
+  Uint32 m_cfg_mt_backup;
+  bool m_skew_disk_speed;
 
   struct Table {
     Table(Fragment_pool &);
@@ -608,6 +612,7 @@ public:
           dataFilePtr[i] = RNIL;
           prepareDataFilePtr[i] = RNIL;
         }
+        idleFragWorkerCount = 0;
       }
     
     /* prev time backup status was reported */
@@ -766,12 +771,15 @@ public:
  
     Uint32 clientRef;
     Uint32 clientData;
+    Uint32 senderRef;
     Uint32 senderData;
     Uint32 flags;
     Uint32 backupKey[2];
     Uint32 masterRef;
     NdbNodeBitmask nodes;
 
+    Bitmask<(Uint32)(MAX_NDBMT_LQH_THREADS/sizeof(Uint32))> fragWorkers[MAX_NDB_NODES];
+    Uint32 idleFragWorkerCount;
 
     /**
      * Statistical variables for LCP and Backup, initialised when
@@ -1402,17 +1410,57 @@ public:
 
   /*
    * MT LQH.  LCP runs separately in each instance number.
-   * BACKUP uses instance key 1 (real instance 0 or 1).
+   * BACKUP uses instance key 1 (real instance 0 or 1) as master.
   */
+  STATIC_CONST( NdbdInstanceKey = 0 );
+  STATIC_CONST( BackupProxyInstanceKey = 0 );
   STATIC_CONST( UserBackupInstanceKey = 1 );
+  /*
+   * instanceKey() is used for routing backup control signals and has 3
+   * use cases:
+   * - LCP: return own instance ID, i.e route signal to self
+   * - multi-threaded backup: return instance of BackupProxy, which
+           forwards signal to all instances, i.e. route signal to all instances
+   * - single-threaded backup: return instance 1, i.e. route signal to LDM1
+   */
   Uint32 instanceKey(BackupRecordPtr ptr) {
-    return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
+     return ptr.p->is_lcp() ?
+            instance() : (ptr.p->flags & BackupReq::MT_BACKUP) ?
+            BackupProxyInstanceKey : UserBackupInstanceKey;
+  }
+
+  /* map a fragment to an LDM
+   * single-threaded backup: assign fragment to LDM1
+   * multithreaded backup: assign fragment to LDM which owns it
+   */
+  Uint32 mapFragToLdm(BackupRecordPtr ptr, Uint32 ownerNode, Uint32 ownerLdm)
+  {
+    // instance key is 1..n and may be larger than actual number of ldms.
+    // To ensure we only schedule one fragment per actual ldm at a time, we
+    // use node information to determine actual ldm which will process request.
+    int lqh_workers = getNodeInfo(ownerNode).m_lqh_workers;
+    // adjust values which would be 0 in ndbd
+    lqh_workers += (lqh_workers == 0);
+    ownerLdm += (ownerLdm == 0);
+    // calculate instance key
+    Uint32 key = 1 + ((ownerLdm - 1) % lqh_workers);
+    return (ptr.p->flags & BackupReq::MT_BACKUP) ?
+            key : UserBackupInstanceKey;
   }
 
   bool is_backup_worker()
   {
     return isNdbMtLqh() ? (instance() == UserBackupInstanceKey) :  true;
   }
+  /*
+   * Select master instance on any node: LDM1 for ndbmtd, LDM0 for ndbd
+   * Used in node-failure aborts when a participant node is promoted to master
+   */
+  Uint32 masterInstanceKey(BackupRecordPtr ptr) {
+     return isNdbMtLqh() ?
+            UserBackupInstanceKey : NdbdInstanceKey;
+  }
+
 
   /**
    * Ugly shared state to allow different worker instances
@@ -1420,7 +1468,7 @@ public:
    * not participating.
    * Modified by the instance performing backup
    */  
-  static bool g_is_backup_running;
+  static bool g_is_single_thr_backup_running;
 
   void get_page_info(BackupRecordPtr,
                      Uint32 part_id,

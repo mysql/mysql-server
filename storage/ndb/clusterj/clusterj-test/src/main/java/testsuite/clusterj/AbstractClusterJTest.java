@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import junit.framework.TestCase;
 
@@ -481,6 +483,23 @@ public abstract class AbstractClusterJTest extends TestCase {
         }
     }
 
+    /** Generate the timezone in UTC offset of format +/-HH:MM */
+    private static String getTimeZoneInUTCOffset() {
+        long now = System.currentTimeMillis();
+        long timeZoneOffset = TimeZone.getDefault().getOffset(now);
+        long offsetHours = TimeUnit.MILLISECONDS.toHours(timeZoneOffset);
+        long offsetMinutes = TimeUnit.MILLISECONDS.toMinutes(timeZoneOffset -
+                               TimeUnit.HOURS.toMillis(offsetHours));
+        // prevent cases like -02:-02
+        offsetMinutes = Math.abs(offsetMinutes);
+        String timeZoneUTCOffset = "";
+        if (timeZoneOffset >= 0) {
+            timeZoneUTCOffset += "+";
+        }
+        timeZoneUTCOffset += String.format("%02d:%02d", offsetHours, offsetMinutes);
+        return timeZoneUTCOffset;
+    }
+
     /** Load properties from clusterj.properties */
     protected void loadProperties() {
         props = getProperties(PROPS_FILE_NAME);
@@ -491,6 +510,8 @@ public abstract class AbstractClusterJTest extends TestCase {
         if (jdbcPassword == null) {
             jdbcPassword = "";
         }
+        // Set the time zone of the current session through sessionVariables
+        props.put("sessionVariables", "time_zone='" + getTimeZoneInUTCOffset() + "'");
         props.put("useSSL", "false");
         props.put("user", jdbcUsername);
         props.put("password",jdbcPassword);

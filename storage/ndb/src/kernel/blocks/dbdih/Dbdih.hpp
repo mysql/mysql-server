@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1630,7 +1630,6 @@ private:
   void startRemoveFailedNode(Signal *, NodeRecordPtr failedNodePtr);
   void handleGcpTakeOver(Signal *, NodeRecordPtr failedNodePtr);
   void handleLcpTakeOver(Signal *, NodeRecordPtr failedNodePtr);
-  void handleNewMaster(Signal *, NodeRecordPtr failedNodePtr);
   void handleTakeOver(Signal*, Ptr<TakeOverRecord>);
   void handleLcpMasterTakeOver(Signal *, Uint32 nodeId);
 
@@ -2172,6 +2171,8 @@ private:
      */
     NdbSeqLock m_lock;
     Uint64 m_old_gci;
+    // To avoid double send of SUB_GCP_COMPLETE_REP to SUMA via DBLQH.
+    Uint64 m_last_sent_gci;
     Uint64 m_current_gci; // Currently active
     Uint64 m_new_gci;     // Currently being prepared...
     enum State {
@@ -2354,6 +2355,22 @@ private:
 
     Uint32 m_lastLCP_COMPLETE_REP_id;
     Uint32 m_lastLCP_COMPLETE_REP_ref;
+
+    // Whether the 'lcp' is already completed under the
+    // coordination of the failed master
+    bool already_completed_lcp(Uint32 lcp, Uint32 current_master)
+    {
+      const Uint32 last_completed_master_node =
+        refToNode(m_lastLCP_COMPLETE_REP_ref);
+      if (m_lastLCP_COMPLETE_REP_id == lcp &&
+          last_completed_master_node != current_master &&
+          last_completed_master_node == m_MASTER_LCPREQ_FailedNodeId)
+      {
+        return true;
+      }
+      return false;
+    }
+
   } c_lcpState;
   
   /*------------------------------------------------------------------------*/

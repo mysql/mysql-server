@@ -1,2 +1,2 @@
---bootstrap --innodb_page_size=16k
 --loose-mysqlx=off
+--initialize --innodb_page_size=16k

@@ -228,3 +228,4 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 # drop the table
 drop table t1, ndb_show_tables_results;
 drop database mysqlslap;
+--remove_file $NDB_TOOLS_OUTPUT

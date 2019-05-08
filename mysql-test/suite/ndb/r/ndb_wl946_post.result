@@ -1,4 +1,3 @@
-drop table if exists t1;
 select @@session.time_zone;
 @@session.time_zone
 SYSTEM
@@ -36,7 +35,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -80,7 +79,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -118,10 +117,15 @@ fx(f) - OrderedIndex
 # restore data from backup with demote
 # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
-count(*)	sum(crc32(concat(a,b,c,d,e,f)))
-500	1105949732775
+ERROR 42S02: Table 'test.t1' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
+Error	1146	Table 'test.t1' doesn't exist
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 set time_zone = default;
 select @@session.time_zone;
 @@session.time_zone
 SYSTEM
-drop table t1;

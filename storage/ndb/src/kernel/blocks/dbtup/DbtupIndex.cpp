@@ -54,26 +54,30 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
   lkey2 = pageIndex;
 }
 
+/**
+ * Can be called from MT-build of ordered indexes.
+ */
 int
 Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
-                    Uint32 fragPtrI,
+                    Uint32 *fragPtrP_input,
+                    Uint32 *tablePtrP_input,
                     Uint32& pageId,
                     Uint32& pageOffset,
                     Uint32*& node)
 {
   thrjamEntry(jamBuf);
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  Tablerec* tablePtrP = (Tablerec*)tablePtrP_input;
+  Fragrecord* fragPtrP = (Fragrecord*)fragPtrP_input;
 
   Local_key key;
   Uint32* ptr, frag_page_id, err;
   c_allow_alloc_spare_page=true;
-  if ((ptr= alloc_fix_rec(jamBuf, &err,fragPtr.p,tablePtr.p, &key, 
-                          &frag_page_id)) == 0)
+  if ((ptr = alloc_fix_rec(jamBuf,
+                           &err,
+                           fragPtrP,
+                           tablePtrP,
+                           &key, 
+                           &frag_page_id)) == 0)
   {
     c_allow_alloc_spare_page=false;
     thrjam(jamBuf);
@@ -82,7 +86,7 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
   c_allow_alloc_spare_page=false;
   pageId= key.m_page_no;
   pageOffset= key.m_page_idx;
-  Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDescIndex= tablePtrP->tabDescriptor + (0 << ZAD_LOG_SIZE);
   Uint32 attrDataOffset= AttributeOffset::getOffset(
                               tableDescriptor[attrDescIndex + 1].tabDescr);
   node= ptr + attrDataOffset;
@@ -90,54 +94,359 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
 }
 
 void
-Dbtup::tuxFreeNode(Uint32 fragPtrI,
+Dbtup::tuxFreeNode(Uint32* fragPtrP_input,
+                   Uint32* tablePtrP_input,
                    Uint32 pageId,
                    Uint32 pageOffset,
                    Uint32* node)
 {
   jamEntry();
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  Tablerec* tablePtrP = (Tablerec*)tablePtrP_input;
+  Fragrecord* fragPtrP = (Fragrecord*)fragPtrP_input;
 
   Local_key key;
   key.m_page_no = pageId;
   key.m_page_idx = pageOffset;
   PagePtr pagePtr;
-  Tuple_header* ptr = (Tuple_header*)get_ptr(&pagePtr, &key, tablePtr.p);
+  Tuple_header* ptr = (Tuple_header*)get_ptr(&pagePtr, &key, tablePtrP);
 
-  Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDescIndex= tablePtrP->tabDescriptor + (0 << ZAD_LOG_SIZE);
   Uint32 attrDataOffset= AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
   ndbrequire(node == (Uint32*)ptr + attrDataOffset);
 
-  free_fix_rec(fragPtr.p, tablePtr.p, &key, (Fix_page*)pagePtr.p);
+  free_fix_rec(fragPtrP, tablePtrP, &key, (Fix_page*)pagePtr.p);
 }
 
-void
-Dbtup::tuxGetNode(Uint32 fragPtrI,
-                  Uint32 pageId,
-                  Uint32 pageOffset,
-                  Uint32*& node)
+int
+Dbtup::tuxReadAttrsCurr(EmulatedJamBuffer *jamBuf,
+                        const Uint32* attrIds,
+                        Uint32 numAttrs,
+                        Uint32* dataOut,
+                        bool xfrmFlag,
+                        Uint32 tupVersion)
 {
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pageId);
-  Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
-  Uint32 attrDataOffset= AttributeOffset::getOffset(
-                            tableDescriptor[attrDescIndex + 1].tabDescr);
-  node= ((Fix_page*)pagePtr.p)->
-    get_ptr(pageOffset, tablePtr.p->m_offsets[MM].m_fix_header_size) + 
-    attrDataOffset;
+  thrjamEntryDebug(jamBuf);
+  // use own variables instead of globals
+  Fragrecord *fragPtrP = prepare_fragptr.p;
+  Tablerec *tablePtrP = prepare_tabptr.p;
+
+  // search for tuple version if not original
+  Operationrec tmpOp;
+  KeyReqStruct req_struct(jamBuf);
+  req_struct.tablePtrP = tablePtrP;
+  req_struct.fragPtrP = fragPtrP;
+
+  tmpOp.op_type = ZREAD; // valgrind
+  setup_fixed_tuple_ref_opt(&req_struct);
+  setup_fixed_part(&req_struct, &tmpOp, tablePtrP);
+
+  return tuxReadAttrsCommon(req_struct,
+                            attrIds,
+                            numAttrs,
+                            dataOut,
+                            xfrmFlag,
+                            tupVersion);
 }
 
+/**
+ * This method can be called from MT-build of
+ * ordered indexes.
+ */
+int
+Dbtup::tuxReadAttrsOpt(EmulatedJamBuffer * jamBuf,
+                       Uint32* fragPtrP,
+                       Uint32* tablePtrP,
+                       Uint32 pageId,
+                       Uint32 pageIndex,
+                       Uint32 tupVersion,
+                       const Uint32* attrIds,
+                       Uint32 numAttrs,
+                       Uint32* dataOut,
+                       bool xfrmFlag)
+{
+  thrjamEntryDebug(jamBuf);
+  // search for tuple version if not original
+
+  Operationrec tmpOp;
+  KeyReqStruct req_struct(jamBuf);
+  req_struct.tablePtrP = (Tablerec*)tablePtrP;
+  req_struct.fragPtrP = (Fragrecord*)fragPtrP;
+
+  tmpOp.m_tuple_location.m_page_no= pageId;
+  tmpOp.m_tuple_location.m_page_idx= pageIndex;
+  tmpOp.op_type = ZREAD; // valgrind
+  setup_fixed_tuple_ref(&req_struct,
+                        &tmpOp,
+                        (Tablerec*)tablePtrP);
+  setup_fixed_part(&req_struct,
+                   &tmpOp,
+                   (Tablerec*)tablePtrP);
+  return tuxReadAttrsCommon(req_struct,
+                            attrIds,
+                            numAttrs,
+                            dataOut,
+                            xfrmFlag,
+                            tupVersion);
+}
+
+int
+Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
+                          const Uint32* attrIds,
+                          Uint32 numAttrs,
+                          Uint32* dataOut,
+                          bool xfrmFlag,
+                          Uint32 tupVersion)
+{
+  Tuple_header *tuple_ptr = req_struct.m_tuple_ptr;
+  if (tuple_ptr->get_tuple_version() != tupVersion)
+  {
+    thrjamDebug(req_struct.jamBuffer);
+    OperationrecPtr opPtr;
+    opPtr.i= tuple_ptr->m_operation_ptr_i;
+    Uint32 loopGuard= 0;
+    while (opPtr.i != RNIL) {
+      c_operation_pool.getPtr(opPtr);
+      if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion) {
+        thrjamDebug(req_struct.jamBuffer);
+	if (!opPtr.p->m_copy_tuple_location.isNull()) {
+	  req_struct.m_tuple_ptr=
+            get_copy_tuple(&opPtr.p->m_copy_tuple_location);
+        }
+	break;
+      }
+      thrjamDebug(req_struct.jamBuffer);
+      opPtr.i= opPtr.p->prevActiveOp;
+      ndbrequire(++loopGuard < (1 << ZTUP_VERSION_BITS));
+    }
+  }
+  // read key attributes from found tuple version
+  // save globals
+  prepare_read(&req_struct, req_struct.tablePtrP, false); 
+
+  // do it
+  int ret = readAttributes(&req_struct,
+                           attrIds,
+                           numAttrs,
+                           dataOut,
+                           ZNIL,
+                           xfrmFlag);
+  // done
+  return ret;
+}
+
+int
+Dbtup::tuxReadPk(Uint32* fragPtrP_input,
+                 Uint32* tablePtrP_input,
+                 Uint32 pageId,
+                 Uint32 pageIndex,
+                 Uint32* dataOut,
+                 bool xfrmFlag)
+{
+  jamEntryDebug();
+  Fragrecord* fragPtrP = (Fragrecord*)fragPtrP_input;
+  Tablerec* tablePtrP = (Tablerec*)tablePtrP_input;
+  
+  Operationrec tmpOp;
+  tmpOp.m_tuple_location.m_page_no= pageId;
+  tmpOp.m_tuple_location.m_page_idx= pageIndex;
+  
+  KeyReqStruct req_struct(this);
+  req_struct.tablePtrP = tablePtrP;
+  req_struct.fragPtrP = fragPtrP;
+ 
+  PagePtr page_ptr;
+  Uint32* ptr= get_ptr(&page_ptr, &tmpOp.m_tuple_location, tablePtrP);
+  req_struct.m_page_ptr = page_ptr;
+  req_struct.m_tuple_ptr = (Tuple_header*)ptr;
+  
+  int ret = 0;
+  if (likely(! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE)))
+  {
+    req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
+    req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
+    
+    Uint32 num_attr= tablePtrP->m_no_of_attributes;
+    Uint32 descr_start= tablePtrP->tabDescriptor;
+    TableDescriptor *tab_descr= &tableDescriptor[descr_start];
+    ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
+    req_struct.attr_descr= tab_descr; 
+
+    if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
+    {
+      Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
+      Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
+      ndbassert(!opPtrP->m_copy_tuple_location.isNull());
+      req_struct.m_tuple_ptr=
+	get_copy_tuple(&opPtrP->m_copy_tuple_location);
+    }
+    prepare_read(&req_struct, tablePtrP, false);
+    
+    const Uint32* attrIds= &tableDescriptor[tablePtrP->readKeyArray].tabDescr;
+    const Uint32 numAttrs= tablePtrP->noOfKeyAttr;
+    // read pk attributes from original tuple
+    
+    // do it
+    ret = readAttributes(&req_struct,
+			 attrIds,
+			 numAttrs,
+			 dataOut,
+			 ZNIL,
+			 xfrmFlag);
+    // done
+    if (ret >= 0) {
+      // remove headers
+      Uint32 n= 0;
+      Uint32 i= 0;
+      while (n < numAttrs) {
+	const AttributeHeader ah(dataOut[i]);
+	Uint32 size= ah.getDataSize();
+	ndbrequire(size != 0);
+	for (Uint32 j= 0; j < size; j++) {
+	  dataOut[i + j - n]= dataOut[i + j + 1];
+	}
+	n+= 1;
+	i+= 1 + size;
+      }
+      ndbrequire((int)i == ret);
+      ret -= numAttrs;
+    }
+    else
+    {
+      jam();
+      return ret;
+    }
+  }
+  else
+  {
+    jam();
+  }
+  if (likely(tablePtrP->m_bits & Tablerec::TR_RowGCI))
+  {
+    dataOut[ret] = *req_struct.m_tuple_ptr->get_mm_gci(tablePtrP);
+  }
+  else
+  {
+    dataOut[ret] = 0;
+  }
+  return ret;
+}
+
+int
+Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
+{
+  jamEntryDebug();
+  // get table
+  TablerecPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  // get fragment
+  FragrecordPtr fragPtr;
+  getFragmentrec(fragPtr, fragId, tablePtr.p);
+  // get real page id and tuple offset
+
+  Uint32 pageId = getRealpid(fragPtr.p, fragPageId);
+  // use TUX routine - optimize later
+  int ret = tuxReadPk((Uint32*)fragPtr.p,
+                      (Uint32*)tablePtr.p,
+                      pageId,
+                      pageIndex,
+                      dataOut,
+                      xfrmFlag);
+  return ret;
+}
+
+/*
+ * TUX index contains all tuple versions.  A scan in TUX has scanned
+ * one of them and asks if it can be returned as scan result.  This
+ * depends on trans id, dirty read flag, and savepoint within trans.
+ *
+ * Previously this faked a ZREAD operation and used getPage().
+ * In TUP getPage() is run after ACC locking, but TUX comes here
+ * before ACC access.  Instead of modifying getPage() it is more
+ * clear to do the full check here.
+ */
+bool
+Dbtup::tuxQueryTh(Uint32 opPtrI,
+                  Uint32 tupVersion,
+                  Uint32 transId1,
+                  Uint32 transId2,
+                  bool dirty,
+                  Uint32 savepointId)
+{
+  jamEntryDebug();
+
+  OperationrecPtr currOpPtr;
+  currOpPtr.i = opPtrI;
+  c_operation_pool.getPtr(currOpPtr);
+
+  const bool sameTrans =
+    c_lqh->is_same_trans(currOpPtr.p->userpointer, transId1, transId2);
+
+  bool res = false;
+  OperationrecPtr loopOpPtr = currOpPtr;
+
+  if (!sameTrans)
+  {
+    jamDebug();
+    if (!dirty)
+    {
+      jamDebug();
+      if (currOpPtr.p->nextActiveOp == RNIL)
+      {
+        jamDebug();
+        // last op - TUX makes ACC lock request in same timeslice
+        res = true;
+      }
+    }
+    else
+    {
+      // loop to first op (returns false)
+      find_savepoint(loopOpPtr, 0);
+      const Uint32 op_type = loopOpPtr.p->op_type;
+
+      if (op_type != ZINSERT)
+      {
+        jamDebug();
+        // read committed version
+        Tuple_header *tuple_ptr = (Tuple_header*)prepare_tuple_ptr;
+        const Uint32 origVersion = tuple_ptr->get_tuple_version();
+        if (origVersion == tupVersion)
+        {
+          jamDebug();
+          res = true;
+        }
+      }
+    }
+  }
+  else
+  {
+    jamDebug();
+    // for own trans, ignore dirty flag
+
+    if (find_savepoint(loopOpPtr, savepointId))
+    {
+      jamDebug();
+      const Uint32 op_type = loopOpPtr.p->op_type;
+
+      if (op_type != ZDELETE)
+      {
+        jamDebug();
+        // check if this op has produced the scanned version
+        Uint32 loopVersion = loopOpPtr.p->op_struct.bit_field.tupVersion;
+        if (loopVersion == tupVersion)
+        {
+          jamDebug();
+          res = true;
+        }
+      }
+    }
+  }
+  return res;
+}
+
+/**
+ * This method is still used by index statistics and debug code.
+ */
 int
 Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
                     Uint32 fragPtrI,
@@ -170,258 +479,12 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
   tmpOp.op_type = ZREAD; // valgrind
   setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
   setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
-  Tuple_header *tuple_ptr= req_struct.m_tuple_ptr;
-  if (tuple_ptr->get_tuple_version() != tupVersion)
-  {
-    jamDebug();
-    OperationrecPtr opPtr;
-    opPtr.i= tuple_ptr->m_operation_ptr_i;
-    Uint32 loopGuard= 0;
-    while (opPtr.i != RNIL) {
-      c_operation_pool.getPtr(opPtr);
-      if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion) {
-	jamDebug();
-	if (!opPtr.p->m_copy_tuple_location.isNull()) {
-	  req_struct.m_tuple_ptr=
-            get_copy_tuple(&opPtr.p->m_copy_tuple_location);
-        }
-	break;
-      }
-      jamDebug();
-      opPtr.i= opPtr.p->prevActiveOp;
-      ndbrequire(++loopGuard < (1 << ZTUP_VERSION_BITS));
-    }
-  }
-  // read key attributes from found tuple version
-  // save globals
-  prepare_read(&req_struct, tablePtr.p, false); 
-
-  // do it
-  int ret = readAttributes(&req_struct,
-                           attrIds,
-                           numAttrs,
-                           dataOut,
-                           ZNIL,
-                           xfrmFlag);
-
-  // done
-  return ret;
-}
-int
-Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
-{
-  jamEntryDebug();
-  // use own variables instead of globals
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  
-  Operationrec tmpOp;
-  tmpOp.m_tuple_location.m_page_no= pageId;
-  tmpOp.m_tuple_location.m_page_idx= pageIndex;
-  
-  KeyReqStruct req_struct(this);
-  req_struct.tablePtrP = tablePtr.p;
-  req_struct.fragPtrP = fragPtr.p;
- 
-  PagePtr page_ptr;
-  Uint32* ptr= get_ptr(&page_ptr, &tmpOp.m_tuple_location, tablePtr.p);
-  req_struct.m_page_ptr = page_ptr;
-  req_struct.m_tuple_ptr = (Tuple_header*)ptr;
-  
-  int ret = 0;
-  if (! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE))
-  {
-    req_struct.check_offset[MM]= tablePtr.p->get_check_offset(MM);
-    req_struct.check_offset[DD]= tablePtr.p->get_check_offset(DD);
-    
-    Uint32 num_attr= tablePtr.p->m_no_of_attributes;
-    Uint32 descr_start= tablePtr.p->tabDescriptor;
-    TableDescriptor *tab_descr= &tableDescriptor[descr_start];
-    ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
-    req_struct.attr_descr= tab_descr; 
-
-    if(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC)
-    {
-      Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
-      Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
-      ndbassert(!opPtrP->m_copy_tuple_location.isNull());
-      req_struct.m_tuple_ptr=
-	get_copy_tuple(&opPtrP->m_copy_tuple_location);
-    }
-    prepare_read(&req_struct, tablePtr.p, false);
-    
-    const Uint32* attrIds= &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
-    const Uint32 numAttrs= tablePtr.p->noOfKeyAttr;
-    // read pk attributes from original tuple
-    
-    // do it
-    ret = readAttributes(&req_struct,
-			 attrIds,
-			 numAttrs,
-			 dataOut,
-			 ZNIL,
-			 xfrmFlag);
-    // done
-    if (ret >= 0) {
-      // remove headers
-      Uint32 n= 0;
-      Uint32 i= 0;
-      while (n < numAttrs) {
-	const AttributeHeader ah(dataOut[i]);
-	Uint32 size= ah.getDataSize();
-	ndbrequire(size != 0);
-	for (Uint32 j= 0; j < size; j++) {
-	  dataOut[i + j - n]= dataOut[i + j + 1];
-	}
-	n+= 1;
-	i+= 1 + size;
-      }
-      ndbrequire((int)i == ret);
-      ret -= numAttrs;
-    } else {
-      return ret;
-    }
-  }
-  if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
-  {
-    dataOut[ret] = *req_struct.m_tuple_ptr->get_mm_gci(tablePtr.p);
-  }
-  else
-  {
-    dataOut[ret] = 0;
-  }
-  return ret;
-}
-
-int
-Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
-{
-  jamEntryDebug();
-  // get table
-  TablerecPtr tablePtr;
-  tablePtr.i = tableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  // get fragment
-  FragrecordPtr fragPtr;
-  getFragmentrec(fragPtr, fragId, tablePtr.p);
-  // get real page id and tuple offset
-
-  Uint32 pageId = getRealpid(fragPtr.p, fragPageId);
-  // use TUX routine - optimize later
-  int ret = tuxReadPk(fragPtr.i, pageId, pageIndex, dataOut, xfrmFlag);
-  return ret;
-}
-
-/*
- * TUX index contains all tuple versions.  A scan in TUX has scanned
- * one of them and asks if it can be returned as scan result.  This
- * depends on trans id, dirty read flag, and savepoint within trans.
- *
- * Previously this faked a ZREAD operation and used getPage().
- * In TUP getPage() is run after ACC locking, but TUX comes here
- * before ACC access.  Instead of modifying getPage() it is more
- * clear to do the full check here.
- */
-bool
-Dbtup::tuxQueryTh(Uint32 fragPtrI,
-                  Uint32 pageId,
-                  Uint32 pageIndex,
-                  Uint32 tupVersion,
-                  Uint32 transId1,
-                  Uint32 transId2,
-                  bool dirty,
-                  Uint32 savepointId)
-{
-  jamEntryDebug();
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  PagePtr pagePtr;
-  pagePtr.i = pageId;
-  c_page_pool.getPtr(pagePtr);
-
-  KeyReqStruct req_struct(this);
-
-  {
-    Operationrec tmpOp;
-    tmpOp.m_tuple_location.m_page_no = pageId;
-    tmpOp.m_tuple_location.m_page_idx = pageIndex;
-    tmpOp.op_type = ZREAD; // valgrind
-    setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
-    setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
-  }
-
-  Tuple_header* tuple_ptr = req_struct.m_tuple_ptr;
-
-  OperationrecPtr currOpPtr;
-  currOpPtr.i = tuple_ptr->m_operation_ptr_i;
-  if (currOpPtr.i == RNIL) {
-    jamDebug();
-    // tuple has no operation, any scan can see it
-    return true;
-  }
-  c_operation_pool.getPtr(currOpPtr);
-
-  const bool sameTrans =
-    c_lqh->is_same_trans(currOpPtr.p->userpointer, transId1, transId2);
-
-  bool res = false;
-  OperationrecPtr loopOpPtr = currOpPtr;
-
-  if (!sameTrans) {
-    jam();
-    if (!dirty) {
-      jam();
-      if (currOpPtr.p->nextActiveOp == RNIL) {
-        jam();
-        // last op - TUX makes ACC lock request in same timeslice
-        res = true;
-      }
-    }
-    else {
-      // loop to first op (returns false)
-      find_savepoint(loopOpPtr, 0);
-      const Uint32 op_type = loopOpPtr.p->op_type;
-
-      if (op_type != ZINSERT) {
-        jam();
-        // read committed version
-        const Uint32 origVersion = tuple_ptr->get_tuple_version();
-        if (origVersion == tupVersion) {
-          jam();
-          res = true;
-        }
-      }
-    }
-  }
-  else {
-    jam();
-    // for own trans, ignore dirty flag
-
-    if (find_savepoint(loopOpPtr, savepointId)) {
-      jam();
-      const Uint32 op_type = loopOpPtr.p->op_type;
-
-      if (op_type != ZDELETE) {
-        jam();
-        // check if this op has produced the scanned version
-        Uint32 loopVersion = loopOpPtr.p->op_struct.bit_field.tupVersion;
-        if (loopVersion == tupVersion) {
-          jam();
-          res = true;
-        }
-      }
-    }
-  }
-
-  return res;
+  return tuxReadAttrsCommon(req_struct,
+                            attrIds,
+                            numAttrs,
+                            dataOut,
+                            xfrmFlag,
+                            tupVersion);
 }
 
 // ordered index build
@@ -884,7 +947,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
     req.tux_ptr = tux;
     req.tup_ptr = this;
     req.func_ptr = Dbtux_mt_buildIndexFragment_wrapper_C;
-    req.buffer_size = 16*32768; // thread-local-buffer
+    req.buffer_size = 32*32768; // thread-local-buffer
 
     Uint32 * req_ptr = signal->getDataPtrSend();
     memcpy(req_ptr, &req, sizeof(req));

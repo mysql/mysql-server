@@ -1,0 +1,178 @@
+## Resets the session to clear the session state
+
+--source include/no_ps_protocol.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+# Reset session test scenarios:
+# 1. Basic reset scenario
+# 2. Reset session variable
+# 3. Reset user variable
+# 4. Reset table lock
+# 5. Reset prepare statments
+# 6. Expect block is not reset
+# 7. Reset global variable
+
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/session_reset_keep_open.xpl
+-->import assert_select.macro
+-->import assert_variable.macro
+
+## MACROS
+
+-->macro Assert_session_id %EXPECT_ID%
+-->stmtadmin list_clients
+-->recvtovar %CURRENT_ID% sql_session
+-->assert_eq %EXPECT_ID%	%CURRENT_ID%
+-->endmacro
+
+-->macro Assert_client_id %EXPECT_ID%
+-->stmtadmin list_clients
+-->recvtovar %CURRENT_ID% client_id
+-->assert_eq %EXPECT_ID%	%CURRENT_ID%
+-->endmacro
+
+-->stmtadmin list_clients
+-->recvtovar %EXPECT_SESSION_ID% sql_session
+-->stmtadmin list_clients
+-->recvtovar %EXPECT_CLIENT_ID% client_id
+
+## TESTS
+
+-->title -Basic reset scenario
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvok
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+
+
+-->title -Check the pipelining
+-->stmtsql select 2.1 as value
+-->stmtsql select 2.2 as value
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvresult
+-->recvresult
+-->recvok
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+
+
+-->title -Reset session variable
+-->sql
+set lc_messages= pl_PL;
+-->endsql
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvok
+-->callmacro Assert_select	result	OK	SELECT IF(@@lc_messages NOT LIKE 'pl_PL', 'OK', 'FAIL') AS result;
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+
+
+-->title -Reset user variable
+-->sql
+set @secret = 12345;
+-->endsql
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvok
+-->callmacro Assert_select	result	OK	SELECT IF(@secret IS NULL, 'OK', 'FAIL') AS result;
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+
+
+-->title -Reset prepare statments
+Mysqlx.Prepare.Prepare {
+  stmt_id: 123
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 2.3"
+    }
+  }
+}
+-->recvok
+-->callmacro Assert_status_variable	Prepared_stmt_count	1
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvok
+Mysqlx.Prepare.Execute {
+  stmt_id: 123
+}
+-->recverror ER_X_BAD_STATEMENT_ID
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+
+
+
+-->title -Reset table lock
+-->sql
+CREATE TABLE test.example1(value INT);
+CREATE TABLE test.example2(value INT);
+LOCK TABLES test.example2 READ;
+SELECT COUNT(*) FROM test.example2;
+-->endsql
+-->stmtsql SELECT COUNT(*) FROM test.example1;
+-->recverror ER_TABLE_NOT_LOCKED
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvok
+-->sql
+SELECT COUNT(*) FROM test.example1;
+SELECT COUNT(*) FROM test.example2;
+DROP TABLE test.example1;
+DROP TABLE test.example2;
+-->endsql
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+
+
+-->title -Expect block is not reset
+Mysqlx.Expect.Open {
+    cond {
+        condition_key: 1
+    }
+}
+-->recvok
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvok
+Mysqlx.Expect.Close {
+}
+-->recvok
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+
+-->title -Reset global variable
+-->sql
+set global max_connections = 1234;
+-->endsql
+Mysqlx.Session.Reset {
+  keep_open:true
+}
+-->recvok
+-->callmacro Assert_select	result	OK	SELECT IF(@@global.max_connections = 1234, 'OK', 'FAIL') AS result;
+-->callmacro Assert_session_id %EXPECT_SESSION_ID%
+-->callmacro Assert_client_id %EXPECT_CLIENT_ID%
+EOF
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/session_reset_keep_open.xpl 2>&1;
+
+
+## Cleanup
+set @@global.max_connections = default;
+--remove_file $MYSQL_TMP_DIR/session_reset_keep_open.xpl
+--source include/xplugin_drop_user.inc

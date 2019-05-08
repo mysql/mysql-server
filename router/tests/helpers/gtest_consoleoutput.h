@@ -37,7 +37,7 @@ using std::string;
 
 class ConsoleOutputTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     using mysql_harness::Path;
 
     plugin_dir.reset(
@@ -69,7 +69,7 @@ class ConsoleOutputTest : public ::testing::Test {
     config_dir.reset(new Path(mysql_harness::get_tmp_dir("config")));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (orig_cerr_) {
       std::cerr.rdbuf(orig_cerr_);
     }

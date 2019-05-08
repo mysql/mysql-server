@@ -245,6 +245,15 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`a` = 5) or (`t1`.`a` > 10) or (`t1`.`a` = 1))",
+                "final_table_condition   ": "((`t1`.`a` = 5) or (`t1`.`a` > 10) or (`t1`.`a` = 1))"
+              }
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -455,6 +464,15 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`a` = 5) or (`t1`.`a` > 10) or (`t1`.`a` in (1,2)))",
+                "final_table_condition   ": "((`t1`.`a` = 5) or (`t1`.`a` > 10) or (`t1`.`a` in (1,2)))"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -677,6 +695,15 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` = 4)))",
+                "final_table_condition   ": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` = 4)))"
+              }
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -895,6 +922,15 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` > 4)))",
+                "final_table_condition   ": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` > 4)))"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -1116,6 +1152,15 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))",
+                "final_table_condition   ": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))"
+              }
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1317,6 +1362,15 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`a` > 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` = 4)))",
+                "final_table_condition   ": "((`t1`.`a` > 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` = 4)))"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -1525,10 +1579,19 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": null
+                  "attached": "(`t1`.`a` = 5)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`a` = 5)",
+                "final_table_condition   ": null
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [

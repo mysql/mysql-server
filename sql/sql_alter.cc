@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,10 +36,10 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_access
+#include "sql/create_field.h"
 #include "sql/dd/types/trigger.h"  // dd::Trigger
 #include "sql/derror.h"            // ER_THD
 #include "sql/error_handler.h"     // Strict_error_handler
-#include "sql/field.h"
 // mysql_exchange_partition
 #include "sql/log.h"
 #include "sql/mysqld.h"              // lower_case_table_names
@@ -63,6 +63,11 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
       alter_index_visibility_list(mem_root,
                                   rhs.alter_index_visibility_list.begin(),
                                   rhs.alter_index_visibility_list.end()),
+      alter_state_list(mem_root, rhs.alter_state_list.begin(),
+                       rhs.alter_state_list.end()),
+      check_constraint_spec_list(mem_root,
+                                 rhs.check_constraint_spec_list.begin(),
+                                 rhs.check_constraint_spec_list.end()),
       create_list(rhs.create_list, mem_root),
       flags(rhs.flags),
       keys_onoff(rhs.keys_onoff),
@@ -234,7 +239,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
 
   DBUG_ENTER("Sql_cmd_alter_table::execute");
 
-  if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+  if (thd->is_fatal_error()) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(true);
 
   {
@@ -401,4 +406,26 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
   thd->add_to_binlog_accessed_dbs(table_list->db);
 
   return mysql_discard_or_import_tablespace(thd, table_list);
+}
+
+bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
+  // One of the SECONDARY_LOAD/SECONDARY_UNLOAD flags must have been set.
+  DBUG_ASSERT(
+      ((m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD) == 0) !=
+      ((m_alter_info->flags & Alter_info::ALTER_SECONDARY_UNLOAD) == 0));
+
+  // No other flags should've been set.
+  DBUG_ASSERT(!(m_alter_info->flags & ~(Alter_info::ALTER_SECONDARY_LOAD |
+                                        Alter_info::ALTER_SECONDARY_UNLOAD)));
+
+  TABLE_LIST *table_list = thd->lex->select_lex->get_table_list();
+
+  if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
+                   &table_list->grant.m_internal, 0, 0))
+    return true;
+
+  if (check_grant(thd, ALTER_ACL, table_list, false, UINT_MAX, false))
+    return true;
+
+  return mysql_secondary_load_or_unload(thd, table_list);
 }

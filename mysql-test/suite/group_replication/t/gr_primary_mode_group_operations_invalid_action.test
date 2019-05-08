@@ -1,0 +1,75 @@
+###############################################################################
+#
+# In the unlikely case a member receives a message that it does not knows,
+# that member will leave the group/abort
+#
+# Test:
+#   0. The test need two servers. They start in multi primary mode
+#   1. Start the group making server 2 have a debug point to fail
+#   2. Execute an action to change group to single primary mode on server 1
+#      Server 2 shall leave the group and enable its read mode.
+#   3. Restart group replication on server 2
+#   4. Change the exit action to Abort
+#      Execute an action to change group to multi primary mode on server 1
+#      Server 2 shall abort.
+#   5. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start the group making server 2 have a debug point to fail
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_group_action_start_msg_error';
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Execute an action to change group to single primary mode on server 1
+--echo # Server 2 shall abort
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_single_primary_mode();
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/wait_until_disconnected.inc
+# Inform MTR that it should restart the aborted member
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--echo
+--echo # 5. Cleanup
+
+# No need for a debug flag cleanup after restart
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Error while executing a group configuration operation: This member received an unknown action for execution.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during a Group Replication configuration change. This member received an unknown action for execution.");
+SET SESSION sql_log_bin=1;
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

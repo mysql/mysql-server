@@ -43,6 +43,12 @@ const Spatial_reference_systems &Spatial_reference_systems::instance() {
 
 ///////////////////////////////////////////////////////////////////////////
 
+const CHARSET_INFO *Spatial_reference_systems::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Spatial_reference_systems::Spatial_reference_systems() {
   // Note: The maximum length of various strings is hard-coded here. These
   // lengths must match those in sql/sql_cmd_srs.cc.
@@ -54,11 +60,10 @@ Spatial_reference_systems::Spatial_reference_systems() {
                          "catalog_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name CHARACTER VARYING(80)\n"
-                         "NOT NULL COLLATE utf8_general_ci");
-
-  // Note that DEFAULT and ON UPDATE clauses are used since
-  // this table is populated by means of DML statements unlike
-  // the other DD tables.
+                         "NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
+  // Note that DEFAULT and ON UPDATE clauses are used since this table is
+  // populated by means of DML statements unlike the other DD tables.
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
                          "last_altered TIMESTAMP NOT NULL\n"
                          "DEFAULT CURRENT_TIMESTAMP\n"
@@ -108,15 +113,7 @@ Spatial_reference_system *Spatial_reference_systems::create_entity_object(
 bool Spatial_reference_systems::update_object_key(Item_name_key *key,
                                                   Object_id catalog_id,
                                                   const String_type &name) {
-  // Construct a lowercase version of the key. The collation of the
-  // name column is also accent insensitive, but we don't have a
-  // function to make a canonical accent insensitive representation
-  // yet. We have to settle for a lowercase name here and reject
-  // accent variations when trying to store the object.
-  char lowercase_name[257];
-  memcpy(lowercase_name, name.c_str(), name.size() + 1);
-  my_casedn_str(&my_charset_utf8_general_ci, lowercase_name);
-  key->update(FIELD_CATALOG_ID, catalog_id, FIELD_NAME, lowercase_name);
+  key->update(FIELD_CATALOG_ID, catalog_id, FIELD_NAME, name, name_collation());
   return false;
 }
 

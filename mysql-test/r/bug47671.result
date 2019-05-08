@@ -3,11 +3,8 @@
 #
 # Extract only charset information from 'status' command output using regex
 --------------
-
 Server characterset:	utf8
 Db     characterset:	utf8
 Client characterset:	utf8
 Conn.  characterset:	utf8
-
 --------------
-

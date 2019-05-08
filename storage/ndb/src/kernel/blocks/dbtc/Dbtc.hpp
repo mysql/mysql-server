@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,8 @@
 #include <SignalCounter.hpp>
 #include <KeyTable.hpp>
 #include <portlib/NdbTick.h>
+#include "TransientPool.hpp"
+#include "TransientSlotPool.hpp"
 #endif
 
 
@@ -62,7 +64,6 @@
  * -----------------
  */
 #define Z8NIL 255
-#define ZAPI_CONNECT_FILESIZE 20
 #define ZCLOSED 2
 #define ZCOMMITING 0			 /* VALUE FOR TRANSTATUS        */
 #define ZCOMMIT_SETUP 2
@@ -76,7 +77,6 @@
 #define ZNODEBUF_FILESIZE 2000
 #define ZNR_OF_SEIZE 10
 #define ZSCANREC_FILE_SIZE 100
-#define ZSCAN_FRAGREC_FILE_SIZE 400
 #define ZSCAN_OPREC_FILE_SIZE 400
 #define ZSPH1 1
 #define ZTABREC_FILESIZE 16
@@ -309,7 +309,6 @@ public:
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
    *
-   *            NSYMB ZAPI_CONNECT_FILESIZE = 20
    *            NSYMB ZTC_CONNECT_FILESIZE  = 200
    *            NSYMB ZHOST_FILESIZE        = 16  
    *            NSYMB ZDATABUF_FILESIZE     = 4000
@@ -344,8 +343,13 @@ public:
     2.3 RECORDS AND FILESIZES
     -------------------------
   */
-  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttributeBuffer;
-  typedef LocalDataBuffer<11,ArrayPool<DataBufferSegment<11> > > LocalAttributeBuffer;
+  typedef DataBufferSegment<11, RT_DBTC_ATTRIBUTE_BUFFER> AttributeBufferSegment;
+  typedef TransientPool<AttributeBufferSegment> AttributeBuffer_pool;
+  STATIC_CONST(DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX = 0);
+  typedef DataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
+            AttributeBuffer;
+  typedef LocalDataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
+            LocalAttributeBuffer;
 
   /* **************************************************************** */
   /* ---------------------------------------------------------------- */
@@ -423,16 +427,23 @@ public:
    */  
   TcDefinedTriggerData_list c_theDefinedTriggers;
 
-  AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
+  alignas(64) AttributeBuffer_pool c_theAttributeBufferPool;
+  RSS_AP_SNAPSHOT(c_theAttributeBufferPool);
 
-  typedef ArrayPool<DataBufferSegment<5> > CommitAckMarkerBuffer_pool;
-  typedef DataBuffer<5,CommitAckMarkerBuffer_pool> CommitAckMarkerBuffer;
-  typedef LocalDataBuffer<5,CommitAckMarkerBuffer_pool> LocalCommitAckMarkerBuffer;
+  typedef DataBufferSegment<5, RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
+              CommitAckMarkerSegment;
+  typedef TransientPool<CommitAckMarkerSegment> CommitAckMarkerBuffer_pool;
+  STATIC_CONST(DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX = 1);
+  typedef DataBuffer<5,
+                     CommitAckMarkerBuffer_pool,
+                     RT_DBTC_COMMIT_ACK_MARKER_BUFFER> CommitAckMarkerBuffer;
+  typedef LocalDataBuffer<5,
+                          CommitAckMarkerBuffer_pool,
+                          RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
+                              LocalCommitAckMarkerBuffer;
 
-  CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
-
-  UintR c_transactionBufferSpace;
-
+  alignas(64) CommitAckMarkerBuffer_pool c_theCommitAckMarkerBufferPool;
+  RSS_AP_SNAPSHOT(c_theCommitAckMarkerBufferPool);
 
   /* ********** FIRED TRIGGER DATA ********** */
   /* THIS RECORD FORMS LISTS OF FIRED         */
@@ -442,8 +453,15 @@ public:
   /* WHEN A TRIGGER IS ACTIVATED AND RELEASED */
   /* WHEN THE TRIGGER IS DEACTIVATED.         */
   /* **************************************** */
-  struct TcFiredTriggerData {
-    TcFiredTriggerData() {}
+  struct TcFiredTriggerData
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_FIRED_TRIGGER_DATA );
+
+    TcFiredTriggerData()
+      : m_magic(Magic::make(TYPE_ID))
+    {}
+
+    Uint32 m_magic;
 
     /**
      * Trigger id, used to identify the trigger
@@ -493,10 +511,10 @@ public:
     AttributeBuffer::Head afterValues;
 
     /**
-     * Next ptr (used in pool/list)
+     * Next ptr (used in list/hash)
      */
-    union {
-      Uint32 nextPool;
+    union
+    {
       Uint32 nextList;
       Uint32 nextHash;
     };
@@ -522,21 +540,19 @@ public:
     }
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
-  typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
-  typedef DLFifoList<TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
+  typedef TransientPool<TcFiredTriggerData> TcFiredTriggerData_pool;
+  STATIC_CONST(DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX = 2);
   typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
   typedef DLHashTable<TcFiredTriggerData_pool> TcFiredTriggerData_hash;
   
   /**
    * Pool of trigger data record
    */
-  TcFiredTriggerData_pool c_theFiredTriggerPool;
+  alignas(64) TcFiredTriggerData_pool c_theFiredTriggerPool;
   TcFiredTriggerData_hash c_firedTriggerHash;
-  AttributeBuffer::DataBufferPool c_theTriggerAttrInfoPool;
   RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
   Uint32 c_maxNumberOfDefinedTriggers;
-  Uint32 c_maxNumberOfFiredTriggers;
 
   // Max number of outstanding FireTrigRequests per transaction
   static const Uint32 MaxOutstandingFireTrigReqPerTrans = 32;
@@ -629,7 +645,10 @@ public:
   UintR c_maxNumberOfIndexes;
 
   struct TcIndexOperation {
+    STATIC_CONST( TYPE_ID = RT_DBTC_INDEX_OPERATION );
+
     TcIndexOperation() :
+      m_magic(Magic::make(TYPE_ID)),
       indexOpState(IOS_NOOP),
       pendingKeyInfo(0),
       keyInfoSectionIVal(RNIL),
@@ -646,6 +665,8 @@ public:
     {
     }
     
+    Uint32 m_magic;
+
     // Index data
     Uint32 indexOpId;
     IndexOperationState indexOpState; // Used to mark on-going TcKeyReq
@@ -665,12 +686,9 @@ public:
     Uint32 savedFlags; // Saved transaction flags
 
     /**
-     * Next ptr (used in pool/list)
+     * Next ptr (used in list)
      */
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
+    Uint32 nextList;
     /**
      * Prev pointer (used in list)
      */
@@ -678,17 +696,15 @@ public:
   };
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
-  typedef ArrayPool<TcIndexOperation> TcIndexOperation_pool;
-  typedef SLList<TcIndexOperation_pool> TcIndexOperation_sllist;
-  typedef DLList<TcIndexOperation_pool> TcIndexOperation_dllist;
+  typedef TransientPool<TcIndexOperation> TcIndexOperation_pool;
+  STATIC_CONST(DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX = 3);
+  typedef LocalDLList<TcIndexOperation_pool> LocalTcIndexOperation_dllist;
 
   /**
    * Pool of index data record
    */
-  TcIndexOperation_pool c_theIndexOperationPool;
+  alignas(64) TcIndexOperation_pool c_theIndexOperationPool;
   RSS_AP_SNAPSHOT(c_theIndexOperationPool);
-
-  UintR c_maxNumberOfIndexOperations;   
 
   struct TcFKData {
     TcFKData() {}
@@ -734,6 +750,136 @@ public:
   FK_pool c_fk_pool;
   FK_hash c_fk_hash;
 
+  /************************** TC CONNECT RECORD ************************/
+  /* *******************************************************************/
+  /* TC CONNECT RECORD KEEPS ALL INFORMATION TO CARRY OUT A TRANSACTION*/
+  /* THE TRANSACTION CONTROLLER ESTABLISHES CONNECTIONS TO DIFFERENT   */
+  /* BLOCKS TO CARRY OUT THE TRANSACTION. THERE CAN BE SEVERAL RECORDS */
+  /* PER ACTIVE TRANSACTION. THE TC CONNECT RECORD COOPERATES WITH THE */
+  /* API CONNECT RECORD FOR COMMUNICATION WITH THE API AND WITH THE    */
+  /* LQH CONNECT RECORD FOR COMMUNICATION WITH THE LQH'S INVOLVED IN   */
+  /* THE TRANSACTION. TC CONNECT RECORD IS PERMANENTLY CONNECTED TO A  */
+  /* RECORD IN DICT AND ONE IN DIH. IT CONTAINS A LIST OF ACTIVE LQH   */
+  /* CONNECT RECORDS AND A LIST OF STARTED BUT NOT ACTIVE LQH CONNECT  */
+  /* RECORDS. IT DOES ALSO CONTAIN A LIST OF ALL OPERATIONS THAT ARE   */
+  /* EXECUTED WITH THE TC CONNECT RECORD.                              */
+  /*******************************************************************>*/
+  /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
+  /*******************************************************************>*/
+  struct TcConnectRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_CONNECT_RECORD );
+
+    TcConnectRecord()
+    : m_magic(Magic::make(TYPE_ID)),
+      commitAckMarker(RNIL),
+      tcConnectstate(OS_CONNECTED),
+      apiConnect(RNIL),
+      nextList(RNIL),
+      noOfNodes(0),
+      m_special_op_flags(0),
+      prevList(RNIL),
+      triggeringOperation(RNIL),
+      indexOp(RNIL),
+      currentTriggerId(RNIL)
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+      thePendingTriggers.init();
+    }
+
+    Uint32 m_magic;
+    //---------------------------------------------------
+    // First 16 byte cache line. Those variables are only
+    // used in error cases.
+    //---------------------------------------------------
+    UintR  tcOprec;      /* TC OPREC of operation being taken over       */
+    Uint16 failData[4];  /* Failed nodes when taking over an operation   */
+    UintR  nextTcFailHash;
+
+    //---------------------------------------------------
+    // Second 16 byte cache line. Those variables are used
+    // from LQHKEYCONF to sending COMMIT and COMPLETED.
+    //---------------------------------------------------
+    UintR lastLqhCon;        /* Connect record in last replicas Lqh record   */
+    Uint16 lastLqhNodeId;    /* Node id of last replicas Lqh                 */
+    Uint16 m_execAbortOption;/* TcKeyReq::ExecuteAbortOption */
+    UintR  commitAckMarker;  /* CommitMarker I value */
+
+    //---------------------------------------------------
+    // Third 16 byte cache line. The hottest variables.
+    //---------------------------------------------------
+    OperationState tcConnectstate;         /* THE STATE OF THE CONNECT*/
+    UintR apiConnect;                      /* POINTER TO API CONNECT RECORD */
+    UintR nextList;                   /* NEXT TC RECORD*/
+    Uint8 dirtyOp;
+    Uint8 opSimple;
+    Uint8 lastReplicaNo;     /* NUMBER OF THE LAST REPLICA IN THE OPERATION */
+    Uint8 noOfNodes;         /* TOTAL NUMBER OF NODES IN OPERATION          */
+    Uint8 operation;         /* OPERATION TYPE                              */
+                             /* 0 = READ REQUEST                            */
+                             /* 1 = UPDATE REQUEST                          */
+                             /* 2 = INSERT REQUEST                          */
+                             /* 3 = DELETE REQUEST                          */
+    Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
+    enum SpecialOpFlags {
+      SOF_NORMAL = 0,
+      SOF_INDEX_TABLE_READ = 1,       // Read index table
+      SOF_REORG_TRIGGER = 4,          // A reorg trigger
+      SOF_REORG_MOVING = 8,           // A record that should be moved
+      SOF_TRIGGER = 16,               // A trigger
+      SOF_REORG_COPY = 32,
+      SOF_REORG_DELETE = 64,
+      SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
+      SOF_DEFERRED_FK_TRIGGER = 256,
+      SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
+      SOF_FULLY_REPLICATED_TRIGGER = 1024,
+      SOF_UTIL_FLAG = 2048            // Sender to TC is DBUTIL (higher prio)
+    };
+
+    static inline bool isIndexOp(Uint16 flags) {
+      return (flags & SOF_INDEX_TABLE_READ) != 0;
+    }
+
+    //---------------------------------------------------
+    // Fourth 16 byte cache line. The mildly hot variables.
+    // tcNodedata expands 4 Bytes into the next cache line
+    // with indexes almost never used.
+    //---------------------------------------------------
+    UintR clientData;           /* SENDERS OPERATION POINTER              */
+    UintR prevList;        /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
+    UintR savePointId;
+
+    Uint16 tcNodedata[4];
+    /* Instance key to send to LQH.  Receiver maps it to actual instance. */
+    Uint16 lqhInstanceKey;
+
+    // Trigger data
+    UintR numFiredTriggers;      // As reported by lqhKeyConf
+    UintR numReceivedTriggers;   // FIRE_TRIG_ORD
+    UintR triggerExecutionCount;// No of outstanding op due to triggers
+    UintR savedState[LqhKeyConf::SignalLength];
+    /**
+     * The list of pending fired triggers
+     */
+    Local_TcFiredTriggerData_fifo::Head thePendingTriggers;
+
+    UintR triggeringOperation;  // Which operation was "cause" of this op
+
+    // Index data
+    UintR indexOp;
+    UintR currentTriggerId;
+    union {
+      Uint32 attrInfoLen;
+      Uint32 triggerErrorCode;
+    };
+    NDB_TICKS m_start_ticks;
+  };
+
+  typedef Ptr<TcConnectRecord> TcConnectRecordPtr;
+  typedef TransientPool<TcConnectRecord> TcConnectRecord_pool;
+  STATIC_CONST(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 4);
+  typedef LocalDLFifoList<TcConnectRecord_pool> LocalTcConnectRecord_fifo;
+
   /************************** API CONNECT RECORD ***********************
    * The API connect record contains the connection record to which the
    * application connects.  
@@ -758,16 +904,50 @@ public:
   // We break out the API Timer for optimisation on scanning rather than
   // on fast access.
   /*******************************************************************>*/
-  inline void setApiConTimer(Uint32 apiConPtrI, Uint32 value, Uint32 line){
-    c_apiConTimer[apiConPtrI] = value;
-    c_apiConTimer_line[apiConPtrI] = line;
-  }
+  struct ApiConTimers
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_TIMERS );
+    STATIC_CONST( INDEX_BITS = 3 );
+    STATIC_CONST( INDEX_MASK = (1 << INDEX_BITS) - 1 );
+    STATIC_CONST( INDEX_MAX_COUNT = (1 << INDEX_BITS) - 2 );
 
-  inline Uint32 getApiConTimer(Uint32 apiConPtrI) const {
-    return c_apiConTimer[apiConPtrI];
-  }
-  UintR* c_apiConTimer;
-  UintR* c_apiConTimer_line;
+    struct TimerEntry
+    {
+      Uint32 m_timer;
+      Uint32 m_apiConnectRecord;
+    };
+
+    ApiConTimers():
+      m_magic(Magic::make(TYPE_ID)),
+      m_count(0),
+      m_top(0),
+      nextList(RNIL),
+      prevList(RNIL)
+    {}
+
+    static void static_asserts()
+    {
+      STATIC_ASSERT(sizeof(ApiConTimers) ==
+                      sizeof(TimerEntry) << INDEX_BITS);
+    }
+
+    Uint32 m_magic;
+    Uint16 m_count;
+    Uint16 m_top;
+    Uint32 nextList;
+    Uint32 prevList;
+    TimerEntry m_entries[INDEX_MAX_COUNT];
+  };
+
+  typedef Ptr<ApiConTimers> ApiConTimersPtr;
+  typedef TransientPool<ApiConTimers> ApiConTimers_pool;
+  STATIC_CONST(DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX = 5);
+  typedef LocalDLFifoList<ApiConTimers_pool> LocalApiConTimers_list;
+
+  alignas(64) ApiConTimers_pool c_apiConTimersPool;
+  RSS_AP_SNAPSHOT(c_apiConTimersPool);
+  LocalApiConTimers_list::Head c_apiConTimersList;
+  ApiConTimers* c_currentApiConTimers;
 
   /**
    * Limit the resource (signal/job buffer) usage of a transaction
@@ -779,23 +959,31 @@ public:
   static const Uint8 MaxCascadingScansPerTransaction = 1;
   static const Uint32 MaxExecutingTriggerOpsPerTrans = 32;
 
-  struct ApiConnectRecord {
-    ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
-                     TcIndexOperation_pool & seizedIndexOpPool):
-      nextApiConnect(RNIL),
-      m_special_op_flags(0),
-      theFiredTriggers(firedTriggerPool),
-      theSeizedIndexOperations(seizedIndexOpPool) 
+  struct ApiConnectRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_RECORD );
+
+    enum ConnectionKind
     {
-      NdbTick_Invalidate(&m_start_ticks);
-    }
+      CK_NONE = 0,
+      CK_FREE,
+      CK_USER,
+      CK_COPY,
+      CK_FAIL
+    };
+
+    ApiConnectRecord();
     
+    Uint32 m_magic;
     //---------------------------------------------------
     // First 16 byte cache line. Hot variables.
     //---------------------------------------------------
+    Uint32 m_apiConTimer;
+    Uint32 m_apiConTimer_line; // Last line updating timer
     ConnectionState apiConnectstate;
+    ConnectionKind apiConnectkind;
     UintR transid[2];
-    UintR firstTcConnect;
+    LocalTcConnectRecord_fifo::Head tcConnect;
     
     //---------------------------------------------------
     // Second 16 byte cache line. Hot variables.
@@ -819,7 +1007,7 @@ public:
     // Fourth 16 byte cache line. Only used in late phases.
     // Plus 4 bytes of error handling.
     //---------------------------------------------------
-    UintR nextApiConnect;
+    UintR nextApiConnect; // free, freeFail, ctransidFailHash, PREPARE_COMMIT
     BlockReference ndbapiBlockref;
     UintR apiCopyRecord;
     Uint64 globalcheckpointid;
@@ -829,7 +1017,6 @@ public:
     // cache line in this one. Variables primarily used
     // in early phase.
     //---------------------------------------------------
-    UintR lastTcConnect;
     UintR lqhkeyreqrec;
     union {
       Uint32 buddyPtr;
@@ -923,7 +1110,7 @@ public:
     /**
      * The list of fired triggers
      */  
-    TcFiredTriggerData_fifo theFiredTriggers;
+    Local_TcFiredTriggerData_fifo::Head theFiredTriggers;
 
     // Count the outstanding FIRE_TRIG_REQs of a transaction.
     // Limit it in order to avoid job buffer overload
@@ -952,7 +1139,7 @@ public:
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
     NDB_TICKS m_start_ticks;
-    TcIndexOperation_dllist theSeizedIndexOperations;
+    LocalTcIndexOperation_dllist::Head theSeizedIndexOperations;
 
 #ifdef ERROR_INSERT
     Uint32 continueBCount;  // ERROR_INSERT 8082
@@ -1014,121 +1201,183 @@ public:
     };
   };
   
+  typedef TransientPool<ApiConnectRecord> ApiConnectRecord_pool;
+  STATIC_CONST(DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 6);
+  typedef LocalDLFifoList<ApiConnectRecord_pool, IA_GcpConnect>
+      LocalApiConnectRecord_gcp_list;
+  typedef LocalSLFifoList<ApiConnectRecord_pool, IA_ApiConnect>
+      LocalApiConnectRecord_api_fifo;
+  typedef LocalSLList<ApiConnectRecord_pool, IA_ApiConnect>
+      LocalApiConnectRecord_api_list;
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
-
-  /************************** TC CONNECT RECORD ************************/
-  /* *******************************************************************/
-  /* TC CONNECT RECORD KEEPS ALL INFORMATION TO CARRY OUT A TRANSACTION*/
-  /* THE TRANSACTION CONTROLLER ESTABLISHES CONNECTIONS TO DIFFERENT   */
-  /* BLOCKS TO CARRY OUT THE TRANSACTION. THERE CAN BE SEVERAL RECORDS */
-  /* PER ACTIVE TRANSACTION. THE TC CONNECT RECORD COOPERATES WITH THE */
-  /* API CONNECT RECORD FOR COMMUNICATION WITH THE API AND WITH THE    */
-  /* LQH CONNECT RECORD FOR COMMUNICATION WITH THE LQH'S INVOLVED IN   */
-  /* THE TRANSACTION. TC CONNECT RECORD IS PERMANENTLY CONNECTED TO A  */
-  /* RECORD IN DICT AND ONE IN DIH. IT CONTAINS A LIST OF ACTIVE LQH   */
-  /* CONNECT RECORDS AND A LIST OF STARTED BUT NOT ACTIVE LQH CONNECT  */
-  /* RECORDS. IT DOES ALSO CONTAIN A LIST OF ALL OPERATIONS THAT ARE   */
-  /* EXECUTED WITH THE TC CONNECT RECORD.                              */
-  /*******************************************************************>*/
-  /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
-  /*******************************************************************>*/
-  struct TcConnectRecord {
-    TcConnectRecord()
+  class PrefetchApiConTimer
+  {
+  public:
+    PrefetchApiConTimer(const ApiConTimers_pool& pool, ApiConnectRecordPtr apiConPtr, bool for_write)
+    : m_apiConTimers(NULL), m_timer_index(0), checked(false)
     {
-      NdbTick_Invalidate(&m_start_ticks);
-    }
-    //---------------------------------------------------
-    // First 16 byte cache line. Those variables are only
-    // used in error cases.
-    //---------------------------------------------------
-    UintR  tcOprec;      /* TC OPREC of operation being taken over       */
-    Uint16 failData[4];  /* Failed nodes when taking over an operation   */
-    UintR  nextTcFailHash;
-    
-    //---------------------------------------------------
-    // Second 16 byte cache line. Those variables are used
-    // from LQHKEYCONF to sending COMMIT and COMPLETED.
-    //---------------------------------------------------
-    UintR lastLqhCon;        /* Connect record in last replicas Lqh record   */
-    Uint16 lastLqhNodeId;    /* Node id of last replicas Lqh                 */
-    Uint16 m_execAbortOption;/* TcKeyReq::ExecuteAbortOption */
-    UintR  commitAckMarker;  /* CommitMarker I value */
-    
-    //---------------------------------------------------
-    // Third 16 byte cache line. The hottest variables.
-    //---------------------------------------------------
-    OperationState tcConnectstate;         /* THE STATE OF THE CONNECT*/
-    UintR apiConnect;                      /* POINTER TO API CONNECT RECORD */
-    UintR nextTcConnect;                   /* NEXT TC RECORD*/
-    Uint8 dirtyOp;
-    Uint8 opSimple;   
-    Uint8 lastReplicaNo;     /* NUMBER OF THE LAST REPLICA IN THE OPERATION */
-    Uint8 noOfNodes;         /* TOTAL NUMBER OF NODES IN OPERATION          */
-    Uint8 operation;         /* OPERATION TYPE                              */
-                             /* 0 = READ REQUEST                            */
-                             /* 1 = UPDATE REQUEST                          */
-                             /* 2 = INSERT REQUEST                          */
-                             /* 3 = DELETE REQUEST                          */
-    Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
-    enum SpecialOpFlags {
-      SOF_NORMAL = 0,
-      SOF_INDEX_TABLE_READ = 1,       // Read index table
-      SOF_REORG_TRIGGER = 4,          // A reorg trigger
-      SOF_REORG_MOVING = 8,           // A record that should be moved
-      SOF_TRIGGER = 16,               // A trigger
-      SOF_REORG_COPY = 32,
-      SOF_REORG_DELETE = 64,
-      SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
-      SOF_DEFERRED_FK_TRIGGER = 256,
-      SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
-      SOF_FULLY_REPLICATED_TRIGGER = 1024,
-      SOF_UTIL_FLAG = 2048            // Sender to TC is DBUTIL (higher prio)
-    };
-    
-    static inline bool isIndexOp(Uint16 flags) {
-      return (flags & SOF_INDEX_TABLE_READ) != 0;
+      m_apiConPtr = apiConPtr;
+      const Uint32 apiConTimer = m_apiConPtr.p->m_apiConTimer;
+      ApiConTimersPtr apiConTimers;
+      require(apiConTimer != RNIL);
+      apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+      if (for_write)
+      {
+        require(pool.getUncheckedPtrRW(apiConTimers));
+      }
+      else
+      {
+        require(pool.getUncheckedPtrRO(apiConTimers));
+      }
+      m_timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+      m_apiConTimers = apiConTimers.p;
     }
 
-    //---------------------------------------------------
-    // Fourth 16 byte cache line. The mildly hot variables.
-    // tcNodedata expands 4 Bytes into the next cache line
-    // with indexes almost never used.
-    //---------------------------------------------------
-    UintR clientData;           /* SENDERS OPERATION POINTER              */
-    UintR prevTcConnect;        /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
-    UintR savePointId;
+    bool check_ptr()
+    {
+      if (unlikely(!Magic::check_ptr(m_apiConTimers)))
+      {
+        return false;
+      }
+      assert(m_timer_index < m_apiConTimers->m_top);
+      assert(m_apiConTimers->m_count > 0);
+      assert(m_apiConTimers->m_entries[m_timer_index].m_apiConnectRecord ==
+             m_apiConPtr.i);
+      checked = true;
+      return true;
+    }
 
-    Uint16 tcNodedata[4];
-    /* Instance key to send to LQH.  Receiver maps it to actual instance. */
-    Uint16 lqhInstanceKey;
-    
-    // Trigger data
-    UintR numFiredTriggers;      // As reported by lqhKeyConf
-    UintR numReceivedTriggers;   // FIRE_TRIG_ORD
-    UintR triggerExecutionCount;// No of outstanding op due to triggers
-    UintR savedState[LqhKeyConf::SignalLength];
-    /**
-     * The list of pending fired triggers
-     */
-    TcFiredTriggerData_fifo::Head thePendingTriggers;
+    void set_timer(Uint32 value, Uint32 line)
+    {
+      if (!checked)
+      {
+        require(check_ptr());
+      }
+      m_apiConTimers->m_entries[m_timer_index].m_timer = value;
+      m_apiConPtr.p->m_apiConTimer_line = line;
+    }
 
-    UintR triggeringOperation;  // Which operation was "cause" of this op
-    
-    // Index data
-    UintR indexOp;
-    UintR currentTriggerId;
-    union {
-      Uint32 attrInfoLen;
-      Uint32 triggerErrorCode;
-    };
-    NDB_TICKS m_start_ticks;
+    Uint32 get_timer()
+    {
+      if (!checked)
+      {
+        require(check_ptr());
+      }
+      return m_apiConTimers->m_entries[m_timer_index].m_timer;
+    }
+  private:
+    ApiConnectRecordPtr m_apiConPtr;
+    ApiConTimers* m_apiConTimers;
+    Uint32 m_timer_index;
+    bool checked;
   };
-  
-  friend struct TcConnectRecord;
-  
-  typedef Ptr<TcConnectRecord> TcConnectRecordPtr;
-  
+
+  void setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
+#ifdef DBTC_MAIN
+;
+#else
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ApiConTimersPtr apiConTimers;
+    ndbrequire(apiConTimer != RNIL);
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    ndbassert(timer_index < apiConTimers.p->m_top);
+    ndbassert(apiConTimers.p->m_count > 0);
+    ndbassert(apiConTimers.p->m_entries[timer_index].m_apiConnectRecord ==
+                apiConPtr.i);
+
+    apiConTimers.p->m_entries[timer_index].m_timer = value;
+    apiConPtr.p->m_apiConTimer_line = line;
+  }
+#endif
+  Uint32 getApiConTimer(const ApiConnectRecordPtr apiConPtr) const
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ApiConTimersPtr apiConTimers;
+    ndbrequire(apiConTimer != RNIL);
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    ndbassert(timer_index < apiConTimers.p->m_top);
+    ndbassert(apiConTimers.p->m_count > 0);
+    ndbassert(apiConTimers.p->m_entries[timer_index].m_apiConnectRecord ==
+                apiConPtr.i);
+
+    return apiConTimers.p->m_entries[timer_index].m_timer;
+  }
+
+  bool seizeApiConTimer(ApiConnectRecordPtr apiConPtr)
+  {
+    ndbrequire(apiConPtr.p->m_apiConTimer == RNIL);
+    if (unlikely(c_currentApiConTimers == NULL) ||
+        (c_currentApiConTimers->m_top == ApiConTimers::INDEX_MAX_COUNT))
+    {
+      jam();
+      ApiConTimersPtr apiConTimersptr;
+      if (unlikely(!c_apiConTimersPool.seize(apiConTimersptr)))
+      {
+        jam();
+        return false;
+      }
+      LocalApiConTimers_list timers_list(c_apiConTimersPool,
+                                         c_apiConTimersList);
+      timers_list.addLast(apiConTimersptr);
+      c_currentApiConTimers = apiConTimersptr.p;
+    }
+    ApiConTimers* apiConTimers = c_currentApiConTimers;
+    const Uint32 timer_index = apiConTimers->m_top;
+    const Uint32 apiConTimer =
+      (c_apiConTimersList.getLast() << ApiConTimers::INDEX_BITS) | timer_index;
+    apiConTimers->m_entries[timer_index].m_timer = 0;
+    apiConTimers->m_entries[timer_index].m_apiConnectRecord = apiConPtr.i;
+    apiConTimers->m_top++;
+    apiConTimers->m_count++;
+    apiConPtr.p->m_apiConTimer = apiConTimer;
+    apiConPtr.p->m_apiConTimer_line = 0;
+    return true;
+  }
+
+  void releaseApiConTimer(ApiConnectRecordPtr apiConPtr)
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ndbrequire(apiConTimer != RNIL);
+
+    ApiConTimersPtr apiConTimers;
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    apiConTimers.p->m_entries[timer_index].m_timer = 0;
+    apiConTimers.p->m_entries[timer_index].m_apiConnectRecord = RNIL;
+    ndbassert(apiConTimers.p->m_count > 0);
+    apiConTimers.p->m_count--;
+    if (apiConTimers.p->m_count == 0)
+    {
+      jam();
+      LocalApiConTimers_list timers_list(c_apiConTimersPool,
+                                         c_apiConTimersList);
+      timers_list.remove(apiConTimers);
+      c_apiConTimersPool.release(apiConTimers);
+      checkPoolShrinkNeed(DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX,
+                          c_apiConTimersPool);
+      if (apiConTimers.p == c_currentApiConTimers)
+      {
+        jam();
+        if (timers_list.last(apiConTimers))
+        {
+          c_currentApiConTimers = apiConTimers.p;
+        }
+        else
+        {
+          c_currentApiConTimers = NULL;
+        }
+      }
+    }
+    apiConPtr.p->m_apiConTimer = RNIL;
+  }
+
   // ********************** CACHE RECORD **************************************
   //---------------------------------------------------------------------------
   // This record is used between reception of TCKEYREQ and sending of LQHKEYREQ
@@ -1136,7 +1385,16 @@ public:
   // the necessary memory storage in NDB Cluster.
   //---------------------------------------------------------------------------
 
-  struct CacheRecord {
+  struct CacheRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_CACHE_RECORD );
+
+    CacheRecord()
+      : m_magic(Magic::make(TYPE_ID))
+    {}
+
+    Uint32 m_magic;
+
     /* Fields used by TCKEYREQ/TCINDXREQ/SCANTABREQ */
       Uint32 keyInfoSectionI;   /* KeyInfo section I-val */
       Uint32 attrInfoSectionI;  /* AttrInfo section I-val */
@@ -1181,7 +1439,6 @@ public:
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
       Uint8  useLongLqhKeyReq; /* Outgoing LqhKeyReq should be long */
     
-      UintR  nextCacheRec;
       Uint32 scanInfo;
     
       Uint32 scanTakeOverInd;
@@ -1191,6 +1448,9 @@ public:
   };
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
+  typedef TransientPool<CacheRecord> CacheRecord_pool;
+  STATIC_CONST(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX = 7);
+  CacheRecord m_local_cache_record;
   
   /* ************************ HOST RECORD ********************************** */
   /********************************************************/
@@ -1312,28 +1572,43 @@ public:
    * the specific LQH where the fragId resides, or the SPJ block
    * responsible for scaning this fragment, if 'viaSPJ'.
    */
-  struct ScanFragLocationRec
+  struct ScanFragLocation
   {
     Uint32 blockRef;
     Uint32 fragId;
+  };
+
+#define NUM_FRAG_LOCATIONS_IN_ARRAY 32
+
+  struct ScanFragLocationRec
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_FRAG_LOCATION );
+
+    ScanFragLocationRec()
+    : m_magic(Magic::make(TYPE_ID)),
+      nextList(RNIL)
+    {}
+
+    Uint32 m_magic;
 
     /**
      * Next ptr (used in pool/list)
      */
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
+    Uint32 nextList;
 
-    Uint32 m_magic;    //Needed by RWPool
+    Uint32 m_first_index;
+    Uint32 m_next_index;
+    struct ScanFragLocation m_frag_location_array[NUM_FRAG_LOCATIONS_IN_ARRAY];
   };
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
-  typedef RecordPool<RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
+  typedef TransientPool<ScanFragLocationRec> ScanFragLocation_pool;
+  STATIC_CONST(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX = 8);
   typedef SLFifoList<ScanFragLocation_pool> ScanFragLocation_list;
   typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
-  ScanFragLocation_pool m_fragLocationPool;
+  alignas(64) ScanFragLocation_pool m_fragLocationPool;
+  RSS_AP_SNAPSHOT(m_fragLocationPool);
 
   /**
    * There is max 16 ScanFragRec's for 
@@ -1342,13 +1617,8 @@ public:
    * It will receive max 16 tuples in each request
    */
   struct ScanFragRec {
-    ScanFragRec(){ 
-      stopFragTimer();
-      lqhBlockref = 0;
-      scanFragState = COMPLETED;
-      scanRec = RNIL;
-      NdbTick_Invalidate(&m_start_ticks);
-    }
+    STATIC_CONST( TYPE_ID = RT_DBTC_SCAN_FRAGMENT );
+    ScanFragRec();
     /**
      * ScanFragState      
      *  WAIT_GET_PRIMCONF : Waiting for DIGETPRIMCONF when starting a new 
@@ -1374,6 +1644,7 @@ public:
       QUEUED_FOR_DELIVERY = 6,
       COMPLETED = 7
     };
+    Uint32 m_magic;
     // Timer for checking timeout of this fragment scan
     Uint32  scanFragTimer;
 
@@ -1406,16 +1677,14 @@ public:
     Uint32 m_ops;
     Uint32 m_apiPtr;
     Uint32 m_totalLen;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
+    Uint32 nextList;
     Uint32 prevList;
     NDB_TICKS m_start_ticks;
   };
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
-  typedef UnsafeArrayPool<ScanFragRec> ScanFragRec_pool;
+  typedef TransientPool<ScanFragRec> ScanFragRec_pool;
+  STATIC_CONST(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX = 9);
   typedef SLList<ScanFragRec_pool> ScanFragRec_sllist;
   typedef DLList<ScanFragRec_pool> ScanFragRec_dllist;
   typedef LocalDLList<ScanFragRec_pool> Local_ScanFragRec_dllist;
@@ -1426,7 +1695,11 @@ public:
    *
    */
   struct ScanRecord {
+    STATIC_CONST( TYPE_ID = RT_DBTC_SCAN_RECORD );
     ScanRecord()
+    : m_magic(Magic::make(TYPE_ID)),
+      scanState(IDLE),
+      scanApiRec(RNIL)
     {
       NdbTick_Invalidate(&m_start_ticks);
     }
@@ -1494,6 +1767,7 @@ public:
     };
 
     // State of this scan
+    Uint32 m_magic;
     ScanState scanState;
     Uint32 scanKeyInfoPtr;
     Uint32 scanAttrInfoPtr;
@@ -1512,9 +1786,6 @@ public:
     
     // Total number of fragments in the table we are scanning
     Uint32 scanNoFrag;
-
-    // Index of next ScanRecords when in free list
-    Uint32 nextScan;
 
     // Length of expected attribute information
     Uint32 m_booked_fragments_count;
@@ -1569,6 +1840,8 @@ public:
     NDB_TICKS m_start_ticks;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
+  typedef TransientPool<ScanRecord> ScanRecord_pool;
+  STATIC_CONST(DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX = 10);
   
   /*************************************************************************>*/
   /*                     GLOBAL CHECKPOINT INFORMATION RECORD                */
@@ -1579,15 +1852,25 @@ public:
   /*                                                                         */
   /*       GCP RECORD ALIGNED TO BE 32 BYTES                                 */
   /*************************************************************************>*/
-  struct GcpRecord {
+  struct GcpRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_GCP_RECORD );
+
+    GcpRecord()
+      : m_magic(Magic::make(TYPE_ID))
+    {}
+
+    Uint32 m_magic;
     Uint16 gcpNomoretransRec;
-    UintR firstApiConnect;
-    UintR lastApiConnect;
-    UintR nextGcp;
+    LocalApiConnectRecord_gcp_list::Head apiConnectList;
+    UintR nextList;
     Uint64 gcpId;
   }; /* p2c: size = 32 bytes */
   
   typedef Ptr<GcpRecord> GcpRecordPtr;
+  typedef TransientPool<GcpRecord> GcpRecord_pool;
+  STATIC_CONST(DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX = 11);
+  typedef LocalSLFifoList<GcpRecord_pool> LocalGcpRecord_list;
 
   /*************************************************************************>*/
   /*               TC_FAIL_RECORD                                            */
@@ -1636,13 +1919,15 @@ private:
   void execSEND_PACKED(Signal* signal);
   void execCOMPLETED(Signal* signal);
   void execCOMMITTED(Signal* signal);
-  void execDIGETNODESREF(Signal* signal);
+  void execDIGETNODESREF(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void execDIVERIFYCONF(Signal* signal);
   void execDIH_SCAN_TAB_REF(Signal* signal,
-                            ScanRecordPtr scanptr);
+                            ScanRecordPtr scanptr,
+                            ApiConnectRecordPtr apiConnectptr);
   void execDIH_SCAN_TAB_CONF(Signal* signal,
                              ScanRecordPtr scanptr,
-                             TableRecordPtr tabPtr);
+                             TableRecordPtr tabPtr,
+                             ApiConnectRecordPtr apiConnectptr);
   void execGCP_NOMORETRANS(Signal* signal);
   void execLQHKEYCONF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
@@ -1718,11 +2003,11 @@ private:
                        UintR Tstart);
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
-  void printState(Signal* signal, int place, bool force_trace=false);
-  int seizeTcRecord(Signal* signal);
-  int seizeCacheRecord(Signal* signal);
+  void printState(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr, bool force_trace = false);
+  int seizeTcRecord(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  int seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr, ApiConnectRecord* regApiPtr);
   void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
-  void TCKEY_abort(Signal* signal, int place);
+  void TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr);
   void copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR copyLen);
   void reportNodeFailed(Signal* signal, NodeId nodeId);
   void sendPackedTCKEYCONF(Signal* signal,
@@ -1731,16 +2016,17 @@ private:
   void sendPackedSignal(Signal* signal,
                         struct PackedWordsContainer * container);
   Uint32 sendCommitLqh(Signal* signal,
-                       TcConnectRecord * const regTcPtr);
+                       TcConnectRecord * regTcPtr,
+                       ApiConnectRecord* regApiPtr);
   Uint32 sendCompleteLqh(Signal* signal,
-                         TcConnectRecord * const regTcPtr);
+                         TcConnectRecord * const regTcPtr,
+                         ApiConnectRecord* const regApiPtr);
 
   void startSendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
 
   void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
 
-  Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass,
-                            Ptr<ApiConnectRecord>);
+  Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass, ApiConnectRecord* regApiPtr);
 
   void checkWaitFireTrigConfDone(Signal*,
                                  Ptr<ApiConnectRecord>);
@@ -1761,22 +2047,22 @@ private:
   void checkStartFragTimeout(Signal* signal);
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
-  int  releaseAndAbort(Signal* signal);
+  int  releaseAndAbort(Signal* signal, ApiConnectRecord* regApiPtr);
 
   void scan_for_read_backup(Signal *, Uint32, Uint32, Uint32);
   void releaseMarker(ApiConnectRecord * const regApiPtr);
 
   Uint32 get_transid_fail_bucket(Uint32 transid1);
-  void insert_transid_fail_hash(Uint32 transid1);
-  void remove_from_transid_fail_hash(Signal *signal, Uint32 transid1);
+  void insert_transid_fail_hash(Uint32 transid1, ApiConnectRecordPtr apiConnectptr);
+  void remove_from_transid_fail_hash(Signal *signal, Uint32 transid1, ApiConnectRecordPtr apiConnectptr);
   Uint32 get_tc_fail_bucket(Uint32 transid1, Uint32 tcOprec);
   void insert_tc_fail_hash(Uint32 transid1, Uint32 tcOprec);
-  void remove_transaction_from_tc_fail_hash(Signal *signal);
+  void remove_transaction_from_tc_fail_hash(Signal *signal, ApiConnectRecord* regApiPtr);
 
   void initTcFail(Signal* signal);
-  void releaseTakeOver(Signal* signal);
-  void setupFailData(Signal* signal);
-  bool findApiConnectFail(Signal* signal, Uint32 transid1, Uint32 transid2);
+  void releaseTakeOver(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void setupFailData(Signal* signal, ApiConnectRecord* regApiPtr);
+  bool findApiConnectFail(Signal* signal, Uint32 transid1, Uint32 transid2, ApiConnectRecordPtr& apiConnectptr);
   void initApiConnectFail(Signal* signal,
                           Uint32 transid1,
                           Uint32 transid2,
@@ -1784,7 +2070,8 @@ private:
                           Uint32 reqinfo,
                           BlockReference applRef,
                           Uint64 gci,
-                          NodeId nodeId);
+                          NodeId nodeId,
+                          ApiConnectRecordPtr apiConnectptr);
   void updateApiStateFail(Signal* signal,
                           Uint32 transid1,
                           Uint32 transid2,
@@ -1792,29 +2079,34 @@ private:
                           Uint32 reqinfo,
                           BlockReference applRef,
                           Uint64 gci,
-                          NodeId nodeId);
+                          NodeId nodeId,
+                          ApiConnectRecordPtr apiConnectptr);
   bool findTcConnectFail(Signal* signal,
                          Uint32 transid1,
                          Uint32 transid2,
-                         Uint32 tcOprec);
+                         Uint32 tcOprec,
+                         ApiConnectRecordPtr apiConnectptr);
   void initTcConnectFail(Signal* signal,
                          Uint32 instanceKey,
                          Uint32 tcOprec,
                          Uint32 reqinfo,
                          LqhTransConf::OperationStatus transStatus,
-                         NodeId nodeId);
+                         NodeId nodeId,
+                         Uint32 apiConnectPtr);
   void updateTcStateFail(Signal* signal,
                          Uint32 instanceKey,
                          Uint32 tcOprec,
                          Uint32 reqinfo,
                          LqhTransConf::OperationStatus transStatus,
-                         NodeId nodeId);
+                         NodeId nodeId,
+                         ApiConnectRecordPtr apiConnecptr);
 
   bool handleFailedApiConnection(Signal*,
                                  Uint32 *TloopCount,
                                  Uint32 TapiFailedNode,
-                                 bool apiNodeFailed);
-  void set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed);
+                                 bool apiNodeFailed,
+                                 ApiConnectRecordPtr apiConnectptr);
+  void set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed, ApiConnectRecord* regApiPtr);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,
@@ -1823,26 +2115,44 @@ private:
   void initScanTcrec(Signal* signal);
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
                      const UintR scanParallel,
-                     const Uint32 apiPtr[]);
+                     const Uint32 apiPtr[],
+                     Uint32 apiConnectPtr);
   void initScanfragrec(Signal* signal);
-  void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
+  void releaseScanResources(Signal*,
+                            ScanRecordPtr,
+                            ApiConnectRecordPtr apiConnectptr,
+                            bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
 
-  void sendDihGetNodesLab(Signal*, ScanRecordPtr);
-  bool sendDihGetNodeReq(Signal*, ScanRecordPtr, Uint32 scanFragId);
-  void sendFragScansLab(Signal*, ScanRecordPtr);
-  bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr);
-  void sendScanTabConf(Signal* signal, ScanRecordPtr);
-  void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
-  void close_scan_req_send_conf(Signal*, ScanRecordPtr);
+  void sendDihGetNodesLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
+  bool sendDihGetNodeReq(Signal*,
+                         ScanRecordPtr,
+                         ScanFragLocationPtr &fragLocationPtr,
+                         Uint32 scanFragId);
+  void get_next_frag_location(ScanFragLocationPtr fragLocationPtr,
+                              Uint32 & fragId,
+                              Uint32 & blockRef);
+  void get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
+                                       ScanRecord *scanPtrP,
+                                       Uint32 & fragId,
+                                       Uint32 & blockRef);
+  void sendFragScansLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
+  bool sendScanFragReq(Signal*,
+                       ScanRecordPtr,
+                       ScanFragRecPtr,
+                       ScanFragLocationPtr & fragLocationPtr,
+                       ApiConnectRecordPtr const apiConnectptr);
+  void sendScanTabConf(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
+  void close_scan_req(Signal*, ScanRecordPtr, bool received_req, ApiConnectRecordPtr apiConnectptr);
+  void close_scan_req_send_conf(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr);
   
   void checkGcp(Signal* signal);
-  void commitGciHandling(Signal* signal, Uint64 Tgci);
+  void commitGciHandling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr apiConnectptr);
   void copyApi(Ptr<ApiConnectRecord> dst, Ptr<ApiConnectRecord> src);
-  void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci);
+  void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr apiConnectptr);
   void gcpTcfinished(Signal* signal, Uint64 gci);
-  void handleGcp(Signal* signal, Ptr<ApiConnectRecord>);
-  void hash(Signal* signal);
+  void handleGcp(Signal* signal, ApiConnectRecordPtr);
+  void hash(Signal* signal, CacheRecord * regCachePtr);
   bool handle_special_hash(Uint32 dstHash[4], 
                            const Uint32* src, Uint32 srcLen, 
                            Uint32 tabPtrI, bool distr);
@@ -1851,50 +2161,51 @@ private:
   void initApiConnectRec(Signal* signal, 
 			 ApiConnectRecord * const regApiPtr,
 			 bool releaseIndexOperations = false);
-  void initgcp(Signal* signal);
   void inithost(Signal* signal);
   void initialiseScanrec(Signal* signal);
-  void initialiseScanFragrec(Signal* signal);
-  void initialiseScanOprec(Signal* signal);
   void initTable(Signal* signal);
   void initialiseTcConnect(Signal* signal);
   void linkApiToGcp(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
   void linkGciInGcilist(Ptr<GcpRecord>);
-  void linkTcInConnectionlist(Signal* signal);
-  void releaseAbortResources(Signal* signal);
+  void linkTcInConnectionlist(Signal* signal, ApiConnectRecord* regApiPtr);
+  void releaseAbortResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseApiCon(Signal* signal, UintR aApiConnectPtr);
-  void releaseApiConCopy(Signal* signal);
-  void releaseApiConnectFail(Signal* signal);
-  void releaseAttrinfo();
-  void releaseKeys();
+  void releaseApiConCopy(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void releaseApiConnectFail(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* regApiPtr);
+  void releaseKeys(CacheRecord* regCachePtr);
   void releaseDirtyRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
-  void releaseDirtyWrite(Signal* signal);
+  void releaseDirtyWrite(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
-  void releaseTransResources(Signal* signal);
-  void seizeApiConnect(Signal* signal);
-  void seizeApiConnectCopy(Signal* signal);
-  void seizeApiConnectFail(Signal* signal);
-  void crash_gcp(Uint32 line);
+  void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void checkPoolShrinkNeed(Uint32 pool_index, const TransientFastSlotPool& pool);
+  void sendPoolShrink(Uint32 pool_index);
+  bool seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
+  bool seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
+  bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
+  [[noreturn]] void crash_gcp(Uint32 line, const char msg[]);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
-  void seizeTcConnect(Signal* signal);
   void seizeTcConnectFail(Signal* signal);
-  Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal);
+  Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void sendApiCommitSignal(Signal* signal, Ptr<ApiConnectRecord>);
   void sendApiLateCommitSignal(Signal* signal, Ptr<ApiConnectRecord> apiCopy);
   bool sendAttrInfoTrain(Signal* signal,
                          UintR TBRef,
                          Uint32 connectPtr,
                          Uint32 offset,
-                         Uint32 attrInfoIVal);
+                         Uint32 attrInfoIVal,
+                         ApiConnectRecord* regApiPtr);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendlqhkeyreq(Signal* signal, 
-                     BlockReference TBRef);
+                     BlockReference TBRef,
+                     CacheRecord*,
+                     ApiConnectRecord* regApiPtr);
   void sendSystemError(Signal* signal, int line);
-  void sendtckeyconf(Signal* signal, UintR TcommitFlag);
+  void sendtckeyconf(Signal* signal, UintR TcommitFlag, ApiConnectRecordPtr apiConnectptr);
   void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
-  void unlinkGcp(Ptr<GcpRecord>);
-  void unlinkReadyTcCon(Signal* signal);
+  void unlinkAndReleaseGcp(Ptr<GcpRecord>);
+  void unlinkReadyTcCon(ApiConnectRecord* regApiPtr);
   void handleFailedOperation(Signal* signal,
 			     const LqhKeyRef * const lqhKeyRef, 
 			     bool gotLqhKeyRef);
@@ -1946,16 +2257,16 @@ private:
                             TcConnectRecord* trigOp,
                             ApiConnectRecordPtr);
 
-  void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
+  void executeTriggers(Signal* signal, ApiConnectRecordPtr const* transPtr);
   void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
   bool executeTrigger(Signal* signal,
                       TcFiredTriggerData* firedTriggerData,
-                      ApiConnectRecordPtr* transPtr,
+                      ApiConnectRecordPtr const* transPtr,
                       TcConnectRecordPtr* opPtr);
   void executeIndexTrigger(Signal* signal,
                            TcDefinedTriggerData* definedTriggerData,
                            TcFiredTriggerData* firedTriggerData,
-                           ApiConnectRecordPtr* transPtr,
+                           ApiConnectRecordPtr const* transPtr,
                            TcConnectRecordPtr* opPtr);
   Uint32 appendDataToSection(Uint32& sectionIVal,
                              AttributeBuffer & src,
@@ -1968,41 +2279,41 @@ private:
                                bool& hasNull);
   void insertIntoIndexTable(Signal* signal, 
                             TcFiredTriggerData* firedTriggerData, 
-                            ApiConnectRecordPtr* transPtr,
+                            ApiConnectRecordPtr const* transPtr,
                             TcConnectRecordPtr* opPtr,
                             TcIndexData* indexData);
   void deleteFromIndexTable(Signal* signal, 
                             TcFiredTriggerData* firedTriggerData, 
-                            ApiConnectRecordPtr* transPtr,
+                            ApiConnectRecordPtr const* transPtr,
                             TcConnectRecordPtr* opPtr,
                             TcIndexData* indexData);
 
   void executeReorgTrigger(Signal* signal,
                            TcDefinedTriggerData* definedTriggerData,
                            TcFiredTriggerData* firedTriggerData,
-                           ApiConnectRecordPtr* transPtr,
+                           ApiConnectRecordPtr const* transPtr,
                            TcConnectRecordPtr* opPtr);
 
   void executeFKParentTrigger(Signal* signal,
                               TcDefinedTriggerData* definedTriggerData,
                               TcFiredTriggerData* firedTriggerData,
-                              ApiConnectRecordPtr* transPtr,
+                              ApiConnectRecordPtr const* transPtr,
                               TcConnectRecordPtr* opPtr);
 
   void executeFKChildTrigger(Signal* signal,
                               TcDefinedTriggerData* definedTriggerData,
                               TcFiredTriggerData* firedTriggerData,
-                              ApiConnectRecordPtr* transPtr,
+                              ApiConnectRecordPtr const* transPtr,
                               TcConnectRecordPtr* opPtr);
 
   void fk_readFromParentTable(Signal* signal,
                               TcFiredTriggerData* firedTriggerData,
-                              ApiConnectRecordPtr* transPtr,
+                              ApiConnectRecordPtr const* transPtr,
                               TcConnectRecordPtr* opPtr,
                               TcFKData* fkData);
   void fk_readFromChildTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
-                             ApiConnectRecordPtr* transPtr,
+                             ApiConnectRecordPtr const* transPtr,
                              TcConnectRecordPtr* opPtr,
                              TcFKData* fkData,
                              Uint32 op, Uint32 attrValuesPtrI);
@@ -2016,7 +2327,7 @@ private:
                         Uint32 operation);
   void fk_scanFromChildTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
-                             ApiConnectRecordPtr* transPtr,
+                             ApiConnectRecordPtr const* transPtr,
                              Uint32 opPtrI,
                              TcFKData* fkData,
                              Uint32 op, Uint32 attrValuesPtrI);
@@ -2037,80 +2348,84 @@ private:
   bool executeFullyReplicatedTrigger(Signal* signal,
                                      TcDefinedTriggerData* definedTriggerData,
                                      TcFiredTriggerData* firedTriggerData,
-                                     ApiConnectRecordPtr* transPtr,
+                                     ApiConnectRecordPtr const* transPtr,
                                      TcConnectRecordPtr* opPtr);
 
-  void releaseFiredTriggerData(TcFiredTriggerData_fifo* triggers);
-  void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo* triggers);
-  void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
+  void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head* triggers);
+  void abortTransFromTrigger(Signal* signal,
+                             ApiConnectRecordPtr transPtr,
                              Uint32 error);
   // Generated statement blocks
   void warningHandlerLab(Signal* signal, int line);
   [[noreturn]] void systemErrorLab(Signal* signal, int line);
-  void sendSignalErrorRefuseLab(Signal* signal);
-  void scanTabRefLab(Signal* signal, Uint32 errCode);
-  void diFcountReqLab(Signal* signal, ScanRecordPtr);
-  void signalErrorRefuseLab(Signal* signal);
+  void sendSignalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void scanTabRefLab(Signal* signal, Uint32 errCode, ApiConnectRecord* regApiPtr);
+  void diFcountReqLab(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
+  void signalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abort080Lab(Signal* signal);
   void sendKeyInfoTrain(Signal* signal,
                         BlockReference TBRef,
                         Uint32 connectPtr,
                         Uint32 offset,
-                        Uint32 keyInfoIVal);
+                        Uint32 keyInfoIVal,
+                        ApiConnectRecord* const regApiPtr);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
-		    bool not_started = false);
-  void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
-  void abort010Lab(Signal* signal);
-  void abort015Lab(Signal* signal);
+		    bool not_started, ApiConnectRecordPtr apiConnectptr);
+  void sendAbortedAfterTimeout(Signal* signal, int Tcheck, ApiConnectRecordPtr apiConnectptr);
+  void abort010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void abort015Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void packLqhkeyreq(Signal* signal, 
-                     BlockReference TBRef);
+                     BlockReference TBRef,
+                     CacheRecordPtr,
+                     ApiConnectRecordPtr apiConnectptr);
   void packLqhkeyreq040Lab(Signal* signal,
-                           BlockReference TBRef);
+                           BlockReference TBRef,
+                           CacheRecordPtr,
+                           ApiConnectRecordPtr apiConnectptr);
   void returnFromQueuedDeliveryLab(Signal* signal);
   void insert_take_over_failed_node(Signal*, Uint32 failedNodeId);
   void startTakeOverLab(Signal* signal,
                         Uint32 instanceId,
                         Uint32 failedNodeId);
-  void toCompleteHandlingLab(Signal* signal);
-  void toCommitHandlingLab(Signal* signal);
-  void toAbortHandlingLab(Signal* signal);
-  void abortErrorLab(Signal* signal);
+  void toCompleteHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void toCommitHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void toAbortHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void abortErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void nodeTakeOverCompletedLab(Signal* signal,
                                 NodeId nodeId,
                                 Uint32 maxInstanceId);
   void ndbsttorry010Lab(Signal* signal);
-  void commit020Lab(Signal* signal);
-  void complete010Lab(Signal* signal);
-  void releaseAtErrorLab(Signal* signal);
-  void seizeDatabuferrorLab(Signal* signal);
-  void appendToSectionErrorLab(Signal* signal);
-  void scanKeyinfoLab(Signal* signal);
-  void scanAttrinfoLab(Signal* signal, UintR Tlen);
-  void attrinfoDihReceivedLab(Signal* signal);
-  void aiErrorLab(Signal* signal);
+  void commit020Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void complete010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void releaseAtErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void appendToSectionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void scanKeyinfoLab(Signal* signal, CacheRecord*, ApiConnectRecordPtr);
+  void scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr apiConnectptr);
+  void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
+  void aiErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
   void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
-  void diverify010Lab(Signal* signal);
+  void diverify010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void intstartphase3x010Lab(Signal* signal);
   void sttorryLab(Signal* signal);
-  void abortBeginErrorLab(Signal* signal);
-  void tabStateErrorLab(Signal* signal);
-  void wrongSchemaVersionErrorLab(Signal* signal);
-  void noFreeConnectionErrorLab(Signal* signal);
-  void tckeyreq050Lab(Signal* signal);
+  void abortBeginErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void tabStateErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void noFreeConnectionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);
-  void completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd);
+  void completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd, ApiConnectRecordPtr apiConnectptr);
   void timeOutLoopStartLab(Signal* signal, Uint32 apiConnectPtr);
   void initialiseRecordsLab(Signal* signal, UintR Tdata0, Uint32, Uint32);
-  void tckeyreq020Lab(Signal* signal);
+  void tckeyreq020Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void intstartphase1x010Lab(Signal* signal, NodeId nodeId);
   void startphase1x010Lab(Signal* signal);
 
   void lqhKeyConf_checkTransactionState(Signal * signal,
-                                        Ptr<ApiConnectRecord> regApiPtr);
+                                        ApiConnectRecordPtr apiConnectptr);
 
   void checkDropTab(Signal* signal);
 
@@ -2129,7 +2444,7 @@ private:
   
   // Initialisation
   void initData();
-  void initRecords();
+  void initRecords(const ndb_mgm_configuration_iterator * mgm_cfg);
 
   /**
    * Functions used at completion of activities tracked for timing.
@@ -2159,9 +2474,9 @@ private:
      Uint32 dbNodeId);
    void time_track_complete_scan_frag(ScanFragRec * const scanFragPtr);
    void time_track_complete_scan_frag_error(ScanFragRec *const scanFragPtr);
-   void time_track_complete_transaction(ApiConnectRecord *const apiConnectPtr);
+   void time_track_complete_transaction(ApiConnectRecord *const regApiPtr);
    void time_track_complete_transaction_error(
-     ApiConnectRecord * const apiConnectPtr);
+     ApiConnectRecord * const regApiPtr);
    Uint32 check_own_location_domain(Uint16*, Uint32);
 protected:
   virtual bool getParam(const char* name, Uint32* count);
@@ -2172,17 +2487,15 @@ private:
   // Transit signals
 
 
-  ApiConnectRecord *apiConnectRecord;
-  ApiConnectRecordPtr apiConnectptr;
-  UintR capiConnectFilesize;
+  alignas(64) ApiConnectRecord_pool c_apiConnectRecordPool;
+  RSS_AP_SNAPSHOT(c_apiConnectRecordPool);
 
-  TcConnectRecord *tcConnectRecord;
+  alignas(64) TcConnectRecord_pool tcConnectRecord;
   TcConnectRecordPtr tcConnectptr;
-  UintR ctcConnectFilesize;
+  UintR ctcConnectFailCount;
 
-  CacheRecord *cacheRecord;
-  CacheRecordPtr cachePtr;
-  UintR ccacheFilesize;
+  alignas(64) CacheRecord_pool c_cacheRecordPool;
+  RSS_AP_SNAPSHOT(c_cacheRecordPool);
 
   HostRecord *hostRecord;
   HostRecordPtr hostptr;
@@ -2190,8 +2503,8 @@ private:
   NdbNodeBitmask c_alive_nodes;
 
   Uint32 c_ongoing_take_over_cnt;
-  GcpRecord *gcpRecord;
-  UintR cgcpFilesize;
+  alignas(64) GcpRecord_pool c_gcpRecordPool;
+  RSS_AP_SNAPSHOT(c_gcpRecordPool);
 
   TableRecord *tableRecord;
   UintR ctabrecFilesize;
@@ -2306,36 +2619,28 @@ private:
   Uint16 cownNodeid;
   Uint16 terrorCode;
 
-  UintR cfirstfreeTcConnect;
-  UintR cfirstfreeApiConnectCopy; /* CS_RESTART */
-  UintR cfirstfreeCacheRec;
-  Uint32 cfirstApiConnectPREPARE_TO_COMMIT;
-  Uint32 clastApiConnectPREPARE_TO_COMMIT;
+  LocalApiConnectRecord_api_fifo::Head capiConnectPREPARE_TO_COMMITList;
 
-  UintR cfirstgcp;
-  UintR clastgcp;
-  UintR cfirstfreeGcp;
-  UintR cfirstfreeScanrec;
+  LocalGcpRecord_list::Head c_gcpRecordList;
   UintR cConcScanCount;
   RSS_OP_SNAPSHOT(cConcScanCount);
 
   TableRecordPtr tabptr;
-  UintR cfirstfreeApiConnectFail;
-  UintR cfirstfreeApiConnect;
+  LocalApiConnectRecord_api_list::Head c_apiConnectFailList;
+  Uint32 capiConnectFailCount;
 
   BlockReference cdihblockref;
   BlockReference cownref;                   /* OWN BLOCK REFERENCE */
 
   ApiConnectRecordPtr timeOutptr;
 
-  ScanRecord *scanRecord;
+  alignas(64) ScanRecord_pool scanRecordPool;
   UintR cscanrecFileSize;
+  UintR cscanrecFileSize_original;
 
-  ScanFragRec_pool c_scan_frag_pool;
+  alignas(64) ScanFragRec_pool c_scan_frag_pool;
   RSS_AP_SNAPSHOT(c_scan_frag_pool);
   ScanFragRecPtr scanFragptr;
-
-  UintR cscanFragrecFileSize;
 
   BlockReference cndbcntrblockref;
   BlockInstance cspjInstanceRR;    // SPJ instance round-robin counter
@@ -2390,11 +2695,20 @@ private:
    * Commit Ack handling
    */
 public:
-  struct CommitAckMarker {
-    CommitAckMarker() {}
+  struct CommitAckMarker
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_COMMIT_ACK_MARKER );
+
+    CommitAckMarker()
+    : m_magic(Magic::make(TYPE_ID)),
+      apiConnectPtr(RNIL),
+      apiNodeId(0)
+    {}
+
+    Uint32 m_magic;
     Uint32 transid1;
     Uint32 transid2;
-    union { Uint32 nextPool; Uint32 nextHash; };
+    Uint32 nextHash;
     Uint32 prevHash;
     Uint32 apiConnectPtr;
     Uint16 apiNodeId;
@@ -2417,7 +2731,8 @@ public:
 
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
-  typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
+  typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
+  STATIC_CONST(DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 12);
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
   typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   
@@ -2425,6 +2740,10 @@ private:
   CommitAckMarker_hash m_commitAckMarkerHash;
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
+  static const Uint32 c_transient_pool_count = 13;
+  TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
+  Bitmask<1> c_transient_pools_shrinking;
+
   void execTC_COMMIT_ACK(Signal* signal);
   void sendRemoveMarkers(Signal*, CommitAckMarker *, Uint32);
   void sendRemoveMarker(Signal* signal, 
@@ -2497,7 +2816,7 @@ private:
   /*******************************************************************>*/
   /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
   /*******************************************************************>*/
-  UintR cfirstfreeTcConnectFail;
+  LocalTcConnectRecord_fifo::Head cfreeTcConnectFail;
 
   /* POINTER FOR THE LQH RECORD*/
   /* ************************ HOST RECORD ********************************* */
@@ -2577,14 +2896,62 @@ private:
 #endif
   Uint32 m_deferred_enabled;
   Uint32 m_max_writes_per_trans;
+  Uint32 m_take_over_operations;
 #endif
 
 #ifndef DBTC_STATE_EXTRACT
   void dump_trans(ApiConnectRecordPtr transPtr);
   bool hasOp(ApiConnectRecordPtr transPtr, Uint32 op);
+
+public:
+static Uint64 getTransactionMemoryNeed(
+    const Uint32 dbtc_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    const Uint32 TakeOverOperations,
+    const Uint32 MaxNoOfConcurrentIndexOperations,
+    const Uint32 MaxNoOfConcurrentOperations,
+    const Uint32 MaxNoOfConcurrentScans,
+    const Uint32 MaxNoOfConcurrentTransactions,
+    const Uint32 MaxNoOfFiredTriggers,
+    const Uint32 MaxNoOfLocalScans,
+    const Uint32 TransactionBufferMemory);
 #endif
 };
 
+#ifndef DBTC_STATE_EXTRACT
+inline void Dbtc::checkPoolShrinkNeed(const Uint32 pool_index,
+                                      const TransientFastSlotPool& pool)
+{
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools[pool_index] == &pool);
+#endif
+  if (pool.may_shrink())
+  {
+    sendPoolShrink(pool_index);
+  }
+}
+
+#endif
+
+#ifdef DBTC_MAIN
+void Dbtc::setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ApiConTimersPtr apiConTimers;
+    ndbrequire(apiConTimer != RNIL);
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    ndbassert(timer_index < apiConTimers.p->m_top);
+    ndbassert(apiConTimers.p->m_count > 0);
+    ndbassert(apiConTimers.p->m_entries[timer_index].m_apiConnectRecord ==
+                apiConPtr.i);
+
+    apiConTimers.p->m_entries[timer_index].m_timer = value;
+    apiConPtr.p->m_apiConTimer_line = line;
+  }
+#endif
 
 #undef JAM_FILE_ID
 

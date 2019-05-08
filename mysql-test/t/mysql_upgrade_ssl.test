@@ -3,20 +3,10 @@
 
 -- source include/no_valgrind_without_big.inc
 -- source include/have_ssl.inc
--- source include/mysql_upgrade_preparation.inc
 
 call mtr.add_suppression("Column count of mysql.* is wrong. "
                          "Expected .*, found .*. "
                          "The table is probably corrupted");
-
---echo #
---echo # Bug#55672 mysql_upgrade dies with internal error 
---echo #
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --ssl-mode=REQUIRED --force 2>&1
 
 --echo #
 --echo # WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
@@ -24,7 +14,7 @@ call mtr.add_suppression("Column count of mysql.* is wrong. "
 
 # Backup mysql.user table
 DROP TABLE IF EXISTS tmp_user;
-CREATE TEMPORARY TABLE tmp_user AS (SELECT * FROM mysql.user);
+CREATE TABLE tmp_user AS (SELECT * FROM mysql.user);
 
 # Create 5.6 mysql.user table layout
 
@@ -46,10 +36,9 @@ FLUSH PRIVILEGES;
 --echo #password set. After mysql_upgrade finishes the mysql.user table should
 --echo #have 5.7 layout thus no need to restore the dropped columns from
 --echo #the begining of the test
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force --ssl-mode=REQUIRED --user=user_sha_pass_wp --password=lala 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 DROP USER 'user_sha_pass_wp'@'%';
 #

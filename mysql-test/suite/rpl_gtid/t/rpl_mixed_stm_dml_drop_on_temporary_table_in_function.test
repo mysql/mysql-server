@@ -1,0 +1,157 @@
+# ==== Purpose ====
+#
+# In mixed mode, if a function contains DML statement(s) along with a
+# DROP statement on temporary table, verify that the 'function call'
+# top statement is written to binary log and replication runs successfully.
+#
+# ==== Implementation ====
+#
+# 1. Create a function create_temp_table, which has 'CREATE TEMPORARY TABLE'
+#    and DMLs.
+# 2. Create a function insert_temp_table, which has DML statement(s) on
+#    temporary and regular table.
+# 3. Create a function drop_temp_table, which has DML statement(s) along
+#    with a DROP statement on temporary table.
+# 4. Call create_temp_table.
+# 5. Call insert_temp_table.
+# 6. Call drop_temp_table.
+# 7. To make sure that the 'function call' top statement in above '6' is
+#    replicated and applied successfully on slave, Call create_temp_table
+#    again.
+# 8. Call insert_temp_table.
+# 9. Call drop_temp_table again to clean up.
+# 10. Verify that a 'function call' top statement is written into binary
+#     log and replication runs successfully.
+#
+# ==== References ====
+#
+# Bug #28258992  FUNCTION CALL NOT WRITTEN TO BINLOG IF IT CONTAIN DML ALONG WITH DROP TEMP TABLE
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (a INT);
+delimiter //;
+CREATE FUNCTION create_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+CREATE TEMPORARY TABLE temp1 (i INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO temp1 VALUES(1);
+return 1;
+END//
+delimiter ;//
+
+delimiter //;
+CREATE FUNCTION insert_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO t1 VALUES(2);
+INSERT INTO temp1 VALUES(2);
+return 2;
+END//
+delimiter ;//
+
+delimiter //;
+CREATE FUNCTION drop_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO t1 VALUES(3);
+INSERT INTO temp1 VALUES(3);
+DROP TEMPORARY TABLE temp1;
+return 2;
+END//
+delimiter ;//
+
+--echo #
+--echo # Verify that a 'function call' top statement is written into binary
+--echo # log and replication runs successfully even if the function contains
+--echo # DML statement(s) along with a  DROP statement on temporary table
+--echo # in the ROLLBACK case.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+SELECT create_temp_table();
+ROLLBACK;
+START TRANSACTION;
+SELECT insert_temp_table();
+ROLLBACK;
+START TRANSACTION;
+SELECT drop_temp_table();
+ROLLBACK;
+# To make sure that the above 'function call' top statement is
+# replicated and applied successfully on slave, Call
+# create_temp_table again.
+START TRANSACTION;
+SELECT create_temp_table();
+ROLLBACK;
+START TRANSACTION;
+SELECT insert_temp_table();
+ROLLBACK;
+START TRANSACTION;
+SELECT drop_temp_table();
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that a 'function call' top statement is written into binary
+--echo # log and replication runs successfully even if the function contains
+--echo # DML statement(s) along with a  DROP statement on temporary table.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+SELECT create_temp_table();
+SELECT insert_temp_table();
+SELECT drop_temp_table();
+# To make sure that the above 'function call' top statement is
+# replicated and applied successfully on slave, Call
+# create_temp_table again.
+SELECT create_temp_table();
+SELECT insert_temp_table();
+SELECT drop_temp_table();
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that a 'function call' top statement is written into binary
+--echo # log and replication runs successfully even if the function contains
+--echo # DML statement(s) along with a  DROP statement on temporary table
+--echo # in the COMMIT case.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+SELECT create_temp_table();
+COMMIT;
+START TRANSACTION;
+SELECT insert_temp_table();
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table();
+COMMIT;
+# To make sure that the above 'function call' top statement is
+# replicated and applied successfully on slave, Call
+# create_temp_table again.
+START TRANSACTION;
+SELECT create_temp_table();
+COMMIT;
+START TRANSACTION;
+SELECT insert_temp_table();
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+DROP FUNCTION create_temp_table;
+DROP FUNCTION insert_temp_table;
+DROP FUNCTION drop_temp_table;
+--source include/rpl_end.inc

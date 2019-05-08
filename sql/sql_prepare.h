@@ -144,8 +144,9 @@ class Ed_result_set final {
  public:
   operator List<Ed_row> &() { return *m_rows; }
   unsigned int size() const { return m_rows->elements; }
+  Ed_row *get_fields() { return m_fields; }
 
-  Ed_result_set(List<Ed_row> *rows_arg, size_t column_count,
+  Ed_result_set(List<Ed_row> *rows_arg, Ed_row *fields, size_t column_count,
                 MEM_ROOT *mem_root_arg);
 
   /** We don't call member destructors, they all are POD types. */
@@ -153,9 +154,12 @@ class Ed_result_set final {
 
   size_t get_field_count() const { return m_column_count; }
 
-  static void operator delete(void *ptr, size_t size) throw();
+  static void operator delete(void *, size_t) noexcept {
+    // Does nothing because m_mem_root is deallocated in the destructor
+  }
+
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
   }
 
  private:
@@ -165,6 +169,7 @@ class Ed_result_set final {
   MEM_ROOT m_mem_root;
   size_t m_column_count;
   List<Ed_row> *m_rows;
+  Ed_row *m_fields;
   Ed_result_set *m_next_rset;
   friend class Ed_connection;
 };
@@ -254,6 +259,8 @@ class Ed_connection final {
     return m_diagnostics_area.mysql_errno();
   }
 
+  Ed_result_set *get_result_sets() { return m_rsets; }
+
   ~Ed_connection() { free_old_result(); }
 
  private:
@@ -314,11 +321,12 @@ class Query_fetch_protocol_binary final : public Query_result_send {
   Protocol_binary protocol;
 
  public:
-  Query_fetch_protocol_binary(THD *thd)
-      : Query_result_send(thd), protocol(thd) {}
-  bool send_result_set_metadata(List<Item> &list, uint flags) override;
-  bool send_data(List<Item> &items) override;
-  bool send_eof() override;
+  explicit Query_fetch_protocol_binary(THD *thd)
+      : Query_result_send(), protocol(thd) {}
+  bool send_result_set_metadata(THD *thd, List<Item> &list,
+                                uint flags) override;
+  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_eof(THD *thd) override;
 };
 
 class Server_side_cursor;
@@ -327,10 +335,11 @@ class Server_side_cursor;
   Prepared_statement: a statement that can contain placeholders.
 */
 
-class Prepared_statement final : public Query_arena {
+class Prepared_statement final {
   enum flag_values { IS_IN_USE = 1, IS_SQL_PREPARE = 2 };
 
  public:
+  Query_arena m_arena;
   THD *thd;
   Item_param **param_array;
   Server_side_cursor *cursor;
@@ -383,15 +392,13 @@ class Prepared_statement final : public Query_arena {
  public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
-  virtual void cleanup_stmt();
   bool set_name(const LEX_CSTRING &name);
   const LEX_CSTRING &name() const { return m_name; }
   void close_cursor();
   bool is_in_use() const { return flags & (uint)IS_IN_USE; }
   bool is_sql_prepare() const { return flags & (uint)IS_SQL_PREPARE; }
   void set_sql_prepare() { flags |= (uint)IS_SQL_PREPARE; }
-  bool prepare(const char *packet, size_t packet_length,
-               bool force_primary_storage_engine);
+  bool prepare(const char *packet, size_t packet_length);
   bool execute_loop(String *expanded_query, bool open_cursor);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
@@ -404,11 +411,12 @@ class Prepared_statement final : public Query_arena {
   bool set_parameters(String *expanded_query);
 
  private:
+  void cleanup_stmt();
   void setup_set_params();
   bool set_db(const LEX_CSTRING &db_length);
 
   bool execute(String *expanded_query, bool open_cursor);
-  bool reprepare(bool force_primary_storage_engine);
+  bool reprepare();
   bool validate_metadata(Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
   bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);

@@ -1,0 +1,34 @@
+###############################################################################
+# Variable Name: binlog_rotate_encryption_master_key_at_startup
+# Scope: global
+# Access Type: read only
+# Data Type: boolean
+#
+# Description: Test case for checking the behavior of dynamic system variable
+#              "binlog_rotate_encryption_master_key_at_startup", specifically
+#              regarding:
+#              - Scope & access type
+#
+# Reference: WL#10957
+###############################################################################
+
+#
+# Scope: Global only
+#
+SELECT COUNT(@@GLOBAL.binlog_rotate_encryption_master_key_at_startup);
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.binlog_rotate_encryption_master_key_at_startup);
+
+--disable_warnings
+SELECT VARIABLE_NAME FROM performance_schema.global_variables WHERE VARIABLE_NAME='binlog_rotate_encryption_master_key_at_startup';
+SELECT VARIABLE_NAME FROM performance_schema.session_variables WHERE VARIABLE_NAME='binlog_rotate_encryption_master_key_at_startup';
+--enable_warnings
+
+#
+# Access Type: Read only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL binlog_rotate_encryption_master_key_at_startup= ON;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL binlog_rotate_encryption_master_key_at_startup= OFF;

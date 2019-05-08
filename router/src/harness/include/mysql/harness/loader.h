@@ -623,6 +623,7 @@ end). Actions taken for each plugin function are as follows:
 
 #include "harness_export.h"
 
+#include "mpsc_queue.h"
 #include "my_compiler.h"
 
 #include <csignal>
@@ -634,6 +635,7 @@ end). Actions taken for each plugin function are as follows:
 #include <map>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -885,6 +887,7 @@ class HARNESS_EXPORT Loader {
   std::exception_ptr
   deinit_all();  // returns first exception triggered by deinit()
   void unload_all();
+  size_t external_plugins_to_load_count();
 
   /**
    * Topological sort of all plugins and their dependencies.
@@ -926,11 +929,10 @@ class HARNESS_EXPORT Loader {
 
    private:
     class Impl;
-    Impl *impl_;
+    Impl *impl_{nullptr};
   };
 
   using PluginMap = std::map<std::string, PluginInfo>;
-  using SessionList = std::vector<std::future<std::exception_ptr>>;
 
   // Init order is important, so keep config_ first.
 
@@ -959,7 +961,7 @@ class HARNESS_EXPORT Loader {
   /**
    * List of all active session.
    */
-  SessionList sessions_;
+  std::vector<std::thread> plugin_threads_;
 
   /**
    * Initialization order.
@@ -973,6 +975,13 @@ class HARNESS_EXPORT Loader {
   std::string data_folder_;
   std::string program_;
   AppInfo appinfo_;
+
+  /**
+   * queue of events after plugin's start() function exited.
+   *
+   * nullptr if "finished without error", pointer to an exception otherwise
+   */
+  WaitingMPSCQueue<std::exception_ptr> plugin_stopped_events_;
 
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
@@ -1022,6 +1031,11 @@ class HARNESS_EXPORT Loader {
 
 HARNESS_EXPORT
 void request_application_shutdown();
+
+#ifdef _WIN32
+HARNESS_EXPORT
+void register_ctrl_c_handler();
+#endif
 
 #ifdef FRIEND_TEST
 namespace unittest_backdoor {

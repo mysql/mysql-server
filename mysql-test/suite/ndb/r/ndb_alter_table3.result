@@ -4,18 +4,18 @@ engine=ndb;
 insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
 create index c on t1(c);
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE		
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE		
-t1	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 select * from t1 where c = 'two';
 a	b	c
 2	two	two
 alter table t1 drop index c;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE		
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 select * from t1 where c = 'two';
 a	b	c
 2	two	two
@@ -55,8 +55,8 @@ create table t2(
 a int,
 b int,
 c int unique key,
-foreign key fk1(a) references t1(a),
-foreign key fk2(b) references t1(b)
+constraint fk1 foreign key (a) references t1(a),
+constraint fk2 foreign key (b) references t1(b)
 )engine = ndb;
 #t2 now has additional keys on col `a` and `b` to support fks.
 show create table t2;
@@ -70,7 +70,7 @@ t2	CREATE TABLE `t2` (
   KEY `fk2` (`b`),
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #create an index on t2(a) using 'create index'
 create index id1 on t2(a);
 #verify that the implicit key on col `a` is gone now and fk is intact.
@@ -85,7 +85,7 @@ t2	CREATE TABLE `t2` (
   KEY `id1` (`a`),
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
 insert into t2 values (1,10,100), (2,20,200);
 insert into t2 values (5,50,500);
@@ -93,7 +93,7 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`
 #create a table t3 with an fk refering to t2(c)
 create table t3(
 a int,
-foreign key fk3(a) references t2(c)
+constraint fk3 foreign key (a) references t2(c)
 )engine = ndb;
 #create an index on col `b` on t2
 create unique index id2 on t2(b);
@@ -109,7 +109,7 @@ t2	CREATE TABLE `t2` (
   KEY `id1` (`a`),
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #verify that the fks are intact in t2 and t3
 insert into t2 values (3,30,300), (4,40,400);
 insert into t2 values (5,50,500);

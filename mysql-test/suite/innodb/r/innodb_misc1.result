@@ -219,12 +219,24 @@ Table	Checksum
 test.t1	2050879373
 drop table t1;
 set foreign_key_checks=0;
+create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
+ERROR HY000: Referencing column 'b' and referenced column 'a' in foreign key constraint 't2_ibfk_1' are incompatible.
+set foreign_key_checks=1;
+drop table t2;
+set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Referencing column 'a' and referenced column 'a' in foreign key constraint 't2_ibfk_1' are incompatible.
 set foreign_key_checks=1;
 drop table t1;
-TODO: NEWDD: Bug 25722927 - NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
+create table t1(a varchar(10) primary key) engine = innodb;
+alter table t1 modify column a int;
+ERROR HY000: Referencing column 'a' and referenced column 'a' in foreign key constraint 't2_ibfk_1' are incompatible.
+set foreign_key_checks=1;
+drop table t2,t1;
 set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
@@ -233,7 +245,15 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set foreign_key_checks=1;
 drop table t2,t1;
-TODO: NEWDD: Bug 25722927 - NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+rename table t3 to t1;
+ERROR HY000: Referencing column 'a' and referenced column 'a' in foreign key constraint 't2_ibfk_1' are incompatible.
+set foreign_key_checks=1;
+drop table t2,t3;
 create table t1(a int primary key) row_format=redundant engine=innodb;
 create table t2(a int primary key,constraint foreign key(a)references t1(a)) row_format=compact engine=innodb;
 create table t3(a int primary key) row_format=compact engine=innodb;

@@ -23,6 +23,13 @@ Pattern "Error in fixing SE data for test_mismatch.t7_indexes_unique" found
 Pattern "Error in fixing SE data for test_mismatch.t8_col_type_nulls" found
 Pattern "Error in fixing SE data for test_mismatch.t9_index_prefix_len" found
 Pattern "Table mismatch_frms/t1_col_name is not found in InnoDB dictionary" found
+# ------------------------------------------------------------------
+# Check upgrade of tablespaces with a missing tablespace file.
+# ------------------------------------------------------------------
+# Upgrade fails for the case where the general tablespace file is removed.
+Pattern "Error in fixing SE data for tablespace.t3" found
+# Upgrade fails for the case where the file per tablespace is removed.
+Pattern "Got error 197 from SE while migrating tablespaces" found
 # Remove copied files
 # ------------------------------------------------------------------
 # Check upgrade of tables and stored programs using long enum elements.
@@ -64,5 +71,17 @@ Pattern "Error in parsing Routine 'test'.'procedure_groupby_desc' during upgrade
 Pattern "Error in parsing View 'test'.'view_groupby_desc' during upgrade" found
 Pattern "Failed to Populate DD tables." found
 # Remove copied files
+# ------------------------------------------------------------------
+# Bug#28760011: UPGRADE TO 8.0.12 FAILS
+# Check upgrade from 5.7 when triggers are listed in wrong order in the TRG file.
+# ------------------------------------------------------------------
+# Set different path for log file and datadir, and unzip the zip file.
+# DB server which was started above is not running, no need for shutdown, just start
+# the server. This will not fail after the bugfix since the trigger order is now corrected.
+# Stop the server.
+# Remove the datadir, but keep the error log in case.
+# ------------------------------------------------------------------
+# End-of-test cleanup.
+# ------------------------------------------------------------------
 # Restart the server with default options.
 # restart

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,22 +35,23 @@
 
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/timeout_callback_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server.h"
 #include "plugin/x/ngs/include/ngs/server_properties.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
 #include "plugin/x/src/helper/multithread/lock_container.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/multithread/rw_lock.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/sha256_password_cache.h"
+#include "plugin/x/src/ssl_session_options.h"
+#include "plugin/x/src/udf/registry.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 #include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
@@ -62,23 +63,29 @@ class Sql_data_context;
 class Server;
 struct Ssl_config;
 
-typedef ngs::shared_ptr<Server> Server_ptr;
+typedef std::shared_ptr<Server> Server_ptr;
 
 class Server : public ngs::Server_delegate {
  public:
-  Server(ngs::shared_ptr<ngs::Socket_acceptors_task> acceptors,
-         ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-         ngs::shared_ptr<ngs::Protocol_config> config,
-         ngs::shared_ptr<ngs::Timeout_callback_interface> timeout_callback);
+  Server(std::shared_ptr<ngs::Socket_acceptors_task> acceptors,
+         std::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
+         std::shared_ptr<ngs::Protocol_config> config,
+         std::shared_ptr<ngs::Timeout_callback_interface> timeout_callback);
 
   static int main(MYSQL_PLUGIN p);
   static int exit(MYSQL_PLUGIN p);
   static bool reset();
   static void stop();
+  static std::string get_document_id(const THD *thd, const uint16_t offset,
+                                     const uint16_t increment);
+  static bool get_prepared_statement_id(const THD *thd,
+                                        const uint32_t client_stmt_id,
+                                        uint32_t *stmt_id);
 
   ngs::Server &server() { return m_server; }
 
-  ngs::Error_code kill_client(uint64_t client_id, Session &requester);
+  ngs::Error_code kill_client(uint64_t client_id,
+                              ngs::Session_interface &requester);
 
   std::string get_socket_file();
   std::string get_tcp_bind_address();
@@ -90,7 +97,7 @@ class Server : public ngs::Server_delegate {
   static Server_ptr get_instance() {
     // TODO: ngs::Locked_container add container that supports shared_ptrs
     return instance ? Server_ptr(ngs::allocate_object<Server_with_lock>(
-                          ngs::ref(*instance), ngs::ref(instance_rwl)))
+                          std::ref(*instance), std::ref(instance_rwl)))
                     : Server_ptr();
   }
 
@@ -118,9 +125,9 @@ class Server : public ngs::Server_delegate {
   void plugin_system_variables_changed();
   void update_global_timeout_values();
 
-  virtual ngs::shared_ptr<ngs::Client_interface> create_client(
+  virtual std::shared_ptr<ngs::Client_interface> create_client(
       std::shared_ptr<ngs::Vio_interface> connection);
-  virtual ngs::shared_ptr<ngs::Session_interface> create_session(
+  virtual std::shared_ptr<ngs::Session_interface> create_session(
       ngs::Client_interface &client, ngs::Protocol_encoder_interface &proto,
       const ngs::Session_interface::Session_id session_id);
 
@@ -143,16 +150,16 @@ class Server : public ngs::Server_delegate {
 
   ngs::Client_interface::Client_id m_client_id;
   std::atomic<int> m_num_of_connections;
-  ngs::shared_ptr<ngs::Protocol_config> m_config;
-  ngs::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
-  ngs::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
-  Mutex m_accepting_mutex;
+  std::shared_ptr<ngs::Protocol_config> m_config;
+  std::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
+  std::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
+  Mutex m_accepting_mutex{KEY_mutex_x_xpl_server_accepting};
   ngs::Server_properties m_properties;
   std::shared_ptr<Notice_input_queue> m_notice_input_queue;
   ngs::Server m_server;
-  std::set<std::string> m_udf_names;
+  udf::Registry m_udf_registry;
 
-  static bool exiting;
+  static std::atomic<bool> exiting;
   static bool is_exiting();
 
   SHA256_password_cache m_sha256_password_cache;

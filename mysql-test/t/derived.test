@@ -442,12 +442,21 @@ SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 
 --echo # Ref access to the derived table should be used.
-EXPLAIN SELECT table1 . o1 
-FROM C table1  
-  JOIN ( C table2  
-    JOIN ( SELECT * FROM cc ) table3  
-    ON table3 .`i1`  = table2 .o1  
-  ) ON table3 .`i2`  = table2 .o1   
+EXPLAIN SELECT table1 . o1
+FROM C table1
+  JOIN ( C table2
+    JOIN ( SELECT * FROM cc ) table3
+    ON table3 .`i1`  = table2 .o1
+  ) ON table3 .`i2`  = table2 .o1
+;
+
+# Test EXPLAIN on MaterializeIterator.
+EXPLAIN FORMAT=tree SELECT table1 . o1
+FROM C table1
+  JOIN ( C table2
+    JOIN ( SELECT * FROM cc ) table3
+    ON table3 .`i1`  = table2 .o1
+  ) ON table3 .`i2`  = table2 .o1
 ;
 
 SET @@optimizer_switch=@optimizer_switch_saved;
@@ -2718,8 +2727,10 @@ DROP TABLE users;
 
 CREATE TABLE t(a INTEGER) engine=innodb;
 INSERT INTO t VALUES(1);
---error ER_INVALID_GROUP_FUNC_USE
+--echo # Per MySQL rules, SUM(1) is aggregated in top query
+--echo # (can't be in WHERE, in FROM)
 SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t);
+SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(0)) AS t);
 DROP TABLE t;
 
 --echo # Bug#23074801: Delete from joined tables with where using derived table
@@ -2827,18 +2838,6 @@ EXECUTE yy;
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#25907510 CRASH IN HA_MYISAM::IDX_COND_PUSH WITH INTERNAL_TMP_DISK_STORAGE_ENGINE=MYISAM
---echo #
-
-#set sql_mode="";
-set global internal_tmp_disk_storage_engine=myisam;
-create table t (a bit(1),b int) engine=innodb;
-create table s (a int) engine=innodb;
-select 1 from t natural right outer join
- (select a,@q from s limit 2) w where b;
-drop table t,s;
-set global internal_tmp_disk_storage_engine=default;
 
 --echo #
 --echo # Bug#26596977: ASSERT `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))'

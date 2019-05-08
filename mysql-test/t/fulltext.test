@@ -24,7 +24,9 @@ ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 
 # nl search
+# Also tests FORMAT=tree printing of full-text search iterators.
 
+EXPLAIN FORMAT=tree select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");

@@ -30,6 +30,7 @@
 #include <mysql/plugin.h>
 
 #include "lex_string.h"
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"

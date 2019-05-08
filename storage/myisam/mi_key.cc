@@ -26,6 +26,7 @@
 #include <cmath>
 
 #include "m_ctype.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"

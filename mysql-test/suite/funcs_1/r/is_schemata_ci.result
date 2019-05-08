@@ -33,9 +33,10 @@ SCHEMA_NAME	varchar(64)	YES		NULL
 DEFAULT_CHARACTER_SET_NAME	varchar(64)	NO		NULL	
 DEFAULT_COLLATION_NAME	varchar(64)	NO		NULL	
 SQL_PATH	binary(0)	YES		NULL	
+DEFAULT_ENCRYPTION	enum('NO','YES')	NO		NULL	
 SHOW CREATE TABLE information_schema.SCHEMATA;
 View	Create View	character_set_client	collation_connection
-SCHEMATA	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`SCHEMATA` AS select (`cat`.`name` collate utf8_tolower_ci) AS `CATALOG_NAME`,(`sch`.`name` collate utf8_tolower_ci) AS `SCHEMA_NAME`,`cs`.`name` AS `DEFAULT_CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATION_NAME`,NULL AS `SQL_PATH` from (((`mysql`.`schemata` `sch` join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `col` on((`sch`.`default_collation_id` = `col`.`id`))) join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`))) where can_access_database(`sch`.`name`)	utf8	utf8_general_ci
+SCHEMATA	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`SCHEMATA` AS select (`cat`.`name` collate utf8_tolower_ci) AS `CATALOG_NAME`,(`sch`.`name` collate utf8_tolower_ci) AS `SCHEMA_NAME`,`cs`.`name` AS `DEFAULT_CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATION_NAME`,NULL AS `SQL_PATH`,`sch`.`default_encryption` AS `DEFAULT_ENCRYPTION` from (((`mysql`.`schemata` `sch` join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `col` on((`sch`.`default_collation_id` = `col`.`id`))) join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`))) where can_access_database(`sch`.`name`)	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.SCHEMATA;
 Field	Type	Null	Key	Default	Extra
 CATALOG_NAME	varchar(64)	YES		NULL	
@@ -43,6 +44,7 @@ SCHEMA_NAME	varchar(64)	YES		NULL
 DEFAULT_CHARACTER_SET_NAME	varchar(64)	NO		NULL	
 DEFAULT_COLLATION_NAME	varchar(64)	NO		NULL	
 SQL_PATH	binary(0)	YES		NULL	
+DEFAULT_ENCRYPTION	enum('NO','YES')	NO		NULL	
 SELECT catalog_name, schema_name, sql_path
 FROM information_schema.schemata
 WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL
@@ -72,9 +74,9 @@ GRANT SELECT ON db_datadict_1.* to 'testuser2'@'localhost';
 GRANT SELECT ON db_datadict_2.* to 'testuser2'@'localhost';
 SELECT * FROM information_schema.schemata
 WHERE schema_name LIKE 'db_datadict_%' ORDER BY schema_name;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	db_datadict_1	latin1	latin1_swedish_ci	NULL
-def	db_datadict_2	latin1	latin1_swedish_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	db_datadict_1	latin1	latin1_swedish_ci	NULL	NO
+def	db_datadict_2	latin1	latin1_swedish_ci	NULL	NO
 SHOW DATABASES LIKE 'db_datadict_%';
 Database (db_datadict_%)
 db_datadict_1
@@ -82,17 +84,17 @@ db_datadict_2
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.schemata
 WHERE schema_name LIKE 'db_datadict_%' ORDER BY schema_name;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	db_datadict_1	latin1	latin1_swedish_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	db_datadict_1	latin1	latin1_swedish_ci	NULL	NO
 SHOW DATABASES LIKE 'db_datadict_%';
 Database (db_datadict_%)
 db_datadict_1
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.schemata
 WHERE schema_name LIKE 'db_datadict_%' ORDER BY schema_name;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	db_datadict_1	latin1	latin1_swedish_ci	NULL
-def	db_datadict_2	latin1	latin1_swedish_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	db_datadict_1	latin1	latin1_swedish_ci	NULL	NO
+def	db_datadict_2	latin1	latin1_swedish_ci	NULL	NO
 SHOW DATABASES LIKE 'db_datadict_%';
 Database (db_datadict_%)
 db_datadict_1
@@ -100,7 +102,7 @@ db_datadict_2
 # Establish connection testuser3 (user=testuser3)
 SELECT * FROM information_schema.schemata
 WHERE schema_name LIKE 'db_datadict_%' ORDER BY schema_name;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
 SHOW DATABASES LIKE 'db_datadict_%';
 Database (db_datadict_%)
 # Switch to connection default and close connections testuser1,testuser2,testuser3
@@ -114,11 +116,11 @@ DROP DATABASE db_datadict_2;
 #################################################################################
 DROP DATABASE IF EXISTS db_datadict;
 SELECT * FROM information_schema.schemata WHERE schema_name = 'db_datadict';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
 CREATE DATABASE db_datadict CHARACTER SET 'latin1' COLLATE 'latin1_swedish_ci';
 SELECT * FROM information_schema.schemata WHERE schema_name = 'db_datadict';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	db_datadict	latin1	latin1_swedish_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	db_datadict	latin1	latin1_swedish_ci	NULL	NO
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
 SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME

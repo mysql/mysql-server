@@ -1,0 +1,94 @@
+
+--echo ########################################################################
+--echo # 
+--echo # This test will first verify the DD schema of the currently running
+--echo # server, and dump the SHOW CREATE statements for the DD tables to
+--echo # a file. Then, it will unzip a data dirctory from each of the
+--echo # previous 8.0 versions from which upgrade is supported, restart the
+--echo # server to make it do upgrade, and verify that the DD tables after
+--echo # upgrade are similar to those that are created when initializing the
+--echo # target server.
+--echo # 
+--echo # The zipped data directories were created on case sensitive file
+--echo # systems with lower_case_table_names == 0. There is a corresponding
+--echo # test for upgrade from 5.7.
+--echo # 
+--echo ########################################################################
+
+--source include/have_case_sensitive_file_system.inc
+--source include/have_debug.inc
+--source include/big_test.inc
+
+--echo ########################################################################
+--echo # Assert target schema ids.
+--echo ########################################################################
+--source include/dd_schema_assert_ids.inc
+
+--echo ########################################################################
+--echo # Assert target schema table names.
+--echo ########################################################################
+--source include/dd_schema_assert_and_fill_table_names.inc
+
+--echo ########################################################################
+--echo # Dump DD table definitions to file.
+--echo ########################################################################
+--let $target_table_defs = $MYSQL_TMP_DIR/target_definitions.txt
+--let $file = $target_table_defs
+--source include/dd_schema_dump_table_defs_debug.inc
+
+--echo ########################################################################
+--echo # Dump mysql.dd_properties to file.
+--echo ########################################################################
+--let $target_dd_props = $MYSQL_TMP_DIR/target_dd_properties.txt
+--let $file = $target_dd_props
+  # We must filter out unpredictable values such as root page no and ids.
+  # This simple filter will remove a bit more than strictly necessary.
+--let $filter = id|root|MYSQLD_VERSION_LO
+--source include/dd_schema_dd_properties.inc
+
+--echo ########################################################################
+--echo # Stop the running server.
+--echo ########################################################################
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+
+--echo ########################################################################
+--let  $VERSION = 80011
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80012
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80013
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80014
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80015
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+
+--echo ########################################################################
+--echo # Cleanup: Remove definition files and restart with default options.
+--echo ########################################################################
+--remove_file $target_table_defs
+--remove_file $target_dd_props
+let $restart_parameters =;
+--source include/start_mysqld.inc

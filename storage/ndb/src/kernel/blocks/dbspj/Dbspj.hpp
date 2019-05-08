@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,11 +123,11 @@ public:
   struct TableRecord {
     TableRecord() 
     : m_currentSchemaVersion(0), m_flags(0)
-    {};
+    {}
 
     TableRecord(Uint32 schemaVersion)
     : m_currentSchemaVersion(schemaVersion), m_flags(TR_PREPARED)
-    {};
+    {}
 
     Uint32 m_currentSchemaVersion;
     Uint16 m_flags;
@@ -824,17 +824,12 @@ public:
     }
   };
 
-  struct TreeNode_cursor_ptr
-  {
-    Uint32 nextList;
-  };
-
   /**
    * A node in a Query
    *   (This is an instantiated version of QueryNode in
    *    include/kernel/signal/QueryTree.hpp)
    */
-  struct TreeNode : TreeNode_cursor_ptr
+  struct TreeNode
   {
     STATIC_CONST ( MAGIC = ~RT_SPJ_TREENODE );
 
@@ -854,7 +849,7 @@ public:
       m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
       m_resumeEvents(0), m_resumePtrI(RNIL),
       m_scanAncestorPtrI(RNIL),
-      nextList(RNIL), prevList(RNIL)
+      nextList(RNIL), prevList(RNIL), nextCursor(RNIL)
     {
 //    m_send.m_ref = 0;
       m_send.m_correlation = 0;
@@ -1097,6 +1092,9 @@ public:
     PatternStore::Head m_keyPattern;
     PatternStore::Head m_attrParamPattern;
 
+    // Memory Arena with lifetime limited to current result batch / node
+    ArenaHead m_batchArena;
+
     /**
      * Rows buffered by this node
      */
@@ -1146,6 +1144,7 @@ public:
       Uint32 nextPool;
     };
     Uint32 prevList;
+    Uint32 nextCursor;
   };  //struct TreeNode
 
   static const Ptr<TreeNode> NullTreeNodePtr;
@@ -1154,9 +1153,9 @@ public:
   typedef DLFifoList<TreeNode_pool> TreeNode_list;
   typedef LocalDLFifoList<TreeNode_pool> Local_TreeNode_list;
 
-  typedef SLList<TreeNode_pool, TreeNode_cursor_ptr>
+  typedef SLList<TreeNode_pool, IA_Cursor>
   TreeNodeCursor_list;
-  typedef LocalSLList<TreeNode_pool, TreeNode_cursor_ptr>
+  typedef LocalSLList<TreeNode_pool, IA_Cursor>
   Local_TreeNodeCursor_list;
 
   /**
@@ -1663,7 +1662,6 @@ private:
   Uint32 m_buffer0[16*1024]; // 64k
   Uint32 m_buffer1[16*1024]; // 64k
 };
-
 
 #undef JAM_FILE_ID
 

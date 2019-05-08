@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ err:
   char buf[256];
   String err(buf, sizeof(buf), system_charset_info);
   err.length(0);
-  args[0]->print(&err, QT_NO_DATA_EXPANSION);
+  args[0]->print(current_thd, &err, QT_NO_DATA_EXPANSION);
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "string",
@@ -142,7 +142,7 @@ String *Item_func_inet_ntoa::val_str(String *str) {
     char buf[256];
     String err(buf, sizeof(buf), system_charset_info);
     err.length(0);
-    args[0]->print(&err, QT_NO_DATA_EXPANSION);
+    args[0]->print(current_thd, &err, QT_NO_DATA_EXPANSION);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE_FOR_TYPE,
                         ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "integer",
@@ -242,7 +242,7 @@ err:
   char buf[256];
   String err(buf, sizeof(buf), system_charset_info);
   err.length(0);
-  args[0]->print(&err, QT_NO_DATA_EXPANSION);
+  args[0]->print(current_thd, &err, QT_NO_DATA_EXPANSION);
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "string",

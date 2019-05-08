@@ -97,17 +97,18 @@ CREATE TABLE `slave_master_info` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information' TABLESPACE=mysql;
 
 --echo # Running mysql_upgrade to update slave_master_info table
---disable_result_log
---exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
---enable_result_log
 
+--let $rpl_server_parameters= --upgrade=FORCE
 --let $rpl_server_number= 1
+--let $wait_counter= 10000
 --source include/rpl_restart_server.inc
 
 # Create two additional channels on the slave
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
+--replace_result $SERVER_MYPORT_2 MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2 FOR CHANNEL ''
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
 --eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_1'
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
@@ -200,6 +201,7 @@ ALTER TABLE slave_master_info
   AFTER Enabled_auto_position;
 
 --let $rpl_server_number= 1
+--let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
 
 # This now should work fine now
@@ -260,6 +262,7 @@ ALTER TABLE slave_master_info
   AFTER Tls_version;
 
 --let $rpl_server_number= 1
+--let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
 
 # We cannot perform repository operations until the repository be fixed
@@ -284,6 +287,7 @@ ALTER TABLE slave_master_info
   AFTER Enabled_auto_position;
 
 --let $rpl_server_number= 1
+--let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
 
 # This now should work fine now

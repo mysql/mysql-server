@@ -1,9 +1,9 @@
 # Tests for WL#8131
 # The test includes show_binlog_events.inc, which requires that
-# binlog is endabled. So we just run it when binlog is enabled.
+# binlog is enabled. So we just run it when binlog is enabled.
 --source include/have_log_bin.inc
 
-call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression(".*The system table mysql.global_grants.*");
 call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
 
 --echo #
@@ -482,7 +482,9 @@ PRIMARY KEY (USER,HOST,PRIV)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
 --echo # restore mysql.session privileges
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
 --echo # restore root privileges
@@ -598,6 +600,7 @@ SHOW GRANTS FOR u1;
 SELECT * FROM mysql.global_grants WHERE USER='u1';
 # check for binlog events
 RESET MASTER;
+--let $mask_grant_as_events=1
 --source include/show_binlog_events.inc
 GRANT SELECT ON *.* TO u1;
 --source include/show_binlog_events.inc
