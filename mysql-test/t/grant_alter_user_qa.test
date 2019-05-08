@@ -77,7 +77,7 @@ connection default;
 disconnect con1;
 
 --echo
-CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string';
+CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 --replace_column 3 #
 query_vertical SELECT User,plugin,authentication_string FROM mysql.user
 WHERE USER='user4';
@@ -245,7 +245,7 @@ CREATE USER u18@localhost,
             u20@localhost IDENTIFIED WITH 'sha256_password',
             u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string',
             u22@localhost IDENTIFIED WITH 'test_plugin_server',
-            u23@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_&string'
+            u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 --replace_column 3 #
@@ -469,7 +469,7 @@ query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,authentication_string,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 
-CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string'
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
                           REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
                           SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
@@ -605,7 +605,7 @@ CREATE USER u18@localhost,
             u20@localhost IDENTIFIED WITH 'sha256_password',
             u21@localhost IDENTIFIED WITH 'sha256_password' BY '!Y_TOdh6)',
             u22@localhost IDENTIFIED WITH 'sha256_password',
-            u23@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_&string'
+            u23@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 --replace_column 7 # 11 #
@@ -743,12 +743,12 @@ CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 SHOW CREATE USER u4@localhost;
 
 
-CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string';
+CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user1@localhost;
 
 --echo
-CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
+CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user2@localhost;
 --echo
@@ -851,7 +851,7 @@ DROP USER user1@localhost,u1@localhost, u2@localhost, u3@localhost, u4@localhost
 --echo
 --echo # GRANT
 --echo
-CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password'
+CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password'
             AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
@@ -916,7 +916,7 @@ DROP USER user1@localhost,user2@localhost,user3@localhost,user5@localhost;
 --echo # SET PASSWORD Tests
 --echo
 CREATE USER user1@localhost IDENTIFIED BY 'auth_string';
-CREATE USER user2@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string1';
+CREATE USER user2@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string1';
 
 SELECT PASSWORD('plaintext_pwd');
 
@@ -1082,7 +1082,7 @@ CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password'
                           SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
                           WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
-ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
+ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
                          REQUIRE SSL;
 ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password'
                             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
@@ -1155,7 +1155,7 @@ CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password'
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
-ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
+ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
                          REQUIRE SSL;
 ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password'
            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
@@ -1261,7 +1261,7 @@ CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password'
                           SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
                           WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
-ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
+ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
                          REQUIRE SSL;
 ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password'
                             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
@@ -1335,7 +1335,7 @@ CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password'
                           SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
                           WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
-ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
+ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
                          REQUIRE SSL;
 ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password'
                             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
