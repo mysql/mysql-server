@@ -153,6 +153,11 @@ class Ndb_DDL_transaction_ctx {
             The rollback would have actually changed the version
             of the NDB table. This method updates that in the DD. */
   bool post_ddl_hook_rename_table(const Ndb_DDL_stmt &ddl_stmt);
+  /* @brief Drop the table with the temporary name from NDB after
+            the COPY ALTER has been committed successfully. This drop is
+            delayed until after commit so that if required, ndbcluster can
+            rollback the changes made by the DDL. */
+  bool post_ddl_hook_drop_temp_table(const Ndb_DDL_stmt &ddl_stmt);
 
   /* @brief Update the table's id and version in DD. */
   bool update_table_id_and_version_in_DD(const char *schema_name,
@@ -197,6 +202,10 @@ class Ndb_DDL_transaction_ctx {
                         const std::string &new_table_name,
                         const std::string &from, const std::string &to,
                         const std::string &orig_sdi);
+  /* @brief Log a drop table(with temp name) statement in DDL Context.
+
+     @param path_name       Path name of the table. */
+  void log_drop_temp_table(const std::string &path_name);
 
   /* @brief Mark the last DDL stmt as distributed */
   void mark_last_stmt_as_distributed() {

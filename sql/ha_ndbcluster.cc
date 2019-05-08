@@ -12615,57 +12615,6 @@ drop_table_impl(THD *thd, Ndb *ndb,
     }
   }
 
-
-  /*
-    Detect the special case which occurs when a table is altered
-    to another engine. In such case the altered table has been
-    renamed to a temporary name in the same engine before copying
-    the data to the new table in the other engine. When copying is
-    successful, the original table(which now has a temporary name)
-    is then dropped. However the participants has not yet been informed
-    about the alter. Since this is the last call that ndbcluster get
-    for this alter and it's time to inform the participants that the
-    original table is no longer in NDB. Unfortunately the original
-    table name is not available in this function, but it's possible
-    to look that up via THD.
-  */
-  if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
-  {
-    const HA_CREATE_INFO* create_info = thd->lex->create_info;
-    if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
-        create_info->db_type != ndbcluster_hton)
-    {
-      DBUG_PRINT("info",
-                 ("ALTER to different engine = '%s' detected",
-                  ha_resolve_storage_engine_name(create_info->db_type)));
-
-      // Assumption is that this is the drop of original table
-      // which now has a temporary name
-      DBUG_ASSERT(ndb_name_is_temp(table_name));
-
-      const char* orig_db = thd->lex->select_lex->table_list.first->db;
-      const char* orig_name =
-          thd->lex->select_lex->table_list.first->table_name;
-      DBUG_PRINT("info", ("original table name: '%s.%s'", orig_db, orig_name));
-
-      // Distribute the drop. If this is a rollback of a 'CREATE TABLE',
-      // skip writing the query on participant binlog.
-      Ndb_DDL_transaction_ctx *ddl_ctx =
-          thd_ndb->get_ddl_transaction_ctx(false);
-      bool log_on_participant =
-          (ddl_ctx == nullptr || !ddl_ctx->rollback_in_progress());
-      if (schema_dist_client != nullptr &&
-          !schema_dist_client->drop_table(orig_db, orig_name, ndb_table_id,
-                                          ndb_table_version,
-                                          log_on_participant)) {
-        // Failed to distribute the drop of this table to the
-        // other MySQL Servers, just push warning and continue
-        thd_ndb->push_warning("Failed to distribute 'DROP TABLE %s'",
-                              table_name);
-      }
-    }
-  }
-
   if (share)
   {
     mysql_mutex_lock(&ndbcluster_mutex);
@@ -12711,19 +12660,6 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *)
   set_dbname(path);
   set_tabname(path);
 
-  Ndb_schema_dist_client schema_dist_client(thd);
-
-  const char* prepare_name = m_tabname;
-  if (ndb_name_is_temp(prepare_name))
-  {
-    prepare_name = thd->lex->select_lex->table_list.first->table_name;
-  }
-
-  if (!schema_dist_client.prepare(m_dbname, prepare_name)) {
-    /* Don't allow delete table unless schema distribution is ready */
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  }
-
   if (check_ndb_connection(thd))
   {
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -12735,29 +12671,50 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *)
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
-  if(thd_sql_command(thd) == SQLCOM_ALTER_TABLE &&
-     ndb_name_is_temp(m_tabname) &&
-     Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, prepare_name))
-  {
-    ndb_log_info("Migrating legacy privilege table: Drop %s (%s)",
-                 prepare_name, m_tabname);
-    // Special case allowing the legacy distributed privilege tables
-    // to be migrated to local shadow tables. Do not drop the table from
-    // NdbDictionary or publish this change via schema distribution.
-    // Mark the share as dropped, then clear the table from the dictionary cache.
-    mysql_mutex_lock(&ndbcluster_mutex);
-    NDB_SHARE *share= NDB_SHARE::acquire_reference_by_key_have_lock(
-      path, "delete_table__for_local_shadow");
-    NDB_SHARE::mark_share_dropped(&share);
-    NDB_SHARE::release_reference_have_lock(share, "delete_table__for_local_shadow");
-    mysql_mutex_unlock(&ndbcluster_mutex);
-    clear_table_from_dictionary_cache(thd_ndb->ndb, m_dbname, prepare_name);
+  if (ndb_name_is_temp(m_tabname)) {
+    const char *orig_table_name =
+          thd->lex->select_lex->table_list.first->table_name;
+    if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE &&
+        Ndb_dist_priv_util::is_distributed_priv_table(m_dbname,
+                                                      orig_table_name)) {
+      ndb_log_info("Migrating legacy privilege table: Drop %s (%s)",
+                   orig_table_name, m_tabname);
+      // Special case allowing the legacy distributed privilege tables
+      // to be migrated to local shadow tables. Do not drop the table from
+      // NdbDictionary or publish this change via schema distribution.
+      // Mark the share as dropped, then clear the table from the dictionary
+      // cache.
+      mysql_mutex_lock(&ndbcluster_mutex);
+      NDB_SHARE *share = NDB_SHARE::acquire_reference_by_key_have_lock(
+          path, "delete_table__for_local_shadow");
+      NDB_SHARE::mark_share_dropped(&share);
+      NDB_SHARE::release_reference_have_lock(share,
+                                             "delete_table__for_local_shadow");
+      mysql_mutex_unlock(&ndbcluster_mutex);
+      clear_table_from_dictionary_cache(thd_ndb->ndb, m_dbname,
+                                        orig_table_name);
+      DBUG_RETURN(0);
+    }
+
+    /* This the final phase of a copy alter. Delay the drop of the table with
+       temp name until after commit so that when required, a rollback would be
+       possible. Log it in the ddl_ctx and return. It will be dropped after
+       the commit succeeds. */
+    DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_ALTER_TABLE ||
+                thd_sql_command(thd) == SQLCOM_DROP_INDEX ||
+                thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
+    Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx(true);
+    ddl_ctx->log_drop_temp_table(path);
     DBUG_RETURN(0);
   }
 
-  /*
-    Drop table in NDB and on the other mysqld(s)
-  */
+  Ndb_schema_dist_client schema_dist_client(thd);
+  if (!schema_dist_client.prepare(m_dbname, m_tabname)) {
+    /* Don't allow delete table unless schema distribution is ready */
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
+
+  /* Drop table in NDB and on the other mysqld(s) */
   const int drop_result = drop_table_impl(thd, thd_ndb->ndb,
                                           &schema_dist_client,
                                           path, m_dbname, m_tabname);

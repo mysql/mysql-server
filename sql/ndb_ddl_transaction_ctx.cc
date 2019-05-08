@@ -25,6 +25,7 @@
 // Implements the interface defined in
 #include "sql/ndb_ddl_transaction_ctx.h"
 
+#include "sql/handler.h"
 #include "sql/ndb_dd.h"
 #include "sql/ndb_dd_client.h"
 #include "sql/ndb_ddl_definitions.h"
@@ -32,6 +33,8 @@
 #include "sql/ndb_schema_dist.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_thd_ndb.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 
 void Ndb_DDL_transaction_ctx::log_create_table(const std::string &path_name) {
   log_ddl_stmt(Ndb_DDL_stmt::CREATE_TABLE, path_name);
@@ -249,6 +252,97 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
   return true;
 }
 
+void Ndb_DDL_transaction_ctx::log_drop_temp_table(
+    const std::string &path_name) {
+  log_ddl_stmt(Ndb_DDL_stmt::DROP_TABLE, path_name);
+}
+
+bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
+    const Ndb_DDL_stmt &ddl_stmt) {
+  DBUG_TRACE;
+  DBUG_ASSERT(m_ddl_status != DDL_IN_PROGRESS);
+
+  if (m_ddl_status == DDL_ROLLED_BACK) {
+    /* DDL was rollbacked. Nothing to do */
+    return true;
+  }
+
+  Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
+  Ndb *ndb = thd_ndb->ndb;
+
+  /* extract info from ddl_info */
+  const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
+  DBUG_ASSERT(ddl_info.size() == 1);
+  const char *path_name = ddl_info[0].c_str();
+  char db_name[FN_HEADLEN];
+  char table_name[FN_HEADLEN];
+  ndb_set_dbname(path_name, db_name);
+  ndb_set_tabname(path_name, table_name);
+
+  /* Verify that the table is a temp table. */
+  if (!ndb_name_is_temp(table_name)) {
+    DBUG_ASSERT(false);
+    return false;
+  }
+
+  DBUG_PRINT("info", ("Dropping table '%s.%s'", db_name, table_name));
+
+  /* Finally drop the temp table as the DDL has been committed  */
+  if (drop_table_impl(m_thd, ndb, nullptr, path_name, db_name, table_name) !=
+      0) {
+    thd_ndb->push_warning("Failed to drop a temp table.");
+    return false;
+  }
+
+  /* The table has been dropped successfully. Only thing remaining is handling
+     the special case where `ALTER TABLE .. ENGINE` is requested. So exit and
+     return if this DDL is not a ALTER query. */
+  if (thd_sql_command(m_thd) != SQLCOM_ALTER_TABLE) {
+    return true;
+  }
+
+  /* Detect the special case which occurs when a table is altered to another
+     engine. In such case the altered table has been renamed to a temporary
+     name in the same engine before copying the data to the new table in the
+     other engine. When copying is successful, the original table
+     (which now has a temporary name) is asked to be dropped. Since this table
+     has a temporary name, the actual drop was done only after a successful
+     commit as a part of this function. Now that the drop is done, inform the
+     participants that the original table is no longer in NDB. Unfortunately
+     the original table name is not available in this function, but it's
+     possible to look that up via THD. */
+  const HA_CREATE_INFO *create_info = m_thd->lex->create_info;
+  if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+      create_info->db_type != ndbcluster_hton) {
+    DBUG_PRINT("info", ("ALTER to different engine = '%s' detected",
+                        ha_resolve_storage_engine_name(create_info->db_type)));
+
+    const char *orig_db_name = m_thd->lex->select_lex->table_list.first->db;
+    const char *orig_table_name =
+        m_thd->lex->select_lex->table_list.first->table_name;
+    DBUG_PRINT("info",
+               ("original table name: '%s.%s'", orig_db_name, orig_table_name));
+
+    Ndb_schema_dist_client schema_dist_client(m_thd);
+
+    /* Prepare the schema client */
+    if (!schema_dist_client.prepare(orig_db_name, orig_table_name)) {
+      thd_ndb->push_warning("Failed to distribute 'DROP TABLE '%s.%s''",
+                            orig_db_name, orig_table_name);
+      return false;
+    }
+
+    /* Do a drop in all connected servers */
+    if (!schema_dist_client.drop_table(orig_db_name, orig_table_name, 0, 0)) {
+      thd_ndb->push_warning("Failed to distribute 'DROP TABLE '%s.%s''",
+                            orig_db_name, orig_table_name);
+      return false;
+    }
+  }
+
+  return true;
+}
+
 void Ndb_DDL_transaction_ctx::commit() {
   DBUG_TRACE;
   DBUG_ASSERT(m_ddl_status == DDL_IN_PROGRESS);
@@ -277,6 +371,9 @@ bool Ndb_DDL_transaction_ctx::rollback() {
       case Ndb_DDL_stmt::RENAME_TABLE:
         result &= rollback_rename_table(ddl_stmt);
         break;
+      case Ndb_DDL_stmt::DROP_TABLE:
+        /* Nothing to do as the table has not been dropped yet */
+        break;
       default:
         result = false;
         DBUG_ASSERT(false);
@@ -296,10 +393,13 @@ bool Ndb_DDL_transaction_ctx::run_post_ddl_hooks() {
   bool result = true;
   for (auto it = m_executed_ddl_stmts.begin(); it != m_executed_ddl_stmts.end();
        ++it) {
-    Ndb_DDL_stmt &ddl_stmt = *it;
+    const Ndb_DDL_stmt &ddl_stmt = *it;
     switch (ddl_stmt.get_ddl_type()) {
       case Ndb_DDL_stmt::RENAME_TABLE:
         result &= post_ddl_hook_rename_table(ddl_stmt);
+        break;
+      case Ndb_DDL_stmt::DROP_TABLE:
+        result &= post_ddl_hook_drop_temp_table(ddl_stmt);
         break;
       default:
         break;
