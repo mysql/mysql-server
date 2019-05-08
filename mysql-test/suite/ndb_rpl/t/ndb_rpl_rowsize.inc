@@ -1,3 +1,4 @@
+--source include/have_debug.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
