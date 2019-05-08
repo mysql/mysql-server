@@ -1,0 +1,105 @@
+#
+# Test COPY ALTER failures at various stages
+#  - on failure, they should rollback restoring the
+#    original table definitions and cleanup the
+#    temporary tables.
+#
+# Failure when attempting to copy rows
+#
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `c` datetime NOT NULL,
+  `d` int(10) unsigned DEFAULT NULL,
+  `e` int(11) NOT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t8 ORDER BY a;
+a	b	c	d	e
+1	1-t8	2017-10-20 09:13:01	NULL	1
+2	2-t8	2017-10-20 09:13:02	NULL	2
+3	3-t8	2017-10-20 09:13:03	NULL	3
+4	4-t8	2017-10-20 09:13:04	NULL	4
+5	5-t8	2017-10-20 09:13:05	NULL	5
+# Following alter should fail with error WARN_DATA_TRUNCATED
+# as it tries to copy NULL value to non NULL column
+ALTER TABLE t8
+CHANGE COLUMN d d INT NOT NULL,
+ALGORITHM = COPY;
+ERROR 01000: Data truncated for column 'd' at row 1
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `c` datetime NOT NULL,
+  `d` int(10) unsigned DEFAULT NULL,
+  `e` int(11) NOT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
+#
+# Failure during the first rename
+#
+USE ndb_ddl_test;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+set debug='+d,ndb_simulate_alter_failure_rename1';
+ALTER TABLE t1
+ADD COLUMN c INT,
+ALGORITHM = COPY;
+ERROR HY000: Internal error: Simulated : Failed to rename original table to a temp name.
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
+# ALTER should run now
+ALTER TABLE t1
+ADD COLUMN c INT,
+ALGORITHM = COPY;
+#
+# Failure during the second rename
+#
+USE ndb_ddl_test;
+set debug='+d,ndb_simulate_alter_failure_rename2';
+ALTER TABLE t1
+DROP COLUMN c,
+ALGORITHM = COPY;
+ERROR HY000: Internal error: Simulated : Failed to rename new table to target name.
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
+# ALTER should run now
+ALTER TABLE t1
+DROP COLUMN c,
+ALGORITHM = COPY;

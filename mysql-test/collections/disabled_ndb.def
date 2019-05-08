@@ -13,7 +13,7 @@
 ##############################################################################
 
 # gcol_ndb suite tests
-gcol_ndb.gcol_column_def_options_ndb : BUG#26609059 PB2 failures.
+gcol_ndb.gcol_column_def_options_ndb : Bug#29858945 Fix gcol_column_def_options_ndb failure in MTR.
 
 # ndb_big suite tests
 ndb_big.smoke : BUG#29110705 Not ready for automated testing yet.
@@ -51,23 +51,11 @@ ndb.ndb_spj_dict : WL#9185 MySQL Cluster support for new DD.
 # Problem with crash, most likely due to mismatches in shares etc
 ndb.ndb_ddl_dml : WL#9185 MySQL Cluster support for new DD.
 
-# Problem with alter table which fails while copying data between tables, the
-# temporary named destination table is not dropped. Need to rewrite
-# the copying alter table code path in ndbcluster to drop the table in
-# order to be atomic
-ndb.ndb_dd_alter : WL#9185 MySQL Cluster support for new DD
-ndb.ndb_fk_db    : WL#9185 MySQL Cluster support for new DD
-ndb.ndb_fk_no_fk : WL#9185 MySQL Cluster support for new DD
-
 # Problem with alter table while MDL lock is held on other mysqld
 ndb.ndb_ddl_open_trans : WL#9185 MySQL Cluster support for new DD
 
 # Schema distribution timeout while altering table
 ndb.ndb_alter_table_online_multi : WL#9185 MySQL Cluster support for new DD
-
-# Problem with failing ALTER, the Thd_ndb::open_tables contains
-# invalid THD_NDB_SHARE
-ndb.ndb_alter_table_error : WL#9185 MySQL Cluster support for new DD
 
 # Clusterj fails in windows due to Bug#28532563
 ndb.clusterj @windows: BUG#28532563 CLUSTERJ MTR TEST FAILS IN WINDOWS DUE TO NOT BEING ABLE TO LOAD LIBNDBCLIENT

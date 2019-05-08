@@ -22,16 +22,32 @@ eval $sql;
 --source verify_mysql_dd.inc
 
 # Check behaviour of multi RENAME to same name
-# Disabled until ndbcluster has been made more "atomic ddl" compliant,
-# it need to rollback the rename of t1 -> t10 itself when the second
-# rename fails. See WL#9185 and BUG26609059
-if (0)
-{
+USE ndb_ddl_test;
 --error ER_TABLE_EXISTS_ERROR
 RENAME TABLE t5 to t50, t2 to t2;
 
 --source verify_mysql_dd.inc
 
-}
+# Check behaviour of multi RENAME renaming same table multiple times
+USE ndb_ddl_test;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t5;
+RENAME TABLE t2 to t2_temp_name, t5 to t2, t2_temp_name to t5;
+# The tables t2 and t5 should have swapped by now
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t5;
+
+--source verify_mysql_dd.inc
+
+# Check behaviour of multi RENAME renaming same table multiple times
+# and then renaming it into a existing table name
+USE ndb_ddl_test;
+--error ER_TABLE_EXISTS_ERROR
+RENAME TABLE t5 to t50, t50 to t500, t500 to t2;
+# The tables should remain the same as before
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t5;
+
+--source verify_mysql_dd.inc
 
 --source cleanup.inc

@@ -1,0 +1,12 @@
+--source setup.inc
+
+
+# Test ALTER TABLE .. ENGINE with InnoDB
+# Since both InnoDB and NDB support ATOMIC_DDL, the alter
+# will be executed as a single XA distributed transaction.
+# Any rollback has to be done by ndbcluster.
+
+let $engine = InnoDB;
+--source alter_engine.inc
+
+--source cleanup.inc

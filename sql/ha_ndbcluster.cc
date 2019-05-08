@@ -11841,6 +11841,28 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   DBUG_PRINT("info", ("create_events: %d", create_events));
   DBUG_PRINT("info", ("commit_alter: %d", commit_alter));
 
+  DBUG_EXECUTE_IF("ndb_simulate_alter_failure_rename1", {
+    // Simulate failure during copy alter first rename
+    // when renaming old table to a temp name
+    if (!ndb_name_is_temp(old_tabname) && ndb_name_is_temp(new_tabname)) {
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "Simulated : Failed to rename original table to a temp name.");
+      DBUG_SET("-d,ndb_simulate_alter_failure_rename1");
+      DBUG_RETURN(ER_INTERNAL_ERROR);
+    }
+  });
+
+  DBUG_EXECUTE_IF("ndb_simulate_alter_failure_rename2", {
+    // Simulate failure during during copy alter second rename
+    // when renaming new table with temp name to original name
+    if (ndb_name_is_temp(old_tabname) && !ndb_name_is_temp(new_tabname)) {
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "Simulated : Failed to rename new table to target name.");
+      DBUG_SET("-d,ndb_simulate_alter_failure_rename2");
+      DBUG_RETURN(ER_INTERNAL_ERROR);
+    }
+  });
+
   NDBDICT* dict = ndb->getDictionary();
   NDBDICT::List index_list;
   if (my_strcasecmp(system_charset_info, new_dbname, old_dbname))

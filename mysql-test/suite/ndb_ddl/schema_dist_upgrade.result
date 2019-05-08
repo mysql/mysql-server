@@ -14,10 +14,8 @@ ALTER TABLE t1 ADD COLUMN b int NULL DEFAULT 24;
 Warnings:
 Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
 Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
-Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
 ALTER TABLE t1 MODIFY COLUMN b int NOT NULL;
 Warnings:
-Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
 Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
 Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
 SELECT * FROM t1;
