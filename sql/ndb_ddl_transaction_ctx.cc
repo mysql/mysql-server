@@ -125,34 +125,14 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
     return false;
   }
 
-  bool new_table_name_is_temp = ndb_name_is_temp(new_table_name);
-  bool old_table_name_is_temp = ndb_name_is_temp(old_table_name);
-
-  /* Prepare schema client for rollback if required */
+  /* Various parameters to send to rename_table_impl.
+     Deduct all these from the available information */
   bool real_rename = false;
   const char *real_rename_db = nullptr;
   const char *real_rename_table = nullptr;
-  Ndb_schema_dist_client schema_dist_client(m_thd);
-  bool distribute_rollback = false;
-  if (ddl_stmt.has_been_distributed()) {
-    /* This stmt was distributed. A RENAME Ndb_DDL_stmt gets marked as
-       distributed only for the RENAME TABLE .. query. Copy alter won't be
-       logged/handled here. */
-    DBUG_ASSERT(!old_table_name_is_temp && !new_table_name_is_temp);
-    real_rename = true;
-    real_rename_db = new_db_name;
-    real_rename_table = new_table_name;
-
-    /* Prepare the schema client */
-    if (schema_dist_client.prepare_rename(real_rename_db, real_rename_table,
-                                          old_db_name, old_table_name)) {
-      distribute_rollback = true;
-    } else {
-      /* Report the error and carry on */
-      thd_ndb->push_warning(
-          "Failed to distribute rollback to connected servers.");
-    }
-  }
+  bool distribute_table_changes = false;
+  bool new_table_name_is_temp = ndb_name_is_temp(new_table_name);
+  bool old_table_name_is_temp = ndb_name_is_temp(old_table_name);
 
   /* Decide whether the events have to be dropped and/or created. The new_name
      is the source and the old_name is the target. So, if the new_name is not
@@ -161,15 +141,71 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
   const bool drop_events = !new_table_name_is_temp;
   const bool create_events = !old_table_name_is_temp;
 
+  if (ddl_stmt.has_been_distributed() && !old_table_name_is_temp &&
+      !new_table_name_is_temp) {
+    /* This stmt was a simple RENAME and was distributed successfully. */
+    real_rename = true;
+    real_rename_db = new_db_name;
+    real_rename_table = new_table_name;
+    distribute_table_changes = true;
+  } else if (!old_table_name_is_temp && new_table_name_is_temp) {
+    /* This is the first rename of a COPY ALTER. It renamed the old table from
+       the original name to a temp name. We need to retrieve the last RENAME
+       of the ALTER to check if the ALTER involved renaming the table. */
+    const Ndb_DDL_stmt *ndb_final_rename_stmt =
+        retrieve_copy_alter_final_rename_stmt();
+    if (ndb_final_rename_stmt != nullptr) {
+      /* Found the final RENAME of the ALTER */
+      const std::vector<std::string> &final_rename_ddl_info =
+          ndb_final_rename_stmt->get_info();
+
+      /* Extract info and use them to set the rename_table_impl parameters */
+      DBUG_ASSERT(final_rename_ddl_info.size() == 7);
+      std::string final_db_name = final_rename_ddl_info[2];
+      std::string final_table_name = final_rename_ddl_info[3];
+      if ((final_db_name.compare(old_db_name) != 0) ||
+          (final_table_name.compare(old_table_name) != 0)) {
+        /* The actual ALTER renamed the table. */
+        real_rename = true;
+        real_rename_db = final_db_name.c_str();
+        real_rename_table = final_table_name.c_str();
+      }
+    }
+    /* Always distribute this phase of ALTER during rollback - this is to
+       make sure that all the participant's DD gets updated with latest table
+       version after rollback. */
+    distribute_table_changes = true;
+  }
+
+  /* Prepare the schema client if required */
+  bool schema_dist_prepared = false;
+  Ndb_schema_dist_client schema_dist_client(m_thd);
+  if (distribute_table_changes) {
+    if (real_rename) {
+      /* This is also a rename. Prepare the schema client */
+      schema_dist_prepared = schema_dist_client.prepare_rename(
+          real_rename_db, real_rename_table, old_db_name, old_table_name);
+    } else {
+      /* Prepare the schema client for an ALTER */
+      schema_dist_prepared =
+          schema_dist_client.prepare(old_db_name, old_table_name);
+    }
+    if (!schema_dist_prepared) {
+      /* Report the error and carry on */
+      thd_ndb->push_warning(
+          "Failed to distribute rollback to connected servers.");
+    }
+  }
+
   /* Rename back the table.
      The rename is done from new_name to old_name as this is a rollback. */
   if (rename_table_impl(
-          m_thd, ndb, distribute_rollback ? &schema_dist_client : nullptr,
+          m_thd, ndb, schema_dist_prepared ? &schema_dist_client : nullptr,
           renamed_table,
           nullptr,  // table_def
           to, from, new_db_name, new_table_name, old_db_name, old_table_name,
-          real_rename, real_rename_db, real_rename_table,
-          drop_events, create_events, false /*commit_alter*/)) {
+          real_rename, real_rename_db, real_rename_table, drop_events,
+          create_events, distribute_table_changes)) {
     thd_ndb->push_warning("Failed to rollback rename table.");
     return false;
   }
@@ -341,6 +377,32 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
   }
 
   return true;
+}
+
+const Ndb_DDL_stmt *
+Ndb_DDL_transaction_ctx::retrieve_copy_alter_final_rename_stmt() {
+  DBUG_TRACE;
+  /* Loop all the logged stmts and find the copy alter info */
+  for (auto it = m_executed_ddl_stmts.rbegin();
+       it != m_executed_ddl_stmts.rend(); ++it) {
+    Ndb_DDL_stmt &ddl_stmt = *it;
+    switch (ddl_stmt.get_ddl_type()) {
+      case Ndb_DDL_stmt::RENAME_TABLE: {
+        const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
+        const char *old_table_name = ddl_info[1].c_str();
+        const char *new_table_name = ddl_info[3].c_str();
+        if (ndb_name_is_temp(old_table_name) &&
+            !ndb_name_is_temp(new_table_name)) {
+          /* This was a rename from #sql -> proper_name.
+             This was the final rename of a COPY ALTER. */
+          return &ddl_stmt;
+        }
+      } break;
+      default:
+        break;
+    }
+  }
+  return nullptr;
 }
 
 void Ndb_DDL_transaction_ctx::commit() {

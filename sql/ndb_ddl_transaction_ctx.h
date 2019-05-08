@@ -164,6 +164,12 @@ class Ndb_DDL_transaction_ctx {
                                          const char *table_name, int object_id,
                                          int object_version);
 
+  /* @brief Retrieve the RENAME stmt, which actually was the final phase
+            of the COPY ALTER. This statement would have renamed the new
+            table with the temporary name to a proper name and might
+            have distributed the changes to the other servers. */
+  const Ndb_DDL_stmt *retrieve_copy_alter_final_rename_stmt();
+
  public:
   Ndb_DDL_transaction_ctx(class THD *thd) : m_thd(thd) {}
 

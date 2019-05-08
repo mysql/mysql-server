@@ -12060,9 +12060,9 @@ int rename_table_impl(THD *thd, Ndb *ndb,
     if (schema_dist_client->rename_table(
             real_rename_db, real_rename_name, ndb_table_id, ndb_table_version,
             new_dbname, new_tabname, log_on_participant)) {
-      if (!ddl_ctx->rollback_in_progress() && !commit_alter) {
-        // Schema Distribution success. Mark the ndb_rename_stmt as distributed
-        // if this is not a rollback and not a copy alter(i.e. proper rename).
+      // Schema distribution succeeded.
+      if (!rollback_in_progress) {
+        // Log this in the DDL Context if this is not a rollback
         DBUG_ASSERT(ddl_ctx != nullptr);
         ddl_ctx->mark_last_stmt_as_distributed();
       }
@@ -12073,11 +12073,16 @@ int rename_table_impl(THD *thd, Ndb *ndb,
     }
   }
 
-  if (commit_alter)
-  {
-    /* final phase of offline alter table */
+  if (commit_alter) {
+    /* Final phase of offline alter table.
+       Skip logging on participant if this is a rollback.
+       Note : Regardless of the outcome, during rollback, we always have to
+              schema distribute an ALTER COPY to update the table version in
+              connected servers' DD. So we don't have to log this in the DDL
+              context. */
     if (!schema_dist_client->alter_table(new_dbname, new_tabname, ndb_table_id,
-                                         ndb_table_version)) {
+                                         ndb_table_version,
+                                         !rollback_in_progress)) {
       // Failed to distribute the alter of this table to the
       // other MySQL Servers, just log error and continue
       ndb_log_error("Failed to distribute 'ALTER TABLE %s'", new_tabname);

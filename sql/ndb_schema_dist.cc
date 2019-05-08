@@ -356,11 +356,12 @@ bool Ndb_schema_dist_client::truncate_table(const char* db,
 
 
 bool Ndb_schema_dist_client::alter_table(const char* db, const char* table_name,
-                                         int id, int version) {
+                                         int id, int version,
+                                         bool log_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_table");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            db, table_name, id, version,
-                            SOT_ALTER_TABLE_COMMIT));
+                            db, table_name, id, version, SOT_ALTER_TABLE_COMMIT,
+                            log_on_participant));
 }
 
 bool Ndb_schema_dist_client::alter_table_inplace_prepare(const char* db,

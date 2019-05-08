@@ -272,7 +272,8 @@ class Ndb_schema_dist_client {
                     int version);
   bool truncate_table(const char *db, const char *table_name, int id,
                       int version);
-  bool alter_table(const char *db, const char *table_name, int id, int version);
+  bool alter_table(const char *db, const char *table_name, int id, int version,
+                   bool log_on_participant = true);
   bool alter_table_inplace_prepare(const char *db, const char *table_name,
                                    int id, int version);
   bool alter_table_inplace_commit(const char *db, const char *table_name,
