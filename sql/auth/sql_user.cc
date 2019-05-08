@@ -622,24 +622,12 @@ bool set_and_validate_user_attributes(THD *thd,
      Str->uses_authentication_string_clause)
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-    /*
-      Validate hash string in following cases:
-        1. IDENTIFIED BY PASSWORD.
-        2. IDENTIFIED WITH .. AS 'auth_str' for ALTER USER statement
-           and its a replication slave thread
-    */
-    if (Str->uses_identified_by_password_clause ||
-        (Str->uses_authentication_string_clause &&
-        thd->lex->sql_command == SQLCOM_ALTER_USER &&
-        thd->slave_thread))
+    if (auth->validate_authentication_string((char*)Str->auth.str,
+                                             Str->auth.length))
     {
-      if (auth->validate_authentication_string((char*)Str->auth.str,
-                                               Str->auth.length))
-      {
-        my_error(ER_PASSWORD_FORMAT, MYF(0));
-        plugin_unlock(0, plugin);
-        return(1);
-      }
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      plugin_unlock(0, plugin);
+      return(1);
     }
   }
   plugin_unlock(0, plugin);

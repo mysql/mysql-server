@@ -109,7 +109,7 @@ query_vertical SELECT user,plugin,authentication_string,
 password_expired FROM mysql.user WHERE USER='tu2';
 
 --echo
-CREATE USER tu3@localhost IDENTIFIED WITH 'mysql_native_password' AS '%auth_O0s-tring';
+CREATE USER tu3@localhost IDENTIFIED WITH 'mysql_native_password' BY '%auth_O0s-tring';
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,password_expired
 FROM mysql.user WHERE USER='tu3';
@@ -130,7 +130,7 @@ CREATE USER tu4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'djgsj743$'
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu4';
 
-CREATE USER tu5@localhost IDENTIFIED WITH 'mysql_native_password' AS 'dwh@#ghd$!' REQUIRE X509;
+CREATE USER tu5@localhost IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd$!' REQUIRE X509;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu5';
 
@@ -166,7 +166,7 @@ SELECT USER();
 connection default;
 disconnect con1;
 
-CREATE USER tu6@localhost IDENTIFIED WITH 'mysql_native_password' AS '#hGrt0O6'
+CREATE USER tu6@localhost IDENTIFIED WITH 'mysql_native_password' BY '#hGrt0O6'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
@@ -212,7 +212,7 @@ CREATE USER u18@localhost,
             u20@localhost IDENTIFIED WITH 'mysql_native_password',
             u21@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string',
             u22@localhost IDENTIFIED WITH 'mysql_native_password',
-            u23@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_&string'
+            u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT UNLOCK;
 --replace_column 3 #
@@ -426,7 +426,7 @@ query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,authentication_string,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 
-CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
+CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
@@ -555,7 +555,7 @@ CREATE USER u18@localhost,
             u20@localhost IDENTIFIED WITH 'mysql_native_password',
             u21@localhost IDENTIFIED WITH 'mysql_native_password' BY '!Y_TOdh6)',
             u22@localhost IDENTIFIED WITH 'mysql_native_password',
-            u23@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_&string'
+            u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 --replace_column 7 # 11 #
@@ -732,13 +732,13 @@ CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u4@localhost;
 
-CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
+CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user1@localhost;
 
 --echo
 
-CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
+CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user2@localhost;
 --echo
@@ -848,7 +848,7 @@ DROP USER user1@localhost,user2@localhost,user3@localhost;
 --echo # SET PASSWORD Tests
 --echo
 CREATE USER user1@localhost IDENTIFIED BY 'auth_string';
-CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string1';
+CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
 
 SELECT PASSWORD('plaintext_pwd');
 
