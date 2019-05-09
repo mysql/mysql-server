@@ -82,11 +82,6 @@ SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
 #
 # 3: Test taking and releasing of locks in two namespaces
 SELECT service_get_write_locks("namespace1", "lock1", 60);
@@ -112,13 +107,6 @@ expect_1
 1
 #      Per performance_schema no current wait for getting a service lock
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
-#      Per performance_schema no historic wait for getting a service lock
-#      because TRUNCATE of events_waits_history_long
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
@@ -170,12 +158,6 @@ FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OPERATION
 namespace1	lock1	LOCKING SERVICE	metadata lock
-#      Per performance_schema six waits in history
-SELECT COUNT(*) = 3 AS expect_1
-FROM performance_schema.events_waits_history_long
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
 # 4.4: Show the impact of releasing and getting a service lock on
 #      content of the processlist and performance_schema
 SELECT service_release_locks("namespace1");
@@ -191,12 +173,6 @@ expect_1
 1
 #      Per performance_schema no current wait for getting a service lock
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
-#      Per performance_schema now seven waits in history
-SELECT COUNT(*) = 4 AS expect_1
-FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
