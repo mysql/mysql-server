@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7302,7 +7302,7 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
 /* -------------------------------------------------- */
   LogPartRecord * const regLogPartPtr = logPartPtr.p;
   const bool problem = out_of_log_buffer || regLogPartPtr->m_log_problems != 0;
-  if (unlikely(problem || ERROR_INSERTED(5083)))
+  if (unlikely(problem || ERROR_INSERTED(5083) || ERROR_INSERTED(5032)))
   {
     /* -----------------------------------------------------------------*/
     /* P_TAIL_PROBLEM indicates that the redo log is full. If redo      */
@@ -7313,9 +7313,19 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
     /* in case of a P_TAIL_PROBLEM.                                     */
     /* -----------------------------------------------------------------*/
     if (abort_on_redo_problems || 
-        regLogPartPtr->m_log_problems & LogPartRecord::P_TAIL_PROBLEM)
+        regLogPartPtr->m_log_problems & LogPartRecord::P_TAIL_PROBLEM ||
+        ERROR_INSERTED(5032))
     {
       jam();
+      if (ERROR_INSERTED_CLEAR(5032))
+      {
+        const Uint32 saved_cnoOfLogPages = cnoOfLogPages;
+        // simulate abort on temporary out-of-redo error
+        cnoOfLogPages = ZMIN_LOG_PAGES_OPERATION - 1;
+        logLqhkeyreqLab_problems(signal);
+        cnoOfLogPages = saved_cnoOfLogPages;
+        return;
+      }
       logLqhkeyreqLab_problems(signal);
       return;
     }

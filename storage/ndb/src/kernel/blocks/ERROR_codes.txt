@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -313,7 +313,7 @@ Delay execution of ABORT signal 2 seconds to generate time-out.
 Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 
 5031: lqhKeyRef, ZNO_TC_CONNECT_ERROR
-5032: lqhKeyRef, ZTEMPORARY_REDO_LOG_FAILURE
+5032: lqhKeyRef, simulate a temporary redo error ZTEMPORARY_REDO_LOG_FAILURE
 5033: lqhKeyRef, ZTAIL_PROBLEM_IN_LOG_ERROR
 
 5034: Don't pop scan queue
