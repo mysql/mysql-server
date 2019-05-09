@@ -690,6 +690,7 @@ handle_new_error:
     case DB_CANT_CREATE_GEOMETRY_OBJECT:
     case DB_COMPUTE_VALUE_FAILED:
     case DB_LOCK_NOWAIT:
+    case DB_BTREE_LEVEL_LIMIT_EXCEEDED:
       DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
         log_buffer_flush_to_disk();
         DBUG_SUICIDE();

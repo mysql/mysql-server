@@ -2381,6 +2381,22 @@ and return. don't execute actual insert. */
 
   DBUG_TRACE;
 
+#ifdef UNIV_DEBUG
+  mtr_t temp_mtr;
+  temp_mtr.start();
+  mtr_s_lock(dict_index_get_lock(index), &temp_mtr);
+
+  if (btr_height_get(index, &temp_mtr) >= BTR_MAX_NODE_LEVEL &&
+      btr_cur_limit_optimistic_insert_debug > 1 &&
+      btr_cur_limit_optimistic_insert_debug < 5) {
+    ib::error(ER_IB_MSG_BTREE_LEVEL_LIMIT_EXCEEDED, index->name());
+    temp_mtr.commit();
+    return (DB_BTREE_LEVEL_LIMIT_EXCEEDED);
+  }
+
+  temp_mtr.commit();
+#endif
+
   ut_ad(index->is_clustered());
   ut_ad(!dict_index_is_unique(index) ||
         n_uniq == dict_index_get_n_unique(index));

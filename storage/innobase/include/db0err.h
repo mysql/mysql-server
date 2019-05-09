@@ -181,6 +181,8 @@ enum dberr_t {
   DB_INVALID_ENCRYPTION_META,
   /** Incomplete cloned directory */
   DB_ABORT_INCOMPLETE_CLONE,
+  /** Btree level limit exceeded. */
+  DB_BTREE_LEVEL_LIMIT_EXCEEDED,
 
   /* The following are partial failure codes */
 

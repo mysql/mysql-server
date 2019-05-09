@@ -468,6 +468,8 @@ const char *ut_strerr(dberr_t num) {
       return (
           "Cannot create tablespace since the filepath is too long for this "
           "OS");
+    case DB_BTREE_LEVEL_LIMIT_EXCEEDED:
+      return ("Btree level limit exceeded");
 
     case DB_ERROR_UNSET:;
       /* Fall through. */

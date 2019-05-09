@@ -19320,6 +19320,9 @@ ER_LOCK_ORDER_DEPENDENCIES_SYNTAX
 ER_LOCK_ORDER_SCANNER_SYNTAX
   eng "Lock order scanner: (%d:%d) - (%d:%d) : %s"
 
+ER_IB_MSG_BTREE_LEVEL_LIMIT_EXCEEDED
+  eng "No. of B-tree level created for index %s has crossed the permissible limit. If debug option innodb_limit_optimistic_insert_debug is being used try tweaking it to include more records in a page."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
