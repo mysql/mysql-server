@@ -320,8 +320,10 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "scp res: " << res << endl;
 
-  if(res == 0 && !_restore_meta && !_restore_data)
+  if(res == 0 && !_restore_meta && !_restore_data && !_restore_epoch)
   {
+    // ndb_restore connects to cluster, prints backup info
+    // and exits without restoring anything
     tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d",
 #if 1
                "",

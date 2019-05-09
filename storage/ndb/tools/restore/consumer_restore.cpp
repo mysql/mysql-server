@@ -1925,6 +1925,13 @@ BackupRestore::has_temp_error(){
   return m_temp_error;
 }
 
+struct TransGuard
+{
+  NdbTransaction* pTrans;
+  TransGuard(NdbTransaction* p) : pTrans(p) {}
+  ~TransGuard() { if (pTrans) pTrans->close();}
+};
+
 bool
 BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
 {
@@ -1993,41 +2000,76 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
   Uint64 zero= 0;
   char empty_string[1];
   empty_string[0]= 0;
-  NdbTransaction * trans= m_ndb->startTransaction();
-  if (!trans)
+
+  int retries;
+  for (retries = 0; retries <10; retries++)
   {
-    restoreLogger.log_error("%s: %u: %s", NDB_APPLY_TABLE, m_ndb->getNdbError().code, m_ndb->getNdbError().message);
-    return false;
+    if (retries > 0)
+    {
+      NdbSleep_MilliSleep(100 + (retries - 1) * 100);
+    }
+    NdbTransaction * trans= m_ndb->startTransaction();
+    if (!trans)
+    {
+      restoreLogger.log_error("%s : failed to get transaction in --restore-epoch: %u:%s",
+          NDB_APPLY_TABLE, m_ndb->getNdbError().code, m_ndb->getNdbError().message);
+      if (m_ndb->getNdbError().status == NdbError::TemporaryError)
+      {
+        continue;
+      }
+    }
+
+    TransGuard g(trans);
+    NdbOperation * op= trans->getNdbOperation(ndbtab);
+    if (!op)
+    {
+      restoreLogger.log_error("%s : failed to get operation in --restore-epoch: %u:%s",
+          NDB_APPLY_TABLE, trans->getNdbError().code, trans->getNdbError().message);
+      if (trans->getNdbError().status == NdbError::TemporaryError)
+      {
+        continue;
+      }
+      return false;
+    }
+    if (op->writeTuple() ||
+        op->equal(0u, (const char *)&server_id, sizeof(server_id)) ||
+        op->setValue(1u, (const char *)&epoch, sizeof(epoch)))
+    {
+      restoreLogger.log_error("%s : failed to set epoch value in --restore-epoch: %u:%s",
+          NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
+      return false;
+    }
+    if ((apply_table_format == 2) &&
+        (op->setValue(2u, (const char *)&empty_string, 1) ||
+         op->setValue(3u, (const char *)&zero, sizeof(zero)) ||
+         op->setValue(4u, (const char *)&zero, sizeof(zero))))
+    {
+      restoreLogger.log_error("%s : failed to set values in --restore-epoch: %u:%s",
+          NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
+      return false;
+    }
+
+    int res = trans->execute(NdbTransaction::Commit);
+    if (res != 0)
+    {
+      restoreLogger.log_error("%s : failed to commit transaction in --restore-epoch: %u:%s",
+          NDB_APPLY_TABLE, trans->getNdbError().code, trans->getNdbError().message);
+      if (trans->getNdbError().status == NdbError::TemporaryError)
+      {
+        continue;
+      }
+      return false;
+    }
+    else
+    {
+      result= true;
+      break;
+    }
   }
-  NdbOperation * op= trans->getNdbOperation(ndbtab);
-  if (!op)
-  {
-    restoreLogger.log_error("%s: %u: %s", NDB_APPLY_TABLE, trans->getNdbError().code, trans->getNdbError().message);
-    goto err;
-  }
-  if (op->writeTuple() ||
-      op->equal(0u, (const char *)&server_id, sizeof(server_id)) ||
-      op->setValue(1u, (const char *)&epoch, sizeof(epoch)))
-  {
-    restoreLogger.log_error("%s: %u: %s", NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
-    goto err;
-  }
-  if ((apply_table_format == 2) &&
-      (op->setValue(2u, (const char *)&empty_string, 1) ||
-       op->setValue(3u, (const char *)&zero, sizeof(zero)) ||
-       op->setValue(4u, (const char *)&zero, sizeof(zero))))
-  {
-    restoreLogger.log_error("%s: %u: %s", NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
-    goto err;
-  }
-  if (trans->execute(NdbTransaction::Commit))
-  {
-    restoreLogger.log_error("%s: %u: %s", NDB_APPLY_TABLE, trans->getNdbError().code, trans->getNdbError().message);
-    goto err;
-  }
-  result= true;
-err:
-  m_ndb->closeTransaction(trans);
+  if (result &&
+      retries > 0)
+    err << "--restore-epoch completed successfully after retries" << endl;
+
   return result;
 }
 
@@ -3768,13 +3810,6 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
   else
     return (hash_value % no_frags);
 }
-
-struct TransGuard
-{
-  NdbTransaction* pTrans;
-  TransGuard(NdbTransaction* p) : pTrans(p) {}
-  ~TransGuard() { if (pTrans) pTrans->close();}
-};
 
 void
 BackupRestore::logEntry(const LogEntry & tup)

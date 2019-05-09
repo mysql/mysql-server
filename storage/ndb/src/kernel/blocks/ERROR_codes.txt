@@ -321,7 +321,7 @@ Delay execution of ABORT signal 2 seconds to generate time-out.
 Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 
 5031: lqhKeyRef, ZNO_TC_CONNECT_ERROR
-5032: lqhKeyRef, ZTEMPORARY_REDO_LOG_FAILURE
+5032: lqhKeyRef, simulate a temporary redo error ZTEMPORARY_REDO_LOG_FAILURE
 5033: lqhKeyRef, ZTAIL_PROBLEM_IN_LOG_ERROR
 
 5034: Don't pop scan queue
