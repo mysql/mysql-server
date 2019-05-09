@@ -2761,7 +2761,7 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
                              hint % FSP_EXTENT_SIZE, mtr);
     ut_ad(!has_done_reservation || ret_page != FIL_NULL);
     /*-----------------------------------------------------------*/
-  } else if (reserved - used > 0) {
+  } else if (used < reserved) {
     /* 5. We take any unused page from the segment
     ==============================================*/
     fil_addr_t first;
