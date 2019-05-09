@@ -105,3 +105,7 @@ max-time: 900
 cmd: testBackup
 args: -n ConsistencyUnderLoadSnapshotStartStallGCP T1
 max-time: 900
+
+cmd: testBackup
+args: -n RestoreEpochRetry T1
+max-time: 900
