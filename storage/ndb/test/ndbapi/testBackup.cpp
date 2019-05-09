@@ -1264,6 +1264,32 @@ runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
 
 
 
+int
+runRestoreEpochRetry(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  g_err << "Starting backup." << endl;
+  unsigned backupId = 0;
+  if (backup.start(backupId) == -1) {
+    g_err << "Failed to start backup." << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbRestarter restarter;
+  g_err << "Inserting error to cause temporary redo errors" << endl;
+  restarter.insertErrorInAllNodes(5032);
+
+  g_err << "Restoring from backup with epoch restore."
+        << endl;
+  if (backup.restore(backupId, false, false, 0, true) == -1)
+  {
+    ndbout << "Restoring epoch failed" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
+}
 
 class DbVersion
 {
@@ -2178,6 +2204,11 @@ TESTCASE("Bug19202654",
          "Test restore with a large number of tables")
 {
   INITIALIZER(runBug19202654);
+}
+TESTCASE("RestoreEpochRetry",
+         "Test that epoch restore is retried on temporary error")
+{
+  INITIALIZER(runRestoreEpochRetry);
 }
 
 static const int NumUpdateThreads = 5;
