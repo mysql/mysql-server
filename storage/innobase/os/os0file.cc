@@ -5563,7 +5563,7 @@ Requests a synchronous positioned read operation of page 0 of IBD file
 @param[out]	buf		buffer where to read
 @param[in]	n		number of bytes to read, starting from offset
 @return DB_SUCCESS or error code */
-dberr_t os_file_read_first_page_func(IORequest &type, const char *frile_name,
+dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
                                      os_file_t file, void *buf, ulint n) {
   ut_ad(type.is_read());
 
