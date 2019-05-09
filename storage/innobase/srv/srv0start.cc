@@ -648,6 +648,7 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 
 /** Try to read encryption metadata from an undo tablespace.
 @param[in]	fh		file handle of undo log file
+@param[in]  file_name file name
 @param[in]	space		undo tablespace
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
