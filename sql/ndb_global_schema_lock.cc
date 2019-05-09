@@ -157,15 +157,16 @@ public:
   rejected by lock manager, likely due to deadlock.
 */
 static NdbTransaction *
-gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error, bool no_retry = false)
+gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error, bool no_retry = false,
+             bool no_wait = false)
 {
   ndb->setDatabaseName("sys");
   ndb->setDatabaseSchemaName("def");
-  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
-  const NdbDictionary::Table *ndbtab= NULL;
-  NdbOperation *op;
-  NdbTransaction *trans= NULL;
+  const NdbDictionary::Table *ndbtab = nullptr;
+  NdbOperation *op = nullptr;
+  NdbTransaction *trans = nullptr;
 
   while (1)
   {
@@ -175,28 +176,49 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error, bool no_retry = false)
       {
         if (dict->getNdbError().status == NdbError::TemporaryError)
           goto retry;
-        ndb_error= dict->getNdbError();
+        ndb_error = dict->getNdbError();
         goto error_handler;
       }
     }
 
-    trans= ndb->startTransaction();
-    if (trans == NULL)
+    trans = ndb->startTransaction();
+    if (trans == nullptr)
     {
-      ndb_error= ndb->getNdbError();
+      ndb_error = ndb->getNdbError();
       goto error_handler;
     }
 
-    op= trans->getNdbOperation(ndbtab);
-    op->readTuple(NdbOperation::LM_Exclusive);
-    op->equal("SYSKEY_0", NDB_BACKUP_SEQUENCE);
-
+    op = trans->getNdbOperation(ndbtab);
+    if (op == nullptr)
+    {
+      if (dict->getNdbError().status == NdbError::TemporaryError)
+        goto retry;
+      ndb_error = dict->getNdbError();
+      goto error_handler;
+    }
+    if (op->readTuple(NdbOperation::LM_Exclusive))
+      goto error_handler;
+    if (no_wait)
+    {
+      if (op->setNoWait())
+        goto error_handler;
+    }
+    if (op->equal("SYSKEY_0", NDB_BACKUP_SEQUENCE))
+      goto error_handler;
     if (trans->execute(NdbTransaction::NoCommit) == 0)
+    {
+      // The transaction is successful but still check if the operation has
+      // failed since the abort mode is set to AO_IgnoreError. Error 635
+      // is the expected error when no_wait has been set and the row could not
+      // be locked immediately
+      if (trans->getNdbError().code == 635)
+        goto error_handler;
       break;
+    }
 
     if (trans->getNdbError().status != NdbError::TemporaryError)
       goto error_handler;
-    else if (thd_killed(thd))
+    if (thd_killed(thd))
       goto error_handler;
 
     /**
@@ -224,7 +246,7 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error, bool no_retry = false)
     if (trans)
     {
       ndb->closeTransaction(trans);
-      trans= NULL;
+      trans = nullptr;
     }
 
     if (no_retry)
@@ -239,10 +261,10 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error, bool no_retry = false)
  error_handler:
   if (trans)
   {
-    ndb_error= trans->getNdbError();
+    ndb_error = trans->getNdbError();
     ndb->closeTransaction(trans);
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -350,6 +372,7 @@ ndbcluster_global_schema_lock(THD *thd,
 
     // Count number of global schema locks taken by this thread
     thd_ndb->schema_locks_count++;
+    thd_ndb->global_schema_lock_count = 1;
     DBUG_PRINT("info", ("schema_locks_count: %d",
                         thd_ndb->schema_locks_count));
 
@@ -585,16 +608,12 @@ bool Ndb_global_schema_lock_guard::try_lock(void)
 
   thd_ndb->global_schema_lock_error = 0;
 
-  /*
-    Take the lock
-  */
-  Thd_proc_info_guard proc_info(m_thd);
-  proc_info.set("Waiting for ndbcluster global schema lock");
   Ndb *ndb = check_ndb_in_thd(m_thd);
   NdbError ndb_error;
-  // Attempt to take the GSL with no_retry set
+  // Attempt to take the GSL with no_retry and no_wait both set
   thd_ndb->global_schema_lock_trans = gsl_lock_ext(m_thd, ndb, ndb_error,
-                                                   true /* no_retry */);
+                                                   true, /* no_retry */
+                                                   true /* no_wait */);
 
   if (thd_ndb->global_schema_lock_trans != nullptr)
   {

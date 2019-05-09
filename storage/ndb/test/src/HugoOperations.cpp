@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,11 +104,9 @@ NdbConnection* HugoOperations::getTransaction(){
   return pTrans;
 }
 
-int HugoOperations::pkReadRecord(Ndb* pNdb,
-				 int recordNo,
-				 int numRecords,
-				 NdbOperation::LockMode lm,
-                                 NdbOperation::LockMode *lmused){
+int HugoOperations::pkReadRecord(Ndb* pNdb, int recordNo, int numRecords,
+                                 NdbOperation::LockMode lm,
+                                 NdbOperation::LockMode *lmused, bool noWait) {
   int a;  
   allocRows(numRecords);
   indexScans.clear();  
@@ -128,7 +126,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
       setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
-    
+
 rand_lock_mode:
     switch(lm){
     case NdbOperation::LM_Read:
@@ -162,7 +160,16 @@ rand_lock_mode:
       setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
-    
+
+    if (noWait)
+    {
+      if (pOp->setNoWait())
+      {
+        g_err << __LINE__  << " Setting noWait flag failed" << endl;
+        return NDBT_FAILED;
+      }
+    }
+
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
     {

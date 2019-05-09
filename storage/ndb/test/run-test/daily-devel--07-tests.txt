@@ -208,3 +208,7 @@ cmd: testDict
 args: -n CreateManyDataFiles T1
 max-time: 360
 
+cmd: testNdbApi
+args: -n PkLockingReadNoWait T1
+max-time:30
+
