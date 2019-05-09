@@ -319,7 +319,8 @@ force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
 --echo #
 exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
 let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only_$VERSION.log;
---error 1
+# Failed start expected; with ASAN, the process fails with error code 42.
+--error 1, 42
 exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG;
 
 let SEARCH_FILE = $MYSQLD_LOG;
