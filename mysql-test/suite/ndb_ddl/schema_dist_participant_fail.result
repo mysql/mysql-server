@@ -15,3 +15,4 @@ Warning	1296	Node <nodeid> '9001 Node unsubscribed'
 SELECT * FROM t1;
 a	b
 DROP TABLE t1;
+# Wait for failed participant to finish restarting

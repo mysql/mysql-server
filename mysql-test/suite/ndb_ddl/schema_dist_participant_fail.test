@@ -30,3 +30,9 @@ connection mysqld2;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+--echo # Wait for failed participant to finish restarting
+connection mysqld6;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
