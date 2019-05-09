@@ -2778,9 +2778,9 @@ next_block:
 
     IORequest request;
 
-    err = os_file_read_no_error_handling_int_fd(request, index->online_log->fd,
-                                                index->online_log->head.block,
-                                                ofs, srv_sort_buf_size, NULL);
+    err = os_file_read_no_error_handling_int_fd(
+        request, index->online_log->path, index->online_log->fd,
+        index->online_log->head.block, ofs, srv_sort_buf_size, NULL);
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_961) << "Unable to read temporary file"
@@ -3544,8 +3544,8 @@ next_block:
 
     IORequest request;
     dberr_t err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->fd, index->online_log->head.block, ofs,
-        srv_sort_buf_size, NULL);
+        request, index->online_log->path, index->online_log->fd,
+        index->online_log->head.block, ofs, srv_sort_buf_size, NULL);
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_963) << "Unable to read temporary file"

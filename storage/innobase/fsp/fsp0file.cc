@@ -338,8 +338,8 @@ dberr_t Datafile::read_first_page(bool read_only_mode) {
   while (page_size >= UNIV_PAGE_SIZE_MIN) {
     ulint n_read = 0;
 
-    err = os_file_read_no_error_handling(request, m_handle, m_first_page, 0,
-                                         page_size, &n_read);
+    err = os_file_read_no_error_handling(request, m_filename, m_handle,
+                                         m_first_page, 0, page_size, &n_read);
 
     if (err == DB_IO_ERROR && n_read >= UNIV_PAGE_SIZE_MIN) {
       page_size >>= 1;
@@ -769,7 +769,8 @@ dberr_t Datafile::find_space_id() {
       ulint n_bytes = j * page_size;
       IORequest request(IORequest::READ);
 
-      err = os_file_read(request, m_handle, page, n_bytes, page_size);
+      err =
+          os_file_read(request, m_filename, m_handle, page, n_bytes, page_size);
 
       if (err == DB_IO_DECOMPRESS_FAIL) {
         /* If the page was compressed on the fly then
@@ -778,7 +779,7 @@ dberr_t Datafile::find_space_id() {
         n_bytes = os_file_compressed_page_size(page);
 
         if (n_bytes != ULINT_UNDEFINED) {
-          err = os_file_read(request, m_handle, page, page_size,
+          err = os_file_read(request, m_filename, m_handle, page, page_size,
                              UNIV_PAGE_SIZE_MAX);
 
           if (err != DB_SUCCESS) {

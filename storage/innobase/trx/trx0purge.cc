@@ -1009,7 +1009,7 @@ bool is_active_truncate_log_present(space_id_t space_num) {
 
     dberr_t err;
 
-    err = os_file_read(request, handle, log_buf, 0, sz);
+    err = os_file_read(request, log_file_name, handle, log_buf, 0, sz);
 
     os_file_close(handle);
 

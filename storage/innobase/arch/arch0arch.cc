@@ -417,7 +417,8 @@ dberr_t Arch_File_Ctx::read(byte *to_buffer, uint offset, uint size) {
   request.disable_compression();
   request.clear_encrypted();
 
-  auto err = os_file_read(request, m_file, to_buffer, offset, size);
+  auto err =
+      os_file_read(request, m_path_name, m_file, to_buffer, offset, size);
 
   return (err);
 }

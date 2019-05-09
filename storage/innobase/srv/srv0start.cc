@@ -651,6 +651,7 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 @param[in]	space		undo tablespace
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
+                                                   const char *file_name,
                                                    fil_space_t *space) {
   IORequest request;
   ulint n_read = 0;
@@ -666,8 +667,8 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   /* Don't want unnecessary complaints about partial reads. */
   request.disable_partial_io_warnings();
 
-  err = os_file_read_no_error_handling(request, fh, first_page, 0, page_size,
-                                       &n_read);
+  err = os_file_read_no_error_handling(request, file_name, fh, first_page, 0,
+                                       page_size, &n_read);
 
   if (err != DB_SUCCESS) {
     ib::info(ER_IB_MSG_1076, space->name, ut_strerr(err));
@@ -940,7 +941,7 @@ static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
   /* Read the encryption metadata in this undo tablespace.
   If the encryption info in the first page cannot be decrypted
   by the master key, this table cannot be opened. */
-  err = srv_undo_tablespace_read_encryption(fh, space);
+  err = srv_undo_tablespace_read_encryption(fh, file_name, space);
 
   /* The file handle will no longer be needed. */
   success = os_file_close(fh);

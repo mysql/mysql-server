@@ -1082,7 +1082,7 @@ ibool row_merge_read(int fd,                 /*!< in: file descriptor */
   /* Merge sort pages are never compressed. */
   request.disable_compression();
 
-  err = os_file_read_no_error_handling_int_fd(request, fd, buf, ofs,
+  err = os_file_read_no_error_handling_int_fd(request, nullptr, fd, buf, ofs,
                                               srv_sort_buf_size, NULL);
 
 #ifdef POSIX_FADV_DONTNEED

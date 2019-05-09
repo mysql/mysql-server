@@ -614,7 +614,8 @@ bool Arch_File_Ctx::validate_stop_point_in_file(Arch_Group *group,
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   /* Read the entire reset block. */
-  dberr_t err = os_file_read(request, file, buf, offset, ARCH_PAGE_BLK_SIZE);
+  dberr_t err =
+      os_file_read(request, m_path_name, file, buf, offset, ARCH_PAGE_BLK_SIZE);
 
   if (err != DB_SUCCESS) {
     return (false);
@@ -643,7 +644,8 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   /* Read the entire reset block. */
-  dberr_t err = os_file_read(request, file, buf, 0, ARCH_PAGE_BLK_SIZE);
+  dberr_t err =
+      os_file_read(request, m_path_name, file, buf, 0, ARCH_PAGE_BLK_SIZE);
 
   if (err != DB_SUCCESS) {
     return (false);
@@ -2937,7 +2939,8 @@ int Arch_Group::read_from_file(Arch_Page_Pos *read_pos, uint read_len,
   request.disable_compression();
   request.clear_encrypted();
 
-  auto db_err = os_file_read(request, file, read_buff, offset, read_len);
+  auto db_err =
+      os_file_read(request, file_name, file, read_buff, offset, read_len);
 
   os_file_close(file);
 

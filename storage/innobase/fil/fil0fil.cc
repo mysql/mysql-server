@@ -2268,8 +2268,8 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
   IORequest request(IORequest::READ);
 
-  dberr_t err =
-      os_file_read_first_page(request, file->handle, page, UNIV_PAGE_SIZE);
+  dberr_t err = os_file_read_first_page(request, file->name, file->handle, page,
+                                        UNIV_PAGE_SIZE);
 
   ut_a(err == DB_SUCCESS);
 
@@ -7254,7 +7254,7 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   }
 
   if (req_type.is_read()) {
-    err = os_file_read(req_type, file->handle, buf, offset, len);
+    err = os_file_read(req_type, file->name, file->handle, buf, offset, len);
 
   } else {
     ut_ad(!srv_read_only_mode);
@@ -7498,7 +7498,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
 #ifdef UNIV_HOTBACKUP
   /* In mysqlbackup do normal I/O, not AIO */
   if (req_type.is_read()) {
-    err = os_file_read(req_type, file->handle, buf, offset, len);
+    err = os_file_read(req_type, file->name, file->handle, buf, offset, len);
 
   } else {
     ut_ad(!srv_read_only_mode || fsp_is_system_temporary(page_id.space()));
@@ -8165,8 +8165,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
       read_request.encryption_algorithm(Encryption::AES);
     }
 
-    err = os_file_read(read_request, iter.m_file, io_buffer, offset,
-                       (ulint)n_bytes);
+    err = os_file_read(read_request, iter.m_filepath, iter.m_file, io_buffer,
+                       offset, (ulint)n_bytes);
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_335) << "os_file_read() failed";
@@ -8314,7 +8314,8 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
 
   IORequest request(IORequest::READ);
 
-  err = os_file_read_first_page(request, file, page, UNIV_PAGE_SIZE);
+  err = os_file_read_first_page(request, path.c_str(), file, page,
+                                UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
     err = DB_IO_ERROR;
