@@ -834,7 +834,10 @@ void Loader::start_all() {
       call_plugin_function(this_thread_env.get(), eptr, fptr, "start",
                            section->name.c_str(), section->key.c_str());
 
-      plugin_stopped_events_.push(std::move(eptr));
+      {
+        std::lock_guard<std::mutex> lock(we_might_shutdown_cond_mutex);
+        plugin_stopped_events_.push(std::move(eptr));
+      }
       we_might_shutdown_cond.notify_one();
     });
 
