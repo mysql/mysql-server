@@ -426,28 +426,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -1287,28 +1287,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -2270,28 +2270,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -4975,6 +4975,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -7060,6 +7082,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -10254,6 +10298,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -10933,28 +10999,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -11794,28 +11860,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -12777,28 +12843,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -15482,6 +15548,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -17567,6 +17655,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -20761,6 +20871,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -21446,28 +21578,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -22307,28 +22439,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -23290,28 +23422,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -25995,6 +26127,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -28080,6 +28234,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -31274,6 +31450,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -31959,28 +32157,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -32826,28 +33024,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -33809,28 +34007,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -36514,6 +36712,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -38599,6 +38819,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -41793,6 +42035,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -42478,28 +42742,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -43345,28 +43609,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -44334,28 +44598,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -47045,6 +47309,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -49130,6 +49416,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -52324,6 +52632,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -53011,28 +53341,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -53880,28 +54210,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -54871,28 +55201,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -57592,6 +57922,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -59679,6 +60031,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -62875,6 +63249,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -63559,28 +63955,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -64425,28 +64821,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -65413,28 +65809,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -68128,6 +68524,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -70218,6 +70636,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -73411,6 +73851,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -74095,28 +74557,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -74961,28 +75423,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -75949,28 +76411,28 @@ Warning	1264	Out of range value for column 'c1' at row 21
 Warning	1264	Out of range value for column 'c1' at row 22
 SELECT * FROM t7;
 c1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 Warnings:
@@ -78664,6 +79126,28 @@ CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#!
+##
+#$
+#%
+#&
+#(
+#)
+#*
+#+
+#-
+#1
+#9
+#=
+#@
+#A
+#Z
+#^
+#_
+#`
+#a
+#z
+#~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -80754,6 +81238,28 @@ CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+###!
+####
+###$
+###%
+###&
+###(
+###)
+###*
+###+
+###-
+###1
+###9
+###=
+###@
+###A
+###Z
+###^
+###_
+###`
+###a
+###z
+###~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;
@@ -83953,6 +84459,28 @@ CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
 SELECT * FROM t7;
 c1
+#######!
+########
+#######$
+#######%
+#######&
+#######(
+#######)
+#######*
+#######+
+#######-
+#######1
+#######9
+#######=
+#######@
+#######A
+#######Z
+#######^
+#######_
+#######`
+#######a
+#######z
+#######~
 UPDATE t6 SET c1='10' WHERE c2 > 100 ORDER BY c2 LIMIT 1;
 UPDATE t6 SET c1=c2+c1 WHERE c2 < 100;
 UPDATE t6 SET c2=c2+100 WHERE c1 >=100 ORDER BY c1 LIMIT 4;

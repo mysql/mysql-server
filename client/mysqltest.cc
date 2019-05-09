@@ -8830,7 +8830,6 @@ static void run_query(struct st_connection *cn, struct st_command *command,
       die("Failed to drop view: %d: %s", mysql_errno(mysql),
           mysql_error(mysql));
   }
-
   if (command->output_file[0]) {
     /* An output file was specified for _this_ query */
     str_to_file2(command->output_file, ds_result.str, ds_result.length, false);
@@ -11260,24 +11259,26 @@ class Comp_lines {
   }
 };
 
-static size_t length_of_n_first_columns(const char *str,
+static size_t length_of_n_first_columns(std::string str,
                                         int start_sort_column) {
-  const char *ptr = str;
-  for (int i = 0; i < start_sort_column; ++i) {
-    const char *first_tab = strchr(ptr, '\t');
-    if (first_tab == nullptr) {
-      return strlen(str);
-    } else {
-      ptr = first_tab + 1;
-    }
+  std::stringstream columns(str);
+  std::string temp;
+  size_t size_of_columns = 0;
+
+  int i = 0;
+  while (getline(columns, temp, '\t') && i < start_sort_column) {
+    size_of_columns = size_of_columns + temp.length();
+    i++;
   }
-  return ptr - str;
+
+  return size_of_columns;
 }
 
 void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input,
                           int start_sort_column) {
   char *start = ds_input->str;
-  Prealloced_array<const char *, 32> lines(PSI_NOT_INSTRUMENTED);
+  char *end = ds_input->str + ds_input->length;
+  std::vector<std::string> sorted;
   DBUG_TRACE;
 
   if (!*start) return; /* No input */
@@ -11287,45 +11288,45 @@ void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input,
   start++; /* Skip past \n */
   dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
 
-  /* Insert line(s) in array */
+  /*
+    Traverse through the result set from start to end to avoid
+    ignoring null characters (0x00), and insert line by line
+    into array.
+  */
   size_t first_unsorted_row = 0;
-  while (*start) {
+  while (start < end) {
     char *line_end = (char *)start;
 
     /* Find end of line */
-    while (*line_end && *line_end != '\n') line_end++;
+    while (*line_end != '\n') line_end++;
     *line_end = 0;
 
-    if (!lines.empty() && start_sort_column > 0) {
+    std::string result_row = std::string(start, line_end - start);
+    if (!sorted.empty() && start_sort_column > 0) {
       /*
         If doing partial sorting, and the prefix is different from that of the
         previous line, the group is done. Sort it and start another one.
        */
       size_t prev_line_prefix_len =
-          length_of_n_first_columns(lines.back(), start_sort_column);
-      size_t this_line_prefix_len =
-          length_of_n_first_columns(start, start_sort_column);
-      if (this_line_prefix_len != prev_line_prefix_len ||
-          memcmp(lines.back(), start, prev_line_prefix_len) != 0) {
-        std::sort(lines.begin() + first_unsorted_row, lines.end(),
-                  Comp_lines());
-        first_unsorted_row = lines.size();
+          length_of_n_first_columns(sorted.back(), start_sort_column);
+      if (sorted.back().compare(0, prev_line_prefix_len, result_row, 0,
+                                prev_line_prefix_len) != 0) {
+        std::sort(sorted.begin() + first_unsorted_row, sorted.end());
+        first_unsorted_row = sorted.size();
       }
     }
 
-    /* Insert pointer to the line in array */
-    if (lines.push_back(start)) die("Out of memory inserting lines to sort");
-
+    /* Insert line into the array */
+    sorted.push_back(result_row);
     start = line_end + 1;
   }
 
   /* Sort array */
-  std::stable_sort(lines.begin() + first_unsorted_row, lines.end(),
-                   Comp_lines());
+  std::stable_sort(sorted.begin() + first_unsorted_row, sorted.end());
 
   /* Create new result */
-  for (const char **line = lines.begin(); line != lines.end(); ++line) {
-    dynstr_append(ds, *line);
+  for (auto i : sorted) {
+    dynstr_append_mem(ds, i.c_str(), i.length());
     dynstr_append(ds, "\n");
   }
 }

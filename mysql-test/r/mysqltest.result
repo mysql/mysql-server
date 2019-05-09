@@ -900,6 +900,78 @@ INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+#
+# Bug#29224561: USE "SORTED_RESULT" OF MYSQL-TEST , CAUSE ERROR RESULT
+#               ( FOR TYPE OF BINARY )
+#
+CREATE TABLE t1(a BINARY(32), b BINARY(32));
+INSERT INTO t1 VALUES
+('1abc', 'abc2'), ('\0', '\0'), ('1a', 'ba');
+SELECT * FROM t1;
+a	b
+################################	################################
+1a##############################	ba##############################
+1abc############################	abc2############################
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(32), b CHAR(32));
+INSERT INTO t1 VALUES
+('\0', 'abc2'), ('abcd', '\0'), ('1a', 'ba');
+SELECT * FROM t1;
+a	b
+#	abc2
+1a	ba
+abcd	#
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(32), b CHAR(32), c CHAR(32));
+INSERT INTO t1 VALUES
+('abc', '1a', '2a'), ('abc', 'west', 'east'), ('\0', '1a', 'north'),
+('\0', 'west', 'south'), ('abc', 'sun', 'moon');
+SELECT a, b, c FROM t1 ORDER by a;
+a	b	c
+#	1a	north
+#	west	south
+abc	1a	2a
+abc	sun	moon
+abc	west	east
+SELECT a, b, c FROM t1 ORDER by a, b;
+a	b	c
+#	1a	north
+#	west	south
+abc	1a	2a
+abc	sun	moon
+abc	west	east
+DROP TABLE t1;
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES
+(1, 2, 1),
+(1, 2, 4),
+(1, 2, 3),
+(2, 3, 1),
+(3, 4, 1),
+(2, 5, 0),
+(1, 6, 0),
+(1, 7, 1);
+SELECT i, j, k FROM t1 ORDER by i;
+i	j	k
+1	2	1
+1	2	3
+1	2	4
+1	6	0
+1	7	1
+2	3	1
+2	5	0
+3	4	1
+SELECT i, j, k FROM t1 ORDER by i, j;
+i	j	k
+1	2	1
+1	2	3
+1	2	4
+1	6	0
+1	7	1
+2	3	1
+2	5	0
+3	4	1
+DROP TABLE t1;
 select "500g blåbærsyltetøy" as "will be lower cased";
 will be lower cased
 500g blåbærsyltetøy
