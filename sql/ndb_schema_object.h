@@ -63,10 +63,6 @@ class NDB_SCHEMA_OBJECT {
   // The fourth part of key, normally used for version
   const uint32 m_version;
 
-  // Use counter controlling lifecycle of the NDB_SCHEMA_OBJECT
-  // Normally there are only two users(the Client and the Coordinator)
-  uint m_use_count{0};
-
   // Unique identifier giving each NDB_SCHEMA_OBJECT(and thus each schema
   // operation) a global id in combination with the nodeid of the node who
   // starts the schema operation
@@ -81,6 +77,13 @@ class NDB_SCHEMA_OBJECT {
     std::mutex m_lock;
     // Condition for communication betwen client and coordinator
     std::condition_variable m_cond;
+
+    // Use counter controlling lifecycle of the NDB_SCHEMA_OBJECT
+    // Normally there are only two users(the Client and the Coordinator)
+    // but functions in the coordinator will also increment use count while
+    // working with the NDB_SCHEMA_OBJECT
+    uint m_use_count{1};
+
     // List of participant nodes in schema operation.
     // Used like this:
     // 1) When coordinator recieves the schema op event it adds all the
@@ -105,6 +108,9 @@ class NDB_SCHEMA_OBJECT {
     // recieved the final ack which cleared all the slock bits
     bool m_coordinator_completed{false};
   } state;
+
+  uint increment_use_count() const;
+  uint decremement_use_count() const;
 
   NDB_SCHEMA_OBJECT() = delete;
   NDB_SCHEMA_OBJECT(const NDB_SCHEMA_OBJECT&) = delete;
@@ -159,15 +165,15 @@ class NDB_SCHEMA_OBJECT {
     @param table_name  Part 2 of key, normally used for table
     @param id          Part 3 of key, normally used for id
     @param version     Part 4 of key, normally used for version
-    @param create_if_not_exists Allow a new NDB_SCHEMA_OBJECT if one doesn't
-                                exist.
+    @param create      Create a new NDB_SCHEMA_OBJECT and check that one
+                       doesn't already exist.
 
     @return pointer to NDB_SCHEMA_OBJECT if it existed already or was created
     @return nullptr if NDB_SCHEMA_OBJECT didn't exist
   */
   static NDB_SCHEMA_OBJECT *get(const char *db, const char *table_name,
                                 uint32 id, uint32 version,
-                                bool create_if_not_exists = false);
+                                bool create = false);
 
   /**
     @brief Get NDB_SCHEMA_OBJECT by schema operation id
