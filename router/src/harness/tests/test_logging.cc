@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -549,6 +549,9 @@ TEST_F(LoggingTest, Messages) {
   check_message("Sloth tantrum", LogLevel::kWarning, " WARNING ");
   check_message("Russel's teapot", LogLevel::kInfo, " INFO ");
   check_message("Bugs galore", LogLevel::kDebug, " DEBUG ");
+
+  // Ensure no truncation of long messages
+  check_message(std::string(512, 'a'), LogLevel::kInfo, " INFO ");
 
   // clean up
   g_registry->remove_handler("TestStreamHandler");
