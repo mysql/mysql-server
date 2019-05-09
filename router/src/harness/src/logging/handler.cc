@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,8 @@ using mysql_harness::Path;
 #define LOGGER_API
 #endif
 
+#define BUFSIZE 512
+
 using std::ofstream;
 using std::ostringstream;
 
@@ -89,10 +91,21 @@ std::string Handler::format(const Record &record) const {
 
   // We ignore the return value from snprintf, which means that the
   // output is truncated if the total length exceeds the buffer size.
-  char buffer[512];
-  snprintf(buffer, sizeof(buffer), "%-19s %s %s [%s] %s", time_buf,
-           record.domain.c_str(), level_str[static_cast<int>(record.level)],
-           ss.str().c_str(), record.message.c_str());
+  char buffer[BUFSIZE];
+  int len =
+      snprintf(buffer, sizeof(buffer), "%-19s %s %s [%s] %s", time_buf,
+               record.domain.c_str(), level_str[static_cast<int>(record.level)],
+               ss.str().c_str(), record.message.c_str());
+  if (len >= BUFSIZE) {
+    // Overflowed the stack allocated buffer, so allocate dynamically
+    std::string dynbuf;
+    dynbuf.resize(len + 1);
+    snprintf(&dynbuf.front(), dynbuf.size(), "%-19s %s %s [%s] %s", time_buf,
+             record.domain.c_str(), level_str[static_cast<int>(record.level)],
+             ss.str().c_str(), record.message.c_str());
+    dynbuf.resize(len);
+    return dynbuf;
+  }
 
   // Note: This copies the buffer into an std::string
   return buffer;
