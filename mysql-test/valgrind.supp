@@ -763,6 +763,7 @@
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
    fun:_Z11_my_b_writeP8IO_CACHEPKhm
+   fun:_Z10my_b_writeP8IO_CACHEPKhm
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP8IO_CACHES4_
    ...
    fun:_Z8filesortP3THDP8Filesort*
