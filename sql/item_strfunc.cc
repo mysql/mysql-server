@@ -4777,8 +4777,10 @@ void Item_func_current_role::set_current_role(THD *thd) {
 
 bool Item_func_roles_graphml::calculate_graphml(THD *thd) {
   Security_context *sctx = thd->security_context();
-  if (sctx && (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
-               sctx->check_access(SUPER_ACL, "", false)))
+  if (sctx &&
+      (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
+       sctx->check_access(SUPER_ACL, "", false)) &&
+      !skip_grant_tables())
     roles_graphml(thd, &value_cache);
   else
     value_cache.set_ascii(
