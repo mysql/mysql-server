@@ -157,10 +157,6 @@ SELECT service_release_locks('pfs_check');
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-
 --echo #
 --echo # 3: Test taking and releasing of locks in two namespaces
 
@@ -178,11 +174,6 @@ SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo #      Per performance_schema no current wait for getting a service lock
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
---echo #      Per performance_schema no historic wait for getting a service lock
---echo #      because TRUNCATE of events_waits_history_long
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo # 4.1: Test that another connection gets blocked.
 SELECT service_get_write_locks("namespace1", "lock1", "lock2", 60);
@@ -227,10 +218,6 @@ WHERE state = 'Waiting for locking service lock';
 SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
---echo #      Per performance_schema six waits in history
-SELECT COUNT(*) = 3 AS expect_1
-FROM performance_schema.events_waits_history_long
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo # 4.4: Show the impact of releasing and getting a service lock on
 --echo #      content of the processlist and performance_schema
 # Release locks and cleanup
@@ -242,10 +229,6 @@ SELECT COUNT(*) = 0 AS expect_1 FROM information_schema.processlist
 WHERE state = 'Waiting for locking service lock';
 --echo #      Per performance_schema no current wait for getting a service lock
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
---echo #      Per performance_schema now seven waits in history
-SELECT COUNT(*) = 4 AS expect_1
-FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 SELECT service_release_locks("namespace1");
 
