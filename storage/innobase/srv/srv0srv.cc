@@ -55,6 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
+#include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0load.h"
 #include "dict0stats_bg.h"
@@ -1592,28 +1593,35 @@ void srv_export_innodb_status(void) {
 
 #ifdef UNIV_DEBUG
   rw_lock_s_lock(&purge_sys->latch);
-  trx_id_t up_limit_id;
   trx_id_t done_trx_no = purge_sys->done.trx_no;
 
-  up_limit_id = purge_sys->view_active ? purge_sys->view.up_limit_id() : 0;
+  /* Purge always deals with transaction end points represented by
+  transaction number. We are allowed to purge transactions with number
+  below the low limit. */
+  ReadView oldest_view;
+  trx_sys->mvcc->clone_oldest_view(&oldest_view);
+  trx_id_t low_limit_no = oldest_view.view_low_limit_no();
 
   rw_lock_s_unlock(&purge_sys->latch);
 
   mutex_enter(&trx_sys->mutex);
-  trx_id_t max_trx_id = trx_sys->rw_max_trx_id;
+  /* Maximum transaction number added to history list for purge. */
+  trx_id_t max_trx_no = trx_sys->rw_max_trx_no;
   mutex_exit(&trx_sys->mutex);
 
-  if (!done_trx_no || max_trx_id < done_trx_no - 1) {
+  if (done_trx_no == 0 || max_trx_no < done_trx_no) {
     export_vars.innodb_purge_trx_id_age = 0;
   } else {
-    export_vars.innodb_purge_trx_id_age = (ulint)(max_trx_id - done_trx_no + 1);
+    /* Add 1 as done_trx_no always points to the next transaction ID. */
+    export_vars.innodb_purge_trx_id_age = (ulint)(max_trx_no - done_trx_no + 1);
   }
 
-  if (!up_limit_id || max_trx_id < up_limit_id) {
+  if (low_limit_no == 0 || max_trx_no < low_limit_no) {
     export_vars.innodb_purge_view_trx_id_age = 0;
   } else {
+    /* Add 1 as low_limit_no always points to the next transaction ID. */
     export_vars.innodb_purge_view_trx_id_age =
-        (ulint)(max_trx_id - up_limit_id);
+        (ulint)(max_trx_no - low_limit_no + 1);
   }
 #endif /* UNIV_DEBUG */
 
@@ -2427,7 +2435,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
   memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
   /* Fill up encryption info to be set */
-  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot)) {
+  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot, true)) {
     ib::error(ER_IB_MSG_1052, space->name);
     return true;
   }
@@ -2510,6 +2518,60 @@ static void srv_master_sleep(void) {
   srv_main_thread_op_info = "";
 }
 
+/** Check redo and undo log encryption and rotate default master key. */
+static void srv_sys_check_set_encryption() {
+  /* Rotate default master key for redo log encryption if it is set */
+  if (srv_redo_log_encrypt) {
+    fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
+    ut_a(space);
+
+    /* Encryption for redo tablesapce must already have been set. This is
+    safeguard to encrypt it if not done earlier. */
+    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      ib::warn(ER_IB_MSG_1285, space->name, "srv_redo_log_encrypt");
+      srv_enable_redo_encryption(false);
+    }
+    redo_rotate_default_master_key();
+  }
+
+  if (!srv_undo_log_encrypt) {
+    return;
+  }
+
+  /* Rotate default master key for undo log encryption if it is set */
+  ut_ad(!undo::spaces->empty());
+
+  mutex_enter(&(undo::ddl_mutex));
+
+  bool encrypt_undo = false;
+  undo::spaces->s_lock();
+  for (auto &undo_ts : undo::spaces->m_spaces) {
+    fil_space_t *space = fil_space_get(undo_ts->id());
+    ut_ad(space != nullptr);
+
+    /* Encryption for undo tablesapce must already have been set. This is
+    safeguard to encrypt it if not done earlier. */
+    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      ib::warn(ER_IB_MSG_1285, space->name, "srv_undo_log_encrypt");
+      /* No need to loop further as srv_enable_undo_encryption() would
+      loop through all UNDO tablespaces and encrypt. */
+      encrypt_undo = true;
+      break;
+    }
+  }
+  undo::spaces->s_unlock();
+
+  if (encrypt_undo) {
+    ut_d(bool ret =) srv_enable_undo_encryption(false);
+    ut_ad(!ret);
+  }
+  undo_rotate_default_master_key();
+  mutex_exit(&(undo::ddl_mutex));
+}
+
 /** The master thread controlling the server. */
 void srv_master_thread() {
   DBUG_TRACE;
@@ -2552,52 +2614,21 @@ loop:
     }
 
     /* Make sure that early encryption processing of UNDO/REDO log is done. */
-    if (is_early_redo_undo_encryption_done()) {
-      /* Rotate default master key for redo log encryption if it is set */
-      if (srv_redo_log_encrypt) {
-        fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-        ut_a(space);
-        ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-        if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-          ib::warn(ER_IB_MSG_1285, space->name, "srv_redo_log_encrypt");
-          srv_enable_redo_encryption(false);
-        }
-        redo_rotate_default_master_key();
-      }
-
-      /* If srv_undo_log_encrypt is ON, then make sure all UNDO tablespaces
-      are encrypted. */
-      if (srv_undo_log_encrypt) {
-        mutex_enter(&(undo::ddl_mutex));
-        undo::spaces->s_lock();
-        bool is_locked = true;
-        ut_ad(!undo::spaces->empty());
-        for (auto &undo_ts : undo::spaces->m_spaces) {
-          fil_space_t *space = fil_space_get(undo_ts->id());
-          ut_ad(space != nullptr);
-          ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-          if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-            ib::warn(ER_IB_MSG_1285, space->name, "srv_undo_log_encrypt");
-            undo::spaces->s_unlock();
-            is_locked = false;
-            ut_d(bool ret =) srv_enable_undo_encryption(false);
-            ut_ad(!ret);
-            /* No need to loop further as srv_enable_undo_encryption() would
-            have already looped through all UNDO tablespaces and encrypted. */
-            break;
-          }
-        }
-        if (is_locked) {
-          undo::spaces->s_unlock();
-        }
-
-        /* Rotate default master key for undo log encryption. */
-        undo_rotate_default_master_key();
-        mutex_exit(&(undo::ddl_mutex));
-      }
+    if (!is_early_redo_undo_encryption_done()) {
+      continue;
     }
+
+    /* Let clone wait when redo/undo log encryption is set. If clone is already
+    in progress we skip the check and come back later. */
+    if (!clone_mark_wait()) {
+      continue;
+    }
+
+    /* Check encryption property for system tablespaces. */
+    srv_sys_check_set_encryption();
+
+    /* Allow any blocking clone to progress. */
+    clone_mark_free();
   }
 
   /* This is just for test scenarios. */

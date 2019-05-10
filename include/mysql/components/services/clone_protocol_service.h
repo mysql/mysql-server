@@ -43,13 +43,29 @@ struct MYSQL_SOCKET;
 #include <mysql/components/service.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string>
+#include <vector>
 
+/** Connection parameters including SSL */
 struct mysql_clone_ssl_context {
+  /** Clone ssl mode. Same as mysql client --ssl-mode */
   int m_ssl_mode;
-  const char *m_ssl_private_key;
-  const char *m_ssl_certificate;
-  const char *m_ssl_certificate_authority;
+  /** Clone ssl private key. Same as mysql client --ssl-key */
+  const char *m_ssl_key;
+  /** Clone ssl certificate. Same as mysql client --ssl-cert */
+  const char *m_ssl_cert;
+  /** Clone ssl certificate authority. Same as mysql client --ssl-ca */
+  const char *m_ssl_ca;
+
+  /** Enable network compression. */
+  bool m_enable_compression;
 };
+
+/** Vector of sting Values */
+using Mysql_Clone_Values = std::vector<std::string>;
+
+/** Vector of string Key-Value pairs. */
+using Mysql_Clone_Key_Values = std::vector<std::pair<std::string, std::string>>;
 
 BEGIN_SERVICE_DEFINITION(clone_protocol)
 
@@ -70,6 +86,43 @@ DECLARE_METHOD(void, mysql_clone_start_statement,
 DECLARE_METHOD(void, mysql_clone_finish_statement, (THD * thd));
 
 /**
+  Get all character set and collations
+  @param[in,out]  thd        server session THD
+  @param[out]     char_sets  all character set collations
+  @return error code.
+*/
+DECLARE_METHOD(int, mysql_clone_get_charsets,
+               (THD * thd, Mysql_Clone_Values &char_sets));
+
+/**
+  Check if all characters sets are supported by server
+  @param[in,out]  thd        server session THD
+  @param[in]      char_sets  all character set collations to validate
+  @return error code.
+*/
+DECLARE_METHOD(int, mysql_clone_validate_charsets,
+               (THD * thd, Mysql_Clone_Values &char_sets));
+
+/**
+  Get system configuration parameter values.
+  @param[in,out]  thd        server session THD
+  @param[in,out]  configs    a list of configuration key value pair
+                             keys are input and values are output
+  @return error code.
+*/
+DECLARE_METHOD(int, mysql_clone_get_configs,
+               (THD * thd, Mysql_Clone_Key_Values &configs));
+
+/**
+  Check if configuration parameter values match
+  @param[in,out]  thd        server session THD
+  @param[in]      configs    a list of configuration key value pair
+  @return error code.
+*/
+DECLARE_METHOD(int, mysql_clone_validate_configs,
+               (THD * thd, Mysql_Clone_Key_Values &configs));
+
+/**
   Connect to a remote server and switch to clone protocol
   @param[in,out] thd      server session THD
   @param[in]     host     host name to connect to
@@ -82,9 +135,9 @@ DECLARE_METHOD(void, mysql_clone_finish_statement, (THD * thd));
   @return Connection object if successful.
 */
 DECLARE_METHOD(MYSQL *, mysql_clone_connect,
-               (THD * thd, const char *host, unsigned int port,
-                const char *user, const char *passwd,
-                mysql_clone_ssl_context *ssl_ctx, MYSQL_SOCKET *socket));
+               (THD * thd, const char *host, uint32_t port, const char *user,
+                const char *passwd, mysql_clone_ssl_context *ssl_ctx,
+                MYSQL_SOCKET *socket));
 
 /**
   Execute clone command on remote server
@@ -109,11 +162,12 @@ DECLARE_METHOD(int, mysql_clone_send_command,
   @param[in]     timeout        timeout in seconds
   @param[out]    packet         response packet
   @param[out]    length         packet length
+  @param[out]    net_length     network data length for compressed data
   @return error code.
 */
 DECLARE_METHOD(int, mysql_clone_get_response,
                (THD * thd, MYSQL *connection, bool set_active, uint32_t timeout,
-                unsigned char **packet, size_t *length));
+                unsigned char **packet, size_t *length, size_t *net_length));
 
 /**
   Kill a remote connection
@@ -133,6 +187,14 @@ DECLARE_METHOD(int, mysql_clone_kill,
 */
 DECLARE_METHOD(void, mysql_clone_disconnect,
                (THD * thd, MYSQL *connection, bool is_fatal, bool clear_error));
+/**
+  Get error number and message.
+  @param[in,out] thd         local session THD
+  @param[out]    err_num     error number
+  @param[out]    err_mesg    error message text
+*/
+DECLARE_METHOD(void, mysql_clone_get_error,
+               (THD * thd, uint32_t *err_num, const char **err_mesg));
 
 /**
   Get command from client
@@ -149,12 +211,13 @@ DECLARE_METHOD(int, mysql_clone_get_command,
 /**
   Send response to client.
   @param[in,out] thd     server session THD
+  @param[in]     secure  needs to be sent over secure connection
   @param[in]     packet  response packet
   @param[in]     length  packet length
   @return error code.
 */
 DECLARE_METHOD(int, mysql_clone_send_response,
-               (THD * thd, unsigned char *packet, size_t length));
+               (THD * thd, bool secure, unsigned char *packet, size_t length));
 
 /**
   Send error to client

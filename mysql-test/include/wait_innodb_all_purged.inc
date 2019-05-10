@@ -35,6 +35,10 @@ while ($wait_counter)
 --disable_warnings
     let $trx_age = `SELECT VARIABLE_VALUE FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'INNODB_PURGE_TRX_ID_AGE';`;
+
+# Don't wait for purge blocked by active ReadView(s)
+    let $trx_view_age = `SELECT VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'INNODB_PURGE_VIEW_TRX_ID_AGE';`;
 --enable_warnings
 
     if ($trx_age != $prev_trx_age)
@@ -44,7 +48,7 @@ WHERE VARIABLE_NAME = 'INNODB_PURGE_TRX_ID_AGE';`;
         let $prev_trx_age= $trx_age;
     }
 
-    let $success= `SELECT $trx_age < 1`;
+    let $success= `SELECT $trx_age <= $trx_view_age`;
     inc $wait_condition_reps;
     if ($success)
     {

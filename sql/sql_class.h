@@ -61,6 +61,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <bitset>
 #include <new>
 #include <string>
 
@@ -2510,6 +2511,14 @@ class THD : public MDL_context_owner,
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
+  /** Check if clone network Vio is active. */
+  inline bool check_clone_vio() {
+    mysql_mutex_lock(&LOCK_thd_data);
+    bool is_active = (clone_vio != nullptr);
+    mysql_mutex_unlock(&LOCK_thd_data);
+    return (is_active);
+  }
+
   /** Shutdown clone vio, if active. */
   void shutdown_clone_vio();
 
@@ -3321,6 +3330,66 @@ class THD : public MDL_context_owner,
   */
   rpl_sid owned_sid;
 
+  /** SE GTID persistence flag types. */
+  enum Se_GTID_flag : size_t {
+    /** Pin owned GTID */
+    SE_GTID_PIN = 0,
+    /** Cleanup GTID during unpin. */
+    SE_GTID_CLEANUP,
+    /** SE would persist GTID for current transaction. */
+    SE_GTID_PERSIST,
+    /** If RESET log in progress. */
+    SE_GTID_RESET_LOG,
+    /** Max element holding the biset size. */
+    SE_GTID_MAX
+  };
+
+  using Se_GTID_flagset = std::bitset<SE_GTID_MAX>;
+
+  /** Flags for SE GTID persistence. */
+  Se_GTID_flagset m_se_gtid_flags;
+
+  /** Defer freeing owned GTID and SID till unpinned. */
+  void pin_gtid() { m_se_gtid_flags.set(SE_GTID_PIN); }
+
+  /** Unpin and free GTID and SID. */
+  void unpin_gtid() {
+    m_se_gtid_flags.reset(SE_GTID_PIN);
+    /* Do any deferred cleanup */
+    if (m_se_gtid_flags[SE_GTID_CLEANUP]) {
+      clear_owned_gtids();
+      m_se_gtid_flags.reset(SE_GTID_CLEANUP);
+    }
+  }
+
+  /** @return true, if single phase XA commit operation. */
+  bool is_one_phase_commit();
+
+  /** Set when binlog reset operation is started. */
+  void set_log_reset() { m_se_gtid_flags.set(SE_GTID_RESET_LOG); }
+
+  /** Cleared after flushing SE logs during binlog reset. */
+  void clear_log_reset() { m_se_gtid_flags.reset(SE_GTID_RESET_LOG); }
+
+  /** @return true, if binlog reset operation. */
+  bool is_log_reset() const { return (m_se_gtid_flags[SE_GTID_RESET_LOG]); }
+
+  /** Set by SE when it guarantees GTID persistence. */
+  void set_gtid_persisted_by_se() { m_se_gtid_flags.set(SE_GTID_PERSIST); }
+
+  /** Reset by SE at transaction end after persisting GTID. */
+  void reset_gtid_persisted_by_se() { m_se_gtid_flags.reset(SE_GTID_PERSIST); }
+
+  /** @return true, if SE persists GTID for current transaction. */
+  bool se_persists_gtid() const {
+    DBUG_EXECUTE_IF("disable_se_persists_gtid", return (false););
+    auto trx = get_transaction();
+    auto xid_state = trx->xid_state();
+    /* XA transactions are always persisted by Innodb. */
+    return (!xid_state->has_state(XID_STATE::XA_NOTR) ||
+            m_se_gtid_flags[SE_GTID_PERSIST]);
+  }
+
 #ifdef HAVE_GTID_NEXT_LIST
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
@@ -3339,6 +3408,12 @@ class THD : public MDL_context_owner,
   Rpl_thd_context rpl_thd_ctx;
 
   void clear_owned_gtids() {
+    /* Defer GTID cleanup if pinned. Used for XA transactions where
+    SE(Innodb) needs to read GTID. */
+    if (m_se_gtid_flags[SE_GTID_PIN]) {
+      m_se_gtid_flags.set(SE_GTID_CLEANUP);
+      return;
+    }
     if (owned_gtid.sidno == OWNED_SIDNO_GTID_SET) {
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
@@ -3349,6 +3424,14 @@ class THD : public MDL_context_owner,
     owned_gtid.clear();
     owned_sid.clear();
     owned_gtid.dbug_print(NULL, "set owned_gtid in clear_owned_gtids");
+  }
+
+  /** @return true, if owned GTID is empty or waiting for deferred cleanup. */
+  bool owned_gtid_is_empty() {
+    if (m_se_gtid_flags[SE_GTID_CLEANUP]) {
+      return (true);
+    }
+    return (owned_gtid.is_empty());
   }
 
   /*

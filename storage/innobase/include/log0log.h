@@ -215,6 +215,9 @@ the checkpoint fields when we make new checkpoints. This field is only
 defined in the first log file. */
 constexpr uint32_t LOG_CHECKPOINT_1 = OS_FILE_LOG_BLOCK_SIZE;
 
+/** Log Encryption information in redo log header. */
+constexpr uint32_t LOG_ENCRYPTION = 2 * OS_FILE_LOG_BLOCK_SIZE;
+
 /** Second checkpoint field in the header of the first log file. */
 constexpr uint32_t LOG_CHECKPOINT_2 = 3 * OS_FILE_LOG_BLOCK_SIZE;
 
@@ -1186,6 +1189,15 @@ inline bool log_closer_is_active();
 /** Checks if log checkpointer thread is active.
 @return true if and only if the log checkpointer thread is active */
 inline bool log_checkpointer_is_active();
+
+/** Writes encryption information to log header.
+@param[in,out]  buf          log file header
+@param[in]      key          encryption key
+@param[in]      iv           encryption iv
+@param[in]      is_boot      if it's for bootstrap
+@param[in]      encrypt_key  encrypt with master key */
+bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
+                                     bool is_boot, bool encrypt_key);
 
 #else /* !UNIV_HOTBACKUP */
 

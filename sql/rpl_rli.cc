@@ -2484,7 +2484,7 @@ void Relay_log_info::post_commit(bool on_rollback) {
   THD *thd = info_thd;
 
   if (on_rollback) {
-    if (thd->owned_gtid.is_empty()) gtid_state->update_on_rollback(thd);
+    if (thd->owned_gtid_is_empty()) gtid_state->update_on_rollback(thd);
   } else {
     /*
       New executed coordinates prepared in pre_commit() are
@@ -2511,7 +2511,7 @@ void Relay_log_info::post_commit(bool on_rollback) {
         "last-chance-to-commit" branch of Log_event::do_update_pos().
         However in order to enter the branch has_ddl_committed needs false.
       */
-      if (!thd->owned_gtid.is_empty())
+      if (!thd->owned_gtid_is_empty())
         static_cast<Query_log_event *>(current_event)->has_ddl_committed =
             false;
 

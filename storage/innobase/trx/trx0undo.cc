@@ -41,6 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 
 #ifndef UNIV_HOTBACKUP
+#include "clone0clone.h"
 #include "current_thd.h"
 #include "dict0dd.h"
 #include "mach0data.h"
@@ -492,7 +493,7 @@ static ulint trx_undo_header_create(
     page_t *undo_page, /*!< in/out: undo log segment
                        header page, x-latched; it is
                        assumed that there is
-                       TRX_UNDO_LOG_XA_HDR_SIZE bytes
+                       TRX_UNDO_LOG_HDR_SIZE bytes
                        free space on it */
     trx_id_t trx_id,   /*!< in: transaction id */
     mtr_t *mtr)        /*!< in: mtr */
@@ -515,7 +516,7 @@ static ulint trx_undo_header_create(
 
   new_free = free + TRX_UNDO_LOG_OLD_HDR_SIZE;
 
-  ut_a(free + TRX_UNDO_LOG_XA_HDR_SIZE < UNIV_PAGE_SIZE - 100);
+  ut_a(free + TRX_UNDO_LOG_HDR_SIZE < UNIV_PAGE_SIZE - 100);
 
   mach_write_to_2(page_hdr + TRX_UNDO_PAGE_START, new_free);
 
@@ -542,7 +543,7 @@ static ulint trx_undo_header_create(
   mach_write_to_8(log_hdr + TRX_UNDO_TRX_ID, trx_id);
   mach_write_to_2(log_hdr + TRX_UNDO_LOG_START, new_free);
 
-  mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, FALSE);
+  mach_write_to_1(log_hdr + TRX_UNDO_FLAGS, 0);
   mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, FALSE);
 
   mach_write_to_2(log_hdr + TRX_UNDO_NEXT_LOG, 0);
@@ -575,6 +576,116 @@ static void trx_undo_write_xid(
   mlog_write_string(log_hdr + TRX_UNDO_XA_XID,
                     reinterpret_cast<const byte *>(xid->get_data()),
                     XIDDATASIZE, mtr);
+}
+
+void trx_undo_gtid_flush_prepare(trx_t *trx) {
+  /* Only relevant for prepared transaction. */
+  if (!trx_state_eq(trx, TRX_STATE_PREPARED)) {
+    return;
+  }
+  /* Only external transactions have GTID for XA PREPARE. */
+  if (trx_is_mysql_xa(trx)) {
+    return;
+  }
+  /* Wait for XA Prepare GTID to flush. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.wait_flush(true, false, false, nullptr);
+}
+
+dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
+  ut_ad(!(prepare && rollback));
+  /* Check if GTID persistence is needed. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  bool alloc = gtid_persistor.trx_check_set(trx, prepare, rollback);
+
+  if (!alloc) {
+    return (DB_SUCCESS);
+  }
+
+  /* For GTID persistence we need update undo segment. */
+  auto undo_ptr = &trx->rsegs.m_redo;
+  dberr_t db_err = DB_SUCCESS;
+  if (!undo_ptr->update_undo) {
+    ut_ad(!rollback);
+    mutex_enter(&trx->undo_mutex);
+    db_err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);
+    mutex_exit(&trx->undo_mutex);
+  }
+  /* In rare cases we might find no available update undo segment for insert
+  only transactions. It is still fine to return error at prepare stage.
+  Cannot do it earlier as GTID information is not known before. Keep the
+  debug assert to know if it really happens ever. */
+  if (db_err != DB_SUCCESS) {
+    ut_ad(false);
+    trx->persists_gtid = false;
+    ib::error(ER_IB_CLONE_GTID_PERSIST)
+        << "Could not allocate undo segment"
+        << " slot for persisting GTID. DB Error: " << db_err;
+  }
+  return (db_err);
+}
+
+void trx_undo_gtid_set(trx_t *trx, trx_undo_t *undo) {
+  /* Reset GTID flag */
+  undo->flag &= ~TRX_UNDO_FLAG_GTID;
+
+  if (trx->persists_gtid) {
+    undo->flag |= TRX_UNDO_FLAG_GTID;
+  }
+}
+
+void trx_undo_gtid_read_and_persist(trx_ulogf_t *undo_header) {
+  /* Check if undo log has GTID. */
+  auto flag = mach_read_ulint(undo_header + TRX_UNDO_FLAGS, MLOG_1BYTE);
+  if ((flag & TRX_UNDO_FLAG_GTID) == 0) {
+    return;
+  }
+  /* Extract and add GTID information of the transaction to the persister. */
+  Gtid_desc gtid_desc;
+
+  /* Get GTID format version. */
+  gtid_desc.m_version = static_cast<uint32_t>(
+      mach_read_from_1(undo_header + TRX_UNDO_LOG_GTID_VERSION));
+  /* Get GTID information string. */
+  memcpy(&gtid_desc.m_info[0], undo_header + TRX_UNDO_LOG_GTID,
+         TRX_UNDO_LOG_GTID_LEN);
+  /* Mark GTID valid. */
+  gtid_desc.m_is_set = true;
+
+  /* Get GTID persister */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+
+  /* No concurrency is involved during recovery but satisfy
+  the interface requirement. */
+  trx_sys_mutex_enter();
+  gtid_persistor.add(gtid_desc);
+  trx_sys_mutex_exit();
+}
+
+void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
+                         mtr_t *mtr) {
+  if ((undo->flag & TRX_UNDO_FLAG_GTID) == 0) {
+    return;
+  }
+  /* Reset GTID flag */
+  undo->flag &= ~TRX_UNDO_FLAG_GTID;
+
+  Gtid_desc gtid_desc;
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+
+  gtid_persistor.get_gtid_info(trx, gtid_desc);
+
+  if (gtid_desc.m_is_set) {
+    /* Persist GTID version */
+    mlog_write_ulint(undo_header + TRX_UNDO_LOG_GTID_VERSION,
+                     gtid_desc.m_version, MLOG_1BYTE, mtr);
+    /* Persist fixed length GTID */
+    ut_ad(TRX_UNDO_LOG_GTID_LEN == GTID_INFO_SIZE);
+    mlog_write_string(undo_header + TRX_UNDO_LOG_GTID, &gtid_desc.m_info[0],
+                      TRX_UNDO_LOG_GTID_LEN, mtr);
+    undo->flag |= TRX_UNDO_FLAG_GTID;
+  }
+  mlog_write_ulint(undo_header + TRX_UNDO_FLAGS, undo->flag, MLOG_1BYTE, mtr);
 }
 
 /** Read X/Open XA Transaction Identification (XID) from undo log header */
@@ -612,7 +723,7 @@ static void trx_undo_header_add_space_for_xid(
 
   ut_a(free == (ulint)(log_hdr - undo_page) + TRX_UNDO_LOG_OLD_HDR_SIZE);
 
-  new_free = free + (TRX_UNDO_LOG_XA_HDR_SIZE - TRX_UNDO_LOG_OLD_HDR_SIZE);
+  new_free = free + (TRX_UNDO_LOG_HDR_SIZE - TRX_UNDO_LOG_OLD_HDR_SIZE);
 
   /* Add space for a XID after the header, update the free offset
   fields on the undo log page and in the undo log header */
@@ -691,7 +802,7 @@ static ulint trx_undo_insert_header_reuse(
 
   free = TRX_UNDO_SEG_HDR + TRX_UNDO_SEG_HDR_SIZE;
 
-  ut_a(free + TRX_UNDO_LOG_XA_HDR_SIZE < UNIV_PAGE_SIZE - 100);
+  ut_a(free + TRX_UNDO_LOG_HDR_SIZE < UNIV_PAGE_SIZE - 100);
 
   log_hdr = undo_page + free;
 
@@ -714,7 +825,7 @@ static ulint trx_undo_insert_header_reuse(
   mach_write_to_8(log_hdr + TRX_UNDO_TRX_ID, trx_id);
   mach_write_to_2(log_hdr + TRX_UNDO_LOG_START, new_free);
 
-  mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, FALSE);
+  mach_write_to_1(log_hdr + TRX_UNDO_FLAGS, 0);
   mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, FALSE);
 
   /* Write the log record MLOG_UNDO_HDR_REUSE */
@@ -1085,7 +1196,6 @@ static trx_undo_t *trx_undo_mem_init(
   page_t *last_page;
   trx_undo_rec_t *rec;
   XID xid;
-  ibool xid_exists = FALSE;
 
   ut_a(id < TRX_RSEG_N_SLOTS);
 
@@ -1105,14 +1215,15 @@ static trx_undo_t *trx_undo_mem_init(
 
   trx_id = mach_read_from_8(undo_header + TRX_UNDO_TRX_ID);
 
-  xid_exists =
-      mtr_read_ulint(undo_header + TRX_UNDO_XID_EXISTS, MLOG_1BYTE, mtr);
+  auto flag = mtr_read_ulint(undo_header + TRX_UNDO_FLAGS, MLOG_1BYTE, mtr);
+
+  bool xid_exists = ((flag & TRX_UNDO_FLAG_XID) != 0);
 
   /* Read X/Open XA transaction identification if it exists, or
   set it to NULL. */
   xid.reset();
 
-  if (xid_exists == TRUE) {
+  if (xid_exists) {
     trx_undo_read_xid(undo_header, &xid);
   }
 
@@ -1122,6 +1233,8 @@ static trx_undo_t *trx_undo_mem_init(
 
   undo->dict_operation =
       mtr_read_ulint(undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
+
+  undo->flag = flag;
 
   undo->state = state;
   undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST);
@@ -1161,6 +1274,11 @@ add_to_list:
     ut_ad(type == TRX_UNDO_UPDATE);
     if (state != TRX_UNDO_CACHED) {
       UT_LIST_ADD_LAST(rseg->update_undo_list, undo);
+      /* For XA prepared transaction and XA rolled back transaction, we
+      could have GTID to be persisted. */
+      if (state == TRX_UNDO_PREPARED || state == TRX_UNDO_ACTIVE) {
+        trx_undo_gtid_read_and_persist(undo_header);
+      }
     } else {
       UT_LIST_ADD_LAST(rseg->update_undo_cached, undo);
 
@@ -1255,6 +1373,7 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
   undo->xid = *xid;
 
   undo->dict_operation = FALSE;
+  undo->flag = 0;
 
   undo->rseg = rseg;
 
@@ -1291,6 +1410,7 @@ static void trx_undo_mem_init_for_reuse(
   undo->xid = *xid;
 
   undo->dict_operation = FALSE;
+  undo->flag = 0;
 
   undo->hdr_offset = offset;
   undo->empty = TRUE;
@@ -1476,8 +1596,15 @@ dberr_t trx_undo_assign_undo(
 
   ut_ad(mutex_own(&(trx->undo_mutex)));
 
+  bool no_redo = (&trx->rsegs.m_noredo == undo_ptr);
+
+  /* If none of the undo pointers are assigned then this is
+  first time transaction is allocating undo segment. */
+  bool is_first =
+      (undo_ptr->insert_undo == nullptr && undo_ptr->update_undo == nullptr);
+
   mtr_start(&mtr);
-  if (&trx->rsegs.m_noredo == undo_ptr) {
+  if (no_redo) {
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   } else {
     ut_ad(&trx->rsegs.m_redo == undo_ptr);
@@ -1526,6 +1653,12 @@ func_exit:
   mutex_exit(&(rseg->mutex));
   mtr_commit(&mtr);
 
+  /* Once undo segment is assigned it is guaranteed that
+  Innodb would persist GTID. Call it only first time. */
+  if (!no_redo && err == DB_SUCCESS && is_first) {
+    auto &gtid_persistor = clone_sys->get_gtid_persistor();
+    gtid_persistor.set_persist_gtid(trx, true);
+  }
   return (err);
 }
 
@@ -1587,6 +1720,12 @@ page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
 
   seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 
+  offset = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
+  undo_header = undo_page + offset;
+
+  /* Write GTID information if there. */
+  trx_undo_gtid_write(trx, undo_header, undo, mtr);
+
   if (rollback) {
     ut_ad(undo->state == TRX_UNDO_PREPARED);
     mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, TRX_UNDO_ACTIVE, MLOG_2BYTES,
@@ -1598,14 +1737,12 @@ page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
   ut_ad(undo->state == TRX_UNDO_ACTIVE);
   undo->state = TRX_UNDO_PREPARED;
   undo->xid = *trx->xid;
+  undo->flag |= TRX_UNDO_FLAG_XID;
   /*------------------------------*/
 
   mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, undo->state, MLOG_2BYTES, mtr);
 
-  offset = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
-  undo_header = undo_page + offset;
-
-  mlog_write_ulint(undo_header + TRX_UNDO_XID_EXISTS, TRUE, MLOG_1BYTE, mtr);
+  mlog_write_ulint(undo_header + TRX_UNDO_FLAGS, undo->flag, MLOG_1BYTE, mtr);
 
   trx_undo_write_xid(undo_header, &undo->xid, mtr);
 

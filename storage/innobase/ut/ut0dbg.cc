@@ -41,6 +41,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0dbg.h"
 
+static std::function<void()> assert_callback;
+
+void ut_set_assert_callback(std::function<void()> &callback) {
+  assert_callback = callback;
+}
+
 /** Report a failed assertion. */
 [[noreturn]] void ut_dbg_assertion_failed(
     const char *expr, /*!< in: the failed assertion (optional) */
@@ -85,5 +91,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
   fflush(stderr);
   fflush(stdout);
+  /* Call any registered callback function. */
+  if (assert_callback) {
+    assert_callback();
+  }
   abort();
 }

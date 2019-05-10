@@ -12,7 +12,7 @@ select * from performance_schema.setup_threads;
 --enable_result_log
 
 select * from performance_schema.setup_threads
-  order by name limit 10;
+  order by name limit 12;
 
 --disable_result_log
 select * from performance_schema.setup_threads

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 #include <algorithm>
 
+#include "clone0clone.h"
 #include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "srv0mon.h"
@@ -91,6 +92,9 @@ page_no_t trx_rseg_header_create(space_id_t space_id,
   for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
     trx_rsegf_set_nth_undo(rsegf, i, FIL_NULL, mtr);
   }
+
+  /* Initialize maximum transaction number. */
+  mlog_write_ull(rsegf + TRX_RSEG_MAX_TRX_NO, 0, mtr);
 
   if (space_id == TRX_SYS_SPACE) {
     /* All rollback segments in the system tablespace need
@@ -157,27 +161,67 @@ void trx_rseg_mem_free(trx_rseg_t *rseg) {
   ut_free(rseg);
 }
 
-/** Create and initialize a rollback segment object.  Some of
-the values for the fields are read from the segment header page.
-The caller must insert it into the correct list.
-@param[in]	id		rollback segment id
-@param[in]	space_id	space where the segment is placed
-@param[in]	page_no		page number of the segment header
-@param[in]	page_size	page size
-@param[in,out]	purge_queue	rseg queue
-@param[in,out]	mtr		mini-transaction
-@return own: rollback segment object */
+static void trx_rseg_persist_gtid(trx_rseg_t *rseg, trx_id_t gtid_trx_no) {
+  /* Old server where GTID persistence were not enabled. */
+  if (gtid_trx_no == 0) {
+    return;
+  }
+  /* The mini transactions used in this function should not do any
+  modification/write operation. We read the undo header and send GTIDs
+  to the GTID persistor. There is no impact if the server crashes
+  anytime during the operation. */
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  auto rseg_header =
+      trx_rsegf_get_new(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
+
+  auto rseg_max_trx_no = mach_read_from_8(rseg_header + TRX_RSEG_MAX_TRX_NO);
+
+  /* Check if GTID for transactions in this rollback segment are persisted. */
+  if (rseg_max_trx_no < gtid_trx_no) {
+    mtr_commit(&mtr);
+    return;
+  }
+
+  /* Head of transaction history list in rollback segment. */
+  auto node = rseg_header + TRX_RSEG_HISTORY;
+
+  fil_addr_t node_addr = flst_get_first(node, &mtr);
+  ut_ad(node_addr.page != FIL_NULL);
+
+  mtr_commit(&mtr);
+
+  while (node_addr.page != FIL_NULL) {
+    mtr_start(&mtr);
+    /* Get the undo page pointed by current node. */
+    page_id_t undo_page_id(rseg->space_id, node_addr.page);
+    auto undo_page = trx_undo_page_get(undo_page_id, rseg->page_size, &mtr);
+
+    /* Get undo log and trx_no for the transaction. */
+    node = undo_page + node_addr.boffset;
+    auto undo_log = node - TRX_UNDO_HISTORY_NODE;
+    auto undo_trx_no = mach_read_from_8(undo_log + TRX_UNDO_TRX_NO);
+
+    /* Check and exit if the transaction GTID is already persisted. We
+    don't need to check any more as history list is ordered by trx_no. */
+    if (undo_trx_no < gtid_trx_no) {
+      mtr_commit(&mtr);
+      break;
+    }
+    trx_undo_gtid_read_and_persist(undo_log);
+
+    /* Move to next node. */
+    node_addr = flst_get_next_addr(node, &mtr);
+    mtr_commit(&mtr);
+  }
+}
+
 trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
                                 page_no_t page_no, const page_size_t &page_size,
-                                purge_pq_t *purge_queue, mtr_t *mtr) {
-  ulint len;
-  trx_rseg_t *rseg;
-  fil_addr_t node_addr;
-  trx_rsegf_t *rseg_header;
-  trx_ulogf_t *undo_log_hdr;
-  ulint sum_of_undo_sizes;
-
-  rseg = static_cast<trx_rseg_t *>(ut_zalloc_nokey(sizeof(trx_rseg_t)));
+                                trx_id_t gtid_trx_no, purge_pq_t *purge_queue,
+                                mtr_t *mtr) {
+  auto rseg = static_cast<trx_rseg_t *>(ut_zalloc_nokey(sizeof(trx_rseg_t)));
 
   rseg->id = id;
   rseg->space_id = space_id;
@@ -198,35 +242,46 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
   UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
   UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
 
-  rseg_header = trx_rsegf_get_new(space_id, page_no, page_size, mtr);
+  auto rseg_header = trx_rsegf_get_new(space_id, page_no, page_size, mtr);
 
   rseg->max_size =
       mtr_read_ulint(rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, mtr);
 
   /* Initialize the undo log lists according to the rseg header */
 
-  sum_of_undo_sizes = trx_undo_lists_init(rseg);
+  auto sum_of_undo_sizes = trx_undo_lists_init(rseg);
 
   rseg->curr_size =
       mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, mtr) +
       1 + sum_of_undo_sizes;
 
-  len = flst_get_len(rseg_header + TRX_RSEG_HISTORY);
+  auto len = flst_get_len(rseg_header + TRX_RSEG_HISTORY);
 
   if (len > 0) {
     trx_sys->rseg_history_len += len;
 
-    node_addr = trx_purge_get_log_from_hist(
+    /* Extract GTID from history and send to GTID persister. */
+    trx_rseg_persist_gtid(rseg, gtid_trx_no);
+
+    auto node_addr = trx_purge_get_log_from_hist(
         flst_get_last(rseg_header + TRX_RSEG_HISTORY, mtr));
 
     rseg->last_page_no = node_addr.page;
     rseg->last_offset = node_addr.boffset;
 
-    undo_log_hdr = trx_undo_page_get(page_id_t(rseg->space_id, node_addr.page),
-                                     rseg->page_size, mtr) +
-                   node_addr.boffset;
+    auto undo_log_hdr =
+        trx_undo_page_get(page_id_t(rseg->space_id, node_addr.page),
+                          rseg->page_size, mtr) +
+        node_addr.boffset;
 
     rseg->last_trx_no = mach_read_from_8(undo_log_hdr + TRX_UNDO_TRX_NO);
+
+#ifdef UNIV_DEBUG
+    /* Update last transaction number during recovery. */
+    if (rseg->last_trx_no > trx_sys->rw_max_trx_no) {
+      trx_sys->rw_max_trx_no = rseg->last_trx_no;
+    }
+#endif /* UNIV_DEBUG */
 
     rseg->last_del_marks =
         mtr_read_ulint(undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
@@ -290,6 +345,17 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
   page_no_t page_no;
   trx_rseg_t *rseg = nullptr;
 
+  /* Get GTID transaction number from SYS */
+  mtr.start();
+  trx_sysf_t *sys_header = trx_sysf_get(&mtr);
+  auto page = sys_header - TRX_SYS;
+  auto gtid_trx_no = mach_read_from_8(page + TRX_SYS_TRX_NUM_GTID);
+
+  mtr.commit();
+
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.set_oldest_trx_no_recovery(gtid_trx_no);
+
   for (slot = 0; slot < TRX_SYS_N_RSEGS; slot++) {
     mtr.start();
     trx_sysf_t *sys_header = trx_sysf_get(&mtr);
@@ -304,7 +370,7 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
         Note that all tablespaces with rollback segments
         use univ_page_size. (system, temp & undo) */
         rseg = trx_rseg_mem_create(slot, space_id, page_no, univ_page_size,
-                                   purge_queue, &mtr);
+                                   gtid_trx_no, purge_queue, &mtr);
 
         ut_a(rseg->id == slot);
 
@@ -337,8 +403,9 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
       /* Create the trx_rseg_t object.
       Note that all tablespaces with rollback segments
       use univ_page_size. */
-      rseg = trx_rseg_mem_create(slot, undo_space->id(), page_no,
-                                 univ_page_size, purge_queue, &mtr);
+      rseg =
+          trx_rseg_mem_create(slot, undo_space->id(), page_no, univ_page_size,
+                              gtid_trx_no, purge_queue, &mtr);
 
       ut_a(rseg->id == slot);
 
@@ -545,7 +612,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
       mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
     }
 
-    rseg = trx_rseg_mem_create(rseg_id, space_id, page_no, univ_page_size,
+    rseg = trx_rseg_mem_create(rseg_id, space_id, page_no, univ_page_size, 0,
                                purge_sys->purge_queue, &mtr);
 
     mtr.commit();

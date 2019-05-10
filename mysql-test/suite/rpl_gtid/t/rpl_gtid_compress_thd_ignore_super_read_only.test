@@ -67,7 +67,8 @@ DROP TABLE t1;
 --echo # Wait till gtid_executed table has one row and verify that
 --echo # it is MASTER_UUID:1:6
 --echo #
-let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed;
+let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed
+                      WHERE (interval_end - interval_start) = 5;
 --source include/wait_condition.inc
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;

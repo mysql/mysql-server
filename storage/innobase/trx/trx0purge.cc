@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <new>
 
 #include "clone0api.h"
+#include "clone0clone.h"
 #include "dict0dd.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
@@ -351,6 +352,9 @@ void trx_purge_add_update_undo_to_history(
     srv_wake_purge_thread_if_not_active();
   }
 
+  /* Update maximum transaction number for this rollback segment. */
+  mlog_write_ull(rseg_header + TRX_RSEG_MAX_TRX_NO, trx->no, mtr);
+
   /* Write the trx number to the undo log header */
   mlog_write_ull(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
 
@@ -359,6 +363,9 @@ void trx_purge_add_update_undo_to_history(
   if (!undo->del_marks) {
     mlog_write_ulint(undo_header + TRX_UNDO_DEL_MARKS, FALSE, MLOG_2BYTES, mtr);
   }
+
+  /* Write GTID information if there. */
+  trx_undo_gtid_write(trx, undo_header, undo, mtr);
 
   if (rseg->last_page_no == FIL_NULL) {
     rseg->last_page_no = undo->hdr_page_no;
@@ -1386,7 +1393,8 @@ This wrapper does initial preparation and handles cleanup.
 @return true for success, false for failure */
 static bool trx_purge_truncate_marked_undo() {
   /* Don't truncate if a concurrent clone is in progress. */
-  if (!clone_mark_abort(false)) {
+  if (clone_check_active()) {
+    ib::info(ER_IB_MSG_1175) << "Clone: Skip Truncate undo tablespace.";
     return (false);
   }
 
@@ -1438,12 +1446,23 @@ static bool trx_purge_truncate_marked_undo() {
       });
 #endif /* UNIV_DEBUG */
   if (dd_result != DD_SUCCESS) {
-    clone_mark_active();
     MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                    counter_time_truncate);
+    ib::info(ER_IB_MSG_1175) << "MDL Lock: Skip Truncate of undo tablespace '"
+                             << space_name.c_str() << "'.";
     return (false);
   }
   ut_ad(mdl_ticket != nullptr);
+
+  /* Re-check for clone after acquiring MDL. The Backup MDL from clone
+  is released by clone during shutdown while provisioning. We should
+  not allow truncate to proceed here. */
+  if (clone_check_active()) {
+    dd_release_mdl(mdl_ticket);
+    ib::info(ER_IB_MSG_1175) << "Clone: Skip Truncate of undo tablespace '"
+                             << space_name.c_str() << "'.";
+    return (false);
+  }
 
   /* Serialize this truncate with all undo tablespace DDLs */
   mutex_enter(&(undo::ddl_mutex));
@@ -1451,13 +1470,10 @@ static bool trx_purge_truncate_marked_undo() {
   if (!trx_purge_truncate_marked_undo_low(space_num, space_name)) {
     mutex_exit(&(undo::ddl_mutex));
     dd_release_mdl(mdl_ticket);
-    clone_mark_active();
     MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                    counter_time_truncate);
     return (false);
   }
-
-  dd_release_mdl(mdl_ticket);
 
   DBUG_EXECUTE_IF("ib_undo_trunc_before_done_logging",
                   ib::info(ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING);
@@ -1472,17 +1488,16 @@ static bool trx_purge_truncate_marked_undo() {
   ib::info(ER_IB_MSG_1175) << "Completed truncate of undo tablespace '"
                            << space_name.c_str() << "'.";
 
+  dd_release_mdl(mdl_ticket);
+
   DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done", ib::info(ER_IB_MSG_1176)
                                                   << "ib_undo_trunc_trunc_done";
                   DBUG_SUICIDE(););
 
   mutex_exit(&(undo::ddl_mutex));
 
-  clone_mark_active();
-
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                  counter_time_truncate);
-
   return (true);
 }
 
@@ -2350,6 +2365,10 @@ void trx_purge_stop(void) {
 
 /** Resume purge, move to PURGE_STATE_RUN. */
 void trx_purge_run(void) {
+  /* Flush any GTIDs to disk so that purge can proceed immediately. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.wait_flush(true, false, false, nullptr);
+
   rw_lock_x_lock(&purge_sys->latch);
 
   switch (purge_sys->state) {

@@ -41,7 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @name Archive file name prefix and constant length parameters. */
 /* @{ */
 /** Archive directory prefix */
-const char ARCH_DIR[] = "#ib_archive";
+const char ARCH_DIR[] = OS_FILE_PREFIX "ib_archive";
 
 /** Archive Log group directory prefix */
 const char ARCH_LOG_DIR[] = "log_group_";

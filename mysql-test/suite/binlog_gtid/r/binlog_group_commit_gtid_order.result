@@ -1,4 +1,5 @@
 RESET MASTER;
+SET @@GLOBAL.DEBUG= '+d, disable_gtid_background_persister';
 CREATE TABLE t1 (c1 INT) Engine=InnoDB;
 CREATE TABLE t2 (c1 INT) Engine=InnoDB;
 SET @free_intervals_mutex_before= (
@@ -26,5 +27,6 @@ FROM performance_schema.events_waits_summary_global_by_event_name WHERE
 EVENT_NAME='wait/synch/mutex/sql/Gtid_set::gtid_executed::free_intervals_mutex');
 include/assert.inc ["gtid_executed::free_intervals_mutex wasn't used"]
 SET GLOBAL binlog_group_commit_sync_delay=0;
+SET @@GLOBAL.DEBUG= '-d, disable_gtid_background_persister';
 DROP TABLE t1, t2;
 RESET MASTER;

@@ -7097,11 +7097,6 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
-  /* Make any active clone operation to abort, in case
-  log encryption is set after clone operation is started. */
-  clone_mark_abort(true);
-  clone_mark_active();
-
   req_type.encryption_key(space->encryption_key, space->encryption_klen,
                           space->encryption_iv);
 
@@ -10077,7 +10072,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     return (nullptr);
   }
 
-  if (!Encryption::decode_encryption_info(key, iv, ptr)) {
+  if (!Encryption::decode_encryption_info(key, iv, ptr, true)) {
     recv_sys->found_corrupt_log = true;
 
     ib::warn(ER_IB_MSG_364)
@@ -10747,53 +10742,6 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
 @return DB_SUCCESS if all goes well */
 dberr_t fil_scan_for_tablespaces(const std::string &directories) {
   return (fil_system->scan(directories));
-}
-
-/** Callback to check tablespace size with space header size and extend.
-Caller must own the Fil_shard mutex that the file belongs to.
-@param[in]	file	Tablespace file
-@return	error code */
-dberr_t fil_check_extend_space(fil_node_t *file) {
-  dberr_t err = DB_SUCCESS;
-  bool open_node = !file->is_open;
-
-  if (recv_sys == nullptr || !recv_sys->is_cloned_db) {
-    return (DB_SUCCESS);
-  }
-
-  fil_space_t *space = file->space;
-
-  auto shard = fil_system->shard_by_id(space->id);
-
-  if (open_node && !shard->open_file(file, false)) {
-    return (DB_CANNOT_OPEN_FILE);
-  }
-
-  shard->mutex_release();
-
-  if (space->size < space->size_in_header) {
-    ib::info(ER_IB_MSG_385)
-        << "Extending space: " << space->name << " from size " << space->size
-        << " pages to " << space->size_in_header
-        << " pages as stored in space header.";
-
-    if (!shard->space_extend(space, space->size_in_header)) {
-      ib::error(ER_IB_MSG_386) << "Failed to extend tablespace."
-                               << " Check for free space in disk"
-                               << " and try again.";
-
-      err = DB_OUT_OF_FILE_SPACE;
-    }
-  }
-
-  shard->mutex_acquire();
-
-  /* Close the file if it was opened by current function */
-  if (open_node) {
-    shard->close_file(file, true);
-  }
-
-  return (err);
 }
 
 /** Check if a path is known to InnoDB.

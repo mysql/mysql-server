@@ -61,7 +61,7 @@ Security_context::Security_context(MEM_ROOT *mem_root, THD *thd /* = nullptr*/)
 Security_context::~Security_context() { destroy(); }
 
 Security_context::Security_context(const Security_context &src_sctx)
-    : m_restrictions(nullptr) {
+    : m_restrictions(nullptr), m_thd(nullptr) {
   copy_security_ctx(src_sctx);
 }
 

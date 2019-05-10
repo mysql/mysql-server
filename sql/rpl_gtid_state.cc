@@ -575,6 +575,25 @@ enum_return_status Gtid_state::ensure_sidno() {
   RETURN_OK;
 }
 
+void Gtid_state::update_prev_gtids(Gtid_set *write_gtid_set) {
+  DBUG_ENTER("Gtid_state::add_prev_gtids()");
+  write_gtid_set->dbug_print("add_prev_gtids");
+
+  if (!opt_bin_log) {
+    DBUG_VOID_RETURN;
+  }
+  global_sid_lock->wrlock();
+
+  /* Remove from list if GTID is already written. */
+  write_gtid_set->remove_gtid_set(&previous_gtids_logged);
+
+  /* Add to the list so that it won't be written again later. */
+  previous_gtids_logged.add_gtid_set(write_gtid_set);
+
+  global_sid_lock->unlock();
+  DBUG_VOID_RETURN;
+}
+
 enum_return_status Gtid_state::add_lost_gtids(Gtid_set *gtid_set,
                                               bool starts_with_plus) {
   DBUG_TRACE;
@@ -661,7 +680,7 @@ int Gtid_state::save(const Gtid_set *gtid_set) {
   return ret;
 }
 
-int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation) {
+int Gtid_state::save_gtids_of_last_binlog_into_table() {
   DBUG_TRACE;
   int ret = 0;
 
@@ -692,11 +711,11 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation) {
     logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table);
     if (!logged_gtids_last_binlog.is_empty() ||
         mysql_bin_log.is_rotating_caused_by_incident) {
-      /* Prepare previous_gtids_logged for next binlog on binlog rotation */
-      if (on_rotation) {
-        if (previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog))
-          ret = ER_OOM_SAVE_GTIDS;
-      }
+      /* Prepare previous_gtids_logged for next binlog always. Need it
+      even during shutdown to synchronize with innodb GTID persister. */
+      if (previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog))
+        ret = ER_OOM_SAVE_GTIDS;
+
       global_sid_lock->unlock();
       /* Save set of GTIDs of the last binlog into gtid_executed table */
       if (!ret) {
@@ -736,7 +755,7 @@ bool Gtid_state::update_gtids_impl_check_skip_gtid_rollback(THD *thd) {
 }
 
 bool Gtid_state::update_gtids_impl_do_nothing(THD *thd) {
-  if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation) {
+  if (thd->owned_gtid_is_empty() && !thd->has_gtid_consistency_violation) {
     if (thd->variables.gtid_next.type == ASSIGNED_GTID)
       thd->variables.gtid_next.set_undefined();
     DBUG_PRINT("info", ("skipping update_gtids_impl because "

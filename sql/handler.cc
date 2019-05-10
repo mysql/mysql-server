@@ -77,6 +77,7 @@
 #include "sql/auth/auth_common.h"  // check_readonly() and SUPER_ACL
 #include "sql/binlog.h"            // mysql_bin_log
 #include "sql/check_stack.h"
+#include "sql/clone_handler.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::get_dictionary
@@ -1326,6 +1327,31 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 #endif
 }
 
+/** XA Prepare one SE.
+@param[in]	thd	Session THD
+@param[in]	ht	SE handlerton
+@return 0 for success, 1 for error - entire transaction is rolled back. */
+static int prepare_one_ht(THD *thd, handlerton *ht) {
+  DBUG_TRACE;
+  DBUG_ASSERT(!thd->status_var_aggregated);
+  thd->status_var.ha_prepare_count++;
+  if (ht->prepare) {
+    DBUG_EXECUTE_IF("simulate_xa_failure_prepare", {
+      ha_rollback_trans(thd, true);
+      return 1;
+    });
+    if (ht->prepare(ht, thd, true)) {
+      ha_rollback_trans(thd, true);
+      return 1;
+    }
+  } else {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA,
+                        ER_THD(thd, ER_ILLEGAL_HA),
+                        ha_resolve_storage_engine_name(ht));
+  }
+  return 0;
+}
+
 /**
   @retval
     0   ok
@@ -1349,30 +1375,33 @@ int ha_prepare(THD *thd) {
       goto err;
     }
 
-    while (ha_info) {
-      handlerton *ht = ha_info->ht();
-      DBUG_ASSERT(!thd->status_var_aggregated);
-      thd->status_var.ha_prepare_count++;
-      if (ht->prepare) {
-        DBUG_EXECUTE_IF("simulate_xa_failure_prepare", {
-          ha_rollback_trans(thd, true);
-          return 1;
-        });
-        if (ht->prepare(ht, thd, true)) {
-          ha_rollback_trans(thd, true);
-          error = 1;
+    /* Allow GTID to be read by SE for XA prepare. */
+    {
+      Clone_handler::XA_Operation xa_guard(thd);
+
+      /* Prepare binlog SE first, if there. */
+      while (ha_info != nullptr && error == 0) {
+        auto ht = ha_info->ht();
+        if (ht->db_type == DB_TYPE_BINLOG) {
+          error = prepare_one_ht(thd, ht);
           break;
         }
-      } else {
-        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA,
-                            ER_THD(thd, ER_ILLEGAL_HA),
-                            ha_resolve_storage_engine_name(ht));
+        ha_info = ha_info->next();
       }
-      ha_info = ha_info->next();
+      /* Prepare all SE other than binlog. */
+      ha_info = trn_ctx->ha_trx_info(Transaction_ctx::SESSION);
+      while (ha_info != nullptr && error == 0) {
+        auto ht = ha_info->ht();
+        error = prepare_one_ht(thd, ht);
+        if (error != 0) {
+          break;
+        }
+        ha_info = ha_info->next();
+      }
     }
 
-    DBUG_ASSERT(
-        thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_IDLE));
+    DBUG_ASSERT(error != 0 || thd->get_transaction()->xid_state()->has_state(
+                                  XID_STATE::XA_IDLE));
 
   err:
     gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
@@ -1465,11 +1494,17 @@ int commit_owned_gtids(THD *thd, bool all, bool *need_clear_owned_gtid_ptr) {
       mysql.gtid_executed table and @@GLOBAL.GTID_EXECUTED as it
       did when binlog is enabled.
     */
-    if (thd->owned_gtid.sidno > 0) {
+    if (thd->owned_gtid.sidno > 0 ||
+        thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS) {
+      *need_clear_owned_gtid_ptr = true;
+    }
+    /*
+      If GTID is not persisted by SE, write it to
+      mysql.gtid_executed table.
+    */
+    if (thd->owned_gtid.sidno > 0 && !thd->se_persists_gtid()) {
       error = gtid_state->save(thd);
-      *need_clear_owned_gtid_ptr = true;
-    } else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
-      *need_clear_owned_gtid_ptr = true;
+    }
   } else {
     *need_clear_owned_gtid_ptr = false;
   }

@@ -74,7 +74,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
   }
 
   // At this point we should not own any GTID.
-  DBUG_ASSERT(thd->owned_gtid.is_empty());
+  DBUG_ASSERT(thd->owned_gtid_is_empty());
 
   if (spec.type == AUTOMATIC_GTID) {
     thd->variables.gtid_next.set_automatic();
@@ -428,7 +428,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd) {
              ("gtid_next->type=%d "
               "owned_gtid.{sidno,gno}={%d,%lld}",
               gtid_next->type, thd->owned_gtid.sidno, thd->owned_gtid.gno));
-  DBUG_ASSERT(gtid_next->type != AUTOMATIC_GTID || thd->owned_gtid.is_empty());
+  DBUG_ASSERT(gtid_next->type != AUTOMATIC_GTID || thd->owned_gtid_is_empty());
 
   if ((stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
        thd->lex->sql_command == SQLCOM_BEGIN) &&

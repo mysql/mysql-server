@@ -810,6 +810,7 @@ void THD::init(void) {
 
   owned_gtid.clear();
   owned_sid.clear();
+  m_se_gtid_flags.reset();
   owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
 
   // This will clear the writeset session history.
@@ -2718,6 +2719,16 @@ bool THD::sql_parser() {
     return true;
   }
   return false;
+}
+
+bool THD::is_one_phase_commit() {
+  /* Check if XA Commit. */
+  if (lex->sql_command != SQLCOM_XA_COMMIT) {
+    return (false);
+  }
+  auto xa_commit_cmd = static_cast<Sql_cmd_xa_commit *>(lex->m_sql_cmd);
+  auto xa_op = xa_commit_cmd->get_xa_opt();
+  return (xa_op == XA_ONE_PHASE);
 }
 
 bool THD::secondary_storage_engine_eligible() const {

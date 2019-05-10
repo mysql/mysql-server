@@ -416,6 +416,14 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
     thd = current_thd;
   }
 
+  /* During server startup, while recovering XA transaction we don't have THD.
+  The table should have been already in innodb cache if present in DD while
+  resurrecting transaction. We assume the table is not in DD and return. We
+  cannot continue anyway here with NULL THD. */
+  if (thd == nullptr) {
+    return (nullptr);
+  }
+
   const dd::Table *dd_table;
   const dd::Partition *dd_part = nullptr;
   dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
@@ -5845,26 +5853,33 @@ bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space) {
   return (false);
 }
 
-/** Get the MDL for the named tablespace.  The mdl_ticket pointer can
-be provided if it is needed by the caller.  If for_trx is set to false,
-then the caller must explicitly release that ticket with dd_release_mdl()
-Otherwise, it will ne released with the transaction.
-@param[in]  space_name  tablespace name
-@param[in]  mdl_ticket  tablespace MDL ticket, default to nullptr
-@param[in]  for_trx     How long will the DML be held. defaults to true for
-                        MDL_TRANSACTION, false for MDL_EXPLICIT
-@return DB_SUCCESS or DD_FAILURE. */
 bool dd_tablespace_get_mdl(const char *space_name, MDL_ticket **mdl_ticket,
-                           bool for_trx) {
+                           bool foreground) {
   THD *thd = current_thd;
+  /* Safeguard in release mode if background thread doesn't have THD. */
+  if (thd == nullptr) {
+    ut_ad(false);
+    return (true);
+  }
+  /* Explicit duration for background threads. */
+  bool trx_duration = foreground;
 
-  /* We can get both of these together because if the backup lock fails,
-  it will be released with the thd by the server. */
-  bool result =
-      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout) ||
-      dd::acquire_exclusive_tablespace_mdl(thd, space_name, false, mdl_ticket,
-                                           for_trx);
+  /* Background thread should not block on MDL lock. */
+  ulong timeout = foreground ? thd->variables.lock_wait_timeout : 0;
+  bool result = acquire_shared_backup_lock(thd, timeout, trx_duration);
 
+  if (!result) {
+    result = dd::acquire_exclusive_tablespace_mdl(thd, space_name, false,
+                                                  mdl_ticket, trx_duration);
+    if (result) {
+      release_backup_lock(thd);
+    }
+  }
+
+  /* For background thread, clear timeout error. */
+  if (result && !foreground && thd->is_error()) {
+    thd->clear_error();
+  }
   return (result);
 }
 

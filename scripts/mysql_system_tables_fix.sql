@@ -617,6 +617,13 @@ INSERT INTO global_grants SELECT user, host, 'XA_RECOVER_ADMIN', IF(grant_priv =
 FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege CLONE_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige CLONE_ADMIN.
+SET @hadCloneAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'CLONE_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'CLONE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadCloneAdminPriv = 0;
+COMMIT;
+
 -- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
 -- provided that there isn't a user who already has the privilege BACKUP_ADMIN.
 SET @hadBackupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BACKUP_ADMIN');

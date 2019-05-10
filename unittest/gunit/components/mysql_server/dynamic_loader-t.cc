@@ -168,8 +168,26 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD *)) { return; }
 
+DEFINE_METHOD(int, mysql_clone_get_charsets, (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_charsets,
+              (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_get_configs, (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_configs,
+              (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
-              (THD *, const char *, uint, const char *, const char *,
+              (THD *, const char *, uint32_t, const char *, const char *,
                mysql_clone_ssl_context *, MYSQL_SOCKET *)) {
   return nullptr;
 }
@@ -180,7 +198,7 @@ DEFINE_METHOD(int, mysql_clone_send_command,
 }
 
 DEFINE_METHOD(int, mysql_clone_get_response,
-              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *)) {
+              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *, size_t *)) {
   return 0;
 }
 
@@ -190,12 +208,16 @@ DEFINE_METHOD(void, mysql_clone_disconnect, (THD *, MYSQL *, bool, bool)) {
   return;
 }
 
+DEFINE_METHOD(void, mysql_clone_get_error, (THD *, uint32_t *, const char **)) {
+  return;
+}
+
 DEFINE_METHOD(int, mysql_clone_get_command,
               (THD *, uchar *, uchar **, size_t *)) {
   return 0;
 }
 
-DEFINE_METHOD(int, mysql_clone_send_response, (THD *, uchar *, size_t)) {
+DEFINE_METHOD(int, mysql_clone_send_response, (THD *, bool, uchar *, size_t)) {
   return 0;
 }
 

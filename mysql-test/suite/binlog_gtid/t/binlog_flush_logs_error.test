@@ -29,11 +29,12 @@ call mtr.add_suppression("Attempting backtrace. You can use the following inform
 call mtr.add_suppression("Got error .*");
 CALL mtr.add_suppression("Unable to create a new binlog file.");
 
+# Set the debug option that will simulate crash commit
+FLUSH LOGS;
+SET GLOBAL debug = '+d,simulate_flush_commit_error';
+
 CREATE TABLE t(s INT);
 INSERT INTO t VALUES(10);
-
-# Set the debug option that will simulate crash commit
-SET GLOBAL debug = '+d,simulate_flush_commit_error';
 
 --error ER_ERROR_DURING_FLUSH_LOGS, ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;

@@ -1679,23 +1679,26 @@ Sql_cmd_clone::Sql_cmd_clone(LEX_USER *user_info, ulong port,
 bool Sql_cmd_clone::execute(THD *thd) {
   DBUG_TRACE;
 
+  bool is_replace = (m_data_dir.str == nullptr);
+
   if (is_local()) {
     DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", m_data_dir.str));
 
   } else {
     DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s",
-                         (m_data_dir.str == nullptr) ? "" : m_data_dir.str));
+                         is_replace ? "" : m_data_dir.str));
   }
 
   auto sctx = thd->security_context();
 
-  if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)) {
+  /* For replacing current data directory, needs clone_admin privilege. */
+  if (is_replace) {
+    if (!(sctx->has_global_grant(STRING_WITH_LEN("CLONE_ADMIN")).first)) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "CLONE_ADMIN");
+      return true;
+    }
+  } else if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
-    return true;
-  }
-
-  if (m_data_dir.str == nullptr) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "clone to current data directory");
     return true;
   }
 
@@ -1708,6 +1711,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
   }
 
   if (is_local()) {
+    DBUG_ASSERT(!is_replace);
     auto err = m_clone->clone_local(thd, m_data_dir.str);
     clone_plugin_unlock(thd, m_plugin);
 
@@ -1749,8 +1753,20 @@ bool Sql_cmd_clone::execute(THD *thd) {
   }
 
   /* Check for KILL after setting active VIO */
-  if (thd->killed != THD::NOT_KILLED) {
+  if (!is_replace && thd->killed != THD::NOT_KILLED) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
+    return true;
+  }
+
+  /* Restart server after successfully cloning to current data directory. */
+  if (is_replace && signal_restart_server()) {
+    /* Shutdown server if restart failed. */
+    LogErr(ERROR_LEVEL, ER_CLONE_SHUTDOWN_TRACE);
+    Diagnostics_area shutdown_da(false);
+    thd->push_diagnostics_area(&shutdown_da);
+    /* CLONE_ADMIN privilege allows us to shutdown/restart at end. */
+    kill_mysql();
+    thd->pop_diagnostics_area();
     return true;
   }
 
@@ -1855,10 +1871,10 @@ void Sql_cmd_clone::rewrite(THD *thd) {
 
   /* Append SSL information. */
   if (thd->lex->ssl_type == SSL_TYPE_NONE) {
-    rlb->append(STRING_WITH_LEN(" REQUIRES NO SSL"));
+    rlb->append(STRING_WITH_LEN(" REQUIRE NO SSL"));
 
   } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
-    rlb->append(STRING_WITH_LEN(" REQUIRES SSL"));
+    rlb->append(STRING_WITH_LEN(" REQUIRE SSL"));
   }
 
   /* Set the query to be displayed in SHOW PROCESSLIST */

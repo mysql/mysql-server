@@ -14,6 +14,10 @@
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 
+--connection slave
+SET @@GLOBAL.DEBUG= '+d, dont_compress_gtid_table';
+--connection master
+
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
 CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
@@ -34,7 +38,6 @@ FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 
-
 --source include/sync_slave_sql_with_master.inc
 --echo #
 --echo # connection slave
@@ -49,6 +52,7 @@ SELECT * FROM mysql.gtid_executed;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
+SET @@GLOBAL.DEBUG= '-d, dont_compress_gtid_table';
 
 INSERT INTO t1 VALUES(2);
 INSERT INTO t2 VALUES(2);

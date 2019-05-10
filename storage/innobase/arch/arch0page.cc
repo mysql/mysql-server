@@ -2577,8 +2577,14 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   arch_mutex_exit();
 
   if (!recovery) {
+    /* Update DD table buffer to get rid of recovery dependency for auto INC */
+    dict_persist_to_dd_table_buffer();
+
     /* Make sure all written pages are synced to disk. */
-    log_request_checkpoint(*log_sys, false);
+    fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+
+    /* Request checkpoint */
+    log_request_checkpoint(*log_sys, true);
   }
 
   return (0);

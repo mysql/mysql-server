@@ -116,12 +116,14 @@ COMMIT;
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
 --source include/assert.inc
 
---echo #
---echo # Verify that we store gtid into gtid_executed table within
---echo # each transaction when binlog is disabled.
---echo #
---replace_result $master_uuid MASTER_UUID
-SELECT * FROM mysql.gtid_executed;
+# GTID is persisted now in batches by Innodb background thread. Number of
+# rows in gtid_executed could vary and should check only after compressing.
+#--echo #
+#--echo # Verify that we store gtid into gtid_executed table within
+#--echo # each transaction when binlog is disabled.
+#--echo #
+#--replace_result $master_uuid MASTER_UUID
+#SELECT * FROM mysql.gtid_executed;
 
 --echo #
 --echo # Verify that the gtid_executed table is compressed.
@@ -201,7 +203,8 @@ DROP TABLE t1, t2;
 --connection master
 CREATE TABLE t3 (a INT);
 --source include/sync_slave_sql_with_master.inc
-
+# simulate_err_on_write_gtid_into_table would disable gtid background.
+FLUSH LOGS;
 --echo #
 --echo # Verify that transaction's gtid is not stored into gtid_executed table
 --echo # and the transaction is rolled back if we encounter an error
@@ -223,14 +226,31 @@ SET GLOBAL DEBUG= @debug_save;
 --echo #
 --echo # Stored gtids MASTER_UUID:$gno_root:$gno_1-$gno_2 in gtid_executed table on slave.
 --echo #
---replace_result $master_uuid MASTER_UUID
---eval SELECT * FROM mysql.gtid_executed
+# GTID is persisted now in batches by Innodb background thread. Number of
+# rows in gtid_executed could vary and should check only after compressing.
+#--replace_result $master_uuid MASTER_UUID
+#--eval SELECT * FROM mysql.gtid_executed
 --let $assert_text= committed gtids MASTER_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
 --source include/assert.inc
 --let $assert_text= Table t3 must not contain 1
 --let $assert_cond= "[SELECT a FROM t3 WHERE a=1]" = ""
 --source include/assert.inc
+
+--echo #
+--echo # Verify that the gtid_executed table is compressed.
+--echo #
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
+--inc $gno_2
+--replace_result $master_uuid MASTER_UUID
+--eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
+COMMIT;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
+SET GLOBAL DEBUG= @debug_save;
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+--eval SET GTID_NEXT='AUTOMATIC'
 
 --connection master
 DROP TABLE t3;

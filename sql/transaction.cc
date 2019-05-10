@@ -580,7 +580,7 @@ bool trans_rollback_stmt(THD *thd) {
   } else if (tc_log)
     tc_log->rollback(thd, false);
 
-  if (!thd->owned_gtid.is_empty() && !thd->in_active_multi_stmt_transaction()) {
+  if (!thd->owned_gtid_is_empty() && !thd->in_active_multi_stmt_transaction()) {
     /*
       To a failed single statement transaction on auto-commit mode,
       we roll back its owned gtid if it does not modify

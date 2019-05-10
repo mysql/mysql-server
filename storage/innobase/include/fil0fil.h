@@ -1792,13 +1792,6 @@ already be known.
 bool fil_tablespace_open_for_recovery(space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Callback to check tablespace size with space header size and extend
-Caller must own the Fil_shard mutex that the file belongs to.
-@param[in]	file	file node
-@return	error code */
-dberr_t fil_check_extend_space(fil_node_t *file)
-    MY_ATTRIBUTE((warn_unused_result));
-
 /** Replay a file rename operation for ddl replay.
 @param[in]	page_id		Space ID and first page number in the file
 @param[in]	old_name	old file name

@@ -1098,6 +1098,14 @@ bool sp_automatic_privileges = 1;
 int32_t opt_regexp_time_limit;
 int32_t opt_regexp_stack_limit;
 
+/** True, if restarted from a cloned database. This information
+is needed by GR to set some configurations right after clone. */
+bool clone_startup = false;
+
+/** True, if clone recovery has failed. For managed server we
+restart server again with old databse files. */
+bool clone_recovery_error = false;
+
 ulong binlog_row_event_max_size;
 ulong binlog_checksum_options;
 ulong binlog_row_metadata;
@@ -5434,7 +5442,12 @@ static int init_server_components() {
     if (!is_help_or_validate_option() &&
         dd::init(dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)) {
       LogErr(ERROR_LEVEL, ER_DD_INIT_FAILED);
-      unireg_abort(1);
+
+      /* If clone recovery fails, we rollback the files to previous
+      dataset and attempt to restart server. */
+      int exit_code =
+          clone_recovery_error ? MYSQLD_RESTART_EXIT : MYSQLD_ABORT_EXIT;
+      unireg_abort(exit_code);
     }
   }
 
@@ -6919,7 +6932,7 @@ int mysqld_main(int argc, char **argv)
     on server shutdown.
   */
   if (opt_bin_log)
-    if (gtid_state->save_gtids_of_last_binlog_into_table(false))
+    if (gtid_state->save_gtids_of_last_binlog_into_table())
       LogErr(WARNING_LEVEL, ER_CANT_SAVE_GTIDS);
 
 #ifndef _WIN32
@@ -10874,8 +10887,12 @@ bool drop_native_table_for_pfs(const char *schema_name,
     return false;
   }
 
+  /* During bootstrap error cleanup, we don't have THD. */
   THD *thd = current_thd;
-  DBUG_ASSERT(thd);
+  if (thd == nullptr) {
+    DBUG_ASSERT(get_server_state() == SERVER_BOOTING);
+    return false;
+  }
   return do_drop_native_table_for_pfs(thd, schema_name, table_name);
 }
 

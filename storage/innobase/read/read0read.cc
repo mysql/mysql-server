@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "read0read.h"
+#include "clone0clone.h"
 
 #include "srv0srv.h"
 #include "trx0sys.h"
@@ -318,6 +319,7 @@ ReadView::ReadView()
       m_ids(),
       m_low_limit_no() {
   ut_d(::memset(&m_view_list, 0x0, sizeof(m_view_list)));
+  ut_d(m_view_low_limit_no = 0);
 }
 
 /**
@@ -448,6 +450,7 @@ void ReadView::prepare(trx_id_t id) {
     }
   }
 
+  ut_d(m_view_low_limit_no = m_low_limit_no);
   m_closed = false;
 }
 
@@ -618,6 +621,8 @@ void ReadView::copy_prepare(const ReadView &other) {
 
   m_low_limit_no = other.m_low_limit_no;
 
+  ut_d(m_view_low_limit_no = other.m_view_low_limit_no);
+
   m_low_limit_id = other.m_low_limit_id;
 
   m_creator_trx_id = other.m_creator_trx_id;
@@ -668,6 +673,10 @@ void MVCC::clone_oldest_view(ReadView *view) {
 
     view->copy_complete();
   }
+  /* Update view to block purging transaction till GTID is persisted. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  auto gtid_oldest_trxno = gtid_persistor.get_oldest_trx_no();
+  view->reduce_low_limit(gtid_oldest_trxno);
 }
 
 /**

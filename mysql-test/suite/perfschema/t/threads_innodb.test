@@ -18,6 +18,7 @@ SELECT name, type, processlist_user, processlist_host, processlist_db,
 FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
 AND name NOT LIKE 'thread/innodb/trx\_recovery\_rollback\_thread'
+AND name NOT LIKE 'thread/innodb/clone_gtid_thread'
 GROUP BY name;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

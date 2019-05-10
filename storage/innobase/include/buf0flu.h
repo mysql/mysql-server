@@ -70,6 +70,12 @@ void buf_flush_relocate_on_flush_list(
 void buf_flush_write_complete(buf_page_t *bpage);
 
 #endif /* !UNIV_HOTBACKUP */
+
+/** Check if page type is uncompressed.
+@param[in]	page	page frame
+@return true if uncompressed page type. */
+bool page_is_uncompressed_type(const byte *page);
+
 /** Initialize a page for writing to the tablespace.
 @param[in]      block           buffer block; NULL if bypassing the buffer pool
 @param[in,out]  page            page frame
