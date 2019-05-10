@@ -24,6 +24,7 @@
 #include <cstddef>
 
 #include "plugin/x/src/expr_generator.h"
+#include "unittest/gunit/xplugin/xpl/message_helpers.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
@@ -1095,11 +1096,14 @@ TEST(xpl_expr_generator, cont_in_expression_identifier) {
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 
-  EXPECT_THROW(generate_expression(
-                   Operator("cont_in", 42,
-                            Column_identifier("field", "table", "schema")),
-                   EMPTY_SCHEMA, DM_TABLE),
-               Expression_generator::Error);
+  EXPECT_STREQ(
+      "JSON_CONTAINS(`schema`.`table`.`field`,"
+      "CAST(42 AS JSON))",
+      generate_expression(
+          Operator("cont_in", 42,
+                   Column_identifier("field", "table", "schema")),
+          EMPTY_SCHEMA, DM_TABLE)
+          .c_str());
 }
 
 TEST(xpl_expr_generator, any_scalar) {
@@ -1340,6 +1344,9 @@ Param_operator_pass cont_in_pass_param[] = {
               Column_identifier(Document_path{"member"}, "field", "table",
                                 "schema")),
      {}},
+    {"JSON_CONTAINS(`schema`.`table`.`field`,CAST(42 AS JSON))",
+     Operator("cont_in", 42, Column_identifier("field", "table", "schema")),
+     {}},
 };
 
 INSTANTIATE_TEST_CASE_P(xpl_expr_generator_cont_in_pass, Operator_pass_test,
@@ -1357,7 +1364,8 @@ TEST_P(Operator_fail_test, operator_fail) {
   const auto &param = GetParam();
   EXPECT_THROW(
       generate_expression(param.operator_, param.args, EMPTY_SCHEMA, DM_TABLE),
-      Expression_generator::Error);
+      Expression_generator::Error)
+      << "Should throw for: " << msg_to_string(param.operator_.base());
 }
 
 Param_operator_fail cont_in_fail_param[] = {
@@ -1394,8 +1402,6 @@ Param_operator_fail cont_in_fail_param[] = {
     //  placeholders
     {Operator("cont_in", Placeholder(0), Placeholder(1)), {}},
     //  identifier
-    {Operator("cont_in", 42, Column_identifier("field", "table", "schema")),
-     {}},
 };
 
 INSTANTIATE_TEST_CASE_P(xpl_expr_generator_cont_in_fail, Operator_fail_test,
@@ -1512,6 +1518,11 @@ Param_operator_pass overlaps_pass_param[] = {
               Column_identifier(Document_path{"member"}, "field", "table",
                                 "schema")),
      {}},
+    {"JSON_OVERLAPS("
+     "CAST(42 AS JSON),"
+     "`schema`.`table`.`field`)",
+     Operator("overlaps", 42, Column_identifier("field", "table", "schema")),
+     {}},
 };
 
 INSTANTIATE_TEST_CASE_P(xpl_expr_generator_overlaps_pass, Operator_pass_test,
@@ -1551,8 +1562,6 @@ Param_operator_fail overlaps_fail_param[] = {
     //  placeholders
     {Operator("overlaps", Placeholder(0), Placeholder(1)), {}},
     //  identifier
-    {Operator("overlaps", 42, Column_identifier("field", "table", "schema")),
-     {}},
 };
 
 INSTANTIATE_TEST_CASE_P(xpl_expr_generator_overlaps_fail, Operator_fail_test,

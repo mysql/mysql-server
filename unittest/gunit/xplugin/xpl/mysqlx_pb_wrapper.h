@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@ class Wrapper {
  public:
   using Base = T;
   operator const T &() const { return m_base; }
+  const T &base() const { return m_base; }
 
  protected:
   T m_base;
@@ -492,6 +493,7 @@ class Stmt_execute : public Wrapper<::Mysqlx::Sql::StmtExecute> {
     return *this;
   }
 };
+
 }  // namespace test
 }  // namespace xpl
 
