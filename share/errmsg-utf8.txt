@@ -7255,7 +7255,7 @@ ER_STD_OUT_OF_RANGE_ERROR
   eng "Out of range error: %-.256s in function %s."
 
 ER_STD_OVERFLOW_ERROR
-  eng "Overflow error error: %-.256s in function %s."
+  eng "Overflow error: %-.256s in function %s."
 
 ER_STD_RANGE_ERROR
   eng "Range error: %-.256s in function %s."
@@ -14359,7 +14359,7 @@ ER_LDAP_AUTH_CONNECTION_POOL_REINIT_ENTER
   eng "Ldap_connection_pool::reinit"
 
 ER_SYSTEMD_NOTIFY_PATH_TOO_LONG
-  eng "The path path '%s', from the NOTIFY_SOCKET environment variable, is too long. At %u bytes it exceeds the limit of %u bytes for an AF_UNIX socket."
+  eng "The path '%s', from the NOTIFY_SOCKET environment variable, is too long. At %u bytes it exceeds the limit of %u bytes for an AF_UNIX socket."
 
 ER_SYSTEMD_NOTIFY_CONNECT_FAILED
   eng "Failed to connect to systemd notification socket named %s. Error: '%s'"
@@ -16447,7 +16447,7 @@ OBSOLETE_ER_IB_MSG_676
   eng "Redo log encryption is enabled."
 
 OBSOLETE_ER_IB_MSG_677
-  eng "Flush Waiting for archiver to to catch up lag LSN: %llu"
+  eng "Flush waiting for archiver to catch up lag LSN: %llu"
 
 OBSOLETE_ER_IB_MSG_678
   eng "Flush overwriting data to archive - wait too long (1 minute) lag LSN: %llu"
@@ -18525,7 +18525,7 @@ OBSOLETE_ER_TARGET_TS_UNENCRYPTED
   eng "Source tablespace is encrypted but target tablespace is not."
 
 ER_IB_MSG_WAIT_FOR_ENCRYPT_THREAD
-  eng "Waiting for tablespace_alter_encrypt_thread to to exit"
+  eng "Waiting for tablespace_alter_encrypt_thread to exit"
 
 ER_IB_MSG_1277
   eng "%s"
