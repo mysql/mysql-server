@@ -98,6 +98,8 @@ my $opt_helgrind;
 my $opt_json_explain_protocol;
 my $opt_mark_progress;
 my $opt_max_connections;
+my $opt_platform;
+my $opt_platform_exclude;
 my $opt_ps_protocol;
 my $opt_report_features;
 my $opt_skip_core;
@@ -1435,6 +1437,8 @@ sub command_line_setup {
     'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
     'no-skip'                  => \$opt_no_skip,
     'only-big-test'            => \$opt_only_big_test,
+    'platform=s'               => \$opt_platform,
+    'exclude-platform=s'       => \$opt_platform_exclude,
     'skip-combinations'        => \$opt_skip_combinations,
     'skip-im'                  => \&ignore_option,
     'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
@@ -1588,6 +1592,8 @@ sub command_line_setup {
 
   usage("") if $opt_usage;
   list_options(\%options) if $opt_list_options;
+
+  check_platform() if defined $ENV{PB2WORKDIR};
 
   # Setup verbosity if verbose option is enabled.
   if ($opt_verbose) {
@@ -3082,6 +3088,24 @@ sub setup_vardir() {
   # Remove old log files
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings")) {
     unlink($name);
+  }
+}
+
+# Check if detected platform conforms to the rules specified
+# by options --platform and --exclude-platform.
+# Note: These two options are no-op's when MTR is not running
+#       in the pushbuild test environment.
+sub check_platform {
+  my $platform = $ENV{PRODUCT_ID} || "";
+  if(defined $opt_platform and $platform !~ $opt_platform) {
+    print STDERR "mysql-test-run: Detected platform '$platform' does not ".
+                 "match specified platform '$opt_platform', terminating.\n";
+    exit(0);
+  }
+  if(defined $opt_platform_exclude and $platform =~ $opt_platform_exclude) {
+    print STDERR "mysql-test-run: Detected platform '$platform' matches ".
+                 "excluded platform '$opt_platform_exclude', terminating.\n";
+    exit(0);
   }
 }
 
