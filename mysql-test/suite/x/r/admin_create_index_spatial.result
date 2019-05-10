@@ -250,7 +250,7 @@ Got expected error: Too many key parts specified; max 1 parts allowed (code 1070
 
 Try to create "regular" index with spatial options
 ==================================================
-Got expected error: Unsupported argumet specification for '$.first' (code 5017)
+Got expected error: Unsupported argument specification for '$.first' (code 5017)
 
 Try to create unique spatial index
 ==================================
