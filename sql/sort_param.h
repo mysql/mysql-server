@@ -296,7 +296,6 @@ class Sort_param {
   Bounds_checked_array<st_sort_field> local_sortorder;
 
   Addon_fields *addon_fields{nullptr};  ///< Descriptors for addon fields.
-  bool not_killable{false};
   bool using_pq{false};
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp_buffer;
 

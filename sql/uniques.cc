@@ -165,15 +165,9 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   Merge_chunk *merge_chunk;
   Uniq_param::chunk_compare_fun cmp;
   Merge_chunk_compare_context *first_cmp_arg;
-  std::atomic<THD::killed_state> *killed = &thd->killed;
-  std::atomic<THD::killed_state> not_killable{THD::NOT_KILLED};
   DBUG_TRACE;
 
   thd->inc_status_sort_merge_passes();
-  if (param->not_killable) {
-    killed = &not_killable;
-    not_killable = THD::NOT_KILLED;
-  }
 
   rec_length = param->rec_length;
 
@@ -250,7 +244,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   }
 
   while (queue.size() > 1) {
-    if (*killed) {
+    if (thd->killed && !param->not_killable) {
       return 1; /* purecov: inspected */
     }
     for (;;) {

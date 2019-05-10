@@ -2022,15 +2022,9 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   ha_rows max_rows, org_max_rows;
   uchar *strpos;
   Merge_chunk *merge_chunk;
-  std::atomic<THD::killed_state> *killed = &thd->killed;
-  std::atomic<THD::killed_state> not_killable{THD::NOT_KILLED};
   DBUG_TRACE;
 
   thd->inc_status_sort_merge_passes();
-  if (param->not_killable) {
-    killed = &not_killable;
-    not_killable = THD::NOT_KILLED;
-  }
 
   my_off_t to_start_filepos = my_b_tell(to_file);
   strpos = sort_buffer.array();
@@ -2075,7 +2069,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
 
   bool seen_any_records = false;  // Used for deduplication only.
   while (queue.size() > 1) {
-    if (*killed) {
+    if (thd->killed) {
       return 1; /* purecov: inspected */
     }
     for (;;) {
