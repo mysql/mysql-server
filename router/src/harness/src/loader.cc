@@ -820,7 +820,7 @@ void Loader::start_all() {
     std::promise<std::shared_ptr<PluginFuncEnv>> env_promise;
 
     // plugin start() will run in this new thread
-    plugin_threads_.emplace_back([fptr, section, &env_promise, this]() {
+    std::thread plugin_thread([fptr, section, &env_promise, this]() {
       log_debug("  plugin '%s:%s' starting", section->name.c_str(),
                 section->key.c_str());
 
@@ -840,6 +840,13 @@ void Loader::start_all() {
       }
       we_might_shutdown_cond.notify_one();
     });
+
+    // we could combine the thread creation with emplace_back
+    // but that sometimes leads to a crash on ASAN build (when the thread limit
+    // is reached apparently sometimes half-baked thread object gets added to
+    // the vector and its destructor crashes later on when the vector gets
+    // destroyed)
+    plugin_threads_.push_back(std::move(plugin_thread));
 
     // block until starter thread is started
     // then save the env object for later
