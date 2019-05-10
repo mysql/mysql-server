@@ -519,14 +519,14 @@ TEST_P(RestMockServerMethodsTest, methods_avail) {
   IOContext io_ctx;
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
-  SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(
-      wait_for_rest_endpoint_ready(kMockServerGlobalsRestUri, http_port_))
+  const std::string uri = std::get<1>(GetParam());
+
+  SCOPED_TRACE("// wait for REST endpoint: " + uri);
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
-  auto req = rest_client.request_sync(std::get<0>(GetParam()),
-                                      std::get<1>(GetParam()));
+  auto req = rest_client.request_sync(std::get<0>(GetParam()), uri);
 
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
