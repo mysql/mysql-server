@@ -137,6 +137,7 @@ void Regexp_engine::AppendHead(size_t size) {
 }
 
 int Regexp_engine::TryToAppendReplacement(const std::u16string &replacement) {
+  if (m_replace_buffer.empty()) return 0;
   UChar *ptr =
       pointer_cast<UChar *>(&m_replace_buffer.at(0) + m_replace_buffer_pos);
   int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
@@ -170,6 +171,7 @@ void Regexp_engine::AppendReplacement(const std::u16string &replacement) {
 }
 
 int Regexp_engine::TryToAppendTail() {
+  if (m_replace_buffer.empty()) return 0;
   UChar *ptr =
       pointer_cast<UChar *>(&m_replace_buffer.at(0) + m_replace_buffer_pos);
   int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
