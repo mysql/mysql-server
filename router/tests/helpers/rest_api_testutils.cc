@@ -43,20 +43,21 @@
 #include "config_builder.h"
 
 static const std::chrono::milliseconds kMaxRestEndpointNotAvailableCheckTime{
-    150};
+    1500};
 static const std::chrono::milliseconds kMaxRestEndpointNotAvailableStepTime{50};
 
 static const std::string rest_api_openapi_json =
     std::string(rest_api_basepath) + "/swagger.json";
 
-static bool check_endpoint_not_available(
+// wait for the endpoint to return 404
+static bool wait_endpoint_404(
     RestClient &rest_client, const std::string &uri,
     std::chrono::milliseconds max_wait_time) noexcept {
   while (max_wait_time.count() > 0) {
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
-    if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
-      return false;
+    if (req && req.get_response_code() != 0)
+      return (req.get_response_code() == 404);
 
     auto wait_time =
         std::min(kMaxRestEndpointNotAvailableStepTime, max_wait_time);
@@ -65,7 +66,7 @@ static bool check_endpoint_not_available(
     max_wait_time -= wait_time;
   }
 
-  return true;
+  return false;
 }
 
 void fetch_json(RestClient &rest_client, const std::string &uri,
@@ -364,8 +365,8 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
 
   // if 404 is expected make sure this is what we are getting and leave
   if (test_params.status_code == HttpStatusCode::NotFound) {
-    ASSERT_TRUE(check_endpoint_not_available(
-        rest_client, test_params.uri, kMaxRestEndpointNotAvailableCheckTime));
+    ASSERT_TRUE(wait_endpoint_404(rest_client, test_params.uri,
+                                  kMaxRestEndpointNotAvailableCheckTime));
     return;
   }
 
