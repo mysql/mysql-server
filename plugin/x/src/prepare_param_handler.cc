@@ -57,6 +57,9 @@ class Any_to_param_handler {
          reinterpret_cast<const unsigned char *>(value.data()),
          static_cast<unsigned long>(value.size())});  // NOLINT(runtime/int)
   }
+  void operator()(const std::string &value, const uint32_t) {
+    operator()(value);
+  }
   void operator()(const double value) {
     m_params->push_back(
         {false, MYSQL_TYPE_DOUBLE, false, store_value(value), sizeof(value)});
@@ -101,6 +104,11 @@ class Any_to_json_param_handler : protected Any_to_param_handler {
   void operator()() { Any_to_param_handler::operator()(store_svalue("null")); }
   void operator()(const std::string &value) {
     Any_to_param_handler::operator()(store_svalue("\"" + value + "\""));
+  }
+  void operator()(const std::string &value, const uint32_t type) {
+    Any_to_param_handler::operator()(
+        store_svalue(type == Mysqlx::Resultset::JSON ? std::string(value)
+                                                     : "\"" + value + "\""));
   }
   void operator()(const bool value) {
     Any_to_param_handler::operator()(store_svalue(value ? "true" : "false"));

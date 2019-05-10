@@ -142,6 +142,88 @@ doc
 {"_id": "101", "array": ["abc", "cde", "efg"], "scalar": "abc"}
 command ok
 RUN recvok
+
+ 6. 'cont_in' operator (member_scalar in placholder_array)
+==========================================================
+RUN recvok
+6.a cont_in operator against string
+doc
+{"_id": "101", "array": ["abc", "cde", "efg"], "scalar": "abc"}
+{"_id": "106", "array": ["cde", 345, 3.4, true, null], "scalar": "cde"}
+command ok
+6.b cont_in operator against integer
+doc
+{"_id": "102", "array": [123, 345, 567], "scalar": 123}
+command ok
+6.c cont_in operator against double
+doc
+{"_id": "103", "array": [2.3, 3.4, 4.5], "scalar": 2.3}
+command ok
+6.d cont_in operator against bool
+doc
+{"_id": "104", "array": [true, false], "scalar": true}
+command ok
+6.e cont_in operator against null
+doc
+{"_id": "105", "array": [null], "scalar": null}
+command ok
+6.e cont_in operator against mix of values
+doc
+{"_id": "101", "array": ["abc", "cde", "efg"], "scalar": "abc"}
+{"_id": "102", "array": [123, 345, 567], "scalar": 123}
+{"_id": "103", "array": [2.3, 3.4, 4.5], "scalar": 2.3}
+{"_id": "104", "array": [true, false], "scalar": true}
+{"_id": "105", "array": [null], "scalar": null}
+command ok
+RUN recvok
+
+ 7. 'not_cont_in' operator (member_scalar in placholder_array)
+==============================================================
+RUN recvok
+7.a not_cont_in operator against string
+doc
+{"_id": "102", "array": [123, 345, 567], "scalar": 123}
+{"_id": "103", "array": [2.3, 3.4, 4.5], "scalar": 2.3}
+{"_id": "104", "array": [true, false], "scalar": true}
+{"_id": "105", "array": [null], "scalar": null}
+command ok
+7.b not_cont_in operator against integer
+doc
+{"_id": "101", "array": ["abc", "cde", "efg"], "scalar": "abc"}
+{"_id": "103", "array": [2.3, 3.4, 4.5], "scalar": 2.3}
+{"_id": "104", "array": [true, false], "scalar": true}
+{"_id": "105", "array": [null], "scalar": null}
+{"_id": "106", "array": ["cde", 345, 3.4, true, null], "scalar": "cde"}
+command ok
+7.c not_cont_in operator against double
+doc
+{"_id": "101", "array": ["abc", "cde", "efg"], "scalar": "abc"}
+{"_id": "102", "array": [123, 345, 567], "scalar": 123}
+{"_id": "104", "array": [true, false], "scalar": true}
+{"_id": "105", "array": [null], "scalar": null}
+{"_id": "106", "array": ["cde", 345, 3.4, true, null], "scalar": "cde"}
+command ok
+7.d not_cont_in operator against bool
+doc
+{"_id": "101", "array": ["abc", "cde", "efg"], "scalar": "abc"}
+{"_id": "102", "array": [123, 345, 567], "scalar": 123}
+{"_id": "103", "array": [2.3, 3.4, 4.5], "scalar": 2.3}
+{"_id": "105", "array": [null], "scalar": null}
+{"_id": "106", "array": ["cde", 345, 3.4, true, null], "scalar": "cde"}
+command ok
+7.e not_cont_in operator against null
+doc
+{"_id": "101", "array": ["abc", "cde", "efg"], "scalar": "abc"}
+{"_id": "102", "array": [123, 345, 567], "scalar": 123}
+{"_id": "103", "array": [2.3, 3.4, 4.5], "scalar": 2.3}
+{"_id": "104", "array": [true, false], "scalar": true}
+{"_id": "106", "array": ["cde", 345, 3.4, true, null], "scalar": "cde"}
+command ok
+7.e not_cont_in operator against mix of values
+doc
+{"_id": "106", "array": ["cde", 345, 3.4, true, null], "scalar": "cde"}
+command ok
+RUN recvok
 Mysqlx.Ok {
   msg: "bye!"
 }

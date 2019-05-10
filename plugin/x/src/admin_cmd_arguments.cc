@@ -233,28 +233,28 @@ class General_argument_validator {
   void operator()(const T &input, T *output) { *output = input; }
 };
 
-template <typename T, typename V = General_argument_validator<T>>
+template <typename Type, typename Validator = General_argument_validator<Type>>
 class Argument_type_handler {
  public:
-  Argument_type_handler(const char *name, T *value)
+  Argument_type_handler(const char *name, Type *value)
       : m_validator(name, &m_error), m_value(value), m_error(false) {}
 
-  Argument_type_handler(const char *name)
+  explicit Argument_type_handler(const char *name)
       : m_validator(name, &m_error), m_value(nullptr), m_error(false) {}
 
-  void assign(T *value) { m_value = value; }
-  void operator()(const T &value) { m_validator(value, m_value); }
+  void assign(Type *value) { m_value = value; }
+  void operator()(const Type &value) { m_validator(value, m_value); }
   void operator()() { set_error(); }
-  template <typename O>
-  void operator()(const O &) {
+  template <typename Other_type>
+  void operator()(const Other_type &, const uint32_t = 0) {
     this->operator()();
   }
   bool is_error() const { return m_error; }
   void set_error() { m_error = true; }
 
  private:
-  V m_validator;
-  T *m_value;
+  Validator m_validator;
+  Type *m_value;
   bool m_error;
 };
 

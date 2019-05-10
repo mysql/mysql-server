@@ -47,6 +47,10 @@ class Arg_inserter {
     m_qb->format() % value;
   }
 
+  void operator()(const std::string &value, const uint32_t) {
+    m_qb->format() % value;
+  }
+
  private:
   Query_string_builder *m_qb;
 };

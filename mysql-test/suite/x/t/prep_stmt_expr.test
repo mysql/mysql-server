@@ -503,10 +503,10 @@ Mysqlx.Prepare.Deallocate {
 }
 -->recvok
 
+
 ###############################
 
 -->title = 5. 'cont_in' operator and '!=' on the same placeholder
-
 
 Mysqlx.Prepare.Prepare {
   stmt_id: 5
@@ -585,7 +585,296 @@ Mysqlx.Prepare.Deallocate {
 -->recvok
 
 
+###############################
 
+-->title = 6. 'cont_in' operator (member_scalar in placholder_array)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 6
+  stmt {
+    type: FIND
+    find {
+      collection {
+        name: "data"
+        schema: "xtest"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "cont_in"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "scalar"
+              }
+            }
+          }
+          param {
+            type: PLACEHOLDER
+            position: 0
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->echo 6.a cont_in operator against string
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '["abc","cde"]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 6.b cont_in operator against integer
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[123, 345]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 6.c cont_in operator against double
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[2.3, 3.4]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 6.d cont_in operator against bool
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[true, false]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 6.e cont_in operator against null
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[null, null]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 6.e cont_in operator against mix of values
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '["abc", 123, 2.3, true, null]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 6
+}
+-->recvok
+
+
+###############################
+
+-->title = 7. 'not_cont_in' operator (member_scalar in placholder_array)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 7
+  stmt {
+    type: FIND
+    find {
+      collection {
+        name: "data"
+        schema: "xtest"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "not_cont_in"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "scalar"
+              }
+            }
+          }
+          param {
+            type: PLACEHOLDER
+            position: 0
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->echo 7.a not_cont_in operator against string
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '["abc","cde"]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 7.b not_cont_in operator against integer
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[123, 345]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 7.c not_cont_in operator against double
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[2.3, 3.4]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 7.d not_cont_in operator against bool
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[true, false]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 7.e not_cont_in operator against null
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '[null, null]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 7.e not_cont_in operator against mix of values
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: '["abc", 123, 2.3, true, null]'
+        content_type: 2
+      }
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 7
+}
+-->recvok
 EOF
 
 CREATE SCHEMA IF NOT EXISTS xtest;

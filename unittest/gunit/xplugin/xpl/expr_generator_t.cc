@@ -34,6 +34,8 @@ const char *const EMPTY_SCHEMA = "";
 const char *const EMPTY = "";
 enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 
+using Octets = Scalar::Octets;
+
 TEST(xpl_expr_generator, literal_uint) {
   EXPECT_EQ("0", generate_expression(Scalar(static_cast<unsigned>(0)),
                                      EMPTY_SCHEMA, DM_TABLE));
@@ -270,74 +272,86 @@ TEST(xpl_expr_generator, column_identifier_no_column) {
 }
 
 TEST(xpl_expr_generator, interval_expression) {
+  EXPECT_EQ("DATE_ADD(FALSE, INTERVAL TRUE MICROSECOND)",
+            generate_expression(
+                Operator("date_add", false, true, Octets{"MICROSECOND"}),
+                EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ(
-      "DATE_ADD(FALSE, INTERVAL TRUE MICROSECOND)",
-      generate_expression(Operator("date_add", false, true, "MICROSECOND"),
+      "DATE_SUB(FALSE, INTERVAL TRUE SECOND)",
+      generate_expression(Operator("date_sub", false, true, Octets{"SECOND"}),
                           EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE SECOND)",
-            generate_expression(Operator("date_sub", false, true, "SECOND"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE MINUTE)",
-            generate_expression(Operator("date_sub", false, true, "MINUTE"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE HOUR)",
-            generate_expression(Operator("date_sub", false, true, "HOUR"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE DAY)",
-            generate_expression(Operator("date_sub", false, true, "DAY"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE WEEK)",
-            generate_expression(Operator("date_sub", false, true, "WEEK"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE MONTH)",
-            generate_expression(Operator("date_sub", false, true, "MONTH"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE QUARTER)",
-            generate_expression(Operator("date_sub", false, true, "QUARTER"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE YEAR)",
-            generate_expression(Operator("date_sub", false, true, "YEAR"),
-                                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "DATE_SUB(FALSE, INTERVAL TRUE MINUTE)",
+      generate_expression(Operator("date_sub", false, true, Octets{"MINUTE"}),
+                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "DATE_SUB(FALSE, INTERVAL TRUE HOUR)",
+      generate_expression(Operator("date_sub", false, true, Octets{"HOUR"}),
+                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "DATE_SUB(FALSE, INTERVAL TRUE DAY)",
+      generate_expression(Operator("date_sub", false, true, Octets{"DAY"}),
+                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "DATE_SUB(FALSE, INTERVAL TRUE WEEK)",
+      generate_expression(Operator("date_sub", false, true, Octets{"WEEK"}),
+                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "DATE_SUB(FALSE, INTERVAL TRUE MONTH)",
+      generate_expression(Operator("date_sub", false, true, Octets{"MONTH"}),
+                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "DATE_SUB(FALSE, INTERVAL TRUE QUARTER)",
+      generate_expression(Operator("date_sub", false, true, Octets{"QUARTER"}),
+                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "DATE_SUB(FALSE, INTERVAL TRUE YEAR)",
+      generate_expression(Operator("date_sub", false, true, Octets{"YEAR"}),
+                          EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE SECOND_MICROSECOND)",
             generate_expression(
-                Operator("date_sub", false, true, "SECOND_MICROSECOND"),
+                Operator("date_sub", false, true, Octets{"SECOND_MICROSECOND"}),
                 EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE MINUTE_MICROSECOND)",
             generate_expression(
-                Operator("date_sub", false, true, "MINUTE_MICROSECOND"),
+                Operator("date_sub", false, true, Octets{"MINUTE_MICROSECOND"}),
+                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE MINUTE_SECOND)",
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"MINUTE_SECOND"}),
+                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE HOUR_MICROSECOND)",
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"HOUR_MICROSECOND"}),
+                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE HOUR_SECOND)",
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"HOUR_SECOND"}),
+                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE HOUR_MINUTE)",
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"HOUR_MINUTE"}),
+                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE DAY_MICROSECOND)",
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"DAY_MICROSECOND"}),
+                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE DAY_SECOND)",
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"DAY_SECOND"}),
+                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE DAY_MINUTE)",
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"DAY_MINUTE"}),
                 EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ(
-      "DATE_SUB(FALSE, INTERVAL TRUE MINUTE_SECOND)",
-      generate_expression(Operator("date_sub", false, true, "MINUTE_SECOND"),
+      "DATE_SUB(FALSE, INTERVAL TRUE DAY_HOUR)",
+      generate_expression(Operator("date_sub", false, true, Octets{"DAY_HOUR"}),
                           EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ(
-      "DATE_SUB(FALSE, INTERVAL TRUE HOUR_MICROSECOND)",
-      generate_expression(Operator("date_sub", false, true, "HOUR_MICROSECOND"),
-                          EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ(
-      "DATE_SUB(FALSE, INTERVAL TRUE HOUR_SECOND)",
-      generate_expression(Operator("date_sub", false, true, "HOUR_SECOND"),
-                          EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ(
-      "DATE_SUB(FALSE, INTERVAL TRUE HOUR_MINUTE)",
-      generate_expression(Operator("date_sub", false, true, "HOUR_MINUTE"),
-                          EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ(
-      "DATE_SUB(FALSE, INTERVAL TRUE DAY_MICROSECOND)",
-      generate_expression(Operator("date_sub", false, true, "DAY_MICROSECOND"),
-                          EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE DAY_SECOND)",
-            generate_expression(Operator("date_sub", false, true, "DAY_SECOND"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE DAY_MINUTE)",
-            generate_expression(Operator("date_sub", false, true, "DAY_MINUTE"),
-                                EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE DAY_HOUR)",
-            generate_expression(Operator("date_sub", false, true, "DAY_HOUR"),
-                                EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ("DATE_SUB(FALSE, INTERVAL TRUE YEAR_MONTH)",
-            generate_expression(Operator("date_sub", false, true, "YEAR_MONTH"),
-                                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(
+                Operator("date_sub", false, true, Octets{"YEAR_MONTH"}),
+                EMPTY_SCHEMA, DM_TABLE));
   EXPECT_THROW(
       generate_expression(Operator("date_sub", false, true, "invalid unit"),
                           EMPTY_SCHEMA, DM_TABLE),
@@ -572,113 +586,119 @@ TEST(xpl_expr_generator, cast_invalid_target_type) {
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_undefinied) {
-  EXPECT_THROW(generate_expression(Operator("cast", 42, "UNDEFINIED"),
+  EXPECT_THROW(generate_expression(Operator("cast", 42, Octets("UNDEFINIED")),
                                    EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, cast_expr_to_json) {
-  EXPECT_EQ("CAST(`foo`.`bar` AS JSON)",
-            generate_expression(
-                Operator("cast", Column_identifier("bar", "foo"), "JSON"),
-                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "CAST(`foo`.`bar` AS JSON)",
+      generate_expression(
+          Operator("cast", Column_identifier("bar", "foo"), Octets{"JSON"}),
+          EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_signed) {
   EXPECT_EQ("CAST(42 AS SIGNED)",
-            generate_expression(Operator("cast", 42, "SIGNED"), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("cast", 42, Octets{"SIGNED"}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_signed_integer) {
   EXPECT_EQ("CAST(42 AS SIGNED INTEGER)",
-            generate_expression(Operator("cast", 42, "SIGNED INTEGER"),
+            generate_expression(Operator("cast", 42, Octets{"SIGNED INTEGER"}),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_unsigned) {
   EXPECT_EQ("CAST(42 AS UNSIGNED)",
-            generate_expression(Operator("cast", 42, "UNSIGNED"), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("cast", 42, Octets{"UNSIGNED"}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_unsigned_integer) {
-  EXPECT_EQ("CAST(42 AS UNSIGNED INTEGER)",
-            generate_expression(Operator("cast", 42, "UNSIGNED INTEGER"),
-                                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "CAST(42 AS UNSIGNED INTEGER)",
+      generate_expression(Operator("cast", 42, Octets{"UNSIGNED INTEGER"}),
+                          EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_char) {
   EXPECT_EQ("CAST('one' AS CHAR)",
-            generate_expression(Operator("cast", "one", "CHAR"), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("cast", "one", Octets{"CHAR"}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_multichar) {
   EXPECT_EQ("CAST('one' AS CHAR(42))",
-            generate_expression(Operator("cast", "one", "CHAR(42)"),
+            generate_expression(Operator("cast", "one", Octets{"CHAR(42)"}),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_binary) {
   EXPECT_EQ("CAST('one' AS BINARY)",
-            generate_expression(Operator("cast", "one", "BINARY"), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("cast", "one", Octets{"BINARY"}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_binary_lowercase) {
   EXPECT_EQ("CAST('one' AS binary)",
-            generate_expression(Operator("cast", "one", "binary"), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("cast", "one", Octets("binary")),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_precision_binary) {
   EXPECT_EQ("CAST('one' AS BINARY(44))",
-            generate_expression(Operator("cast", "one", "BINARY(44)"),
+            generate_expression(Operator("cast", "one", Octets("BINARY(44)")),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_decimal) {
   EXPECT_EQ("CAST(3.141593 AS DECIMAL)",
-            generate_expression(Operator("cast", 3.141593, "DECIMAL"),
+            generate_expression(Operator("cast", 3.141593, Octets("DECIMAL")),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_precision_decimal) {
-  EXPECT_EQ("CAST(3.141593 AS DECIMAL(4))",
-            generate_expression(Operator("cast", 3.141593, "DECIMAL(4)"),
-                                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "CAST(3.141593 AS DECIMAL(4))",
+      generate_expression(Operator("cast", 3.141593, Octets("DECIMAL(4)")),
+                          EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_precision_scale_decimal) {
-  EXPECT_EQ("CAST(3.141593 AS DECIMAL(4,2))",
-            generate_expression(Operator("cast", 3.141593, "DECIMAL(4,2)"),
-                                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "CAST(3.141593 AS DECIMAL(4,2))",
+      generate_expression(Operator("cast", 3.141593, Octets("DECIMAL(4,2)")),
+                          EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_time) {
   EXPECT_EQ("CAST('3:14' AS TIME)",
-            generate_expression(Operator("cast", "3:14", "TIME"), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("cast", "3:14", Octets("TIME")),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_date) {
   EXPECT_EQ("CAST('2015.08.10' AS DATE)",
-            generate_expression(Operator("cast", "2015.08.10", "DATE"),
+            generate_expression(Operator("cast", "2015.08.10", Octets("DATE")),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_scalar_to_datetime) {
   EXPECT_EQ("CAST('2015.08.10T3:14' AS DATETIME)",
-            generate_expression(Operator("cast", "2015.08.10T3:14", "DATETIME"),
-                                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(
+                Operator("cast", "2015.08.10T3:14", Octets("DATETIME")),
+                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_placeholder_to_json) {
   Expression_generator::Prep_stmt_placeholder_list ids;
-  EXPECT_EQ("CAST(? AS JSON)",
-            generate_expression(Operator("cast", Placeholder(0), "JSON"),
-                                EMPTY_SCHEMA, DM_TABLE, &ids));
+  EXPECT_EQ(
+      "CAST(? AS JSON)",
+      generate_expression(Operator("cast", Placeholder(0), Octets("JSON")),
+                          EMPTY_SCHEMA, DM_TABLE, &ids));
   EXPECT_EQ(1, ids.size());
 }
 
@@ -842,39 +862,38 @@ TEST(xpl_expr_generator, default_operator) {
 }
 
 TEST(xpl_expr_generator, scalar_octets_plain) {
-  EXPECT_EQ("'ABC'",
-            generate_expression(
-                Scalar(Scalar::Octets("ABC", Expression_generator::CT_PLAIN)),
-                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("'ABC'", generate_expression(
+                         Scalar(Octets("ABC", Octets::Content_type::k_plain)),
+                         EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, scalar_octets_geometry) {
   EXPECT_EQ("ST_GEOMETRYFROMWKB('010')",
-            generate_expression(Scalar(Scalar::Octets(
-                                    "010", Expression_generator::CT_GEOMETRY)),
-                                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(
+                Scalar(Octets("010", Octets::Content_type::k_geometry)),
+                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, scalar_octets_json) {
-  EXPECT_EQ(
-      "CAST('{\\\"a\\\":42}' AS JSON)",
-      generate_expression(
-          Scalar(Scalar::Octets("{\"a\":42}", Expression_generator::CT_JSON)),
-          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("CAST('{\\\"a\\\":42}' AS JSON)",
+            generate_expression(
+                Scalar(Octets("{\"a\":42}", Octets::Content_type::k_json)),
+                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, scalar_octets_xml) {
-  EXPECT_EQ(
-      "'<a>bbb</a>'",
-      generate_expression(
-          Scalar(Scalar::Octets("<a>bbb</a>", Expression_generator::CT_XML)),
-          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("'<a>bbb</a>'",
+            generate_expression(
+                Scalar(Octets("<a>bbb</a>", Octets::Content_type::k_xml)),
+                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, scalar_octets_unknown) {
-  EXPECT_THROW(generate_expression(Scalar(Scalar::Octets("foo", 666)),
-                                   EMPTY_SCHEMA, DM_TABLE),
-               Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(
+          Scalar(Octets("foo", static_cast<Octets::Content_type>(666))),
+          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, cont_in_expression_literals) {
@@ -903,37 +922,33 @@ TEST(xpl_expr_generator, cont_in_expression_literals) {
   EXPECT_STREQ(
       "JSON_CONTAINS(JSON_QUOTE('white'),JSON_QUOTE('black'))",
       generate_expression(
-          Operator("cont_in",
-                   Scalar::Octets("black", Expression_generator::CT_PLAIN),
-                   Scalar::Octets("white", Expression_generator::CT_PLAIN)),
+          Operator("cont_in", Octets("black", Octets::Content_type::k_plain),
+                   Octets("white", Octets::Content_type::k_plain)),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
   EXPECT_STREQ(
       "JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
       "CAST('{\\\"black\\\":1}' AS JSON))",
       generate_expression(
-          Operator(
-              "cont_in",
-              Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
-              Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)),
+          Operator("cont_in",
+                   Octets("{\"black\":1}", Octets::Content_type::k_json),
+                   Octets("{\"white\":2}", Octets::Content_type::k_json)),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
   EXPECT_STREQ(
       "JSON_CONTAINS(JSON_QUOTE('<a>white</a>'),JSON_QUOTE('<a>black</a>'))",
       generate_expression(
-          Operator(
-              "cont_in",
-              Scalar::Octets("<a>black</a>", Expression_generator::CT_XML),
-              Scalar::Octets("<a>white</a>", Expression_generator::CT_XML)),
+          Operator("cont_in",
+                   Octets("<a>black</a>", Octets::Content_type::k_xml),
+                   Octets("<a>white</a>", Octets::Content_type::k_xml)),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
   EXPECT_STREQ(
       "JSON_CONTAINS(JSON_QUOTE(ST_GEOMETRYFROMWKB('101')),"
       "JSON_QUOTE(ST_GEOMETRYFROMWKB('010')))",
       generate_expression(
-          Operator("cont_in",
-                   Scalar::Octets("010", Expression_generator::CT_GEOMETRY),
-                   Scalar::Octets("101", Expression_generator::CT_GEOMETRY)),
+          Operator("cont_in", Octets("010", Octets::Content_type::k_geometry),
+                   Octets("101", Octets::Content_type::k_geometry)),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 }
@@ -954,11 +969,10 @@ TEST(xpl_expr_generator, cont_in_expression_arrays) {
       "JSON_CONTAINS(JSON_ARRAY(CAST('{\\\"white\\\":2}' AS JSON)),"
       "JSON_ARRAY(CAST('{\\\"black\\\":1}' AS JSON)))",
       generate_expression(
-          Operator("cont_in",
-                   Array{Scalar::Octets("{\"black\":1}",
-                                        Expression_generator::CT_JSON)},
-                   Array{Scalar::Octets("{\"white\":2}",
-                                        Expression_generator::CT_JSON)}),
+          Operator(
+              "cont_in",
+              Array{Octets("{\"black\":1}", Octets::Content_type::k_json)},
+              Array{Octets("{\"white\":2}", Octets::Content_type::k_json)}),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 }
@@ -973,13 +987,11 @@ TEST(xpl_expr_generator, cont_in_expression_objects) {
       "JSON_CONTAINS(JSON_OBJECT('second',CAST('{\\\"white\\\":2}' AS JSON)),"
       "JSON_OBJECT('first',CAST('{\\\"black\\\":1}' AS JSON)))",
       generate_expression(
-          Operator(
-              "cont_in",
-              Object{{"first", Scalar::Octets("{\"black\":1}",
-                                              Expression_generator::CT_JSON)}},
-              Object{
-                  {"second", Scalar::Octets("{\"white\":2}",
-                                            Expression_generator::CT_JSON)}}),
+          Operator("cont_in",
+                   Object{{"first", Octets("{\"black\":1}",
+                                           Octets::Content_type::k_json)}},
+                   Object{{"second", Octets("{\"white\":2}",
+                                            Octets::Content_type::k_json)}}),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 }
@@ -989,30 +1001,32 @@ TEST(xpl_expr_generator, cont_in_expression_operators) {
   EXPECT_THROW(generate_expression(Operator("cont_in", plus, minus),
                                    EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
-  EXPECT_STREQ(
-      "JSON_CONTAINS(CAST((2 - 1) AS JSON),CAST((1 + 2) AS JSON))",
-      generate_expression(Operator("cont_in", Operator("cast", plus, "JSON"),
-                                   Operator("cast", minus, "JSON")),
-                          EMPTY_SCHEMA, DM_TABLE)
-          .c_str());
+  EXPECT_STREQ("JSON_CONTAINS(CAST((2 - 1) AS JSON),CAST((1 + 2) AS JSON))",
+               generate_expression(
+                   Operator("cont_in", Operator("cast", plus, Octets{"JSON"}),
+                            Operator("cast", minus, Octets{"JSON"})),
+                   EMPTY_SCHEMA, DM_TABLE)
+                   .c_str());
+  EXPECT_THROW(
+      generate_expression(
+          Operator("cont_in", plus, Operator("cast", minus, Octets("JSON"))),
+          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(
+          Operator("cont_in", Operator("cast", plus, Octets("JSON")), minus),
+          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
   EXPECT_THROW(generate_expression(
-                   Operator("cont_in", plus, Operator("cast", minus, "JSON")),
+                   Operator("cont_in", Operator("cast", plus, Octets("SIGNED")),
+                            Operator("cast", minus, Octets("JSON"))),
                    EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
   EXPECT_THROW(generate_expression(
-                   Operator("cont_in", Operator("cast", plus, "JSON"), minus),
+                   Operator("cont_in", Operator("cast", plus, Octets("JSON")),
+                            Operator("cast", minus, Octets("SIGNED"))),
                    EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
-  EXPECT_THROW(
-      generate_expression(Operator("cont_in", Operator("cast", plus, "SIGNED"),
-                                   Operator("cast", minus, "JSON")),
-                          EMPTY_SCHEMA, DM_TABLE),
-      Expression_generator::Error);
-  EXPECT_THROW(
-      generate_expression(Operator("cont_in", Operator("cast", plus, "JSON"),
-                                   Operator("cast", minus, "SIGNED")),
-                          EMPTY_SCHEMA, DM_TABLE),
-      Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, cont_in_expression_functions) {
@@ -1057,8 +1071,8 @@ TEST(xpl_expr_generator, cont_in_expression_placeholders) {
       generate_expression(
           Operator("cont_in", Placeholder(0), Placeholder(1)),
           Expression_list(
-              {Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
-               Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)}),
+              {Octets("{\"black\":1}", Octets::Content_type::k_json),
+               Octets("{\"white\":2}", Octets::Content_type::k_json)}),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
   EXPECT_THROW(
@@ -1258,26 +1272,22 @@ Param_operator_pass cont_in_pass_param[] = {
      Operator("cont_in", Scalar::String("black"), Scalar::String("white")),
      {}},
     {"JSON_CONTAINS(JSON_QUOTE('white'),JSON_QUOTE('black'))",
-     Operator("cont_in",
-              Scalar::Octets("black", Expression_generator::CT_PLAIN),
-              Scalar::Octets("white", Expression_generator::CT_PLAIN)),
+     Operator("cont_in", Octets("black", Octets::Content_type::k_plain),
+              Octets("white", Octets::Content_type::k_plain)),
      {}},
     {"JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
      "CAST('{\\\"black\\\":1}' AS JSON))",
-     Operator("cont_in",
-              Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
-              Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)),
+     Operator("cont_in", Octets("{\"black\":1}", Octets::Content_type::k_json),
+              Octets("{\"white\":2}", Octets::Content_type::k_json)),
      {}},
     {"JSON_CONTAINS(JSON_QUOTE('<a>white</a>'),JSON_QUOTE('<a>black</a>'))",
-     Operator("cont_in",
-              Scalar::Octets("<a>black</a>", Expression_generator::CT_XML),
-              Scalar::Octets("<a>white</a>", Expression_generator::CT_XML)),
+     Operator("cont_in", Octets("<a>black</a>", Octets::Content_type::k_xml),
+              Octets("<a>white</a>", Octets::Content_type::k_xml)),
      {}},
     {"JSON_CONTAINS(JSON_QUOTE(ST_GEOMETRYFROMWKB('101')),"
      "JSON_QUOTE(ST_GEOMETRYFROMWKB('010')))",
-     Operator("cont_in",
-              Scalar::Octets("010", Expression_generator::CT_GEOMETRY),
-              Scalar::Octets("101", Expression_generator::CT_GEOMETRY)),
+     Operator("cont_in", Octets("010", Octets::Content_type::k_geometry),
+              Octets("101", Octets::Content_type::k_geometry)),
      {}},
     //  arrays
     {"JSON_CONTAINS(JSON_ARRAY(3,4),JSON_ARRAY(1,2))",
@@ -1288,10 +1298,9 @@ Param_operator_pass cont_in_pass_param[] = {
      {}},
     {"JSON_CONTAINS(JSON_ARRAY(CAST('{\\\"white\\\":2}' AS JSON)),"
      "JSON_ARRAY(CAST('{\\\"black\\\":1}' AS JSON)))",
-     Operator(
-         "cont_in",
-         Array{Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON)},
-         Array{Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)}),
+     Operator("cont_in",
+              Array{Octets("{\"black\":1}", Octets::Content_type::k_json)},
+              Array{Octets("{\"white\":2}", Octets::Content_type::k_json)}),
      {}},
     //  objects
     {"JSON_CONTAINS(JSON_OBJECT('second',2),JSON_OBJECT('first',1))",
@@ -1299,16 +1308,15 @@ Param_operator_pass cont_in_pass_param[] = {
      {}},
     {"JSON_CONTAINS(JSON_OBJECT('second',CAST('{\\\"white\\\":2}' AS JSON)),"
      "JSON_OBJECT('first',CAST('{\\\"black\\\":1}' AS JSON)))",
-     Operator(
-         "cont_in",
-         Object{{"first", Scalar::Octets("{\"black\":1}",
-                                         Expression_generator::CT_JSON)}},
-         Object{{"second", Scalar::Octets("{\"white\":2}",
-                                          Expression_generator::CT_JSON)}}),
+     Operator("cont_in",
+              Object{{"first",
+                      Octets("{\"black\":1}", Octets::Content_type::k_json)}},
+              Object{{"second",
+                      Octets("{\"white\":2}", Octets::Content_type::k_json)}}),
      {}},
     {"JSON_CONTAINS(CAST((2 - 1) AS JSON),CAST((1 + 2) AS JSON))",
-     Operator("cont_in", Operator("cast", Operator("+", 1, 2), "JSON"),
-              Operator("cast", Operator("-", 2, 1), "JSON")),
+     Operator("cont_in", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
+              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
      {}},
     // functions
     {"JSON_CONTAINS(json_quote(concat('foo','bar')),"
@@ -1328,8 +1336,8 @@ Param_operator_pass cont_in_pass_param[] = {
     {"JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
      "CAST('{\\\"black\\\":1}' AS JSON))",
      Operator("cont_in", Placeholder(0), Placeholder(1)),
-     {Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
-      Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)}},
+     {Octets("{\"black\":1}", Octets::Content_type::k_json),
+      Octets("{\"white\":2}", Octets::Content_type::k_json)}},
     //  identifier
     {"JSON_CONTAINS(CAST(42 AS JSON),"
      "JSON_EXTRACT(`schema`.`table`.`field`,'$.member'))",
@@ -1375,16 +1383,17 @@ Param_operator_fail cont_in_fail_param[] = {
     //  operators
     {Operator("cont_in", Operator("+", 1, 2), Operator("-", 2, 1)), {}},
     {Operator("cont_in", Operator("+", 1, 2),
-              Operator("cast", Operator("-", 2, 1), "JSON")),
+              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
      {}},
-    {Operator("cont_in", Operator("cast", Operator("+", 1, 2), "JSON"),
+    {Operator("cont_in", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
               Operator("-", 2, 1)),
      {}},
-    {Operator("cont_in", Operator("cast", Operator("+", 1, 2), "SIGNED"),
-              Operator("cast", Operator("-", 2, 1), "JSON")),
+    {Operator("cont_in",
+              Operator("cast", Operator("+", 1, 2), Octets("SIGNED")),
+              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
      {}},
-    {Operator("cont_in", Operator("cast", Operator("+", 1, 2), "JSON"),
-              Operator("cast", Operator("-", 2, 1), "SIGNED")),
+    {Operator("cont_in", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
+              Operator("cast", Operator("-", 2, 1), Octets("SIGNED"))),
      {}},
     //  functions
     {Operator("cont_in", Function_call("concat", "foo", "bar"),
@@ -1425,27 +1434,23 @@ Param_operator_pass overlaps_pass_param[] = {
      Operator("overlaps", Scalar::String("black"), Scalar::String("white")),
      {}},
     {"JSON_OVERLAPS(JSON_QUOTE('black'),JSON_QUOTE('white'))",
-     Operator("overlaps",
-              Scalar::Octets("black", Expression_generator::CT_PLAIN),
-              Scalar::Octets("white", Expression_generator::CT_PLAIN)),
+     Operator("overlaps", Octets("black", Octets::Content_type::k_plain),
+              Octets("white", Octets::Content_type::k_plain)),
      {}},
     {"JSON_OVERLAPS("
      "CAST('{\\\"black\\\":1}' AS JSON),CAST('{\\\"white\\\":2}' AS JSON))",
-     Operator("overlaps",
-              Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
-              Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)),
+     Operator("overlaps", Octets("{\"black\":1}", Octets::Content_type::k_json),
+              Octets("{\"white\":2}", Octets::Content_type::k_json)),
      {}},
     {"JSON_OVERLAPS(JSON_QUOTE('<a>black</a>'),JSON_QUOTE('<a>white</a>'))",
-     Operator("overlaps",
-              Scalar::Octets("<a>black</a>", Expression_generator::CT_XML),
-              Scalar::Octets("<a>white</a>", Expression_generator::CT_XML)),
+     Operator("overlaps", Octets("<a>black</a>", Octets::Content_type::k_xml),
+              Octets("<a>white</a>", Octets::Content_type::k_xml)),
      {}},
     {"JSON_OVERLAPS("
      "JSON_QUOTE(ST_GEOMETRYFROMWKB('010')),"
      "JSON_QUOTE(ST_GEOMETRYFROMWKB('101')))",
-     Operator("overlaps",
-              Scalar::Octets("010", Expression_generator::CT_GEOMETRY),
-              Scalar::Octets("101", Expression_generator::CT_GEOMETRY)),
+     Operator("overlaps", Octets("010", Octets::Content_type::k_geometry),
+              Octets("101", Octets::Content_type::k_geometry)),
      {}},
     //  arrays
     {"JSON_OVERLAPS(JSON_ARRAY(1,2),JSON_ARRAY(3,4))",
@@ -1457,10 +1462,9 @@ Param_operator_pass overlaps_pass_param[] = {
     {"JSON_OVERLAPS("
      "JSON_ARRAY(CAST('{\\\"black\\\":1}' AS JSON)),"
      "JSON_ARRAY(CAST('{\\\"white\\\":2}' AS JSON)))",
-     Operator(
-         "overlaps",
-         Array{Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON)},
-         Array{Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)}),
+     Operator("overlaps",
+              Array{Octets("{\"black\":1}", Octets::Content_type::k_json)},
+              Array{Octets("{\"white\":2}", Octets::Content_type::k_json)}),
      {}},
     //  objects
     {"JSON_OVERLAPS(JSON_OBJECT('first',1),JSON_OBJECT('second',2))",
@@ -1469,16 +1473,15 @@ Param_operator_pass overlaps_pass_param[] = {
     {"JSON_OVERLAPS("
      "JSON_OBJECT('first',CAST('{\\\"black\\\":1}' AS JSON)),"
      "JSON_OBJECT('second',CAST('{\\\"white\\\":2}' AS JSON)))",
-     Operator(
-         "overlaps",
-         Object{{"first", Scalar::Octets("{\"black\":1}",
-                                         Expression_generator::CT_JSON)}},
-         Object{{"second", Scalar::Octets("{\"white\":2}",
-                                          Expression_generator::CT_JSON)}}),
+     Operator("overlaps",
+              Object{{"first",
+                      Octets("{\"black\":1}", Octets::Content_type::k_json)}},
+              Object{{"second",
+                      Octets("{\"white\":2}", Octets::Content_type::k_json)}}),
      {}},
     {"JSON_OVERLAPS(CAST((1 + 2) AS JSON),CAST((2 - 1) AS JSON))",
-     Operator("overlaps", Operator("cast", Operator("+", 1, 2), "JSON"),
-              Operator("cast", Operator("-", 2, 1), "JSON")),
+     Operator("overlaps", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
+              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
      {}},
     // functions
     {"JSON_OVERLAPS("
@@ -1500,8 +1503,8 @@ Param_operator_pass overlaps_pass_param[] = {
      "CAST('{\\\"black\\\":1}' AS JSON),"
      "CAST('{\\\"white\\\":2}' AS JSON))",
      Operator("overlaps", Placeholder(0), Placeholder(1)),
-     {Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
-      Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)}},
+     {Octets("{\"black\":1}", Octets::Content_type::k_json),
+      Octets("{\"white\":2}", Octets::Content_type::k_json)}},
     //  identifier
     {"JSON_OVERLAPS("
      "JSON_EXTRACT(`schema`.`table`.`field`,'$.member'),"
@@ -1535,16 +1538,17 @@ Param_operator_fail overlaps_fail_param[] = {
     //  operators
     {Operator("overlaps", Operator("+", 1, 2), Operator("-", 2, 1)), {}},
     {Operator("overlaps", Operator("+", 1, 2),
-              Operator("cast", Operator("-", 2, 1), "JSON")),
+              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
      {}},
-    {Operator("overlaps", Operator("cast", Operator("+", 1, 2), "JSON"),
+    {Operator("overlaps", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
               Operator("-", 2, 1)),
      {}},
-    {Operator("overlaps", Operator("cast", Operator("+", 1, 2), "SIGNED"),
-              Operator("cast", Operator("-", 2, 1), "JSON")),
+    {Operator("overlaps",
+              Operator("cast", Operator("+", 1, 2), Octets("SIGNED")),
+              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
      {}},
-    {Operator("overlaps", Operator("cast", Operator("+", 1, 2), "JSON"),
-              Operator("cast", Operator("-", 2, 1), "SIGNED")),
+    {Operator("overlaps", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
+              Operator("cast", Operator("-", 2, 1), Octets("SIGNED"))),
      {}},
     //  functions
     {Operator("overlaps", Function_call("concat", "foo", "bar"),
