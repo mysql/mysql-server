@@ -65,6 +65,7 @@ let $restart_parameters=restart:
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
 
+--replace_regex /Failed to verify the server certificate.*/SSL certificate validation failure (code 2026)/
 --exec $MYSQLXTEST_SSLCA_TEST --expect-error CR_SSL_CONNECTION_ERROR $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_identity  2>&1
 
 --exec $MYSQLXTEST_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1

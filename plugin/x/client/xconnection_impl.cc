@@ -33,7 +33,10 @@
 #include <errno.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
-#endif
+#endif  // HAVE_NETINET_IN_H
+#ifdef HAVE_OPENSSL
+#include <openssl/x509v3.h>
+#endif  // HAVE_OPENSSL
 #include <cassert>
 #include <chrono>
 #include <future>
@@ -174,6 +177,26 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     return XError{CR_SSL_CONNECTION_ERROR,
                   "Failed to verify the server certificate"};
   }
+
+  /*
+    Use OpenSSL certificate matching functions instead of our own if we
+    have OpenSSL. The X509_check_* functions return 1 on success.
+  */
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
+  if ((X509_check_host(server_cert, server_hostname.c_str(),
+                       server_hostname.length(), 0, 0) != 1) &&
+      (X509_check_ip_asc(server_cert, server_hostname.c_str(), 0) != 1)) {
+    return XError{
+        CR_SSL_CONNECTION_ERROR,
+        "Failed to verify the server certificate via X509 certificate "
+        "matching functions"};
+  }
+#else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+  /*
+     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
+     Use deprecated X509_get_subject_name() instead.
+  */
+
   X509_NAME *subject = X509_get_subject_name(server_cert);
   int cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
 
@@ -213,6 +236,7 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     return XError{CR_SSL_CONNECTION_ERROR,
                   "SSL certificate validation failure"};
   }
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
   return {};
 }

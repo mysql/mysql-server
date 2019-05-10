@@ -1,0 +1,3 @@
+--ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem
+--ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-san.pem
+--ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-san.pem
