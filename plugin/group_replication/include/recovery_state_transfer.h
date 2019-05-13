@@ -162,9 +162,9 @@ class Recovery_state_transfer {
   */
   void get_recovery_base_ssl_options(std::string &ssl_ca, std::string &ssl_cert,
                                      std::string &ssl_key) {
-    if (recovery_ssl_ca != NULL) ssl_ca.assign(recovery_ssl_ca);
-    if (recovery_ssl_cert != NULL) ssl_cert.assign(recovery_ssl_cert);
-    if (recovery_ssl_key != NULL) ssl_key.assign(recovery_ssl_key);
+    ssl_ca.assign(recovery_ssl_ca);
+    ssl_cert.assign(recovery_ssl_cert);
+    ssl_key.assign(recovery_ssl_key);
   }
 
   /**
