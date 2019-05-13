@@ -57,6 +57,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 include/start_group_replication.inc
 [connection server_1_1]
 COMMIT;
+include/rpl_sync.inc
 [connection server2]
 DROP TABLE t1;
 include/group_replication_end.inc
