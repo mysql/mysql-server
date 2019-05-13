@@ -107,13 +107,15 @@ class Recovery_module {
     If the thread does not stop in a user designated time interval, a timeout
     is issued.
 
+    @param wait_for_termination  wait for thread termination or not
+
     @note this method only returns when the thread is stopped or on timeout
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Timeout
   */
-  int stop_recovery();
+  int stop_recovery(bool wait_for_termination = true);
 
   /**
     This method decides what action to take when a member exits the group and

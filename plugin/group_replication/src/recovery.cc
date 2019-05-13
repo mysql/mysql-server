@@ -105,7 +105,7 @@ int Recovery_module::start_recovery(const string &group_name,
   return 0;
 }
 
-int Recovery_module::stop_recovery() {
+int Recovery_module::stop_recovery(bool wait_for_termination) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
@@ -117,7 +117,7 @@ int Recovery_module::stop_recovery() {
 
   recovery_aborted = true;
 
-  while (recovery_thd_state.is_thread_alive()) {
+  while (recovery_thd_state.is_thread_alive() && wait_for_termination) {
     DBUG_PRINT("loop", ("killing group replication recovery thread"));
 
     if (recovery_thd_state.is_initialized()) {
@@ -155,7 +155,8 @@ int Recovery_module::stop_recovery() {
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!recovery_thd_state.is_running());
+  DBUG_ASSERT((wait_for_termination && !recovery_thd_state.is_running()) ||
+              !wait_for_termination);
 
   mysql_mutex_unlock(&run_lock);
 
@@ -265,10 +266,10 @@ void Recovery_module::leave_group_on_recovery_failure() {
   * Step 5: Notify the group that we are now online if no error occurred.
     This is done even if the member is alone in the group.
 
-  * Step 6: Terminate the recovery thread.
-
-  * Step 7: If an error occurred and recovery is impossible leave the group.
+  * Step 6: If an error occurred and recovery is impossible leave the group.
     We leave the group but the plugin is left running.
+
+  * Step 7: Terminate the recovery thread.
 */
 int Recovery_module::recovery_thread_handle() {
   DBUG_TRACE;
@@ -381,6 +382,14 @@ cleanup:
 
   /* Step 6 */
 
+  /*
+   If recovery failed, it's no use to continue in the group as the member cannot
+   take an active part in it, so it must leave.
+  */
+  if (error) {
+    leave_group_on_recovery_failure();
+  }
+
   stage_handler.end_stage();
   stage_handler.terminate_stage_monitor();
 #ifndef DBUG_OFF
@@ -389,6 +398,8 @@ cleanup:
     debug_sync_set_action(current_thd, STRING_WITH_LEN(act));
   });
 #endif  // DBUG_OFF
+
+  /* Step 7 */
 
   clean_recovery_thread_context();
 
@@ -399,16 +410,6 @@ cleanup:
   delete recovery_thd;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
-
-  /* Step 7 */
-
-  /*
-   If recovery failed, it's no use to continue in the group as the member cannot
-   take an active part in it, so it must leave.
-  */
-  if (error) {
-    leave_group_on_recovery_failure();
-  }
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
@@ -433,7 +434,8 @@ int Recovery_module::update_recovery_process(bool did_members_left,
       by recovery in the process.
     */
     if (is_leaving && !recovery_aborted) {
-      stop_recovery();
+      stop_recovery(!is_leaving); /* Do not wait for recovery thread
+                                     termination if member is leaving */
     } else if (!recovery_aborted) {
       recovery_state_transfer.update_recovery_process(did_members_left);
     }
