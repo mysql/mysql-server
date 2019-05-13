@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,13 +107,15 @@ class Recovery_module {
     If the thread does not stop in a user designated time interval, a timeout
     is issued.
 
+    @param wait_for_termination  wait for thread termination or not
+
     @note this method only returns when the thread is stopped or on timeout
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Timeout
   */
-  int stop_recovery();
+  int stop_recovery(bool wait_for_termination = true);
 
   /**
     This method decides what action to take when a member exits the group and
