@@ -8360,7 +8360,7 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
                                         bool decrypt_key) {
   byte *ptr;
   byte *master_key = nullptr;
-  uint32 m_key_id;
+  uint32 master_key_id = 0;
   byte key_info[ENCRYPTION_KEY_LEN * 2];
   ulint crc1;
   ulint crc2;
@@ -8398,7 +8398,7 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
 
   if (decrypt_key) {
     /* Get master key by key id. */
-    ptr = get_master_key_from_info(ptr, version, &m_key_id, srv_uuid,
+    ptr = get_master_key_from_info(ptr, version, &master_key_id, srv_uuid,
                                    &master_key);
 
     /* If can't find the master key, return failure. */
@@ -8422,7 +8422,7 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
         my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
                        ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
-    if (m_key_id == 0) {
+    if (master_key_id == 0) {
       ut_free(master_key);
     } else {
       my_free(master_key);
@@ -8481,8 +8481,8 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  if (decrypt_key && s_master_key_id < m_key_id) {
-    s_master_key_id = m_key_id;
+  if (decrypt_key && (s_master_key_id < master_key_id)) {
+    s_master_key_id = master_key_id;
     memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
   }
 
