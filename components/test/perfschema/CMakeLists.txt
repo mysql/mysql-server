@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,10 @@ REMOVE_DEFINITIONS(-DMYSQL_SERVER)
 
 MYSQL_ADD_COMPONENT(test_pfs_resource_group
   test_pfs_resource_group.cc
+  LINK_LIBRARIES mysqlservices
   TEST MODULE)
-
-TARGET_LINK_LIBRARIES(component_test_pfs_resource_group mysqlservices mysys)
 
 MYSQL_ADD_COMPONENT(test_pfs_notification
   test_pfs_notification.cc
+  LINK_LIBRARIES mysqlservices
   TEST MODULE)
-
-TARGET_LINK_LIBRARIES(component_test_pfs_notification mysqlservices)
-
