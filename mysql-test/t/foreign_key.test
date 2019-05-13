@@ -4505,3 +4505,19 @@ CREATE TABLE self (a CHAR(10), b int, fk1 int, fk2 CHAR(10), KEY(b),
 --error ER_FK_NO_INDEX_PARENT
 CREATE TABLE self (a INT, b CHAR(10), c int, fk1 int, fk2 int, KEY(c),
                    PRIMARY KEY (a, b(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (c, a));
+
+
+--echo #
+--echo # Bug#21308781 "DROP FOREIGN KEY LEAD TO INCONSISTENT TABLE STRUCTURE
+--echo #               ON MASTER AND SLAVE".
+--echo #
+CREATE TABLE t1(pk INT PRIMARY KEY);
+CREATE TABLE t2(pk INT PRIMARY KEY);
+CREATE TABLE t3(fk1 INT, fk2 INT, KEY k1(fk1),
+                CONSTRAINT a FOREIGN KEY (fk1) REFERENCES t1(pk),
+                CONSTRAINT b FOREIGN KEY (fk2) REFERENCES t2(pk));
+--error ER_DROP_INDEX_FK
+ALTER TABLE t3 DROP KEY k1, DROP FOREIGN KEY b, ALGORITHM=COPY;
+--echo # Failed ALTER TABLE should have left table intact!
+SHOW CREATE TABLE t3;
+DROP TABLES t3, t2, t1;
