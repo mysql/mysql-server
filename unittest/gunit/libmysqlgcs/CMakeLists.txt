@@ -88,6 +88,7 @@ SET(GCS_XCOM_TESTS
     xcom/gcs_xcom_xcom_cache
     xcom/gcs_xcom_control_interface
     xcom/gcs_xcom_view_identifier
+    xcom/gcs_message_stage_fragmentation
    )
 
 ###
