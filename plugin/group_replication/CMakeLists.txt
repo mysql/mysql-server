@@ -71,6 +71,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_handlers/server_ongoing_transactions_handler.cc
   src/plugin_handlers/stage_monitor_handler.cc
   src/plugin_handlers/read_mode_handler.cc
+  src/plugin_handlers/remote_clone_handler.cc
   src/plugin_messages/group_action_message.cc
   src/plugin_messages/group_validation_message.cc
   src/plugin_messages/recovery_message.cc

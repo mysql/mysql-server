@@ -70,4 +70,9 @@
 */
 #define PRIMARY_ELECTION_PATCH_CONSIDERATION 0x080017
 
+/*
+  Version from which group replication and the server support cloning
+*/
+#define CLONE_GR_SUPPORT_VERSION 0x080017
+
 #endif /* PLUGIN_CONSTANTS_INCLUDE */

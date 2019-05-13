@@ -1,0 +1,82 @@
+################################################################################
+# Validate that clone threshold option only accepts valid values.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Test invalid values.
+# 2. Test valid values.
+# 3. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+SET @group_replication_clone_threshold_save= @@GLOBAL.group_replication_clone_threshold;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Test invalid values.
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= ON;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= OFF;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= " ";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= "bar";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= 1.0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= 0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_clone_threshold= 9223372036854775808;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Test valid values.
+
+SET @@GLOBAL.group_replication_clone_threshold= 1;
+--let $assert_text= group_replication_clone_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_clone_threshold] = 1
+--source include/assert.inc
+
+SET @@GLOBAL.group_replication_clone_threshold= 65535;
+--let $assert_text= group_replication_clone_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_clone_threshold] = 65535
+--source include/assert.inc
+
+SET @@GLOBAL.group_replication_clone_threshold= 4294967295;
+--let $assert_text= group_replication_clone_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_clone_threshold] = 4294967295
+--source include/assert.inc
+
+SET @@GLOBAL.group_replication_clone_threshold= 9223372036854775807;
+--let $assert_text= group_replication_clone_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_clone_threshold] = 9223372036854775807
+--source include/assert.inc
+
+SET @@GLOBAL.group_replication_clone_threshold= default;
+--let $assert_text= group_replication_clone_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_clone_threshold] = 9223372036854775807
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+
+SET @@GLOBAL.group_replication_clone_threshold= @group_replication_clone_threshold_save;
+
+--source include/group_replication_end.inc

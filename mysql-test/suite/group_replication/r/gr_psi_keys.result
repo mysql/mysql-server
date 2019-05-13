@@ -19,6 +19,10 @@ wait/synch/mutex/group_rpl/LOCK_certification_info	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_certification_members	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_channel_observation_list	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_channel_observation_removal	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_clone_donor_list	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_clone_handler_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_clone_query	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_clone_read_mode	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_count_down_latch	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_delayed_init_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_delayed_init_server_ready	YES	YES	singleton	0	NULL
@@ -73,6 +77,7 @@ wait/synch/cond/group_rpl/COND_applier_module_suspend	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_applier_module_wait	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_certifier_broadcast_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_certifier_broadcast_dispatcher_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_clone_handler_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_delayed_init_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_delayed_init_server_ready	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_group_action_coordinator_process	YES	YES	singleton	0	NULL
@@ -108,7 +113,7 @@ stage/group_rpl/Primary Election: applying buffered transactions	YES	YES	progres
 stage/group_rpl/Primary Election: waiting on current primary transaction execution	YES	YES	progress	0	NULL
 stage/group_rpl/Primary Election: waiting for members to enable super_read_only	YES	YES	progress	0	NULL
 stage/group_rpl/Primary Election: stabilizing transactions from former primaries	YES	YES	progress	0	NULL
-stage/group_rpl/Primary switch: checking current primary pre-conditions	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Switch: checking current primary pre-conditions	YES	YES	progress	0	NULL
 stage/group_rpl/Primary Switch: waiting for pending transactions to finish	YES	YES	progress	0	NULL
 stage/group_rpl/Primary Switch: executing Primary election	YES	YES	progress	0	NULL
 stage/group_rpl/Primary Switch: waiting on another member step completion	YES	YES	progress	0	NULL
@@ -120,6 +125,8 @@ stage/group_rpl/Group Replication Module: Executing	YES	YES		0	NULL
 stage/group_rpl/Group Replication Module: Suspending	YES	YES		0	NULL
 stage/group_rpl/Group Replication Recovery: Connecting to donor	YES	YES		0	NULL
 stage/group_rpl/Group Replication Recovery: Transferring state from donor	YES	YES		0	NULL
+stage/group_rpl/Group Replication Cloning process: Preparing	YES	YES	progress	0	NULL
+stage/group_rpl/Group Replication Cloning process: Executing	YES	YES	progress	0	NULL
 
 ############################################################
 # 2. Start the GR

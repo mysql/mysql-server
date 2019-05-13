@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -225,6 +225,25 @@ class Recovery_module {
         ssl_verify_server_cert);
   }
 
+  /**
+    @return Is recovery configured to use SSL
+  */
+  bool get_recovery_use_ssl() {
+    return recovery_state_transfer.get_recovery_use_ssl();
+  }
+
+  /**
+    Get SSL options configured for recovery
+
+    @param[out]  ssl_ca    the ssl ca
+    @param[out]  ssl_cert  the ssl cert
+    @param[out]  ssl_key   the ssl key
+  */
+  void get_recovery_base_ssl_options(std::string &ssl_ca, std::string &ssl_cert,
+                                     std::string &ssl_key) {
+    recovery_state_transfer.get_recovery_base_ssl_options(ssl_ca, ssl_cert,
+                                                          ssl_key);
+  }
   /**
     Sets the recovery shutdown timeout.
 

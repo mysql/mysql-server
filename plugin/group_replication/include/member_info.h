@@ -135,8 +135,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the payload item: 1 bytes
     PIT_DEFAULT_TABLE_ENCRYPTION = 18,
 
+    // Length of the payload item: variable
+    PIT_PURGED_GTID = 19,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 19
+    PIT_MAX = 20
   };
 
   /*
@@ -306,6 +309,11 @@ class Group_member_info : public Plugin_gcs_message {
   std::string get_gtid_executed();
 
   /**
+    @return the member GTID_PURGED set
+   */
+  std::string get_gtid_purged();
+
+  /**
     @return the member GTID_RETRIEVED set for the applier channel
   */
   std::string get_gtid_retrieved();
@@ -372,9 +380,10 @@ class Group_member_info : public Plugin_gcs_message {
     Updates this object GTID sets
 
     @param[in] executed_gtids the status to set
+    @param[in] purged_gtids   the status to set
     @param[in] retrieve_gtids the status to set
    */
-  void update_gtid_sets(std::string &executed_gtids,
+  void update_gtid_sets(std::string &executed_gtids, std::string &purged_gtids,
                         std::string &retrieve_gtids);
 
   /**
@@ -532,6 +541,7 @@ class Group_member_info : public Plugin_gcs_message {
   Gcs_member_identifier *gcs_member_id;
   Member_version *member_version;
   std::string executed_gtid_set;
+  std::string purged_gtid_set;
   std::string retrieved_gtid_set;
   uint write_set_extraction_algorithm;
   ulonglong gtid_assignment_block_size;
@@ -671,10 +681,12 @@ class Group_member_info_manager_interface {
 
     @param[in] uuid            member uuid
     @param[in] gtid_executed   the member executed GTID set
+    @param[in] purged_gtids    the server purged GTID set
     @param[in] gtid_retrieved  the member retrieved GTID set for the applier
   */
   virtual void update_gtid_sets(const std::string &uuid,
                                 std::string &gtid_executed,
+                                std::string &purged_gtids,
                                 std::string &gtid_retrieved) = 0;
   /**
     Updates the role of a single member
@@ -853,7 +865,7 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
                             Notification_context &ctx);
 
   void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
-                        std::string &gtid_retrieved);
+                        std::string &purged_gtids, std::string &gtid_retrieved);
 
   void update_member_role(const std::string &uuid,
                           Group_member_info::Group_member_role new_role,

@@ -12,6 +12,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -48,6 +50,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -83,6 +87,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -131,6 +137,8 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 ** Only one dynamic entry
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -171,6 +179,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -206,6 +216,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -264,6 +276,8 @@ GRANT RUBBISH ON *.* TO `u1`@`localhost`
 DROP USER u1@localhost;
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -313,6 +327,8 @@ ERROR 42000: There is no such grant defined for user 'u1' on host 'localhost'
 ** privileges are affected by RENAME
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -370,6 +386,8 @@ GRANT SELECT ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -863,6 +881,8 @@ Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. 
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 # restart
 DROP USER u1@localhost;

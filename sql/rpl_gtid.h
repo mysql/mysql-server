@@ -1549,6 +1549,38 @@ class Gtid_set {
     Gtid_iterator git(this);
     return git.get().sidno == 0;
   }
+
+  /**
+    What is the count of all the GTIDs in all intervals for a sidno
+
+    @param sidno  The sidno that contains the intervals
+
+    @return the number of all GTIDs in all intervals
+  */
+  ulonglong get_interval_count(rpl_sidno sidno) const {
+    Const_interval_iterator ivit(this, sidno);
+    ulonglong ret = 0;
+    while (ivit.get() != nullptr) {
+      ret += ivit.get()->end - ivit.get()->start;
+      ivit.next();
+    }
+    return ret;
+  }
+
+  /**
+    What is the count of all the GTIDs for all sidno
+
+    @return the number of all GTIDs
+  */
+  ulonglong get_gtid_number() const {
+    if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+    rpl_sidno max_sidno = get_max_sidno();
+    ulonglong ret = 0;
+    for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++)
+      ret += get_interval_count(sidno);
+    return ret;
+  }
+
   /**
     Returns true if this Gtid_set contains at least one GTID with
     the given SIDNO.

@@ -262,26 +262,33 @@ bool Primary_election_secondary_process::is_election_process_running() {
 }
 
 bool Primary_election_secondary_process::enable_read_mode_on_server() {
-  mysql_mutex_lock(&election_lock);
-  Sql_service_command_interface *sql_command_interface =
-      new Sql_service_command_interface();
-  int error = sql_command_interface->establish_session_connection(
-      PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer());
-  if (!error) {
-    read_mode_session_id =
-        sql_command_interface->get_sql_service_interface()->get_session_id();
-    is_read_mode_set = SECONDARY_ELECTION_READ_MODE_BEING_SET;
-  }
-  mysql_mutex_unlock(&election_lock);
+  int error = 0;
+  remote_clone_handler->lock_gr_clone_read_mode_lock();
 
-  if (!error && !election_process_aborted) {
-    error = enable_super_read_only_mode(sql_command_interface);
+  if (!plugin_is_group_replication_cloning()) {
+    mysql_mutex_lock(&election_lock);
+    Sql_service_command_interface *sql_command_interface =
+        new Sql_service_command_interface();
+    error = sql_command_interface->establish_session_connection(
+        PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer());
+    if (!error) {
+      read_mode_session_id =
+          sql_command_interface->get_sql_service_interface()->get_session_id();
+      is_read_mode_set = SECONDARY_ELECTION_READ_MODE_BEING_SET;
+    }
+    mysql_mutex_unlock(&election_lock);
+
+    if (!error && !election_process_aborted) {
+      error = enable_super_read_only_mode(sql_command_interface);
+    }
+
+    mysql_mutex_lock(&election_lock);
+    delete sql_command_interface;
+    is_read_mode_set = SECONDARY_ELECTION_READ_MODE_IS_SET;
+    mysql_mutex_unlock(&election_lock);
   }
 
-  mysql_mutex_lock(&election_lock);
-  delete sql_command_interface;
-  is_read_mode_set = SECONDARY_ELECTION_READ_MODE_IS_SET;
-  mysql_mutex_unlock(&election_lock);
+  remote_clone_handler->unlock_gr_clone_read_mode_lock();
 
   return error != 0;
 }

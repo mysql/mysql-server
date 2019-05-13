@@ -301,6 +301,28 @@ bool Replication_thread_api::get_retrieved_gtid_set(std::string &retrieved_set,
   return (error != 0);
 }
 
+bool Replication_thread_api::get_channel_credentials(std::string &username,
+                                                     std::string &password,
+                                                     const char *channel_name) {
+  DBUG_ENTER("Replication_thread_api::get_channel_credentials");
+
+  const char *name = channel_name ? channel_name : interface_channel;
+  const char *user_arg = NULL;
+  char user_pass[MAX_PASSWORD_LENGTH + 1];
+  char *user_pass_pointer = user_pass;
+  size_t password_size = sizeof(user_pass);
+
+  int error;
+  error = channel_get_credentials(name, &user_arg, &user_pass_pointer,
+                                  &password_size);
+  if (!error) {
+    username.assign(user_arg);
+    password.assign(user_pass, password_size);
+  }
+
+  DBUG_RETURN((error != 0));
+}
+
 bool Replication_thread_api::is_partial_transaction_on_relay_log() {
   return is_partial_transaction_on_channel_relay_log(interface_channel);
 }

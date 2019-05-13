@@ -149,6 +149,25 @@ class Recovery_state_transfer {
   }
 
   /**
+    @return Is recovery configured to use SSL
+  */
+  bool get_recovery_use_ssl() { return this->recovery_use_ssl; }
+
+  /**
+    Get SSL options configured for recovery
+
+    @param[out]  ssl_ca    the ssl ca
+    @param[out]  ssl_cert  the ssl cert
+    @param[out]  ssl_key   the ssl key
+  */
+  void get_recovery_base_ssl_options(std::string &ssl_ca, std::string &ssl_cert,
+                                     std::string &ssl_key) {
+    if (recovery_ssl_ca != NULL) ssl_ca.assign(recovery_ssl_ca);
+    if (recovery_ssl_cert != NULL) ssl_cert.assign(recovery_ssl_cert);
+    if (recovery_ssl_key != NULL) ssl_key.assign(recovery_ssl_key);
+  }
+
+  /**
     Sets the recovery shutdown timeout.
 
     @param[in]  timeout      the timeout

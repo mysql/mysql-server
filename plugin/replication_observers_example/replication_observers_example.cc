@@ -749,6 +749,31 @@ int test_channel_service_interface() {
   exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
   DBUG_ASSERT(!exists);
 
+  // Test the method to extract credentials - first a non existing channel
+  const char *user_arg = NULL;
+  char user_pass[MAX_PASSWORD_LENGTH + 1];
+  char *user_pass_pointer = user_pass;
+  size_t password_size = sizeof(user_pass);
+  error = channel_get_credentials(dummy_channel, &user_arg, &user_pass_pointer,
+                                  &password_size);
+  DBUG_ASSERT(error == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+
+  // Now get channel credentials, after setting them
+
+  char dummy_user[] = "user";
+  char dummy_pass[] = "pass";
+
+  info.user = dummy_user;
+  info.password = dummy_pass;
+  error = channel_create(interface_channel, &info);
+  DBUG_ASSERT(!error);
+
+  error = channel_get_credentials(interface_channel, &user_arg,
+                                  &user_pass_pointer, &password_size);
+  DBUG_ASSERT(!error);
+  DBUG_ASSERT(strcmp(dummy_user, user_arg) == 0);
+  DBUG_ASSERT(strcmp(dummy_pass, user_pass_pointer) == 0);
+
   return (error && exists && running && gno && num_appliers && thread_id);
 }
 

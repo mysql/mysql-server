@@ -37,6 +37,7 @@
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
 #include "plugin/group_replication/include/plugin_messages/group_validation_message.h"
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
@@ -941,23 +942,85 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     applier_module->add_view_change_packet(view_change_packet);
 
     /*
-     Launch the recovery thread so we can receive missing data and the
-     certification information needed to apply the transactions queued after
-     this view change.
-
-     Recovery receives a view id, as a means to identify logically on joiners
-     and donors alike where this view change happened in the data. With that
-     info we can then ask for the donor to give the member all the data until
-     this point in the data, and the certification information for all the data
-     that comes next.
-
-     When alone, the server will go through Recovery to wait for the consumption
-     of his applier relay log that may contain transactions from previous
-     executions.
+     Chose what is the strategy for recovery.
+     Note that even if clone is chosen, if an error occurs on its launch,
+     distributed recovery is again selected as the default choice.
     */
-    recovery_module->start_recovery(
-        new_view.get_group_id().get_group_id(),
-        new_view.get_view_id().get_representation());
+    Remote_clone_handler::enum_clone_check_result recovery_strategy =
+        Remote_clone_handler::DO_RECOVERY;
+
+    // The check is not needed if the member is alone
+    if (number_of_members > 1)
+      recovery_strategy = remote_clone_handler->check_clone_preconditions();
+
+    if (Remote_clone_handler::DO_CLONE == recovery_strategy) {
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
+                   "Cloning from a remote group donor.");
+      /*
+       Launch the clone process. It will configure SSL options and the list
+       of allowed donors.
+       When terminated, the clone process will restart the server.
+       The whole start join process is still done as an error on cloning can
+       mean we fall back to distributed recovery.
+      */
+      if (remote_clone_handler->clone_server(
+              new_view.get_group_id().get_group_id(),
+              new_view.get_view_id().get_representation())) {
+        /* purecov: begin inspected */
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_FALLBACK,
+                     "Distributed Recovery.");
+        recovery_strategy = Remote_clone_handler::DO_RECOVERY;
+        /* purecov: end */
+      }
+    }
+
+    if (Remote_clone_handler::DO_RECOVERY == recovery_strategy) {
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
+                   "Distributed recovery from a group donor");
+      /*
+       Launch the recovery thread so we can receive missing data and the
+       certification information needed to apply the transactions queued after
+       this view change.
+
+       Recovery receives a view id, as a means to identify logically on joiners
+       and donors alike where this view change happened in the data. With that
+       info we can then ask for the donor to give the member all the data until
+       this point in the data, and the certification information for all the
+       data that comes next.
+
+       When alone, the server will go through Recovery to wait for the
+       consumption of his applier relay log that may contain transactions from
+       previous executions.
+      */
+      recovery_module->start_recovery(
+          new_view.get_group_id().get_group_id(),
+          new_view.get_view_id().get_representation());
+    } else if (Remote_clone_handler::CHECK_ERROR == recovery_strategy ||
+               Remote_clone_handler::NO_RECOVERY_POSSIBLE ==
+                   recovery_strategy) {
+      if (Remote_clone_handler::NO_RECOVERY_POSSIBLE == recovery_strategy)
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NO_POSSIBLE_RECOVERY);
+      else {
+        /* purecov: begin inspected */
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RECOVERY_EVAL_ERROR, "");
+        /* purecov: end */
+      }
+
+      /*
+        The notification will be triggered in the top level handle function
+        that calls this one. In this case, the on_view_changed handle.
+      */
+      group_member_mgr->update_member_status(local_member_info->get_uuid(),
+                                             Group_member_info::MEMBER_ERROR,
+                                             m_notification_ctx);
+      this->leave_group_on_error();
+
+      /*
+        unblock threads waiting for the member to become ONLINE
+      */
+      terminate_wait_on_start_process();
+      return;
+    }
   }
   /*
     The condition
@@ -1144,6 +1207,7 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
 
 Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
   std::string server_executed_gtids;
+  std::string server_purged_gtids;
   std::string applier_retrieved_gtids;
   Replication_thread_api applier_channel("group_replication_applier");
 
@@ -1152,17 +1216,23 @@ Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
 
   if (sql_command_interface->establish_session_connection(
           PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer())) {
-    LogPluginErr(
-        WARNING_LEVEL,
-        ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR); /* purecov: inspected */
-    goto sending;                                  /* purecov: inspected */
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR);
+    goto sending;
+    /* purecov: end */
   }
 
   if (sql_command_interface->get_server_gtid_executed(server_executed_gtids)) {
-    LogPluginErr(
-        WARNING_LEVEL,
-        ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR); /* purecov: inspected */
-    goto sending;                                /* purecov: inspected */
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
+    goto sending;
+    /* purecov: inspected */
+  }
+  if (sql_command_interface->get_server_gtid_purged(server_purged_gtids)) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_PURGED_EXTRACT_ERROR);
+    goto sending;
+    /* purecov: end */
   }
   if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids)) {
     LogPluginErr(WARNING_LEVEL,
@@ -1170,7 +1240,7 @@ Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
   }
 
   group_member_mgr->update_gtid_sets(local_member_info->get_uuid(),
-                                     server_executed_gtids,
+                                     server_executed_gtids, server_purged_gtids,
                                      applier_retrieved_gtids);
 sending:
 

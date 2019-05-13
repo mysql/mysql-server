@@ -1,0 +1,129 @@
+################################################################################
+# This test is to verify privileges required by a user to set/update group
+# replication(GR) variables.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Create an user which lacks privileges.
+# 2. Expect ER_SPECIFIC_ACCESS_DENIED_ERROR when setting GR global variables.
+# 3. Grant SYSTEM_VARIABLES_ADMIN and verify setting group replication
+#    variables at global scope succeed, except group_replication_consistency
+#    which also needs GROUP_REPLICATION_ADMIN privilege.
+# 4. Grant GROUP_REPLICATION_ADMIN and verify setting
+#    group_replication_consistency at global scope succeeds.
+# 5. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Create an user which lacks privileges.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+CREATE USER 'no_priv_user'@localhost IDENTIFIED BY '';
+GRANT ALL ON *.* TO 'no_priv_user'@localhost;
+--disable_warnings
+REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN, GROUP_REPLICATION_ADMIN
+ ON *.* FROM 'no_priv_user'@localhost;
+--enable_warnings
+
+--echo
+--echo ############################################################
+--echo # 2. Expect ER_SPECIFIC_ACCESS_DENIED_ERROR when setting GR
+--echo #    global variables since user lacks SUPER or
+--echo #    SYSTEM_VARIABLES_ADMIN privileges.
+
+CREATE TABLE gr_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(256));
+INSERT INTO gr_vars (var_name, var_value)
+ SELECT * FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME LIKE '%group_replication%'
+ ORDER BY VARIABLE_NAME;
+
+--let $count_vars= `SELECT COUNT(*) FROM gr_vars;`
+
+--connect (no_priv_user_con,localhost,no_priv_user,,test,$MASTER_MYPORT,,)
+--let $rpl_connection_name= no_priv_user_con
+--source include/rpl_connection.inc
+
+--echo
+--echo # Expect ER_SPECIFIC_ACCESS_DENIED_ERROR for global variables.
+--let $var_id=1
+while ( $var_id <= $count_vars )
+{
+  --let $var_names= `SELECT var_name FROM gr_vars WHERE id=$var_id`
+  --error ER_SPECIFIC_ACCESS_DENIED_ERROR
+  --eval SET GLOBAL $var_names = @@GLOBAL.$var_names
+  --inc $var_id
+}
+
+# Session variable(s)
+--echo
+--echo # Like most system variables, setting the session value for
+--echo # group_replication_consistency requires no special privileges.
+SET SESSION group_replication_consistency = @@SESSION.group_replication_consistency;
+
+--echo
+--echo ############################################################
+--echo # 3. Grant SYSTEM_VARIABLES_ADMIN and verify setting group
+--echo #    replication variables at global scope succeed, except
+--echo #    group_replication_consistency which also needs
+--echo #    GROUP_REPLICATION_ADMIN privilege.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+GRANT SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN ON *.* TO 'no_priv_user'@localhost;
+
+--let $rpl_connection_name= no_priv_user_con
+--source include/rpl_connection.inc
+
+--echo
+--let $var_id=1
+while ( $var_id <= $count_vars )
+{
+  --let $var_names= `SELECT var_name FROM gr_vars WHERE id=$var_id`
+  if ($var_names == "group_replication_consistency")
+  {
+    --error ER_SPECIFIC_ACCESS_DENIED_ERROR
+  }
+  --eval SET GLOBAL $var_names = @@GLOBAL.$var_names
+  --inc $var_id
+}
+
+--echo
+--echo ############################################################
+--echo # 4. Grant GROUP_REPLICATION_ADMIN and verify setting
+--echo #    group_replication_consistency at global scope succeeds.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'no_priv_user'@localhost;
+
+--let $rpl_connection_name= no_priv_user_con
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_consistency = @@GLOBAL.group_replication_consistency;
+
+--echo
+--echo ############################################################
+--echo # 5. Clean up.
+
+--disconnect no_priv_user_con
+--let $count_vars=
+--let $var_id=
+--let $var_names=
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE gr_vars;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'no_priv_user'@localhost;
+DROP USER 'no_priv_user'@localhost;
+FLUSH PRIVILEGES;
+
+--source include/group_replication_end.inc

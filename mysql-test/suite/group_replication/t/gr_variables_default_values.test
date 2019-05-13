@@ -80,7 +80,7 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_message_cache_size = `SELECT @@GLOBAL.group_replication_message_cache_size;`
 
 # Total number of GR variables.
---let $total_gr_vars= 50
+--let $total_gr_vars= 51
 
 --echo #
 --echo # Test Unit#1

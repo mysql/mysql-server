@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,4 +94,14 @@ void abort_plugin_process(const char *message) {
     // If the shutdown failed then abort the server.
     abort();
   }
+}
+
+void plugin_escape_string(std::string &string_to_escape) {
+  size_t length = string_to_escape.length();
+  char *end_string =
+      (char *)my_malloc(PSI_NOT_INSTRUMENTED, 2 * length + 1, MYF(0));
+  escape_string_for_mysql(&my_charset_utf8_general_ci, end_string,
+                          2 * length + 1, string_to_escape.c_str(), length);
+  string_to_escape.assign(end_string);
+  my_free(end_string);
 }

@@ -72,6 +72,7 @@
 #include "sql/auth/auth_common.h"  // acl_authenticate
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // purge_master_logs
+#include "sql/clone_handler.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client::Auto_releaser
 #include "sql/dd/dd.h"                       // dd::get_dictionary
@@ -3169,6 +3170,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction() ||
           thd->in_sub_stmt) {
         my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+        goto error;
+      }
+
+      if (Clone_handler::is_provisioning()) {
+        my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                 "START GROUP_REPLICATION",
+                 "This server is being provisioned by CLONE INSTANCE, "
+                 "please wait until it is complete.");
         goto error;
       }
 

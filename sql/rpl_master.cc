@@ -1148,7 +1148,12 @@ bool reset_master(THD *thd, bool unlock_global_read_lock) {
     is not enabled, as RESET MASTER command will clear 'gtid_executed' table.
   */
   thd->set_skip_readonly_check();
-  if (is_group_replication_running()) {
+
+  /*
+    No RESET MASTER commands are allowed while Group Replication is running
+    unless executed during a clone operation as part of the process.
+  */
+  if (is_group_replication_running() && !is_group_replication_cloning()) {
     my_error(ER_CANT_RESET_MASTER, MYF(0), "Group Replication is running");
     ret = true;
     goto end;
