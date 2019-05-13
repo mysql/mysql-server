@@ -328,8 +328,7 @@ class Item_func_year final : public Item_int_func {
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool resolve_type(THD *) override {
-    fix_char_length(4); /* 9999 */
-    unsigned_flag = true;
+    fix_char_length(5); /* 9999 plus sign */
     maybe_null = true;
     return false;
   }
