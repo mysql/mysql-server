@@ -57,6 +57,7 @@
 #include "sql/ndb_component.h"
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_dist_priv_util.h"
+#include "sql/ndb_ddl_definitions.h"
 #include "sql/ndb_ddl_transaction_ctx.h"
 #include "sql/ndb_create_helper.h"
 #include "sql/ndb_event_data.h"
@@ -10551,11 +10552,6 @@ static bool drop_table_and_related(THD *thd, Ndb *ndb,
                                    const NdbDictionary::Table *table,
                                    int drop_flags, bool skip_related);
 
-static int drop_table_impl(THD *thd, Ndb *ndb,
-                           Ndb_schema_dist_client &schema_dist_client,
-                           const char *path, const char *db,
-                           const char *table_name);
-
 /**
   @brief Create a table in NDB
   @param name                  Table name.
@@ -10783,7 +10779,7 @@ int ha_ndbcluster::create(const char *name,
 
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
     const int drop_result = drop_table_impl(
-        thd, thd_ndb->ndb, schema_dist_client, name, m_dbname, m_tabname);
+        thd, thd_ndb->ndb, &schema_dist_client, name, m_dbname, m_tabname);
     if (drop_result) {
       DBUG_RETURN(drop_result);
     }
@@ -11430,6 +11426,13 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(create.failed_warning_already_pushed());
   }
 
+  // Log the commit in the Ndb_DDL_transaction_ctx
+  Ndb_DDL_transaction_ctx *ddl_ctx = nullptr;
+  if (thd_sql_command(thd) != SQLCOM_TRUNCATE) {
+    ddl_ctx = thd_ndb->get_ddl_transaction_ctx(true);
+    ddl_ctx->log_create_table(name);
+  }
+
   // Invalidate the sucessfully created table in NdbApi global dict cache
   table_invalidator.invalidate_after_sucessfully_created_table();
 
@@ -11479,17 +11482,16 @@ int ha_ndbcluster::create(const char *name,
   if (!share)
   {
     // Failed to create the NDB_SHARE instance for this table, most likely OOM.
-    // Try to drop the table from NDB before returning
-    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
-                                 0,          // drop_flags
-                                 false);     // skip_related
     DBUG_RETURN(create.failed_oom("Failed to acquire NDB_SHARE"));
   }
+
+  // Guard for the temporary share.
+  // This will release the share automatically when it goes out of scope.
+  Ndb_share_temp_ref ndb_share_guard(share, "create");
 
   if (ndb_name_is_temp(m_tabname))
   {
     // Temporary named table created OK
-    NDB_SHARE::release_reference(share, "create"); // temporary ref.
     DBUG_RETURN(create.succeeded()); // All OK
   }
 
@@ -11497,14 +11499,6 @@ int ha_ndbcluster::create(const char *name,
   if (binlog_client.apply_replication_info(ndb, share, ndbtab, conflict_fn,
                                            args, num_args, binlog_flags) != 0) {
     // Failed to apply replication settings
-    // Try to drop the table from NDB before returning
-    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
-                                 0,                 // drop_flags
-                                 false);            // skip_related
-    mysql_mutex_lock(&ndbcluster_mutex);
-    NDB_SHARE::mark_share_dropped(&share);
-    NDB_SHARE::release_reference_have_lock(share, "create");  // temporary ref.
-    mysql_mutex_unlock(&ndbcluster_mutex);
     DBUG_RETURN(create.failed_warning_already_pushed());
   }
 
@@ -11512,12 +11506,7 @@ int ha_ndbcluster::create(const char *name,
   {
     if (binlog_client.create_event(ndb, ndbtab, share))
     {
-      // Failed to create event for this table, fail the CREATE
-      // and drop the table from NDB before returning
-      (void)drop_table_and_related(thd, ndb, dict, ndbtab,
-                                   0,          // drop_flags
-                                   false);     // skip_related
-      NDB_SHARE::release_reference(share, "create"); // temporary ref.
+      // Failed to create event for this table
       DBUG_RETURN(create.failed_internal_error( "Failed to create event"));
     }
 
@@ -11527,12 +11516,7 @@ int ha_ndbcluster::create(const char *name,
       if (!binlog_client.create_event_data(share, table_def, &event_data) ||
           binlog_client.create_event_op(share, ndbtab, event_data))
       {
-        // Failed to create event operation for this table, fail the CREATE
-        // and drop the table from NDB before returning
-        (void)drop_table_and_related(thd, ndb, dict, ndbtab,
-                                     0,          // drop_flags
-                                     false);     // skip_related
-        NDB_SHARE::release_reference(share, "create"); // temporary ref.
+        // Failed to create event operation for this table
         DBUG_RETURN(
             create.failed_internal_error("Failed to create event operation"));
       }
@@ -11549,25 +11533,22 @@ int ha_ndbcluster::create(const char *name,
   else
   {
     DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
+    int id = ndbtab->getObjectId();
+    int version = ndbtab->getObjectVersion();
     schema_dist_result = schema_dist_client.create_table(
-        share->db, share->table_name, ndbtab->getObjectId(),
-        ndbtab->getObjectVersion());
+        share->db, share->table_name, id, version);
+    if (schema_dist_result) {
+      // Mark the stmt as distributed in Ndb_DDL_transaction_ctx.
+      DBUG_ASSERT(ddl_ctx != nullptr);
+      ddl_ctx->mark_last_stmt_as_distributed();
+    }
   }
   if (!schema_dist_result)
   {
     // Failed to distribute the create/truncate of this table to the
-    // other MySQL Servers, fail the CREATE/TRUNCATE and drop the table
-    // from NDB before returning
-    // NOTE! Should probably not rollback a failed TRUNCATE by dropping
-    // the new table(same in other places above).
-    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
-                                 0,                 // drop_flags
-                                 false);            // skip_related
-    NDB_SHARE::release_reference(share, "create");  // temporary ref.
+    // other MySQL Servers, fail the CREATE/TRUNCATE
     DBUG_RETURN(create.failed_internal_error("Failed to distribute table"));
   }
-
-  NDB_SHARE::release_reference(share, "create"); // temporary ref.
 
   DBUG_RETURN(create.succeeded()); // All OK
 }
@@ -12483,10 +12464,9 @@ drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
 }
 
 
-static
 int
 drop_table_impl(THD *thd, Ndb *ndb,
-                Ndb_schema_dist_client& schema_dist_client,
+                Ndb_schema_dist_client* schema_dist_client,
                 const char *path,
                 const char *db,
                 const char *table_name)
@@ -12567,7 +12547,7 @@ drop_table_impl(THD *thd, Ndb *ndb,
     break;
   }
 
-  const Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
   const int dict_error_code = dict->getNdbError().code;
   // Check if an error has occurred. Note that if the table didn't exist in NDB
   // (denoted by error codes 709 or 723), it's considered a success
@@ -12592,13 +12572,19 @@ drop_table_impl(THD *thd, Ndb *ndb,
     ndbcluster_binlog_wait_synch_drop_table(thd, share);
   }
 
+  // Distribute the drop table.
+  // Skip logging in participant if this is a rollback
+  Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx(false);
+  bool log_on_participant =
+      (ddl_ctx == nullptr || !ddl_ctx->rollback_in_progress());
   if (!ndb_name_is_temp(table_name) &&
       thd_sql_command(thd) != SQLCOM_TRUNCATE &&
-      thd_sql_command(thd) != SQLCOM_DROP_DB)
+      thd_sql_command(thd) != SQLCOM_DROP_DB &&
+      schema_dist_client != nullptr)
   {
-    if (!schema_dist_client.drop_table(db, table_name,
-                                       ndb_table_id, ndb_table_version))
-    {
+    if (!schema_dist_client->drop_table(db, table_name, ndb_table_id,
+                                        ndb_table_version,
+                                        log_on_participant)) {
       // Failed to distribute the drop of this table to the
       // other MySQL Servers, just push warning and continue
       thd_ndb->push_warning("Failed to distribute 'DROP TABLE %s'", table_name);
@@ -12638,9 +12624,16 @@ drop_table_impl(THD *thd, Ndb *ndb,
           thd->lex->select_lex->table_list.first->table_name;
       DBUG_PRINT("info", ("original table name: '%s.%s'", orig_db, orig_name));
 
-      if (!schema_dist_client.drop_table(orig_db, orig_name,
-                                         ndb_table_id, ndb_table_version))
-      {
+      // Distribute the drop. If this is a rollback of a 'CREATE TABLE',
+      // skip writing the query on participant binlog.
+      Ndb_DDL_transaction_ctx *ddl_ctx =
+          thd_ndb->get_ddl_transaction_ctx(false);
+      bool log_on_participant =
+          (ddl_ctx == nullptr || !ddl_ctx->rollback_in_progress());
+      if (schema_dist_client != nullptr &&
+          !schema_dist_client->drop_table(orig_db, orig_name, ndb_table_id,
+                                          ndb_table_version,
+                                          log_on_participant)) {
         // Failed to distribute the drop of this table to the
         // other MySQL Servers, just push warning and continue
         thd_ndb->push_warning("Failed to distribute 'DROP TABLE %s'",
@@ -12741,7 +12734,8 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *)
   /*
     Drop table in NDB and on the other mysqld(s)
   */
-  const int drop_result = drop_table_impl(thd, thd_ndb->ndb, schema_dist_client,
+  const int drop_result = drop_table_impl(thd, thd_ndb->ndb,
+                                          &schema_dist_client,
                                           path, m_dbname, m_tabname);
   DBUG_RETURN(drop_result);
 }
@@ -13654,7 +13648,7 @@ static int ndbcluster_drop_database_impl(
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, (uint)(FN_REFLEN - (tmp - full_path)-1));
-    if (drop_table_impl(thd, ndb, schema_dist_client,
+    if (drop_table_impl(thd, ndb, &schema_dist_client,
                         full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -14122,6 +14116,7 @@ int ndbcluster_init(void* handlerton_ptr)
   hton->pre_dd_shutdown = ndbcluster_pre_dd_shutdown;
   hton->notify_alter_table = ndbcluster_notify_alter_table;
   hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
+
   hton->post_ddl = ndbcluster_post_ddl;
 
   // Initialize NdbApi

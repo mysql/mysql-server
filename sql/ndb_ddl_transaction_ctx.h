@@ -135,6 +135,9 @@ class Ndb_DDL_transaction_ctx {
     }
   }
 
+  /* Methods to handle rollback of individual DDls */
+  bool rollback_create_table(const Ndb_DDL_stmt &);
+
  public:
   Ndb_DDL_transaction_ctx(class THD *thd) : m_thd(thd) {}
 
@@ -148,6 +151,9 @@ class Ndb_DDL_transaction_ctx {
   }
 
   /* Helper methods to log the DDL. */
+  /* @brief Log a create table statement in DDL Context.
+
+     @param path_name       Path name of the table. */
   void log_create_table(const std::string &path_name);
   void log_rename_table(const std::string &old_db_name,
                         const std::string &old_table_name,
@@ -168,6 +174,11 @@ class Ndb_DDL_transaction_ctx {
             all the changes in reverse. Also undo any schema change
             distributed through schema distribution */
   bool rollback();
+
+  /* @brief Check if the DDL is being rollbacked */
+  bool rollback_in_progress() const {
+    return (m_ddl_status == DDL_ROLLED_BACK);
+  }
 };
 
 #endif /* NDB_DDL_TRANSACTION_CTX_H */

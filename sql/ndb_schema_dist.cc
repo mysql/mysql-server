@@ -423,8 +423,9 @@ bool Ndb_schema_dist_client::rename_table(const char* db,
                             log_on_participant));
 }
 
-bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
-                                        int id, int version) {
+bool Ndb_schema_dist_client::drop_table(const char *db, const char *table_name,
+                                        int id, int version,
+                                        bool log_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_table");
 
   /*
@@ -460,7 +461,8 @@ bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
   }
 
   DBUG_RETURN(log_schema_op(rewritten_query.c_str(), rewritten_query.length(),
-                            db, table_name, id, version, SOT_DROP_TABLE));
+                            db, table_name, id, version, SOT_DROP_TABLE,
+                            log_on_participant));
 }
 
 bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,

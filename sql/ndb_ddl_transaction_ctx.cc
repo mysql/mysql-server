@@ -25,8 +25,57 @@
 // Implements the interface defined in
 #include "sql/ndb_ddl_transaction_ctx.h"
 
+#include "sql/ndb_ddl_definitions.h"
+#include "sql/ndb_name_util.h"
+#include "sql/ndb_schema_dist.h"
+#include "sql/ndb_thd_ndb.h"
+
 void Ndb_DDL_transaction_ctx::log_create_table(const std::string &path_name) {
   log_ddl_stmt(Ndb_DDL_stmt::CREATE_TABLE, path_name);
+}
+
+bool Ndb_DDL_transaction_ctx::rollback_create_table(
+    const Ndb_DDL_stmt &ddl_stmt) {
+  DBUG_TRACE;
+
+  /* extract info from ddl_info */
+  const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
+  DBUG_ASSERT(ddl_info.size() == 1);
+  const char *path_name = ddl_info[0].c_str();
+  char db_name[FN_HEADLEN];
+  char table_name[FN_HEADLEN];
+  ndb_set_dbname(path_name, db_name);
+  ndb_set_tabname(path_name, table_name);
+
+  /* Prepare schema client for rollback if required */
+  Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
+  Ndb_schema_dist_client schema_dist_client(m_thd);
+  bool schema_dist_prepared = false;
+  if (ddl_stmt.has_been_distributed()) {
+    /* The stmt was distributed.
+       So rollback should be distributed too.
+       Prepare the schema client */
+    schema_dist_prepared = schema_dist_client.prepare(db_name, table_name);
+    if (!schema_dist_prepared) {
+      /* Report the error and just drop it locally */
+      thd_ndb->push_warning(
+          "Failed to distribute rollback to connected servers.");
+    }
+  }
+
+  DBUG_PRINT("info",
+             ("Rollback : Dropping table '%s.%s'", db_name, table_name));
+
+  /* Drop the table created during this DDL execution */
+  Ndb *ndb = thd_ndb->ndb;
+  if (drop_table_impl(m_thd, ndb,
+                      schema_dist_prepared ? &schema_dist_client : nullptr,
+                      path_name, db_name, table_name)) {
+    thd_ndb->push_warning("Failed to rollback after CREATE TABLE failure.");
+    return false;
+  }
+
+  return true;
 }
 
 void Ndb_DDL_transaction_ctx::log_rename_table(
@@ -60,6 +109,7 @@ bool Ndb_DDL_transaction_ctx::rollback() {
     const Ndb_DDL_stmt &ddl_stmt = *it;
     switch (ddl_stmt.get_ddl_type()) {
       case Ndb_DDL_stmt::CREATE_TABLE:
+        result &= rollback_create_table(ddl_stmt);
         break;
       case Ndb_DDL_stmt::RENAME_TABLE:
         break;
@@ -69,6 +119,5 @@ bool Ndb_DDL_transaction_ctx::rollback() {
         break;
     }
   }
-
   return result;
 }

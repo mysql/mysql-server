@@ -388,6 +388,15 @@ private:
   {
     DBUG_ASSERT(refs->erase(reference));
   }
+public:
+  bool refs_exists(const char* reference MY_ATTRIBUTE((unused))) const
+  {
+#ifndef DBUG_OFF
+    return refs->exists(reference);
+#else
+    return true;
+#endif
+  }
 };
 
 /**
@@ -411,6 +420,15 @@ public:
                                                   m_reference.c_str());
      // Should always exist
     assert(m_share);
+  }
+
+  Ndb_share_temp_ref(NDB_SHARE* share, const char* reference) :
+    m_reference(reference)
+  {
+    // The share and a reference should exist
+    assert(share);
+    assert(share->refs_exists(reference));
+    m_share = share;
   }
 
   ~Ndb_share_temp_ref()

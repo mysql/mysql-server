@@ -282,7 +282,8 @@ class Ndb_schema_dist_client {
   bool rename_table(const char *db, const char *table_name, int id, int version,
                     const char *new_dbname, const char *new_tabname,
                     bool log_on_participant);
-  bool drop_table(const char *db, const char *table_name, int id, int version);
+  bool drop_table(const char *db, const char *table_name, int id, int version,
+                  bool log_on_participant = true);
 
   bool create_db(const char *query, uint query_length, const char *db,
                  unsigned int id, unsigned int version);
