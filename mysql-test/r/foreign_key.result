@@ -4696,3 +4696,26 @@ ERROR HY000: Failed to add the foreign key constraint. Missing index for constra
 CREATE TABLE self (a INT, b CHAR(10), c int, fk1 int, fk2 int, KEY(c),
 PRIMARY KEY (a, b(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (c, a));
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+#
+# Bug#21308781 "DROP FOREIGN KEY LEAD TO INCONSISTENT TABLE STRUCTURE
+#               ON MASTER AND SLAVE".
+#
+CREATE TABLE t1(pk INT PRIMARY KEY);
+CREATE TABLE t2(pk INT PRIMARY KEY);
+CREATE TABLE t3(fk1 INT, fk2 INT, KEY k1(fk1),
+CONSTRAINT a FOREIGN KEY (fk1) REFERENCES t1(pk),
+CONSTRAINT b FOREIGN KEY (fk2) REFERENCES t2(pk));
+ALTER TABLE t3 DROP KEY k1, DROP FOREIGN KEY b, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'k1': needed in a foreign key constraint
+# Failed ALTER TABLE should have left table intact!
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  KEY `k1` (`fk1`),
+  KEY `b` (`fk2`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `b` FOREIGN KEY (`fk2`) REFERENCES `t2` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLES t3, t2, t1;
