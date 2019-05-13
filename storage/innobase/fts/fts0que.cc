@@ -3737,6 +3737,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     query.error = fts_ast_visit(FTS_NONE, ast, fts_query_visitor, &query,
                                 &will_be_ignored);
     if (query.error == DB_INTERRUPTED) {
+      ut_free(lc_query_str);
       error = DB_INTERRUPTED;
       goto func_exit;
     }
