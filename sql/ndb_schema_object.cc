@@ -114,6 +114,21 @@ static uint32 next_schema_op_id() {
   return id;
 }
 
+uint NDB_SCHEMA_OBJECT::decremement_use_count() const {
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
+  ndbcluster::ndbrequire(state.m_use_count > 0);
+  state.m_use_count--;
+  DBUG_PRINT("info", ("use_count: %d", state.m_use_count));
+  return state.m_use_count;
+}
+
+uint NDB_SCHEMA_OBJECT::increment_use_count() const {
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
+  state.m_use_count++;
+  DBUG_PRINT("info", ("use_count: %d", state.m_use_count));
+  return state.m_use_count;
+}
+
 NDB_SCHEMA_OBJECT::NDB_SCHEMA_OBJECT(const char *key, const char *db,
                                      const char *name, uint32 id,
                                      uint32 version)
@@ -126,7 +141,7 @@ NDB_SCHEMA_OBJECT::NDB_SCHEMA_OBJECT(const char *key, const char *db,
       m_started(std::chrono::steady_clock::now()) {}
 
 NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
-  DBUG_ASSERT(m_use_count == 0);
+  DBUG_ASSERT(state.m_use_count == 0);
   // Check that all participants have completed
   DBUG_ASSERT(state.m_participants.size() == count_completed_participants());
   // Coordinator should have completed
@@ -135,8 +150,7 @@ NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
 
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
                                           const char *table_name, uint32 id,
-                                          uint32 version,
-                                          bool create_if_not_exists) {
+                                          uint32 version, bool create) {
   DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
   DBUG_PRINT("enter", ("db: '%s', table_name: '%s', id: %u, version: %u",
                        db, table_name, id, version));
@@ -151,12 +165,17 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
   NDB_SCHEMA_OBJECT *ndb_schema_object = active_schema_clients.find(key);
   if (ndb_schema_object)
   {
-    ndb_schema_object->m_use_count++;
-    DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->m_use_count));
+    // Don't allow reuse of existing NDB_SCHEMA_OBJECT when requesting to
+    // create, only the Ndb_schema_dist_client will create NDB_SCHEMA_OBJECT
+    // and it should wait until previous schema operation with
+    // same key has completed.
+    ndbcluster::ndbrequire(!create);
+
+    (void)ndb_schema_object->increment_use_count();
     DBUG_RETURN(ndb_schema_object);
   }
 
-  if (!create_if_not_exists) {
+  if (!create) {
     DBUG_PRINT("info", ("does not exist"));
     DBUG_RETURN(nullptr);
   }
@@ -170,8 +189,6 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
 
   // Add to list of NDB_SCHEMA_OBJECTs
   active_schema_clients.m_hash.emplace(key, ndb_schema_object);
-  ndb_schema_object->m_use_count++;
-  DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->m_use_count));
   DBUG_RETURN(ndb_schema_object);
 }
 
@@ -184,8 +201,7 @@ NDB_SCHEMA_OBJECT* NDB_SCHEMA_OBJECT::get(uint32 nodeid, uint32 schema_op_id) {
   NDB_SCHEMA_OBJECT *ndb_schema_object =
       active_schema_clients.find(nodeid, schema_op_id);
   if (ndb_schema_object) {
-    ndb_schema_object->m_use_count++;
-    DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->m_use_count));
+    (void)ndb_schema_object->increment_use_count();
     DBUG_RETURN(ndb_schema_object);
   }
 
@@ -198,11 +214,11 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(NDB_SCHEMA_OBJECT *schema_object) {
   DBUG_PRINT("enter", ("schema_object: %p", schema_object));
 
   ndbcluster::ndbrequire(schema_object);
-  // Should already be referenced
-  ndbcluster::ndbrequire(schema_object->m_use_count);
-  schema_object->m_use_count++;
 
-  DBUG_PRINT("info", ("use_count: %d", schema_object->m_use_count));
+  const uint use_count = schema_object->increment_use_count();
+  // Should already have been used before calling this function
+  ndbcluster::ndbrequire(use_count > 1);
+
   DBUG_RETURN(schema_object);
 }
 
@@ -212,16 +228,18 @@ NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object)
   DBUG_ENTER("NDB_SCHEMA_OBJECT::release");
   DBUG_PRINT("enter", ("key: '%s'", ndb_schema_object->m_key.c_str()));
 
-  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
-
-  ndbcluster::ndbrequire(ndb_schema_object->m_use_count > 0);
-  ndb_schema_object->m_use_count--;
-  DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->m_use_count));
-
-  if (ndb_schema_object->m_use_count != 0)
+  const uint use_count = ndb_schema_object->decremement_use_count();
+  if (use_count != 0) {
+    // Not the last user
+    if (use_count == 1) {
+      // Only one user left, must be the Client, signal it to wakeup
+      ndb_schema_object->state.m_cond.notify_one();
+    }
     DBUG_VOID_RETURN;
+  }
 
-  // Remove from list of NDB_SCHEMA_OBJECTS
+  // Last user, remove from list of NDB_SCHEMA_OBJECTS and delete instance
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
   active_schema_clients.m_hash.erase(ndb_schema_object->m_key);
   delete ndb_schema_object;
   DBUG_VOID_RETURN;
@@ -233,7 +251,7 @@ size_t NDB_SCHEMA_OBJECT::count_active_schema_ops() {
 }
 
 std::string NDB_SCHEMA_OBJECT::waiting_participants_to_string() const {
-  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
   const char* separator = "";
   std::string participants("[");
   for (const auto& it: state.m_participants){
@@ -252,12 +270,12 @@ std::string NDB_SCHEMA_OBJECT::to_string(const char* line_separator) const
   ss << "NDB_SCHEMA_OBJECT { " << line_separator
      << "  '" << m_db <<  "'.'" << m_name << "', " << line_separator
      << "  id: " << m_id << ", version: " << m_version << ", " << line_separator
-     << "  use_count: " <<  m_use_count << ", " << line_separator
      << "  schema_op_id: " << m_schema_op_id << ", " << line_separator;
 
   // Dump state
-  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
   {
+    ss << "  use_count: " <<  state.m_use_count << ", " << line_separator;
     // Print the participant list
     ss << "  participants: " << state.m_participants.size() << " [ "
        << line_separator;
@@ -289,7 +307,7 @@ size_t NDB_SCHEMA_OBJECT::count_completed_participants() const {
 
 void NDB_SCHEMA_OBJECT::register_participants(
     const std::unordered_set<uint32> &nodes) const {
-  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
 
   // Assume the list of participants is empty
   ndbcluster::ndbrequire(state.m_participants.size() == 0);
@@ -307,7 +325,7 @@ void NDB_SCHEMA_OBJECT::register_participants(
 void NDB_SCHEMA_OBJECT::result_received_from_node(
     uint32 participant_node_id, uint32 result,
     const std::string &message) const {
-  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
 
   const auto it = state.m_participants.find(participant_node_id);
   if (it == state.m_participants.end()) {
@@ -326,7 +344,7 @@ void NDB_SCHEMA_OBJECT::result_received_from_node(
 
 void NDB_SCHEMA_OBJECT::result_received_from_nodes(
     const std::unordered_set<uint32> &nodes) const {
-  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
 
   // Mark the listed nodes as completed
   for(auto node : nodes) {
@@ -346,7 +364,7 @@ void NDB_SCHEMA_OBJECT::result_received_from_nodes(
 }
 
 bool NDB_SCHEMA_OBJECT::check_all_participants_completed() const {
-  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
   return state.m_participants.size() == count_completed_participants();
 }
 
@@ -370,7 +388,7 @@ void NDB_SCHEMA_OBJECT::fail_participants_not_in_list(
 bool NDB_SCHEMA_OBJECT::check_for_failed_subscribers(
     const std::unordered_set<uint32> &new_subscribers, uint32 result,
     const char *message) const {
-  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
 
   // Fail participants not in list of nodes
   fail_participants_not_in_list(new_subscribers, result, message);
@@ -386,7 +404,7 @@ bool NDB_SCHEMA_OBJECT::check_for_failed_subscribers(
 
 bool NDB_SCHEMA_OBJECT::check_timeout(int timeout_seconds, uint32 result,
                                       const char *message) const {
-  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
 
   if (m_started + std::chrono::seconds(timeout_seconds) >
       std::chrono::steady_clock::now())
@@ -410,7 +428,7 @@ bool NDB_SCHEMA_OBJECT::check_timeout(int timeout_seconds, uint32 result,
 
 void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result, const char* message) const
 {
-  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
 
   if (state.m_participants.size() == 0) {
     // Participants hasn't been registered yet since the coordinator
@@ -433,8 +451,6 @@ void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result, const char* message) const
                          count_completed_participants());
   // Mark als coordinator as completed
   state.m_coordinator_completed = true;
-  // Signal the Client to wakeup
-  state.m_cond.notify_one();
 }
 
 void NDB_SCHEMA_OBJECT::fail_all_schema_ops(uint32 result, const char* message)
@@ -447,24 +463,23 @@ void NDB_SCHEMA_OBJECT::fail_all_schema_ops(uint32 result, const char* message)
 }
 
 bool NDB_SCHEMA_OBJECT::check_coordinator_completed() const {
-  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
   // Don't set completed unless all participants have replied
   if (state.m_participants.size() != count_completed_participants())
     return false;
 
   state.m_coordinator_completed = true;
-  // Signal the Client
-  state.m_cond.notify_one();
   return true;
 }
 
 bool NDB_SCHEMA_OBJECT::client_wait_completed(uint max_wait_seconds) const {
   const auto timeout_time = std::chrono::seconds(max_wait_seconds);
-  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
 
   const bool completed =
-      state.m_cond.wait_for(lock_participants, timeout_time, [this]() {
-        return state.m_coordinator_completed &&
+      state.m_cond.wait_for(lock_state, timeout_time, [this]() {
+        return state.m_use_count == 1 &&  // Only the Client left
+               state.m_coordinator_completed &&
                state.m_participants.size() == count_completed_participants();
       });
 
@@ -473,7 +488,7 @@ bool NDB_SCHEMA_OBJECT::client_wait_completed(uint max_wait_seconds) const {
 
 void NDB_SCHEMA_OBJECT::client_get_schema_op_results(
     std::vector<Result> &results) const {
-  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
   // Make sure that coordinator has completed
   ndbcluster::ndbrequire(state.m_coordinator_completed);
 
