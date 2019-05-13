@@ -18395,7 +18395,6 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
   key.nodeId = refToNode(signal->getSendersBlockRef());
   if(!c_firedTriggerHash.find(firedTrigPtr, key)){
     jam();
-    /* TODO : Node failure handling (use sig-train assembly) */
     if(!c_theFiredTriggerPool.seize(firedTrigPtr))
     {
       jam();
