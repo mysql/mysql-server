@@ -254,6 +254,18 @@ ENGINE = NDB;
 
 DROP TABLE t1;
 
+# Create a table with a disk column having offset > max offset
+
+--error ER_CANT_CREATE_TABLE
+create table t1(
+  col1 int unsigned not null primary key,
+  col2 int unsigned not null,
+  col3 varchar(8176),
+  col4 int)
+  tablespace ts1 storage disk
+  charset = latin1 engine=ndbcluster;
+show warnings;
+
 #Verify that it isn't possible to create no logging table with disk fields
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1 (a bigint primary key, b bigint storage disk)

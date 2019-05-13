@@ -214,6 +214,19 @@ INITIAL_SIZE 1000000000000K
 ENGINE = NDB;
 ERROR HY000: The size number was correct but we don't allow the digit part to be more than 2 billion
 DROP TABLE t1;
+create table t1(
+col1 int unsigned not null primary key,
+col2 int unsigned not null,
+col3 varchar(8176),
+col4 int)
+tablespace ts1 storage disk
+charset = latin1 engine=ndbcluster;
+ERROR HY000: Can't create table 't1'
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 851 'Maximum offset for fixed-size columns exceeded.  For memory storagetype use varchar or COLUMN_FORMAT' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Error	1005	Can't create table 't1'
 CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
