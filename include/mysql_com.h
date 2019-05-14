@@ -35,6 +35,7 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <stdbool.h>
+#include <stdint.h>
 #endif
 
 #include "my_command.h"
@@ -1077,7 +1078,7 @@ unsigned long STDCALL net_field_length(unsigned char **packet);
 unsigned long STDCALL net_field_length_checked(unsigned char **packet,
                                                unsigned long max_length);
 #endif
-unsigned long long net_field_length_ll(unsigned char **packet);
+uint64_t net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);

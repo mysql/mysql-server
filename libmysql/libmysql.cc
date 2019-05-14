@@ -616,7 +616,7 @@ MYSQL_FIELD *STDCALL mysql_fetch_field(MYSQL_RES *result) {
   Move to a specific row and column
 **************************************************************************/
 
-void STDCALL mysql_data_seek(MYSQL_RES *result, my_ulonglong row) {
+void STDCALL mysql_data_seek(MYSQL_RES *result, uint64_t row) {
   MYSQL_ROWS *tmp = 0;
   DBUG_PRINT("info", ("mysql_data_seek(%ld)", (long)row));
   if (result->data)
@@ -872,11 +872,11 @@ unsigned int STDCALL mysql_field_count(MYSQL *mysql) {
   return mysql->field_count;
 }
 
-my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql) {
+uint64_t STDCALL mysql_affected_rows(MYSQL *mysql) {
   return mysql->affected_rows;
 }
 
-my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql) { return mysql->insert_id; }
+uint64_t STDCALL mysql_insert_id(MYSQL *mysql) { return mysql->insert_id; }
 
 const char *STDCALL mysql_sqlstate(MYSQL *mysql) {
   return mysql ? mysql->net.sqlstate : cant_connect_sqlstate;
@@ -2421,7 +2421,7 @@ ulong STDCALL mysql_stmt_param_count(MYSQL_STMT *stmt) {
   Return total affected rows from the last statement
 */
 
-my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt) {
+uint64_t STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt) {
   return stmt->affected_rows;
 }
 
@@ -2450,7 +2450,7 @@ unsigned int STDCALL mysql_stmt_field_count(MYSQL_STMT *stmt) {
     connection structure during some other call.
 */
 
-my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt) {
+uint64_t STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt) {
   return stmt->insert_id;
 }
 
@@ -4252,7 +4252,7 @@ MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt) {
   Move the stmt result set data cursor to specified row
 */
 
-void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row) {
+void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, uint64_t row) {
   MYSQL_ROWS *tmp = stmt->result.data;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("row id to seek: %ld", (long)row));
@@ -4271,7 +4271,7 @@ void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row) {
   Return total rows the current statement result set
 */
 
-my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt) {
+uint64_t STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt) {
   DBUG_TRACE;
 
   return stmt->result.rows;
@@ -4520,7 +4520,7 @@ int STDCALL mysql_next_result(MYSQL *mysql) {
   }
 
   net_clear_error(&mysql->net);
-  mysql->affected_rows = ~(my_ulonglong)0;
+  mysql->affected_rows = ~(uint64_t)0;
 
   if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
     return (*mysql->methods->next_result)(mysql);
@@ -4553,7 +4553,7 @@ net_async_status STDCALL mysql_next_result_nonblocking(MYSQL *mysql) {
     return NET_ASYNC_ERROR;
   }
   net_clear_error(&mysql->net);
-  mysql->affected_rows = ~(my_ulonglong)0;
+  mysql->affected_rows = ~(uint64_t)0;
 
   if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS) {
     status = (*mysql->methods->next_result_nonblocking)(mysql);
@@ -4616,7 +4616,7 @@ int STDCALL mysql_reset_connection(MYSQL *mysql) {
     mysql_detach_stmt_list(&mysql->stmts, "mysql_reset_connection");
     /* reset some of the members in mysql */
     mysql->insert_id = 0;
-    mysql->affected_rows = ~(my_ulonglong)0;
+    mysql->affected_rows = ~(uint64_t)0;
     free_old_query(mysql);
     mysql->status = MYSQL_STATUS_READY;
     return 0;

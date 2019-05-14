@@ -14389,7 +14389,7 @@ static void test_bug14169()
    Test that mysql_insert_id() behaves as documented in our manual
 */
 static void test_mysql_insert_id() {
-  my_ulonglong res;
+  uint64_t res;
   int rc;
 
   myheader("test_mysql_insert_id");
@@ -14602,7 +14602,7 @@ static void test_mysql_insert_id() {
 */
 
 static void test_bug22028117() {
-  my_ulonglong res;
+  uint64_t res;
   int rc;
   MYSQL_STMT *stmt;
 
@@ -14836,7 +14836,7 @@ static void test_bug21726() {
   };
   const char *update_query = "UPDATE t1 SET i= LAST_INSERT_ID(i + 1)";
   int rc;
-  my_ulonglong insert_id;
+  uint64_t insert_id;
   const char *select_query = "SELECT * FROM t1";
   MYSQL_RES *result;
 
@@ -14875,7 +14875,7 @@ static void test_bug23383() {
   const char *insert_query = "INSERT INTO t1 VALUES (1), (2)";
   const char *update_query = "UPDATE t1 SET i= 4 WHERE i = 3";
   MYSQL_STMT *stmt;
-  my_ulonglong row_count;
+  uint64_t row_count;
   int rc;
 
   DBUG_TRACE;
@@ -14895,7 +14895,7 @@ static void test_bug23383() {
   rc = mysql_query(mysql, insert_query);
   DIE_UNLESS(rc != 0);
   row_count = mysql_affected_rows(mysql);
-  DIE_UNLESS(row_count == (my_ulonglong)-1);
+  DIE_UNLESS(row_count == (uint64_t)-1);
 
   rc = mysql_query(mysql, update_query);
   myquery(rc);
@@ -14919,7 +14919,7 @@ static void test_bug23383() {
   rc = mysql_stmt_execute(stmt);
   DIE_UNLESS(rc != 0);
   row_count = mysql_stmt_affected_rows(stmt);
-  DIE_UNLESS(row_count == (my_ulonglong)-1);
+  DIE_UNLESS(row_count == (uint64_t)-1);
 
   rc = mysql_stmt_prepare(stmt, update_query, (ulong)strlen(update_query));
   check_execute(stmt, rc);
@@ -15194,7 +15194,7 @@ static void test_bug27876() {
 */
 
 static void test_bug28505() {
-  my_ulonglong res;
+  uint64_t res;
 
   myquery(mysql_query(mysql, "drop table if exists t1"));
   myquery(mysql_query(mysql, "create table t1(f1 int primary key)"));
@@ -18228,7 +18228,7 @@ static void test_wl6797() {
   MYSQL_STMT *stmt;
   int rc;
   const char *stmt_text;
-  my_ulonglong res;
+  uint64_t res;
 
   myheader("test_wl6797");
 

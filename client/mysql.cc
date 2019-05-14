@@ -28,6 +28,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <math.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -3035,7 +3036,7 @@ static int com_server_help(String *buffer MY_ATTRIBUTE((unused)),
 
   if (result) {
     unsigned int num_fields = mysql_num_fields(result);
-    my_ulonglong num_rows = mysql_num_rows(result);
+    uint64_t num_rows = mysql_num_rows(result);
     mysql_fetch_fields(result);
     if (num_fields == 3 && num_rows == 1) {
       if (!(cur = mysql_fetch_row(result))) {
@@ -3266,7 +3267,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
         else
           print_table_data(result);
         if (!batchmode)
-          sprintf(buff, "%lld %s in set", mysql_num_rows(result),
+          sprintf(buff, "%" PRId64 " %s in set", mysql_num_rows(result),
                   mysql_num_rows(result) == 1LL ? "row" : "rows");
         end_pager();
         if (mysql_errno(&mysql)) error = put_error(&mysql);
@@ -3274,7 +3275,8 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
     } else if (mysql_affected_rows(&mysql) == ~(ulonglong)0)
       my_stpcpy(buff, "Query OK");
     else if (!batchmode)
-      sprintf(buff, "Query OK, %lld %s affected", mysql_affected_rows(&mysql),
+      sprintf(buff, "Query OK, %" PRId64 " %s affected",
+              mysql_affected_rows(&mysql),
               mysql_affected_rows(&mysql) == 1LL ? "row" : "rows");
 
     pos = strend(buff);
@@ -3806,7 +3808,7 @@ static void print_warnings() {
   const char *query;
   MYSQL_RES *result;
   MYSQL_ROW cur;
-  my_ulonglong num_rows;
+  uint64_t num_rows;
 
   /* Save current error before calling "show warnings" */
   uint error = mysql_errno(&mysql);

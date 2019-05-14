@@ -396,7 +396,7 @@ Field_set *FieldTest::create_field_set(TYPELIB *tl) {
 TEST_F(FieldTest, CopyFieldSet) {
   int err;
   char fields[] = "one,two";
-  my_ulonglong typeset = find_typeset(fields, &tl3, &err);
+  uint64_t typeset = find_typeset(fields, &tl3, &err);
   EXPECT_EQ(0, err);
 
   // Using two different TYPELIBs will set cf->do_copy to do_field_string().

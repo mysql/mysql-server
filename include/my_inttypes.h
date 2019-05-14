@@ -50,6 +50,10 @@ typedef unsigned long ulong; /* Short for unsigned long */
 
 typedef unsigned char uchar; /* Short for unsigned char */
 
+// Don't use these in new code; use [u]int64_t.
+typedef long long int longlong;
+typedef unsigned long long int ulonglong;
+
 // Legacy typedefs. Prefer the standard intXX_t (or std::intXX_t) to these.
 // Note that the Google C++ style guide says you should generally not use
 // unsigned types unless you need defined wraparound semantics or store
@@ -63,16 +67,6 @@ typedef uint32_t uint32;
 typedef int64_t int64;
 typedef uint64_t uint64;
 typedef intptr_t intptr;
-
-// We have both ulonglong and my_ulonglong, which can be different. Don't use
-// any of them in new code; use [u]int64_t.
-typedef long long int longlong;
-typedef unsigned long long int ulonglong;
-#if defined(_WIN32)
-typedef unsigned __int64 my_ulonglong;
-#else
-typedef unsigned long long my_ulonglong;
-#endif
 
 #if defined(_WIN32)
 typedef unsigned long long my_off_t;

@@ -171,8 +171,8 @@ const char *get_type(TYPELIB *typelib, uint nr) {
     a integer representation of the supplied string
 */
 
-my_ulonglong find_typeset(const char *x, TYPELIB *lib, int *err) {
-  my_ulonglong result;
+uint64_t find_typeset(const char *x, TYPELIB *lib, int *err) {
+  uint64_t result;
   int find;
   const char *i;
   DBUG_TRACE;
@@ -306,12 +306,12 @@ static uint parse_name(const TYPELIB *lib, const char **strpos,
     Parsed set value if (*errpos == NULL), otherwise undefined
 */
 
-my_ulonglong find_set_from_flags(const TYPELIB *lib, size_t default_name,
-                                 my_ulonglong cur_set, my_ulonglong default_set,
-                                 const char *str, uint length,
-                                 const char **err_pos, uint *err_len) {
+uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
+                             uint64_t cur_set, uint64_t default_set,
+                             const char *str, uint length, const char **err_pos,
+                             uint *err_len) {
   const char *end = str + length;
-  my_ulonglong flags_to_set = 0, flags_to_clear = 0, res;
+  uint64_t flags_to_set = 0, flags_to_clear = 0, res;
   bool set_defaults = 0;
 
   *err_pos = 0; /* No error yet */
@@ -328,7 +328,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, size_t default_name,
         if (set_defaults) goto err;
         set_defaults = true;
       } else {
-        my_ulonglong bit = (1ULL << (flag_no - 1));
+        uint64_t bit = (1ULL << (flag_no - 1));
         /* parse the '=on|off|default' */
         if ((flags_to_clear | flags_to_set) & bit || pos >= end ||
             *pos++ != '=' ||

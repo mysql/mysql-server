@@ -2527,7 +2527,7 @@ static inline bool is_innodb_stats_tables_included(int argc, char **argv) {
 static uint get_table_structure(const char *table, char *db, char *table_type,
                                 char *ignore_flag, bool real_columns[]) {
   bool init = 0, write_data, complete_insert, skip_ddl;
-  my_ulonglong num_fields;
+  uint64_t num_fields;
   const char *result_table, *opt_quoted_table;
   const char *insert_option;
   char name_buff[NAME_LEN + 3], table_buff[NAME_LEN * 2 + 3];
@@ -2630,7 +2630,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
       field = mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0) {
         char *scv_buff = NULL;
-        my_ulonglong n_cols;
+        uint64_t n_cols;
 
         verbose_msg("-- It's a view, create dummy view\n");
 
@@ -4581,7 +4581,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
   if (mysql_query_with_error_report(mysql, 0, query)) return NullS;
 
   if ((table_res = mysql_store_result(mysql))) {
-    my_ulonglong num_rows = mysql_num_rows(table_res);
+    uint64_t num_rows = mysql_num_rows(table_res);
     if (num_rows > 0) {
       ulong *lengths;
       /*

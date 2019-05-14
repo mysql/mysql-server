@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,26 +86,26 @@ ulong STDCALL net_field_length_checked(uchar **packet, ulong max_length) {
 }
 
 /* The same as above but returns longlong */
-my_ulonglong net_field_length_ll(uchar **packet) {
+uint64_t net_field_length_ll(uchar **packet) {
   const uchar *pos = *packet;
   if (*pos < 251) {
     (*packet)++;
-    return (my_ulonglong)*pos;
+    return (uint64_t)*pos;
   }
   if (*pos == 251) {
     (*packet)++;
-    return (my_ulonglong)NULL_LENGTH;
+    return (uint64_t)NULL_LENGTH;
   }
   if (*pos == 252) {
     (*packet) += 3;
-    return (my_ulonglong)uint2korr(pos + 1);
+    return (uint64_t)uint2korr(pos + 1);
   }
   if (*pos == 253) {
     (*packet) += 4;
-    return (my_ulonglong)uint3korr(pos + 1);
+    return (uint64_t)uint3korr(pos + 1);
   }
   (*packet) += 9; /* Must be 254 when here */
-  return (my_ulonglong)uint8korr(pos + 1);
+  return (uint64_t)uint8korr(pos + 1);
 }
 
 /*

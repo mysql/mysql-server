@@ -1475,7 +1475,7 @@ static void print_warnings(MYSQL *mysql) {
   const char *query;
   MYSQL_RES *result = NULL;
   MYSQL_ROW cur;
-  my_ulonglong num_rows;
+  uint64_t num_rows;
   uint error;
 
   /* Save current error before calling "show warnings" */
