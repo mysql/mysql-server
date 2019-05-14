@@ -34,10 +34,11 @@
 
 #include "my_compiler.h"
 
+#include <string.h>
+
 #if !defined(DBUG_OFF)
 #include <assert.h>  // IWYU pragma: keep
 #include <stdio.h>
-#include <string.h>
 #endif
 
 #if !defined(DBUG_OFF)

@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/row_iterator.h"

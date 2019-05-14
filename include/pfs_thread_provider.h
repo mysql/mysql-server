@@ -39,7 +39,6 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_thread.h"
 #include "mysql/psi/psi_thread.h"
 
 class THD;

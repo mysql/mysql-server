@@ -25,7 +25,9 @@
 #include "sql/strfunc.h"
 
 #include "m_ctype.h"  // my_charset_latin1
+#include "my_alloc.h"
 #include "my_dbug.h"
+#include "my_sys.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql_string.h"

@@ -33,10 +33,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <string.h>
 
 /* For MY_STAT */
+#include "my_compiler.h"
 #include "my_dir.h"
 #include "my_io.h"
-/* For my_chsize */
-#include "my_sys.h"
 #include "mysql/psi/psi_socket.h"
 /* For socket api */
 #ifdef _WIN32

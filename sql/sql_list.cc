@@ -22,6 +22,7 @@
 
 #include "sql/sql_list.h"
 
+#include "my_alloc.h"
 #include "my_sys.h"
 
 list_node end_of_list;
