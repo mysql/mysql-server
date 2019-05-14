@@ -421,7 +421,7 @@ static void generate_hash_pke(const std::string &pke, THD *thd
 #ifndef DBUG_OFF
   write_sets.push_back(pke);
 #endif
-  DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
+  DBUG_PRINT("info", ("pke: %s; hash: %" PRIu64, pke.c_str(), hash));
 }
 
 /**

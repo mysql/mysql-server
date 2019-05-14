@@ -80,7 +80,7 @@ inline int64 Logical_clock::step() {
   @return a (new) value of state member regardless whether it's changed or not.
  */
 inline int64 Logical_clock::set_if_greater(int64 new_val) {
-  longlong old_val = new_val - 1;
+  int64 old_val = new_val - 1;
   bool cas_rc;
 
   DBUG_TRACE;

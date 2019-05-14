@@ -3477,8 +3477,8 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
   uint64_t bytes_printed;
   for (sdi_container::iterator it = ib_vector.sdi_vector->m_vec.begin();
        it != ib_vector.sdi_vector->m_vec.end(); it++) {
-    bytes_printed =
-        snprintf(ptr, list_buf_len - cur_len, "%llu:%u|", it->id, it->type);
+    bytes_printed = snprintf(ptr, list_buf_len - cur_len, "%" PRIu64 ":%u|",
+                             it->id, it->type);
     ptr += bytes_printed;
     cur_len += bytes_printed;
   }

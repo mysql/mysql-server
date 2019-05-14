@@ -544,7 +544,7 @@ class Group_member_info : public Plugin_gcs_message {
   std::string purged_gtid_set;
   std::string retrieved_gtid_set;
   uint write_set_extraction_algorithm;
-  ulonglong gtid_assignment_block_size;
+  uint64 gtid_assignment_block_size;
   bool unreachable;
   Group_member_role role;
   uint32 configuration_flags;

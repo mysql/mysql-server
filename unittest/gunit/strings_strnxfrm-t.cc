@@ -46,6 +46,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <memory>
@@ -2687,8 +2688,8 @@ TEST(StrmxfrmHashTest, HashStability) {
       // Change this from false to true to output source code you can paste
       // into “expected” above.
       if (false) {
-        printf("    {\"%s\", {{0x%016llxLL, 0x%08llxLL}}},\n", cs->name, nr1,
-               nr2);
+        printf("    {\"%s\", {{0x%016" PRIx64 "LL, 0x%" PRIx64 "LL}}},\n",
+               cs->name, nr1, nr2);
         continue;
       }
 

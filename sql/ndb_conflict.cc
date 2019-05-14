@@ -24,6 +24,8 @@
 
 #include "sql/ndb_conflict.h"
 
+#include <inttypes.h>
+
 #include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
 #include "my_dbug.h"
 #include "sql/mysqld.h" // lower_case_table_names
@@ -646,7 +648,7 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
                                 NdbError& err)
 {
   DBUG_ENTER("ExceptionsTableWriter::writeRow");
-  DBUG_PRINT("info", ("op_type(pos):%u(%u), conflict_cause(pos):%u(%u), orig_transid:%llu(%u)",
+  DBUG_PRINT("info", ("op_type(pos):%u(%u), conflict_cause(pos):%u(%u), orig_transid:%" PRIu64 "(%u)",
                       op_type, m_op_type_pos,
                       conflict_cause, m_conflict_cause_pos,
                       orig_transid, m_orig_transid_pos));
@@ -1149,7 +1151,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         "Master ServerId %u which is lower than "
                         "previously applied epoch %llu/%llu (%llu).  "
                         "Group Master Log : %s  "
-                        "Group Master Log Pos : %llu.  "
+                        "Group Master Log Pos : %" PRIu64 ".  "
                         "Slave run id from slave's master info %u, "
                         "Slave run id %u.  "
                         "Check slave positioning.  ",
@@ -1198,7 +1200,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                       "Master ServerId %u which is lower than "
                       "previously applied epoch %llu/%llu (%llu).  "
                       "Group Master Log : %s  "
-                      "Group Master Log Pos : %llu.  "
+                      "Group Master Log Pos : %" PRIu64 ".  "
                       "Slave run id from slave's master info %u, "
                       "Slave run id %u.  ",
                       next_epoch >> 32,
@@ -1228,7 +1230,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         "reapply already committed epoch %llu/%llu (%llu) "
                         "from server id %u.  "
                         "Group Master Log : %s  "
-                        "Group Master Log Pos : %llu.  "
+                        "Group Master Log Pos : %" PRIu64 ".  "
                         "Slave run id from slave's master info %u, "
                         "Slave run id %u.  ",
                         current_master_server_epoch >> 32,
@@ -1267,7 +1269,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         "received epoch %llu/%llu (%llu) has not been "
                         "committed.  Master server id : %u.  "
                         "Group Master Log : %s  "
-                        "Group Master Log Pos : %llu.  "
+                        "Group Master Log Pos : %" PRIu64 ".  "
                         "Slave run id from slave's master info %u, "
                         "Slave run id %u.  ",
                         next_epoch >> 32,

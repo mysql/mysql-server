@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,8 @@ void Abstract_progress_watcher::progress_changed() {
                      std::chrono::milliseconds(REPORT_DELAY_MS / STAGES),
                  0.1);  //  Do not expand stage by more than 10 times the steps.
 
-    m_step_countdown = m_last_step_countdown = std::max(
-        1LL,
+    m_step_countdown = m_last_step_countdown = std::max<int64>(
+        1,
         ((int64)(m_last_step_countdown / stages_past) + m_last_step_countdown) /
             2);
     m_last_stage_time = now;

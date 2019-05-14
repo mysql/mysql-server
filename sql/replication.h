@@ -174,7 +174,7 @@ typedef struct Trans_param {
   Trans_context_info trans_ctx_info;
 
   /// pointer to the status var original_commit_timestamp
-  uint64 *original_commit_timestamp;
+  unsigned long long *original_commit_timestamp;
 
   /** Replication channel info associated to this transaction/THD */
   enum_rpl_channel_type rpl_channel_type;

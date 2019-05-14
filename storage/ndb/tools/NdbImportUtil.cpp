@@ -29,6 +29,7 @@
 #include <NdbDictionaryImpl.hpp>
 
 #include <Vector.hpp>
+#include <inttypes.h>
 // STL
 #include <cmath>
 
@@ -2707,7 +2708,7 @@ NdbImportUtil::File::do_seek(uint64 offset)
 #endif
   {
     m_util.set_error_os(m_error, __LINE__,
-                        "%s: lseek %llu failed", path, offset);
+                        "%s: lseek %" PRIu64 " failed", path, offset);
     return -1;
   }
   return 0;

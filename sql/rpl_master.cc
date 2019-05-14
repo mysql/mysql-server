@@ -974,22 +974,23 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   READ_INT(name_size, 4);
   READ_STRING(name, name_size, sizeof(name));
   READ_INT(pos, 8);
-  DBUG_PRINT("info",
-             ("pos=%llu flags=%d server_id=%d", pos, flags, thd->server_id));
+  DBUG_PRINT("info", ("pos=%" PRIu64 " flags=%d server_id=%d", pos, flags,
+                      thd->server_id));
   READ_INT(data_size, 4);
   CHECK_PACKET_SIZE(data_size);
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
       RETURN_STATUS_OK)
     return true;
   slave_gtid_executed.to_string(&gtid_string);
-  DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
-                      "'%s'.",
-                      thd->server_id, name, pos, gtid_string));
+  DBUG_PRINT("info",
+             ("Slave %d requested to read %s at position %" PRIu64 " gtid set "
+              "'%s'.",
+              thd->server_id, name, pos, gtid_string));
 
   kill_zombie_dump_threads(thd);
   query_logger.general_log_print(thd, thd->get_command(),
-                                 "Log: '%s' Pos: %llu GTIDs: '%s'", name, pos,
-                                 gtid_string);
+                                 "Log: '%s' Pos: %" PRIu64 " GTIDs: '%s'", name,
+                                 pos, gtid_string);
   my_free(gtid_string);
   mysql_binlog_send(thd, name, (my_off_t)pos, &slave_gtid_executed, flags);
 

@@ -25,6 +25,7 @@
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_sys.h"
+#include <inttypes.h>
 #include <NdbSqlUtil.hpp>
 #include <decimal_utils.hpp>
 #include "NdbImportCsv.hpp"
@@ -751,7 +752,7 @@ NdbImportCsv::Parse::do_parse()
       uint64 abspos = m_input.m_startpos;
       uint64 abslineno = 1 + m_input.m_startlineno;
       m_util.set_error_data(m_error, __LINE__, 0,
-                            "parse error at line=%llu: pos=%llu:"
+                            "parse error at line=%" PRIu64 ": pos=%" PRIu64 ":"
                             " CSV page contains no complete record"
                             " (buffer too small"
                             " or missing last line terminator)",
@@ -907,7 +908,7 @@ NdbImportCsv::Parse::do_error(const char* msg)
     uint64 abspos = m_input.m_startpos + buf.m_pos;
     uint64 abslineno = m_input.m_startlineno + m_line_list.cnt();
     m_util.set_error_data(m_error, __LINE__, 0,
-                          "parse error at line=%llu: pos=%llu: %s",
+                          "parse error at line=%" PRIu64 ": pos=%" PRIu64 ": %s",
                           abslineno, abspos, msg);
   }
 }
@@ -1090,7 +1091,7 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
     {
       m_util.set_error_data(
         error, __LINE__, 0,
-        "line %llu: too few fields (%u < %u)",
+        "line %" PRIu64 ": too few fields (%u < %u)",
         linenr, fieldcnt, attrcnt);
       break;
     }
@@ -1098,7 +1099,7 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
     {
       m_util.set_error_data(
         error, __LINE__, 0,
-        "line %llu: too many fields (%u > %u)",
+        "line %" PRIu64 ": too many fields (%u > %u)",
         linenr, fieldcnt, attrcnt);
       break;
     }
@@ -1836,7 +1837,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
+          "line %" PRIu64 " field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1844,7 +1845,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
            linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1854,7 +1855,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "value %d out of range",
            linenr, fieldnr, attr.m_sqltype, val);
         break;
@@ -1873,7 +1874,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
+          "line %" PRIu64 " field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1881,7 +1882,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
            linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1891,7 +1892,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "value %d out of range",
            linenr, fieldnr, attr.m_sqltype, val);
         break;
@@ -1910,7 +1911,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
+          "line %" PRIu64 " field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1918,7 +1919,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
            linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1928,7 +1929,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "value %d out of range",
            linenr, fieldnr, attr.m_sqltype, val);
         break;
@@ -1948,7 +1949,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
+          "line %" PRIu64 " field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1956,7 +1957,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
            linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1973,7 +1974,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
+          "line %" PRIu64 " field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1981,7 +1982,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-         "line %llu field %u: eval %s failed: bad format",
+         "line %" PRIu64 " field %u: eval %s failed: bad format",
          linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1998,7 +1999,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-         "line %llu field %u: eval %s failed",
+         "line %" PRIu64 " field %u: eval %s failed",
          linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2006,7 +2007,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2015,7 +2016,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "value %u out of range",
            linenr, fieldnr, attr.m_sqltype, val);
         break;
@@ -2034,7 +2035,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-         "line %llu field %u: eval %s failed",
+         "line %" PRIu64 " field %u: eval %s failed",
          linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2042,7 +2043,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2051,7 +2052,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "value %u out of range",
            linenr, fieldnr, attr.m_sqltype, val);
         break;
@@ -2070,7 +2071,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-         "line %llu field %u: eval %s failed",
+         "line %" PRIu64 " field %u: eval %s failed",
          linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2078,7 +2079,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2087,7 +2088,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "value %u out of range",
            linenr, fieldnr, attr.m_sqltype, val);
         break;
@@ -2107,7 +2108,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-         "line %llu field %u: eval %s failed",
+         "line %" PRIu64 " field %u: eval %s failed",
          linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2115,7 +2116,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2132,7 +2133,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
+          "line %" PRIu64 " field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2140,7 +2141,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2159,7 +2160,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: %s at %d",
+          "line %" PRIu64 " field %u: eval %s failed: %s at %d",
           linenr, fieldnr, attr.m_sqltype,
           csv_error.error_text, csv_error.error_line);
         break;
@@ -2179,7 +2180,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: %s at %d",
+          "line %" PRIu64 " field %u: eval %s failed: %s at %d",
           linenr, fieldnr, attr.m_sqltype,
           csv_error.error_text, csv_error.error_line);
         break;
@@ -2212,7 +2213,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
         {
           m_util.set_error_data(
             error, __LINE__, errno,
-            "line %llu field %u: eval %s failed",
+            "line %" PRIu64 " field %u: eval %s failed",
             linenr, fieldnr, attr.m_sqltype);
           break;
         }
@@ -2228,7 +2229,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
         {
           m_util.set_error_data(
             error, __LINE__, err,
-            "line %llu field %u: eval %s failed",
+            "line %" PRIu64 " field %u: eval %s failed",
             linenr, fieldnr, attr.m_sqltype);
           break;
         }
@@ -2237,7 +2238,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2245,7 +2246,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: invalid value",
+          "line %" PRIu64 " field %u: eval %s failed: invalid value",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2254,7 +2255,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: value out of range",
+          "line %" PRIu64 " field %u: eval %s failed: value out of range",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2283,7 +2284,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
         {
           m_util.set_error_data(
             error, __LINE__, errno,
-            "line %llu field %u: eval %s failed",
+            "line %" PRIu64 " field %u: eval %s failed",
             linenr, fieldnr, attr.m_sqltype);
           break;
         }
@@ -2298,7 +2299,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
         {
           m_util.set_error_data(
             error, __LINE__, err,
-            "line %llu field %u: eval %s failed",
+            "line %" PRIu64 " field %u: eval %s failed",
             linenr, fieldnr, attr.m_sqltype);
           break;
         }
@@ -2307,7 +2308,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
+          "line %" PRIu64 " field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2315,7 +2316,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: invalid value",
+          "line %" PRIu64 " field %u: eval %s failed: invalid value",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2324,7 +2325,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: value out of range",
+          "line %" PRIu64 " field %u: eval %s failed: value out of range",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2338,7 +2339,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "byte length too long (%u > %u)",
           linenr, fieldnr, attr.m_sqltype, length, attr.m_length);
         break;
@@ -2353,7 +2354,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "byte length too long (%u > %u)",
           linenr, fieldnr, attr.m_sqltype, length, attr.m_length);
         break;
@@ -2368,7 +2369,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "byte length too long (%u > %u)",
           linenr, fieldnr, attr.m_sqltype, length, attr.m_length);
         break;
@@ -2383,7 +2384,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "length too long (%u > %u)",
           linenr, fieldnr, attr.m_sqltype, length, attr.m_length);
         break;
@@ -2398,7 +2399,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "length too long (%u > %u)",
           linenr, fieldnr, attr.m_sqltype, length, attr.m_length);
         break;
@@ -2413,7 +2414,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: "
+          "line %" PRIu64 " field %u: eval %s failed: "
           "length too long (%u > %u)",
           linenr, fieldnr, attr.m_sqltype, length, attr.m_length);
         break;
@@ -2453,7 +2454,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
         {
           m_util.set_error_data(
             error, __LINE__, 0,
-            "line %llu field %u: eval %s failed: "
+            "line %" PRIu64 " field %u: eval %s failed: "
             "highest set bit %u out of range",
              linenr, fieldnr, attr.m_sqltype, hibit);
           break;
@@ -2479,7 +2480,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: %s at %d",
+          "line %" PRIu64 " field %u: eval %s failed: %s at %d",
           linenr, fieldnr, attr.m_sqltype,
           csv_error.error_text, csv_error.error_line);
         break;
@@ -2500,7 +2501,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: %s at %d",
+          "line %" PRIu64 " field %u: eval %s failed: %s at %d",
           linenr, fieldnr, attr.m_sqltype,
           csv_error.error_text, csv_error.error_line);
         break;
@@ -2521,7 +2522,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: %s at %d",
+          "line %" PRIu64 " field %u: eval %s failed: %s at %d",
           linenr, fieldnr, attr.m_sqltype,
           csv_error.error_text, csv_error.error_line);
         break;
@@ -2547,7 +2548,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: %s at %d",
+          "line %" PRIu64 " field %u: eval %s failed: %s at %d",
           linenr, fieldnr, attr.m_sqltype,
           csv_error.error_text, csv_error.error_line);
         break;
@@ -2573,7 +2574,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: %s at %d",
+          "line %" PRIu64 " field %u: eval %s failed: %s at %d",
           linenr, fieldnr, attr.m_sqltype,
           csv_error.error_text, csv_error.error_line);
         break;
@@ -2626,7 +2627,7 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
     {
       m_util.set_error_data(
         error, __LINE__, 0,
-        "line %llu field %u: setting non-nullable attr to NULL",
+        "line %" PRIu64 " field %u: setting non-nullable attr to NULL",
         linenr, fieldnr);
       break;
     }
@@ -2765,7 +2766,7 @@ NdbImportCsv::Output::add_field(const Attr& attr, const Row* row)
       int64 val;
       require(attr.m_size == sizeof(val));
       memcpy(&val, rowptr, sizeof(val));
-      sprintf(bufptrc, "%lld", val);
+      sprintf(bufptrc, "%" PRId64, val);
       break;
     }
     break;
@@ -2774,7 +2775,7 @@ NdbImportCsv::Output::add_field(const Attr& attr, const Row* row)
       uint64 val;
       require(attr.m_size == sizeof(val));
       memcpy(&val, rowptr, sizeof(val));
-      sprintf(bufptrc, "%llu", val);
+      sprintf(bufptrc, "%" PRIu64, val);
       break;
     }
     break;

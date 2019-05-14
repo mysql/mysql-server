@@ -22,6 +22,7 @@
 
 /* The hash functions used for saveing keys */
 
+#include <inttypes.h>
 #include <math.h>
 #include <sys/types.h>
 
@@ -281,7 +282,7 @@ uint64 hp_hashnr(HP_KEYDEF *keydef, const uchar *key) {
       }
     }
   }
-  DBUG_PRINT("exit", ("hash: 0x%llx", nr));
+  DBUG_PRINT("exit", ("hash: 0x%" PRIx64, nr));
   return nr;
 }
 
@@ -340,7 +341,7 @@ uint64 hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
       }
     }
   }
-  DBUG_PRINT("exit", ("hash: 0x%llx", nr));
+  DBUG_PRINT("exit", ("hash: 0x%" PRIx64, nr));
   return (nr);
 }
 

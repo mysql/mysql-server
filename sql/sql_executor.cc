@@ -5690,7 +5690,8 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
                           enum Window::retrieve_cached_row_reason reason,
                           int fno) {
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("rowno: %lld reason: %d fno: %d", rowno, reason, fno));
+  DBUG_PRINT("enter",
+             ("rowno: %" PRId64 " reason: %d fno: %d", rowno, reason, fno));
   DBUG_ASSERT(reason == Window::REA_MISC_POSITIONS || fno == 0);
 
   uchar *fb_rec = w.frame_buffer()->record[0];
@@ -5777,7 +5778,7 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
   restoration.
 */
 void Window::save_special_record(uint64 special_rowno, TABLE *t) {
-  DBUG_PRINT("info", ("save_special_record: %llu", special_rowno));
+  DBUG_PRINT("info", ("save_special_record: %" PRIu64, special_rowno));
   size_t l = t->s->reclength;
   DBUG_ASSERT(m_special_rows_cache_max_length >= l);  // check room.
   // From negative enum, get proper array index:
@@ -5795,7 +5796,7 @@ void Window::save_special_record(uint64 special_rowno, TABLE *t) {
   result field storage is stable across reads from the frame buffer, so safe.
 */
 void Window::restore_special_record(uint64 special_rowno, uchar *record) {
-  DBUG_PRINT("info", ("restore_special_record: %llu", special_rowno));
+  DBUG_PRINT("info", ("restore_special_record: %" PRIu64, special_rowno));
   int idx = FBC_FIRST_KEY - special_rowno;
   size_t l = m_special_rows_cache_length[idx];
   std::memcpy(record,
@@ -6053,7 +6054,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   */
   const bool needs_last_peer_in_frame = w.needs_last_peer_in_frame();
 
-  DBUG_PRINT("enter", ("current_row: %lld, new_partition_or_eof: %d",
+  DBUG_PRINT("enter", ("current_row: %" PRId64 ", new_partition_or_eof: %d",
                        current_row, new_partition_or_eof));
 
   /* Compute lower_limit, upper_limit and possibly unbounded_following */
@@ -6082,7 +6083,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                    current row== 1 => 1
                                    current row== 3 => 2
         */
-        lower_limit = std::max(current_row - border, 1ll);
+        lower_limit = std::max<int64>(current_row - border, 1);
         break;
       case WBT_VALUE_FOLLOWING:
         /*
@@ -6751,7 +6752,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   if (w.is_last() && copy_funcs(param, thd, CFT_HAS_WF)) return true;
   *output_row_ready = true;
   w.set_last_row_output(current_row);
-  DBUG_PRINT("info", ("sent row: %lld", current_row));
+  DBUG_PRINT("info", ("sent row: %" PRId64, current_row));
 
   return false;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -380,7 +380,7 @@ class Plugin_gcs_message {
     @param[out] value  the value of the payload item
   */
   void decode_payload_item_int8(const unsigned char **buffer, uint16 *type,
-                                ulonglong *value);
+                                uint64 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as

@@ -7144,7 +7144,7 @@ bool MYSQL_BIN_LOG::do_write_cache(Binlog_cache_storage *cache,
 
 #ifndef DBUG_OFF
   uint64 expected_total_len = cache->length();
-  DBUG_PRINT("info", ("bytes in cache= %llu", expected_total_len));
+  DBUG_PRINT("info", ("bytes in cache= %" PRIu64, expected_total_len));
 #endif
 
   bool error = false;
@@ -9754,7 +9754,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
     /*
       Track if statement creates or drops a temporary table
       and log in ROW if it does.
-   */
+*/
     bool is_create_drop_temp_table = false;
     /*
        Identifies if a table is changed.

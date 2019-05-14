@@ -10714,8 +10714,9 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
     uint64 max_autoinc = std::max(part_autoinc, swap_autoinc);
 
     dd_set_autoinc(swap_table->se_private_data(), max_autoinc);
-    dd_set_autoinc(part_table->se_private_data(),
-                   std::max(swap_autoinc, m_part_share->next_auto_inc_val));
+    dd_set_autoinc(
+        part_table->se_private_data(),
+        std::max<uint64>(swap_autoinc, m_part_share->next_auto_inc_val));
 
     dict_table_autoinc_lock(part);
     dict_table_autoinc_initialize(part, max_autoinc);

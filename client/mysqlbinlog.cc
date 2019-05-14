@@ -2615,10 +2615,10 @@ static int args_post_process(void) {
   if (connection_server_id == 0 && stop_never)
     error("Cannot set --server-id=0 when --stop-never is specified.");
   if (connection_server_id != -1 && stop_never_slave_server_id != -1)
-    error(
-        "Cannot set --connection-server-id= %lld and"
-        "--stop-never-slave-server-id= %lld. ",
-        connection_server_id, stop_never_slave_server_id);
+    error("Cannot set --connection-server-id= %" PRId64
+          " and"
+          "--stop-never-slave-server-id= %" PRId64 ". ",
+          connection_server_id, stop_never_slave_server_id);
 
   return OK_CONTINUE;
 }

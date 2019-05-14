@@ -24,6 +24,8 @@
 
 #include "NdbImportImpl.hpp"
 
+#include <inttypes.h>
+
 NdbImportImpl::NdbImportImpl(NdbImport& facade) :
   NdbImport(*this),
   m_facade(&facade),
@@ -648,7 +650,7 @@ NdbImportImpl::Job::start_resume()
       m_util.set_error_gen(m_error, __LINE__,
                            "inconsistent counts from old state files"
                            " (*.stt vs *.map)"
-                           " rows %llu vs %llu reject %llu vs %llu",
+                           " rows %" PRIu64 " vs %" PRIu64 " reject %" PRIu64 " vs %" PRIu64,
                            m_old_rows, old_rows, m_old_reject, old_reject);
       return;
     }
@@ -1558,7 +1560,7 @@ NdbImportImpl::RandomInputWorker::create_row(uint64 rowid, const Table& table)
   const uint attrcnt = attrs.size();
   char keychr[100];
   uint keylen;
-  sprintf(keychr, "%llu:", rowid);
+  sprintf(keychr, "%" PRIu64 ":", rowid);
   keylen = strlen(keychr);
   for (uint i = 0; i < attrcnt; i++)
   {
@@ -3040,7 +3042,7 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
       const uint attrcnt = attrs.size();
       const Attr& attr = attrs[attrcnt - 1];
       require(attr.m_type == NdbDictionary::Column::Bigunsigned);
-      uint64 val;
+      Uint64 val;
       if (m_ndb->getAutoIncrementValue(table.m_tab, val,
                                        opt.m_ai_prefetch_sz,
                                        opt.m_ai_increment,

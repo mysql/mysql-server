@@ -22,6 +22,7 @@
 
 #include "my_config.h"
 
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -1288,7 +1289,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
     // read SID and number of intervals
     if (length - pos < 16 + 8) {
       DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 16 + 8. "
-                           "[n_sids=%llu i=%u]",
+                           "[n_sids=%" PRIu64 " i=%u]",
                            (ulong)length, (ulong)pos, n_sids, i));
       goto report_error;
     }
@@ -1305,9 +1306,10 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
     PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
     // iterate over intervals
     if (length - pos < 2 * 8 * n_intervals) {
-      DBUG_PRINT("error",
-                 ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%llu)",
-                  (ulong)length, (ulong)pos, n_intervals));
+      DBUG_PRINT(
+          "error",
+          ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%" PRIu64 ")",
+           (ulong)length, (ulong)pos, n_intervals));
       goto report_error;
     }
     Interval_iterator ivit(this, sidno);

@@ -197,8 +197,9 @@ void mysql_client_binlog_statement(THD *thd) {
     int64 bytes_decoded = base64_decode(strptr, coded_len, buf, &endptr,
                                         MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
-    DBUG_PRINT("info", ("bytes_decoded: %lld  strptr: %p  endptr: %p ('%c':%d)",
-                        bytes_decoded, strptr, endptr, *endptr, *endptr));
+    DBUG_PRINT("info",
+               ("bytes_decoded: %" PRId64 "  strptr: %p  endptr: %p ('%c':%d)",
+                bytes_decoded, strptr, endptr, *endptr, *endptr));
 
     if (bytes_decoded < 0) {
       my_error(ER_BASE64_DECODE_ERROR, MYF(0));
@@ -222,8 +223,9 @@ void mysql_client_binlog_statement(THD *thd) {
       order to be able to read exactly what is necessary.
     */
 
-    DBUG_PRINT("info", ("binlog base64 decoded_len: %lu  bytes_decoded: %lld",
-                        (ulong)decoded_len, bytes_decoded));
+    DBUG_PRINT("info",
+               ("binlog base64 decoded_len: %lu  bytes_decoded: %" PRId64,
+                (ulong)decoded_len, bytes_decoded));
 
     /*
       Now we start to read events of the buffer, until there are no
@@ -240,7 +242,7 @@ void mysql_client_binlog_statement(THD *thd) {
         my_error(ER_SYNTAX_ERROR, MYF(0));
         goto end;
       }
-      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%lld", event_len,
+      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%" PRId64, event_len,
                           bytes_decoded));
 
       if (check_event_type(bufptr[EVENT_TYPE_OFFSET], rli)) goto end;

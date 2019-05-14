@@ -226,8 +226,7 @@ void Plugin_gcs_message::encode_payload_item_int8(
 }
 
 void Plugin_gcs_message::decode_payload_item_int8(const unsigned char **buffer,
-                                                  uint16 *type,
-                                                  ulonglong *value) {
+                                                  uint16 *type, uint64 *value) {
   DBUG_TRACE;
 
   unsigned long long length = 0;

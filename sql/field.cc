@@ -10364,7 +10364,7 @@ static inline void handle_int64(uchar *to, const uchar *from, uint max_length,
     val = sint8korr(from);
   else
 #endif
-    longlongget(&val, from);
+    memcpy(&val, from, sizeof(val));
 
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first_to)
@@ -10567,17 +10567,17 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
       pseudo-fields used in trigger's body. These fields are used
       to copy defaults values later inside constructor of
       the class Create_field.
-    */
+     */
     case Item::FIELD_ITEM:
     case Item::TRIGGER_FIELD_ITEM:
       table_field = ((Item_field *)item)->field;
       break;
     default: {
       /*
-       If the expression is of temporal type having date and non-nullable,
-       a zero date is generated. If in strict mode, then zero date is
-       invalid. For such cases no default is generated.
-     */
+        If the expression is of temporal type having date and non-nullable,
+        a zero date is generated. If in strict mode, then zero date is
+        invalid. For such cases no default is generated.
+       */
       table_field = nullptr;
       if (tmp_table_field->is_temporal_with_date() && thd->is_strict_mode() &&
           !item->maybe_null)
