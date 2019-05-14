@@ -213,8 +213,10 @@ bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users = NULL,
                             Rewrite_params *rewrite_params = NULL,
-                            bool extra_error = false, bool log_to_binlog = true,
-                            bool notify_htons = true);
+                            bool extra_error = false,
+                            bool log_to_binlog = true);
+void acl_notify_htons(THD *thd, const char *query, size_t query_length);
+
 /* sql_authorization */
 bool is_privileged_user_for_credential_change(THD *thd);
 void rebuild_vertex_index(THD *thd);

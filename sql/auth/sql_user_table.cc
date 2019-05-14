@@ -536,7 +536,7 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
 
 */
 
-static void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
+void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: %s", thd->db().str));
   DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
@@ -556,8 +556,8 @@ static void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
   @retval True  - Error.
 */
 
-static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
-                                           bool notify_htons) {
+static bool acl_end_trans_and_close_tables(THD *thd,
+                                           bool rollback_transaction) {
   bool result;
 
   /*
@@ -611,8 +611,6 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
       and before acl_reload/grant_reload() below.
     */
     reload_acl_caches(thd);
-  } else if (notify_htons) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
   }
 
   return result;
@@ -634,7 +632,6 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
   @param write_to_binlog        Skip writing to binlog.
                                 Used for routine grants while
                                 creating routine.
-  @param notify_htons           Should hton be notified or not
 
   @returns status of log and commit
     @retval 0 Successfully committed. Optionally : written to binlog.
@@ -645,8 +642,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users, /* = NULL */
                             Rewrite_params *rewrite_params,    /* = NULL */
                             bool extra_error,                  /* = true */
-                            bool write_to_binlog,              /* = true */
-                            bool notify_htons) {
+                            bool write_to_binlog) {            /* = true */
   bool result = false;
   DBUG_TRACE;
   DBUG_ASSERT(thd);
@@ -715,7 +711,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
     mysql_rewrite_acl_query(thd, Consumer_type::TEXTLOG, rewrite_params);
   }
 
-  if (acl_end_trans_and_close_tables(thd, result, notify_htons)) result = 1;
+  if (acl_end_trans_and_close_tables(thd, result)) result = 1;
 
   return result;
 }

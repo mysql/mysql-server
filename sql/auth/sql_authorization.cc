@@ -2719,151 +2719,158 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   */
   thd->lex->sql_command = backup.sql_command;
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  { /* Critical Section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
-  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) {
-    thd->lex->restore_backup_query_tables_list(&backup);
-    return ret != 1; /* purecov: deadcode */
-  }
-
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  if (check_system_user_privilege(thd, user_list)) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  MEM_ROOT *old_root = thd->mem_root;
-  thd->mem_root = &memex;
-  grant_version++;
-
-  while ((tmp_Str = str_list++)) {
-    int error;
-    GRANT_TABLE *grant_table;
-
-    if (!(Str = get_current_user(thd, tmp_Str))) {
-      result = true;
-      continue;
+    if ((ret = open_grant_tables(thd, tables, &transactional_tables))) {
+      thd->lex->restore_backup_query_tables_list(&backup);
+      return ret != 1; /* purecov: deadcode */
     }
 
-    if (set_and_validate_user_attributes(
-            thd, Str, what_to_set, false, false,
-            &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
-            revoke_grant ? "REVOKE" : "GRANT")) {
-      result = true;
-      continue;
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
 
-    ACL_USER *this_user = find_acl_user(Str->host.str, Str->user.str, true);
-    if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
-      existing_users.insert(tmp_Str);
+    if (check_system_user_privilege(thd, user_list)) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
 
-    db_name = table_list->get_db_name();
-    thd->add_to_binlog_accessed_dbs(db_name);  // collecting db:s for MTS
-    table_name = table_list->get_table_name();
+    MEM_ROOT *old_root = thd->mem_root;
+    thd->mem_root = &memex;
+    grant_version++;
 
-    /* Find/create cached table grant */
-    grant_table = table_hash_search(Str->host.str, NullS, db_name,
-                                    Str->user.str, table_name, 1);
-    if (!grant_table) {
-      if (revoke_grant) {
-        my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), Str->user.str,
-                 Str->host.str, table_list->table_name);
+    while ((tmp_Str = str_list++)) {
+      int error;
+      GRANT_TABLE *grant_table;
+
+      if (!(Str = get_current_user(thd, tmp_Str))) {
         result = true;
         continue;
       }
 
-      DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
-                      DBUG_SET("+d,simulate_out_of_memory"););
-      grant_table =
-          new (thd->mem_root) GRANT_TABLE(Str->host.str, db_name, Str->user.str,
-                                          table_name, rights, column_priv);
-      DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
-                      DBUG_SET("-d,simulate_out_of_memory"););
+      if (set_and_validate_user_attributes(
+              thd, Str, what_to_set, false, false,
+              &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
+              revoke_grant ? "REVOKE" : "GRANT")) {
+        result = true;
+        continue;
+      }
 
+      ACL_USER *this_user = find_acl_user(Str->host.str, Str->user.str, true);
+      if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
+        existing_users.insert(tmp_Str);
+
+      db_name = table_list->get_db_name();
+      thd->add_to_binlog_accessed_dbs(db_name);  // collecting db:s for MTS
+      table_name = table_list->get_table_name();
+
+      /* Find/create cached table grant */
+      grant_table = table_hash_search(Str->host.str, NullS, db_name,
+                                      Str->user.str, table_name, 1);
       if (!grant_table) {
-        result = true; /* purecov: deadcode */
-        break;         /* purecov: deadcode */
+        if (revoke_grant) {
+          my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), Str->user.str,
+                   Str->host.str, table_list->table_name);
+          result = true;
+          continue;
+        }
+
+        DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
+                        DBUG_SET("+d,simulate_out_of_memory"););
+        grant_table = new (thd->mem_root)
+            GRANT_TABLE(Str->host.str, db_name, Str->user.str, table_name,
+                        rights, column_priv);
+        DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
+                        DBUG_SET("-d,simulate_out_of_memory"););
+
+        if (!grant_table) {
+          result = true; /* purecov: deadcode */
+          break;         /* purecov: deadcode */
+        }
+        column_priv_hash->emplace(
+            grant_table->hash_key,
+            unique_ptr_destroy_only<GRANT_TABLE>(grant_table));
       }
-      column_priv_hash->emplace(
-          grant_table->hash_key,
-          unique_ptr_destroy_only<GRANT_TABLE>(grant_table));
-    }
 
-    /* If revoke_grant, calculate the new column privilege for tables_priv */
-    if (revoke_grant) {
-      class LEX_COLUMN *column;
-      List_iterator<LEX_COLUMN> column_iter(columns);
-      GRANT_COLUMN *grant_column;
+      /* If revoke_grant, calculate the new column privilege for tables_priv */
+      if (revoke_grant) {
+        class LEX_COLUMN *column;
+        List_iterator<LEX_COLUMN> column_iter(columns);
+        GRANT_COLUMN *grant_column;
 
-      /* Fix old grants */
-      while ((column = column_iter++)) {
-        grant_column = column_hash_search(grant_table, column->column.ptr(),
-                                          column->column.length());
-        if (grant_column) grant_column->rights &= ~(column->rights | rights);
+        /* Fix old grants */
+        while ((column = column_iter++)) {
+          grant_column = column_hash_search(grant_table, column->column.ptr(),
+                                            column->column.length());
+          if (grant_column) grant_column->rights &= ~(column->rights | rights);
+        }
+        /* scan trough all columns to get new column grant */
+        column_priv = 0;
+        for (const auto &key_and_value : grant_table->hash_columns) {
+          grant_column = key_and_value.second.get();
+          grant_column->rights &= ~rights;  // Fix other columns
+          column_priv |= grant_column->rights;
+        }
+      } else {
+        column_priv |= grant_table->cols;
       }
-      /* scan trough all columns to get new column grant */
-      column_priv = 0;
-      for (const auto &key_and_value : grant_table->hash_columns) {
-        grant_column = key_and_value.second.get();
-        grant_column->rights &= ~rights;  // Fix other columns
-        column_priv |= grant_column->rights;
-      }
-    } else {
-      column_priv |= grant_table->cols;
-    }
 
-    /* update table and columns */
+      /* update table and columns */
 
-    // Hold on to grant_table if it gets deleted, since we use it below.
-    std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>> deleted_grant_table;
+      // Hold on to grant_table if it gets deleted, since we use it below.
+      std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+          deleted_grant_table;
 
-    if ((error = replace_table_table(
-             thd, grant_table, &deleted_grant_table,
-             tables[ACL_TABLES::TABLE_TABLES_PRIV].table, *Str, db_name,
-             table_name, rights, column_priv, revoke_grant))) {
-      result = true;
-      if (error < 0) break;
-
-      continue;
-    }
-
-    if (tables[3].table) {
-      if ((error = replace_column_table(
-               thd, grant_table, tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
-               *Str, columns, db_name, table_name, rights, revoke_grant))) {
+      if ((error = replace_table_table(
+               thd, grant_table, &deleted_grant_table,
+               tables[ACL_TABLES::TABLE_TABLES_PRIV].table, *Str, db_name,
+               table_name, rights, column_priv, revoke_grant))) {
         result = true;
         if (error < 0) break;
 
         continue;
       }
+
+      if (tables[3].table) {
+        if ((error = replace_column_table(
+                 thd, grant_table, tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
+                 *Str, columns, db_name, table_name, rights, revoke_grant))) {
+          result = true;
+          if (error < 0) break;
+
+          continue;
+        }
+      }
     }
-  }
-  thd->mem_root = old_root;
+    thd->mem_root = old_root;
 
-  DBUG_ASSERT(!result || thd->is_error());
+    DBUG_ASSERT(!result || thd->is_error());
 
-  result = log_and_commit_acl_ddl(thd, transactional_tables);
+    result = log_and_commit_acl_ddl(thd, transactional_tables);
 
-  {
-    /* Notify audit plugin. We will ignore the return value. */
-    LEX_USER *existing_user;
-    for (LEX_USER *one_user : existing_users) {
-      if ((existing_user = get_current_user(thd, one_user)))
-        mysql_audit_notify(
-            thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
-            thd->is_error(), existing_user->user.str, existing_user->host.str,
-            existing_user->plugin.str, is_role_id(existing_user), NULL, NULL);
+    {
+      /* Notify audit plugin. We will ignore the return value. */
+      LEX_USER *existing_user;
+      for (LEX_USER *one_user : existing_users) {
+        if ((existing_user = get_current_user(thd, one_user)))
+          mysql_audit_notify(
+              thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+              thd->is_error(), existing_user->user.str, existing_user->host.str,
+              existing_user->plugin.str, is_role_id(existing_user), NULL, NULL);
+      }
     }
-  }
+    get_global_acl_cache()->increase_version();
+  } /* Critical section */
 
-  if (!result) my_ok(thd);
+  if (!result) {
+    my_ok(thd);
+    /* Notify storage engines */
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
 
   thd->lex->restore_backup_query_tables_list(&backup);
-  get_global_acl_cache()->increase_version();
   DEBUG_SYNC(thd, "after_table_grant_revoke");
   return result;
 }
@@ -2910,8 +2917,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     if (sp_exist_routines(thd, table_list, is_proc)) return true;
   }
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2922,118 +2927,128 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     return ret != 1;
 
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
-  if (check_system_user_privilege(thd, user_list)) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  MEM_ROOT *old_root = thd->mem_root;
-  thd->mem_root = &memex;
-
-  DBUG_PRINT("info", ("now time to iterate and add users"));
-
-  while ((tmp_Str = str_list++)) {
-    int error;
-    GRANT_NAME *grant_name;
-
-    if (!(Str = get_current_user(thd, tmp_Str))) {
-      result = true;
-      continue;
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
 
-    if (set_and_validate_user_attributes(
-            thd, Str, what_to_set, false, false,
-            &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
-            revoke_grant ? "REVOKE" : "GRANT")) {
-      result = true;
-      continue;
+    if (check_system_user_privilege(thd, user_list)) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
 
-    ACL_USER *this_user = find_acl_user(Str->host.str, Str->user.str, true);
-    if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
-      existing_users.insert(tmp_Str);
+    MEM_ROOT *old_root = thd->mem_root;
+    thd->mem_root = &memex;
 
-    db_name = table_list->db;
-    if (write_to_binlog) thd->add_to_binlog_accessed_dbs(db_name);
-    table_name = table_list->table_name;
-    grant_name = routine_hash_search(Str->host.str, NullS, db_name,
-                                     Str->user.str, table_name, is_proc, 1);
-    if (!grant_name) {
-      if (revoke_grant) {
-        my_error(ER_NONEXISTING_PROC_GRANT, MYF(0), Str->user.str,
-                 Str->host.str, table_name);
+    DBUG_PRINT("info", ("now time to iterate and add users"));
+
+    while ((tmp_Str = str_list++)) {
+      int error;
+      GRANT_NAME *grant_name;
+
+      if (!(Str = get_current_user(thd, tmp_Str))) {
         result = true;
         continue;
       }
-      grant_name = new (thd->mem_root) GRANT_NAME(
-          Str->host.str, db_name, Str->user.str, table_name, rights, true);
-      if (!grant_name) {
+
+      if (set_and_validate_user_attributes(
+              thd, Str, what_to_set, false, false,
+              &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
+              revoke_grant ? "REVOKE" : "GRANT")) {
         result = true;
-        break;
+        continue;
       }
-      if (is_proc)
-        proc_priv_hash->emplace(
-            grant_name->hash_key,
-            unique_ptr_destroy_only<GRANT_NAME>(grant_name));
-      else
-        func_priv_hash->emplace(
-            grant_name->hash_key,
-            unique_ptr_destroy_only<GRANT_NAME>(grant_name));
-    }
 
-    if ((error = replace_routine_table(thd, grant_name, tables[4].table, *Str,
-                                       db_name, table_name, is_proc, rights,
-                                       revoke_grant))) {
-      result = true;  // Remember error
-      if (error < 0) break;
+      ACL_USER *this_user = find_acl_user(Str->host.str, Str->user.str, true);
+      if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
+        existing_users.insert(tmp_Str);
 
-      continue;
+      db_name = table_list->db;
+      if (write_to_binlog) thd->add_to_binlog_accessed_dbs(db_name);
+      table_name = table_list->table_name;
+      grant_name = routine_hash_search(Str->host.str, NullS, db_name,
+                                       Str->user.str, table_name, is_proc, 1);
+      if (!grant_name) {
+        if (revoke_grant) {
+          my_error(ER_NONEXISTING_PROC_GRANT, MYF(0), Str->user.str,
+                   Str->host.str, table_name);
+          result = true;
+          continue;
+        }
+        grant_name = new (thd->mem_root) GRANT_NAME(
+            Str->host.str, db_name, Str->user.str, table_name, rights, true);
+        if (!grant_name) {
+          result = true;
+          break;
+        }
+        if (is_proc)
+          proc_priv_hash->emplace(
+              grant_name->hash_key,
+              unique_ptr_destroy_only<GRANT_NAME>(grant_name));
+        else
+          func_priv_hash->emplace(
+              grant_name->hash_key,
+              unique_ptr_destroy_only<GRANT_NAME>(grant_name));
+      }
+
+      if ((error = replace_routine_table(thd, grant_name, tables[4].table, *Str,
+                                         db_name, table_name, is_proc, rights,
+                                         revoke_grant))) {
+        result = true;  // Remember error
+        if (error < 0) break;
+
+        continue;
+      }
     }
+    thd->mem_root = old_root;
+
+    /*
+      mysql_routine_grant can be called in following scenarios:
+      1. As a part of GRANT statement
+      2. As a part of CREATE PROCEDURE/ROUTINE statement
+
+      In case of 2, even if we fail to grant permission on
+      newly created routine, it is not a critical error and
+      is suppressed by caller. Instead, a warning is thrown
+      to user.
+
+      So, if we are here and result is set to true, either of the following must
+      be true:
+      1. An error is set in THD
+      2. Current statement is SQLCOM_CREATE_PROCEDURE or
+         SQLCOM_CREATE_SPFUNCTION
+
+      So assert for the same.
+    */
+    DBUG_ASSERT(!result || thd->is_error() ||
+                thd->lex->sql_command == SQLCOM_CREATE_PROCEDURE ||
+                thd->lex->sql_command == SQLCOM_CREATE_SPFUNCTION);
+
+    result = log_and_commit_acl_ddl(thd, transactional_tables, NULL, NULL,
+                                    result, write_to_binlog);
+
+    {
+      /* Notify audit plugin. We will ignore the return value. */
+      for (LEX_USER *one_user : existing_users) {
+        LEX_USER *existing_user;
+        if ((existing_user = get_current_user(thd, one_user)))
+          mysql_audit_notify(
+              thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+              thd->is_error(), existing_user->user.str, existing_user->host.str,
+              existing_user->plugin.str, is_role_id(existing_user), NULL, NULL);
+      }
+    }
+    get_global_acl_cache()->increase_version();
+  } /* Critical section */
+
+  /* Notify storage engines */
+  if (write_to_binlog && !result) {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
   }
-  thd->mem_root = old_root;
 
-  /*
-    mysql_routine_grant can be called in following scenarios:
-    1. As a part of GRANT statement
-    2. As a part of CREATE PROCEDURE/ROUTINE statement
-
-    In case of 2, even if we fail to grant permission on
-    newly created routine, it is not a critical error and
-    is suppressed by caller. Instead, a warning is thrown
-    to user.
-
-    So, if we are here and result is set to true, either of the following must
-    be true:
-    1. An error is set in THD
-    2. Current statement is SQLCOM_CREATE_PROCEDURE or SQLCOM_CREATE_SPFUNCTION
-
-    So assert for the same.
-  */
-  DBUG_ASSERT(!result || thd->is_error() ||
-              thd->lex->sql_command == SQLCOM_CREATE_PROCEDURE ||
-              thd->lex->sql_command == SQLCOM_CREATE_SPFUNCTION);
-
-  result = log_and_commit_acl_ddl(thd, transactional_tables, NULL, NULL, result,
-                                  write_to_binlog, write_to_binlog);
-
-  {
-    /* Notify audit plugin. We will ignore the return value. */
-    for (LEX_USER *one_user : existing_users) {
-      LEX_USER *existing_user;
-      if ((existing_user = get_current_user(thd, one_user)))
-        mysql_audit_notify(
-            thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
-            thd->is_error(), existing_user->user.str, existing_user->host.str,
-            existing_user->plugin.str, is_role_id(existing_user), NULL, NULL);
-    }
-  }
-
-  get_global_acl_cache()->increase_version();
   return result;
 }
 
@@ -3057,100 +3072,108 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
   int ret;
   LEX_USER *role = 0;
   bool transactional_tables;
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     return ret != 1; /* purecov: deadcode */
 
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
-  if (check_system_user_privilege(thd, *users)) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  table = tables[ACL_TABLES::TABLE_ROLE_EDGES].table;
-
-  std::vector<Role_id> mandatory_roles;
-  get_mandatory_roles(&mandatory_roles);
-  while ((role = roles_it++) != 0) {
-    if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
-                     [&](const Role_id &id) -> bool {
-                       Role_id id2(role->user, role->host);
-                       return id == id2;
-                     }) != mandatory_roles.end()) {
-      Role_id authid(role->user, role->host);
-      std::string out;
-      authid.auth_str(&out);
-      my_error(ER_MANDATORY_ROLE, MYF(0), out.c_str());
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
       return true;
     }
-  }
-  while ((lex_user = users_it++) && !errors) {
-    roles_it.rewind();
-    LEX_USER *role;
-    if (lex_user->user.str == 0) {
-      // HACK: We're using CURRENT_USER()
-      lex_user = get_current_user(thd, lex_user);
-      DBUG_PRINT("note", ("current user= %s@%s", lex_user->user.str,
-                          lex_user->host.str));
+
+    if (check_system_user_privilege(thd, *users)) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
 
-    ACL_USER *acl_user;
-    if ((acl_user = find_acl_user(lex_user->host.str, lex_user->user.str,
-                                  true)) == NULL) {
-      my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
-               lex_user->host.str);
-      errors = true;
-      break;
-    }
-    while ((role = roles_it++) && !errors) {
-      ACL_USER *acl_role;
-      if ((acl_role = find_acl_user(role->host.str, role->user.str, true)) ==
-          NULL) {
-        my_error(ER_UNKNOWN_AUTHID, MYF(0), const_cast<char *>(role->user.str),
-                 const_cast<char *>(role->host.str));
-        errors = true;
-        break;
-      } else {
-        DBUG_PRINT("info",
-                   ("User %s@%s will drop parent %s@%s", acl_user->user,
-                    acl_user->host.get_host(), role->user.str, role->host.str));
-        Security_context *sctx = thd->security_context();
-        if (sctx->can_operate_with({role}, consts::system_user)) {
-          my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                   consts::system_user.c_str());
-          errors = true;
-          break;
-        }
+    table = tables[ACL_TABLES::TABLE_ROLE_EDGES].table;
 
-        Auth_id_ref from_user = create_authid_from(role);
-        Auth_id_ref to_user = create_authid_from(acl_user);
-        errors = modify_role_edges_in_table(thd, table, from_user, to_user,
-                                            false, true);
-        if (errors) {
-          my_error(ER_FAILED_REVOKE_ROLE, MYF(0),
-                   const_cast<char *>(role->user.str),
-                   const_cast<char *>(role->host.str));
-          break;
-        }
-        revoke_role(thd, acl_role, acl_user);
-        drop_default_role_policy(
-            thd, tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
-            create_authid_from(acl_role), create_authid_from(acl_user));
+    std::vector<Role_id> mandatory_roles;
+    get_mandatory_roles(&mandatory_roles);
+    while ((role = roles_it++) != 0) {
+      if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
+                       [&](const Role_id &id) -> bool {
+                         Role_id id2(role->user, role->host);
+                         return id == id2;
+                       }) != mandatory_roles.end()) {
+        Role_id authid(role->user, role->host);
+        std::string out;
+        authid.auth_str(&out);
+        my_error(ER_MANDATORY_ROLE, MYF(0), out.c_str());
+        return true;
       }
     }
+    while ((lex_user = users_it++) && !errors) {
+      roles_it.rewind();
+      LEX_USER *role;
+      if (lex_user->user.str == 0) {
+        // HACK: We're using CURRENT_USER()
+        lex_user = get_current_user(thd, lex_user);
+        DBUG_PRINT("note", ("current user= %s@%s", lex_user->user.str,
+                            lex_user->host.str));
+      }
+
+      ACL_USER *acl_user;
+      if ((acl_user = find_acl_user(lex_user->host.str, lex_user->user.str,
+                                    true)) == NULL) {
+        my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
+                 lex_user->host.str);
+        errors = true;
+        break;
+      }
+      while ((role = roles_it++) && !errors) {
+        ACL_USER *acl_role;
+        if ((acl_role = find_acl_user(role->host.str, role->user.str, true)) ==
+            NULL) {
+          my_error(ER_UNKNOWN_AUTHID, MYF(0),
+                   const_cast<char *>(role->user.str),
+                   const_cast<char *>(role->host.str));
+          errors = true;
+          break;
+        } else {
+          DBUG_PRINT("info", ("User %s@%s will drop parent %s@%s",
+                              acl_user->user, acl_user->host.get_host(),
+                              role->user.str, role->host.str));
+          Security_context *sctx = thd->security_context();
+          if (sctx->can_operate_with({role}, consts::system_user)) {
+            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                     consts::system_user.c_str());
+            errors = true;
+            break;
+          }
+
+          Auth_id_ref from_user = create_authid_from(role);
+          Auth_id_ref to_user = create_authid_from(acl_user);
+          errors = modify_role_edges_in_table(thd, table, from_user, to_user,
+                                              false, true);
+          if (errors) {
+            my_error(ER_FAILED_REVOKE_ROLE, MYF(0),
+                     const_cast<char *>(role->user.str),
+                     const_cast<char *>(role->host.str));
+            break;
+          }
+          revoke_role(thd, acl_role, acl_user);
+          drop_default_role_policy(
+              thd, tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
+              create_authid_from(acl_role), create_authid_from(acl_user));
+        }
+      }
+    }
+    DBUG_ASSERT(!errors || thd->is_error());
+
+    errors = log_and_commit_acl_ddl(thd, transactional_tables);
+
+    get_global_acl_cache()->increase_version();
+  } /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
   }
 
-  DBUG_ASSERT(!errors || thd->is_error());
-
-  errors = log_and_commit_acl_ddl(thd, transactional_tables);
-
-  if (!errors) my_ok(thd);
-
-  get_global_acl_cache()->increase_version();
   return false;
 }
 
@@ -3192,93 +3215,101 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
   int ret;
   bool transactional_tables;
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     return ret != 1; /* purecov: deadcode */
 
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
-  if (check_system_user_privilege(thd, *users)) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  table = tables[6].table;
-
-  while ((lex_user = users_it++) && !errors) {
-    List_iterator<LEX_USER> roles_it(const_cast<List<LEX_USER> &>(*roles));
-    LEX_USER *role;
-    if (lex_user->user.str == 0) {
-      // HACK: We're using CURRENT_USER()
-      lex_user = get_current_user(thd, lex_user);
-      DBUG_PRINT("note", ("current user= %s@%s", lex_user->user.str,
-                          lex_user->host.str));
-    } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
-      /* Granting roles to an anonymous user isn't allowed */
-      my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
       return true;
     }
 
-    ACL_USER *acl_user;
-    if ((acl_user = find_acl_user(lex_user->host.str, lex_user->user.str,
-                                  true)) == NULL) {
-      my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
-               lex_user->host.str);
+    if (check_system_user_privilege(thd, *users)) {
+      commit_and_close_mysql_tables(thd);
       return true;
     }
-    while ((role = roles_it++) && !errors) {
-      ACL_USER *acl_role;
-      if (role->user.length == 0 || *(role->user.str) == '\0') {
-        /* Anonymous roles aren't allowed */
-        errors = true;
-        std::string user_str = create_authid_str_from(acl_user);
-        std::string role_str = create_authid_str_from(role);
-        my_error(ER_FAILED_ROLE_GRANT, MYF(0), role_str.c_str(),
-                 user_str.c_str());
-        break;
-      } else if ((acl_role = find_acl_user(role->host.str, role->user.str,
-                                           true)) == NULL) {
-        my_error(ER_UNKNOWN_AUTHID, MYF(0), const_cast<char *>(role->user.str),
-                 const_cast<char *>(role->host.str));
-        errors = true;
-        break;
-      } else {
-        DBUG_PRINT("info",
-                   ("User %s@%s will inherit from %s@%s", acl_user->user,
-                    acl_user->host.get_host(), role->user.str, role->host.str));
-        Security_context *sctx = thd->security_context();
-        if (sctx->can_operate_with({role}, consts::system_user)) {
-          my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                   consts::system_user.c_str());
+
+    table = tables[6].table;
+
+    while ((lex_user = users_it++) && !errors) {
+      List_iterator<LEX_USER> roles_it(const_cast<List<LEX_USER> &>(*roles));
+      LEX_USER *role;
+      if (lex_user->user.str == 0) {
+        // HACK: We're using CURRENT_USER()
+        lex_user = get_current_user(thd, lex_user);
+        DBUG_PRINT("note", ("current user= %s@%s", lex_user->user.str,
+                            lex_user->host.str));
+      } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
+        /* Granting roles to an anonymous user isn't allowed */
+        my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
+        return true;
+      }
+
+      ACL_USER *acl_user;
+      if ((acl_user = find_acl_user(lex_user->host.str, lex_user->user.str,
+                                    true)) == NULL) {
+        my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
+                 lex_user->host.str);
+        return true;
+      }
+      while ((role = roles_it++) && !errors) {
+        ACL_USER *acl_role;
+        if (role->user.length == 0 || *(role->user.str) == '\0') {
+          /* Anonymous roles aren't allowed */
           errors = true;
-          break;
-        }
-        grant_role(acl_role, acl_user, with_admin_opt);
-        Auth_id_ref from_user = create_authid_from(role);
-        Auth_id_ref to_user = create_authid_from(acl_user);
-        errors = modify_role_edges_in_table(thd, table, from_user, to_user,
-                                            with_admin_opt, false);
-        if (errors) {
           std::string user_str = create_authid_str_from(acl_user);
           std::string role_str = create_authid_str_from(role);
-          my_error(ER_FAILED_ROLE_GRANT, MYF(0), user_str.c_str(),
-                   role_str.c_str());
+          my_error(ER_FAILED_ROLE_GRANT, MYF(0), role_str.c_str(),
+                   user_str.c_str());
           break;
+        } else if ((acl_role = find_acl_user(role->host.str, role->user.str,
+                                             true)) == NULL) {
+          my_error(ER_UNKNOWN_AUTHID, MYF(0),
+                   const_cast<char *>(role->user.str),
+                   const_cast<char *>(role->host.str));
+          errors = true;
+          break;
+        } else {
+          DBUG_PRINT("info", ("User %s@%s will inherit from %s@%s",
+                              acl_user->user, acl_user->host.get_host(),
+                              role->user.str, role->host.str));
+          Security_context *sctx = thd->security_context();
+          if (sctx->can_operate_with({role}, consts::system_user)) {
+            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                     consts::system_user.c_str());
+            errors = true;
+            break;
+          }
+          grant_role(acl_role, acl_user, with_admin_opt);
+          Auth_id_ref from_user = create_authid_from(role);
+          Auth_id_ref to_user = create_authid_from(acl_user);
+          errors = modify_role_edges_in_table(thd, table, from_user, to_user,
+                                              with_admin_opt, false);
+          if (errors) {
+            std::string user_str = create_authid_str_from(acl_user);
+            std::string role_str = create_authid_str_from(role);
+            my_error(ER_FAILED_ROLE_GRANT, MYF(0), user_str.c_str(),
+                     role_str.c_str());
+            break;
+          }
         }
       }
     }
+
+    DBUG_ASSERT(!errors || thd->is_error());
+
+    errors = log_and_commit_acl_ddl(thd, transactional_tables);
+    get_global_acl_cache()->increase_version();
+  } /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
   }
 
-  DBUG_ASSERT(!errors || thd->is_error());
-
-  errors = log_and_commit_acl_ddl(thd, transactional_tables);
-
-  if (!errors) my_ok(thd);
-
-  get_global_acl_cache()->increase_version();
   return errors;
 }
 
@@ -3304,8 +3335,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     proxied_user = str_list++;
   }
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -3316,238 +3345,248 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     return ret != 1;
 
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  bool with_grant_option = ((rights & GRANT_ACL) != 0);
-  bool grant_option = thd->lex->grant_privilege;
-  if (db == 0 && with_grant_option && (rights & ~GRANT_ACL) == 0 &&
-      dynamic_privilege.elements > 0) {
-    /*
-      If this is a grant on global privilege level and there only dynamic
-      privileges specified; don't apply the GRANT OPTION on a global privilege
-      level.
-    */
-    rights = 0;
-  }
-
-  dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
-  Grant_validator grant_validator(
-      thd, db, list, rights, revoke_grant, dynamic_privilege,
-      grant_all_current_privileges, grant_as, dynpriv_table);
-  if (grant_validator.validate()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  /* go through users in user_list */
-  grant_version++;
-  while ((target_user = str_list++)) {
-    if (!(user = get_current_user(thd, target_user))) {
-      error = true;
-      continue;
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
 
-    if (set_and_validate_user_attributes(
-            thd, user, what_to_set, false, false,
-            &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
-            revoke_grant ? "REVOKE" : "GRANT")) {
-      error = true;
-      continue;
+    bool with_grant_option = ((rights & GRANT_ACL) != 0);
+    bool grant_option = thd->lex->grant_privilege;
+    if (db == 0 && with_grant_option && (rights & ~GRANT_ACL) == 0 &&
+        dynamic_privilege.elements > 0) {
+      /*
+        If this is a grant on global privilege level and there only dynamic
+        privileges specified; don't apply the GRANT OPTION on a global privilege
+        level.
+      */
+      rights = 0;
     }
 
-    ACL_USER *this_user = find_acl_user(user->host.str, user->user.str, true);
-    Restrictions restrictions(nullptr);
-    DB_restrictions db_restrictions(nullptr);
-    ulong filtered_rights = rights;
-    std::unique_ptr<Restrictions_aggregator> aggregator =
-        Restrictions_aggregator_factory::create(thd, this_user, db, rights,
-                                                grant_all_current_privileges);
-    if (aggregator) {
-      partial_revokes = true;
-      if (aggregator->generate(db_restrictions)) {
-        error = true;
-        break;
-      }
-      restrictions.set_db(db_restrictions);
-      what_to_set.m_what |= USER_ATTRIBUTES;
-      what_to_set.m_user_attributes |= acl_table::USER_ATTRIBUTE_RESTRICTIONS;
+    dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
+    Grant_validator grant_validator(
+        thd, db, list, rights, revoke_grant, dynamic_privilege,
+        grant_all_current_privileges, grant_as, dynpriv_table);
+    if (grant_validator.validate()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
-    if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
-      existing_users.insert(target_user);
-    what_to_set.m_what |= ACCESS_RIGHTS_ATTR;
-    if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                                  user, (!db ? rights : 0), revoke_grant, false,
-                                  what_to_set, &restrictions))) {
-      error = true;
-      if (ret < 0) break;
 
-      continue;
-    }
-    /*
-       DB table operation is needed in either of the following cases :
-        - There is no partial revoke(s)
-        - Hybrid operation; Partial revokes filtered some of the access
-          for DB table
-    */
-    else if (db && (aggregator == nullptr ||
-                    aggregator->find_if_require_next_level_operation(
-                        filtered_rights))) {
-      ulong db_rights = filtered_rights & DB_ACLS;
-      if (db_rights == filtered_rights) {
-        if ((ret = replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table, db,
-                                    *user, db_rights, revoke_grant))) {
-          error = true;
-          if (ret < 0) break;
-
-          continue;
-        }
-        thd->add_to_binlog_accessed_dbs(db);
-      } else {
-        my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
+    /* go through users in user_list */
+    grant_version++;
+    while ((target_user = str_list++)) {
+      if (!(user = get_current_user(thd, target_user))) {
         error = true;
         continue;
       }
-    } else if (is_proxy) {
-      if ((ret = replace_proxies_priv_table(
-               thd, tables[5].table, user, proxied_user,
-               rights & GRANT_ACL ? true : false, revoke_grant))) {
+
+      if (set_and_validate_user_attributes(
+              thd, user, what_to_set, false, false,
+              &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
+              revoke_grant ? "REVOKE" : "GRANT")) {
+        error = true;
+        continue;
+      }
+
+      ACL_USER *this_user = find_acl_user(user->host.str, user->user.str, true);
+      Restrictions restrictions(nullptr);
+      DB_restrictions db_restrictions(nullptr);
+      ulong filtered_rights = rights;
+      std::unique_ptr<Restrictions_aggregator> aggregator =
+          Restrictions_aggregator_factory::create(thd, this_user, db, rights,
+                                                  grant_all_current_privileges);
+      if (aggregator) {
+        partial_revokes = true;
+        if (aggregator->generate(db_restrictions)) {
+          error = true;
+          break;
+        }
+        restrictions.set_db(db_restrictions);
+        what_to_set.m_what |= USER_ATTRIBUTES;
+        what_to_set.m_user_attributes |= acl_table::USER_ATTRIBUTE_RESTRICTIONS;
+      }
+      if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
+        existing_users.insert(target_user);
+      what_to_set.m_what |= ACCESS_RIGHTS_ATTR;
+      if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
+                                    user, (!db ? rights : 0), revoke_grant,
+                                    false, what_to_set, &restrictions))) {
         error = true;
         if (ret < 0) break;
 
         continue;
       }
-    }
+      /*
+         DB table operation is needed in either of the following cases :
+          - There is no partial revoke(s)
+          - Hybrid operation; Partial revokes filtered some of the access
+            for DB table
+      */
+      else if (db && (aggregator == nullptr ||
+                      aggregator->find_if_require_next_level_operation(
+                          filtered_rights))) {
+        ulong db_rights = filtered_rights & DB_ACLS;
+        if (db_rights == filtered_rights) {
+          if ((ret = replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table,
+                                      db, *user, db_rights, revoke_grant))) {
+            error = true;
+            if (ret < 0) break;
 
-    if (!db &&
-        (dynamic_privilege.elements > 0 || grant_all_current_privileges)) {
-      LEX_CSTRING *priv;
-      Update_dynamic_privilege_table update_table(thd, dynpriv_table);
-      List<LEX_CSTRING> *privileges_to_check;
-      if (grant_all_current_privileges) {
-        /*
-          Copy all currently available dynamic privileges to the list of
-          dynamic privileges to grant.
-        */
-        privileges_to_check = new (thd->mem_root) List<LEX_CSTRING>;
-        iterate_all_dynamic_privileges(thd, [&](const char *str) {
-          LEX_CSTRING *new_str = (LEX_CSTRING *)thd->alloc(sizeof(LEX_CSTRING));
-          new_str->str = str;
-          new_str->length = strlen(str);
-          privileges_to_check->push_back(new_str);
-          return false;
-        });
-      } else
-        privileges_to_check =
-            &const_cast<List<LEX_CSTRING> &>(dynamic_privilege);
-      List_iterator<LEX_CSTRING> priv_it(*privileges_to_check);
-      while ((priv = priv_it++) && !error) {
-        /* We already checked privileges required to perform GRANT/REVOKE */
-        if (revoke_grant) {
-          error = revoke_dynamic_privilege(*priv, user->user, user->host,
-                                           update_table);
+            continue;
+          }
+          thd->add_to_binlog_accessed_dbs(db);
         } else {
-          /* We performed SYSTEM_USER check before */
-          error = grant_dynamic_privilege(*priv, user->user, user->host,
-                                          with_grant_option, update_table);
+          my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
+          error = true;
+          continue;
         }
-        if (error) {
+      } else if (is_proxy) {
+        if ((ret = replace_proxies_priv_table(
+                 thd, tables[5].table, user, proxied_user,
+                 rights & GRANT_ACL ? true : false, revoke_grant))) {
+          error = true;
+          if (ret < 0) break;
+
+          continue;
+        }
+      }
+
+      if (!db &&
+          (dynamic_privilege.elements > 0 || grant_all_current_privileges)) {
+        LEX_CSTRING *priv;
+        Update_dynamic_privilege_table update_table(thd, dynpriv_table);
+        List<LEX_CSTRING> *privileges_to_check;
+        if (grant_all_current_privileges) {
           /*
-            If the operation fails the DA might have been set already, but
-            if wasn't we can assume the dynamic privilege wasn't
-            registered in which case a syntax error is a reasonable response.
+            Copy all currently available dynamic privileges to the list of
+            dynamic privileges to grant.
           */
+          privileges_to_check = new (thd->mem_root) List<LEX_CSTRING>;
+          iterate_all_dynamic_privileges(thd, [&](const char *str) {
+            LEX_CSTRING *new_str =
+                (LEX_CSTRING *)thd->alloc(sizeof(LEX_CSTRING));
+            new_str->str = str;
+            new_str->length = strlen(str);
+            privileges_to_check->push_back(new_str);
+            return false;
+          });
+        } else
+          privileges_to_check =
+              &const_cast<List<LEX_CSTRING> &>(dynamic_privilege);
+        List_iterator<LEX_CSTRING> priv_it(*privileges_to_check);
+        while ((priv = priv_it++) && !error) {
+          /* We already checked privileges required to perform GRANT/REVOKE */
+          if (revoke_grant) {
+            error = revoke_dynamic_privilege(*priv, user->user, user->host,
+                                             update_table);
+          } else {
+            /* We performed SYSTEM_USER check before */
+            error = grant_dynamic_privilege(*priv, user->user, user->host,
+                                            with_grant_option, update_table);
+          }
+          if (error) {
+            /*
+              If the operation fails the DA might have been set already, but
+              if wasn't we can assume the dynamic privilege wasn't
+              registered in which case a syntax error is a reasonable response.
+            */
+            if (!thd->get_stmt_da()->is_error())
+              my_error(ER_SYNTAX_ERROR, MYF(0));
+            break;
+          }
+        }
+      }
+      if (!db && grant_option) {
+        bool error = 0;
+        Update_dynamic_privilege_table update_table(thd, dynpriv_table);
+        if (!revoke_grant)
+          error = grant_grant_option_for_all_dynamic_privileges(
+              user->user, user->host, update_table);
+        else
+          error = revoke_grant_option_for_all_dynamic_privileges(
+              user->user, user->host, update_table);
+        if (error) {
           if (!thd->get_stmt_da()->is_error())
             my_error(ER_SYNTAX_ERROR, MYF(0));
-          break;
         }
       }
+    }  // for each user
+
+    DBUG_ASSERT(!error || thd->is_error());
+
+    {
+      /*
+        We want to add AS ... clause while rewritting GRANT statement in
+        following cases:
+
+        1. The GRANT statement being executed contains AS clause.
+           In this case we retain it as it is except rewriting
+           CURRENT_USER() and use current session's user/host part.
+        2. If all of the following condtions are met:
+           - --partial_revokes is ON
+           - Statement is a GRANT at global level (*.*)
+           This is required because, current user may have restriction
+           list and grant may propagate the same to grantee. In order
+           to repliably replay this on other nodes in an HA setup, details
+           of current user has to be captured.
+      */
+      LEX_GRANT_AS *grant_as_ptr = nullptr;
+      bool grant_as_specified = false;
+      LEX_GRANT_AS grant_as_for_rewrite;
+      if (grant_as->grant_as_used) {
+        grant_as_specified = grant_as->grant_as_used;
+        grant_as_ptr = grant_as;
+      } else if (partial_revokes && !revoke_grant && !is_proxy && !db) {
+        /* Set LEX_GRANT_AS for given GRANT */
+        grant_as_for_rewrite.grant_as_used = true;
+
+        grant_as_for_rewrite.role_type =
+            thd->security_context()->get_active_roles()->size()
+                ? role_enum::ROLE_NAME
+                : role_enum::ROLE_NONE;
+
+        LEX_CSTRING priv_user = thd->security_context()->priv_user();
+        LEX_CSTRING priv_host = thd->security_context()->priv_host();
+        grant_as_for_rewrite.user = LEX_USER::alloc(
+            thd, (LEX_STRING *)&priv_user, (LEX_STRING *)&priv_host);
+
+        if (grant_as_for_rewrite.role_type == role_enum::ROLE_NAME) {
+          grant_as_for_rewrite.role_list = new (thd->mem_root) List<LEX_USER>;
+          thd->security_context()->get_active_roles(
+              thd, *grant_as_for_rewrite.role_list);
+        }
+        grant_as_specified = false;
+        grant_as_ptr = &grant_as_for_rewrite;
+      }
+
+      Grant_params grant_rewrite_params(grant_as_specified, grant_as_ptr);
+
+      error = log_and_commit_acl_ddl(thd, transactional_tables, nullptr,
+                                     &grant_rewrite_params);
     }
-    if (!db && grant_option) {
-      bool error = 0;
-      Update_dynamic_privilege_table update_table(thd, dynpriv_table);
-      if (!revoke_grant)
-        error = grant_grant_option_for_all_dynamic_privileges(
-            user->user, user->host, update_table);
-      else
-        error = revoke_grant_option_for_all_dynamic_privileges(
-            user->user, user->host, update_table);
-      if (error) {
-        if (!thd->get_stmt_da()->is_error()) my_error(ER_SYNTAX_ERROR, MYF(0));
+
+    {
+      /* Notify audit plugin. We will ignore the return value. */
+      LEX_USER *existing_user;
+      for (LEX_USER *one_user : existing_users) {
+        if ((existing_user = get_current_user(thd, one_user)))
+          mysql_audit_notify(
+              thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+              thd->is_error(), existing_user->user.str, existing_user->host.str,
+              existing_user->plugin.str, is_role_id(existing_user), NULL, NULL);
       }
     }
-  }  // for each user
 
-  DBUG_ASSERT(!error || thd->is_error());
+    get_global_acl_cache()->increase_version();
+  } /* Critical section */
 
-  {
-    /*
-      We want to add AS ... clause while rewritting GRANT statement in
-      following cases:
-
-      1. The GRANT statement being executed contains AS clause.
-         In this case we retain it as it is except rewriting
-         CURRENT_USER() and use current session's user/host part.
-      2. If all of the following condtions are met:
-         - --partial_revokes is ON
-         - Statement is a GRANT at global level (*.*)
-         This is required because, current user may have restriction
-         list and grant may propagate the same to grantee. In order
-         to repliably replay this on other nodes in an HA setup, details
-         of current user has to be captured.
-    */
-    LEX_GRANT_AS *grant_as_ptr = nullptr;
-    bool grant_as_specified = false;
-    LEX_GRANT_AS grant_as_for_rewrite;
-    if (grant_as->grant_as_used) {
-      grant_as_specified = grant_as->grant_as_used;
-      grant_as_ptr = grant_as;
-    } else if (partial_revokes && !revoke_grant && !is_proxy && !db) {
-      /* Set LEX_GRANT_AS for given GRANT */
-      grant_as_for_rewrite.grant_as_used = true;
-
-      grant_as_for_rewrite.role_type =
-          thd->security_context()->get_active_roles()->size()
-              ? role_enum::ROLE_NAME
-              : role_enum::ROLE_NONE;
-
-      LEX_CSTRING priv_user = thd->security_context()->priv_user();
-      LEX_CSTRING priv_host = thd->security_context()->priv_host();
-      grant_as_for_rewrite.user = LEX_USER::alloc(thd, (LEX_STRING *)&priv_user,
-                                                  (LEX_STRING *)&priv_host);
-
-      if (grant_as_for_rewrite.role_type == role_enum::ROLE_NAME) {
-        grant_as_for_rewrite.role_list = new (thd->mem_root) List<LEX_USER>;
-        thd->security_context()->get_active_roles(
-            thd, *grant_as_for_rewrite.role_list);
-      }
-      grant_as_specified = false;
-      grant_as_ptr = &grant_as_for_rewrite;
-    }
-
-    Grant_params grant_rewrite_params(grant_as_specified, grant_as_ptr);
-
-    error = log_and_commit_acl_ddl(thd, transactional_tables, nullptr,
-                                   &grant_rewrite_params);
+  if (!error) {
+    my_ok(thd);
+    /* Notify storage engines */
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
   }
 
-  {
-    /* Notify audit plugin. We will ignore the return value. */
-    LEX_USER *existing_user;
-    for (LEX_USER *one_user : existing_users) {
-      if ((existing_user = get_current_user(thd, one_user)))
-        mysql_audit_notify(
-            thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
-            thd->is_error(), existing_user->user.str, existing_user->host.str,
-            existing_user->plugin.str, is_role_id(existing_user), NULL, NULL);
-    }
-  }
-
-  if (!error) my_ok(thd);
-
-  get_global_acl_cache()->increase_version();
   return error;
 }
 
@@ -4935,8 +4974,6 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
   int ret = 0;
   DBUG_TRACE;
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -4947,91 +4984,101 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     return ret != 1;
 
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
-  if (check_system_user_privilege(thd, list)) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  TABLE *dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
-  LEX_USER *lex_user, *tmp_lex_user;
-  List_iterator<LEX_USER> user_list(list);
-
-  while ((tmp_lex_user = user_list++)) {
-    ulong what_to_set = 0;
-    if (!(lex_user = get_current_user(thd, tmp_lex_user))) {
-      result = true;
-      continue;
-    }
-    ACL_USER *acl_user =
-        find_acl_user(lex_user->host.str, lex_user->user.str, true);
-    if (acl_user == nullptr) {
-      result = true;
-      continue;
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
 
-    Update_dynamic_privilege_table update_table(thd, dynpriv_table);
-    if ((result = revoke_all_dynamic_privileges(lex_user->user, lex_user->host,
-                                                update_table))) {
-      break;
+    if (check_system_user_privilege(thd, list)) {
+      commit_and_close_mysql_tables(thd);
+      return true;
     }
-    /* copy password expire attributes to individual user */
-    lex_user->alter_status = thd->lex->alter_password;
 
-    acl_table::Pod_user_what_to_update what_to_update;
-    what_to_update.m_what = (what_to_set | ACCESS_RIGHTS_ATTR);
-    ulong rights = ~(ulong)0;
-    DB_restrictions db_restrictions(nullptr);
-    Restrictions restrictions(nullptr);
-    std::unique_ptr<Restrictions_aggregator> aggregator =
-        Restrictions_aggregator_factory::create(thd, acl_user, nullptr, rights,
-                                                false);
-    if (aggregator) {
-      if (aggregator->generate(db_restrictions)) {
+    TABLE *dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
+    LEX_USER *lex_user, *tmp_lex_user;
+    List_iterator<LEX_USER> user_list(list);
+
+    while ((tmp_lex_user = user_list++)) {
+      ulong what_to_set = 0;
+      if (!(lex_user = get_current_user(thd, tmp_lex_user))) {
         result = true;
         continue;
       }
-      what_to_update.m_what |= USER_ATTRIBUTES;
-      what_to_update.m_user_attributes |=
-          acl_table::USER_ATTRIBUTE_RESTRICTIONS;
-      restrictions.set_db(db_restrictions);
-    }
-    if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                                  lex_user, rights, true, false, what_to_update,
-                                  &restrictions))) {
-      result = true;
-      if (ret < 0) break;
+      ACL_USER *acl_user =
+          find_acl_user(lex_user->host.str, lex_user->user.str, true);
+      if (acl_user == nullptr) {
+        result = true;
+        continue;
+      }
 
-      continue;
-    }
+      Update_dynamic_privilege_table update_table(thd, dynpriv_table);
+      if ((result = revoke_all_dynamic_privileges(
+               lex_user->user, lex_user->host, update_table))) {
+        break;
+      }
+      /* copy password expire attributes to individual user */
+      lex_user->alter_status = thd->lex->alter_password;
 
-    int ret1, ret2, ret3;
-    if ((ret1 = remove_db_access_privileges(
-             thd, tables[ACL_TABLES::TABLE_DB].table, *lex_user)) < 0 ||
-        (ret2 = remove_column_access_privileges(
-             thd, tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
-             tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table, *lex_user)) < 0 ||
-        (ret3 = remove_procedure_access_privileges(
-             thd, tables[ACL_TABLES::TABLE_PROCS_PRIV].table, *lex_user)) < 0) {
-      result = true;  // Something went wrong
-      break;
-    } else if (ret1 || ret2 || ret3) {
-      result = true;
-      continue;
-    }
-  }  // end while
+      acl_table::Pod_user_what_to_update what_to_update;
+      what_to_update.m_what = (what_to_set | ACCESS_RIGHTS_ATTR);
+      ulong rights = ~(ulong)0;
+      DB_restrictions db_restrictions(nullptr);
+      Restrictions restrictions(nullptr);
+      std::unique_ptr<Restrictions_aggregator> aggregator =
+          Restrictions_aggregator_factory::create(thd, acl_user, nullptr,
+                                                  rights, false);
+      if (aggregator) {
+        if (aggregator->generate(db_restrictions)) {
+          result = true;
+          continue;
+        }
+        what_to_update.m_what |= USER_ATTRIBUTES;
+        what_to_update.m_user_attributes |=
+            acl_table::USER_ATTRIBUTE_RESTRICTIONS;
+        restrictions.set_db(db_restrictions);
+      }
+      if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
+                                    lex_user, rights, true, false,
+                                    what_to_update, &restrictions))) {
+        result = true;
+        if (ret < 0) break;
 
-  DBUG_EXECUTE_IF("force_mysql_revoke_all_fail", { result = 1; });
+        continue;
+      }
 
-  if (result && !thd->is_error()) my_error(ER_REVOKE_GRANTS, MYF(0));
+      int ret1, ret2, ret3;
+      if ((ret1 = remove_db_access_privileges(
+               thd, tables[ACL_TABLES::TABLE_DB].table, *lex_user)) < 0 ||
+          (ret2 = remove_column_access_privileges(
+               thd, tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
+               tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table, *lex_user)) < 0 ||
+          (ret3 = remove_procedure_access_privileges(
+               thd, tables[ACL_TABLES::TABLE_PROCS_PRIV].table, *lex_user)) <
+              0) {
+        result = true;  // Something went wrong
+        break;
+      } else if (ret1 || ret2 || ret3) {
+        result = true;
+        continue;
+      }
+    }  // end while
 
-  result = log_and_commit_acl_ddl(thd, transactional_tables);
+    DBUG_EXECUTE_IF("force_mysql_revoke_all_fail", { result = 1; });
 
-  get_global_acl_cache()->increase_version();
+    if (result && !thd->is_error()) my_error(ER_REVOKE_GRANTS, MYF(0));
+
+    result = log_and_commit_acl_ddl(thd, transactional_tables);
+    get_global_acl_cache()->increase_version();
+  } /* Critical section */
+
+  /* Notify storage engines */
+  if (!result) {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
+
   return result;
 }
 
@@ -5154,7 +5201,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   /* We don't want to write to binlog or notify htons about this. */
   result |= log_and_commit_acl_ddl(thd, transactional_tables, NULL, NULL,
-                                   result, false, false);
+                                   result, false);
 
   thd->pop_internal_handler();
   return error_handler.has_errors() || result;
@@ -6192,8 +6239,6 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   LEX_USER *user = nullptr;
   LEX_USER *role = nullptr;
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication. The binlog state will be cleared here to
@@ -6208,78 +6253,90 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
     return true;
   }
 
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  if (check_system_user_privilege(thd, *users)) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
   bool ret = false;
-  while ((user = users_it++) && !ret) {
-    // Check for CURRENT_USER token
-    user = get_current_user(thd, user);
-    if (strcmp(thd->security_context()->priv_user().str, user->user.str) != 0 ||
-        strcmp(thd->security_context()->priv_host().str, user->host.str) != 0) {
-      if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
-                       1) &&
-          check_global_access(thd, CREATE_USER_ACL)) {
-        my_error(ER_ACCESS_DENIED_ERROR, MYF(0), user->user.str, user->host.str,
-                 (thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
-        return true;
-      }
-      if (roles != nullptr) {
-        roles_it = *tmp_roles;
-        while ((role = roles_it++)) {
-          if (!is_granted_role(user->user, user->host, role->user,
-                               role->host)) {
-            my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
-                     role->host.str, user->user.str, user->host.str);
-            return true;
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    if (check_system_user_privilege(thd, *users)) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    while ((user = users_it++) && !ret) {
+      // Check for CURRENT_USER token
+      user = get_current_user(thd, user);
+      if (strcmp(thd->security_context()->priv_user().str, user->user.str) !=
+              0 ||
+          strcmp(thd->security_context()->priv_host().str, user->host.str) !=
+              0) {
+        if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
+                         1) &&
+            check_global_access(thd, CREATE_USER_ACL)) {
+          my_error(ER_ACCESS_DENIED_ERROR, MYF(0), user->user.str,
+                   user->host.str,
+                   (thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
+          return true;
+        }
+        if (roles != nullptr) {
+          roles_it = *tmp_roles;
+          while ((role = roles_it++)) {
+            if (!is_granted_role(user->user, user->host, role->user,
+                                 role->host)) {
+              my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
+                       role->host.str, user->user.str, user->host.str);
+              return true;
+            }
+            authid = std::make_pair(role->user, role->host);
+            authids.push_back(authid);
           }
-          authid = std::make_pair(role->user, role->host);
-          authids.push_back(authid);
+        }
+      } else {
+        // Verify that the user actually is granted the role before it is
+        // set as default.
+        if (roles != nullptr) {
+          roles_it = *tmp_roles;
+          while ((role = roles_it++)) {
+            if (!is_granted_role(thd->security_context()->priv_user(),
+                                 thd->security_context()->priv_host(),
+                                 role->user, role->host)) {
+              my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
+                       role->host.str, thd->security_context()->priv_user().str,
+                       thd->security_context()->priv_host().str);
+              return true;
+            }
+            authid = std::make_pair(role->user, role->host);
+            authids.push_back(authid);
+          }
         }
       }
-    } else {
-      // Verify that the user actually is granted the role before it is
-      // set as default.
-      if (roles != nullptr) {
-        roles_it = *tmp_roles;
-        while ((role = roles_it++)) {
-          if (!is_granted_role(thd->security_context()->priv_user(),
-                               thd->security_context()->priv_host(), role->user,
-                               role->host)) {
-            my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
-                     role->host.str, thd->security_context()->priv_user().str,
-                     thd->security_context()->priv_host().str);
-            return true;
-          }
-          authid = std::make_pair(role->user, role->host);
-          authids.push_back(authid);
-        }
+
+      if (role_type == role_enum::ROLE_NONE) {
+        authid = create_authid_from(user);
+        ret = clear_default_roles(thd, table, authid, nullptr);
+      } else if (role_type == role_enum::ROLE_ALL) {
+        ret = alter_user_set_default_roles_all(thd, table, user);
+      } else if (role_type == role_enum::ROLE_NAME) {
+        ret = alter_user_set_default_roles(thd, table, user, authids);
+      }
+
+      if (ret) {
+        my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
       }
     }
 
-    if (role_type == role_enum::ROLE_NONE) {
-      authid = create_authid_from(user);
-      ret = clear_default_roles(thd, table, authid, nullptr);
-    } else if (role_type == role_enum::ROLE_ALL) {
-      ret = alter_user_set_default_roles_all(thd, table, user);
-    } else if (role_type == role_enum::ROLE_NAME) {
-      ret = alter_user_set_default_roles(thd, table, user, authids);
-    }
+    ret = log_and_commit_acl_ddl(thd, true, nullptr, nullptr, ret);
+    get_global_acl_cache()->increase_version();
+  } /* Critical section */
 
-    if (ret) {
-      my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
-    }
+  /* Notify storage engines */
+  if (!ret) {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
   }
-
-  ret = log_and_commit_acl_ddl(thd, true, nullptr, nullptr, ret);
-  get_global_acl_cache()->increase_version();
 
   return ret;
 }
