@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     )
 
   # Relevant only for RelWithDebInfo builds
-  IF(BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  IF(BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     RETURN()
   ENDIF()
 
@@ -227,10 +227,6 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
       OWNER_READ OWNER_WRITE 
       GROUP_READ
       WORLD_READ)
-
-  IF(LINUX_INSTALL_RPATH_ORIGIN)
-    SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
-  ENDIF()
 
   INSTALL(FILES ${debug_target_location}
     DESTINATION ${ARG_DESTINATION}
