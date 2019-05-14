@@ -4702,6 +4702,10 @@ Backup::sendCreateTrig(Signal* signal,
   /*
    * First, setup the structures
    */
+  OperationRecord* operation = &ptr.p->files.getPtr(ptr.p->logFilePtr)->operation;
+  operation->noOfBytes = 0;
+  operation->noOfRecords = 0;
+
   for(Uint32 j=0; j<3; j++) {
     jam();
 
@@ -4727,11 +4731,7 @@ Backup::sendCreateTrig(Signal* signal,
     trigPtr.p->tab_ptr_i = tabPtr.i;
     trigPtr.p->logEntry = 0;
     trigPtr.p->event = j;
-    trigPtr.p->maxRecordSize = tabPtr.p->maxRecordSize;
-    trigPtr.p->operation =
-      &ptr.p->files.getPtr(ptr.p->logFilePtr)->operation;
-    trigPtr.p->operation->noOfBytes = 0;
-    trigPtr.p->operation->noOfRecords = 0;
+    trigPtr.p->operation = operation;
     trigPtr.p->errorCode = 0;
   } // for
 
@@ -10338,19 +10338,9 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
   if(logEntry == 0) 
   {
     jam();
-    Uint32 sz = trigPtr.p->maxRecordSize;
-    /* For both UNDO and REDO logging add an extra word for potential gci
-     * stored at end.
-     * If backup is doing UNDO logging add an extra word for logEntry length
-     * info stored at end.
-     * See processing of long GSN_FIRE_TRIG_ORD.
-     */
-    const Uint32 log_entry_words =
-        1 /* length word */ +
-        BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS +
-        1 /* gci_word */ +
-        (ptr.p->flags & BackupReq::USE_UNDO_LOG ? 1 : 0) /* tail length */;
-    logEntry = get_log_buffer(signal, trigPtr, log_entry_words + sz);
+    logEntry = get_log_buffer(signal,
+                              trigPtr,
+                              BackupFormat::LogFile::LogEntry::MAX_SIZE);
     trigPtr.p->logEntry = logEntry;
     if (unlikely(logEntry == 0))
     {
