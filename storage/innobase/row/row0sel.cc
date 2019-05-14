@@ -884,9 +884,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_get_clust_rec(
     lock_type = trx->skip_gap_locks() ? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
 
     err = lock_clust_rec_read_check_and_lock(
-        0, btr_pcur_get_block(&plan->clust_pcur), clust_rec, index, offsets,
-        SELECT_ORDINARY, static_cast<lock_mode>(node->row_lock_mode), lock_type,
-        thr);
+        lock_duration_t::REGULAR, btr_pcur_get_block(&plan->clust_pcur),
+        clust_rec, index, offsets, SELECT_ORDINARY,
+        static_cast<lock_mode>(node->row_lock_mode), lock_type, thr);
 
     switch (err) {
       case DB_SUCCESS:
@@ -1012,9 +1012,9 @@ retry:
         rw_lock_own(&(match->block.lock), RW_LOCK_S));
   ut_ad(page_is_leaf(buf_block_get_frame(cur_block)));
 
-  err = lock_sec_rec_read_check_and_lock(0, cur_block, rec, index, my_offsets,
-                                         sel_mode, static_cast<lock_mode>(mode),
-                                         type, thr);
+  err = lock_sec_rec_read_check_and_lock(
+      lock_duration_t::REGULAR, cur_block, rec, index, my_offsets, sel_mode,
+      static_cast<lock_mode>(mode), type, thr);
 
   switch (err) {
     case DB_SUCCESS:
@@ -1109,8 +1109,8 @@ lock_match:
                                  ULINT_UNDEFINED, &heap);
 
     err = lock_sec_rec_read_check_and_lock(
-        0, &match->block, rtr_rec->r_rec, index, my_offsets, sel_mode,
-        static_cast<lock_mode>(mode), type, thr);
+        lock_duration_t::REGULAR, &match->block, rtr_rec->r_rec, index,
+        my_offsets, sel_mode, static_cast<lock_mode>(mode), type, thr);
 
     switch (err) {
       case DB_SUCCESS:
@@ -1177,8 +1177,8 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
 
   if (index->is_clustered()) {
     err = lock_clust_rec_read_check_and_lock(
-        0, block, rec, index, offsets, sel_mode, static_cast<lock_mode>(mode),
-        type, thr);
+        lock_duration_t::REGULAR, block, rec, index, offsets, sel_mode,
+        static_cast<lock_mode>(mode), type, thr);
   } else {
     if (dict_index_is_spatial(index)) {
       if (type == LOCK_GAP || type == LOCK_ORDINARY) {
@@ -1191,8 +1191,8 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
                                  type, thr, mtr);
     } else {
       err = lock_sec_rec_read_check_and_lock(
-          0, block, rec, index, offsets, sel_mode, static_cast<lock_mode>(mode),
-          type, thr);
+          lock_duration_t::REGULAR, block, rec, index, offsets, sel_mode,
+          static_cast<lock_mode>(mode), type, thr);
     }
   }
 
@@ -3317,8 +3317,8 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
     we set a LOCK_REC_NOT_GAP type lock */
 
     err = lock_clust_rec_read_check_and_lock(
-        0, btr_pcur_get_block(prebuilt->clust_pcur), clust_rec, clust_index,
-        *offsets, prebuilt->select_mode,
+        lock_duration_t::REGULAR, btr_pcur_get_block(prebuilt->clust_pcur),
+        clust_rec, clust_index, *offsets, prebuilt->select_mode,
         static_cast<lock_mode>(prebuilt->select_lock_type), LOCK_REC_NOT_GAP,
         thr);
 

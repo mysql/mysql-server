@@ -2695,6 +2695,17 @@ static void lock_rec_reset_and_release_wait(
                                       PAGE_HEAP_NO_INFIMUM);
 }
 
+void lock_on_statement_end(trx_t *trx) { trx->lock.inherit_all.store(false); }
+
+/* Used to store information that `thr` requested a lock asking for protection
+at least till the end of the current statement which requires it to be inherited
+as gap locks even in READ COMMITTED isolation level.
+@param[in]  thr     the requesting thread */
+UNIV_INLINE
+void lock_protect_locks_till_statement_end(que_thr_t *thr) {
+  thr_get_trx(thr)->lock.inherit_all.store(true);
+}
+
 /** Makes a record to inherit the locks (except LOCK_INSERT_INTENTION type)
  of another record as gap type locks, but does not reset the lock bits of
  the other record. Also waiting lock requests on rec are inherited as
@@ -2723,6 +2734,25 @@ static void lock_rec_inherit_to_gap(
   /* We also dont inherit these locks as gap type locks for DD tables
   because the serialization is guaranteed by MDL on DD tables. */
 
+  /* Constraint checks place LOCK_S or (in case of INSERT ... ON DUPLICATE
+  UPDATE... or REPLACE INTO..) LOCK_X on records.
+  If such a record is delete-marked, it may then become purged, and
+  lock_rec_inheirt_to_gap will be called to decide the fate of each lock on it:
+  either it will be inherited as gap lock, or discarded.
+  In READ COMMITTED and less restricitve isolation levels we generaly avoid gap
+  locks, but we make an exception for precisely this situation: we want to
+  inherit locks created for constraint checks.
+  More precisely we need to keep inheriting them only for the duration of the
+  query which has requested them, as such inserts have two phases : first they
+  check for constraints, then they do actuall row insert, and they trust that
+  the locks set in the first phase will survive till the second phase.
+  It is not easy to tell if a particular lock was created for constraint check
+  or not, because we do not store this bit of information on it.
+  What we do, is we use a heuristic: whenever a trx requests a lock with
+  lock_duration_t::AT_LEAST_STATEMENT we set trx->lock.inherit_all, meaning that
+  locks of this trx need to be inherited.
+  And we clear trx->lock.inherit_all on statement end. */
+
   for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
        lock != NULL; lock = lock_rec_get_next(heap_no, lock)) {
     /* Skip inheriting lock if set */
@@ -2732,8 +2762,7 @@ static void lock_rec_inherit_to_gap(
 
     if (!lock_rec_get_insert_intention(lock) &&
         !lock->index->table->skip_gap_locks() &&
-        !(lock->trx->skip_gap_locks() &&
-          lock_get_mode(lock) == (lock->trx->duplicates ? LOCK_S : LOCK_X))) {
+        (!lock->trx->skip_gap_locks() || lock->trx->lock.inherit_all.load())) {
       lock_rec_add_to_queue(LOCK_REC | LOCK_GAP | lock_get_mode(lock),
                             heir_block, heir_heap_no, lock->index, lock->trx);
     }
@@ -5971,28 +6000,10 @@ dberr_t lock_sec_rec_modify_check_and_lock(
   return (err);
 }
 
-/** Like lock_clust_rec_read_check_and_lock(), but reads a
-secondary index record.
-@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
-@param[in]	block		buffer block of rec
-@param[in]	rec		user record or page supremum record which should
-                                be read or passed over by a read cursor
-@param[in]	index		secondary index
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
-                                SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	mode		mode of the lock which the read cursor should
-                                set on records: LOCK_S or LOCK_X; the latter is
-                                possible in SELECT FOR UPDATE
-@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
-@param[in,out]	thr		query thread
-@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
-dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
-                                         const rec_t *rec, dict_index_t *index,
-                                         const ulint *offsets,
-                                         select_mode sel_mode, lock_mode mode,
-                                         ulint gap_mode, que_thr_t *thr) {
+dberr_t lock_sec_rec_read_check_and_lock(
+    const lock_duration_t duration, const buf_block_t *block, const rec_t *rec,
+    dict_index_t *index, const ulint *offsets, const select_mode sel_mode,
+    const lock_mode mode, const ulint gap_mode, que_thr_t *thr) {
   dberr_t err;
   ulint heap_no;
 
@@ -6003,8 +6014,7 @@ dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(mode == LOCK_X || mode == LOCK_S);
 
-  if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode ||
-      index->table->is_temporary()) {
+  if (srv_read_only_mode || index->table->is_temporary()) {
     return (DB_SUCCESS);
   }
 
@@ -6021,6 +6031,10 @@ dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
   }
 
   lock_mutex_enter();
+
+  if (duration == lock_duration_t::AT_LEAST_STATEMENT) {
+    lock_protect_locks_till_statement_end(thr);
+  }
 
   ut_ad(mode != LOCK_X ||
         lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
@@ -6041,34 +6055,12 @@ dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
   return (err);
 }
 
-/** Checks if locks of other transactions prevent an immediate read, or passing
-over by a read cursor, of a clustered index record. If they do, first tests
-if the query thread should anyway be suspended for some reason; if not, then
-puts the transaction and the query thread to the lock wait state and inserts a
-waiting request for a record lock to the lock queue. Sets the requested mode
-lock on the record.
-@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
-@param[in]	block		buffer block of rec
-@param[in]	rec		user record or page supremum record which should
-                                be read or passed over by a read cursor
-@param[in]	index		secondary index
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
-                                SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	mode		mode of the lock which the read cursor should
-                                set on records: LOCK_S or LOCK_X; the latter is
-                                possible in SELECT FOR UPDATE
-@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
-@param[in,out]	thr		query thread
-@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t lock_clust_rec_read_check_and_lock(
-    ulint flags, const buf_block_t *block, const rec_t *rec,
-    dict_index_t *index, const ulint *offsets, select_mode sel_mode,
-    lock_mode mode, ulint gap_mode, que_thr_t *thr) {
+    const lock_duration_t duration, const buf_block_t *block, const rec_t *rec,
+    dict_index_t *index, const ulint *offsets, const select_mode sel_mode,
+    const lock_mode mode, const ulint gap_mode, que_thr_t *thr) {
   dberr_t err;
   ulint heap_no;
-
   DEBUG_SYNC_C("before_lock_clust_rec_read_check_and_lock");
   ut_ad(index->is_clustered());
   ut_ad(block->frame == page_align(rec));
@@ -6077,8 +6069,7 @@ dberr_t lock_clust_rec_read_check_and_lock(
         gap_mode == LOCK_REC_NOT_GAP);
   ut_ad(rec_offs_validate(rec, index, offsets));
 
-  if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode ||
-      index->table->is_temporary()) {
+  if (srv_read_only_mode || index->table->is_temporary()) {
     return (DB_SUCCESS);
   }
 
@@ -6090,6 +6081,10 @@ dberr_t lock_clust_rec_read_check_and_lock(
 
   DEBUG_SYNC_C("after_lock_clust_rec_read_check_and_lock_impl_to_expl");
   lock_mutex_enter();
+
+  if (duration == lock_duration_t::AT_LEAST_STATEMENT) {
+    lock_protect_locks_till_statement_end(thr);
+  }
 
   ut_ad(mode != LOCK_X ||
         lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
@@ -6121,8 +6116,6 @@ dberr_t lock_clust_rec_read_check_and_lock(
  "offsets".
  @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_clust_rec_read_check_and_lock_alt(
-    ulint flags,              /*!< in: if BTR_NO_LOCKING_FLAG
-                              bit is set, does nothing */
     const buf_block_t *block, /*!< in: buffer block of rec */
     const rec_t *rec,         /*!< in: user record or page
                               supremum record which should
@@ -6145,8 +6138,9 @@ dberr_t lock_clust_rec_read_check_and_lock_alt(
   rec_offs_init(offsets_);
 
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &tmp_heap);
-  err = lock_clust_rec_read_check_and_lock(
-      flags, block, rec, index, offsets, SELECT_ORDINARY, mode, gap_mode, thr);
+  err = lock_clust_rec_read_check_and_lock(lock_duration_t::REGULAR, block, rec,
+                                           index, offsets, SELECT_ORDINARY,
+                                           mode, gap_mode, thr);
   if (tmp_heap) {
     mem_heap_free(tmp_heap);
   }

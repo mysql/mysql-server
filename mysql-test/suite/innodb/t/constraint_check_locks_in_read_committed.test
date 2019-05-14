@@ -1,0 +1,133 @@
+--source include/have_debug.inc
+
+# This test demonstrates what locks are taken by the current implementation
+# during various combinations of:
+# {INSERT,REPLACE} x
+# {no conflict, conflict, "conflict" with delete-marked}^
+# {PRIMARY, UNIQUE KEY}
+# This test does not represent any requirement, i.e. failing this test
+# does not necessarily mean that the implementation is wrong.
+# This test simply documents what is the current state of affairs, so
+# that we can easier spot if some change in the code affects this part
+# of the system, and so that we can discuss/think about improvements.
+
+--let i=0
+
+while ( $i <= 17 )
+{
+    --disable_query_log
+    --disable_result_log
+    CREATE TABLE `t1` (
+    `a` tinyint(4) NOT NULL,
+    `b` tinyint(4) NOT NULL,
+    PRIMARY KEY (`b`),
+    UNIQUE KEY `a` (`a`)
+    ) ENGINE=InnoDB;
+    INSERT INTO t1 VALUES
+        ( 0, 0 ),
+        ( 1, 1 ),
+        ( 2, 2 ),
+        ( 3, 3 ),
+        ( 4, 4 );
+
+    SELECT * FROM t1;
+    SET GLOBAL innodb_purge_stop_now = ON;
+
+    DELETE FROM t1 WHERE a=2 AND b=2;
+
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+    BEGIN;
+    --enable_query_log
+    --enable_result_log
+    if($i == 0){
+        --echo # does not conflict
+        INSERT INTO t1 VALUES (5,5);
+    }
+    if($i == 1){
+        --echo # conflicts on `a`, but not on `b`
+        --error ER_DUP_ENTRY
+        INSERT INTO t1 VALUES (0,5);
+    }
+    if($i == 2){
+        --echo # conflicts on `b`, but not on `a`
+        --error ER_DUP_ENTRY
+        INSERT INTO t1 VALUES (5,0);
+    }
+    if($i == 3){
+        --echo # conflicts on both `a` and `b`
+        --error ER_DUP_ENTRY
+        INSERT INTO t1 VALUES (0,0);
+    }
+    if($i == 4){
+        --echo # conflicts on `a` with deleted, but not on `b`
+        INSERT INTO t1 VALUES (2,5);
+    }
+    if($i == 5){
+        --echo # conflicts on `b` with deleted, but not on `a`
+        INSERT INTO t1 VALUES (5,2);
+    }
+    if($i == 6){
+        --echo # conflicts on both `a` and `b` with deleted row
+        INSERT INTO t1 VALUES (2,2);
+    }
+    if($i == 7){
+        --echo # conflicts on `a` with deleted, and with `b` on not-deleted
+        --error ER_DUP_ENTRY
+        INSERT INTO t1 VALUES (2,0);
+    }
+    if($i == 8){
+        --echo # conflicts on `b` with deleted, and with `a` on not-deleted
+        --error ER_DUP_ENTRY
+        INSERT INTO t1 VALUES (0,2);
+    }
+
+    if($i == 9){
+        --echo # does not conflict
+        REPLACE INTO t1 VALUES (5,5);
+    }
+    if($i == 10){
+        --echo # conflicts on `a`, but not on `b`
+        REPLACE INTO t1 VALUES (0,5);
+    }
+    if($i == 11){
+        --echo # conflicts on `b`, but not on `a`
+        REPLACE INTO t1 VALUES (5,0);
+    }
+    if($i == 12){
+        --echo # conflicts on both `a` and `b`
+        REPLACE INTO t1 VALUES (0,0);
+    }
+    if($i == 13){
+        --echo # conflicts on `a` with deleted, but not on `b`
+        REPLACE INTO t1 VALUES (2,5);
+    }
+    if($i == 14){
+        --echo # conflicts on `b` with deleted, but not on `a`
+        REPLACE INTO t1 VALUES (5,2);
+    }
+    if($i == 15){
+        --echo # conflicts on both `a` and `b` with deleted row
+        REPLACE INTO t1 VALUES (2,2);
+    }
+    if($i == 16){
+        --echo # conflicts on `a` with deleted, and with `b` on not-deleted
+        REPLACE INTO t1 VALUES (2,0);
+    }
+    if($i == 17){
+        --echo # conflicts on `b` with deleted, and with `a` on not-deleted
+        REPLACE INTO t1 VALUES (0,2);
+    }
+
+    SELECT index_name,lock_type,lock_mode,lock_status,lock_data
+    FROM performance_schema.data_locks
+    WHERE object_schema='test' AND object_name = 't1';
+
+    COMMIT;
+    SELECT * FROM t1;
+    --disable_query_log
+    --disable_result_log
+    SET GLOBAL innodb_purge_run_now = ON;
+    DROP TABLE t1;
+
+    --inc $i
+}

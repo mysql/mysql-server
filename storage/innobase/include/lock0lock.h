@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -256,9 +256,29 @@ dberr_t lock_sec_rec_modify_check_and_lock(
     mtr_t *mtr)          /*!< in/out: mini-transaction */
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Called to inform lock-sys that a statement processing for a trx has just
+finished.
+@param[in]  trx   transaction which has finished processing a statement */
+void lock_on_statement_end(trx_t *trx);
+
+/** Used to specify the intended duration of a record lock. */
+enum class lock_duration_t {
+  /** Keep the lock according to the rules of particular isolation level, in
+  particular in case of READ COMMITTED or less restricive modes, do not inherit
+  the lock if the record is purged. */
+  REGULAR = 0,
+  /** Keep the lock around for at least the duration of the current statement,
+  in particular make sure it is inherited as gap lock if the record is purged.*/
+  AT_LEAST_STATEMENT = 1,
+};
+
 /** Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
-@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	duration	If equal to AT_LEAST_STATEMENT, then makes sure
+                                that the lock will be kept around and inherited
+                                for at least the duration of current statement.
+                                If equal to REGULAR the life-cycle of the lock
+                                will depend on isolation level rules.
 @param[in]	block		buffer block of rec
 @param[in]	rec		user record or page supremum record which should
                                 be read or passed over by a read cursor
@@ -273,7 +293,8 @@ secondary index record.
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
-dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
+dberr_t lock_sec_rec_read_check_and_lock(lock_duration_t duration,
+                                         const buf_block_t *block,
                                          const rec_t *rec, dict_index_t *index,
                                          const ulint *offsets,
                                          select_mode sel_mode, lock_mode mode,
@@ -285,7 +306,11 @@ if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
-@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	duration	If equal to AT_LEAST_STATEMENT, then makes sure
+                                that the lock will be kept around and inherited
+                                for at least the duration of current statement.
+                                If equal to REGULAR the life-cycle of the lock
+                                will depend on isolation level rules.
 @param[in]	block		buffer block of rec
 @param[in]	rec		user record or page supremum record which should
                                 be read or passed over by a read cursor
@@ -301,7 +326,7 @@ lock on the record.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t lock_clust_rec_read_check_and_lock(
-    ulint flags, const buf_block_t *block, const rec_t *rec,
+    lock_duration_t duration, const buf_block_t *block, const rec_t *rec,
     dict_index_t *index, const ulint *offsets, select_mode sel_mode,
     lock_mode mode, ulint gap_mode, que_thr_t *thr);
 
@@ -315,8 +340,6 @@ dberr_t lock_clust_rec_read_check_and_lock(
  "offsets".
  @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_clust_rec_read_check_and_lock_alt(
-    ulint flags,              /*!< in: if BTR_NO_LOCKING_FLAG
-                              bit is set, does nothing */
     const buf_block_t *block, /*!< in: buffer block of rec */
     const rec_t *rec,         /*!< in: user record or page
                               supremum record which should
