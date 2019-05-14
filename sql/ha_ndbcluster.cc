@@ -3067,8 +3067,6 @@ static const ulong index_type_flags[]=
   HA_READ_ORDER
 };
 
-static const int index_flags_size= sizeof(index_type_flags)/sizeof(ulong);
-
 inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
 {
   DBUG_ASSERT(idx_no < MAX_KEY);
@@ -3093,9 +3091,9 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint, bool) const
 {
   DBUG_ENTER("ha_ndbcluster::index_flags");
   DBUG_PRINT("enter", ("idx_no: %u", idx_no));
-  DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
-  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)] | 
-              HA_KEY_SCAN_NOT_ROR);
+  const NDB_INDEX_TYPE index_type = get_index_type_from_table(idx_no);
+  DBUG_ASSERT(index_type < array_elements(index_type_flags));
+  DBUG_RETURN(index_type_flags[index_type] | HA_KEY_SCAN_NOT_ROR);
 }
 
 bool
