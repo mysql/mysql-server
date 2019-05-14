@@ -323,6 +323,9 @@ CREATE TABLE `t1` (
 `version` int(11) NOT NULL,
 PRIMARY KEY (`charId`,`enumId`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('', 'A', 0, 1);
 FLUSH LOGS;
 UPDATE t1 SET val = val + 1 WHERE charId = '';
