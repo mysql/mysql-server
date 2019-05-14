@@ -216,6 +216,10 @@ INSERT INTO global_suppressions VALUES
  */
  ("Insecure configuration for --pid-file:*"),
  ("Few location(s) are inaccessible while checking PID filepath"),
+ /*
+   Following WL#12670, this warning is expected.
+ */
+ ("Setting named_pipe_full_access_group='\\*everyone\\*' is insecure"),
 
  /*
    On slow runs (valgrind) the message may be sent twice.

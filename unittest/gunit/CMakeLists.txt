@@ -350,10 +350,6 @@ SET(TESTS
   my_rcu_lock
   )
 
-IF(WIN32)
-  LIST(APPEND TESTS win_tests)
-ENDIF()
-
 SET(ALL_SMALL_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
@@ -439,6 +435,10 @@ SET(SERVER_TESTS
   decoy_user
 )
 
+IF(WIN32)
+  LIST(APPEND SERVER_TESTS win_tests)
+ENDIF()
+
 # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
 MY_CHECK_CXX_COMPILER_WARNING("format-overflow" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
@@ -460,9 +460,6 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   )
 
-IF(WIN32)
-  LIST(APPEND SQL_GUNIT_LIB_SOURCE ${CMAKE_SOURCE_DIR}/sql/named_pipe.cc)
-ENDIF()
 ADD_LIBRARY(sqlgunitlib STATIC ${SQL_GUNIT_LIB_SOURCE})
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 SET_TARGET_PROPERTIES(sqlgunitlib
