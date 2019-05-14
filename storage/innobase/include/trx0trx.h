@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -601,6 +601,16 @@ struct trx_lock_t {
                            transaction, including AUTOINC locks */
 
   ulint n_rec_locks; /*!< number of rec locks in this trx */
+
+  /** Used to indicate that every lock of this transaction placed on a record
+  which is being purged should be inherited to the gap.
+  Readers should hold a latch on the lock they'd like to learn about wether or
+  not it should be inherited.
+  Writers who want to set it to true, should hold a latch on the lock-sys queue
+  they intend to add a lock to.
+  Writers may set it to false at any time. */
+  std::atomic<bool> inherit_all;
+
 #ifdef UNIV_DEBUG
   /** When a transaction is forced to rollback due to a deadlock
   check or by another high priority transaction this is true. Used

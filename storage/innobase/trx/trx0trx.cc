@@ -178,6 +178,8 @@ static void trx_init(trx_t *trx) {
 
   trx->will_lock = 0;
 
+  trx->lock.inherit_all.store(false);
+
   trx->internal = false;
 
   trx->in_truncate = false;
@@ -361,6 +363,8 @@ struct TrxFactory {
     ut_ad(trx->autoinc_locks == NULL);
 
     ut_ad(trx->lock.table_locks.empty());
+
+    ut_ad(!trx->lock.inherit_all.load());
 
     ut_ad(!trx->abort);
 
@@ -2304,6 +2308,8 @@ void trx_commit_complete_for_mysql(trx_t *trx) /*!< in/out: transaction */
 void trx_mark_sql_stat_end(trx_t *trx) /*!< in: trx handle */
 {
   ut_a(trx);
+
+  lock_on_statement_end(trx);
 
   switch (trx->state) {
     case TRX_STATE_PREPARED:

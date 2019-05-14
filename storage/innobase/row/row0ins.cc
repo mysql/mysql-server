@@ -1108,7 +1108,7 @@ static NO_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
     gap if the search criterion was not unique */
 
     err = lock_clust_rec_read_check_and_lock_alt(
-        0, clust_block, clust_rec, clust_index, LOCK_X, LOCK_REC_NOT_GAP, thr);
+        clust_block, clust_rec, clust_index, LOCK_X, LOCK_REC_NOT_GAP, thr);
   }
 
   if (err != DB_SUCCESS) {
@@ -1295,55 +1295,32 @@ nonstandard_exit_func:
   DBUG_RETURN(err);
 }
 
-/** Sets a shared lock on a record. Used in locking possible duplicate key
+/** Sets a lock on a record. Used in locking possible duplicate key
  records and also in checking foreign key constraints.
- @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-static dberr_t row_ins_set_shared_rec_lock(
-    ulint type,               /*!< in: LOCK_ORDINARY, LOCK_GAP, or
-                              LOCK_REC_NOT_GAP type lock */
-    const buf_block_t *block, /*!< in: buffer block of rec */
-    const rec_t *rec,         /*!< in: record */
-    dict_index_t *index,      /*!< in: index */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec, index) */
-    que_thr_t *thr)           /*!< in: query thread */
-{
+@param[in]	mode	requested lock type: LOCK_S or LOCK_X mode
+@param[in]	type	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP type lock
+@param[in]	block	buffer block of rec
+@param[in]	rec	record
+@param[in]	index	index
+@param[in]	offsets	rec_get_offsets(rec, index)
+@param[in]	thr	query thread
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+static dberr_t row_ins_set_rec_lock(lock_mode mode, ulint type,
+                                    const buf_block_t *block, const rec_t *rec,
+                                    dict_index_t *index, const ulint *offsets,
+                                    que_thr_t *thr) {
   dberr_t err;
 
   ut_ad(rec_offs_validate(rec, index, offsets));
 
   if (index->is_clustered()) {
     err = lock_clust_rec_read_check_and_lock(
-        0, block, rec, index, offsets, SELECT_ORDINARY, LOCK_S, type, thr);
+        lock_duration_t::AT_LEAST_STATEMENT, block, rec, index, offsets,
+        SELECT_ORDINARY, mode, type, thr);
   } else {
-    err = lock_sec_rec_read_check_and_lock(0, block, rec, index, offsets,
-                                           SELECT_ORDINARY, LOCK_S, type, thr);
-  }
-
-  return (err);
-}
-
-/** Sets a exclusive lock on a record. Used in locking possible duplicate key
- records
- @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-static dberr_t row_ins_set_exclusive_rec_lock(
-    ulint type,               /*!< in: LOCK_ORDINARY, LOCK_GAP, or
-                              LOCK_REC_NOT_GAP type lock */
-    const buf_block_t *block, /*!< in: buffer block of rec */
-    const rec_t *rec,         /*!< in: record */
-    dict_index_t *index,      /*!< in: index */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec, index) */
-    que_thr_t *thr)           /*!< in: query thread */
-{
-  dberr_t err;
-
-  ut_ad(rec_offs_validate(rec, index, offsets));
-
-  if (index->is_clustered()) {
-    err = lock_clust_rec_read_check_and_lock(
-        0, block, rec, index, offsets, SELECT_ORDINARY, LOCK_X, type, thr);
-  } else {
-    err = lock_sec_rec_read_check_and_lock(0, block, rec, index, offsets,
-                                           SELECT_ORDINARY, LOCK_X, type, thr);
+    err = lock_sec_rec_read_check_and_lock(lock_duration_t::AT_LEAST_STATEMENT,
+                                           block, rec, index, offsets,
+                                           SELECT_ORDINARY, mode, type, thr);
   }
 
   return (err);
@@ -1562,8 +1539,8 @@ dberr_t row_ins_check_foreign_constraint(
         continue;
       }
 
-      err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, block, rec, check_index,
-                                        offsets, thr);
+      err = row_ins_set_rec_lock(LOCK_S, LOCK_ORDINARY, block, rec, check_index,
+                                 offsets, thr);
       switch (err) {
         case DB_SUCCESS_LOCKED_REC:
         case DB_SUCCESS:
@@ -1581,8 +1558,8 @@ dberr_t row_ins_check_foreign_constraint(
       lock_type = skip_gap_lock ? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
 
       if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
-        err = row_ins_set_shared_rec_lock(lock_type, block, rec, check_index,
-                                          offsets, thr);
+        err = row_ins_set_rec_lock(LOCK_S, lock_type, block, rec, check_index,
+                                   offsets, thr);
         switch (err) {
           case DB_SUCCESS_LOCKED_REC:
           case DB_SUCCESS:
@@ -1595,8 +1572,8 @@ dberr_t row_ins_check_foreign_constraint(
         a record because we can allow inserts
         into gaps */
 
-        err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP, block, rec,
-                                          check_index, offsets, thr);
+        err = row_ins_set_rec_lock(LOCK_S, LOCK_REC_NOT_GAP, block, rec,
+                                   check_index, offsets, thr);
 
         switch (err) {
           case DB_SUCCESS_LOCKED_REC:
@@ -1655,8 +1632,8 @@ dberr_t row_ins_check_foreign_constraint(
       err = DB_SUCCESS;
 
       if (!skip_gap_lock) {
-        err = row_ins_set_shared_rec_lock(LOCK_GAP, block, rec, check_index,
-                                          offsets, thr);
+        err = row_ins_set_rec_lock(LOCK_S, LOCK_GAP, block, rec, check_index,
+                                   offsets, thr);
       }
 
       switch (err) {
@@ -1955,12 +1932,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       }
 #endif
 
-      /* If the SQL-query will update or replace
-      duplicate key we will take X-lock for
-      duplicates ( REPLACE, LOAD DATAFILE REPLACE,
-      INSERT ON DUPLICATE KEY UPDATE). */
-      err = row_ins_set_exclusive_rec_lock(lock_type, block, rec, index,
-                                           offsets, thr);
+      /* If the SQL-query will update or replace duplicate key we will take
+      X-lock for duplicates ( REPLACE, LOAD DATAFILE REPLACE, INSERT ON
+      DUPLICATE KEY UPDATE). */
+      err = row_ins_set_rec_lock(LOCK_X, lock_type, block, rec, index, offsets,
+                                 thr);
     } else {
       if (index->table->skip_gap_locks()) {
         /* Only GAP lock is possible on supremum. */
@@ -1973,8 +1949,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         }
       }
 
-      err = row_ins_set_shared_rec_lock(lock_type, block, rec, index, offsets,
-                                        thr);
+      err = row_ins_set_rec_lock(LOCK_S, lock_type, block, rec, index, offsets,
+                                 thr);
     }
 
     switch (err) {
@@ -2157,19 +2133,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       if (flags & BTR_NO_LOCKING_FLAG) {
         /* Do nothing if no-locking is set */
         err = DB_SUCCESS;
-      } else if (trx->duplicates) {
+      } else {
         /* If the SQL-query will update or replace
         duplicate key we will take X-lock for
         duplicates ( REPLACE, LOAD DATAFILE REPLACE,
         INSERT ON DUPLICATE KEY UPDATE). */
 
-        err = row_ins_set_exclusive_rec_lock(LOCK_REC_NOT_GAP,
-                                             btr_cur_get_block(cursor), rec,
-                                             cursor->index, offsets, thr);
-      } else {
-        err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
-                                          btr_cur_get_block(cursor), rec,
-                                          cursor->index, offsets, thr);
+        err = row_ins_set_rec_lock(trx->duplicates ? LOCK_X : LOCK_S,
+                                   LOCK_REC_NOT_GAP, btr_cur_get_block(cursor),
+                                   rec, cursor->index, offsets, thr);
       }
 
       switch (err) {
@@ -2196,20 +2168,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       offsets =
           rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED, &heap);
 
-      if (trx->duplicates) {
-        /* If the SQL-query will update or replace
-        duplicate key we will take X-lock for
-        duplicates ( REPLACE, LOAD DATAFILE REPLACE,
-        INSERT ON DUPLICATE KEY UPDATE). */
+      /* If the SQL-query will update or replace
+      duplicate key we will take X-lock for
+      duplicates ( REPLACE, LOAD DATAFILE REPLACE,
+      INSERT ON DUPLICATE KEY UPDATE). */
 
-        err = row_ins_set_exclusive_rec_lock(LOCK_REC_NOT_GAP,
-                                             btr_cur_get_block(cursor), rec,
-                                             cursor->index, offsets, thr);
-      } else {
-        err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
-                                          btr_cur_get_block(cursor), rec,
-                                          cursor->index, offsets, thr);
-      }
+      err = row_ins_set_rec_lock(trx->duplicates ? LOCK_X : LOCK_S,
+                                 LOCK_REC_NOT_GAP, btr_cur_get_block(cursor),
+                                 rec, cursor->index, offsets, thr);
 
       switch (err) {
         case DB_SUCCESS_LOCKED_REC:
