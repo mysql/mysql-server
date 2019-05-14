@@ -241,8 +241,8 @@ class Recovery_module {
     @param[out]  ssl_cert  the ssl cert
     @param[out]  ssl_key   the ssl key
   */
-  void get_recovery_base_ssl_options(std::string &ssl_ca, std::string &ssl_cert,
-                                     std::string &ssl_key) {
+  void get_recovery_base_ssl_options(std::string *ssl_ca, std::string *ssl_cert,
+                                     std::string *ssl_key) {
     recovery_state_transfer.get_recovery_base_ssl_options(ssl_ca, ssl_cert,
                                                           ssl_key);
   }

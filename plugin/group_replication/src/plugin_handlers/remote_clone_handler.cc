@@ -370,7 +370,7 @@ void Remote_clone_handler::get_clone_donors(
 int Remote_clone_handler::set_clone_ssl_options(
     Sql_service_command_interface *sql_command_interface) {
   std::string ssl_ca, ssl_cert, ssl_key;
-  recovery_module->get_recovery_base_ssl_options(ssl_ca, ssl_cert, ssl_key);
+  recovery_module->get_recovery_base_ssl_options(&ssl_ca, &ssl_cert, &ssl_key);
 
   int error = 0;
 

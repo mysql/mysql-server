@@ -160,11 +160,11 @@ class Recovery_state_transfer {
     @param[out]  ssl_cert  the ssl cert
     @param[out]  ssl_key   the ssl key
   */
-  void get_recovery_base_ssl_options(std::string &ssl_ca, std::string &ssl_cert,
-                                     std::string &ssl_key) {
-    ssl_ca.assign(recovery_ssl_ca);
-    ssl_cert.assign(recovery_ssl_cert);
-    ssl_key.assign(recovery_ssl_key);
+  void get_recovery_base_ssl_options(std::string *ssl_ca, std::string *ssl_cert,
+                                     std::string *ssl_key) {
+    ssl_ca->assign(recovery_ssl_ca);
+    ssl_cert->assign(recovery_ssl_cert);
+    ssl_key->assign(recovery_ssl_key);
   }
 
   /**
