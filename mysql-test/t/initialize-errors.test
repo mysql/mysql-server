@@ -90,21 +90,11 @@ remove_file $MYSQLD_LOG;
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR --initialize insecure > $MYSQLD_LOG 2>&1
 
---echo check for a log message
---perl
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  my $FILE;
-  open(FILE, "$log") or die;
-  while (my $row = <FILE>)
-  {
-    if ($row =~ m/.*Newly created data directory.*is unusable. You can safely remove it/)
-    {
-      print "Message found\n";
-    }
-  }
-  close(FILE);
-EOF
+--echo # check for unusable directory log message
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=The newly created data directory .* by --initialize is unusable. You can remove it.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
 
 --echo # delete mysqld log
 remove_file $MYSQLD_LOG;
@@ -113,6 +103,32 @@ remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo # End of the test for bug #27675647
+
+
+--echo #
+--echo # Bug #29594082: INCORRECT AND DANGEROUS ERROR MESSAGE FROM MY-013236
+--echo #
+
+--echo # Run server with --initialize insecure on an existing empty directory
+mkdir $DDIR;
+
+--error 1
+--exec $MYSQLD $extra_args --datadir=$DDIR --initialize insecure > $MYSQLD_LOG 2>&1
+
+--echo # check for unusable existing directory log message
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=The designated data directory .* is unusable. You can remove all files that the server added to it.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+--echo # End of the test for bug #29594082
+
 
 --echo #
 --echo # Cleanup

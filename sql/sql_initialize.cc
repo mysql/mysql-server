@@ -61,6 +61,8 @@ char
     insert_user_buffer[sizeof(INSERT_USER_CMD) + GENERATED_PASSWORD_LENGTH * 2];
 
 bool opt_initialize_insecure = false;
+/** True if --initialize has actually created the directory */
+bool mysql_initialize_directory_freshly_created = false;
 
 static const char *initialization_data[] = {
     "FLUSH PRIVILEGES", insert_user_buffer,
@@ -294,5 +296,6 @@ bool initialize_create_data_directory(const char *data_home) {
   if (my_mkdir(data_home, flags, MYF(MY_WME)))
     return true; /* purecov: inspected */
 
+  mysql_initialize_directory_freshly_created = true;
   return false;
 }
