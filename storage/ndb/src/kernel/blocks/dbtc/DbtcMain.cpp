@@ -18693,6 +18693,14 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     indexOp->pendingKeyInfo = indexLength;
     indexOp->pendingAttrInfo = attrLength;
 
+    /**
+     * Clear lengths from requestInfo to avoid confusion processing
+     * long TcKeyReqs with bits from short TcKeyReqs set in their
+     * requestInfo
+     */
+    TcKeyReq::setAIInTcKeyReq(indexOp->tcIndxReq.requestInfo, 0);
+    TcKeyReq::setKeyLength(indexOp->tcIndxReq.requestInfo, 0);
+
     const Uint32 includedIndexLength = MIN(indexLength, TcKeyReq::MaxKeyInfo);
     const Uint32 includedAttrLength = MIN(attrLength, TcKeyReq::MaxAttrInfo);
     int ret;
@@ -19647,8 +19655,6 @@ void Dbtc::executeIndexOperation(Signal* signal,
   }
 
 
-  TcKeyReq::setKeyLength(tcKeyRequestInfo, keyInfoFromTransIdAI.sz);
-  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
   TcKeyReq::setCommitFlag(tcKeyRequestInfo, 0);
   TcKeyReq::setExecuteFlag(tcKeyRequestInfo, 0);
   tcKeyReq->requestInfo = tcKeyRequestInfo;
