@@ -4245,37 +4245,46 @@ class Ndb_schema_event_handler {
     }
   }
 
-
-  const Ndb_event_data*
-  remote_participant_inplace_alter_create_event_data(NDB_SHARE *share) const
-  {
+  const Ndb_event_data *remote_participant_inplace_alter_create_event_data(
+      NDB_SHARE *share, const char *schema_name, const char *table_name) const {
     DBUG_ENTER("remote_participant_inplace_alter_create_event_data");
 
-    // Read the table definition from DD
-    Ndb_dd_client dd_client(m_thd);
-    if (!dd_client.mdl_lock_table(share->db, share->table_name))
-    {
-      log_and_clear_THD_conditions();
-      ndb_log_error("NDB Binlog: Failed to acquire MDL lock for table '%s.%s'",
-                    share->db, share->table_name);
-      DBUG_RETURN(nullptr);
+    // Read table definition from NDB, it might not exist in DD on this Server
+    Ndb *ndb = m_thd_ndb->ndb;
+    Ndb_table_guard ndbtab_g(ndb, schema_name, table_name);
+    const NDBTAB *ndbtab = ndbtab_g.get_table();
+    if (!ndbtab) {
+      // Could not open the table from NDB, very unusual
+      log_NDB_error(ndb->getDictionary()->getNdbError());
+      ndb_log_error("Failed to open table '%s.%s' from NDB", schema_name,
+                    table_name);
+      return nullptr;
     }
 
-    const dd::Table* table_def;
-    if (!dd_client.get_table(share->db, share->table_name, &table_def))
-    {
+    std::string serialized_metadata;
+    if (!ndb_table_get_serialized_metadata(ndbtab, serialized_metadata)) {
+      ndb_log_error("Failed to get serialized metadata for table '%s.%s'",
+                    schema_name, table_name);
+      return nullptr;
+    }
+
+
+    // Deserialize the metadata from NDB
+    Ndb_dd_table dd_table(m_thd);
+    const dd::sdi_t sdi = serialized_metadata.c_str();
+    if (!dd_table.deserialize(sdi)) {
       log_and_clear_THD_conditions();
-      ndb_log_error("NDB Binlog: Failed to read table '%s.%s' from DD",
-                    share->db, share->table_name);
-      DBUG_RETURN(nullptr);
+      ndb_log_error("Failed to deserialize metadata for table '%s.%s'",
+                    schema_name, table_name);
+      return nullptr;
     }
 
     // Create new event_data
     Ndb_event_data* event_data =
         Ndb_event_data::create_event_data(m_thd, share,
-                                          share->db, share->table_name,
+                                          schema_name, table_name,
                                           share->key_string(), injector_thd,
-                                          table_def);
+                                          dd_table.get_table_def());
     if (!event_data)
     {
       ndb_log_error("NDB Binlog: Failed to create event data for table '%s.%s'",
@@ -4320,8 +4329,8 @@ class Ndb_schema_event_handler {
       {
         // Create Ndb_event_data which will be used when creating
         // the new NdbEventOperation.
-        event_data =
-            remote_participant_inplace_alter_create_event_data(share);
+        event_data = remote_participant_inplace_alter_create_event_data(
+            share, share->db, share->table_name);
         if (!event_data)
         {
           ndb_log_error("Failed to create event data for table '%s'",
