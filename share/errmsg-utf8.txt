@@ -8917,6 +8917,21 @@ ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP
 ER_WARN_DEPRECATED_FLOAT_DIGITS
   eng "Specifying number of digits for floating point data types is deprecated and will be removed in a future release."
 
+# When using this error message, use the
+# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_FLOAT_UNSIGNED
+  eng "UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release."
+
+# When using this error message, use the
+# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_INTEGER_DISPLAY_WIDTH
+  eng "Integer display width is deprecated and will be removed in a future release."
+
+# When using this error message, use the
+# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_ZEROFILL
+  eng "The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column."
+
 ER_CLONE_DONOR
   eng "Clone Donor Error: %.512s."
 
@@ -8958,21 +8973,6 @@ ER_CLONE_IN_PROGRESS
 
 ER_CLONE_DISALLOWED
   eng "The clone operation cannot be executed when %s."
-
-# When using this error message, use the
-# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
-ER_WARN_DEPRECATED_FLOAT_UNSIGNED
-  eng "UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release."
-
-# When using this error message, use the
-# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
-ER_WARN_DEPRECATED_INTEGER_DISPLAY_WIDTH
-  eng "Integer display width is deprecated and will be removed in a future release."
-
-# When using this error message, use the
-# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
-ER_WARN_DEPRECATED_ZEROFILL
-  eng "The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column."
 
 #
 #  End of 8.0 error messages.
