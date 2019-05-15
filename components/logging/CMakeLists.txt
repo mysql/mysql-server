@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
 )
 
-REMOVE_DEFINITIONS(-DMYSQL_SERVER)
-
 MYSQL_ADD_COMPONENT(log_sink_syseventlog
   log_sink_syseventlog.cc
   MODULE)
@@ -33,19 +31,6 @@ MYSQL_ADD_COMPONENT(log_sink_syseventlog
 MYSQL_ADD_COMPONENT(log_sink_json
   log_sink_json.cc
   MODULE)
-
-# IF (WITH_SYSTEMD)
-#
-# MYSQL_ADD_COMPONENT(log_sink_systemd
-#   log_sink_systemd.cc
-#   MODULE)
-# TARGET_LINK_LIBRARIES(component_log_sink_systemd systemd mysys)
-#
-# ENDIF()
-#
-# MYSQL_ADD_COMPONENT(log_sink_xml
-#   log_sink_xml.cc
-#   MODULE)
 
 MYSQL_ADD_COMPONENT(log_filter_dragnet
   log_filter_dragnet.cc
