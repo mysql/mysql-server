@@ -36,6 +36,22 @@ where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
 COLUMN_NAME
 in_other_engine
 drop table ndb_ddl_test.shadow1;
+rename table ndb_ddl_test.t1 to ndb_ddl_test.shadow1;
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+COLUMN_NAME
+in_other_engine
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 't1';
+COLUMN_NAME
+create table ndb_ddl_test.shadow2 (
+in_other_engine int primary key
+) engine = InnoDB;
+insert into ndb_ddl_test.shadow2 values(100);
+rename table ndb_ddl_test.shadow1 to ndb_ddl_test.shadow2;
+rename table ndb_ddl_test.shadow2 to ndb_ddl_test.t1;
 select column_name from
 information_schema.columns
 where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
@@ -45,6 +61,7 @@ select count(*) = 1 from ndb_ddl_test.shadow1;
 count(*) = 1
 1
 drop table ndb_ddl_test.shadow1;
+drop table ndb_ddl_test.shadow2;
 == verify_mysql_dd.inc ==
 create table ndb_ddl_test2.shadow_in_db (
 in_other_engine int primary key

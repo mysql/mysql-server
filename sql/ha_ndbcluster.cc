@@ -64,7 +64,6 @@
 #include "sql/ndb_global_schema_lock.h"
 #include "sql/ndb_global_schema_lock_guard.h"
 #include "sql/ndb_local_connection.h"
-#include "sql/ndb_local_schema.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_metadata_change_monitor.h"
 #include "sql/ndb_metadata_sync.h"

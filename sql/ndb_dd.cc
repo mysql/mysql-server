@@ -107,62 +107,6 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
   DBUG_VOID_RETURN;
 }
 
-bool
-ndb_dd_rename_table(THD *thd,
-                    const char *old_schema_name, const char *old_table_name,
-                    const char *new_schema_name, const char *new_table_name,
-                    int new_table_id, int new_table_version)
-{
-  DBUG_ENTER("ndb_dd_rename_table");
-  DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
-                       old_schema_name, old_table_name,
-                       new_schema_name, new_table_name));
-
-  Ndb_dd_client dd_client(thd);
-  Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
-
-  if (!dd_client.rename_table(old_schema_name, old_table_name,
-                              new_schema_name, new_table_name,
-                              new_table_id, new_table_version,
-                              &invalidator))
-  {
-    DBUG_RETURN(false);
-  }
-
-  if (!invalidator.invalidate())
-  {
-    DBUG_RETURN(false);
-  }
-
-  dd_client.commit();
-
-  DBUG_RETURN(true); // OK
-}
-
-
-bool
-ndb_dd_get_engine_for_table(THD *thd,
-                            const char *schema_name,
-                            const char *table_name,
-                            dd::String_type* engine)
-{
-  DBUG_ENTER("ndb_dd_get_engine_for_table");
-
-  Ndb_dd_client dd_client(thd);
-
-  if (!dd_client.get_engine(schema_name, table_name, engine))
-  {
-    DBUG_RETURN(false);
-  }
-
-  DBUG_PRINT("info", (("table '%s.%s' exists in DD, engine: '%s'"),
-                      schema_name, table_name, engine->c_str()));
-
-  dd_client.commit();
-
-  DBUG_RETURN(true); // OK
-}
-
 
 /**
   Update the version of the Schema object in DD. All the DDLs

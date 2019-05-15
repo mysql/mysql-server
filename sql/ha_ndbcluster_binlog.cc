@@ -3021,8 +3021,6 @@ public:
 }; //class Ndb_schema_dist_data
 
 
-#include "sql/ndb_local_schema.h"
-
 class Ndb_schema_event_handler {
 
   class Ndb_schema_op
@@ -3907,7 +3905,7 @@ class Ndb_schema_event_handler {
                            size_t num_partitions,
                            const std::string &tablespace_name,
                            bool force_overwrite,
-                           bool invalidate_referenced_tables) {
+                           bool invalidate_referenced_tables) const {
     DBUG_TRACE;
 
     // Found table, now install it in DD
@@ -3961,7 +3959,7 @@ class Ndb_schema_event_handler {
 
   bool create_table_from_engine(const char *schema_name, const char *table_name,
                                bool force_overwrite,
-                               bool invalidate_referenced_tables = false) {
+                               bool invalidate_referenced_tables = false) const {
     DBUG_TRACE;
     DBUG_PRINT("enter",
                ("schema_name: %s, table_name: %s", schema_name, table_name));
@@ -4545,34 +4543,108 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
+  bool rename_table_in_dd(const char *schema_name, const char *table_name,
+                          const char *new_schema_name,
+                          const char *new_table_name,
+                          const NdbDictionary::Table *ndbtab,
+                          const std::string &tablespace_name) const {
+    DBUG_TRACE;
 
-  bool
-  get_table_version_from_NDB(const char* db_name, const char* table_name,
-                             int* table_id, int* table_version)
-  {
-    DBUG_ENTER("get_table_version_from_NDB");
-    DBUG_PRINT("enter", ("db_name: %s, table_name: %s",
-                         db_name, table_name));
+    Ndb_dd_client dd_client(m_thd);
 
-    Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, db_name, table_name);
-    const NDBTAB *ndbtab= ndbtab_g.get_table();
-    if (!ndbtab)
-    {
-      // Could not open the table from NDB, very unusual
-      log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
-      ndb_log_error("Failed to open table '%s.%s' from NDB",
-                    db_name, table_name);
-      DBUG_RETURN(false);
+    // Acquire exclusive MDL lock on the table
+    if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to acquire exclusive metadata lock on '%s.%s'",
+                    schema_name, table_name);
+      return false;
     }
 
-    *table_id = ndbtab->getObjectId();
-    *table_version = ndbtab->getObjectVersion();
+    // Acquire exclusive MDL lock also on the new table name
+    if (!dd_client.mdl_locks_acquire_exclusive(new_schema_name,
+                                               new_table_name)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error(
+          "Failed to acquire exclusive metadata lock on new table name '%s.%s'",
+          new_schema_name, new_table_name);
+      return false;
+    }
 
-    DBUG_PRINT("info", ("table_id: %d, table_version: %d",
-                        *table_id, *table_version));
-    DBUG_RETURN(true);
+    if (has_shadow_table(dd_client, schema_name, table_name)) {
+      // The renamed table was a "shadow table".
+
+      if (has_shadow_table(dd_client, new_schema_name, new_table_name)) {
+        // The new table name is also a "shadow table", nothing todo
+        return false;
+      }
+
+      // Install the renamed table into DD
+      std::string serialized_metadata;
+      if (!ndb_table_get_serialized_metadata(ndbtab, serialized_metadata)) {
+        ndb_log_error("Failed to get serialized metadata for table '%s.%s'",
+                      new_schema_name, new_table_name);
+        return false;
+      }
+
+      // Deserialize the metadata from NDB
+      Ndb_dd_table dd_table(m_thd);
+      const dd::sdi_t sdi = serialized_metadata.c_str();
+      if (!dd_table.deserialize(sdi)) {
+        log_and_clear_THD_conditions();
+        ndb_log_error("Failed to deserialized metadata for table '%s.%s'",
+                      new_schema_name, new_table_name);
+        return false;
+      }
+
+      if (!dd_client.install_table(
+              new_schema_name, new_table_name, sdi, ndbtab->getObjectId(),
+              ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
+              tablespace_name, true, nullptr)) {
+        log_and_clear_THD_conditions();
+        ndb_log_error("Failed to install renamed table '%s.%s' in DD",
+                      new_schema_name, new_table_name);
+        return false;
+      }
+
+      dd_client.commit();
+      return true;
+    }
+
+    Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
+
+    if (has_shadow_table(dd_client, new_schema_name, new_table_name)) {
+      // There is a "shadow table", remove the table from DD
+      ndb_log_warning(
+          "Removing the renamed table '%s.%s' from DD, there is a local table",
+          schema_name, table_name);
+      if (!dd_client.remove_table(schema_name, table_name, &invalidator)) {
+        log_and_clear_THD_conditions();
+        ndb_log_error("Failed to remove the renamed table '%s.%s' from DD",
+                      schema_name, table_name);
+        return false;
+      }
+    } else {
+      // There are no "shadow table", rename table in DD
+      if (!dd_client.rename_table(schema_name, table_name, new_schema_name,
+                                  new_table_name, ndbtab->getObjectId(),
+                                  ndbtab->getObjectVersion(), &invalidator)) {
+        log_and_clear_THD_conditions();
+        ndb_log_error("Failed to rename table '%s.%s' to '%s.%s", schema_name,
+                      table_name, new_schema_name, new_table_name);
+        return false;
+      }
+    }
+
+    if (!invalidator.invalidate()) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
+                    schema_name, table_name);
+      return false;
+    }
+
+    dd_client.commit();
+    return true;
   }
-
 
   void
   handle_rename_table(const Ndb_schema_op* schema)
@@ -4588,19 +4660,6 @@ class Ndb_schema_event_handler {
 
     // Participant never takes GSL
     assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
-
-    bool exists_in_DD;
-    Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
-    if (from.is_local_table(&exists_in_DD))
-    {
-      /* Tables exists as a local table, print warning and leave it */
-      ndb_log_warning("NDB Binlog: Skipping rename of locally "
-                      "defined table '%s.%s' from binlog schema "
-                      "event '%s' from node %d. ",
-                      schema->db, schema->name, schema->query,
-                      schema->node_id);
-      DBUG_VOID_RETURN;
-    }
 
     NDB_SHARE *share= acquire_reference(schema->db, schema->name,
                                         "rename_table");  // temporary ref.
@@ -4636,26 +4695,28 @@ class Ndb_schema_event_handler {
     DBUG_ASSERT(!ndb_name_is_temp(schema->name));
     DBUG_ASSERT(!ndb_name_is_temp(NDB_SHARE::key_get_table_name(prepared_key)));
 
-    // Get the renamed tables id and new version from NDB
-    // NOTE! It would be better if these parameters was passed in the
-    // schema dist protocol. Both the id and version are used as the "key"
-    // when communicating but that's the original table id and version
-    // and not the new
-    int ndb_table_id, ndb_table_version;
-    if (!get_table_version_from_NDB(NDB_SHARE::key_get_db_name(prepared_key),
-                                    NDB_SHARE::key_get_table_name(prepared_key),
-                                    &ndb_table_id, &ndb_table_version))
+    // Open the renamed table from NDB
+    const char* new_db_name = NDB_SHARE::key_get_db_name(prepared_key);
+    const char* new_table_name = NDB_SHARE::key_get_table_name(prepared_key);
+    Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, new_db_name, new_table_name);
+    const NdbDictionary::Table *ndbtab= ndbtab_g.get_table();
+    if (!ndbtab)
     {
-      // It was not possible to open the table from NDB
-      ndb_log_error("Could not get id and version for table");
+      // Could not open the table from NDB, very unusual
+      log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
+      ndb_log_error("Failed to rename, could not open table '%s.%s' from NDB",
+                    new_db_name, new_table_name);
       DBUG_VOID_RETURN;
     }
 
+    const std::string tablespace_name =
+        ndb_table_tablespace_name(m_thd_ndb->ndb->getDictionary(), ndbtab);
+
     // Rename table in DD
-    if (!from.rename_table(NDB_SHARE::key_get_db_name(prepared_key),
-                           NDB_SHARE::key_get_table_name(prepared_key),
-                           ndb_table_id, ndb_table_version)) {
-      log_and_clear_THD_conditions();
+    if (!rename_table_in_dd(schema->db, schema->name,
+                            NDB_SHARE::key_get_db_name(prepared_key),
+                            NDB_SHARE::key_get_table_name(prepared_key),
+                            ndbtab, tablespace_name)) {
       ndb_log_warning(
           "Failed to rename table definition in DD, continue anyway...");
     }

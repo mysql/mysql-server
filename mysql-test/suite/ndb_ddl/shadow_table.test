@@ -27,6 +27,9 @@ insert into ndb_ddl_test.shadow1 values(100);
 call mtr.add_suppression("Local table 'ndb_ddl_test.shadow1' .* shadows");
 call mtr.add_suppression("Failed to remove table definition");
 call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Failed to rename table definition");
+call mtr.add_suppression("Removing the renamed table");
+call mtr.add_suppression("Local table 'ndb_ddl_test.shadow2' .* shadows");
 --enable_query_log
 
 --connection mysqld2
@@ -100,6 +103,39 @@ select column_name from
 # Drop the NDB table
 drop table ndb_ddl_test.shadow1;
 
+
+# Test rename of table to same name as shadow table, the
+# renamed table should be removed on on first mysqld and thus create
+# a shadow table
+rename table ndb_ddl_test.t1 to ndb_ddl_test.shadow1;
+
+--connection mysqld1
+
+# Check that shadow table on first mysqld is still in other engine
+# and have only one column
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+
+# Check that the NDB table on first mysqld has been removed from DD
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 't1';
+
+# Create another "shadow table" in other engine on first mysqld
+create table ndb_ddl_test.shadow2 (
+  in_other_engine int primary key
+) engine = InnoDB;
+insert into ndb_ddl_test.shadow2 values(100);
+
+--connection mysqld2
+
+# Rename the shadowed NDB table to the other shadowed table name
+rename table ndb_ddl_test.shadow1 to ndb_ddl_test.shadow2;
+
+# Rename the NDB table back to original name
+rename table ndb_ddl_test.shadow2 to ndb_ddl_test.t1;
+
 --connection mysqld1
 
 # Check that table on first mysqld is still in other engine
@@ -112,6 +148,9 @@ select count(*) = 1 from ndb_ddl_test.shadow1;
 
 # Drop the "shadow table" from other engine
 drop table ndb_ddl_test.shadow1;
+
+# Drop the second "shadow table" from other engine
+drop table ndb_ddl_test.shadow2;
 
 # Check that all mysqlds have identical DD
 --source verify_mysql_dd.inc
