@@ -4134,6 +4134,7 @@ class Item_float : public Item_num {
   Item_float(double value_par, uint decimal_par) : value(value_par) {
     set_data_type(MYSQL_TYPE_DOUBLE);
     decimals = (uint8)decimal_par;
+    max_length = float_length(decimal_par);
     fixed = 1;
   }
 

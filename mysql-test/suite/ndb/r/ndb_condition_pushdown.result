@@ -2787,6 +2787,18 @@ Testing: 'not <field> in (...)'
 result_rows	filtered_rows
 2	2
 #
+# Bug#29699347 ITEM_FLOAT C'TOR DOES NOT SET MAX_LENGTH MEMBER
+#
+Creating baseline, returning all 4 rows
+result_rows	filtered_rows
+4	4
+Testing filtering of data type 'real', returning 2 rows.
+result_rows	filtered_rows
+2	2
+Testing filtering of data type 'double', returning 2 rows.
+result_rows	filtered_rows
+2	2
+#
 # Bug#29054626 TRUNCATION OF OUT OF RANGE VALUES IN PUSHED CONDITION -> INCORRECT RESULT
 #
 CREATE TABLE t1 (

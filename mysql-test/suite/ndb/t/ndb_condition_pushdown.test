@@ -2779,6 +2779,52 @@ eval $verify_row_count;
 drop table t1;
 --enable_query_log
 
+--echo #
+--echo # Bug#29699347 ITEM_FLOAT C'TOR DOES NOT SET MAX_LENGTH MEMBER
+--echo #
+
+# A later, similar bug, materialized as a side effect of
+# 'type normalization' introduced by WL#11935.
+# Test case use same infrastructure as provided by test cases above.
+
+--disable_query_log
+
+create table t1
+(
+  real_float float NOT NULL,
+  real_double double NOT NULL
+) engine = ndb ;
+
+insert into t1 values
+ (1.11, 1.111),
+ (2.22, 2.222),
+ (3.33, 3.333),
+ (4.44, 4.444);
+
+--disable_result_log
+eval $prepare;
+--echo Creating baseline, returning all 4 rows
+select @count:=count(*) from t1;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing filtering of data type 'real', returning 2 rows.
+select @count:=count(*) from t1 where real_float > 3.14;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing filtering of data type 'double', returning 2 rows.
+select @count:=count(*) from t1 where real_double > 3.14;
+--enable_result_log
+eval $verify_row_count;
+
+drop table t1;
+
+--enable_query_log
 
 --echo #
 --echo # Bug#29054626 TRUNCATION OF OUT OF RANGE VALUES IN PUSHED CONDITION -> INCORRECT RESULT
