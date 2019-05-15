@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ MACRO(MYSQL_ADD_COMPONENT)
     "LINK_LIBRARIES"
     "STATIC;MODULE;TEST;NO_INSTALL"
     ${ARGN}
-  )
+    )
 
   # Add common include directories
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
@@ -67,6 +67,13 @@ MACRO(MYSQL_ADD_COMPONENT)
   STRING(TOUPPER ${component} component)
   STRING(TOLOWER ${component} component_lower)
   STRING(TOLOWER component_${component} target)
+
+  GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  LIST(FIND CWD_DEFINITIONS "MYSQL_SERVER" FOUND_DEFINITION)
+  IF(NOT FOUND_DEFINITION EQUAL -1)
+    MESSAGE(FATAL_ERROR
+      "component ${component} has -DMYSQL_SERVER")
+  ENDIF()
 
   # If not dynamic component, add it to list of built-ins
   IF (ARG_STATIC)

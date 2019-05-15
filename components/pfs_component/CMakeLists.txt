@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -21,11 +21,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-REMOVE_DEFINITIONS(-DMYSQL_SERVER)
-
-SET(PFS_EXAMPLE_COMPONENT_POPULATION_SOURCE
-    pfs_example_component_population.cc
-    pfs_example_continent.cc
-    pfs_example_country.cc)
-
-MYSQL_ADD_COMPONENT(pfs_example_component_population ${PFS_EXAMPLE_COMPONENT_POPULATION_SOURCE} TEST MODULE)
+MYSQL_ADD_COMPONENT(pfs_example_component_population
+  pfs_example_component_population.cc
+  pfs_example_continent.cc
+  pfs_example_country.cc
+  TEST MODULE
+  )

@@ -20,14 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-REMOVE_DEFINITIONS(-DMYSQL_SERVER)
-
 MYSQL_ADD_COMPONENT(test_pfs_resource_group
   test_pfs_resource_group.cc
-  LINK_LIBRARIES mysqlservices
   TEST MODULE)
 
 MYSQL_ADD_COMPONENT(test_pfs_notification
   test_pfs_notification.cc
-  LINK_LIBRARIES mysqlservices
   TEST MODULE)
