@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0trx_h
 #define trx0trx_h
 
-#include <list>
 #include <set>
 
 #include "ha_prototypes.h"
@@ -397,9 +396,9 @@ UNIV_INLINE
 bool trx_is_high_priority(const trx_t *trx);
 
 /**
-Kill all transactions that are blocking this transaction from acquiring locks.
+If this is a high priority transaction,
+kill all transactions that are blocking this transaction from acquiring locks.
 @param[in,out] trx	High priority transaction */
-
 void trx_kill_blocking(trx_t *trx);
 
 /** Provides an id of the transaction which does not change over time.
@@ -707,19 +706,6 @@ enum trx_rseg_type_t {
   TRX_RSEG_TYPE_NOREDO    /*!< non-redo rollback segment. */
 };
 
-struct TrxVersion {
-  TrxVersion(trx_t *trx);
-
-  /**
-  @return true if the trx_t instance is the same */
-  bool operator==(const TrxVersion &rhs) const { return (rhs.m_trx == m_trx); }
-
-  trx_t *m_trx;
-  ulint m_version;
-};
-
-typedef std::list<TrxVersion, ut_allocator<TrxVersion>> hit_list_t;
-
 struct trx_t {
   enum isolation_level_t {
 
@@ -879,10 +865,6 @@ struct trx_t {
                      1=recovered, must be rolled back,
                      protected by trx_sys->mutex when
                      trx->in_rw_trx_list holds */
-
-  hit_list_t hit_list; /*!< List of transactions to kill,
-                       when a high priority transaction
-                       is blocked on a lock wait. */
 
   os_thread_id_t killed_by; /*!< The thread ID that wants to
                             kill this transaction asynchronously.
