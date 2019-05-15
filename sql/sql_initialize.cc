@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -253,13 +253,10 @@ bool initialize_create_data_directory(const char *data_home) {
     char path[FN_REFLEN];
     File fd;
 
-    /*
-      Ignore files starting with . and in the --ignore-db list.
-      This is exactly how find_files() in sql_show.cc operates.
-    */
+    /* Ignore files that start with . or == 'lost+found'. */
     for (uint i = 0; i < dir->number_off_files; i++) {
       FILEINFO *file = dir->dir_entry + i;
-      if (file->name[0] != '.') {
+      if (file->name[0] != '.' && strcmp(file->name, "lost+found")) {
         no_files = false;
         break;
       }
