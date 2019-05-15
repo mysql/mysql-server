@@ -380,7 +380,7 @@ public:
      */
     bool newScan();
     void scanConf(Uint32 noOfOps, Uint32 opLen);
-    void scanConfExtra();
+    Uint32 publishBufferData();
     void closeScan();
     
     /**
