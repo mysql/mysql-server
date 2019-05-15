@@ -22,6 +22,12 @@ create table ndb_ddl_test.shadow1 (
 ) engine = InnoDB;
 insert into ndb_ddl_test.shadow1 values(100);
 
+# Supress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'ndb_ddl_test.shadow1' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+--enable_query_log
+
 --connection mysqld2
 
 # Check that table does not exist on second mysqld(as it was not

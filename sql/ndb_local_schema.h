@@ -71,8 +71,6 @@ public:
 
   class Table : protected Base
   {
-    bool m_has_triggers;
-
     bool mdl_try_lock_for_rename(const char* new_db,
                                  const char* new_name) const;
     bool mdl_try_lock_exclusive(void) const;
@@ -83,7 +81,6 @@ public:
     Table(class THD* thd, const char* db, const char* name);
 
     bool is_local_table(bool* exists) const;
-    bool remove_table(void) const;
     bool rename_table(const char* new_db, const char* new_name,
                       int new_id, int new_version) const;
   };

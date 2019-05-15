@@ -1,6 +1,4 @@
-drop table if exists t1, t2, t3, t4;
 flush status;
-drop table if exists t1, t2, t3, t4;
 flush status;
 create table t1 (a int) engine=ndbcluster;
 create table t2 (a int) engine=ndbcluster;

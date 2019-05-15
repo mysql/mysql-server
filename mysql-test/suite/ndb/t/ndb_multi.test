@@ -1,17 +1,9 @@
 -- source include/have_multi_ndb.inc
 
--- disable_query_log
-call mtr.add_suppression("Skipping locally defined table 'test.t1'");
--- enable_query_log
-
---disable_warnings
 connection server2;
-drop table if exists t1, t2, t3, t4;
 flush status;
 connection server1;
-drop table if exists t1, t2, t3, t4;
 flush status;
---enable_warnings
 
 # Create test tables on server1
 create table t1 (a int) engine=ndbcluster;
@@ -65,6 +57,7 @@ show tables like 't4';
 show tables;
 
 drop table t1, t2, t3, t4;
+
 # bug#21378
 connection server1;
 create table t1(c1 int key)ENGINE=MyISAM;
@@ -167,6 +160,13 @@ call mtr.add_suppression("mysqld startup An incident event has been written");
 
 create table t1(s char(1)) engine = myisam;
 insert into t1 values ("a"),("b"),("c");
+
+# Suppress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'test.t1' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+--enable_query_log
+
 connection server2;
 create table t1(s char(1)) engine = ndb;
 insert into t1 values ("d"),("e"),("f");

@@ -4422,6 +4422,48 @@ class Ndb_schema_event_handler {
     DBUG_ASSERT(m_schema_dist_data.get_inplace_alter_event_data() == nullptr);
   }
 
+  bool remove_table_from_dd(const char *schema_name, const char *table_name) {
+    DBUG_TRACE;
+
+    Ndb_dd_client dd_client(m_thd);
+    Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
+
+    if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
+      log_and_clear_THD_conditions();
+      ndb_log_warning("Failed to acquire exclusive metadata lock on '%s.%s'",
+                      schema_name, table_name);
+      return false;
+    }
+
+    // Check if there is existing table in DD which is not a NDB table, in such
+    // case refuse to remove the "shadow table"
+    dd::String_type engine;
+    if (dd_client.get_engine(schema_name, table_name, &engine) &&
+        engine != "ndbcluster") {
+      ndb_log_error(
+          "Local table '%s.%s' in engine = '%s' shadows the NDB table",
+          schema_name, table_name, engine.c_str());
+      return false;
+    }
+
+    if (!dd_client.remove_table(schema_name, table_name, &invalidator)) {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
+                    table_name);
+      return false;
+    }
+
+    if (!invalidator.invalidate())
+    {
+      log_and_clear_THD_conditions();
+      ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
+                    schema_name, table_name);
+      return false;
+    }
+
+    dd_client.commit();
+    return true;
+  }
 
   void
   handle_drop_table(const Ndb_schema_op* schema)
@@ -4438,42 +4480,14 @@ class Ndb_schema_event_handler {
     // Participant never takes GSL
     assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
-    bool exists_in_DD;
-    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table(&exists_in_DD))
-    {
-      /* Table is not a NDB table in this mysqld -> leave it */
-      ndb_log_warning("NDB Binlog: Skipping drop of locally "
-                      "defined table '%s.%s' from binlog schema "
-                      "event '%s' from node %d. ",
-                      schema->db, schema->name, schema->query,
-                      schema->node_id);
-
-      // There should be no NDB_SHARE for this table
-      assert(!acquire_reference(schema->db, schema->name, "drop_table"));
-
-      DBUG_VOID_RETURN;
-    }
-
-    if (exists_in_DD)
-    {
-      // Remove table from DD
-      if (!tab.remove_table()) {
-        ndb_log_warning(
-            "Failed to remove table definition from DD, continue anyway...");
-      }
-    }
-    else
-    {
-      // The table didn't exist in DD, no need to remove but still
+    if (!remove_table_from_dd(schema->db, schema->name)) {
+      // The table didn't exist in DD or it couldn't be removed,
       // continue to invalidate the table in NdbApi, close cached tables
       // etc. This case may happen when a MySQL Server drops a "shadow"
       // table and afterwards someone drops also the table with same name
       // in NDB
-      // NOTE! Probably could check after a drop of "shadow" table if a
-      // table with same name exists in NDB
-     ndb_log_info("NDB Binlog: Ignoring drop of table '%s.%s' since it "
-                  "doesn't exist in DD", schema->db, schema->name);
+      ndb_log_warning(
+          "Failed to remove table definition from DD, continue anyway...");
     }
 
     NDB_SHARE *share= acquire_reference(schema->db, schema->name,

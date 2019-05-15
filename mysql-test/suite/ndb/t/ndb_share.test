@@ -130,8 +130,21 @@ drop table t1, t2;
 #
 connection server2;
 create table t1 (a int) engine=myisam;
+
+# Suppress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'test.t1' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+--enable_query_log
+
 connection server4;
 create table t1 (a int) engine=myisam;
+
+# Suppress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'test.t1' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+--enable_query_log
 
 connection server1;
 create table t1 (a int) engine = ndb;

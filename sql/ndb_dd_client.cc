@@ -48,7 +48,7 @@
 #include "sql/sql_class.h"      // THD
 #include "sql/system_variables.h"
 #include "sql/transaction.h"    // trans_*
-
+#include "sql/sql_trigger.h"    // remove_all_triggers_from_perfschema
 
 Ndb_dd_client::Ndb_dd_client(THD* thd) :
   m_thd(thd),
@@ -530,7 +530,7 @@ Ndb_dd_client::remove_table(const char* schema_name,
   if (existing == nullptr)
   {
     // Table does not exist
-    DBUG_RETURN(false);
+    DBUG_RETURN(true);
   }
 
   if (invalidator != nullptr &&
@@ -540,6 +540,11 @@ Ndb_dd_client::remove_table(const char* schema_name,
   {
     DBUG_RETURN(false);
   }
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  // Remove statistics, table is not using trigger(s) anymore
+  remove_all_triggers_from_perfschema(schema_name, *existing);
+#endif
 
   DBUG_PRINT("info", ("removing existing table"));
   if (m_client->drop(existing))
@@ -1203,9 +1208,8 @@ bool Ndb_dd_client::lookup_tablespace_id(const char* tablespace_name,
                 MDL_INTENTION_EXCLUSIVE));
 
   // Acquire tablespace.
-  dd::cache::Dictionary_client::Auto_releaser releaser(m_thd->dd_client());
   const dd::Tablespace* ts_obj= NULL;
-  if (m_thd->dd_client()->acquire(tablespace_name, &ts_obj))
+  if (m_client->acquire(tablespace_name, &ts_obj))
   {
     // acquire() always fails with an error being reported.
     DBUG_RETURN(false);

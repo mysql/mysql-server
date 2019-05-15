@@ -24,7 +24,6 @@
 
 #include "sql/ndb_local_schema.h"
 
-#include "sql/dd/dd_trigger.h" // dd::table_has_triggers
 #include "sql/mdl.h"
 #include "sql/ndb_dd.h"
 #include "sql/ndb_log.h"
@@ -135,16 +134,10 @@ Ndb_local_schema::Base::~Base()
 
 Ndb_local_schema::Table::Table(THD* thd,
                                const char* db, const char* name) :
-  Ndb_local_schema::Base(thd, db, name),
-  m_has_triggers(false)
+  Ndb_local_schema::Base(thd, db, name)
 {
   DBUG_ENTER("Ndb_local_schema::Table");
   DBUG_PRINT("enter", ("name: '%s.%s'", db, name));
-
-  // Check if there are trigger files
-  // Ignore possible error from dd::table_has_triggers since
-  // Caller has to check Diagnostics_area to detect whether error happened.
-  (void)dd::table_has_triggers(thd, db, name, &m_has_triggers);
 
   DBUG_VOID_RETURN;
 }
@@ -195,45 +188,6 @@ Ndb_local_schema::Table::mdl_try_lock_exclusive(void) const
 
   DBUG_RETURN(true);
 }
-
-
-bool
-Ndb_local_schema::Table::remove_table(void) const
-{
-  // Acquire exclusive MDL lock on the table
-  if (!mdl_try_lock_exclusive())
-  {
-    return false;
-  }
-
-  // Remove the table from DD
-  if (!ndb_dd_remove_table(m_thd, m_db, m_name))
-  {
-    log_warning("Failed to remove table from DD");
-    return false;
-  }
-
-  if (m_has_triggers)
-  {
-    // NOTE! Should not call drop_all_triggers() here but rather
-    // implement functionality to remove the triggers from DD
-    // using DD API
-    if (drop_all_triggers(m_thd, m_db, m_name))
-    {
-      log_warning("Failed to drop all triggers");
-      // NOTE! removing table and dropping triggers should be made
-      // in same transaction, then it's ok to return false here
-    }
-  }
-
-  // TODO Presumably also referencing views need to be updated here.
-  // They should probably not be dropped by their references
-  // to the now non existing table must be removed. Assumption is
-  // that if user tries to open such a table an error
-  // saying 'no such table' will be returned
-  return true;
-}
-
 
 bool
 Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
