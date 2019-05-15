@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ int ndb_socket_nonblock(ndb_socket_t s, int enable)
 static inline
 int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in *addr)
 {
-  return bind(s.fd, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
+  return bind(s.fd, (const struct sockaddr*)addr, sizeof(struct sockaddr_in));
 }
 
 static inline
