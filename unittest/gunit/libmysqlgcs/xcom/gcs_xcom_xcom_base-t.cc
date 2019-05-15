@@ -262,6 +262,9 @@ TEST_F(XcomBase, GetSynodeAppDataTooManySynodes) {
   std::free(synodes.synode_no_array_val);
 }
 
+/* Disable on Windows. The test outcome varies wildly on our test environment,
+ * likely due to different configurations of the stack size. */
+#if !defined(_WIN32)
 TEST_F(XcomBase, ProposerBatchDeserialization) {
   pax_msg *p = nullptr;
   unchecked_replace_pax_msg(&p, pax_msg_new_0(null_synode));
@@ -290,6 +293,7 @@ TEST_F(XcomBase, ProposerBatchDeserialization) {
   std::free(p);
   std::free(buffer);
 }
+#endif  // !defined(_WIN32)
 
 // clang-format off
 /*
