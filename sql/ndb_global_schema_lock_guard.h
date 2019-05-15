@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,9 +33,12 @@ public:
   Ndb_global_schema_lock_guard(THD *thd);
   ~Ndb_global_schema_lock_guard();
   int lock(void);
+  bool try_lock(void);
+  bool unlock(); // Should be called only in conjunction with try_lock()
 private:
   THD* const m_thd;
   bool m_locked;
+  bool m_try_locked;
 };
 
 #endif

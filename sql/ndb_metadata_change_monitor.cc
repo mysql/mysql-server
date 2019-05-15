@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,6 @@
 #include "sql/ndb_thd_ndb.h"               // Thd_ndb
 #include "sql/sql_class.h"                 // THD
 #include "sql/table.h"  // is_infoschema_db() / is_perfschema_db()
-#include "storage/ndb/include/ndbapi/Ndb.hpp"       // Ndb
 #include "storage/ndb/include/ndbapi/NdbError.hpp"  // NdbError
 
 Ndb_metadata_change_monitor::Ndb_metadata_change_monitor()
@@ -75,13 +74,11 @@ void Ndb_metadata_change_monitor::log_NDB_error(
 // failing conditions. The rationale behind this is that during testing, the
 // vast majority of the errors were the result of a normal MySQL server
 // shutdown. Thus, we stick to info level messages here with the hope that
-// "actual" errors are caught in the binlog thread during the synch
+// "actual" errors are caught in the binlog thread during the sync
 
 static long long g_metadata_detected_count = 0;
 
-static void update_metadata_detected_count(int objects_detected) {
-  g_metadata_detected_count += objects_detected;
-}
+static void increment_metadata_detected_count() { g_metadata_detected_count++; }
 
 static SHOW_VAR ndb_status_vars_metadata_check[] = {
     {"metadata_detected_count",
@@ -117,8 +114,9 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
   for (const auto logfile_group_name : lfg_in_NDB) {
     if (lfg_in_DD.find(logfile_group_name) == lfg_in_DD.end()) {
       // Exists in NDB but not in DD
-      update_metadata_detected_count(1);
-      if (!ndbcluster_binlog_check_logfile_group_asynch(logfile_group_name)) {
+      if (ndbcluster_binlog_check_logfile_group_async(logfile_group_name)) {
+        increment_metadata_detected_count();
+      } else {
         log_info("Failed to submit logfile group '%s' for synchronization",
                  logfile_group_name.c_str());
       }
@@ -130,8 +128,9 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
 
   for (const auto logfile_group_name : lfg_in_DD) {
     // Exists in DD but not in NDB
-    update_metadata_detected_count(1);
-    if (!ndbcluster_binlog_check_logfile_group_asynch(logfile_group_name)) {
+    if (ndbcluster_binlog_check_logfile_group_async(logfile_group_name)) {
+      increment_metadata_detected_count();
+    } else {
       log_info("Failed to submit logfile group '%s' for synchronization",
                logfile_group_name.c_str());
     }
@@ -162,8 +161,9 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
   for (const auto tablespace_name : tablespaces_in_NDB) {
     if (tablespaces_in_DD.find(tablespace_name) == tablespaces_in_DD.end()) {
       // Exists in NDB but not in DD
-      update_metadata_detected_count(1);
-      if (!ndbcluster_binlog_check_tablespace_asynch(tablespace_name)) {
+      if (ndbcluster_binlog_check_tablespace_async(tablespace_name)) {
+        increment_metadata_detected_count();
+      } else {
         log_info("Failed to submit tablespace '%s' for synchronization",
                  tablespace_name.c_str());
       }
@@ -175,8 +175,9 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
 
   for (const auto tablespace_name : tablespaces_in_DD) {
     // Exists in DD but not in NDB
-    update_metadata_detected_count(1);
-    if (!ndbcluster_binlog_check_tablespace_asynch(tablespace_name)) {
+    if (ndbcluster_binlog_check_tablespace_async(tablespace_name)) {
+      increment_metadata_detected_count();
+    } else {
       log_info("Failed to submit tablespace '%s' for synchronization",
                tablespace_name.c_str());
     }
@@ -203,44 +204,54 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
     return false;
   }
 
-  // Fetch list of NDB tables in DD, also acquire MDL lock on the tables
+  // Fetch list of tables in DD, also acquire MDL lock on the tables
   std::unordered_set<std::string> ndb_tables_in_DD;
-  if (!dd_client.get_ndb_table_names_in_schema(schema_name.c_str(),
-                                               &ndb_tables_in_DD)) {
-    log_info("Failed to get list of NDB tables in schema '%s' from DD",
+  std::unordered_set<std::string> local_tables_in_DD;
+  if (!dd_client.get_table_names_in_schema(
+          schema_name.c_str(), &ndb_tables_in_DD, &local_tables_in_DD)) {
+    log_info("Failed to get list of tables in schema '%s' from DD",
              schema_name.c_str());
     return false;
   }
 
-  // Special case when all tables belonging to a schema still exist in DD but
-  // not in NDB
+  // Special case when all NDB tables belonging to a schema still exist in DD
+  // but not in NDB
   if (ndb_tables_in_NDB.empty() && !ndb_tables_in_DD.empty()) {
-    update_metadata_detected_count(ndb_tables_in_DD.size());
-    if (!ndbcluster_binlog_check_schema_asynch(schema_name, "")) {
-      log_info("Failed to submit schema '%s' for synchronization",
-               schema_name.c_str());
-      return false;
+    for (const auto ndb_table_name : ndb_tables_in_DD) {
+      // Exists in DD but not in NDB
+      if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
+        increment_metadata_detected_count();
+      } else {
+        log_info("Failed to submit table '%s.%s' for synchronization",
+                 schema_name.c_str(), ndb_table_name.c_str());
+      }
     }
     return true;
   }
 
   // Special case when all tables belonging to a schema still exist in NDB but
-  // not in DD
-  if (!ndb_tables_in_NDB.empty() && ndb_tables_in_DD.empty()) {
-    update_metadata_detected_count(ndb_tables_in_NDB.size());
-    if (!ndbcluster_binlog_check_schema_asynch(schema_name, "")) {
-      log_info("Failed to submit schema '%s' for synchronization",
-               schema_name.c_str());
-      return false;
+  // not in DD (as either NDB or shadow tables)
+  if (!ndb_tables_in_NDB.empty() && ndb_tables_in_DD.empty() &&
+      local_tables_in_DD.empty()) {
+    for (const auto ndb_table_name : ndb_tables_in_NDB) {
+      // Exists in NDB but not in DD
+      if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
+        increment_metadata_detected_count();
+      } else {
+        log_info("Failed to submit table '%s.%s' for synchronization",
+                 schema_name.c_str(), ndb_table_name.c_str());
+      }
     }
     return true;
   }
 
   for (const auto ndb_table_name : ndb_tables_in_NDB) {
-    if (ndb_tables_in_DD.find(ndb_table_name) == ndb_tables_in_DD.end()) {
+    if (ndb_tables_in_DD.find(ndb_table_name) == ndb_tables_in_DD.end() &&
+        local_tables_in_DD.find(ndb_table_name) == local_tables_in_DD.end()) {
       // Exists in NDB but not in DD
-      update_metadata_detected_count(1);
-      if (!ndbcluster_binlog_check_schema_asynch(schema_name, ndb_table_name)) {
+      if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
+        increment_metadata_detected_count();
+      } else {
         log_info("Failed to submit table '%s.%s' for synchronization",
                  schema_name.c_str(), ndb_table_name.c_str());
       }
@@ -252,8 +263,9 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
 
   for (const auto ndb_table_name : ndb_tables_in_DD) {
     // Exists in DD but not in NDB
-    update_metadata_detected_count(1);
-    if (!ndbcluster_binlog_check_schema_asynch(schema_name, ndb_table_name)) {
+    if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
+      increment_metadata_detected_count();
+    } else {
       log_info("Failed to submit table '%s.%s' for synchronization",
                schema_name.c_str(), ndb_table_name.c_str());
     }
@@ -437,6 +449,8 @@ void Ndb_metadata_change_monitor::do_run() {
       }
 
       log_info("Metadata check started");
+
+      ndbcluster_binlog_validate_sync_blacklist(thd);
 
       if (!detect_logfile_group_changes(thd, thd_ndb)) {
         log_info("Failed to detect logfile group metadata changes");

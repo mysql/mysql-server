@@ -25,6 +25,7 @@
 #ifndef NDB_DD_H
 #define NDB_DD_H
 
+#include <string>
 #include "sql/dd/string_type.h"
 
 namespace dd {
@@ -32,7 +33,9 @@ namespace dd {
   typedef String_type sdi_t;
 }
 
-bool ndb_sdi_serialize(class THD *thd,
+class THD;
+
+bool ndb_sdi_serialize(THD *thd,
                        const dd::Table *table_def,
                        const char* schema_name,
                        dd::sdi_t& sdi);
@@ -41,11 +44,11 @@ bool ndb_sdi_serialize(class THD *thd,
 void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
                                         const char* proper_table_name);
 
-bool ndb_dd_remove_table(class THD* thd,
+bool ndb_dd_remove_table(THD* thd,
                          const char* schema_name,
                          const char* table_name);
 
-bool ndb_dd_rename_table(class THD* thd,
+bool ndb_dd_rename_table(THD* thd,
                          const char* old_schema_name,
                          const char* old_table_name,
                          const char* new_schema_name,
@@ -57,12 +60,14 @@ bool ndb_dd_get_engine_for_table(THD *thd,
                                  const char *table_name,
                                  dd::String_type* engine);
 
-bool ndb_dd_update_schema_version(class THD *thd, const char* schema_name,
+bool ndb_dd_update_schema_version(THD *thd, const char* schema_name,
                                   unsigned int counter, unsigned int node_id,
                                   bool skip_commit = false);
 
-bool ndb_dd_has_local_tables_in_schema(class THD *thd,
+bool ndb_dd_has_local_tables_in_schema(THD *thd,
                                        const char* schema_name,
                                        bool &tables_exist_in_database);
+
+const std::string ndb_dd_fs_name_case(const dd::String_type &name);
 
 #endif

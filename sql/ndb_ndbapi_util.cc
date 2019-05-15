@@ -321,7 +321,6 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
   return true;
 }
 
-
 bool
 ndb_get_database_names_in_dictionary(
     NdbDictionary::Dictionary* dict,
@@ -351,4 +350,104 @@ ndb_get_database_names_in_dictionary(
     database_names.insert(elmt.database);
   }
   DBUG_RETURN(true);
+}
+
+
+bool ndb_logfile_group_exists(NdbDictionary::Dictionary *dict,
+                              const std::string &logfile_group_name,
+                              bool &exists)
+{
+  NdbDictionary::LogfileGroup lfg =
+    dict->getLogfileGroup(logfile_group_name.c_str());
+  const int dict_error_code = dict->getNdbError().code;
+  if (dict_error_code == 0)
+  {
+    exists = true;
+    return true;
+  }
+  if (dict_error_code == 723)
+  {
+    exists = false;
+    return true;
+  }
+  return false;
+}
+
+
+bool ndb_tablespace_exists(NdbDictionary::Dictionary *dict,
+                           const std::string &tablespace_name, bool &exists)
+{
+  NdbDictionary::Tablespace tablespace =
+    dict->getTablespace(tablespace_name.c_str());
+  const int dict_error_code = dict->getNdbError().code;
+  if (dict_error_code == 0)
+  {
+    exists = true;
+    return true;
+  }
+  if (dict_error_code == 723)
+  {
+    exists = false;
+    return true;
+  }
+  return false;
+}
+
+
+bool ndb_table_exists(NdbDictionary::Dictionary *dict,
+                      const std::string &db_name,
+                      const std::string &table_name, bool &exists)
+{
+  NdbDictionary::Dictionary::List list;
+  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+  {
+    // List objects failed
+    return false;
+  }
+  for (unsigned int i = 0; i < list.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    if (db_name == elmt.database && table_name == elmt.name &&
+        (elmt.state == NdbDictionary::Object::StateOnline ||
+         elmt.state == NdbDictionary::Object::ObsoleteStateBackup ||
+         elmt.state == NdbDictionary::Object::StateBuilding))
+    {
+      exists = true;
+      return true;
+    }
+  }
+  exists = false;
+  return true;
+}
+
+
+bool ndb_get_logfile_group_id_and_version(NdbDictionary::Dictionary *dict,
+                                          const std::string &logfile_group_name,
+                                          int &id, int &version)
+{
+  NdbDictionary::LogfileGroup lfg =
+    dict->getLogfileGroup(logfile_group_name.c_str());
+  if (dict->getNdbError().code != 0)
+  {
+    return false;
+  }
+  id = lfg.getObjectId();
+  version = lfg.getObjectVersion();
+  return true;
+}
+
+
+bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
+                                       const std::string &tablespace_name,
+                                       int &id, int &version)
+{
+  NdbDictionary::Tablespace ts =
+    dict->getTablespace(tablespace_name.c_str());
+  if (dict->getNdbError().code != 0)
+  {
+    return false;
+  }
+  id = ts.getObjectId();
+  version = ts.getObjectVersion();
+  return true;
 }

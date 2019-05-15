@@ -160,6 +160,10 @@ create table t10 engine=myisam as select * from t10_c;
 create table t11 engine=myisam as select * from t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
@@ -756,3 +760,5 @@ Backup ID not specified, please provide --backupid
 
 NDBT_ProgramExit: 2 - Wrong arguments
 
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;

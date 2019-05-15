@@ -121,6 +121,10 @@ i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
 * The tables with default values BACKUP and RESTORE test
 ********************************************************
 DROP TABLE t1, bit1;
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 ********************************************************
 * Begin to restore data from backup 
 ********************************************************
@@ -1568,3 +1572,5 @@ select fid, isnull(f01), isnull(f02), isnull(f03) from t1;
 fid	isnull(f01)	isnull(f02)	isnull(f03)
 100	0	0	0
 drop table t1;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;

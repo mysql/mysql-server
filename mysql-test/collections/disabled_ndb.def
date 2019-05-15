@@ -37,9 +37,6 @@ ndb_rpl.ndb_rpl_stm_innodb                 : BUG#16321437 NDB_APPLY_STATUS START
 # Problem with alter table while MDL lock is held on other mysqld
 ndb_rpl.ndb_rpl_ddl_open_trans : WL#9185 MySQL Cluster support for new DD.
 
-# Problem with metadata not being synchronized on the slave
-ndb_rpl.ndb_rpl_dd_advance : WL#11914 Synchronize metadata changes detected in NDB
-
 # ndb suite tests
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
@@ -108,9 +105,6 @@ ndb.ndb_import2 : BUG#28239197 NDB_IMPORT2 FAILS SPORADICALLY IN 7.6
 
 # Fails on slow machines
 ndb.ndb_bushy_joins: BUG#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
-
-# Disabled pending synchronization functionality to be added in WL#11914
-ndb_ddl.metadata_change_detection: WL#11914 Synchronize metadata changes detected in NDB
 
 # Disabled due to Bug#29305977 which is waiting on Bug#29205142 to be fixed
 ndb.ndbinfo_upgrade: Bug#29305977 NDB.NDBINFO_UPGRADE TEST FAILS

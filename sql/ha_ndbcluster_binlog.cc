@@ -7297,8 +7297,27 @@ ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share)
 }
 
 
-bool ndbcluster_binlog_check_schema_asynch(const std::string &db_name,
+void Ndb_binlog_thread::validate_sync_blacklist(THD *thd)
+{
+  metadata_sync.validate_blacklist(thd);
+}
+
+
+void ndbcluster_binlog_validate_sync_blacklist(THD *thd)
+{
+  ndb_binlog_thread.validate_sync_blacklist(thd);
+}
+
+
+bool Ndb_binlog_thread::add_table_to_check(const std::string &db_name,
                                            const std::string &table_name)
+{
+  return metadata_sync.add_table(db_name, table_name);
+}
+
+
+bool ndbcluster_binlog_check_table_async(const std::string &db_name,
+                                         const std::string &table_name)
 {
   if (db_name.empty())
   {
@@ -7306,20 +7325,23 @@ bool ndbcluster_binlog_check_schema_asynch(const std::string &db_name,
     return false;
   }
 
-  // First implementation simply writes to log
   if (table_name.empty())
   {
-    ndb_log_info("Check schema database: '%s'", db_name.c_str());
-    return true;
+    ndb_log_error("Table name of object to be synchronized not set");
+    return false;
   }
 
-  ndb_log_info("Check schema table: '%s.%s'", db_name.c_str(),
-               table_name.c_str());
-  return true;
+  return ndb_binlog_thread.add_table_to_check(db_name, table_name);
 }
 
 
-bool ndbcluster_binlog_check_logfile_group_asynch(const std::string &lfg_name)
+bool Ndb_binlog_thread::add_logfile_group_to_check(const std::string &lfg_name)
+{
+  return metadata_sync.add_logfile_group(lfg_name);
+}
+
+
+bool ndbcluster_binlog_check_logfile_group_async(const std::string &lfg_name)
 {
   if (lfg_name.empty())
   {
@@ -7327,14 +7349,19 @@ bool ndbcluster_binlog_check_logfile_group_asynch(const std::string &lfg_name)
     return false;
   }
 
-  // First implementation simply writes to log
-  ndb_log_info("Check schema logfile group: '%s'", lfg_name.c_str());
-  return true;
+  return ndb_binlog_thread.add_logfile_group_to_check(lfg_name);
 }
 
 
 bool
-ndbcluster_binlog_check_tablespace_asynch(const std::string &tablespace_name)
+Ndb_binlog_thread::add_tablespace_to_check(const std::string &tablespace_name)
+{
+  return metadata_sync.add_tablespace(tablespace_name);
+}
+
+
+bool
+ndbcluster_binlog_check_tablespace_async(const std::string &tablespace_name)
 {
   if (tablespace_name.empty())
   {
@@ -7342,9 +7369,7 @@ ndbcluster_binlog_check_tablespace_asynch(const std::string &tablespace_name)
     return false;
   }
 
-  // First implementation simply writes to log
-  ndb_log_info("Check schema tablespace: '%s'", tablespace_name.c_str());
-  return true;
+  return ndb_binlog_thread.add_tablespace_to_check(tablespace_name);
 }
 
 
@@ -8446,6 +8471,124 @@ find_epoch_to_handle(const NdbEventOperation *s_pOp,
 }
 
 
+static long long g_metadata_synced_count = 0;
+static void increment_metadata_synced_count() { g_metadata_synced_count++; }
+
+static SHOW_VAR ndb_status_vars_metadata_synced[] = {
+    {"metadata_synced_count",
+     reinterpret_cast<char *>(&g_metadata_synced_count), SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
+
+int show_ndb_metadata_synced(THD *, SHOW_VAR *var, char *) {
+  var->type = SHOW_ARRAY;
+  var->value = reinterpret_cast<char *>(&ndb_status_vars_metadata_synced);
+  return 0;
+}
+
+
+void
+Ndb_binlog_thread::synchronize_detected_object(THD *thd)
+{
+  if (metadata_sync.object_queue_empty())
+  {
+    // No objects pending sync
+    return;
+  }
+
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  if (!global_schema_lock_guard.try_lock())
+  {
+    // Failed to obtain GSL
+    return;
+  }
+
+  // Synchronize 1 object from the queue
+  std::string db_name, object_name;
+  object_detected_type object_type;
+  metadata_sync.get_next_object(db_name, object_name, object_type);
+  switch (object_type)
+  {
+    case object_detected_type::LOGFILE_GROUP_OBJECT:
+    {
+      bool temp_error;
+      if (metadata_sync.sync_logfile_group(thd, object_name, temp_error))
+      {
+        log_info("Logfile group '%s' successfully synchronized",
+                 object_name.c_str());
+        increment_metadata_synced_count();
+      }
+      else if (temp_error)
+      {
+        log_info("Failed to synchronize logfile group '%s' due to a temporary "
+                 "error", object_name.c_str());
+      }
+      else
+      {
+        log_error("Failed to synchronize logfile group '%s'",
+                  object_name.c_str());
+        metadata_sync.add_object_to_blacklist(db_name, object_name,
+                                              object_type);
+        increment_metadata_synced_count();
+      }
+    }
+    break;
+    case object_detected_type::TABLESPACE_OBJECT:
+    {
+      bool temp_error;
+      if (metadata_sync.sync_tablespace(thd, object_name, temp_error))
+      {
+        log_info("Tablespace '%s' successfully synchronized",
+                 object_name.c_str());
+        increment_metadata_synced_count();
+      }
+      else if (temp_error)
+      {
+        log_info("Failed to synchronize tablespace '%s' due to a temporary "
+                 "error", object_name.c_str());
+      }
+      else
+      {
+        log_error("Failed to synchronize tablespace '%s'", object_name.c_str());
+        metadata_sync.add_object_to_blacklist(db_name, object_name,
+                                              object_type);
+        increment_metadata_synced_count();
+      }
+    }
+    break;
+    case object_detected_type::TABLE_OBJECT:
+    {
+      bool temp_error;
+      if (metadata_sync.sync_table(thd, db_name, object_name, temp_error))
+      {
+        log_info("Table '%s.%s' successfully synchronized", db_name.c_str(),
+                 object_name.c_str());
+        increment_metadata_synced_count();
+      }
+      else if (temp_error)
+      {
+        log_info("Failed to synchronize table '%s.%s' due to a temporary error",
+                 db_name.c_str(), object_name.c_str());
+      }
+      else
+      {
+        log_error("Failed to synchronize table '%s.%s'", db_name.c_str(),
+                  object_name.c_str());
+        metadata_sync.add_object_to_blacklist(db_name, object_name,
+                                              object_type);
+        increment_metadata_synced_count();
+      }
+    }
+    break;
+    default:
+    {
+      // Unexpected type, should never happen
+      DBUG_ASSERT(false);
+    }
+  }
+}
+
+
 void
 Ndb_binlog_thread::do_run()
 {
@@ -9358,6 +9501,10 @@ restart_cluster_failure:
       binlog_thread_state= BCCC_restart;
       break;
     }
+
+    // Synchronize 1 object from the queue of objects detected for automatic
+    // synchronization
+    synchronize_detected_object(thd);
   }
 
   // Check if loop has been terminated without properly handling all events

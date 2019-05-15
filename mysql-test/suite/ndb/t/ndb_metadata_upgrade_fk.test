@@ -37,7 +37,13 @@ connection server2;
 let $mysqld_name=mysqld.2.1;
 --source include/restart_mysqld.inc
 
+# Turn off metadata check so it doesn't intefere with table discovery
+connection server2;
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 connection server1;
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 
 # Check schema and then perform DML and DDL on the tables
 SHOW CREATE TABLE parent;
@@ -84,6 +90,12 @@ SELECT * FROM child;
 
 DROP TABLE child;
 DROP TABLE parent;
+
+# Reset metadata check value
+--connection server2
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+--connection server1
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
 
 let NDB_RESTORE=;
 --remove_file $NDB_TOOLS_OUTPUT

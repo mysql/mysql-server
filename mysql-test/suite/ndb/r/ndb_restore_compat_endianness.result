@@ -1,3 +1,7 @@
+SET @old_ndb_metadata_check_mysqld2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+SET @old_ndb_metadata_check_mysqld1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 SHOW CREATE TABLE t_num;
 Table	Create Table
 t_num	CREATE TABLE `t_num` (
@@ -190,3 +194,5 @@ ST_AsText(t_geometrycollection)	ST_AsText(t_geometry)
 GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
 GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
 DROP TABLE t_num,t_string_1,t_string_2,t_gis;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_mysqld2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_mysqld1;

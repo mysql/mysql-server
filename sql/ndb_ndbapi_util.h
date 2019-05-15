@@ -197,4 +197,71 @@ bool
 ndb_get_database_names_in_dictionary(NdbDictionary::Dictionary* dict,
     std::unordered_set<std::string>& database_names);
 
+
+/**
+ * @brief Check if a logfile group exists in NDB Dictionary
+ * @param dict                 NDB Dictionary
+ * @param logfile_group_name   Logfile group name
+ * @param exists [out]         Boolean that is set to true if the logfile group
+ *                             exists, false if not
+ * @return true on success, false on failure
+ */
+bool ndb_logfile_group_exists(NdbDictionary::Dictionary *dict,
+                              const std::string &logfile_group_name,
+                              bool &exists);
+
+
+/**
+ * @brief Check if a tablespace exists in NDB Dictionary
+ * @param dict              NDB Dictionary
+ * @param tablespace_name   Tablespace name
+ * @param exists [out]      Boolean that is set to true if the tablespace
+ *                          exists, false if not
+ * @return true on success, false on failure
+ */
+bool ndb_tablespace_exists(NdbDictionary::Dictionary *dict,
+                           const std::string &tablespace_name, bool &exists);
+
+
+/**
+ * @brief Check if a table exists in NDB Dictionary
+ * @param dict          NDB Dictionary
+ * @param db_name       Database name
+ * @param table_name    Table name
+ * @param exists [out]  Boolean that is set to true if the table exists, false
+ *                      if not
+ * @return true on success, false on failure
+ */
+bool ndb_table_exists(NdbDictionary::Dictionary *dict,
+                      const std::string &db_name,
+                      const std::string &table_name, bool &exists);
+
+
+/**
+ * @brief Retrieve the id and version of the logfile group definition in the NDB
+ *        Dictionary
+ * @param dict                 NDB Dictionary
+ * @param logfile_group_name   Logfile group name
+ * @param id [out]             Id of the logfile group
+ * @param version [out]        Version of the logfile group
+ * @return true on success, false on failure
+ */
+bool ndb_get_logfile_group_id_and_version(NdbDictionary::Dictionary *dict,
+                                          const std::string &logfile_group_name,
+                                          int &id, int &version);
+
+
+/**
+ * @brief Retrieve the id and version of the tablespace definition in the NDB
+ *        Dictionary
+ * @param dict              NDB Dictionary
+ * @param tablespace_name   Tablespace name
+ * @param id [out]          Id of the tablespace
+ * @param version [out]     Version of the tablespace
+ * @return true on success, false on failure
+ */
+bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
+                                       const std::string &tablespace_name,
+                                       int &id, int &version);
+
 #endif

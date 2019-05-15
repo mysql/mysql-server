@@ -115,4 +115,5 @@ drop table t1;
 
 --error 0
 --exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
+
 --remove_file $NDB_TOOLS_OUTPUT

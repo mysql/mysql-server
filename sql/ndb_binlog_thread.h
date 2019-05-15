@@ -30,6 +30,7 @@
 #include <mutex>
 #include "sql/ndb_component.h"
 #include "sql/ndb_binlog_hooks.h"
+#include "sql/ndb_metadata_sync.h"
 
 class Ndb;
 
@@ -37,6 +38,7 @@ class Ndb_binlog_thread : public Ndb_component
 {
   Ndb_binlog_hooks binlog_hooks;
   static int do_after_reset_master(void*);
+  Ndb_metadata_sync metadata_sync;
 public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
@@ -51,6 +53,49 @@ public:
     @return false the binlog thread will not handle the purge
   */
   bool handle_purge(const char *filename);
+
+  /*
+    @brief Iterate through the blacklist of objects and check if the mismatches
+           are still present or if the user has manually synchronized the
+           objects
+
+    @param thd  Thread handle
+
+    @return void
+  */
+  void validate_sync_blacklist(THD *thd);
+
+  /*
+    @brief Pass the logfile group object detected to the internal implementation
+           that shall eventually synchronize the object
+
+    @param logfile_group_name  Name of the logfile group
+
+    @return true on success, false on failure
+  */
+  bool add_logfile_group_to_check(const std::string &logfile_group_name);
+
+  /*
+    @brief Pass the tablespace object detected to the internal implementation
+           that shall eventually synchronize the object
+
+    @param tablespace_name  Name of the tablespace
+
+    @return true on success, false on failure
+  */
+  bool add_tablespace_to_check(const std::string &tablespace_name);
+
+  /*
+    @brief Pass the table object detected to the internal implementation that
+           shall eventually synchronize the object
+
+    @param db_name     Name of the database that the table belongs to
+    @param table_name  Name of the table
+
+    @return true on success, false on failure
+  */
+  bool add_table_to_check(const std::string &db_name,
+                          const std::string &table_name);
 private:
   virtual int do_init();
   virtual void do_run();
@@ -103,6 +148,16 @@ private:
      @param i_ndb The injector Ndb object to remove event operations from
   */
   void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb) const;
+
+  /**
+     @brief Synchronize the object that is currently at the front of the queue
+     of objects detected for automatic synchronization
+
+     @param thd Thread handle
+
+     @return void
+  */
+  void synchronize_detected_object(THD *thd);
 
 };
 

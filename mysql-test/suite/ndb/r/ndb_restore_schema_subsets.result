@@ -69,6 +69,10 @@ a	b	c	d
 Backing up created data
 ***********************
 drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 **************************************
 Check various include/exclude variants
 **************************************
@@ -524,3 +528,5 @@ tab2	CREATE TABLE `tab2` (
 drop table db2.tab1, db2.tab2;
 drop database db1;
 drop database db2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;

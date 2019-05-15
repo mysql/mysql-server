@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,16 +66,22 @@ size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
 */
 int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
 
+
 /**
- @brief Queue up workitems which the ndb binlog thread needs to check for
-        schema changes
- @param db_name     The name of database to check. This cannot be empty
- @param table_name  The name of table to check. Empty string denotes that all
-                    tables in 'db_name' are to be synchronized
+ @brief Validate the blacklist of objects
+ @param thd  Thread handle
+ @return void
+*/
+void ndbcluster_binlog_validate_sync_blacklist(THD *thd);
+
+/**
+ @brief Queue up tables which the ndb binlog thread needs to check for changes
+ @param db_name     The name of database the table belongs to
+ @param table_name  The name of table to check
  @return true if the workitem was accepted, false if not
 */
-bool ndbcluster_binlog_check_schema_asynch(const std::string &db_name,
-                                           const std::string &table_name);
+bool ndbcluster_binlog_check_table_async(const std::string &db_name,
+                                         const std::string &table_name);
 
 /**
  @brief Queue up logfile group items which the ndb binlog thread needs to check
@@ -83,7 +89,7 @@ bool ndbcluster_binlog_check_schema_asynch(const std::string &db_name,
  @param lfg_name  The name of logfile group to check. This cannot be empty
  @return true if the workitem was accepted, false if not
 */
-bool ndbcluster_binlog_check_logfile_group_asynch(const std::string &lfg_name);
+bool ndbcluster_binlog_check_logfile_group_async(const std::string &lfg_name);
 
 /**
  @brief Queue up tablespace items which the ndb binlog thread needs to check for
@@ -92,4 +98,10 @@ bool ndbcluster_binlog_check_logfile_group_asynch(const std::string &lfg_name);
  @return true if the workitem was accepted, false if not
 */
 bool
-ndbcluster_binlog_check_tablespace_asynch(const std::string &tablespace_name);
+ndbcluster_binlog_check_tablespace_async(const std::string &tablespace_name);
+
+/*
+  Called as part of SHOW STATUS or performance_schema queries. Returns
+  information about the number of NDB metadata objects synched
+*/
+int show_ndb_metadata_synced(THD *, SHOW_VAR *var, char *);

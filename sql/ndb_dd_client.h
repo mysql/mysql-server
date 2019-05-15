@@ -102,13 +102,19 @@ public:
   bool mdl_lock_schema(const char* schema_name, bool exclusive_lock = false);
   bool mdl_lock_table(const char* schema_name, const char* table_name);
   bool mdl_locks_acquire_exclusive(const char* schema_name,
-                                   const char* table_name);
+                                   const char* table_name,
+                                   bool custom_lock_wait = false,
+                                   ulong lock_wait_timeout = 0);
   bool mdl_lock_logfile_group(const char* logfile_group_name,
                               bool intention_exclusive);
-  bool mdl_lock_logfile_group_exclusive(const char* logfile_group_name);
+  bool mdl_lock_logfile_group_exclusive(const char* logfile_group_name,
+                                        bool custom_lock_wait = false,
+                                        ulong lock_wait_timeout = 0);
   bool mdl_lock_tablespace(const char* tablespace_name,
                            bool intention_exclusive);
-  bool mdl_lock_tablespace_exclusive(const char* tablespace_name);
+  bool mdl_lock_tablespace_exclusive(const char* tablespace_name,
+                                     bool custom_lock_wait = false,
+                                     ulong lock_wait_timeout = 0);
   void mdl_locks_release();
 
   // Transaction handling functions
@@ -145,6 +151,8 @@ public:
                      bool force_overwrite);
   bool get_table(const char* schema_name, const char* table_name,
                  const dd::Table **table_def);
+  bool table_exists(const char *schema_name, const char *table_name,
+                    bool &exists);
   bool set_tablespace_id_in_table(const char *schema_name,
                                   const char *table_name,
                                   dd::Object_id tablespace_id);
@@ -153,6 +161,9 @@ public:
   bool fetch_schema_names(std::vector<std::string>*);
   bool get_ndb_table_names_in_schema(const char* schema_name,
                                      std::unordered_set<std::string> *names);
+  bool get_table_names_in_schema(const char* schema_name,
+                                 std::unordered_set<std::string> *ndb_tables,
+                                 std::unordered_set<std::string> *local_tables);
   bool have_local_tables_in_schema(const char* schema_name,
                                    bool* found_local_tables);
   bool schema_exists(const char* schema_name, bool* schema_exists);

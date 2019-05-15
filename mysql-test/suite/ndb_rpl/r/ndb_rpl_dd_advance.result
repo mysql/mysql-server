@@ -21,7 +21,7 @@ INITIAL_SIZE 24M
 ENGINE=NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE 8M;
+INITIAL_SIZE 12M;
 CREATE TABLE t1
 (c1 INT NOT NULL PRIMARY KEY, 
 c2 INT NOT NULL, 
@@ -46,12 +46,10 @@ c1	c2	c3
 4	8	7
 5	10	8
 FILE_NAME	FILE_TYPE	TABLESPACE_NAME	LOGFILE_GROUP_NAME
-NULL	TABLESPACE	ts1	lg1
-NULL	UNDO LOG	NULL	lg1
-datafile.dat	DATAFILE	ts1	lg1
-datafile02.dat	DATAFILE	ts1	lg1
-undofile.dat	UNDO LOG	NULL	lg1
-undofile02.dat	UNDO LOG	NULL	lg1
+./datafile.dat	DATAFILE	ts1	lg1
+./datafile02.dat	DATAFILE	ts1	lg1
+./undofile.dat	UNDO LOG	lg1	lg1
+./undofile02.dat	UNDO LOG	lg1	lg1
 **** Do First Set of ALTERs in the master table ****
 CREATE INDEX t1_i ON t1(c2, c3);
 CREATE UNIQUE INDEX t1_i2 ON t1(c2);
@@ -64,13 +62,13 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Show first set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -78,13 +76,13 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Second set of alters test 1 ****
 ALTER TABLE t1 RENAME t2;
 ALTER TABLE t2 DROP INDEX c5;
@@ -99,12 +97,12 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Show second set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -112,17 +110,17 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Third and last set of alters for test1  ****
 ALTER TABLE t1 CHANGE c1 c1 DOUBLE;
 ALTER TABLE t1 CHANGE c2 c2 DECIMAL(10,2);
 ALTER TABLE t1 DROP COLUMN c3;
-ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8mb4;
 ALTER TABLE t1 CHANGE c4 c4 BLOB;
 ALTER TABLE t1 CHANGE c4 c3 BLOB;
 set @b1 = 'b1';
@@ -140,14 +138,14 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
-3	6.00	<c4_timestamp_value>	NULL
-4	8.00	<c4_timestamp_value>	NULL
-5	10.00	<c4_timestamp_value>	NULL
+3	6.00	NULL	NULL
+4	8.00	NULL	NULL
+5	10.00	NULL	NULL
 **** Show last set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -159,14 +157,14 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
-3	6.00	<c4_timestamp_value>	NULL
-4	8.00	<c4_timestamp_value>	NULL
-5	10.00	<c4_timestamp_value>	NULL
+3	6.00	NULL	NULL
+4	8.00	NULL	NULL
+5	10.00	NULL	NULL
 SELECT * FROM t1 where c1 = 1;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
@@ -260,6 +258,9 @@ COUNT(*)
 200
 ************ Restore the slave ************************
 CREATE DATABASE tpcb;
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_check_interval = 5;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 ***** Check a few slave restore values ***************
 USE tpcb;
 SELECT COUNT(*) FROM account;
@@ -269,8 +270,13 @@ COUNT(*)
 ***** Finsh the slave sync process *******
 @the_epoch:=MAX(epoch)
 <the_epoch>
+Warnings:
+<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
 <the_pos>	master-bin.000001
+Warnings:
+<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;

@@ -26,23 +26,21 @@
 #include "sql/ndb_dd.h"
 
 // Using
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/types/object_table_definition_impl.h"  // fs_name_case()
+#include "sql/dd/properties.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/partition_index.h"
+#include "sql/dd/types/table.h"
 #include "sql/ndb_dd_client.h"
-#include "sql/ndb_dd_table.h"
 #include "sql/ndb_dd_sdi.h"
+#include "sql/ndb_dd_table.h"
 #include "sql/ndb_name_util.h"
-
 #include "sql/sql_class.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
-
-#include "sql/dd/dd.h"
-#include "sql/dd/properties.h"
-#include "sql/dd/types/table.h"
-
-#include "sql/dd/types/index.h"
-#include "sql/dd/types/partition.h"
-#include "sql/dd/types/partition_index.h"
 
 bool ndb_sdi_serialize(THD *thd,
                        const dd::Table *table_def,
@@ -266,4 +264,13 @@ bool ndb_dd_has_local_tables_in_schema(THD *thd, const char* schema_name,
   }
 
   DBUG_RETURN(true);
+}
+
+
+const std::string ndb_dd_fs_name_case(const dd::String_type &name)
+{
+  char name_buf[NAME_LEN + 1];
+  const std::string lc_name = dd::Object_table_definition_impl::fs_name_case(
+    name, name_buf);
+  return lc_name;
 }

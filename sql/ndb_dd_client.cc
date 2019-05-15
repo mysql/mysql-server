@@ -35,6 +35,7 @@
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/schema.h"
 #include "sql/mdl.h"            // MDL_*
+#include "sql/ndb_dd.h"         // ndb_dd_fs_name_case
 #include "sql/ndb_dd_disk_data.h"
 #include "sql/ndb_dd_schema.h"
 #include "sql/ndb_dd_sdi.h"
@@ -173,7 +174,9 @@ Ndb_dd_client::mdl_lock_schema(const char* schema_name, bool exclusive_lock)
 }
 
 bool
-Ndb_dd_client::mdl_lock_logfile_group_exclusive(const char* logfile_group_name)
+Ndb_dd_client::mdl_lock_logfile_group_exclusive(const char* logfile_group_name,
+                                                bool custom_lock_wait,
+                                                ulong lock_wait_timeout)
 {
   MDL_request_list mdl_requests;
   MDL_request logfile_group_request;
@@ -199,8 +202,12 @@ Ndb_dd_client::mdl_lock_logfile_group_exclusive(const char* logfile_group_name)
   mdl_requests.push_front(&backup_lock_request);
   mdl_requests.push_front(&grl_request);
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
-                                       m_thd->variables.lock_wait_timeout))
+  if (!custom_lock_wait)
+  {
+    lock_wait_timeout = m_thd->variables.lock_wait_timeout;
+  }
+
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
   {
     return false;
   }
@@ -243,7 +250,9 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name,
 
 
 bool
-Ndb_dd_client::mdl_lock_tablespace_exclusive(const char* tablespace_name)
+Ndb_dd_client::mdl_lock_tablespace_exclusive(const char* tablespace_name,
+                                             bool custom_lock_wait,
+                                             ulong lock_wait_timeout)
 {
   MDL_request_list mdl_requests;
   MDL_request tablespace_request;
@@ -269,8 +278,12 @@ Ndb_dd_client::mdl_lock_tablespace_exclusive(const char* tablespace_name)
   mdl_requests.push_front(&backup_lock_request);
   mdl_requests.push_front(&grl_request);
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
-                                       m_thd->variables.lock_wait_timeout))
+  if (!custom_lock_wait)
+  {
+    lock_wait_timeout = m_thd->variables.lock_wait_timeout;
+  }
+
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
   {
     return false;
   }
@@ -314,7 +327,9 @@ Ndb_dd_client::mdl_lock_tablespace(const char* tablespace_name,
 
 bool
 Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
-                                     const char* table_name)
+                                           const char* table_name, 
+                                           bool custom_lock_wait,
+                                           ulong lock_wait_timeout)
 {
   MDL_request_list mdl_requests;
   MDL_request schema_request;
@@ -342,8 +357,12 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
   mdl_requests.push_front(&backup_lock_request);
   mdl_requests.push_front(&grl_request);
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
-                                       m_thd->variables.lock_wait_timeout))
+  if (!custom_lock_wait)
+  {
+    lock_wait_timeout = m_thd->variables.lock_wait_timeout;
+  }
+
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
   {
     return false;
   }
@@ -826,6 +845,30 @@ Ndb_dd_client::get_table(const char *schema_name, const char *table_name,
 
 
 bool
+Ndb_dd_client::table_exists(const char *schema_name, const char *table_name,
+                            bool &exists)
+{
+  const dd::Table *table;
+  if (m_client->acquire(schema_name, table_name, &table))
+  {
+    // Failed to acquire the requested table
+    return false;
+  }
+
+  if (table == nullptr)
+  {
+    // The table doesn't exist
+    exists = false;
+    return true;
+  }
+
+  // The table exists
+  exists = true;
+  return true;
+}
+
+
+bool
 Ndb_dd_client::set_tablespace_id_in_table(const char *schema_name,
                                           const char *table_name,
                                           dd::Object_id tablespace_id)
@@ -930,7 +973,60 @@ Ndb_dd_client::get_ndb_table_names_in_schema(const char* schema_name,
       DBUG_RETURN(false);
     }
 
-    names->insert(table->name().c_str());
+    // Convert the table name to lower case on platforms that have
+    // lower_case_table_names set to 2
+    const std::string table_name = ndb_dd_fs_name_case(table->name());
+    names->insert(table_name);
+  }
+  DBUG_RETURN(true);
+}
+
+
+bool
+Ndb_dd_client::get_table_names_in_schema(
+    const char* schema_name, std::unordered_set<std::string> *ndb_tables,
+    std::unordered_set<std::string> *local_tables)
+{
+  DBUG_ENTER("Ndb_dd_client::get_table_names_in_schema");
+
+  const dd::Schema *schema;
+  if (m_client->acquire(schema_name, &schema))
+  {
+    // Failed to open the requested Schema object
+    DBUG_RETURN(false);
+  }
+
+  if (schema == nullptr)
+  {
+    // Database does not exist
+    DBUG_RETURN(false);
+  }
+
+  std::vector<const dd::Table*> tables;
+  if (m_client->fetch_schema_components(schema, &tables))
+  {
+    DBUG_RETURN(false);
+  }
+
+  for (const dd::Table *table: tables)
+  {
+    // Lock the table in DD
+    if (!mdl_lock_table(schema_name, table->name().c_str()))
+    {
+      // Failed to acquire MDL
+      DBUG_RETURN(false);
+    }
+    // Convert the table name to lower case on platforms that have
+    // lower_case_table_names set to 2
+    const std::string table_name = ndb_dd_fs_name_case(table->name());
+    if (table->engine() == "ndbcluster")
+    {
+      ndb_tables->insert(table_name);
+    }
+    else
+    {
+      local_tables->insert(table_name);
+    }
   }
   DBUG_RETURN(true);
 }

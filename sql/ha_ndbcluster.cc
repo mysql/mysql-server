@@ -65,6 +65,7 @@
 #include "sql/ndb_local_schema.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_metadata_change_monitor.h"
+#include "sql/ndb_metadata_sync.h"
 #include "sql/ndb_mi.h"
 #include "sql/ndb_modifiers.h"
 #include "sql/ndb_name_util.h"
@@ -18846,6 +18847,14 @@ int ndbcluster_alter_tablespace(handlerton*,
   switch (alter_info->ts_cmd_type) {
   case CREATE_TABLESPACE:
   {
+    if (DBUG_EVALUATE_IF("ndb_skip_create_tablespace_in_NDB", true, false))
+    {
+      // Force mismatch by skipping creation of the tablespace in NDB
+      ndb_dd_disk_data_set_object_id_and_version(new_ts_def, 0, 0);
+      ndb_dd_disk_data_set_object_type(new_ts_def, object_type::TABLESPACE);
+      DBUG_RETURN(0);
+    }
+
     if (alter_info->extent_size >= (Uint64(1) << 32))
     {
       thd_ndb->push_warning("Value specified for EXTENT_SIZE was too large");
@@ -19057,6 +19066,13 @@ int ndbcluster_alter_tablespace(handlerton*,
     // Objects created in NDB and DD. Time to commit NDB schema transaction
     if (!schema_trans.commit_trans())
     {
+      if (DBUG_EVALUATE_IF("ndb_dd_client_lfg_force_commit", true, false))
+      {
+        // Force commit of logfile group creation in DD when creation in NDB
+        // has failed leading to a mismatch
+        dd_client.commit();
+        DBUG_RETURN(0);
+      }
       my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
       DBUG_RETURN(1);
     }
@@ -19601,6 +19617,10 @@ static SHOW_VAR ndb_status_vars[] =
   {"Ndb",          (char*) &show_ndb_status_server_api,     SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
   {"Ndb_index_stat", (char*) &show_ndb_status_index_stat, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Ndb",            (char*) &show_ndb_metadata_check, SHOW_FUNC,
+   SHOW_SCOPE_GLOBAL},
+  {"Ndb",            (char*) &show_ndb_metadata_synced, SHOW_FUNC,
+   SHOW_SCOPE_GLOBAL},
+  {"Ndb",            (char*) &show_ndb_metadata_blacklist_size, SHOW_FUNC,
    SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
