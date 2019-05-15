@@ -2235,7 +2235,7 @@ static uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
   JOIN_CACHE_BKA *cache = (JOIN_CACHE_BKA *)rseq;
   TABLE_REF *ref = &cache->qep_tab->ref();
   key_range *start_key = &range->start_key;
-  if ((start_key->length = cache->get_next_key((uchar **)&start_key->key))) {
+  if (!cache->get_next_key(start_key)) {
     start_key->keypart_map = (1 << ref->key_parts) - 1;
     start_key->flag = HA_READ_KEY_EXACT;
     range->end_key = *start_key;
@@ -2461,7 +2461,7 @@ void JOIN_CACHE::read_all_flag_fields_by_pos(uchar *rec_ptr) {
 
   SYNOPSIS
     get_next_key()
-      key    pointer to the buffer where the key value is to be placed
+      key    where the key value is to be placed
 
   DESCRIPTION
     The function reads key fields from the current record in the join buffer.
@@ -2482,18 +2482,18 @@ void JOIN_CACHE::read_all_flag_fields_by_pos(uchar *rec_ptr) {
     of the record fields for last record from the join buffer.
 
   RETURN
-    length of the key value - if the starting value of 'pos' points to
+    false - if the starting value of 'pos' points to
     the position before the fields for the last record,
-    0 - otherwise.
+    true - otherwise.
 */
 
-uint JOIN_CACHE_BKA::get_next_key(uchar **key) {
+bool JOIN_CACHE_BKA::get_next_key(key_range *key) {
   uint len;
   uint32 rec_len;
   uchar *init_pos;
   JOIN_CACHE *cache;
 
-  if (records == 0) return 0;
+  if (records == 0) return true;
 
   /* Any record in a BKA cache is prepended with its length, which we need */
   DBUG_ASSERT(with_length);
@@ -2527,7 +2527,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar **key) {
 
     if (use_emb_key) {
       /* An embedded key is taken directly from the join buffer */
-      *key = pos;
+      key->key = pos;
       len = emb_key_length;
       DBUG_ASSERT(len != 0);
     } else {
@@ -2574,13 +2574,14 @@ uint JOIN_CACHE_BKA::get_next_key(uchar **key) {
       } else {
         /* Build the key over the fields read into the record buffers */
         cp_buffer_from_ref(join->thd, qep_tab->table(), ref);
-        *key = ref->key_buff;
+        key->key = ref->key_buff;
         len = ref->key_length;
         DBUG_ASSERT(len != 0);
       }
     }
   }
-  return len;
+  key->length = len;
+  return len == 0;
 }
 
 /*
@@ -2970,7 +2971,7 @@ static uint bka_unique_range_seq_next(range_seq_t rseq,
   JOIN_CACHE_BKA_UNIQUE *cache = (JOIN_CACHE_BKA_UNIQUE *)rseq;
   TABLE_REF *ref = &cache->qep_tab->ref();
   key_range *start_key = &range->start_key;
-  if ((start_key->length = cache->get_next_key((uchar **)&start_key->key))) {
+  if (!cache->get_next_key(start_key)) {
     start_key->keypart_map = (1 << ref->key_parts) - 1;
     start_key->flag = HA_READ_KEY_EXACT;
     range->end_key = *start_key;
@@ -3235,7 +3236,7 @@ bool JOIN_CACHE_BKA_UNIQUE::check_all_match_flags_for_key(
 
   SYNOPSIS
     get_next_key()
-      key    pointer to the buffer where the key value is to be placed
+      key    where the key value is to be placed
 
   DESCRIPTION
     The function reads the next key value stored in the hash table of the
@@ -3244,21 +3245,22 @@ bool JOIN_CACHE_BKA_UNIQUE::check_all_match_flags_for_key(
     the record field where it occurs.
 
   RETURN
-    length of the key value - if the starting value of 'cur_key_entry' refers
+    false - if the starting value of 'cur_key_entry' refers
     to the position after that referred by the value of 'last_key_entry'
-    0 - otherwise.
+    true - otherwise.
 */
 
-uint JOIN_CACHE_BKA_UNIQUE::get_next_key(uchar **key) {
-  if (curr_key_entry == last_key_entry) return 0;
+bool JOIN_CACHE_BKA_UNIQUE::get_next_key(key_range *key) {
+  if (curr_key_entry == last_key_entry) return true;
 
   curr_key_entry -= key_entry_length;
 
-  *key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
+  key->key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
+  key->length = key_length;
 
-  DBUG_ASSERT(*key >= buff && *key < hash_table);
+  DBUG_ASSERT(key->key >= buff && key->key < hash_table);
 
-  return key_length;
+  return key_length == 0;
 }
 
 /**

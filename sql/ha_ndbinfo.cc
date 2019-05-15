@@ -72,7 +72,7 @@ static MYSQL_THDVAR_BOOL(
   false                              /* default */
 );
 
-static char* opt_ndbinfo_dbname = (char*)"ndbinfo";
+static char* opt_ndbinfo_dbname = const_cast<char *>("ndbinfo");
 static MYSQL_SYSVAR_STR(
   database,                         /* name */
   opt_ndbinfo_dbname,               /* var */
@@ -83,7 +83,7 @@ static MYSQL_SYSVAR_STR(
   NULL                              /* default */
 );
 
-static char* opt_ndbinfo_table_prefix = (char*)"ndb$";
+static char* opt_ndbinfo_table_prefix = const_cast<char*>("ndb$");
 static MYSQL_SYSVAR_STR(
   table_prefix,                     /* name */
   opt_ndbinfo_table_prefix,         /* var */

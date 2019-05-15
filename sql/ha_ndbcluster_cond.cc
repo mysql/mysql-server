@@ -768,7 +768,7 @@ operand_count(const Item *item)
     }
     case Item::COND_ITEM:
     {
-      Item_cond *cond_item= (Item_cond*)(item);
+      Item_cond *cond_item= const_cast<Item_cond*>(static_cast<const Item_cond*>(item));
       List<Item> *arguments = cond_item->argument_list();
       // A COND_ITEM (And/or) is visited both infix and postfix, so need '+1'
       return arguments->elements + 1;
@@ -1106,7 +1106,7 @@ ndb_serialize_cond(const Item *item, void *arg)
         switch (item->type()) {
         case Item::FIELD_ITEM:
         {
-          Item_field *field_item= (Item_field *) item;
+          const Item_field *field_item= down_cast<const Item_field *>(item);
           Field *field= field_item->field;
           const enum_field_types type= field->real_type();
 
@@ -2547,7 +2547,7 @@ ha_ndbcluster_cond::set_condition(const Item *cond)
 bool
 ha_ndbcluster_cond::eval_condition() const
 {
-  return ((Item*)m_unpushed_cond)->val_int()==1;
+  return const_cast<Item*>(m_unpushed_cond)->val_int()==1;
 }
 
 
@@ -2563,7 +2563,7 @@ ha_ndbcluster_cond::add_read_set(TABLE *table, const Item *cond)
   if (cond != nullptr)
   {
     Mark_field mf(table, MARK_COLUMNS_READ);
-    ((Item*)cond)->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
+    const_cast<Item *>(cond)->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
                             (uchar *)&mf);
   }
 }

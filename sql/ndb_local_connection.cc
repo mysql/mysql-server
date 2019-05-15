@@ -274,7 +274,7 @@ Ndb_local_connection::raw_run_query(const char* query, size_t query_length,
 {
   DBUG_ENTER("Ndb_local_connection::raw_run_query");
 
-  LEX_STRING sql_text = { (char*)query, query_length };
+  LEX_STRING sql_text = { const_cast<char*>(query), query_length };
 
   DBUG_RETURN(execute_query_iso(sql_text,
                                 (const uint*)suppress_errors,

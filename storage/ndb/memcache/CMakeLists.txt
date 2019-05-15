@@ -74,6 +74,7 @@ FOREACH(warning
     "strict-aliasing"
     "missing-field-initializers"
     "unused-parameter"
+    "cast-qual"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

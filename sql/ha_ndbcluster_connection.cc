@@ -242,7 +242,7 @@ get_processinfo_path()
     if ((env = getenv("MYSQL_UNIX_PORT")))
       uri_path= env;      /* purecov: inspected */
     else
-      uri_path= (char*) URI_PATH_SOCKET;
+      uri_path= URI_PATH_SOCKET;
   }
   return uri_path;
 }

@@ -541,7 +541,7 @@ void ndb_index_stat_option_update(THD *, SYS_VAR*,
                                   void *var_ptr, const void *save)
 {
   DBUG_ENTER("ndb_index_stat_option_update");
-  const char *str= *(const char**)save;
+  const char *str= *static_cast<const char* const*>(save);
   DBUG_PRINT("index_stat", ("str: %s", str));
   Ndb_index_stat_opt& opt= ndb_index_stat_opt;
   int ret= ndb_index_stat_str2opt(str, opt);

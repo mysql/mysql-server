@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2529,7 +2529,7 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
       case CFAT_EXTRA_GCI_BITS:
       {
         /* Map string to number and check it's in range etc */
-        char* end_of_arg = (char*) end_arg;
+        char* end_of_arg = const_cast<char*>(end_arg);
         Uint32 bits = strtoul(start_arg, &end_of_arg, 0);
         DBUG_PRINT("info", ("Using %u as the number of extra bits", bits));
 
@@ -2631,7 +2631,7 @@ slave_set_resolve_fn(Ndb* ndb,
 
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   NDB_CONFLICT_FN_SHARE *cfn_share= *ppcfn_share;
-  const char *ex_suffix= (char *)NDB_EXCEPTIONS_TABLE_SUFFIX;
+  const char *ex_suffix= NDB_EXCEPTIONS_TABLE_SUFFIX;
   if (cfn_share == NULL)
   {
     *ppcfn_share= cfn_share=

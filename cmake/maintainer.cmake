@@ -51,7 +51,7 @@ ENDIF()
 SET(MY_C_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wwrite-strings")
 
 # Common warning flags for G++ and Clang++
-SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual")
+SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wcast-qual")
 
 # The default =3 given by -Wextra is a bit too strict for our code.
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -75,7 +75,6 @@ IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
   MY_ADD_CXX_WARNING_FLAG("Wno-documentation-pedantic")
   MY_ADD_CXX_WARNING_FLAG("Wno-documentation-unknown-command")
   MY_ADD_CXX_WARNING_FLAG("Wno-missing-variable-declarations")
-  MY_ADD_CXX_WARNING_FLAG("Wno-cast-qual")
   MY_ADD_CXX_WARNING_FLAG("Wno-language-extension-token")
   MY_ADD_CXX_WARNING_FLAG("Wno-shorten-64-to-32")
   MY_ADD_CXX_WARNING_FLAG("Wno-shadow")
@@ -156,7 +155,6 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wc++2a-compat
   # -Wc++98-compat-pedantic
   # -Wcast-align
-  # -Wcast-qual
   # -Wclass-varargs
   # -Wcomma
   # -Wconversion

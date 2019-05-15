@@ -2015,7 +2015,7 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
       // Looks like NULL ptr signals length 0 blob
       if (blob_ptr == NULL) {
         DBUG_ASSERT(blob_len == 0);
-        blob_ptr= (uchar*)"";
+        blob_ptr= pointer_cast<const uchar*>("");
       }
 
       DBUG_PRINT("value", ("set blob ptr: 0x%lx  len: %u",
@@ -2034,7 +2034,7 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
         memcpy(tmp_buf, blob_ptr, blob_len);
         blob_ptr= tmp_buf;
       }
-      res= ndb_blob->setValue((char*)blob_ptr, blob_len);
+      res= ndb_blob->setValue(pointer_cast<const char*>(blob_ptr), blob_len);
       if (res != 0)
         ERR_RETURN(ndb_op->getNdbError());
     }
@@ -3172,7 +3172,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id)
     int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
     {
-      DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+      DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
       DBUG_RETURN(0);
     }
     else if (result == NdbQuery::NextResult_scanComplete)
@@ -3206,7 +3206,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id)
     {
       DBUG_RETURN(HA_ERR_KEY_NOT_FOUND); // False condition
     }
-    DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+    DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
     DBUG_RETURN(0);
   }
 }
@@ -3327,7 +3327,7 @@ bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
       {
         if (errcode == HA_ERR_KEY_NOT_FOUND)
         {
-          NdbIndexOperation *iop= (NdbIndexOperation *) op;
+          const NdbIndexOperation *iop= down_cast<const NdbIndexOperation *>(op);
           const NDBINDEX *index= iop->getIndex();
           // Find the key_no of the index
           for(uint i= 0; i<table->s->keys; i++)
@@ -3538,7 +3538,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key, uchar *buf)
     int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
     {
-      DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+      DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
       DBUG_RETURN(0);
     }
     else if (result == NdbQuery::NextResult_scanComplete)
@@ -3572,7 +3572,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key, uchar *buf)
     {
       DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
     }
-    DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+    DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
     DBUG_RETURN(0);
   }
 }
@@ -3798,7 +3798,7 @@ int ha_ndbcluster::index_next_pushed(uchar *buf)
   int res = fetch_next_pushed();
   if (res == NdbQuery::NextResult_gotRow)
   {
-    DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+    DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
     DBUG_RETURN(0);
   }
   else if (res == NdbQuery::NextResult_scanComplete)
@@ -3833,7 +3833,7 @@ inline int ha_ndbcluster::next_result(uchar *buf)
       const int ignore = unpack_record(buf, m_next_row);
       if (likely(!ignore))
       {
-        DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+        DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
         DBUG_RETURN(0); //Found a row
       }
     }
@@ -3851,7 +3851,7 @@ inline int ha_ndbcluster::next_result(uchar *buf)
     res= fetch_next_pushed();
     if (res == NdbQuery::NextResult_gotRow)
     {
-      DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+      DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
       DBUG_RETURN(0);  //Found a row
     }
     else if (res == NdbQuery::NextResult_scanComplete)
@@ -4055,7 +4055,7 @@ is_shrinked_varchar(const Field *field)
 {
   if (field->real_type() ==  MYSQL_TYPE_VARCHAR)
   {
-    if (((Field_varstring*)field)->length_bytes == 1)
+    if (down_cast<const Field_varstring*>(field)->length_bytes == 1)
       return true;
   }
 
@@ -7080,7 +7080,7 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
   {
     return HA_ERR_KEY_NOT_FOUND;  // False condition
   }
-  DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+  DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
   return 0;
 }
 
@@ -8788,9 +8788,9 @@ ndbcluster_print_error(int error, const NdbOperation *error_op)
     DBUG_ASSERT(tab_name != NULL);
     tab_name= "";
   }
-  share.db.str= (char*) "";
+  share.db.str= "";
   share.db.length= 0;
-  share.table_name.str= (char *) tab_name;
+  share.table_name.str= tab_name;
   share.table_name.length= strlen(tab_name);
   ha_ndbcluster error_handler(ndbcluster_hton, &share);
   error_handler.print_error(error, MYF(0));
@@ -8976,7 +8976,7 @@ int ndbcluster_commit(handlerton*, THD *thd, bool all)
     for (const auto &key_and_value : thd_ndb->open_tables)
     {
       THD_NDB_SHARE *thd_share= key_and_value.second;
-      modify_shared_stats((NDB_SHARE*)thd_share->key, &thd_share->stat);
+      modify_shared_stats(const_cast<NDB_SHARE*>(static_cast<const NDB_SHARE*>(thd_share->key)), &thd_share->stat);
     }
   }
 
@@ -13937,7 +13937,7 @@ static MYSQL_SYSVAR_UINT(
 );
 
 /* Version in ndb-Y.Y.Y[-status] format */
-static char* ndb_version_string = (char*)NDB_NDB_VERSION_STRING;
+static char* ndb_version_string = const_cast<char*>(NDB_NDB_VERSION_STRING);
 static MYSQL_SYSVAR_STR(
   version_string,                  /* name */
   ndb_version_string,              /* var */
@@ -15651,7 +15651,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
          * Save it in 'row_buf' from where it will later retrieved.
          */
         key_restore(multi_range_row(row_buf),
-                    (uchar*)mrr_cur_range.start_key.key,
+                    pointer_cast<const uchar*>(mrr_cur_range.start_key.key),
                     key_info, key_info->key_length);
 
         op= NULL;  // read_before_write_removal
@@ -15869,7 +15869,7 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
           {
             update_generated_read_fields(table->record[0], table);
           }
-          DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+          DBUG_ASSERT(pushed_cond == nullptr || const_cast<Item*>(pushed_cond)->val_int());
           DBUG_RETURN(0);
 
         case enum_ordered_range:
@@ -15934,7 +15934,7 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
               */
               m_active_cursor= m_multi_cursor;
 
-              DBUG_ASSERT(pushed_cond==nullptr || ((Item*)pushed_cond)->val_int());
+              DBUG_ASSERT(pushed_cond==nullptr || const_cast<Item*>(pushed_cond)->val_int());
               DBUG_RETURN(0);
             }
 
@@ -16378,7 +16378,7 @@ ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok)
   }
 
   Item *pushed;
-  const Item* rem = m_cond.cond_push(cond, table, (NDBTAB *)m_table, other_tbls_ok, pushed);
+  const Item* rem = m_cond.cond_push(cond, table, down_cast<const NDBTAB *>(m_table), other_tbls_ok, pushed);
   pushed_cond = pushed;
   DBUG_RETURN(rem);
 }
@@ -20303,7 +20303,7 @@ static int slave_conflict_role_check_func(THD *thd, SYS_VAR*,
 static void slave_conflict_role_update_func(THD*, SYS_VAR*,
                                             void *tgt, const void *save)
 {
-  *(long *)tgt= *(long *) save;
+  *(long *)tgt= *static_cast<const long *>(save);
 }
 
 static MYSQL_SYSVAR_ENUM(

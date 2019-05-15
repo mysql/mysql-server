@@ -34,8 +34,8 @@ ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
 
 # Set extra flags for the C/CXX compiler
 IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -fno-strict-aliasing")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
+  STRING_APPEND(CMAKE_C_FLAGS " -std=gnu99 -fno-strict-aliasing")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter -Wno-cast-qual")
 ENDIF()
 
 SET(MCD__UTILITITY_SOURCES

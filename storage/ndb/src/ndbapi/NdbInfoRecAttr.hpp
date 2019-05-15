@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ public:
   Uint32 u_32_value() const {
     assert(m_requested);
     assert(m_len == sizeof(Uint32));
-    return *((Uint32 *) m_data);
+    return *((const Uint32 *) m_data);
   }
 
   Uint64 u_64_value() const {

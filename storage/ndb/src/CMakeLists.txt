@@ -28,6 +28,7 @@ FOREACH(warning
     "unused-but-set-variable"
     "strict-aliasing"
     "unused-parameter"
+    "cast-qual"
     # Downgrade -Werror to warning for "may be used uninitialized"
     "error=maybe-uninitialized"
     # Downgrade placement-new as part of Bug #24822203

@@ -282,24 +282,26 @@ static inline bool check_audit_mask(const unsigned long *lhs,
 }
 
 /**
-  Fill query and query charset info extracted from the thread object.
+  Fill query info extracted from the thread object and return
+  the thread object charset info.
 
   @param[in]  thd     Thread data.
   @param[out] query   SQL query text.
-  @param[out] charset SQL query charset.
+
+  @return SQL query charset.
 */
-inline void thd_get_audit_query(THD *thd, MYSQL_LEX_CSTRING *query,
-                                const CHARSET_INFO **charset) {
+inline const CHARSET_INFO *thd_get_audit_query(THD *thd,
+                                               MYSQL_LEX_CSTRING *query) {
   if (!thd->rewritten_query.length()) mysql_rewrite_query(thd);
 
   if (thd->rewritten_query.length()) {
     query->str = thd->rewritten_query.ptr();
     query->length = thd->rewritten_query.length();
-    *charset = thd->rewritten_query.charset();
+    return thd->rewritten_query.charset();
   } else {
     query->str = thd->query().str;
     query->length = thd->query().length;
-    *charset = thd->charset();
+    return thd->charset();
   }
 }
 
@@ -376,8 +378,8 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
   event.general_sql_command = sql_statement_names[thd->lex->sql_command];
 
-  thd_get_audit_query(thd, &event.general_query,
-                      (const CHARSET_INFO **)&event.general_charset);
+  event.general_charset = const_cast<CHARSET_INFO *>(
+      thd_get_audit_query(thd, &event.general_query));
 
   event.general_time = thd->query_start_in_secs();
 
@@ -539,7 +541,7 @@ static int mysql_audit_notify(THD *thd,
   event.connection_id = thd->thread_id();
   event.sql_command_id = thd->lex->sql_command;
 
-  thd_get_audit_query(thd, &event.query, &event.query_charset);
+  event.query_charset = thd_get_audit_query(thd, &event.query);
 
   lex_cstring_set(&str, table->db);
   event.table_database.str = str.str;
@@ -735,7 +737,7 @@ int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
   event.connection_id= thd->thread_id();
   event.sql_command_id= thd->lex->sql_command;
 
-  thd_get_audit_query(thd, &event.query, &event.query_charset);
+  event.query_charset = thd_get_audit_query(thd, &event.query);
 
   LEX_CSTRING obj_str;
 
@@ -870,7 +872,7 @@ int mysql_audit_notify(THD *thd, mysql_event_query_subclass_t subclass,
 
   event.sql_command_id = thd->lex->sql_command;
 
-  thd_get_audit_query(thd, &event.query, &event.query_charset);
+  event.query_charset = thd_get_audit_query(thd, &event.query);
 
   return event_class_dispatch_error(thd, MYSQL_AUDIT_QUERY_CLASS, subclass_name,
                                     &event);
@@ -889,7 +891,7 @@ int mysql_audit_notify(THD *thd, mysql_event_stored_program_subclass_t subclass,
   event.connection_id = thd->thread_id();
   event.sql_command_id = thd->lex->sql_command;
 
-  thd_get_audit_query(thd, &event.query, &event.query_charset);
+  event.query_charset = thd_get_audit_query(thd, &event.query);
 
   LEX_CSTRING obj_str;
 
@@ -923,7 +925,7 @@ int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
   event.connection_id = thd->thread_id();
   event.sql_command_id = thd->lex->sql_command;
 
-  thd_get_audit_query(thd, &event.query, &event.query_charset);
+  event.query_charset = thd_get_audit_query(thd, &event.query);
 
   LEX_CSTRING obj_str;
 

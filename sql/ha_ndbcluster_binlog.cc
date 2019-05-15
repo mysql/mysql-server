@@ -4990,7 +4990,7 @@ class Ndb_schema_event_handler {
     assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     const int no_print_error[1]= {0};
-    char *cmd= (char *) "flush privileges";
+    char *cmd= const_cast<char *>("flush privileges");
     run_query(m_thd, cmd,
               cmd + strlen(cmd),
               no_print_error);
@@ -7116,7 +7116,7 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
                           j, (long) &event_data->ndb_value[0][j],
                           j, (long) attr1.ptr));
     }
-    op->setCustomData((void *) event_data); // set before execute
+    op->setCustomData(const_cast<Ndb_event_data *>(event_data)); // set before execute
     share->op= op; // assign op in NDB_SHARE
 
     /* Check if user explicitly requires monitoring of empty updates */

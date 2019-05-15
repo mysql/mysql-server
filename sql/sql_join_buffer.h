@@ -668,8 +668,9 @@ class JOIN_CACHE_BKA : public JOIN_CACHE {
     return space - aux_buff_size;
   }
 
-  /// @return the key built over the next record from the join buffer
-  virtual uint get_next_key(uchar **key);
+  /// @return false if a key was built successfully over the next record
+  /// from the join buffer, true otherwise.
+  virtual bool get_next_key(key_range *key);
 
   /// @return whether the record combination does not match the index condition
   bool skip_index_tuple(range_seq_t rseq, char *range_info);
@@ -951,7 +952,7 @@ class JOIN_CACHE_BKA_UNIQUE final : public JOIN_CACHE_BKA {
   */
   bool check_all_match_flags_for_key(uchar *key_chain_ptr);
 
-  uint get_next_key(uchar **key) override;
+  bool get_next_key(key_range *key) override;
 
   /// @return the head of the record chain attached to the current key entry
   uchar *get_curr_key_chain() {
