@@ -1,0 +1,52 @@
+# Scenario:
+# con1 acquires a shared lock
+# con2 wants an exclusive lock and has to wait
+# con3 wants a shared lock, and would have to wait for con2,
+#      but con3 is a HP trx and does not want to wait, so it
+#      jumps the queue, and gets the lock, and commits
+# con1 also commits
+# con2 should now acquire the lock and can commit
+
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+--connect(con3,localhost,root,,test)
+
+--connection con1
+    --echo # On connection 1
+    BEGIN;
+    SELECT * FROM t1 WHERE c1=0 FOR SHARE;
+
+--connection con2
+    --echo # On connection 2
+    BEGIN;
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+    --send SELECT * FROM t1 WHERE c1=0 FOR UPDATE
+
+--connection con3
+    --echo # On connection 3
+    SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+    --source include/start_transaction_high_prio.inc
+    SELECT * FROM t1 WHERE c1=0 FOR SHARE;
+    COMMIT;
+
+--connection con1
+    --echo # On connection 1
+    COMMIT;
+
+--connection con2
+    --echo # On connection 2
+    --reap
+    COMMIT;
+
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+
+DROP TABLE t1;
+

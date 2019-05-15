@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -773,11 +773,6 @@ class RecLock {
   void prepare() const;
 
   /**
-  Collect the transactions that will need to be rolled back asynchronously
-  @param[in, out] trx	Transaction to be rolled back */
-  void mark_trx_for_rollback(trx_t *trx);
-
-  /**
   Jump the queue for the record over all low priority transactions and
   add the lock. If all current granted locks are compatible, grant the
   lock. Otherwise, mark all granted transaction for asynchronous
@@ -802,24 +797,8 @@ class RecLock {
   check with all granted transactions.
   @param[in]      lock            Lock being requested
   @param[in]      conflict_lock   First conflicting lock from the head
-  @param[out]     high_priority   high priority transaction ahead in queue
   @return true if the lock can be granted */
-  bool lock_add_priority(lock_t *lock, const lock_t *conflict_lock,
-                         bool *high_priority);
-
-  /** Iterate over the granted locks and prepare the hit list for
-  ASYNC Rollback.
-
-  If the transaction is waiting for some other lock then wake up
-  with deadlock error.  Currently we don't mark following transactions
-  for ASYNC Rollback.
-
-  1. Read only transactions
-  2. Background transactions
-  3. Other High priority transactions
-  @param[in]      lock            Lock being requested
-  @param[in]      conflict_lock   First conflicting lock from the head */
-  void make_trx_hit_list(lock_t *lock, const lock_t *conflict_lock);
+  bool lock_add_priority(lock_t *lock, const lock_t *conflict_lock);
 
   /**
   Setup the requesting transaction state for lock grant
@@ -1162,12 +1141,12 @@ struct Lock_iter {
   /** Iterate over all the locks on a specific row
   @param[in]	rec_id		Iterate over locks on this row
   @param[in]	f		Function to call for each entry
+  @param[in]	hash_table	The hash table to iterate over
   @return lock where the callback returned false */
   template <typename F>
-  static const lock_t *for_each(const RecID &rec_id, F &&f) {
+  static const lock_t *for_each(const RecID &rec_id, F &&f,
+                                hash_table_t *hash_table = lock_sys->rec_hash) {
     ut_ad(lock_mutex_own());
-
-    auto hash_table = lock_sys->rec_hash;
 
     auto list = hash_get_nth_cell(hash_table,
                                   hash_calc_hash(rec_id.m_fold, hash_table));
@@ -1176,7 +1155,7 @@ struct Lock_iter {
          lock = advance(rec_id, lock)) {
       ut_ad(lock->is_record_lock());
 
-      if (!f(lock)) {
+      if (!std::forward<F>(f)(lock)) {
         return (lock);
       }
     }

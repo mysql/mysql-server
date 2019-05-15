@@ -1558,12 +1558,16 @@ dberr_t RecLock::deadlock_check(lock_t *lock) {
 
 /**
 Collect the transactions that will need to be rolled back asynchronously
-@param[in, out] trx	Transaction to be rolled back */
-void RecLock::mark_trx_for_rollback(trx_t *trx) {
+@param[in, out] hit_list    The list of transactions to be rolled back, to which
+                            the trx should be appended.
+@param[in]      hp_trx_id   The id of the blocked High Priority Transaction
+@param[in, out] trx	    The blocking transaction to be rolled back */
+static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
+                                       trx_t *trx) {
   trx->abort = true;
 
   ut_ad(!trx->read_only);
-  ut_ad(trx_mutex_own(m_trx));
+  ut_ad(trx_mutex_own(trx));
   ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
   ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
   ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
@@ -1581,7 +1585,7 @@ void RecLock::mark_trx_for_rollback(trx_t *trx) {
 
   ut_a(cas);
 
-  m_trx->hit_list.push_back(hit_list_t::value_type(trx));
+  hit_list.push_back(hit_list_t::value_type(trx));
 
 #ifdef UNIV_DEBUG
   THD *thd = trx->mysql_thd;
@@ -1590,7 +1594,7 @@ void RecLock::mark_trx_for_rollback(trx_t *trx) {
     char buffer[1024];
     ib::info(ER_IB_MSG_636)
         << "Blocking transaction: ID: " << trx->id << " - "
-        << " Blocked transaction ID: " << m_trx->id << " - "
+        << " Blocked transaction ID: " << hp_trx_id << " - "
         << thd_security_context(thd, buffer, sizeof(buffer), 512);
   }
 #endif /* UNIV_DEBUG */
@@ -1614,6 +1618,12 @@ void RecLock::set_wait_state(lock_t *lock) {
   bool stopped = que_thr_stop(m_thr);
   ut_a(stopped);
 }
+
+#ifdef UNIV_DEBUG
+UNIV_INLINE bool lock_current_thread_handles_trx(const trx_t *trx) {
+  return (!trx->mysql_thd || trx->mysql_thd == current_thd);
+}
+#endif
 
 /**
 Enqueue a lock wait for normal transaction. If it is a high priority transaction
@@ -2089,13 +2099,11 @@ bool RecLock::jump_queue(lock_t *lock, const lock_t *conflict_lock) {
   ut_ad(trx_is_high_priority(m_trx));
   ut_ad(m_rec_id.m_heap_no != UINT32_UNDEFINED);
 
-  bool high_priority = false;
-
   /* Find out the position to add the lock. If there are other high
   priority transactions in waiting state then we should add it after
   the last high priority transaction. Otherwise, we can add it after
   the last granted lock jumping over the wait queue. */
-  bool grant_lock = lock_add_priority(lock, conflict_lock, &high_priority);
+  bool grant_lock = lock_add_priority(lock, conflict_lock);
 
   if (grant_lock) {
     ut_ad(conflict_lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT);
@@ -2112,44 +2120,10 @@ bool RecLock::jump_queue(lock_t *lock, const lock_t *conflict_lock) {
     return (true);
   }
 
-  /* If another high priority transaction is found waiting
-  victim transactions are already marked for rollback. */
-  if (high_priority) {
-    return (false);
-  }
-
-  /* The lock is placed after the last granted lock in the queue.
-  Check and add low priority transactions to hit list for ASYNC
-  rollback. */
-
-  make_trx_hit_list(lock, conflict_lock);
-
   return (false);
 }
 
-/** Find position in lock queue and add the high priority transaction
-lock. Intention and GAP only locks can be granted even if there are
-waiting locks in front of the queue. To add the High priority
-transaction in a safe position we keep the following rule.
-
-1. If the lock can be granted, add it before the first waiting lock
-in the queue so that all currently waiting locks need to do conflict
-check before getting granted.
-
-2. If the lock has to wait, add it after the last granted lock or the
-last waiting high priority transaction in the queue whichever is later.
-This ensures that the transaction is granted only after doing conflict
-check with all granted transactions.
-@param[in]	lock		Lock being requested
-@param[in]	conflict_lock	First conflicting lock from the head
-@param[out]	high_priority	high priority transaction ahead in queue
-@return true if the lock can be granted */
-bool RecLock::lock_add_priority(lock_t *lock, const lock_t *conflict_lock,
-                                bool *high_priority) {
-  ut_ad(high_priority);
-
-  *high_priority = false;
-
+bool RecLock::lock_add_priority(lock_t *lock, const lock_t *conflict_lock) {
   /* If the first conflicting lock is waiting for the current row,
   then all other granted locks are compatible and the lock can be
   directly granted if no other high priority transactions are
@@ -2182,7 +2156,6 @@ bool RecLock::lock_add_priority(lock_t *lock, const lock_t *conflict_lock,
       }
 
       if (trx_is_high_priority(next->trx)) {
-        *high_priority = true;
         grant_lock = false;
         add_position = next;
       }
@@ -2213,82 +2186,89 @@ bool RecLock::lock_add_priority(lock_t *lock, const lock_t *conflict_lock,
   return (grant_lock);
 }
 
-/** Iterate over the granted locks and prepare the hit list for ASYNC Rollback.
-If the transaction is waiting for some other lock then wake up with deadlock
-error.
-Currently we don't mark following transactions for ASYNC Rollback.
-1. Read only transactions
-2. Background transactions
-3. Other High priority transactions
-@param[in]	lock		Lock being requested
-@param[in]	conflict_lock	First conflicting lock from the head */
-void RecLock::make_trx_hit_list(lock_t *lock, const lock_t *conflict_lock) {
-  const lock_t *next;
-
-  for (next = conflict_lock; next != NULL; next = next->hash) {
-    /* All locks ahead in the queue are checked. */
-    if (next == lock) {
-      ut_ad(next->is_waiting());
-      break;
-    }
-
-    trx_t *trx = next->trx;
-    /* Check only for conflicting, granted locks on the current
-    row. Currently, we don't rollback read only transactions,
-    transactions owned by background threads. */
-    if (trx == lock->trx || !is_on_row(next) || next->is_waiting() ||
-        trx->read_only || trx->mysql_thd == NULL ||
-        !lock_has_to_wait(lock, next)) {
-      continue;
-    }
-
-    trx_mutex_enter(trx);
-
-    trx->owns_mutex = true;
-
-    /* Skip high priority transactions, if already marked for
-    abort by some other transaction or if ASYNC rollback is
-    disabled. A transaction must complete kill/abort of a
-    victim transaction once marked and added to hit list. */
-    if (trx_is_high_priority(trx) ||
-        (trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) != 0 || trx->abort) {
-      trx->owns_mutex = false;
-
-      trx_mutex_exit(trx);
-
-      continue;
-    }
-
-    /* If the transaction is waiting on some other resource then
-    wake it up with DEAD_LOCK error so that it can rollback. */
-    if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-      /* Assert that it is not waiting for current record. */
-      ut_ad(trx->lock.wait_lock != next);
-#ifdef UNIV_DEBUG
-      ib::info(ER_IB_MSG_639)
-          << "High Priority Transaction (ID): " << lock->trx->id
-          << " waking up blocking"
-          << " transaction (ID): " << trx->id;
-#endif /* UNIV_DEBUG */
-      trx->lock.was_chosen_as_deadlock_victim = true;
-
-      lock_cancel_waiting_and_release(trx->lock.wait_lock, true);
-
-      trx->owns_mutex = false;
-
-      trx_mutex_exit(trx);
-      continue;
-    }
-
-    /* Mark for ASYNC Rollback and add to hit list. */
-    mark_trx_for_rollback(trx);
-
-    trx->owns_mutex = false;
-
-    trx_mutex_exit(trx);
+void lock_make_trx_hit_list(trx_t *hp_trx, hit_list_t &hit_list) {
+  trx_mutex_enter(hp_trx);
+  const trx_id_t hp_trx_id = hp_trx->id;
+  ut_ad(lock_current_thread_handles_trx(hp_trx));
+  ut_ad(trx_is_high_priority(hp_trx));
+  const lock_t *lock = hp_trx->lock.wait_lock;
+  bool waits_for_record = (nullptr != lock && lock->is_record_lock());
+  trx_mutex_exit(hp_trx);
+  if (!waits_for_record) {
+    return;
   }
 
-  ut_ad(next == lock);
+  lock_mutex_enter();
+
+  /* Check again */
+  if (lock != hp_trx->lock.wait_lock) {
+    lock_mutex_exit();
+    return;
+  }
+  RecID rec_id{lock, lock_rec_find_set_bit(lock)};
+  Lock_iter::for_each(
+      rec_id,
+      [&](lock_t *next) {
+        trx_t *trx = next->trx;
+        /* Check only for conflicting, granted locks on the current
+        row. Currently, we don't rollback read only transactions,
+        transactions owned by background threads. */
+        if (trx == hp_trx || next->is_waiting() || trx->read_only ||
+            trx->mysql_thd == NULL || !lock_has_to_wait(lock, next)) {
+          return true;
+        }
+
+        trx_mutex_enter(trx);
+
+        trx->owns_mutex = true;
+
+        /* Skip high priority transactions, if already marked for
+        abort by some other transaction or if ASYNC rollback is
+        disabled. A transaction must complete kill/abort of a
+        victim transaction once marked and added to hit list. */
+        if (trx_is_high_priority(trx) ||
+            (trx->in_innodb & TRX_FORCE_ROLLBACK) != 0 ||
+            (trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC) != 0 ||
+            (trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) != 0 || trx->abort) {
+          trx->owns_mutex = false;
+
+          trx_mutex_exit(trx);
+
+          return true;
+        }
+
+        /* If the transaction is waiting on some other resource then
+        wake it up with DEAD_LOCK error so that it can rollback. */
+        if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+          /* Assert that it is not waiting for current record. */
+          ut_ad(trx->lock.wait_lock != next);
+#ifdef UNIV_DEBUG
+          ib::info(ER_IB_MSG_639)
+              << "High Priority Transaction (ID): " << lock->trx->id
+              << " waking up blocking"
+              << " transaction (ID): " << trx->id;
+#endif /* UNIV_DEBUG */
+          trx->lock.was_chosen_as_deadlock_victim = true;
+
+          lock_cancel_waiting_and_release(trx->lock.wait_lock, true);
+
+          trx->owns_mutex = false;
+
+          trx_mutex_exit(trx);
+          return true;
+        }
+
+        /* Mark for ASYNC Rollback and add to hit list. */
+        lock_mark_trx_for_rollback(hit_list, hp_trx_id, trx);
+
+        trx->owns_mutex = false;
+
+        trx_mutex_exit(trx);
+        return true;
+      },
+      lock->hash_table());
+
+  lock_mutex_exit();
 }
 
 /** Cancels a waiting record lock request and releases the waiting transaction

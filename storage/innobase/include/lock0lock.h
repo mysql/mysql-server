@@ -422,6 +422,20 @@ prepare to release locks early.
 @param[in]	only_gap	release only GAP locks */
 void lock_trx_release_read_locks(trx_t *trx, bool only_gap);
 
+/** Iterate over the granted locks which conflict with trx->lock.wait_lock and
+prepare the hit list for ASYNC Rollback.
+
+If the transaction is waiting for some other lock then wake up
+with deadlock error.  Currently we don't mark following transactions
+for ASYNC Rollback.
+
+1. Read only transactions
+2. Background transactions
+3. Other High priority transactions
+@param[in]      trx       High Priority transaction
+@param[in,out]  hit_list  List of transactions which need to be rolled back */
+void lock_make_trx_hit_list(trx_t *trx, hit_list_t &hit_list);
+
 /** Removes locks on a table to be dropped.
  If remove_also_table_sx_locks is TRUE then table-level S and X locks are
  also removed in addition to other table-level and record-level locks.

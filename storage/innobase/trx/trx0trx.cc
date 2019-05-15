@@ -225,12 +225,6 @@ static void trx_init(trx_t *trx) {
     trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
   }
 
-  /* Note: It's possible that this list is not empty if a transaction
-  was interrupted after it collected the victim transactions and before
-  it got a chance to roll them back asynchronously. */
-
-  trx->hit_list.clear();
-
   trx->flush_observer = NULL;
 
   ++trx->version;
@@ -255,8 +249,6 @@ struct TrxFactory {
     new (&trx->lock.table_pool) lock_pool_t();
 
     new (&trx->lock.table_locks) lock_pool_t();
-
-    new (&trx->hit_list) hit_list_t();
 
     trx_init(trx);
 
@@ -331,8 +323,6 @@ struct TrxFactory {
     trx->lock.table_pool.~lock_pool_t();
 
     trx->lock.table_locks.~lock_pool_t();
-
-    trx->hit_list.~hit_list_t();
   }
 
   /** Enforce any invariants here, this is called before the transaction
@@ -371,8 +361,6 @@ struct TrxFactory {
     ut_ad(!trx->lock.inherit_all.load());
 
     ut_ad(!trx->abort);
-
-    ut_ad(trx->hit_list.empty());
 
     ut_ad(trx->killed_by == 0);
 
@@ -1207,7 +1195,6 @@ static void trx_start_low(
 {
   ut_ad(!trx->in_rollback);
   ut_ad(!trx->is_recovered);
-  ut_ad(trx->hit_list.empty());
   ut_ad(trx->start_line != 0);
   ut_ad(trx->start_file != 0);
   ut_ad(trx->roll_limit == 0);
@@ -3085,12 +3072,13 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
   mutex_exit(&trx_sys->mutex);
 }
 
-/**
-Kill all transactions that are blocking this transaction from acquiring locks.
-@param[in,out] trx	High priority transaction */
-
 void trx_kill_blocking(trx_t *trx) {
-  if (trx->hit_list.empty()) {
+  if (!trx_is_high_priority(trx)) {
+    return;
+  }
+  hit_list_t hit_list;
+  lock_make_trx_hit_list(trx, hit_list);
+  if (hit_list.empty()) {
     return;
   }
 
@@ -3120,10 +3108,9 @@ void trx_kill_blocking(trx_t *trx) {
   ut_a(trx->dict_operation_lock_mode == 0);
 
   /** Kill the transactions in the lock acquisition order old -> new. */
-  hit_list_t::reverse_iterator end = trx->hit_list.rend();
+  hit_list_t::reverse_iterator end = hit_list.rend();
 
-  for (hit_list_t::reverse_iterator it = trx->hit_list.rbegin(); it != end;
-       ++it) {
+  for (hit_list_t::reverse_iterator it = hit_list.rbegin(); it != end; ++it) {
     trx_t *victim_trx = it->m_trx;
     ulint version = it->m_version;
 
@@ -3234,8 +3221,6 @@ void trx_kill_blocking(trx_t *trx) {
 
     trx_mutex_exit(victim_trx);
   }
-
-  trx->hit_list.clear();
 
   if (had_dict_lock) {
     row_mysql_freeze_data_dictionary(trx);
