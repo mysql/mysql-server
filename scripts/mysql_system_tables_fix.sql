@@ -659,6 +659,13 @@ INSERT INTO global_grants SELECT user, host, 'APPLICATION_PASSWORD_ADMIN', IF(gr
 FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadApplicationPasswordAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege AUDIT_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige AUDIT_ADMIN.
+SET @hadAuditAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUDIT_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'AUDIT_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadAuditAdminPriv = 0;
+COMMIT;
+
 -- Add the privilege BINLOG_ADMIN for every user who has the privilege SUPER
 -- provided that there isn't a user who already has the privilige BINLOG_ADMIN.
 SET @hadBinLogAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BINLOG_ADMIN');
