@@ -1609,7 +1609,8 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       append_unescaped(packet, share->connect_string.str,
                        share->connect_string.length);
     }
-    if (share->has_secondary_engine()) {
+    if (share->has_secondary_engine() &&
+        !thd->variables.show_create_table_skip_secondary_engine) {
       packet->append(" SECONDARY_ENGINE=");
       packet->append(share->secondary_engine.str,
                      share->secondary_engine.length);

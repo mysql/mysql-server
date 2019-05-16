@@ -388,6 +388,11 @@ struct System_variables {
     @sa Sys_var_print_identified_with_as_hex
   */
   bool print_identified_with_as_hex;
+
+  /**
+    @sa Sys_var_show_create_table_skip_secondary_engine
+  */
+  bool show_create_table_skip_secondary_engine;
 };
 
 /**

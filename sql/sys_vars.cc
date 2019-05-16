@@ -6669,3 +6669,16 @@ static Sys_var_bool Sys_var_print_identified_with_as_hex(
     "non-prinable characters",
     SESSION_VAR(print_identified_with_as_hex), CMD_LINE(OPT_ARG),
     DEFAULT(false));
+
+/**
+   Session only flag to skip printing secondary engine in SHOW CREATE
+   TABLE.
+
+   @sa store_create_info
+*/
+static Sys_var_bool Sys_var_show_create_table_skip_secondary_engine(
+    "show_create_table_skip_secondary_engine",
+    "SHOW CREATE TABLE will skip SECONDARY_ENGINE when printing the table "
+    "definition",
+    SESSION_ONLY(show_create_table_skip_secondary_engine), NO_CMD_LINE,
+    DEFAULT(false));

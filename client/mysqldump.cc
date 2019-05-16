@@ -115,7 +115,8 @@ static bool verbose = 0, opt_no_create_info = 0, opt_no_data = 0, quick = 1,
             opt_include_master_host_port = 0, opt_events = 0,
             opt_comments_used = 0, opt_alltspcs = 0, opt_notspcs = 0,
             opt_drop_trigger = 0, opt_network_timeout = 0,
-            stats_tables_included = 0, column_statistics = false;
+            stats_tables_included = 0, column_statistics = false,
+            opt_show_create_table_skip_secondary_engine = false;
 static bool insert_pat_inited = 0, debug_info_flag = 0, debug_check_flag = 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection, *mysql = 0;
@@ -553,6 +554,13 @@ static struct my_option my_long_options[] = {
      "Allows huge tables to be dumped by setting max_allowed_packet to maximum "
      "value and net_read_timeout/net_write_timeout to large value.",
      &opt_network_timeout, &opt_network_timeout, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+     0, 0, 0},
+    {"show_create_table_skip_secondary_engine", 0,
+     "Controls whether SECONDARY_ENGINE CREATE TABLE clause should be dumped "
+     "or not. No effect on older servers that do not support the server side "
+     "option.",
+     &opt_show_create_table_skip_secondary_engine,
+     &opt_show_create_table_skip_secondary_engine, 0, GET_BOOL, NO_ARG, 0, 0, 0,
      0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
@@ -1565,6 +1573,12 @@ static int connect_to_db(char *host, char *user, char *passwd) {
              "SESSION NET_WRITE_TIMEOUT= 700 ");
     if (mysql_query_with_error_report(mysql, 0, buff)) return 1;
   }
+
+  if (opt_show_create_table_skip_secondary_engine &&
+      mysql_query_with_error_report(
+          mysql, 0,
+          "/*!80018 SET SESSION show_create_table_skip_secondary_engine=1 */"))
+    return 1;
   return 0;
 } /* connect_to_db */
 
