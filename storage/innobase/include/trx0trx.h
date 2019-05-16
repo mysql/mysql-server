@@ -917,7 +917,6 @@ struct trx_t {
                         the transaction; in that case we must
                         flush the log in
                         trx_commit_complete_for_mysql() */
-  ulint duplicates;          /*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
   bool has_search_latch;
   /*!< TRUE if this trx has latched the
   search system latch in S-mode.
@@ -1168,11 +1167,6 @@ inline bool trx_is_started(const trx_t *trx) {
   return (trx->state != TRX_STATE_NOT_STARTED &&
           trx->state != TRX_STATE_FORCED_ROLLBACK);
 }
-
-/* Treatment of duplicate values (trx->duplicates; for example, in inserts).
-Multiple flags can be combined with bitwise OR. */
-#define TRX_DUP_IGNORE 1  /* duplicate rows are to be updated */
-#define TRX_DUP_REPLACE 2 /* duplicate rows are to be replaced */
 
 /** Commit node states */
 enum commit_node_state {

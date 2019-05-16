@@ -2994,8 +2994,7 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   dict_index_t *clust_index;
 
   thr_get_trx(thr)->error_key_num = 0;
-  DBUG_EXECUTE_IF("innodb_trx_duplicates",
-                  thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
+  DBUG_EXECUTE_IF("innodb_trx_duplicates", thr->prebuilt->replace = 1;);
 
   stage->begin_phase_log_table();
 
@@ -3022,7 +3021,7 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   }
 
   rw_lock_x_unlock(dict_index_get_lock(clust_index));
-  DBUG_EXECUTE_IF("innodb_trx_duplicates", thr_get_trx(thr)->duplicates = 0;);
+  DBUG_EXECUTE_IF("innodb_trx_duplicates", thr->prebuilt->replace = 0;);
 
   return (error);
 }

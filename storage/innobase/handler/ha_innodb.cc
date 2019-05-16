@@ -8616,7 +8616,7 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
 
         switch (thd_sql_command(m_user_thd)) {
           case SQLCOM_LOAD:
-            if (!trx->duplicates) {
+            if (!m_prebuilt->allow_duplicates()) {
               break;
             }
 
@@ -9323,7 +9323,8 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
   if (error == DB_SUCCESS &&
       (new_counter != 0 ||
        (table->next_number_field && new_row == table->record[0] &&
-        thd_sql_command(m_user_thd) == SQLCOM_INSERT && trx->duplicates))) {
+        thd_sql_command(m_user_thd) == SQLCOM_INSERT &&
+        m_prebuilt->allow_duplicates()))) {
     ulonglong auto_inc;
     ulonglong col_max_value;
 
@@ -17643,7 +17644,8 @@ int ha_innobase::extra(enum ha_extra_function operation)
       break;
     case HA_EXTRA_RESET_STATE:
       reset_template();
-      thd_to_trx(ha_thd())->duplicates = 0;
+      m_prebuilt->replace = 0;
+      m_prebuilt->on_duplicate_key_update = 0;
       break;
     case HA_EXTRA_NO_KEYREAD:
       m_prebuilt->read_just_key = 0;
@@ -17662,16 +17664,16 @@ int ha_innobase::extra(enum ha_extra_function operation)
       either, because the calling threads may change.
       CAREFUL HERE, OR MEMORY CORRUPTION MAY OCCUR! */
     case HA_EXTRA_INSERT_WITH_UPDATE:
-      thd_to_trx(ha_thd())->duplicates |= TRX_DUP_IGNORE;
+      m_prebuilt->on_duplicate_key_update = 1;
       break;
     case HA_EXTRA_NO_IGNORE_DUP_KEY:
-      thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_IGNORE;
+      m_prebuilt->on_duplicate_key_update = 0;
       break;
     case HA_EXTRA_WRITE_CAN_REPLACE:
-      thd_to_trx(ha_thd())->duplicates |= TRX_DUP_REPLACE;
+      m_prebuilt->replace = 1;
       break;
     case HA_EXTRA_WRITE_CANNOT_REPLACE:
-      thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
+      m_prebuilt->replace = 0;
       break;
     case HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW:
       m_prebuilt->skip_serializable_dd_view = true;
@@ -17722,7 +17724,8 @@ int ha_innobase::end_stmt() {
     return (0);
   }
 
-  ut_ad(trx->duplicates == 0);
+  ut_ad(!m_prebuilt->replace);
+  ut_ad(!m_prebuilt->on_duplicate_key_update);
 
   trx_mutex_enter(trx);
   if (trx->lock.start_stmt) {

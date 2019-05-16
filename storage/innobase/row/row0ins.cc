@@ -1837,6 +1837,15 @@ static ibool row_ins_dupl_error_with_rec(
   return (!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 }
 
+/** Determines if the query is REPLACE or ON DUPLICATE KEY UPDATE in which case
+duplicate values should be allowed (and further processed) instead of causing
+an error
+@param thr The query thread running the query
+@return true iff duplicated values should be allowed */
+static bool row_allow_duplicates(que_thr_t *thr) {
+  return (thr->prebuilt && thr->prebuilt->allow_duplicates());
+}
+
 /** Scans a unique non-clustered index at a given index entry to determine
  whether a uniqueness violation has occurred for the key value of the entry.
  Set shared locks on possible duplicate records.
@@ -1888,8 +1897,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       index, entry, PAGE_CUR_GE,
       s_latch ? BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED : BTR_SEARCH_LEAF,
       &pcur, mtr);
-
-  allow_duplicates = thr_get_trx(thr)->duplicates;
+  allow_duplicates = row_allow_duplicates(thr);
 
   /* Scan index records and check if there is a duplicate */
 
@@ -2139,7 +2147,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         duplicates ( REPLACE, LOAD DATAFILE REPLACE,
         INSERT ON DUPLICATE KEY UPDATE). */
 
-        err = row_ins_set_rec_lock(trx->duplicates ? LOCK_X : LOCK_S,
+        err = row_ins_set_rec_lock(row_allow_duplicates(thr) ? LOCK_X : LOCK_S,
                                    LOCK_REC_NOT_GAP, btr_cur_get_block(cursor),
                                    rec, cursor->index, offsets, thr);
       }
@@ -2173,7 +2181,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       duplicates ( REPLACE, LOAD DATAFILE REPLACE,
       INSERT ON DUPLICATE KEY UPDATE). */
 
-      err = row_ins_set_rec_lock(trx->duplicates ? LOCK_X : LOCK_S,
+      err = row_ins_set_rec_lock(row_allow_duplicates(thr) ? LOCK_X : LOCK_S,
                                  LOCK_REC_NOT_GAP, btr_cur_get_block(cursor),
                                  rec, cursor->index, offsets, thr);
 
@@ -2454,7 +2462,6 @@ and return. don't execute actual insert. */
     mtr.commit();
     goto func_exit;
   }
-
   /* Note: Allowing duplicates would qualify for modification of
   an existing record as the new entry is exactly same as old entry.
   Avoid this check if allow duplicates is enabled. */
