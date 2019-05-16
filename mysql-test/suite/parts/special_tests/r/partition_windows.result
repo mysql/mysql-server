@@ -2,9 +2,9 @@
 # Create the target directories. This will fail e.g.
 # if the directories exist already.
 CREATE TABLE t1 (
-c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+c1 int unsigned NOT NULL AUTO_INCREMENT,
 c2 varchar(30) NOT NULL,
-c3 smallint(5) unsigned DEFAULT NULL,
+c3 smallint unsigned DEFAULT NULL,
 PRIMARY KEY (c1)
 )
 PARTITION BY HASH(c1)(
