@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -419,7 +419,7 @@ i/o handler thread */
 const char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 const char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
-time_t	srv_last_monitor_time;
+ib_time_monotonic_t	srv_last_monitor_time;
 
 ib_mutex_t	srv_innodb_monitor_mutex;
 
@@ -462,7 +462,7 @@ static ulint		srv_log_writes_and_flush	= 0;
 time when the last flush of log file has happened. The master
 thread ensures that we flush the log files at least once per
 second. */
-static time_t	srv_last_log_flush_time;
+static ib_time_monotonic_t	srv_last_log_flush_time;
 
 /* Interval in seconds at which various tasks are performed by the
 master thread when server is active. In order to balance the workload,
@@ -1139,7 +1139,7 @@ srv_refresh_innodb_monitor_stats(void)
 {
 	mutex_enter(&srv_innodb_monitor_mutex);
 
-	srv_last_monitor_time = time(NULL);
+	srv_last_monitor_time = ut_time_monotonic();
 
 	os_aio_refresh_stats();
 
@@ -1173,23 +1173,22 @@ srv_printf_innodb_monitor(
 	ulint*	trx_end)	/*!< out: file position of the end of
 				the list of active transactions */
 {
-	double	time_elapsed;
-	time_t	current_time;
+	double 			time_elapsed;
+	ib_time_monotonic_t	current_time;
 	ulint	n_reserved;
 	ibool	ret;
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
-	current_time = time(NULL);
+	current_time = ut_time_monotonic();
 
 	/* We add 0.001 seconds to time_elapsed to prevent division
 	by zero if two users happen to call SHOW ENGINE INNODB STATUS at the
 	same time */
 
-	time_elapsed = difftime(current_time, srv_last_monitor_time)
-		+ 0.001;
+	time_elapsed = current_time - srv_last_monitor_time + 0.001;
 
-	srv_last_monitor_time = time(NULL);
+	srv_last_monitor_time = ut_time_monotonic();
 
 	fputs("\n=====================================\n", file);
 
@@ -1554,9 +1553,9 @@ DECLARE_THREAD(srv_monitor_thread)(
 			os_thread_create */
 {
 	int64_t		sig_count;
-	double		time_elapsed;
-	time_t		current_time;
-	time_t		last_monitor_time;
+	ib_time_monotonic_t		time_elapsed;
+	ib_time_monotonic_t		current_time;
+	ib_time_monotonic_t		last_monitor_time;
 	ulint		mutex_skipped;
 	ibool		last_srv_print_monitor;
 
@@ -1573,7 +1572,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 	srv_monitor_active = TRUE;
 
 	UT_NOT_USED(arg);
-	srv_last_monitor_time = last_monitor_time = ut_time();
+	srv_last_monitor_time = last_monitor_time = ut_time_monotonic();
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
@@ -1584,12 +1583,12 @@ loop:
 
 	os_event_wait_time_low(srv_monitor_event, 5000000, sig_count);
 
-	current_time = ut_time();
+	current_time = ut_time_monotonic();
 
-	time_elapsed = difftime(current_time, last_monitor_time);
+	time_elapsed = current_time - last_monitor_time;
 
 	if (time_elapsed > 15) {
-		last_monitor_time = ut_time();
+		last_monitor_time = ut_time_monotonic();
 
 		if (srv_print_innodb_monitor) {
 			/* Reset mutex_skipped counter everytime
@@ -1709,7 +1708,7 @@ loop:
 
 	old_lsn = new_lsn;
 
-	if (difftime(time(NULL), srv_last_monitor_time) > 60) {
+	if (ut_difftime(ut_time_monotonic(), srv_last_monitor_time) > 60) {
 		/* We referesh InnoDB Monitor values so that averages are
 		printed from at most 60 last seconds */
 
@@ -1957,11 +1956,11 @@ void
 srv_sync_log_buffer_in_background(void)
 /*===================================*/
 {
-	time_t	current_time = time(NULL);
+	ib_time_monotonic_t	current_time = ut_time_monotonic();
 
 	srv_main_thread_op_info = "flushing log";
-	if (difftime(current_time, srv_last_log_flush_time)
-	    >= srv_flush_log_at_timeout) {
+	if ((current_time - srv_last_log_flush_time)
+			>= srv_flush_log_at_timeout) {
 		log_buffer_sync_in_background(true);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
@@ -2000,21 +1999,21 @@ static
 void
 srv_shutdown_print_master_pending(
 /*==============================*/
-	ib_time_t*	last_print_time,	/*!< last time the function
-						print the message */
-	ulint		n_tables_to_drop,	/*!< number of tables to
-						be dropped */
-	ulint		n_bytes_merged)		/*!< number of change buffer
-						just merged */
+	ib_time_monotonic_t*	last_print_time, /*!< last time the function
+						 print the message */
+	ulint		n_tables_to_drop,	 /*!< number of tables to
+						 be dropped */
+	ulint		n_bytes_merged)		 /*!< number of change buffer
+						 just merged */
 {
-	ib_time_t	current_time;
-	double		time_elapsed;
+	ib_time_monotonic_t	current_time;
+	ib_time_monotonic_t	time_elapsed;
 
-	current_time = ut_time();
-	time_elapsed = ut_difftime(current_time, *last_print_time);
+	current_time = ut_time_monotonic();
+	time_elapsed = current_time - *last_print_time;
 
 	if (time_elapsed > 60) {
-		*last_print_time = ut_time();
+		*last_print_time = ut_time_monotonic();
 
 		if (n_tables_to_drop) {
 			ib::info() << "Waiting for " << n_tables_to_drop
@@ -2097,8 +2096,8 @@ void
 srv_master_do_active_tasks(void)
 /*============================*/
 {
-	ib_time_t	cur_time = ut_time();
-	uintmax_t	counter_time = ut_time_us(NULL);
+	ib_time_monotonic_t	cur_time     = ut_time_monotonic();
+	ib_time_monotonic_us_t	counter_time = ut_time_monotonic_us();
 
 	/* First do the tasks that we are suppose to do at each
 	invocation of this function. */
@@ -2128,7 +2127,7 @@ srv_master_do_active_tasks(void)
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	counter_time = ut_time_us(NULL);
+	counter_time = ut_time_monotonic_us();
 	ibuf_merge_in_background(false);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
@@ -2187,7 +2186,7 @@ void
 srv_master_do_idle_tasks(void)
 /*==========================*/
 {
-	uintmax_t	counter_time;
+	ib_time_monotonic_t	counter_time;
 
 	++srv_main_idle_loops;
 
@@ -2197,7 +2196,7 @@ srv_master_do_idle_tasks(void)
 	/* ALTER TABLE in MySQL requires on Unix that the table handler
 	can drop tables lazily after there no longer are SELECT
 	queries to them. */
-	counter_time = ut_time_us(NULL);
+	counter_time = ut_time_monotonic_us();
 	srv_main_thread_op_info = "doing background drop tables";
 	row_drop_tables_for_mysql_in_background();
 	MONITOR_INC_TIME_IN_MICRO_SECS(
@@ -2216,7 +2215,7 @@ srv_master_do_idle_tasks(void)
 	log_free_check();
 
 	/* Do an ibuf merge */
-	counter_time = ut_time_us(NULL);
+	counter_time = ut_time_monotonic_us();
 	srv_main_thread_op_info = "doing insert buffer merge";
 	ibuf_merge_in_background(true);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
@@ -2263,7 +2262,7 @@ static
 ibool
 srv_master_do_shutdown_tasks(
 /*=========================*/
-	ib_time_t*	last_print_time)/*!< last time the function
+	ib_time_monotonic_t*	last_print_time)/*!< last time the function
 					print the message */
 {
 	ulint		n_bytes_merged = 0;
@@ -2347,7 +2346,7 @@ DECLARE_THREAD(srv_master_thread)(
 
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
-	ib_time_t	last_print_time;
+	ib_time_monotonic_t	last_print_time;
 
 	ut_ad(!srv_read_only_mode);
 
@@ -2366,7 +2365,7 @@ DECLARE_THREAD(srv_master_thread)(
 	slot = srv_reserve_slot(SRV_MASTER);
 	ut_a(slot == srv_sys->sys_threads);
 
-	last_print_time = ut_time();
+	last_print_time = ut_time_monotonic();
 loop:
 	if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 		goto suspend_thread;

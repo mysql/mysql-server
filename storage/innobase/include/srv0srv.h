@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -945,7 +945,7 @@ struct srv_slot_t{
 	ibool		suspended;		/*!< TRUE if the thread is
 						waiting for the event of this
 						slot */
-	ib_time_t	suspend_time;		/*!< time when the thread was
+	ib_time_monotonic_t	suspend_time;	/*!< time when the thread was
 						suspended. Initialized by
 						lock_wait_table_reserve_slot()
 						for lock wait */
