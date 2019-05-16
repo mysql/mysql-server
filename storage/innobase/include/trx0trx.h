@@ -830,8 +830,7 @@ struct trx_t {
   ACTIVE->COMMITTED is possible when the transaction is in
   rw_trx_list.
 
-  Transitions to COMMITTED are protected by both lock_sys->mutex
-  and trx->mutex.
+  Transitions to COMMITTED are protected by trx->mutex.
 
   NOTE: Some of these state change constraints are an overkill,
   currently only required for a consistent view for printing stats.

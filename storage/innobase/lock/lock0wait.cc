@@ -358,22 +358,51 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
 
 /** Releases a user OS thread waiting for a lock to be released, if the
  thread is already suspended. Please do not call it directly, but rather use the
- lock_reset_wait_and_release_thread_if_suspended() wrapper. */
-static void lock_wait_release_thread_if_suspended(
-    que_thr_t *thr) /*!< in: query thread associated with the
-                    user OS thread	 */
-{
-  ut_ad(lock_mutex_own());
-  ut_ad(trx_mutex_own(thr_get_trx(thr)));
+ lock_reset_wait_and_release_thread_if_suspended() wrapper.
+ @param[in]   thr   query thread associated with the user OS thread */
+static void lock_wait_release_thread_if_suspended(que_thr_t *thr) {
+  auto trx = thr_get_trx(thr);
+  /* We need a guarantee that for each time a thread is suspended there is at
+  most one time it gets released - or more precisely: that there is at most
+  one reason for it to be woken up. Otherwise it could happen that two
+  different threads will think that they successfully woken up the transaction
+  and that the transaction understands the reason it was woken up is the one
+  they had in mind, say: one thread woken it up because of deadlock and another
+  because of timeout. If the two reasons require different behavior after
+  waking up, then we will be in trouble. Current implementation makes sure
+  that we wake up a thread only once by observing several rules:
+    1. the only way to wake up a trx is to call os_event_set
+    2. the only call to os_event_set is in lock_wait_release_thread_if_suspended
+    3. calls to lock_wait_release_thread_if_suspended are always performed after
+    a call to lock_reset_lock_and_trx_wait(lock), and the sequence of the two is
+    in a critical section guarded by lock_mutex_enter
+    4. the lock_reset_lock_and_trx_wait(lock) asserts that
+    lock->trx->lock.wait_lock == lock and sets lock->trx->lock.wait_lock = NULL
+  Together all this facts imply, that it is impossible for a single trx to be
+  woken up twice (unless it got to sleep again) because doing so requires
+  reseting wait_lock to NULL.
 
-  /* We own both the lock mutex and the trx_t::mutex but not the
-  lock wait mutex. This is OK because other threads will see the state
-  of this slot as being in use and no other thread can change the state
-  of the slot to free unless that thread also owns the lock mutex. */
+  We now hold exclusive lock_sys latch. */
+  ut_ad(lock_mutex_own());
+  ut_ad(trx_mutex_own(trx));
+
+  /* We don't need the lock_wait_mutex here, because we know that the thread
+  had a reason to go to sleep (we have seen trx->lock.wait_lock !=NULL), and we
+  know that we are the first ones to wake it up (we are the thread which has
+  changed the trx->lock.wait_lock to NULL), so it either sleeps, or did not
+  yet started the sleep. We hold the trx->mutex which is required to go to
+  sleep. So, while holding the trx->mutex we can check if thr->slot is already
+  assigned and if so, then we need to wake up the thread. If the thr->slot is
+  not yet assigned, then we know that the thread had not yet gone to sleep, and
+  we know that before doing so, it will need to acquire trx->mutex and will
+  verify once more if it has to go to sleep by checking if thr->state is
+  QUE_THR_RUNNING which we indeed have already set before calling
+  lock_wait_release_thread_if_suspended, so we don't need to do anything in this
+  case - trx will simply not go to sleep. */
+  ut_ad(thr->state == QUE_THR_RUNNING);
+  ut_ad(trx->lock.wait_lock == NULL);
 
   if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
-    trx_t *trx = thr_get_trx(thr);
-
     if (trx->lock.was_chosen_as_deadlock_victim) {
       trx->error_state = DB_DEADLOCK;
       trx->lock.was_chosen_as_deadlock_victim = false;

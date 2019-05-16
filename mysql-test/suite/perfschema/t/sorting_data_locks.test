@@ -11,7 +11,7 @@
 # Having two rows with the same engline_lock_id caused visible problems:
 # using SELECT...FROM data_locks ORDER BY ... caused one of the two rows
 # to be reported twice and the other row not even once.
-# There were also problems with data_lock_waits with should contain
+# There were also problems with data_lock_waits which should contain
 # exactly one edge for each pair of conflicting locks, however having
 # two rows with the same id in data_locks could lead to strange results
 # when joining data_locks with data_lock_waits.

@@ -315,7 +315,8 @@ lock_sys_t *lock_sys = NULL;
 Monitor will then fetch it and print */
 static bool lock_deadlock_found = false;
 
-/** Only created if !srv_read_only_mode */
+/** Only created if !srv_read_only_mode. I/O operations on this file require
+exclusive lock_sys latch */
 static FILE *lock_latest_err_file;
 
 /** Reports that a transaction id is insensible, i.e., in the future. */
@@ -1035,7 +1036,13 @@ static trx_t *lock_rec_other_trx_holds_expl(
   trx_t *holds = NULL;
 
   lock_mutex_enter();
-
+  /* If trx_rw_is_active returns non-null impl_trx it only means that impl_trx
+  was active at some moment during the call, but might already be in
+  TRX_STATE_COMMITTED_IN_MEMORY when we execute the body of the if.
+  However, we hold exclusive latch on whole lock_sys, which prevents anyone
+  from creating any new explicit locks.
+  So, all explicit locks we will see must have been created at the time when
+  the transaction was not committed yet. */
   if (trx_t *impl_trx = trx_rw_is_active(trx->id, NULL, false)) {
     ulint heap_no = page_rec_get_heap_no(rec);
     mutex_enter(&trx_sys->mutex);
@@ -1903,8 +1910,6 @@ static dberr_t lock_rec_lock_slow(ibool impl, select_mode sel_mode, ulint mode,
 
   ut_ad(sel_mode == SELECT_ORDINARY ||
         (sel_mode != SELECT_ORDINARY && !trx_is_high_priority(trx)));
-  ut_ad(sel_mode == SELECT_ORDINARY ||
-        (sel_mode != SELECT_ORDINARY && !(mode & LOCK_INSERT_INTENTION)));
 
   trx_mutex_enter(trx);
 
@@ -4418,7 +4423,10 @@ static void lock_release(trx_t *trx) {
 #define IS_LOCK_S_OR_X(lock) \
   (lock_get_mode(lock) == LOCK_S || lock_get_mode(lock) == LOCK_X)
 
-/** Removes table locks of the transaction on a table to be dropped. */
+/** Removes lock_to_remove from lock_to_remove->trx->lock.table_locks.
+More precisely, it replaces it with NULL in the vector.
+It is crucial not to invalidate any iterators, so resizing etc is verboten,
+as otherwise lock_table_has() which is performed without any latches may fail */
 static void lock_trx_table_locks_remove(
     const lock_t *lock_to_remove) /*!< in: lock to remove */
 {
@@ -4510,6 +4518,9 @@ static ulint lock_remove_recovered_trx_record_locks(
                          table itself */
 {
   ut_a(table != NULL);
+  /* This is used in recovery where indeed we hold an exclusive lock_sys latch,
+  which is needed as we are about to iterate over locks held by multiple
+  transactions while they might be operating. */
   ut_ad(lock_mutex_own());
 
   ulint n_recovered_trx = 0;
@@ -4764,6 +4775,7 @@ static ulint lock_get_n_rec_locks(void) {
   ulint n_locks = 0;
   ulint i;
 
+  /* We need exclusive access to lock_sys to iterate over all buckets */
   ut_ad(lock_mutex_own());
 
   for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
@@ -4874,6 +4886,8 @@ struct PrintNotStarted {
   PrintNotStarted(FILE *file) : m_file(file) {}
 
   void operator()(trx_t *trx) {
+    /* We require exclusive access to lock_sys */
+    ut_ad(lock_mutex_own());
     ut_ad(trx->in_mysql_trx_list);
     ut_ad(mutex_own(&trx_sys->mutex));
 
@@ -4902,7 +4916,9 @@ class TrxLockIterator {
   const lock_t *current(const trx_t *trx) const {
     lock_t *lock;
     ulint i = 0;
-
+    /* trx->lock.trx_locks is protected by trx->mutex and lock_sys mutex, and we
+    assume we have the exclusive latch on lock_sys here */
+    ut_ad(lock_mutex_own());
     for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
          lock != NULL && i < m_index;
          lock = UT_LIST_GET_NEXT(trx_locks, lock), ++i) {
@@ -4986,6 +5002,9 @@ class TrxListIterator {
 @param[in,out]	file	file where to print
 @param[in]	trx	transaction */
 void lock_trx_print_wait_and_mvcc_state(FILE *file, const trx_t *trx) {
+  /* We require exclusive lock_sys access so that trx->lock.wait_lock is
+  not being modified */
+  ut_ad(lock_mutex_own());
   fprintf(file, "---");
 
   trx_print_latched(file, trx, 600);
@@ -5067,6 +5086,8 @@ static bool lock_trx_print_locks(
                            from disk */
 {
   const lock_t *lock;
+  /* We require exclusive access to lock_sys */
+  ut_ad(lock_mutex_own());
 
   /* Iterate over the transaction's locks. */
   while ((lock = iter.current(trx)) != 0) {
@@ -5127,6 +5148,7 @@ static bool lock_trx_print_locks(
 void lock_print_info_all_transactions(
     FILE *file) /*!< in/out: file where to print */
 {
+  /* We require exclusive access to lock_sys */
   ut_ad(lock_mutex_own());
 
   fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
@@ -5267,7 +5289,7 @@ static bool lock_table_queue_validate(
 /** Validates the lock queue on a single record.
  @return true if ok */
 static bool lock_rec_queue_validate(
-    ibool locked_lock_trx_sys,
+    bool locked_lock_trx_sys,
     /*!< in: if the caller holds
     both the lock mutex and
     trx_sys_t->lock. */
@@ -5280,7 +5302,7 @@ static bool lock_rec_queue_validate(
   ut_a(block->frame == page_align(rec));
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
-  ut_ad(lock_mutex_own() == !!locked_lock_trx_sys);
+  ut_ad(lock_mutex_own() == locked_lock_trx_sys);
   ut_ad(!index || index->is_clustered() || !dict_index_is_online_ddl(index));
 
   ulint heap_no = page_rec_get_heap_no(rec);
@@ -5427,13 +5449,7 @@ loop:
 
   ut_ad(!trx_is_ac_nl_ro(lock->trx));
 
-#ifdef UNIV_DEBUG
-  /* Only validate the record queues when this thread is not
-  holding a space->latch.  Deadlocks are possible due to
-  latching order violation when UNIV_DEBUG is defined while
-  UNIV_DEBUG is not. */
   if (!sync_check_find(SYNC_FSP))
-#endif /* UNIV_DEBUG */
     for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
       if (i == 1 || lock_rec_get_nth_bit(lock, i)) {
         rec = page_find_rec_with_heap_no(block->frame, i);
@@ -5476,6 +5492,7 @@ static bool lock_validate_table_locks(
 {
   const trx_t *trx;
 
+  /* We need exclusive access to lock_sys to iterate over trxs' locks */
   ut_ad(lock_mutex_own());
   ut_ad(trx_sys_mutex_own());
 
@@ -6235,6 +6252,9 @@ void lock_get_psi_event(const lock_t *lock, ulonglong *thread_id,
 @return The first lock
 */
 const lock_t *lock_get_first_trx_locks(const trx_lock_t *trx_lock) {
+  /* trx->lock.trx_locks is protected by trx->mutex and lock_sys mutex, and we
+  assume we have the exclusive latch on lock_sys here */
+  ut_ad(lock_mutex_own());
   const lock_t *result = UT_LIST_GET_FIRST(trx_lock->trx_locks);
   return (result);
 }
@@ -6244,6 +6264,9 @@ const lock_t *lock_get_first_trx_locks(const trx_lock_t *trx_lock) {
 @return The next lock
 */
 const lock_t *lock_get_next_trx_locks(const lock_t *lock) {
+  /* trx->lock.trx_locks is protected by trx->mutex and lock_sys mutex, and we
+  assume we have the exclusive latch on lock_sys here */
+  ut_ad(lock_mutex_own());
   const lock_t *result = UT_LIST_GET_NEXT(trx_locks, lock);
   return (result);
 }
