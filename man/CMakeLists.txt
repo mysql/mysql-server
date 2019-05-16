@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,14 @@
 # Copy man pages
 FILE(GLOB MAN1 *.1)
 FILE(GLOB MAN1_NDB ndb*.1)
+FILE(GLOB MAN1_ROUTER mysqlrouter*.1)
 FILE(GLOB MAN8 *.8)
 FILE(GLOB MAN8_NDB ndb*.8)
 IF(MAN1_NDB AND NOT WITH_NDBCLUSTER)
   LIST(REMOVE_ITEM MAN1 ${MAN1_NDB})
+ENDIF()
+IF(MAN1_ROUTER AND NOT WITH_ROUTER)
+  LIST(REMOVE_ITEM MAN1 ${MAN1_ROUTER})
 ENDIF()
 INSTALL(FILES ${MAN1} DESTINATION ${INSTALL_MANDIR}/man1 COMPONENT ManPages)
 

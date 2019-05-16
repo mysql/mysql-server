@@ -1404,6 +1404,9 @@ fi
 %{_bindir}/mysqlrouter
 %{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_passwd.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
 %if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf
@@ -1419,6 +1422,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Mon May 13 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.17-1
+- Add router man pages
+
 * Mon Feb 18 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.16-1
 - Add back support for alternative with_ssl
 
