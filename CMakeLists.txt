@@ -1215,8 +1215,19 @@ ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
 
 IF(NOT WITHOUT_SERVER)
-  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
+  # Build failure on Solaris 11.3 for debug builds with NDBCLUSTER.
+  # Adding basic local optimizations unbreaks it.
+  # We *could* test 'uname -v' VERSION_LESS 11.4 here.
+  # A clean build takes roughly the same time with or without -xO1
+  # Link time of mysqld is roughly 10% faster with -xO1.
+  IF(SOLARIS_SPARC AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+    MESSAGE(STATUS
+      "Adding -xO1 for debug builds on Solaris ${MY_KERNEL_VERSION}")
+    STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG " -xO1")
+  ENDIF()
+
   # Add storage engines and plugins.
+  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
   CONFIGURE_PLUGINS()
 ELSE()
   IF(EXISTS "${CMAKE_SOURCE_DIR}/storage/ndb")
