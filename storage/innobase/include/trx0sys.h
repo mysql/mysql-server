@@ -182,8 +182,15 @@ trx_id_t trx_rw_min_trx_id(void);
 UNIV_INLINE
 trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt);
 
-/** Checks if a rw transaction with the given id is active. If the caller is
-not holding trx_sys->mutex, the transaction may already have been committed.
+/** Checks if a rw transaction with the given id is active.
+Please note, that positive result means only that the trx was active
+at some moment during the call, but it might have already become
+TRX_STATE_COMMITTED_IN_MEMORY before the call returns to the caller, as this
+transition is protected by trx->mutex and trx_sys->mutex, but it is impossible
+for the caller to hold any of these mutexes when calling this function as the
+function itself internally acquires trx_sys->mutex which would cause recurrent
+mutex acquisition if caller already had trx_sys->mutex, or latching order
+violation in case of holding trx->mutex.
 @param[in]	trx_id		trx id of the transaction
 @param[in]	corrupt		NULL or pointer to a flag that will be set if
                                 corrupt

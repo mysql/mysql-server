@@ -351,7 +351,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#12352846 - TRANS_XA_START(THD*):
 --echo #                ASSERTION THD->TRANSACTION.XID_STATE.XID.IS_NULL()
---echo #                FAILED 
+--echo #                FAILED
 --echo #
 
 --disable_warnings
@@ -416,7 +416,7 @@ disconnect con2;
 --source include/wait_until_count_sessions.inc
 
 --echo #
---echo # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED 
+--echo # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED
 --echo #              XID DATA IN XA RECOVER OUTPUT
 --echo #
 --echo #
@@ -448,8 +448,8 @@ call mtr.add_suppression("Found 1 prepared XA transactions");
 --enable_query_log
 
 --echo #
---echo # WL#7155: Test 1: check that if a thread of control terminates then 
---echo # the Resource Manager dissociate and rollback any associated 
+--echo # WL#7155: Test 1: check that if a thread of control terminates then
+--echo # the Resource Manager dissociate and rollback any associated
 --echo # transaction branch (see ref. 3.6 on page 18 of XA spec)
 --echo #
 
@@ -470,7 +470,7 @@ DROP TABLE t1;
 --echo #
 --echo # WL#7155: Test 2: Check that if the Resource Manager is doing work outside
 --echo # any global transaction on behalf of the application,
---echo # xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)  
+--echo # xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)
 --echo #
 
 connect (con1,localhost,root,,);
@@ -487,7 +487,7 @@ connection default;
 
 --echo #
 --echo # WL#7155: Test 3: Check that the Resource Manager returns error
---echo # if the Transaction Manager tries to resume non-existent transaction. 
+--echo # if the Transaction Manager tries to resume non-existent transaction.
 --echo #
 
 --error ER_XAER_INVAL
@@ -496,7 +496,7 @@ XA START 'xid1' RESUME;
 --echo #
 --echo # WL#7155: Test 4: Check that the Resource Manager returns ok
 --echo # if the Transaction Manager tries to resume transaction
---echo # that has been ended before. 
+--echo # that has been ended before.
 --echo #
 
 connect (con1,localhost,root,,);
@@ -527,7 +527,7 @@ disconnect con1;
 connection default;
 
 --echo #
---echo # WL#7155: Test 6: Check that the SUSPEND clause isn't supported for XA END. 
+--echo # WL#7155: Test 6: Check that the SUSPEND clause isn't supported for XA END.
 --echo #
 
 connect (con1,localhost,root,,);
@@ -542,8 +542,8 @@ disconnect con1;
 connection default;
 
 --echo #
---echo # WL#7155: Test 7: Check that attempt to end non-existent XA transaction 
---echo # while another XA transaction is active leads to an error 
+--echo # WL#7155: Test 7: Check that attempt to end non-existent XA transaction
+--echo # while another XA transaction is active leads to an error
 --echo #
 
 connect (con1,localhost,root,,);
@@ -588,8 +588,8 @@ disconnect con1;
 connection default;
 
 --echo #
---echo # WL#7155: Test 10: Check that rollback of XA transaction with unknown xid 
---echo # leads to an error when there is other prepared XA transaction. 
+--echo # WL#7155: Test 10: Check that rollback of XA transaction with unknown xid
+--echo # leads to an error when there is other prepared XA transaction.
 --echo #
 
 XA START 'xid1';

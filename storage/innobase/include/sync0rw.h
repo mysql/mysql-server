@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -70,6 +70,7 @@ bool rw_lock_own(rw_lock_t *lock, ulint lock_type) { return (lock != nullptr); }
 #define rw_lock_s_lock(L) ((void)0)
 #define rw_lock_s_unlock(L) ((void)0)
 #define rw_lock_x_lock(L) ((void)0)
+#define rw_lock_x_lock_nowait(L) true
 #define rw_lock_x_unlock(L) ((void)0)
 #define rw_lock_sx_lock(L) ((void)0)
 #define rw_lock_sx_unlock(L) ((void)0)

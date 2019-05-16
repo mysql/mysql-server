@@ -5533,7 +5533,19 @@ static bool innobase_rollback_to_savepoint_can_release_mdl(
   TrxInInnoDB trx_in_innodb(trx);
 
   /* If transaction has not acquired any locks then it is safe
-  to release MDL after rollback to savepoint */
+  to release MDL after rollback to savepoint.
+  We assume that we are in the thread which is running the transaction, and
+  we check the length of this list without holding trx->mutex nor lock_sys
+  exclusive latch, so at least in theory other threads can concurrently modify
+  this list. However, such modifications are either implicit-to-explicit
+  conversions (which is only possible if trx has any implicit locks, which in
+  turn requires that it has acquired at least one IX table lock, so the list
+  is not empty) or related to B-tree reorganization (which is always performed
+  by first making a copy of a lock and then removing the old lock, so the number
+  of locks can not drop to zero). So, if we are only interested in "emptiness"
+  of the list, we should get accurate result without holding any latch. */
+  ut_ad(thd == current_thd);
+  ut_ad(trx->lock.wait_lock == NULL);
   if (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0) {
     return true;
   }

@@ -340,7 +340,8 @@ enum latch_level_t {
 };
 
 /** Each latch has an ID. This id is used for creating the latch and to look
-up its meta-data. See sync0debug.c. */
+up its meta-data. See sync0debug.c. The order does not matter here, but
+alphabetical ordering seems useful */
 enum latch_id_t {
   LATCH_ID_NONE = 0,
   LATCH_ID_AUTOINC,
