@@ -1,6 +1,4 @@
-#!/bin/bash
-
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,27 +20,4 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-set -e
-case "$1" in
-	install)
-	# The tmpfiles.d config will fail if the user does not exist
-	if ! getent group mysql >/dev/null; then
-		addgroup --system mysql >/dev/null
-	fi
-	if ! getent passwd mysql >/dev/null; then
-		adduser --ingroup mysql --system --disabled-login --no-create-home --home /var/lib/mysql --shell /bin/false --gecos "MySQL Server" mysql >/dev/null
-	fi
-
-	;;
-
-	upgrade)
-	;;
-
-	abort-upgrade)
-
-	;;
-
-	*)
-        exit 1
-        ;;
-esac
+d /var/run/mysqld 0755 mysql mysql  -

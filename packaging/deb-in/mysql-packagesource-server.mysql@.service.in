@@ -49,6 +49,3 @@ RestartForceExitStatus=16
 
 # Set enviroment variable MYSQLD_PARENT_PID. This is required for restart.
 Environment=MYSQLD_PARENT_PID=1
-
-RuntimeDirectory=mysqld
-RuntimeDirectoryMode=755
