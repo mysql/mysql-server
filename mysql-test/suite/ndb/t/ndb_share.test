@@ -135,6 +135,8 @@ create table t1 (a int) engine=myisam;
 --disable_query_log
 call mtr.add_suppression("Local table 'test.t1' .* shadows");
 call mtr.add_suppression("Failed to remove table definition");
+call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Failed to rename table definition");
 --enable_query_log
 
 connection server4;
@@ -144,6 +146,8 @@ create table t1 (a int) engine=myisam;
 --disable_query_log
 call mtr.add_suppression("Local table 'test.t1' .* shadows");
 call mtr.add_suppression("Failed to remove table definition");
+call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Failed to rename table definition");
 --enable_query_log
 
 connection server1;

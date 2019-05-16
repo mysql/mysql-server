@@ -26,6 +26,7 @@ insert into ndb_ddl_test.shadow1 values(100);
 --disable_query_log
 call mtr.add_suppression("Local table 'ndb_ddl_test.shadow1' .* shadows");
 call mtr.add_suppression("Failed to remove table definition");
+call mtr.add_suppression("Failed to update table definition");
 --enable_query_log
 
 --connection mysqld2

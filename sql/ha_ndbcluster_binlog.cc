@@ -3889,6 +3889,19 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(share);
   }
 
+  bool has_shadow_table(Ndb_dd_client &dd_client, const char *schema_name,
+                        const char *table_name) const {
+    dd::String_type engine;
+    if (dd_client.get_engine(schema_name, table_name, &engine) &&
+        engine != "ndbcluster") {
+      ndb_log_warning(
+          "Local table '%s.%s' in engine = '%s' shadows the NDB table",
+          schema_name, table_name, engine.c_str());
+      return true;
+    }
+    return false;
+  }
+
   bool install_table_in_dd(const char *schema_name, const char *table_name,
                            dd::sdi_t sdi, int table_id, int table_version,
                            size_t num_partitions,
@@ -3908,6 +3921,11 @@ class Ndb_schema_event_handler {
           schema_name, table_name);
       return false;
     }
+
+    // Check if there is existing table in DD which is not a NDB table, in such
+    // case refuse to overwrite the "shadow table"
+    if (has_shadow_table(dd_client, schema_name, table_name))
+      return false;
 
     if (!tablespace_name.empty()) {
       // Acquire IX MDL on tablespace
@@ -4141,17 +4159,6 @@ class Ndb_schema_event_handler {
       mysql_mutex_unlock(&ndbcluster_mutex);
     }
 
-    bool exists_in_DD;
-    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table(&exists_in_DD))
-    {
-      ndb_log_error("NDB Binlog: Skipping locally defined table '%s.%s' "
-                    "from binlog schema event '%s' from node %d.",
-                    schema->db, schema->name, schema->query,
-                    schema->node_id);
-      DBUG_VOID_RETURN;
-    }
-
     // Install table from NDB, overwrite the existing table
     if (!create_table_from_engine(schema->db, schema->name,
                                   true /* force_overwrite */,
@@ -4224,19 +4231,14 @@ class Ndb_schema_event_handler {
     {
       write_schema_op_to_binlog(m_thd, schema);
 
-      bool exists_in_DD;
-      Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-      if (!tab.is_local_table(&exists_in_DD))
-      {
-        // Install table from NDB, overwrite the altered table.
-        // NOTE! it will also try to setup binlogging but since the share
-        // has a op assigned, that part will be skipped
-        if (!create_table_from_engine(
-                schema->db, schema->name, true /* force_overwrite */,
-                true /* invalidate_referenced_tables */)) {
-          ndb_log_error("Distribution of ALTER TABLE '%s.%s' failed",
-                        schema->db, schema->name);
-        }
+      // Install table from NDB, overwrite the altered table.
+      // NOTE! it will also try to setup binlogging but since the share
+      // has a op assigned, that part will be skipped
+      if (!create_table_from_engine(schema->db, schema->name,
+                                    true /* force_overwrite */,
+                                    true /* invalidate_referenced_tables */)) {
+        ndb_log_error("Distribution of ALTER TABLE '%s.%s' failed", schema->db,
+                      schema->name);
       }
 
       // Check that no event_data have been prepared yet(that is only
@@ -4437,14 +4439,8 @@ class Ndb_schema_event_handler {
 
     // Check if there is existing table in DD which is not a NDB table, in such
     // case refuse to remove the "shadow table"
-    dd::String_type engine;
-    if (dd_client.get_engine(schema_name, table_name, &engine) &&
-        engine != "ndbcluster") {
-      ndb_log_error(
-          "Local table '%s.%s' in engine = '%s' shadows the NDB table",
-          schema_name, table_name, engine.c_str());
+    if (has_shadow_table(dd_client, schema_name, table_name))
       return false;
-    }
 
     if (!dd_client.remove_table(schema_name, table_name, &invalidator)) {
       log_and_clear_THD_conditions();
@@ -4863,17 +4859,6 @@ class Ndb_schema_event_handler {
       NDB_SHARE::release_reference(share, "truncate_table"); // temporary ref.
     }
 
-    bool exists_in_DD;
-    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table(&exists_in_DD))
-    {
-      ndb_log_warning("NDB Binlog: Skipping locally defined table "
-                      "'%s.%s' from binlog schema event '%s' from node %d. ",
-                      schema->db, schema->name, schema->query,
-                      schema->node_id);
-      DBUG_VOID_RETURN;
-    }
-
     if (!create_table_from_engine(schema->db, schema->name,
                                   true /* force_overwrite */)) {
       ndb_log_error("Distribution of TRUNCATE TABLE '%s.%s' failed",
@@ -4895,17 +4880,6 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
 
     write_schema_op_to_binlog(m_thd, schema);
-
-    bool exists_in_DD;
-    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table(&exists_in_DD))
-    {
-      ndb_log_warning("NDB Binlog: Skipping locally defined table '%s.%s' from "
-                      "binlog schema event '%s' from node %d. ",
-                      schema->db, schema->name, schema->query,
-                      schema->node_id);
-      DBUG_VOID_RETURN;
-    }
 
     if (!create_table_from_engine(schema->db, schema->name,
                                   true, /* force_overwrite */
