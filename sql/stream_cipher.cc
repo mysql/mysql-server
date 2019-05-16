@@ -176,7 +176,8 @@ bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
   if (length == 0) return false;
 
 #ifdef HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
-  if (EVP_Cipher(m_ctx, dest, src, length) == 0) return true;
+  if (EVP_Cipher(m_ctx, dest, const_cast<unsigned char *>(src), length) == 0)
+    return true;
 #else
   const int DECRYPTED_BUFFER_SIZE = AES_BLOCK_SIZE * 2048;
   unsigned char buffer[DECRYPTED_BUFFER_SIZE];
@@ -184,7 +185,8 @@ bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
   /* Decrypt in up to DECRYPTED_BUFFER_SIZE chunks */
   while (length != 0) {
     int chunk_len = std::min(length, DECRYPTED_BUFFER_SIZE);
-    if (EVP_Cipher(m_ctx, buffer, (unsigned char *)src, chunk_len) == 0)
+    if (EVP_Cipher(m_ctx, buffer, const_cast<unsigned char *>(src),
+                   chunk_len) == 0)
       return true;
     memcpy(dest, buffer, chunk_len);
     src += chunk_len;

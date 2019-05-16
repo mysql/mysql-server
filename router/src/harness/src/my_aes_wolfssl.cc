@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>  // for memset
 #include "my_inttypes.h"
 #include "mysys/my_aes_impl.h"
+#include "template_utils.h"
 
 /** AES block size is fixed to be 128 bits for CBC and ECB */
 #define MY_AES_BLOCK_SIZE 16
@@ -133,16 +134,18 @@ void DecryptProcess(Aes *ctx, unsigned char *dest, const unsigned char *source,
 void my_aes_create_key(const unsigned char *key, uint key_length, uint8 *rkey,
                        enum my_aes_opmode opmode) {
   const uint key_size = my_aes_opmode_key_sizes_impl[opmode] / 8;
-  uint8 *rkey_end;                              /* Real key boundary */
-  uint8 *ptr;                                   /* Start of the real key*/
-  uint8 *sptr;                                  /* Start of the working key */
-  uint8 *key_end = ((uint8 *)key) + key_length; /* Working key boundary*/
+  uint8 *rkey_end;   /* Real key boundary */
+  uint8 *ptr;        /* Start of the real key*/
+  const uint8 *sptr; /* Start of the working key */
+  const uint8 *key_end =
+      pointer_cast<const uint8 *>(key) + key_length; /* Working key boundary*/
 
   rkey_end = rkey + key_size;
 
   memset(rkey, 0, key_size); /* Set initial key  */
 
-  for (ptr = rkey, sptr = (uint8 *)key; sptr < key_end; ptr++, sptr++) {
+  for (ptr = rkey, sptr = pointer_cast<const uint8 *>(key); sptr < key_end;
+       ptr++, sptr++) {
     if (ptr == rkey_end) /*  Just loop over tmp_key until we used all key */
       ptr = rkey;
     *ptr ^= *sptr;
