@@ -4419,8 +4419,9 @@ dberr_t row_mysql_parallel_select_count_star(
     trx_t *trx, std::vector<dict_index_t *> &indexes, size_t max_threads,
     ulint *n_rows) {
   ut_a(!indexes.empty());
+  using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
 
-  Counter::Shards n_recs;
+  Shards n_recs;
   Counter::clear(n_recs);
 
   struct Check_interrupt {
@@ -4489,9 +4490,11 @@ dberr_t row_mysql_parallel_select_count_star(
 @return DB_SUCCESS or error code. */
 static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
                                     size_t max_threads, ulint *n_rows) {
-  Counter::Shards n_recs{};
-  Counter::Shards n_dups{};
-  Counter::Shards n_corrupt{};
+  using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
+
+  Shards n_recs{};
+  Shards n_dups{};
+  Shards n_corrupt{};
 
   Counter::clear(n_dups);
   Counter::clear(n_recs);

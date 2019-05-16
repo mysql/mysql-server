@@ -124,11 +124,13 @@ class Parallel_reader_adapter {
   }
 
  private:
+  using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
+
   /** Counter to track number of records sent to the caller. */
-  Counter::Shards m_n_sent{};
+  Shards m_n_sent{};
 
   /** Counter to track number of records processed. */
-  Counter::Shards m_n_read{};
+  Shards m_n_read{};
 
   /** Adapter context for each of the spawned threads. */
   void **m_thread_contexts{nullptr};

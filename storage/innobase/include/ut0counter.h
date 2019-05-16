@@ -243,13 +243,16 @@ struct Shard {
   N m_n{};
 };
 
-using Shards = std::array<Shard, 128>;
+template <size_t COUNT = 128>
+using Shards = std::array<Shard, COUNT>;
+
 using Function = std::function<void(const Type)>;
 
 /** Increment the counter of a shard by 1.
 @param[in,out]  shards          Sharded counter to increment.
 @param[in] id                   Shard key. */
-inline void inc(Shards &shards, size_t id) {
+template <size_t COUNT>
+inline void inc(Shards<COUNT> &shards, size_t id) {
   shards[id % shards.size()].m_n.fetch_add(1, std::memory_order_relaxed);
 }
 
@@ -257,14 +260,16 @@ inline void inc(Shards &shards, size_t id) {
 @param[in,out]  shards          Sharded counter to increment.
 @param[in] id                   Shard key.
 @param[in] n                    Number to add. */
-inline void add(Shards &shards, size_t id, size_t n) {
+template <size_t COUNT>
+inline void add(Shards<COUNT> &shards, size_t id, size_t n) {
   shards[id % shards.size()].m_n.fetch_add(n, std::memory_order_relaxed);
 }
 
 /** Get the counter value for a shard.
 @param[in,out]  shards          Sharded counter to increment.
 @param[in] id                   Shard key. */
-inline Type get(const Shards &shards, size_t id) {
+template <size_t COUNT>
+inline Type get(const Shards<COUNT> &shards, size_t id) {
   return (shards[id % shards.size()].m_n.load(std::memory_order_relaxed));
 }
 
@@ -272,7 +277,8 @@ inline Type get(const Shards &shards, size_t id) {
 @param[in] shards               Shards to iterate over
 @param[in] f                    Callback function
 @return total value. */
-inline void for_each(const Shards &shards, Function &&f) {
+template <size_t COUNT>
+inline void for_each(const Shards<COUNT> &shards, Function &&f) {
   for (const auto &shard : shards) {
     f(shard.m_n);
   }
@@ -281,7 +287,8 @@ inline void for_each(const Shards &shards, Function &&f) {
 /** Get the total value of all shards.
 @param[in] shards               Shards to sum.
 @return total value. */
-inline Type total(const Shards &shards) {
+template <size_t COUNT>
+inline Type total(const Shards<COUNT> &shards) {
   Type n = 0;
 
   for_each(shards, [&](const Type count) { n += count; });
@@ -291,7 +298,8 @@ inline Type total(const Shards &shards) {
 
 /** Clear the counter - reset to 0.
 @param[in,out] shards          Shards to clear. */
-inline void clear(Shards &shards) {
+template <size_t COUNT>
+inline void clear(Shards<COUNT> &shards) {
   for (auto &shard : shards) {
     shard.m_n.store(0, std::memory_order_relaxed);
   }
