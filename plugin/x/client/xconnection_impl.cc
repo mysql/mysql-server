@@ -51,6 +51,7 @@
 #include "plugin/x/client/xconnection_config.h"
 #include "plugin/x/client/xssl_config.h"
 #include "plugin/x/generated/mysqlx_error.h"
+#include "plugin/x/src/config/config.h"
 #include "sql/net_ns.h"
 
 #ifndef WIN32
@@ -183,9 +184,11 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     have OpenSSL. The X509_check_* functions return 1 on success.
   */
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
-  if ((X509_check_host(server_cert, server_hostname.c_str(),
-                       server_hostname.length(), 0, 0) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname.c_str(), 0) != 1)) {
+  const int check_result_for_ip = IS_WOLFSSL_OR_OPENSSL(
+      0, X509_check_ip_asc(server_cert, server_hostname.c_str(), 0));
+  const int check_result_for_host = X509_check_host(
+      server_cert, server_hostname.c_str(), server_hostname.length(), 0, 0);
+  if ((check_result_for_host != 1) && (check_result_for_ip != 1)) {
     return XError{
         CR_SSL_CONNECTION_ERROR,
         "Failed to verify the server certificate via X509 certificate "
