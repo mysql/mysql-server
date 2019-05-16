@@ -78,10 +78,15 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE tt (i INT) ENGINE = InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+INSERT INTO tt SELECT a as i FROM t1 WHERE a=0;
 # Scenario 3: Interleaved transactions (trx1 conflicts on index b)
-INSERT INTO t1 VALUES (1, 1, 1);
+INSERT INTO t1 VALUES (0,0,0), (1, 1, 1);
 SELECT * FROM t1;
 a	b	c
+0	0	0
 1	1	1
 # Connection default:
 # Transaction trx1:
@@ -89,6 +94,7 @@ START TRANSACTION;
 INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 SELECT * FROM t1;
 a	b	c
+0	0	0
 1	1	2
 # Connection other:
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
@@ -96,6 +102,7 @@ INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
 SELECT * FROM t1;
 a	b	c
+0	0	0
 1	1	2
 2	3	4
 COMMIT;
@@ -104,10 +111,12 @@ COMMIT;
 # Result:
 SELECT * FROM t1;
 a	b	c
+0	0	0
 1	1	2
 2	3	3
 # Cleanup
 DROP TABLE t1;
+DROP TABLE tt;
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table

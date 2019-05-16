@@ -1,0 +1,113 @@
+--echo # Bug #28523025: INNODB: ASSERTION FAILURE:
+--echo #                LOCK0LOCK.CC:1468:LOCK_REC_GET_REC_NOT_GAP(LOCK)
+
+--source include/have_debug_sync.inc
+
+# Minimal reproduction of original issue:
+CREATE TABLE t0(a INT PRIMARY KEY);
+CREATE VIEW v0 AS SELECT a FROM t0;
+DROP TABLE t0;
+CREATE TABLE t0(a int) REPLACE SELECT 0 AS a;
+DROP TABLE t0;
+DROP VIEW v0;
+
+# A version in which there are conflicting rows and REPLACE is used:
+CREATE TABLE t0(a INT, b INT);
+INSERT INTO t0 VALUES (1,1), (1,2), (2,2);
+
+CREATE TABLE t1(a INT, b INT);
+CREATE VIEW v0 AS SELECT b FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b INT
+) REPLACE SELECT a,b FROM t0 ORDER BY a,b;
+SELECT * FROM t1;
+DROP TABLE t1;
+DROP TABLE t0;
+DROP VIEW v0;
+
+# A version in which there are conflicting rows and IGNORE is used:
+CREATE TABLE t0(a INT, b INT);
+INSERT INTO t0 VALUES (1,1), (1,2), (2,2);
+
+CREATE TABLE t1(a INT, b INT);
+CREATE VIEW v0 AS SELECT b FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b INT
+) IGNORE SELECT a,b FROM t0 ORDER BY a,b;
+SELECT * FROM t1;
+DROP TABLE t1;
+DROP TABLE t0;
+DROP VIEW v0;
+
+# A version in which there are conflicting rows and no modifier is used:
+CREATE TABLE t0(a INT, b INT);
+INSERT INTO t0 VALUES (1,1), (1,2), (2,2);
+
+CREATE TABLE t1(a INT, b INT);
+CREATE VIEW v0 AS SELECT b FROM t1;
+DROP TABLE t1;
+--error ER_DUP_ENTRY
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b INT
+) SELECT a,b FROM t0 ORDER BY a,b;
+DROP TABLE t0;
+DROP VIEW v0;
+
+# Demonstration that correct type of locks (X instead of S followed by X) is
+# taken for REPLACE and IODKU, regardless of whether or not there is a TRIGGER
+# which causes a "subquery" with it's own lifecycle, even if this "subquery"
+# also operates on the same table.
+# This is to demonstrate that REPLCAE/IODKU flags should be tracked not per
+# per trx, nor per table, not even per <trx,table> pair, but rather per cursor.
+# In this test the exact list of locks reported by performance_schema is not as
+# important, as the fact the list for i=1 is the same as list for i=2, which
+# means that the "subquery" did not confuse the logic of the outer query.
+# The only allowed difference between the two lists is the IS table lock
+# and S lock on supremum pseudo-record taken by "subquery" intself.
+--let i=1
+while ($i <= 2)
+{
+    --let table=t$i
+
+    eval CREATE TABLE $table(a INT NOT NULL PRIMARY KEY, b INT NOT NULL UNIQUE);
+    eval INSERT INTO $table (a,b) VALUES
+        (1,10), (2,20), (3,30), (4,40), (5,50), (6,60), (8,80), (10,100);
+
+    if ($i==2)
+    {
+        CREATE TABLE tt (i INT) ENGINE = InnoDB;
+        CREATE TRIGGER t2_bi BEFORE INSERT ON t2
+            FOR EACH ROW
+                INSERT INTO tt SELECT a as i FROM t2 WHERE a=10000;
+    }
+
+    BEGIN;
+
+    --eval REPLACE INTO $table (a,b) VALUES (2,13)
+    --eval INSERT INTO $table (a,b) VALUES (4,43) ON DUPLICATE KEY UPDATE b=43
+
+    --eval REPLACE INTO $table (a,b) VALUES (7,60)
+    --eval INSERT INTO $table (a,b) VALUES (9,80) ON DUPLICATE KEY UPDATE a=9
+
+
+    eval SELECT index_name,lock_type,lock_mode,lock_status,lock_data
+    FROM performance_schema.data_locks
+    WHERE object_schema='test' AND object_name = '$table'
+    ORDER BY 1,2,3,4,5;
+
+
+    ROLLBACK;
+    --inc $i
+}
+
+DROP TRIGGER t2_bi;
+DROP TABLE tt;
+DROP TABLE t2;
+DROP TABLE t1;
+
+

@@ -609,24 +609,34 @@ struct row_prebuilt_t {
                               DATA_POINT as non-BLOB type, the
                               templ_contains_blob can't tell us
                               if there is DATA_POINT */
-  mysql_row_templ_t *mysql_template;       /*!< template used to transform
-                                         rows fast between MySQL and Innobase
-                                         formats; memory for this template
-                                         is not allocated from 'heap' */
-  mem_heap_t *heap;                        /*!< memory heap from which
-                                           these auxiliary structures are
-                                           allocated when needed */
-  mem_heap_t *cursor_heap;                 /*!< memory heap from which
-                                           innodb_api_buf is allocated per session */
-  ins_node_t *ins_node;                    /*!< Innobase SQL insert node
-                                           used to perform inserts
-                                           to the table */
-  byte *ins_upd_rec_buff; /*!< buffer for storing data converted
-                          to the Innobase format from the MySQL
-                          format */
 
-  /* buffer for converting data format
-  for multi-value virtual columns */
+  /** 1 if extra(HA_EXTRA_INSERT_WITH_UPDATE) was requested, which happens
+  when ON DUPLICATE KEY UPDATE clause is present, 0 otherwise */
+  unsigned on_duplicate_key_update : 1;
+
+  /** 1 if extra(HA_EXTRA_WRITE_CAN_REPLACE) was requested, which happen when
+  REPLACE is done instead of regular INSERT, 0 otherwise */
+  unsigned replace : 1;
+
+  /** template used to transform rows fast between MySQL and Innobase formats;
+  memory for this template is not allocated from 'heap' */
+  mysql_row_templ_t *mysql_template;
+
+  /** memory heap from which these auxiliary structures are allocated when
+  needed */
+  mem_heap_t *heap;
+
+  /** memory heap from which innodb_api_buf is allocated per session */
+  mem_heap_t *cursor_heap;
+
+  /** Innobase SQL insert node used to perform inserts to the table */
+  ins_node_t *ins_node;
+
+  /** buffer for storing data converted to the Innobase format from the MySQL
+  format */
+  byte *ins_upd_rec_buff;
+
+  /* buffer for converting data format for multi-value virtual columns */
   multi_value_data *mv_data;
   const byte *default_rec; /*!< the default values of all columns
                            (a "default row") in MySQL format */
@@ -848,6 +858,12 @@ struct row_prebuilt_t {
   @retval true   if records can be prefetched
   @retval false  if records cannot be prefetched */
   bool can_prefetch_records() const;
+
+  /** Determines if the query is REPLACE or ON DUPLICATE KEY UPDATE in which
+  case duplicate values should be allowed (and further processed) instead of
+  causing an error.
+  @return true iff duplicated values should be allowed */
+  bool allow_duplicates() { return (replace || on_duplicate_key_update); }
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
