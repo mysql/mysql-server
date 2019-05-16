@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -76,7 +76,7 @@ ulong	fts_min_token_size;
 
 
 // FIXME: testing
-ib_time_t elapsed_time = 0;
+ib_time_monotonic_t elapsed_time = 0;
 ulint n_nodes = 0;
 
 #ifdef FTS_CACHE_SIZE_DEBUG
@@ -3942,7 +3942,7 @@ fts_write_node(
 	pars_info_t*	info;
 	dberr_t		error;
 	ib_uint32_t	doc_count;
-	ib_time_t	start_time;
+	ib_time_monotonic_t	start_time;
 	doc_id_t	last_doc_id;
 	doc_id_t	first_doc_id;
 	char		table_name[MAX_FULL_NAME_LEN];
@@ -3991,9 +3991,9 @@ fts_write_node(
 			"  :last_doc_id, :doc_count, :ilist);");
 	}
 
-	start_time = ut_time();
+	start_time = ut_time_monotonic();
 	error = fts_eval_sql(trx, *graph);
-	elapsed_time += ut_time() - start_time;
+	elapsed_time += ut_time_monotonic() - start_time;
 	++n_nodes;
 
 	return(error);
@@ -4435,7 +4435,7 @@ fts_sync_begin(
 	n_nodes = 0;
 	elapsed_time = 0;
 
-	sync->start_time = ut_time();
+	sync->start_time = ut_time_monotonic();
 
 	sync->trx = trx_allocate_for_background();
 
@@ -4587,7 +4587,7 @@ fts_sync_commit(
 	if (fts_enable_diag_print && elapsed_time) {
 		ib::info() << "SYNC for table " << sync->table->name
 			<< ": SYNC time: "
-			<< (ut_time() - sync->start_time)
+			<< (ut_time_monotonic() - sync->start_time)
 			<< " secs: elapsed "
 			<< (double) n_nodes / elapsed_time
 			<< " ins/sec";

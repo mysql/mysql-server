@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -147,12 +147,12 @@ struct i_s_table_cache_t {
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
-	rw_lock_t*	rw_lock;	/*!< read-write lock protecting
-					the rest of this structure */
-	uintmax_t	last_read;	/*!< last time the cache was read;
+	rw_lock_t*	rw_lock;         /*!< read-write lock protecting
+				         the rest of this structure */
+	ib_time_monotonic_us_t  last_read;/*!< last time the cache was read;
 					measured in microseconds since
-					epoch */
-	ib_mutex_t		last_read_mutex;/*!< mutex protecting the
+				        epoch */
+	ib_mutex_t	      last_read_mutex;/*!< mutex protecting the
 					last_read member - it is updated
 					inside a shared lock of the
 					rw_lock member */
@@ -1210,7 +1210,7 @@ can_cache_be_updated(
 /*=================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	uintmax_t	now;
+	ib_time_monotonic_us_t now;
 
 	/* Here we read cache->last_read without acquiring its mutex
 	because last_read is only updated when a shared rw lock on the
@@ -1221,7 +1221,7 @@ can_cache_be_updated(
 
 	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
-	now = ut_time_us(NULL);
+	now = ut_time_monotonic_us();
 	if (now - cache->last_read > CACHE_MIN_IDLE_TIME_US) {
 
 		return(TRUE);
@@ -1464,12 +1464,12 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	uintmax_t	now;
+	ib_time_monotonic_us_t  now;
 
 	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S));
 
 	/* update cache last read time */
-	now = ut_time_us(NULL);
+	now = ut_time_monotonic_us();
 	mutex_enter(&cache->last_read_mutex);
 	cache->last_read = now;
 	mutex_exit(&cache->last_read_mutex);

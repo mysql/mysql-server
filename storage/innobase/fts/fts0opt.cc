@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,7 +64,7 @@ static os_event_t fts_opt_shutdown_event = NULL;
 static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
 
 /** Last time we did check whether system need a sync */
-static ib_time_t	last_check_sync_time;
+static ib_time_monotonic_t	last_check_sync_time;
 
 /** State of a table within the optimization sub system. */
 enum fts_state_t {
@@ -195,12 +195,12 @@ struct fts_slot_t {
 	ulint		deleted;	/*!< Number of doc ids deleted since the
 					last time this table was optimized */
 
-	ib_time_t	last_run;	/*!< Time last run completed */
+	ib_time_monotonic_t	last_run;  /*!< Time last run completed */
 
-	ib_time_t	completed;	/*!< Optimize finish time */
+	ib_time_monotonic_t	completed; /*!< Optimize finish time */
 
-	ib_time_t	interval_time;	/*!< Minimum time to wait before
-					optimizing the table again. */
+	ib_time_t	interval_time;	   /*!< Minimum time to wait before
+					   optimizing the table again. */
 };
 
 /** A table remove message for the FTS optimize thread. */
@@ -1544,9 +1544,10 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 fts_optimize_compact(
 /*=================*/
-	fts_optimize_t*	optim,		/*!< in: optimize state data */
-	dict_index_t*	index,		/*!< in: current FTS being optimized */
-	ib_time_t	start_time)	/*!< in: optimize start time */
+	fts_optimize_t*	optim,		     /*!< in: optimize state data */
+	dict_index_t*	index,		     /*!< in: current FTS being
+					      optimized */
+	ib_time_monotonic_t	start_time)  /*!< in: optimize start time */
 {
 	ulint		i;
 	dberr_t		error = DB_SUCCESS;
@@ -1580,7 +1581,8 @@ fts_optimize_compact(
 		fts_word_free(word);
 
 		if (fts_optimize_time_limit > 0
-		    && (ut_time() - start_time) > fts_optimize_time_limit) {
+		    && (ut_time_monotonic() - start_time) >
+		        fts_optimize_time_limit) {
 
 			optim->done = TRUE;
 		}
@@ -1778,7 +1780,7 @@ fts_optimize_words(
 	fts_string_t*	word)	/*!< in: the starting word to optimize */
 {
 	fts_fetch_t	fetch;
-	ib_time_t	start_time;
+	ib_time_monotonic_t	start_time;
 	que_t*		graph = NULL;
 	CHARSET_INFO*	charset = optim->fts_index_table.charset;
 
@@ -1788,7 +1790,7 @@ fts_optimize_words(
 	fts_optimize_time_limit = fts_optimize_get_time_limit(
 		optim->trx, &optim->fts_common_table);
 
-	start_time = ut_time();
+	start_time = ut_time_monotonic();
 
 	/* Setup the callback to use for fetching the word ilist etc. */
 	fetch.read_arg = optim->words;
@@ -2402,7 +2404,7 @@ fts_optimize_table_bk(
 
 	/* Avoid optimizing tables that were optimized recently. */
 	if (slot->last_run > 0
-	    && (ut_time() - slot->last_run) < slot->interval_time) {
+	    && (ut_time_monotonic() - slot->last_run) < slot->interval_time) {
 
 		return(DB_SUCCESS);
 
@@ -2414,14 +2416,14 @@ fts_optimize_table_bk(
 		if (error == DB_SUCCESS) {
 			slot->state = FTS_STATE_DONE;
 			slot->last_run = 0;
-			slot->completed = ut_time();
+			slot->completed = ut_time_monotonic();
 		}
 	} else {
 		error = DB_SUCCESS;
 	}
 
 	/* Note time this run completed. */
-	slot->last_run = ut_time();
+	slot->last_run = ut_time_monotonic();
 
 	return(error);
 }
@@ -2733,11 +2735,11 @@ fts_optimize_how_many(
 						vector*/
 {
 	ulint		i;
-	ib_time_t	delta;
+	ib_time_monotonic_t	delta;
 	ulint		n_tables = 0;
-	ib_time_t	current_time;
+	ib_time_monotonic_t	current_time;
 
-	current_time = ut_time();
+	current_time = ut_time_monotonic();
 
 	for (i = 0; i < ib_vector_size(tables); ++i) {
 		const fts_slot_t*	slot;
@@ -2791,13 +2793,13 @@ fts_is_sync_needed(
 						vector*/
 {
 	ulint	total_memory = 0;
-	double	time_diff = difftime(ut_time(), last_check_sync_time);
+	uint64_t time_diff = ut_time_monotonic() - last_check_sync_time;
 
 	if (fts_need_sync || time_diff < 5) {
 		return(false);
 	}
 
-	last_check_sync_time = ut_time();
+	last_check_sync_time = ut_time_monotonic();
 
 	for (ulint i = 0; i < ib_vector_size(tables); ++i) {
 		const fts_slot_t*	slot;
@@ -3039,7 +3041,7 @@ fts_optimize_init(void)
 	table_vector.clear();
 
 	fts_opt_shutdown_event = os_event_create(0);
-	last_check_sync_time = ut_time();
+	last_check_sync_time = ut_time_monotonic();
 
 	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
 }

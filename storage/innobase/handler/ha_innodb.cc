@@ -4051,6 +4051,7 @@ innobase_change_buffering_inited_ok:
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
 # endif /* UNIV_DEBUG */
+	os_event_global_init();
 
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -4197,9 +4198,12 @@ innobase_end(
 
 		innobase_space_shutdown();
 
+
 		mysql_mutex_destroy(&innobase_share_mutex);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
+
+		os_event_global_destroy();
 	}
 
 	DBUG_RETURN(err);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,6 +53,18 @@ Created 1/20/1994 Heikki Tuuri
 /** Time stamp */
 typedef time_t	ib_time_t;
 
+/** Time stamp read from the monotonic clock (returned by ut_time_monotonic()).
+ */
+typedef int64_t ib_time_monotonic_t;
+
+/** Number of milliseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_ms()). */
+typedef int64_t ib_time_monotonic_ms_t;
+
+/** Number of microseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_us()). */
+typedef int64_t ib_time_monotonic_us_t;
+
 #ifndef UNIV_HOTBACKUP
 # if defined(HAVE_PAUSE_INSTRUCTION)
    /* According to the gcc info page, asm volatile means that the
@@ -91,11 +103,16 @@ if cond becomes true.
 @param max_wait_us in: maximum delay to wait, in microseconds */
 #define UT_WAIT_FOR(cond, max_wait_us)				\
 do {								\
-	uintmax_t	start_us;					\
-	start_us = ut_time_us(NULL);				\
-	while (!(cond)						\
-	       && ut_time_us(NULL) - start_us < (max_wait_us)) {\
-								\
+	uint64_t	start_us;				\
+	start_us = ut_time_monotonic_us();			\
+	while (!(cond)) {					\
+		ib_time_monotonic_us_t diff;                    \
+		diff = ut_time_monotonic_us() - start_us;       \
+		uint64_t limit = max_wait_us;			\
+		if(limit <= 0 || (diff > 0 &&			\
+			         ((uint64_t)diff > limit))) {	\
+			break;					\
+		}						\
 		os_thread_sleep(2000 /* 2 ms */);		\
 	}							\
 } while (0)
@@ -213,33 +230,18 @@ ut_time(void);
 /*=========*/
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
-Returns system time.
-Upon successful completion, the value 0 is returned; otherwise the
-value -1 is returned and the global variable errno is set to indicate the
-error.
-@return 0 on success, -1 otherwise */
-int
-ut_usectime(
-/*========*/
-	ulint*	sec,	/*!< out: seconds since the Epoch */
-	ulint*	ms);	/*!< out: microseconds since the Epoch+*sec */
+Returns the number of microseconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void);
 
-/**********************************************************//**
-Returns the number of microseconds since epoch. Similar to
-time(3), the return value is also stored in *tloc, provided
-that tloc is non-NULL.
-@return us since epoch */
-uintmax_t
-ut_time_us(
-/*=======*/
-	uintmax_t*	tloc);	/*!< out: us since epoch, if non-NULL */
-/**********************************************************//**
-Returns the number of milliseconds since some epoch.  The
-value may wrap around.  It should only be used for heuristic
-purposes.
-@return ms since epoch */
-ulint
-ut_time_ms(void);
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
+ @return ms since epoch */
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void);
+
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_t ut_time_monotonic(void);
+
 /*============*/
 #ifdef _WIN32
 /**********************************************************//**
