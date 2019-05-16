@@ -2337,11 +2337,18 @@ bool Item_func_repeat::resolve_type(THD *thd) {
     longlong count = args[1]->val_int();
     if (args[1]->null_value) goto end;
 
+    // If count is less than 1, returns an empty string.
+    Integer_value count_val(count, args[1]->unsigned_flag);
+    if (count_val.is_negative()) count = 0;
+
+    unsigned long long count_ull = static_cast<unsigned long long>(count);
+
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
-    if (count > INT_MAX32) count = INT_MAX32;
+    if (count_ull > INT_MAX32) count_ull = INT_MAX32;
 
-    ulonglong char_length = (ulonglong)args[0]->max_char_length() * count;
+    ulonglong char_length =
+        static_cast<ulonglong>(args[0]->max_char_length()) * count_ull;
     set_data_type_string(char_length);
     maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
     return false;

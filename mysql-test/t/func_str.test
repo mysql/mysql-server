@@ -2007,3 +2007,15 @@ disconnect con1;
 SET GLOBAL max_allowed_packet=default;
 
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#29739778 ASSERTION FAILED: MAYBE_NULL,
+--echo #              IN ITEM_STR_FUNC::PUSH_PACKET_OVERFLOW_WARNING
+--echo #
+
+set sql_mode='';
+
+do repeat(row_count()  ,((-9223372036854775808 )<<('{ }'  ))  );
+do ((repeat(1,9223372036854775808))or(convert((0x6d5b5d8d)using dec8)));
+
+set sql_mode=default;
