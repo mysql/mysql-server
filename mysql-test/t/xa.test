@@ -354,39 +354,51 @@ DROP TABLE t1;
 --echo #                FAILED
 --echo #
 
+# We need to create a deadlock in which xa transaction will be chosen as
+# a victim and rolled back. To keep it simple we will use this scenario:
+# 1. connection default obtains LOCK_S on a record
+# 2. connection con2 waits for LOCK_X on the same record
+# 3. connection default tries to obtain LOCK_X on the record which causes
+#    a cycle, which is resolved by choosing con2 as a victim.
+
 --disable_warnings
-DROP TABLE IF EXISTS t1, t2;
+DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
-CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
 
 START TRANSACTION;
-INSERT INTO t1 VALUES (1);
+
+# Step 1.
+SELECT a FROM t1 WHERE a=1 FOR SHARE;
 
 --echo # Connection con2
 --connect (con2,localhost,root)
 XA START 'xid1';
 --echo # Sending:
---send INSERT INTO t2 SELECT a FROM t1
+
+# Step 2.
+--send SELECT a FROM t1 WHERE a=1 FOR UPDATE
 
 --echo # Connection default
 --connection default
---echo # Waiting for until a transaction with 'INSERT SELECT'
+--echo # Waiting for until a transaction with 'SELECT...FOR UPDATE'
 --echo # will be locked inside innodb subsystem.
 
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
-  WHERE trx_query = 'INSERT INTO t2 SELECT a FROM t1' AND
+  WHERE trx_query = 'SELECT a FROM t1 WHERE a=1 FOR UPDATE' AND
   trx_operation_state = 'starting index read' AND
   trx_state = 'LOCK WAIT';
 --source include/wait_condition.inc
 
-DELETE FROM t1;
+# Step 3.
+SELECT a FROM t1 WHERE a=1 FOR UPDATE;
 
 --echo # Connection con2
 --connection con2
---echo # Reaping: INSERT INTO t2 SELECT a FROM t1
+--echo # Reaping: SELECT a FROM t1 WHERE a=1 FOR UPDATE
 --error ER_LOCK_DEADLOCK
 --reap
 --error ER_XA_RBDEADLOCK
@@ -408,7 +420,7 @@ XA ROLLBACK 'xid1';
 
 --echo # Connection default
 connection default;
-DROP TABLE t1, t2;
+DROP TABLE t1;
 disconnect con2;
 
 

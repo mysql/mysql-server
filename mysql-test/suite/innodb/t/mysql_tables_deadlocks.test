@@ -47,7 +47,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
  id INT PRIMARY KEY AUTO_INCREMENT,
  name TEXT
-)
+) ENGINE=InnoDB
 SELECT table_name AS name
 FROM information_schema.tables
 WHERE table_schema="mysql" AND engine="InnoDB"
@@ -68,14 +68,18 @@ while($i <= $n)
   --disable_result_log
 
   # We plan to create a deadlock cycle in a quite simple way:
-  # c1: locks a row FOR SHARE
-  # c2: waits for a lock on the same row FOR UPDATE
-  # c1: now tries to lock the same row FOR UPDATE
-  # However, if the table is initially empty, we need to insert something to it.
-  # This requires us to guess plauisible default values for all columns.
+  # 1. c1: locks at least one row in $name FOR SHARE (let's call the row "A")
+  # 2. c2: locks the row with id=10 in t1 FOR SHARE (let's call the row "B")
+  # 3. c2: waits for a lock on the row "A" FOR UPDATE
+  # 4. c1: now tries to lock the row "B" FOR UPDATE
+  # However, if the table $name is initially empty, we need to first insert row "A",
+  # to have something to work with.
+  # This requires us to guess plauisible default values for all columns of "A".
   # We exploit that in sql-mode="" we can simply pass 0 for each column.
   # We simply count number of columns and prepare a string with that many
   # zeros.
+  # Also, to force the c2 to be chosen as a victim, we ensure that c1 has
+  # greater weight, by allowing it to lock more rows in t1 in step 4.
   # I am aware that these tests are fragile, so if it is costly to maintain them
   # please feel free to remove them - they were useful during development, but
   # probably not worth spending resources to keep them up-to-date.
@@ -94,17 +98,22 @@ while($i <= $n)
 
       --eval INSERT INTO mysql.$name VALUES ($zeros 0)
     }
+    # 1. c1: locks at least one row in $name FOR SHARE (let's call the row "A")
     --eval SELECT COUNT(*) FROM mysql.$name FOR SHARE
 
   --connect (c2, localhost, root,,)
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     BEGIN;
+    # 2. c2: locks the row with id=10 in t1 FOR SHARE (let's call the row "B")
+    SELECT id FROM t1 WHERE id=10 FOR SHARE;
     SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL c2_will_wait';
+    # 3. c2: waits for a lock on the row "A" FOR UPDATE
     --send_eval SELECT COUNT(*) FROM mysql.$name FOR UPDATE
 
   --connection c1
     SET DEBUG_SYNC = 'now WAIT_FOR c2_will_wait';
-    --eval SELECT COUNT(*) FROM mysql.$name FOR UPDATE
+    # 4. c1: now tries to lock the row "B" FOR UPDATE
+    SELECT COUNT(*) FROM t1 FOR UPDATE;
     --enable_query_log
     --enable_result_log
     ROLLBACK;

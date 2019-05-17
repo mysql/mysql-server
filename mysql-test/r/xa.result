@@ -214,21 +214,25 @@ DROP TABLE t1;
 #                ASSERTION THD->TRANSACTION.XID_STATE.XID.IS_NULL()
 #                FAILED
 #
-DROP TABLE IF EXISTS t1, t2;
+DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
-CREATE TABLE t2 (a INT) ENGINE=InnoDB;
-START TRANSACTION;
 INSERT INTO t1 VALUES (1);
+START TRANSACTION;
+SELECT a FROM t1 WHERE a=1 FOR SHARE;
+a
+1
 # Connection con2
 XA START 'xid1';
 # Sending:
-INSERT INTO t2 SELECT a FROM t1;
+SELECT a FROM t1 WHERE a=1 FOR UPDATE;
 # Connection default
-# Waiting for until a transaction with 'INSERT SELECT'
+# Waiting for until a transaction with 'SELECT...FOR UPDATE'
 # will be locked inside innodb subsystem.
-DELETE FROM t1;
+SELECT a FROM t1 WHERE a=1 FOR UPDATE;
+a
+1
 # Connection con2
-# Reaping: INSERT INTO t2 SELECT a FROM t1
+# Reaping: SELECT a FROM t1 WHERE a=1 FOR UPDATE
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 XA COMMIT 'xid1';
 ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
@@ -240,7 +244,7 @@ XA END 'xid1';
 XA PREPARE 'xid1';
 XA ROLLBACK 'xid1';
 # Connection default
-DROP TABLE t1, t2;
+DROP TABLE t1;
 #
 # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED
 #              XID DATA IN XA RECOVER OUTPUT

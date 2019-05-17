@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -89,7 +89,7 @@ void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
 
   ((byte *)&lock[1])[byte_index] |= 1 << bit_index;
 
-  ++lock->trx->lock.n_rec_locks;
+  lock->trx->lock.n_rec_locks.fetch_add(1, std::memory_order_relaxed);
 }
 
 /** Gets the first or next record lock on a page.
