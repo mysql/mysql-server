@@ -32,6 +32,8 @@ RETURNS VARCHAR(64) UNICODE BINARY
 BEGIN
 RETURN '';
 END|
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 CREATE FUNCTION f()
@@ -44,6 +46,8 @@ f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 BEGIN
 RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -59,6 +63,8 @@ f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 BEGIN
 RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 CREATE FUNCTION f()
@@ -71,6 +77,8 @@ f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 BEGIN
 RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #

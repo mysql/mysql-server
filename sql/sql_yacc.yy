@@ -431,6 +431,12 @@ void warn_about_deprecated_national(THD *thd)
     push_warning(thd, ER_DEPRECATED_NATIONAL);
 }
 
+void warn_about_deprecated_binary(THD *thd)
+{
+  push_deprecated_warn(thd, "BINARY as attribute of a type",
+  "a CHARACTER SET clause with _bin collation");
+}
+
 %}
 
 %start start_entry
@@ -6864,8 +6870,14 @@ opt_default:
 
 ascii:
           ASCII_SYM        { $$= &my_charset_latin1; }
-        | BINARY_SYM ASCII_SYM { $$= &my_charset_latin1_bin; }
-        | ASCII_SYM BINARY_SYM { $$= &my_charset_latin1_bin; }
+        | BINARY_SYM ASCII_SYM {
+            warn_about_deprecated_binary(YYTHD);
+            $$= &my_charset_latin1_bin;
+        }
+        | ASCII_SYM BINARY_SYM {
+            warn_about_deprecated_binary(YYTHD);
+            $$= &my_charset_latin1_bin;
+        }
         ;
 
 unicode:
@@ -6879,11 +6891,13 @@ unicode:
           }
         | UNICODE_SYM BINARY_SYM
           {
+            warn_about_deprecated_binary(YYTHD);
             if (!($$= mysqld_collation_get_by_name("ucs2_bin")))
               MYSQL_YYABORT;
           }
         | BINARY_SYM UNICODE_SYM
           {
+            warn_about_deprecated_binary(YYTHD);
             if (!($$= mysqld_collation_get_by_name("ucs2_bin")))
               my_error(ER_UNKNOWN_COLLATION, MYF(0), "ucs2_bin");
           }
@@ -6919,11 +6933,13 @@ opt_charset_with_opt_binary:
           }
         | BINARY_SYM
           {
+            warn_about_deprecated_binary(YYTHD);
             $$.charset= NULL;
             $$.force_binary= true;
           }
         | BINARY_SYM character_set charset_name
           {
+            warn_about_deprecated_binary(YYTHD);
             $$.charset= get_bin_collation($3);
             if ($$.charset == NULL)
               MYSQL_YYABORT;
@@ -6933,7 +6949,10 @@ opt_charset_with_opt_binary:
 
 opt_bin_mod:
           /* empty */ { $$= false; }
-        | BINARY_SYM  { $$= true; }
+        | BINARY_SYM {
+            warn_about_deprecated_binary(YYTHD);
+            $$= true;
+          }
         ;
 
 ws_num_codepoints:

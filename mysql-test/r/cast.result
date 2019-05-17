@@ -459,12 +459,16 @@ set names latin1;
 select hex(cast('a' as char(2) binary));
 hex(cast('a' as char(2) binary))
 61
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 select hex(cast('a' as binary(2)));
 hex(cast('a' as binary(2)))
 6100
 select hex(cast('a' as char(2) binary));
 hex(cast('a' as char(2) binary))
 61
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE TABLE t1 (d1 datetime);
 INSERT INTO t1(d1) VALUES ('2007-07-19 08:30:00'), (NULL),
 ('2007-07-19 08:34:00'), (NULL), ('2007-07-19 08:36:00');

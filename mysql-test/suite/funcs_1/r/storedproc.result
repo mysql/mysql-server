@@ -19157,6 +19157,8 @@ BEGIN
 set f1 = concat('a', f1);
 SELECT f1;
 END//
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CALL sp96( 'h');
 f1
 a

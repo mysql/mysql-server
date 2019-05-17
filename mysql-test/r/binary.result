@@ -2,6 +2,8 @@ drop table if exists t1,t2;
 set names latin1;
 create table t1 (name char(20) not null, primary key (name)) charset latin1;
 create table t2 (name char(20) binary not null, primary key (name));
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values ("å");
 insert into t1 values ("ä");
 insert into t1 values ("ö");
@@ -45,6 +47,8 @@ select name from t2 where name between 'Ä' and 'Ö';
 name
 drop table t1,t2;
 create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b)) charset latin1;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
 select concat("-",a,"-",b,"-") from t1 where a="hello";
 concat("-",a,"-",b,"-")
@@ -87,6 +91,8 @@ select b from t1 having binary b like '';
 b
 drop table t1;
 create table t1 (a char(3) binary, b binary(3)) charset latin1;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values ('aaa','bbb'),('AAA','BBB');
 select upper(a),upper(b) from t1;
 upper(a)	upper(b)
