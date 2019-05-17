@@ -1313,8 +1313,11 @@ static bool deny_updates_if_read_only_option(THD *thd, TABLE_LIST *all_tables) {
   const bool drop_temp_tables =
       (lex->sql_command == SQLCOM_DROP_TABLE) && lex->drop_temporary;
 
+  /* RENAME TABLES ignores shadowing temporary tables. */
+  const bool rename_tables = (lex->sql_command == SQLCOM_RENAME_TABLE);
+
   const bool update_real_tables =
-      ((create_real_tables ||
+      ((create_real_tables || rename_tables ||
         some_non_temp_table_to_be_updated(thd, all_tables)) &&
        !(create_temp_tables || drop_temp_tables));
 

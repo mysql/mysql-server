@@ -198,3 +198,16 @@ DROP USER user1;
 SET GLOBAL read_only= 0;
 DROP TABLE t1;
 set sql_mode= @orig_sql_mode;
+#
+# Bug#28490368   INNODB: ASSERTION FAILURE: DICT0DD.CC:1071:!FAIL
+#
+CREATE TABLE t1(f1 INT);
+CREATE TEMPORARY TABLE t1(a1 INT);
+CREATE TEMPORARY TABLE t3(a3 INT);
+SET @@global.super_read_only=TRUE;
+RENAME TABLE t1 to t3;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+SET @@global.read_only=default;
+DROP TABLE t1;
+DROP TABLE t1;
+DROP TABLE t3;
