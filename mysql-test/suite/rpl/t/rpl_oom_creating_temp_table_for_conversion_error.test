@@ -20,6 +20,7 @@
 # Bug#27998856 LOG_ERROR_VERBOSITY VIOLATED AT TABLE_DEF::COMPATIBLE_WITH() IN RPL_UTILITY.CC
 #
 
+--source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
