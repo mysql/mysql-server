@@ -9209,7 +9209,7 @@ Backup::OperationRecord::closeScan()
 }
 
 Uint32
-Backup::OperationRecord::confirmBufferData()
+Backup::OperationRecord::publishBufferData()
 {
   const Uint32 len = Uint32(scanStop - scanStart);
   ndbrequire(len < dataBuffer.getMaxWrite());
@@ -9219,7 +9219,7 @@ Backup::OperationRecord::confirmBufferData()
    * In case a second SCAN_FRAGCONF is received with scanCompleted set to 2
    * follow, without any call to newScan() or newFragment() is called to reset
    * scanStart and scanStop in between, set scanStart to scanStop to indicate
-   * that all buffered data already been confirmed.
+   * that all buffered data already been published.
    */
   scanStart = scanStop;
   return len;
@@ -9234,7 +9234,7 @@ Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
   ndbrequire(opLen == total_len);
   opNoConf = opNoDone;
   
-  const Uint32 len = confirmBufferData();
+  const Uint32 len = publishBufferData();
   noOfBytes += (len << 2);
   m_bytes_total += (len << 2);
   m_records_total += noOfOps;
@@ -9370,7 +9370,7 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
       c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
       OperationRecord & loop_op = loopFilePtr.p->operation;
       // The extra lcp files only use operation for the data buffer.
-      loop_op.confirmBufferData();
+      loop_op.publishBufferData();
     }
   }
 
