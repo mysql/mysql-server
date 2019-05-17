@@ -375,7 +375,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
         std::string client_name, msg;
         try {
           client_name = get_peer_name(&client_addr, socket_ops).first;
-        } catch (std::runtime_error &err) {
+        } catch (const std::runtime_error &err) {
           log_error("Failed retrieving client address: %s", err.what());
           client_name = "[unknown]";
         }

@@ -151,10 +151,6 @@ class MySQLRoutingConnection {
   std::string client_address_;
   /** @brief run client thread which will service this new connection */
   static void *run_thread(void *context);
-  /** @brief make address of client */
-  static std::string make_client_address(
-      int client_socket, const MySQLRoutingContext &context,
-      mysql_harness::SocketOperationsBase *sock_op);
 
   std::size_t bytes_up_{0};
   std::size_t bytes_down_{0};

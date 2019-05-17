@@ -67,7 +67,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
   MOCK_METHOD2(set_socket_blocking, void(int, bool));
   MOCK_METHOD0(get_local_hostname, std::string());
-  MOCK_METHOD4(inetntop, const char *(int af, void *, char *, socklen_t));
+  MOCK_METHOD4(inetntop, const char *(int af, const void *, char *, socklen_t));
   MOCK_METHOD3(getpeername, int(int, struct sockaddr *, socklen_t *));
 
   void set_errno(int err) override {

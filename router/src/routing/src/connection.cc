@@ -21,13 +21,13 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#include "connection.h"
 
 #include <cstring>
 #include <stdexcept>
 #include <string>
 
 #include "common.h"
-#include "connection.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql_router_thread.h"
@@ -35,6 +35,26 @@
 #include "mysqlrouter/routing.h"
 #include "utils.h"
 IMPORT_LOG_FUNCTIONS()
+
+static std::string make_client_address(
+    const struct sockaddr_storage &client_addr,
+    const MySQLRoutingContext &context,
+    mysql_harness::SocketOperationsBase *sock_op) noexcept {
+  try {
+    std::pair<std::string, int> c_ip = get_peer_name(&client_addr, sock_op);
+
+    if (c_ip.second == 0) {
+      // Unix socket/Windows Named pipe
+      return context.get_bind_named_socket().c_str();
+    } else {
+      std::ostringstream oss;
+      oss << c_ip.first.c_str() << ":" << c_ip.second;
+      return oss.str();
+    }
+  } catch (...) {
+  }
+  return "[unknown]";
+}
 
 MySQLRoutingConnection::MySQLRoutingConnection(
     MySQLRoutingContext &context, int client_socket,
@@ -47,7 +67,7 @@ MySQLRoutingConnection::MySQLRoutingConnection(
       client_addr_(client_addr),
       server_socket_(server_socket),
       server_address_(server_address),
-      client_address_(make_client_address(client_socket, context,
+      client_address_(make_client_address(client_addr, context,
                                           context_.get_socket_operations())),
       started_(std::chrono::system_clock::now()) {}
 
@@ -308,19 +328,4 @@ const mysql_harness::TCPAddress &MySQLRoutingConnection::get_server_address()
 
 const std::string &MySQLRoutingConnection::get_client_address() const {
   return client_address_;
-}
-
-std::string MySQLRoutingConnection::make_client_address(
-    int client_socket, const MySQLRoutingContext &context,
-    mysql_harness::SocketOperationsBase *sock_op) {
-  std::pair<std::string, int> c_ip = get_peer_name(client_socket, sock_op);
-
-  if (c_ip.second == 0) {
-    // Unix socket/Windows Named pipe
-    return context.get_bind_named_socket().c_str();
-  } else {
-    std::ostringstream oss;
-    oss << c_ip.first.c_str() << ":" << c_ip.second;
-    return oss.str();
-  }
 }

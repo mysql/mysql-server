@@ -167,7 +167,7 @@ int SocketOperations::setsockopt(int fd, int level, int optname,
 
 int SocketOperations::listen(int fd, int n) { return ::listen(fd, n); }
 
-const char *SocketOperations::inetntop(int af, void *cp, char *buf,
+const char *SocketOperations::inetntop(int af, const void *cp, char *buf,
                                        socklen_t len) {
   return ::inet_ntop(af, cp, buf, len);
 }
