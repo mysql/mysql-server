@@ -237,8 +237,12 @@ void SocketOperations::set_socket_blocking(int sock, bool blocking) {
 #ifndef _WIN32
   auto flags = fcntl(sock, F_GETFL, nullptr);
   if (blocking) {
+    // leave early, if the flag is already unset
+    if ((flags & O_NONBLOCK) == 0) return;
     flags &= ~O_NONBLOCK;
   } else {
+    // leave early, if the flag is already set
+    if ((flags & O_NONBLOCK) == O_NONBLOCK) return;
     flags |= O_NONBLOCK;
   }
   fcntl(sock, F_SETFL, flags);
