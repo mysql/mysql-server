@@ -553,12 +553,11 @@ void lock_sys_close(void) {
  @return size in bytes */
 ulint lock_get_size(void) { return ((ulint)sizeof(lock_t)); }
 
-/** Sets the wait flag of a lock and the back pointer in trx to lock. */
+/** Sets the wait flag of a lock and the back pointer in trx to lock.
+@param[in]  lock  The lock on which a transaction is waiting */
 UNIV_INLINE
-void lock_set_lock_and_trx_wait(lock_t *lock, /*!< in: lock */
-                                trx_t *trx)   /*!< in/out: trx */
-{
-  ut_ad(lock->trx == trx);
+void lock_set_lock_and_trx_wait(lock_t *lock) {
+  auto trx = lock->trx;
   ut_ad(trx->lock.wait_lock == NULL);
   ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(trx));
@@ -752,8 +751,8 @@ byte lock_rec_reset_nth_bit(lock_t *lock, ulint i) {
   *b &= ~mask;
 
   if (bit != 0) {
-    ut_ad(lock->trx->lock.n_rec_locks > 0);
-    --lock->trx->lock.n_rec_locks;
+    ut_ad(lock->trx->lock.n_rec_locks.load() > 0);
+    lock->trx->lock.n_rec_locks.fetch_sub(1, std::memory_order_relaxed);
   }
 
   return (bit);
@@ -1268,13 +1267,15 @@ static bool lock_use_fcfs(const lock_t *lock) {
 /** Insert lock record to the head of the queue.
 @param[in,out]	lock_hash	Hash table containing the locks
 @param[in,out]	lock		Record lock instance to insert
-@param[in]	rec_fold	Hash fold */
+@param[in]	rec_id	        Record being locked */
 static void lock_rec_insert_cats(hash_table_t *lock_hash, lock_t *lock,
-                                 ulint rec_fold) {
+                                 const RecID &rec_id) {
+  ut_ad(rec_id.matches(lock));
   ut_ad(lock_mutex_own());
 
   /* Move the target lock to the head of the list. */
-  auto cell = hash_get_nth_cell(lock_hash, hash_calc_hash(rec_fold, lock_hash));
+  auto cell =
+      hash_get_nth_cell(lock_hash, hash_calc_hash(rec_id.fold(), lock_hash));
 
   ut_ad(lock != cell->node);
 
@@ -1423,15 +1424,14 @@ void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
   bool wait = m_mode & LOCK_WAIT;
 
   if (add_to_hash) {
-    ulint key = m_rec_id.fold();
     hash_table_t *lock_hash = lock_hash_get(m_mode);
 
     ++lock->index->table->n_rec_locks;
 
     if (!lock_use_fcfs(lock) && !wait) {
-      lock_rec_insert_cats(lock_hash, lock, key);
-
+      lock_rec_insert_cats(lock_hash, lock, m_rec_id);
     } else {
+      ulint key = m_rec_id.fold();
       HASH_INSERT(lock_t, hash, lock_hash, key, lock);
     }
   }
@@ -1448,7 +1448,7 @@ void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
   UT_LIST_ADD_LAST(lock->trx->lock.trx_locks, lock);
 
   if (wait) {
-    lock_set_lock_and_trx_wait(lock, lock->trx);
+    lock_set_lock_and_trx_wait(lock);
   } else {
     lock_update_age(lock, lock_rec_find_set_bit(lock));
   }
@@ -1772,7 +1772,7 @@ static void lock_rec_add_to_queue(
       }
     }
 
-    if (lock == NULL) {
+    if (lock == NULL && first_lock != NULL) {
       /* Look for a similar record lock on the same page:
       if one is found and there are no waiting lock requests,
       we can just set the bit */
@@ -2468,7 +2468,7 @@ static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
 
       HASH_DELETE(lock_t, hash, hash, rec_id.fold(), lock);
 
-      lock_rec_insert_cats(hash, lock, rec_id.fold());
+      lock_rec_insert_cats(hash, lock, rec_id);
 
       new_granted.push_back(wait_lock);
       granted_all.push_back(std::make_pair(lock, 0));
@@ -3692,7 +3692,7 @@ lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
   ut_list_append(table->locks, lock, TableLockGetNode());
 
   if (type_mode & LOCK_WAIT) {
-    lock_set_lock_and_trx_wait(lock, trx);
+    lock_set_lock_and_trx_wait(lock);
   }
 
   lock->trx->lock.table_locks.push_back(lock);
@@ -4283,54 +4283,24 @@ static void lock_remove_gap_lock(lock_t *lock) {
   lock->remove_gap_lock();
 }
 
-/** Release read locks of a transacion. It is called during XA
-prepare to release locks early.
-@param[in,out]	trx		transaction
-@param[in]	only_gap	release only GAP locks */
-void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
-  lock_t *lock;
-  lock_t *next_lock;
-  ulint count = 0;
-
-  /* Avoid taking lock_sys if trx didn't acquire any lock */
-  if (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0) {
-    return;
-  }
-
-  lock_mutex_enter();
-
-  lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
-
-  while (lock != NULL) {
-    next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
-
-    /* Check only for record lock */
-    if (!lock->is_record_lock() || lock->is_insert_intention() ||
-        lock->is_predicate()) {
-      lock = next_lock;
-      continue;
-    }
-
+/** Used to release a lock during PREPARE. The lock is only
+released if rules permit it.
+@param[in]   lock       the lock that we consider releasing
+@param[in]   only_gap   true if we don't want to release records,
+                        just the gaps between them */
+static void lock_release_read_lock(lock_t *lock, bool only_gap) {
+  if (!lock->is_record_lock() || lock->is_insert_intention() ||
+      lock->is_predicate()) {
+    /* DO NOTHING */
+  } else if (lock->is_gap()) {
     /* Release any GAP only lock. */
-    if (lock->is_gap()) {
-      lock_rec_dequeue_from_page(lock, false);
-      lock = next_lock;
-      continue;
-    }
-
-    /* Don't release any non-GAP lock if not asked. */
-    if (lock->is_record_not_gap() && only_gap) {
-      lock = next_lock;
-      continue;
-    }
-
+    lock_rec_dequeue_from_page(lock, false);
+  } else if (lock->is_record_not_gap() && only_gap) {
+    /* Don't release any non-GAP lock if not asked.*/
+  } else if (lock->mode() == LOCK_S && !only_gap) {
     /* Release Shared Next Key Lock(SH + GAP) if asked for */
-    if (lock->mode() == LOCK_S && !only_gap) {
-      lock_rec_dequeue_from_page(lock, false);
-      lock = next_lock;
-      continue;
-    }
-
+    lock_rec_dequeue_from_page(lock, false);
+  } else {
     /* Release GAP lock from Next Key lock */
     lock_remove_gap_lock(lock);
 
@@ -4339,24 +4309,45 @@ void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
     might have reset the PAGE_HEAP_NO_SUPREMUM-th bit. So, to ensure that trxs
     waiting for lock on supremum are properly woken up we need to use FCFS. */
     lock_rec_grant(lock, true);
+  }
+}
+
+/** Release read locks of a transacion latching the whole lock-sys in
+exclusive mode.
+It is called during XA prepare to release locks early.
+@param[in,out]	trx		transaction
+@param[in]	only_gap	release only GAP locks */
+static void lock_trx_release_read_locks_in_x_mode(trx_t *trx, bool only_gap) {
+  ut_ad(!trx_mutex_own(trx));
+
+  lock_mutex_enter();
+
+  lock_t *lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+
+  while (lock != NULL) {
+    /* Store the pointer to the next lock in the list, because in some cases
+    we are going to remove `lock` from the list, which clears the pointer to
+    next lock */
+    lock_t *next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
+
+    lock_release_read_lock(lock, only_gap);
 
     lock = next_lock;
+  }
+  lock_mutex_exit();
+}
 
-    ++count;
-
-    if (count == LOCK_RELEASE_INTERVAL) {
-      /* Release the mutex for a while, so that we
-      do not monopolize it */
-
-      lock_mutex_exit();
-
-      lock_mutex_enter();
-
-      count = 0;
-    }
+/** Release read locks of a transacion. It is called during XA
+prepare to release locks early.
+@param[in,out]	trx		transaction
+@param[in]	only_gap	release only GAP locks */
+void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
+  /* Avoid taking lock_sys if trx didn't acquire any lock */
+  if (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0) {
+    return;
   }
 
-  lock_mutex_exit();
+  lock_trx_release_read_locks_in_x_mode(trx, only_gap);
 }
 
 /** Releases transaction locks, and releases possible other transactions waiting
@@ -4364,7 +4355,6 @@ void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
 @param[in,out]  trx   transaction */
 static void lock_release(trx_t *trx) {
   lock_t *lock;
-  ulint count = 0;
 
   ut_ad(!lock_mutex_own());
   ut_ad(!trx_mutex_own(trx));
@@ -4401,19 +4391,6 @@ static void lock_release(trx_t *trx) {
     } else {
       lock_table_dequeue(lock);
     }
-
-    if (count == LOCK_RELEASE_INTERVAL) {
-      /* Release the mutex for a while, so that we
-      do not monopolize it */
-
-      lock_mutex_exit();
-
-      lock_mutex_enter();
-
-      count = 0;
-    }
-
-    ++count;
   }
 
   lock_mutex_exit();
@@ -6525,13 +6502,12 @@ void lock_trx_release_locks(trx_t *trx) /*!< in/out: transaction */
 
   lock_release(trx);
 
-  trx->lock.n_rec_locks = 0;
-
   /* We don't remove the locks one by one from the vector for
   efficiency reasons. We simply reset it because we would have
   released all the locks anyway. */
 
   trx->lock.table_locks.clear();
+  trx->lock.n_rec_locks.store(0);
 
   ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
   ut_a(ib_vector_is_empty(trx->autoinc_locks));

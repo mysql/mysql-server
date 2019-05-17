@@ -599,7 +599,8 @@ struct trx_lock_t {
   lock_pool_t table_locks; /*!< All table locks requested by this
                            transaction, including AUTOINC locks */
 
-  ulint n_rec_locks; /*!< number of rec locks in this trx */
+  /** number of rec locks in this trx */
+  std::atomic<ulint> n_rec_locks;
 
   /** Used to indicate that every lock of this transaction placed on a record
   which is being purged should be inherited to the gap.

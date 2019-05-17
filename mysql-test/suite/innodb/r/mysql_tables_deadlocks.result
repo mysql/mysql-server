@@ -23,7 +23,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 id INT PRIMARY KEY AUTO_INCREMENT,
 name TEXT
-)
+) ENGINE=InnoDB
 SELECT table_name AS name
 FROM information_schema.tables
 WHERE table_schema="mysql" AND engine="InnoDB"
