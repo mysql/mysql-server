@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -297,6 +297,28 @@ bool Replication_thread_api::get_retrieved_gtid_set(std::string &retrieved_set,
   if (!error) retrieved_set.assign(receiver_retrieved_gtid_set);
 
   my_free(receiver_retrieved_gtid_set);
+
+  DBUG_RETURN((error != 0));
+}
+
+bool Replication_thread_api::get_channel_credentials(std::string &username,
+                                                     std::string &password,
+                                                     const char *channel_name) {
+  DBUG_ENTER("Replication_thread_api::get_channel_credentials");
+
+  const char *name = channel_name ? channel_name : interface_channel;
+  const char *user_arg = NULL;
+  char user_pass[MAX_PASSWORD_LENGTH + 1];
+  char *user_pass_pointer = user_pass;
+  size_t password_size = sizeof(user_pass);
+
+  int error;
+  error = channel_get_credentials(name, &user_arg, &user_pass_pointer,
+                                  &password_size);
+  if (!error) {
+    username.assign(user_arg);
+    password.assign(user_pass, password_size);
+  }
 
   DBUG_RETURN((error != 0));
 }

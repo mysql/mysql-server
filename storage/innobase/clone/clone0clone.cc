@@ -31,6 +31,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "clone0clone.h"
 #include <string>
+#ifdef UNIV_DEBUG
+#include "current_thd.h" /* current_thd */
+#include "debug_sync.h"  /* debug_sync_set_action */
+#endif                   /* UNIV_DEBUG */
 
 /** Global Clone System */
 Clone_Sys *clone_sys = nullptr;
@@ -546,6 +550,13 @@ void Clone_Task_Manager::debug_wait(uint chunk_num, Clone_Task *task) {
   }
 
   if (state == CLONE_SNAPSHOT_FILE_COPY) {
+    DBUG_EXECUTE_IF(
+        "gr_clone_wait",
+        ut_ad(!debug_sync_set_action(
+            current_thd, STRING_WITH_LEN("now  "
+                                         "SIGNAL gr_clone_paused "
+                                         "WAIT_FOR gr_clone_continue "))););
+
     DEBUG_SYNC_C("clone_file_copy");
 
   } else if (state == CLONE_SNAPSHOT_PAGE_COPY) {

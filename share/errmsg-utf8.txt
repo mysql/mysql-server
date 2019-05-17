@@ -8971,6 +8971,9 @@ ER_CLONE_DISK_SPACE
 ER_CLONE_IN_PROGRESS
   eng "Concurrent clone in progress. Please try after clone is complete."
 
+ER_CLONE_DISALLOWED
+  eng "The clone operation cannot be executed when %s."
+
 #
 #  End of 8.0 error messages.
 #
@@ -19401,6 +19404,42 @@ ER_IB_CLONE_NON_INNODB_TABLE
 
 ER_CLONE_SHUTDOWN_TRACE
   eng "Clone shutting down server as RESTART failed. Please start server to complete clone operation."
+
+ER_GRP_RPL_GTID_PURGED_EXTRACT_ERROR
+  eng "Error when extracting this member GTID purged set. Operations and checks made to group joiners may be incomplete."
+
+ER_GRP_RPL_CLONE_PROCESS_PREPARE_ERROR
+  eng "There was an issue when configuring the remote cloning process: %s"
+
+ER_GRP_RPL_CLONE_PROCESS_EXEC_ERROR
+  eng "There was an issue when cloning from another server: %s"
+
+ER_GRP_RPL_RECOVERY_EVAL_ERROR
+  eng "There was an issue when trying to evaluate the recovery strategy while joining.%s"
+
+ER_GRP_RPL_NO_POSSIBLE_RECOVERY
+  eng "No valid or ONLINE members exist to get the missing data from the group. For cloning check if donors of the same version and with clone plugin installed exist. For distributed recovery check if you have donors where the required data was not purged from the binary logs."
+
+ER_GRP_RPL_CANT_KILL_THREAD
+  eng "The group replication plugin could not kill the plugin routine for %s. %s"
+
+ER_GRP_RPL_RECOVERY_STRAT_CLONE_THRESHOLD
+  eng "Due to the number of missing transactions being higher than the configured threshold of %llu, this member will use cloning as its recovery strategy."
+
+ER_GRP_RPL_RECOVERY_STRAT_CLONE_PURGED
+  eng "As no ONLINE member has the missing data for recovering in its binary logs, this member will use cloning as its recovery strategy."
+
+ER_GRP_RPL_RECOVERY_STRAT_CHOICE
+  eng "The chosen recovery strategy is: %s"
+
+ER_GRP_RPL_RECOVERY_STRAT_FALLBACK
+  eng "Due to some issue the recovery strategy switched to: %s"
+
+ER_GRP_RPL_RECOVERY_STRAT_NO_FALLBACK
+  eng "Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group."
+
+ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE
+  eng "The '%s' thread of channel '%s' will error out as the server will attempt to clone another server"
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

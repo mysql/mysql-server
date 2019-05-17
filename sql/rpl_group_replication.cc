@@ -173,6 +173,21 @@ bool is_group_replication_running() {
   return result;
 }
 
+bool is_group_replication_cloning() {
+  bool result = false;
+
+  plugin_ref plugin = my_plugin_lock_by_name(
+      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL) {
+    st_mysql_group_replication *plugin_handle =
+        (st_mysql_group_replication *)plugin_decl(plugin)->info;
+    result = plugin_handle->is_cloning();
+    plugin_unlock(0, plugin);
+  }
+
+  return result;
+}
+
 int set_group_replication_retrieved_certification_info(
     View_change_log_event *view_change_event) {
   int result = 1;
@@ -439,3 +454,5 @@ unsigned long get_slave_max_allowed_packet() {
 unsigned long get_max_slave_max_allowed_packet() {
   return MAX_MAX_ALLOWED_PACKET;
 }
+
+bool is_server_restarting_after_clone() { return clone_startup; }

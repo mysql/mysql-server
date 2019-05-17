@@ -254,3 +254,6 @@ have_fips.inc
 # 22.0 Tests for "disk full" conditions. Need special environment.
 # Shall not run on PB2.
 redo_log_archive_05.test
+
+# 23.0 Tests that do/don't need clone plugin.
+have_clone_plugin.inc

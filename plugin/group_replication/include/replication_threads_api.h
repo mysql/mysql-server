@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,6 +314,20 @@ class Replication_thread_api {
   static int rpl_channel_stop_all(
       int threads_to_stop, long timeout,
       int ecode = ER_GRP_RPL_ERROR_STOPPING_CHANNELS);
+
+  /**
+    Method to get the credentials configured for a channel
+
+    @param[out] username      The user to extract
+    @param[out] password      The password to extract
+    @param[in]  channel_name  The name of the channel to get the information.
+
+    @return the operation status
+      @retval false   OK
+      @retval true    Error, channel not found
+  */
+  bool get_channel_credentials(std::string &username, std::string &password,
+                               const char *channel_name = NULL);
 
  private:
   ulong stop_wait_timeout;

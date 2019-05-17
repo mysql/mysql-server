@@ -24,6 +24,7 @@ SET PERSIST_ONLY group_replication_allow_local_lower_version_join = @@GLOBAL.gro
 SET PERSIST_ONLY group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 SET PERSIST_ONLY group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
 SET PERSIST_ONLY group_replication_bootstrap_group = @@GLOBAL.group_replication_bootstrap_group;
+SET PERSIST_ONLY group_replication_clone_threshold = @@GLOBAL.group_replication_clone_threshold;
 SET PERSIST_ONLY group_replication_communication_debug_options = @@GLOBAL.group_replication_communication_debug_options;
 SET PERSIST_ONLY group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
 SET PERSIST_ONLY group_replication_components_stop_timeout = @@GLOBAL.group_replication_components_stop_timeout;
@@ -71,7 +72,7 @@ SET PERSIST_ONLY group_replication_start_on_boot = @@GLOBAL.group_replication_st
 SET PERSIST_ONLY group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 SET PERSIST_ONLY group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 
-include/assert.inc ['Expect 50 persisted variables.']
+include/assert.inc ['Expect 51 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -80,9 +81,9 @@ include/assert.inc ['Expect 50 persisted variables.']
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 50 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 50 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 42 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 51 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 51 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 43 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS.
@@ -91,6 +92,7 @@ RESET PERSIST IF EXISTS group_replication_allow_local_lower_version_join;
 RESET PERSIST IF EXISTS group_replication_auto_increment_increment;
 RESET PERSIST IF EXISTS group_replication_autorejoin_tries;
 RESET PERSIST IF EXISTS group_replication_bootstrap_group;
+RESET PERSIST IF EXISTS group_replication_clone_threshold;
 RESET PERSIST IF EXISTS group_replication_communication_debug_options;
 RESET PERSIST IF EXISTS group_replication_communication_max_message_size;
 RESET PERSIST IF EXISTS group_replication_components_stop_timeout;

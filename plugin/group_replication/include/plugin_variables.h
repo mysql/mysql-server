@@ -46,6 +46,7 @@ struct plugin_local_variables {
   Checkable_rwlock *plugin_stop_lock;
   std::atomic<bool> plugin_is_stopping;
   std::atomic<bool> group_replication_running;
+  std::atomic<bool> group_replication_cloning;
 
   bool force_members_running;
   uint gr_lower_case_table_names;
@@ -60,6 +61,7 @@ struct plugin_local_variables {
   bool server_shutdown_status;
   bool wait_on_engine_initialization;
   int write_set_extraction_algorithm;
+  bool abort_wait_on_start_process;
 
   // (60min / 5min) * 24 * 7, i.e. a week.
   const uint MAX_AUTOREJOIN_TRIES = 2016;
@@ -80,6 +82,7 @@ struct plugin_local_variables {
     plugin_stop_lock = NULL;
     plugin_is_stopping = false;
     group_replication_running = false;
+    group_replication_cloning = false;
 
     force_members_running = false;
     gr_lower_case_table_names = 0;
@@ -94,6 +97,7 @@ struct plugin_local_variables {
     server_shutdown_status = false;
     wait_on_engine_initialization = false;
     write_set_extraction_algorithm = HASH_ALGORITHM_OFF;
+    abort_wait_on_start_process = false;
     // the default is 5 minutes (300 secs).
     rejoin_timeout = 300ULL;
 
@@ -248,6 +252,8 @@ struct plugin_options_variables {
   int flow_control_period_var;
   int flow_control_hold_percent_var;
   int flow_control_release_percent_var;
+
+  ulonglong clone_threshold_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

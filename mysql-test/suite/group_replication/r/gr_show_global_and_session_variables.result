@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 50 GR variables.
-include/assert.inc [There are 50 GR variables at present.]
+# Test#1: Basic check that there are 51 GR variables.
+include/assert.inc [There are 51 GR variables at present.]
 
 # Test#2: Verify group replication related variables at GLOBAL scope.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
@@ -89,6 +89,8 @@ SET @@SESSION.group_replication_autorejoin_tries = 3;
 ERROR HY000: Variable 'group_replication_autorejoin_tries' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_message_cache_size= 10000000000;
 ERROR HY000: Variable 'group_replication_message_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_clone_threshold= 1;
+ERROR HY000: Variable 'group_replication_clone_threshold' is a GLOBAL variable and should be set with SET GLOBAL
 
 # Test#3: Verify group replication related variables at SESSION scope.
 SET @@SESSION.group_replication_consistency= "EVENTUAL";
@@ -256,6 +258,10 @@ include/assert.inc [Verify GLOBAL value of group_replication_message_cache_size]
 include/assert.inc [Verify GLOBAL value of group_replication_message_cache_size]
 include/assert.inc [Verify SESSION value of group_replication_message_cache_size]
 include/assert.inc [Verify SESSION value of group_replication_message_cache_size]
+include/assert.inc [Verify GLOBAL value of group_replication_clone_threshold]
+include/assert.inc [Verify GLOBAL value of group_replication_clone_threshold]
+include/assert.inc [Verify SESSION value of group_replication_clone_threshold]
+include/assert.inc [Verify SESSION value of group_replication_clone_threshold]
 
 # Clean up
 include/stop_group_replication.inc

@@ -70,6 +70,7 @@
 #include "sql/mysqld.h"             // key_file_misc
 #include "sql/partition_element.h"  // PART_ADMIN
 #include "sql/protocol.h"
+#include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
 #include "sql/sp.h"           // Sroutine_hash_entry
 #include "sql/sp_rcontext.h"  // sp_rcontext
@@ -1699,6 +1700,13 @@ bool Sql_cmd_clone::execute(THD *thd) {
     }
   } else if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
+    DBUG_RETURN(true);
+  }
+
+  /* A user session cannot run clone on a group member. */
+  if (is_group_replication_running() &&
+      strcmp(thd->security_context()->priv_user().str, "mysql.session")) {
+    my_error(ER_CLONE_DISALLOWED, MYF(0), "Group Replication is running");
     DBUG_RETURN(true);
   }
 

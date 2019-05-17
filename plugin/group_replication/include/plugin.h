@@ -39,6 +39,7 @@
 #include "plugin/group_replication/include/plugin_handlers/group_partition_handling.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
 #include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
@@ -101,6 +102,7 @@ struct gr_modules {
     WAIT_ON_START,
     COMPATIBILITY_MANAGER,
     GCS_EVENTS_HANDLER,
+    REMOTE_CLONE_HANDLER,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
@@ -141,6 +143,7 @@ extern Group_member_info *local_member_info;
 extern Compatibility_module *compatibility_mgr;
 extern Group_partition_handling *group_partition_handler;
 extern Blocked_transaction_handler *blocked_transaction_handler;
+extern Remote_clone_handler *remote_clone_handler;
 // Latch used as the control point of the event driven
 // management of the transactions.
 extern Wait_ticket<my_thread_id> *transactions_latch;
@@ -154,7 +157,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
                                Delayed_initialization_thread *delayed_init_thd);
 int initialize_plugin_modules(gr_modules::mask modules_to_init);
 int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
-                             char **error_message = nullptr);
+                             char **error_message = nullptr,
+                             bool rejoin = false);
 void register_server_reset_master();
 bool get_allow_local_lower_version_join();
 ulong get_transaction_size_limit();
@@ -169,6 +173,7 @@ rpl_sidno get_group_sidno();
 bool is_autorejoin_enabled();
 uint get_number_of_autorejoin_tries();
 ulonglong get_rejoin_timeout();
+void declare_plugin_cloning(bool is_running);
 
 /**
   Encapsulates the logic necessary to attempt a rejoin, i.e. gracefully leave
@@ -206,10 +211,11 @@ int plugin_group_replication_deinit(void *p);
 int plugin_group_replication_start(char **error_message = NULL);
 int plugin_group_replication_stop(char **error_message = NULL);
 bool plugin_is_group_replication_running();
+bool plugin_is_group_replication_cloning();
 bool is_plugin_auto_starting_on_non_bootstrap_member();
 bool is_plugin_configured_and_starting();
-void initiate_wait_on_start_process();
-void terminate_wait_on_start_process();
+bool initiate_wait_on_start_process();
+void terminate_wait_on_start_process(bool abort = false);
 void set_wait_on_start_process(bool cond);
 bool plugin_get_connection_status(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks);

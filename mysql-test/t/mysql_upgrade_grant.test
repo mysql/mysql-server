@@ -423,6 +423,7 @@ DROP USER u1;
 --echo # mysql server without support for BACKUP_ADMIN/XA_RECOVER_ADMIN.
 REVOKE BACKUP_ADMIN ON *.* FROM root@localhost;
 REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE BACKUP_ADMIN ON *.* FROM `mysql.session`@localhost;
 REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 CREATE USER u1;
 CREATE USER u2;

@@ -110,6 +110,8 @@ Primary_election_handler *primary_election_handler = NULL;
 Hold_transactions *hold_transactions = NULL;
 /** The thread that handles the auto-rejoin process */
 Autorejoin_thread *autorejoin_module = NULL;
+/** The handler to invoke clone */
+Remote_clone_handler *remote_clone_handler = NULL;
 
 Plugin_gcs_events_handler *events_handler = NULL;
 Plugin_gcs_view_modification_notifier *view_change_notifier = NULL;
@@ -176,6 +178,10 @@ mysql_mutex_t *get_plugin_running_lock() { return &lv.plugin_running_mutex; }
 
 bool plugin_is_group_replication_running() {
   return lv.group_replication_running;
+}
+
+bool plugin_is_group_replication_cloning() {
+  return lv.group_replication_cloning;
 }
 
 bool is_plugin_auto_starting_on_non_bootstrap_member() {
@@ -267,7 +273,7 @@ void set_wait_on_start_process(bool cond) {
 /**
   Blocks the calling thread
 */
-void initiate_wait_on_start_process() {
+bool initiate_wait_on_start_process() {
   // block the thread
   lv.online_wait_mutex->start_waitlock();
 
@@ -278,14 +284,15 @@ void initiate_wait_on_start_process() {
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
+  return lv.abort_wait_on_start_process;
 }
 
 /**
   Release all the blocked threads
 */
-void terminate_wait_on_start_process() {
+void terminate_wait_on_start_process(bool abort) {
   lv.plugin_is_auto_starting_on_boot = false;
-
+  lv.abort_wait_on_start_process = abort;
   // unblocked waiting threads
   lv.online_wait_mutex->end_wait_lock();
 }
@@ -313,6 +320,7 @@ struct st_mysql_group_replication group_replication_descriptor = {
     plugin_group_replication_start,
     plugin_group_replication_stop,
     plugin_is_group_replication_running,
+    plugin_is_group_replication_cloning,
     plugin_group_replication_set_retrieved_certification_info,
     plugin_get_connection_status,
     plugin_get_group_members,
@@ -504,6 +512,25 @@ int initialize_plugin_and_join(
   // Avoid unnecessary operations
   bool enabled_super_read_only = false;
   bool read_only_mode = false, super_read_only_mode = false;
+
+  /*
+    When restarting after a clone we need to fix the channels since
+    their information is cloned but not any of the associated files.
+    The applier channel is purged of all info.
+    The recovery channel is reinitialized so only access credentials remain.
+  */
+  bool is_restart_after_clone = is_server_restarting_after_clone();
+  if (is_restart_after_clone) {
+    Replication_thread_api gr_channel("group_replication_applier");
+    gr_channel.purge_logs(true);
+
+    gr_channel.set_channel_name("group_replication_recovery");
+    gr_channel.purge_logs(false);
+    gr_channel.initialize_channel(const_cast<char *>("<NULL>"), 0, NULL, NULL,
+                                  NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                                  NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false,
+                                  NULL, false);
+  }
 
   Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
@@ -1051,6 +1078,14 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
   }
 
   /*
+    Remote Cloning Handler module.
+  */
+  if (modules_to_init[gr_modules::REMOTE_CLONE_HANDLER]) {
+    remote_clone_handler = new Remote_clone_handler(
+        ov.clone_threshold_var, ov.components_stop_timeout_var);
+  }
+
+  /*
     Recovery module.
   */
   if (modules_to_init[gr_modules::RECOVERY_MODULE]) {
@@ -1122,7 +1157,7 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
 }
 
 int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
-                             char **error_message) {
+                             char **error_message, bool rejoin) {
   /*
     Wait On Start module.
   */
@@ -1177,6 +1212,17 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     const char act[] = "now wait_for signal.termination_continue";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
+
+  /*
+    Remote Cloning Handler module.
+  */
+  if (modules_to_terminate[gr_modules::REMOTE_CLONE_HANDLER]) {
+    if (remote_clone_handler != NULL) {
+      remote_clone_handler->terminate_clone_process(rejoin);
+      delete remote_clone_handler;
+      remote_clone_handler = NULL;
+    }
+  }
 
   /*
     Group Action Coordinator module.
@@ -1328,6 +1374,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::ASYNC_REPL_CHANNELS, true);
   modules_mask.set(gr_modules::GROUP_ACTION_COORDINATOR, true);
   modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
+  modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
 
   /*
     The first step is to issue a GCS leave() operation. This is done because
@@ -1363,7 +1410,7 @@ bool attempt_rejoin() {
   */
   error = mysql_mutex_trylock(&lv.plugin_modules_termination_mutex);
   if (!error) {
-    error = terminate_plugin_modules(modules_mask, nullptr);
+    error = terminate_plugin_modules(modules_mask, nullptr, true);
     mysql_mutex_unlock(&lv.plugin_modules_termination_mutex);
     if (error) goto end;
   } else {
@@ -1725,6 +1772,10 @@ static bool init_group_sidno() {
 }
 
 void declare_plugin_running() { lv.group_replication_running = true; }
+
+void declare_plugin_cloning(bool is_running) {
+  lv.group_replication_cloning = is_running;
+}
 
 int configure_and_start_applier_module() {
   DBUG_ENTER("configure_and_start_applier_module");
@@ -3335,6 +3386,61 @@ static void update_message_cache_size(MYSQL_THD, SYS_VAR *, void *var_ptr,
   DBUG_VOID_RETURN;
 }
 
+// Clone var related methods
+
+static int check_clone_threshold(MYSQL_THD, SYS_VAR *var, void *save,
+                                 struct st_mysql_value *value) {
+  DBUG_ENTER("check_clone_threshold");
+
+  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+
+  longlong orig = 0;
+  ulonglong in_val = 0;
+  bool is_negative = false;
+
+  value->val_int(value, &orig);
+  in_val = orig;
+
+  /* Check if value is negative */
+  if (!value->is_unsigned(value) && orig < 0) {
+    is_negative = true;
+  }
+
+  if (is_negative || in_val > MAX_GNO || in_val < 1) {
+    std::stringstream ss;
+    ss << "The value "
+       << (is_negative ? std::to_string(orig) : std::to_string(in_val))
+       << " is not within the range of accepted values for the option "
+       << var->name << ". The value must be between 1 and " << MAX_GNO
+       << " inclusive.";
+    my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
+    mysql_mutex_unlock(&lv.plugin_running_mutex);
+    DBUG_RETURN(1);
+  }
+
+  *static_cast<ulonglong *>(save) = in_val;
+
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+  DBUG_RETURN(0);
+}
+
+static void update_clone_threshold(MYSQL_THD, SYS_VAR *, void *var_ptr,
+                                   const void *save) {
+  DBUG_ENTER("update_clone_threshold");
+
+  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+
+  ulonglong in_val = *static_cast<const ulonglong *>(save);
+  *static_cast<ulonglong *>(var_ptr) = in_val;
+
+  if (remote_clone_handler != NULL) {
+    remote_clone_handler->set_clone_threshold((longlong)in_val);
+  }
+
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+  DBUG_VOID_RETURN;
+}
+
 // Base plugin variables
 
 static MYSQL_SYSVAR_STR(group_name,        /* name */
@@ -3995,6 +4101,20 @@ static MYSQL_SYSVAR_INT(
     0     /* block */
 );
 
+static MYSQL_SYSVAR_ULONGLONG(
+    clone_threshold,                                       /* name */
+    ov.clone_threshold_var,                                /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "The number of missing transactions in a joining member needed to execute "
+    "the clone procedure.",
+    check_clone_threshold,  /* check func. */
+    update_clone_threshold, /* update func. */
+    MAX_GNO,                /* default */
+    1,                      /* min */
+    MAX_GNO,                /* max */
+    0                       /* block */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -4045,6 +4165,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(flow_control_release_percent),
     MYSQL_SYSVAR(member_expel_timeout),
     MYSQL_SYSVAR(message_cache_size),
+    MYSQL_SYSVAR(clone_threshold),
     NULL,
 };
 

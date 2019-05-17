@@ -205,4 +205,9 @@ unsigned long get_slave_max_allowed_packet();
  */
 unsigned long get_max_slave_max_allowed_packet();
 
+/**
+  @returns if the server is restarting after a clone
+*/
+bool is_server_restarting_after_clone();
+
 #endif /* GROUP_REPLICATION_PRIV_INCLUDE */

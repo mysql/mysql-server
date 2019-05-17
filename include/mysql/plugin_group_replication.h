@@ -29,7 +29,7 @@
 */
 
 #include <mysql/plugin.h>
-#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0103
+#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0104
 
 enum enum_group_replication_consistency_level {
   // allow executing reads from newer primary even when backlog isn't applied
@@ -137,6 +137,11 @@ struct st_mysql_group_replication {
     This function is used to get the current group replication running status.
   */
   bool (*is_running)();
+  /*
+    This function is used to get the current group replication status about
+    its internal cloning process for data provisioning.
+  */
+  bool (*is_cloning)();
   /*
    This function initializes conflict checking module with info received
    from group on this member.

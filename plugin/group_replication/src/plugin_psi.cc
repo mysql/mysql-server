@@ -36,6 +36,10 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_cert_members,
     key_GR_LOCK_channel_observation_list,
     key_GR_LOCK_channel_observation_removal,
+    key_GR_LOCK_clone_donor_list,
+    key_GR_LOCK_clone_handler_run,
+    key_GR_LOCK_clone_query,
+    key_GR_LOCK_clone_read_mode,
     key_GR_LOCK_count_down_latch,
     key_GR_LOCK_delayed_init_run,
     key_GR_LOCK_delayed_init_server_ready,
@@ -80,6 +84,7 @@ PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_autorejoin_module,
     key_GR_COND_cert_broadcast_dispatcher_run,
     key_GR_COND_cert_broadcast_run,
+    key_GR_COND_clone_handler_run,
     key_GR_COND_count_down_latch,
     key_GR_COND_delayed_init_run,
     key_GR_COND_delayed_init_server_ready,
@@ -109,6 +114,7 @@ PSI_cond_key key_GR_COND_applier_module_run,
 PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_autorejoin,
     key_GR_THD_cert_broadcast,
+    key_GR_THD_clone_thd,
     key_GR_THD_delayed_init,
     key_GR_THD_group_action_coordinator,
     key_GR_THD_plugin_session,
@@ -160,7 +166,7 @@ PSI_stage_info info_GR_STAGE_primary_election_old_primary_transactions = {
     0, "Primary Election: stabilizing transactions from former primaries",
     PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 PSI_stage_info info_GR_STAGE_primary_switch_checks = {
-    0, "Primary switch: checking current primary pre-conditions",
+    0, "Primary Switch: checking current primary pre-conditions",
     PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 PSI_stage_info info_GR_STAGE_primary_switch_pending_transactions = {
     0, "Primary Switch: waiting for pending transactions to finish",
@@ -195,6 +201,13 @@ PSI_stage_info info_GR_STAGE_recovery_transferring_state = {
     0, "Group Replication Recovery: Transferring state from donor", 0,
     PSI_DOCUMENT_ME};
 
+PSI_stage_info info_GR_STAGE_clone_prepare = {
+    0, "Group Replication Cloning process: Preparing", PSI_FLAG_STAGE_PROGRESS,
+    PSI_DOCUMENT_ME};
+PSI_stage_info info_GR_STAGE_clone_execute = {
+    0, "Group Replication Cloning process: Executing", PSI_FLAG_STAGE_PROGRESS,
+    PSI_DOCUMENT_ME};
+
 static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
     {&key_GR_LOCK_applier_module_run, "LOCK_applier_module_run",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -216,6 +229,14 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
     {&key_GR_LOCK_channel_observation_removal,
      "LOCK_channel_observation_removal", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_clone_donor_list, "LOCK_clone_donor_list", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_clone_handler_run, "LOCK_clone_handler_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_clone_query, "LOCK_clone_query", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_clone_read_mode, "LOCK_clone_read_mode", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_count_down_latch, "LOCK_count_down_latch", PSI_FLAG_SINGLETON,
      0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_delayed_init_run, "LOCK_delayed_init_run", PSI_FLAG_SINGLETON,
@@ -321,6 +342,8 @@ static PSI_cond_info all_group_replication_psi_condition_keys[] = {
     {&key_GR_COND_cert_broadcast_dispatcher_run,
      "COND_certifier_broadcast_dispatcher_run", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
+    {&key_GR_COND_clone_handler_run, "COND_clone_handler_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_COND_delayed_init_run, "COND_delayed_init_run", PSI_FLAG_SINGLETON,
      0, PSI_DOCUMENT_ME},
     {&key_GR_COND_delayed_init_server_ready, "COND_delayed_init_server_ready",
@@ -388,6 +411,8 @@ static PSI_thread_info all_group_replication_psi_thread_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_THD_cert_broadcast, "THD_certifier_broadcast", PSI_FLAG_SINGLETON,
      0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_clone_thd, "THD_clone_process", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
     {&key_GR_THD_delayed_init, "THD_delayed_initialization", PSI_FLAG_SINGLETON,
      0, PSI_DOCUMENT_ME},
     {&key_GR_THD_group_action_coordinator, "THD_group_action_coordinator",
@@ -459,7 +484,9 @@ static PSI_stage_info *all_group_replication_stages_keys[] = {
     &info_GR_STAGE_module_executing,
     &info_GR_STAGE_module_suspending,
     &info_GR_STAGE_recovery_connecting_to_donor,
-    &info_GR_STAGE_recovery_transferring_state};
+    &info_GR_STAGE_recovery_transferring_state,
+    &info_GR_STAGE_clone_prepare,
+    &info_GR_STAGE_clone_execute};
 
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
                                                size_t mutex_count) {

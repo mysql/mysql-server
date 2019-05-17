@@ -1,0 +1,131 @@
+################################################################################
+# Validate that when a member joins a group, and it is missing data that was
+# purged from group binary logs, the joiner member will proceed by cloning a
+# a group member.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Install clone plugin on server1.
+#    Commit some data and then purge all binary logs.
+#    Bootstrap a group on server1.
+# 2. Install clone plugin on server2.
+#    Restart server with a monitoring process (mysqld_safe) if needed
+# 3. Start GR, clone must be executed since recovery
+#    from binary logs is not possible.
+#    As a test variation, do not start on boot after cloning
+# 4. Cleanup
+#
+
+--source include/have_mysqld_monitoring_process.inc
+--source include/have_clone_plugin.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = CLONE_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Install clone plugin on server1.
+--echo #    Commit some data and then purge all binary logs.
+--echo #    Bootstrap a group on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Install the clone plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+# Purge binary logs.
+SET sql_log_bin = 0;
+--source include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+FLUSH BINARY LOGS;
+--let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+--replace_result $server_binlog_file_cur CURRENT_BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$server_binlog_file_cur'
+
+--let $assert_text = GTID_PURGED must be equal to GTID_EXECUTED
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_EXECUTED)
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo #####################################################################
+--echo # 2. Install clone plugin on server2.
+--echo #    Restart server with a monitoring process (mysqld_safe) if needed
+
+# Install the clone plugin
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--let $plugin_list= $GROUP_REPLICATION
+--source include/spawn_monitoring_process.inc
+
+# Configure GR for starting now and after restart
+--disable_query_log
+--eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address"
+--eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds"
+--enable_query_log
+
+--echo
+--echo #####################################################################
+--echo # 3. Start GR, clone must be executed since recovery
+--echo #    from binary logs is not possible.
+--echo #    As a test variation, do not start on boot after cloning
+
+START GROUP_REPLICATION;
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--source include/start_group_replication.inc
+
+--let $assert_text= Clone status must be completed
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Cleanup.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+
+DROP TABLE t1;
+--source include/gtid_utils_end.inc
+--source include/rpl_sync.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs,*");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+set session sql_log_bin=1;
+
+--source include/clean_monitoring_process.inc
+
+--source include/group_replication_end.inc

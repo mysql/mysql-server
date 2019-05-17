@@ -975,6 +975,30 @@ int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
   DBUG_RETURN(error);
 }
 
+int channel_get_credentials(const char *channel, const char **user, char **pass,
+                            size_t *pass_size) {
+  DBUG_ENTER("channel_get_credentials(channel,user,password, pass_size)");
+
+  channel_map.rdlock();
+
+  Master_info *mi = channel_map.get_mi(channel);
+
+  if (mi == NULL) {
+    channel_map.unlock();
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+  }
+
+  mi->inc_reference();
+  channel_map.unlock();
+
+  *user = mi->get_user();
+  mi->get_password(*pass, pass_size);
+
+  mi->dec_reference();
+
+  DBUG_RETURN(0);
+}
+
 bool channel_is_stopping(const char *channel,
                          enum_channel_thread_types thd_type) {
   bool is_stopping = false;

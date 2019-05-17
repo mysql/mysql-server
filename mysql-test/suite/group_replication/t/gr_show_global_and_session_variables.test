@@ -29,7 +29,7 @@
 
 --sleep 30
 
---let $gr_var_count= 50
+--let $gr_var_count= 51
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -81,6 +81,7 @@
 --let $saved_gr_communication_max_message_size = `SELECT @@GLOBAL.group_replication_communication_max_message_size`
 --let $saved_gr_autorejoin_tries = `SELECT @@GLOBAL.group_replication_autorejoin_tries`
 --let $saved_gr_message_cache_size = `SELECT @@GLOBAL.group_replication_message_cache_size`
+--let $saved_gr_clone_threshold = `SELECT @@GLOBAL.group_replication_clone_threshold`
 --enable_query_log
 
 
@@ -166,6 +167,8 @@ SET @@SESSION.group_replication_communication_max_message_size= 2048;
 SET @@SESSION.group_replication_autorejoin_tries = 3;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_message_cache_size= 10000000000;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_clone_threshold= 1;
 
 # Set values to GLOBAL GR variables to test further.
 --disable_query_log
@@ -209,6 +212,7 @@ SET GLOBAL group_replication_consistency= "EVENTUAL";
 SET GLOBAL group_replication_communication_max_message_size= 2048;
 SET GLOBAL group_replication_autorejoin_tries = 3;
 SET GLOBAL group_replication_message_cache_size= 2000000000;
+SET GLOBAL group_replication_clone_threshold= 1;
 --enable_query_log
 
 
@@ -908,6 +912,23 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_message_cache_size\', VARIABLE_VALUE, 1]" = 2000000000
 --source include/assert.inc
 
+# group_replication_clone_threshold
+--let $assert_text= Verify GLOBAL value of group_replication_clone_threshold
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_clone_threshold\', Value, 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_clone_threshold
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_clone_threshold\', VARIABLE_VALUE, 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_clone_threshold
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_clone_threshold\', Value, 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_clone_threshold
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_clone_threshold\', VARIABLE_VALUE, 1]" = 1
+--source include/assert.inc
+
 --echo
 --echo # Clean up
 --source include/stop_group_replication.inc
@@ -954,6 +975,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --eval SET @@GLOBAL.group_replication_communication_max_message_size= $saved_gr_communication_max_message_size
 --eval SET @@GLOBAL.group_replication_autorejoin_tries= $saved_gr_autorejoin_tries
 --eval SET @@GLOBAL.group_replication_message_cache_size= $saved_gr_message_cache_size
+--eval SET @@GLOBAL.group_replication_clone_threshold= $saved_gr_clone_threshold
 --enable_query_log
 
 --source include/group_replication_end.inc
