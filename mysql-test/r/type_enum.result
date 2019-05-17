@@ -1679,6 +1679,8 @@ a	int(11)	YES		1
 b	enum('value','๖ไü_value','สรี')	NO		NULL	
 drop table t1;
 CREATE TABLE t1 (c enum('a', 'A') BINARY);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t1 VALUES ('a'),('A');
 SELECT * FROM t1;
 c

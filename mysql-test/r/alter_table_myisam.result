@@ -113,6 +113,9 @@ Host varchar(16) binary NOT NULL default '',
 User varchar(16) binary NOT NULL default '',
 PRIMARY KEY  (Host,User)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 ALTER TABLE t1 DISABLE KEYS;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
@@ -132,6 +135,9 @@ User varchar(16) binary NOT NULL default '',
 PRIMARY KEY  (Host,User),
 KEY  (Host)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -169,6 +175,9 @@ User varchar(16) binary NOT NULL default '',
 PRIMARY KEY  (Host,User),
 KEY  (Host)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;

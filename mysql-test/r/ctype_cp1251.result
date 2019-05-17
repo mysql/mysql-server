@@ -24,6 +24,8 @@ b
 c
 drop table t1;
 create table t1 (a char(3) binary, b binary(3)) character set cp1251;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values ('aaa','bbb'),('AAA','BBB');
 select upper(a),upper(b) from t1;
 upper(a)	upper(b)

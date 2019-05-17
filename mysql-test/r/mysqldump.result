@@ -2468,6 +2468,8 @@ begin
 set f1= concat( 'hello', f1 );
 return f1;
 end //
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE PROCEDURE bug9056_proc2(OUT a INT)
 BEGIN
 select sum(id) from t1 into a;
