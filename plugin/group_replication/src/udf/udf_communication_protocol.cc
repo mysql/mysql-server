@@ -56,16 +56,6 @@ static bool group_replication_get_communication_protocol_init(UDF_INIT *,
     goto end;
   }
 
-  if (group_contains_unreachable_member()) {
-    std::snprintf(message, MYSQL_ERRMSG_SIZE, unreachable_member_on_group_str);
-    goto end;
-  }
-
-  if (group_contains_recovering_member()) {
-    std::snprintf(message, MYSQL_ERRMSG_SIZE, recovering_member_on_group_str);
-    goto end;
-  }
-
   if (!member_online_with_majority()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
