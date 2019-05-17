@@ -761,7 +761,7 @@ dberr_t Clone_Handle::punch_holes(os_file_t file, const byte *buffer,
     len -= page_len;
   }
   /* Must have consumed all data. */
-  ut_ad(len == 0);
+  ut_ad(err != DB_SUCCESS || len == 0);
   return (err);
 }
 
@@ -841,8 +841,8 @@ int Clone_Handle::modify_and_write(const Clone_Task *task, uint64_t offset,
         punch_holes(task->m_current_file_des.m_file, buffer, buf_len,
                     start_offset, page_length, file_meta->m_fsblk_size);
     if (db_err != DB_SUCCESS) {
-      ut_ad(false);
-      ib::warn(ER_IB_CLONE_PUNCH_HOLE)
+      ut_ad(db_err == DB_IO_NO_PUNCH_HOLE);
+      ib::info(ER_IB_CLONE_PUNCH_HOLE)
           << "Innodb Clone Apply failed to punch hole: "
           << file_meta->m_file_name;
       file_meta->m_punch_hole = false;

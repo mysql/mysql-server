@@ -507,22 +507,21 @@ DEFINE_METHOD(void, mysql_clone_disconnect,
 
 DEFINE_METHOD(void, mysql_clone_get_error,
               (THD * thd, uint32_t *err_num, const char **err_mesg)) {
-  DBUG_ENTER("mysql_clone_get_error");
+  DBUG_TRACE;
   *err_num = 0;
   *err_mesg = nullptr;
   /* Check if THD exists. */
   if (thd == nullptr) {
-    DBUG_VOID_RETURN;
+    return;
   }
   /* Check if DA exists. */
   auto da = thd->get_stmt_da();
   if (da == nullptr || !da->is_error()) {
-    DBUG_VOID_RETURN;
+    return;
   }
   /* Get error from DA. */
   *err_num = da->mysql_errno();
   *err_mesg = da->message_text();
-  DBUG_VOID_RETURN;
 }
 
 DEFINE_METHOD(int, mysql_clone_get_command,

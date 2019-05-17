@@ -1,0 +1,3 @@
+# Test clone with concurrent DML on compressed row format table
+--let row_format_compressed = 1
+--source local_dml.test

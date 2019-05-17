@@ -925,6 +925,7 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
     case ARCH_CLIENT_STATE_STOPPED:
       if (!m_is_durable) {
         ib::error() << "Client needs to release its resources";
+        arch_client_mutex_exit();
         return (ER_PAGE_TRACKING_NOT_STARTED);
       }
       DBUG_PRINT("page_archiver", ("Archiver in progress"));
@@ -970,6 +971,12 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
   arch_client_mutex_exit();
 
   if (!m_is_durable) {
+    /* Update DD table buffer to get rid of recovery dependency for auto INC */
+    dict_persist_to_dd_table_buffer();
+
+    /* Make sure all written pages are synced to disk. */
+    fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+
     ib::info(ER_IB_MSG_20) << "Clone Start PAGE ARCH : start LSN : "
                            << m_start_lsn << ", checkpoint LSN : "
                            << log_get_checkpoint_lsn(*log_sys);
@@ -2577,12 +2584,6 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   arch_mutex_exit();
 
   if (!recovery) {
-    /* Update DD table buffer to get rid of recovery dependency for auto INC */
-    dict_persist_to_dd_table_buffer();
-
-    /* Make sure all written pages are synced to disk. */
-    fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
-
     /* Request checkpoint */
     log_request_checkpoint(*log_sys, true);
   }

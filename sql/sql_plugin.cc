@@ -2294,7 +2294,8 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
     return true;
   }
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
   Disable_autocommit_guard autocommit_guard(thd);

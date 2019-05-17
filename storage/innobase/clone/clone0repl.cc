@@ -217,7 +217,7 @@ bool Clone_persist_gtid::check_gtid_rollback(THD *thd, trx_t *trx,
 bool Clone_persist_gtid::has_gtid(trx_t *trx, THD *&thd, bool &passed_check) {
   passed_check = false;
   /* Transaction is not associated with mysql foreground session. */
-  if (thd == nullptr) {
+  if (trx->state == TRX_STATE_PREPARED && thd == nullptr) {
     /* For XA transaction, the current transaction THD could be NULL. Also
     check the default THD of current thread. */
     thd = thd_get_current_thd();

@@ -40,7 +40,6 @@ RESET SLAVE;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [mysql.gtid_executed table must have zero records]
 ####################################################################
 # Test Case6: FLUSH BINARY LOGS command
 ####################################################################
@@ -111,7 +110,6 @@ RESET SLAVE;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [mysql.gtid_executed table must have zero records]
 ####################################################################
 # Test Case6: FLUSH BINARY LOGS command
 ####################################################################

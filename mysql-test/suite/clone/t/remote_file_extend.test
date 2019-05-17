@@ -1,0 +1,9 @@
+# Test remote clone when tablespace file size is increasing in different stages
+# This would follow a rollback during recovery
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+--let remote_clone = 1
+
+--source local_file_extend.test

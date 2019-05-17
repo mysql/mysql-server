@@ -139,8 +139,7 @@ class Clone_Monitor {
 
       case ESTIMATE_WORK:
         if (m_estimate_bytes_left != 0) {
-          uint64_t rounded_estimate = m_estimate + 1;
-          mysql_stage_set_work_estimated(m_progress, rounded_estimate);
+          mysql_stage_set_work_estimated(m_progress, m_estimate + 1);
         }
 
         m_cur_phase = COMPLETE_WORK;
