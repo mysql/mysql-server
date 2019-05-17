@@ -84,7 +84,8 @@ class HARNESS_EXPORT SocketOperationsBase {
   virtual void set_errno(int) = 0;
   virtual int poll(struct pollfd *fds, nfds_t nfds,
                    std::chrono::milliseconds timeout) = 0;
-  virtual const char *inetntop(int af, void *cp, char *buf, socklen_t len) = 0;
+  virtual const char *inetntop(int af, const void *cp, char *buf,
+                               socklen_t len) = 0;
   virtual int getpeername(int fd, struct sockaddr *addr, socklen_t *len) = 0;
 
   /** @brief Wrapper around socket library write() with a looping logic
@@ -190,7 +191,8 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
              Can't call it inet_ntop as it is a macro on freebsd and causes
              compilation errors.
   */
-  const char *inetntop(int af, void *cp, char *buf, socklen_t len) override;
+  const char *inetntop(int af, const void *cp, char *buf,
+                       socklen_t len) override;
 
   /** @brief Wrapper around socket library getpeername() */
   int getpeername(int fd, struct sockaddr *addr, socklen_t *len) override;

@@ -68,7 +68,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD5(setsockopt, int(int, int, int, const void *, socklen_t));
   MOCK_METHOD2(listen, int(int fd, int n));
   MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
-  MOCK_METHOD4(inetntop, const char *(int af, void *, char *, socklen_t));
+  MOCK_METHOD4(inetntop, const char *(int af, const void *, char *, socklen_t));
   MOCK_METHOD3(getpeername, int(int, struct sockaddr *, socklen_t *));
   MOCK_METHOD2(connect_non_blocking_wait,
                int(mysql_harness::socket_t sock,
