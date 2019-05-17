@@ -12994,6 +12994,7 @@ int ha_ndbcluster::open(const char *name, int, uint,
   {
     // NOTE! This never happens, the NDB_SHARE should already have been
     // created by schema distribution or auto discovery
+    DBUG_ASSERT(false); // Catch in debug
     local_close(thd, false);
     DBUG_RETURN(1);
   }
