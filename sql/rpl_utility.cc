@@ -534,12 +534,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       if (!ignored_error_code(ER_SERVER_SLAVE_CONVERSION_FAILED)) {
         report_level = ERROR_LEVEL;
         thd->is_slave_error = 1;
-      }
-      /*
-        In case of ignored errors report warnings only if
-        log_error_verbosity > 2.
-      */
-      else if (log_error_verbosity > 2)
+      } else if (log_error_verbosity >= 2)
         report_level = WARNING_LEVEL;
 
       if (field->has_charset() && (field->type() == MYSQL_TYPE_VARCHAR ||
@@ -694,20 +689,16 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
     field_def->interval = interval;
   }
 
-  conv_table = create_tmp_table_from_fields(thd, field_list);
-
+  conv_table = DBUG_EVALUATE_IF(
+      "simulate_out_of_memory_while_creating_temp_table_for_conversion",
+      nullptr, create_tmp_table_from_fields(thd, field_list));
 err:
   if (conv_table == nullptr) {
     enum loglevel report_level = INFORMATION_LEVEL;
     if (!ignored_error_code(ER_SLAVE_CANT_CREATE_CONVERSION)) {
       report_level = ERROR_LEVEL;
       thd->is_slave_error = 1;
-    }
-    /*
-      In case of ignored errors report warnings only if
-      log_error_verbosity > 2.
-    */
-    else if (log_error_verbosity > 2)
+    } else if (log_error_verbosity >= 2)
       report_level = WARNING_LEVEL;
 
     if (report_level != INFORMATION_LEVEL)

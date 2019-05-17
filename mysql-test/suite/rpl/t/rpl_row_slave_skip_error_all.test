@@ -65,6 +65,17 @@ UPDATE t SET name='Old';
 --echo # cannot be ignored.
 --let $slave_sql_errno= convert_error(ER_ERROR_DURING_COMMIT);
 --source include/wait_for_slave_sql_error.inc
+
+# Verfiy that two warning logs for 'Error executing row event: ' (due to executing
+# two update statement to table t on master after dropping the table t at slave) are logged
+# in the error log of slave.
+--let $assert_text = Found 2 warning in the error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: rpl.rpl_row_slave_skip_error_all
+--let $assert_select = Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146
+--let $assert_count = 2
+--source include/assert_grep.inc
+
 --echo ==== Clean up ====
 SET @@GLOBAL.DEBUG= '$debug_saved';
 --source include/stop_slave_io.inc

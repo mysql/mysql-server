@@ -9265,7 +9265,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       if (thd->is_error()) {
         uint actual_error = thd->get_stmt_da()->mysql_errno();
         if (ignored_error_code(actual_error)) {
-          if (log_error_verbosity > 2)
+          if (log_error_verbosity >= 2)
             rli->report(WARNING_LEVEL, actual_error,
                         "Error executing row event: '%s'",
                         thd->get_stmt_da()->message_text());
