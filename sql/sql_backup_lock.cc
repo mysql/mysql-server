@@ -135,8 +135,10 @@ bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout) {
                                 lock_wait_timeout);
 }
 
-bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout) {
-  return acquire_mdl_for_backup(thd, MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION,
+bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout,
+                                bool for_trx) {
+  enum_mdl_duration duration = (for_trx ? MDL_TRANSACTION : MDL_EXPLICIT);
+  return acquire_mdl_for_backup(thd, MDL_INTENTION_EXCLUSIVE, duration,
                                 lock_wait_timeout);
 }
 

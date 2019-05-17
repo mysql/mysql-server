@@ -6659,14 +6659,16 @@ PSI_transaction_locker *pfs_get_thread_transaction_locker_v1(
     return NULL;
   }
 
+  /* Check if instrumentation of a thread is explicitly disabled. */
+  PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+  if (pfs_thread != nullptr && !pfs_thread->m_enabled) {
+    return nullptr;
+  }
+
   uint flags;
 
   if (flag_thread_instrumentation) {
-    PFS_thread *pfs_thread = my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL)) {
-      return NULL;
-    }
-    if (!pfs_thread->m_enabled) {
       return NULL;
     }
     state->m_thread = reinterpret_cast<PSI_thread *>(pfs_thread);

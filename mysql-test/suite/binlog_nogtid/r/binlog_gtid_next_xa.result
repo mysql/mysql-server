@@ -383,12 +383,12 @@ include/rpl_restart_server.inc [server_number=1]
 include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 [connection master]
 SET @@SESSION.innodb_lock_wait_timeout = 1;
-SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_start = 17 AND interval_end = 17;
+SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_end = 17;
 one
-0
-SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
-count(*)
-7
+1
+SELECT sum(interval_end+1)-sum(interval_start) as "count" FROM mysql.gtid_executed FOR UPDATE;
+count
+20
 Warnings:
 Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 [connection master]
@@ -782,12 +782,12 @@ include/rpl_restart_server.inc [server_number=1]
 include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 [connection master]
 SET @@SESSION.innodb_lock_wait_timeout = 1;
-SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_start = 34 AND interval_end = 34;
+SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_end = 34;
 one
-0
-SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
-count(*)
-15
+1
+SELECT sum(interval_end+1)-sum(interval_start) as "count" FROM mysql.gtid_executed FOR UPDATE;
+count
+40
 Warnings:
 Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 [connection master]

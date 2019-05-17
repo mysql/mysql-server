@@ -903,6 +903,23 @@ void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn,
   mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 }
 
+bool page_is_uncompressed_type(const byte *page) {
+  switch (fil_page_get_type(page)) {
+    case FIL_PAGE_TYPE_ALLOCATED:
+    case FIL_PAGE_INODE:
+    case FIL_PAGE_IBUF_BITMAP:
+    case FIL_PAGE_TYPE_FSP_HDR:
+    case FIL_PAGE_TYPE_XDES:
+    case FIL_PAGE_TYPE_ZLOB_FIRST:
+    case FIL_PAGE_TYPE_ZLOB_DATA:
+    case FIL_PAGE_TYPE_ZLOB_INDEX:
+    case FIL_PAGE_TYPE_ZLOB_FRAG:
+    case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
+      return (true);
+  }
+  return (false);
+}
+
 /** Initialize a page for writing to the tablespace.
 @param[in]      block           buffer block; NULL if bypassing the buffer pool
 @param[in,out]  page            page frame
@@ -942,7 +959,11 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
       case FIL_PAGE_TYPE_ZLOB_FRAG:
       case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
         /* These are essentially uncompressed pages. */
-        memcpy(page_zip->data, page, size);
+        ut_ad(page_is_uncompressed_type(page));
+        /* Skip copy if they points to same memory: clone page copy. */
+        if (page_zip->data != page) {
+          memcpy(page_zip->data, page, size);
+        }
         /* fall through */
       case FIL_PAGE_TYPE_ZBLOB:
       case FIL_PAGE_TYPE_ZBLOB2:

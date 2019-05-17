@@ -588,10 +588,12 @@ functions. */
 
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
+#define OS_PATH_SEPARATOR_STR "\\"
 #define OS_PATH_SEPARATOR '\\'
 #define OS_PATH_SEPARATOR_ALT '/'
 #else
 typedef void *os_thread_ret_t;
+#define OS_PATH_SEPARATOR_STR "/"
 #define OS_PATH_SEPARATOR '/'
 #define OS_PATH_SEPARATOR_ALT '\\'
 #endif /* _WIN32 */

@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sys/types.h>
 
+#include "clone0clone.h"
 #include "dict0dd.h"
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
@@ -191,11 +192,18 @@ static dberr_t trx_rollback_low(trx_t *trx) {
     case TRX_STATE_ACTIVE:
       ut_ad(trx->in_mysql_trx_list);
       assert_trx_nonlocking_or_in_list(trx);
+      /* Check an validate that undo is available for GTID. */
+      trx_undo_gtid_add_update_undo(trx, false, true);
       return (trx_rollback_for_mysql_low(trx));
 
     case TRX_STATE_PREPARED:
+      /* Check an validate that undo is available for GTID. */
+      trx_undo_gtid_add_update_undo(trx, false, true);
       ut_ad(!trx_is_autocommit_non_locking(trx));
       if (trx->rsegs.m_redo.rseg != NULL && trx_is_redo_rseg_updated(trx)) {
+        /* Flush prepare GTID for XA prepared transactions. */
+        trx_undo_gtid_flush_prepare(trx);
+
         /* Change the undo log state back from
         TRX_UNDO_PREPARED to TRX_UNDO_ACTIVE
         so that if the system gets killed,
@@ -211,10 +219,13 @@ static dberr_t trx_rollback_low(trx_t *trx) {
         if (undo_ptr->insert_undo != NULL) {
           trx_undo_set_state_at_prepare(trx, undo_ptr->insert_undo, true, &mtr);
         }
+
         if (undo_ptr->update_undo != NULL) {
+          trx_undo_gtid_set(trx, undo_ptr->update_undo);
           trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, true, &mtr);
         }
         mutex_exit(&trx->rsegs.m_redo.rseg->mutex);
+
         /* Persist the XA ROLLBACK, so that crash
         recovery will replay the rollback in case
         the redo log gets applied past this point. */
@@ -259,7 +270,6 @@ dberr_t trx_rollback_for_mysql(trx_t *trx) /*!< in/out: transaction */
 
   } else {
     TrxInInnoDB trx_in_innodb(trx, true);
-
     return (trx_rollback_low(trx));
   }
 }

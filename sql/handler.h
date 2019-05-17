@@ -982,6 +982,7 @@ class Ha_clone_cbk {
         m_desc_len(),
         m_src_name(),
         m_dest_name(),
+        m_state_estimate(),
         m_flag() {}
 
  public:
@@ -1003,6 +1004,12 @@ class Ha_clone_cbk {
   @param[in]  to_file  destination file to write data
   @return error code */
   virtual int apply_file_cbk(Ha_clone_file to_file) = 0;
+
+  /** Callback to get data in buffer.
+  @param[out]  to_buffer  data buffer
+  @param[out]  len        data length
+  @return error code */
+  virtual int apply_buffer_cbk(uchar *&to_buffer, uint &len) = 0;
 
   /** virtual destructor. */
   virtual ~Ha_clone_cbk() {}
@@ -1078,7 +1085,7 @@ class Ha_clone_cbk {
 
   /** Check if ACK is needed for the data transfer
   @return true if ACK is needed */
-  bool is_ack_needed() { return (m_flag & HA_CLONE_ACK); }
+  bool is_ack_needed() const { return (m_flag & HA_CLONE_ACK); }
 
   /** Mark that the file descriptor is opened for read/write
   with OS buffer cache. For O_DIRECT, the flag is not set. */
@@ -1088,13 +1095,32 @@ class Ha_clone_cbk {
   buffer cache. Currently clone avoids using zero copy (sendfile on linux),
   if SE is using O_DIRECT. This improves data copy performance.
   @return true if O_DIRECT is not used */
-  bool is_os_buffer_cache() { return (m_flag & HA_CLONE_FILE_CACHE); }
+  bool is_os_buffer_cache() const { return (m_flag & HA_CLONE_FILE_CACHE); }
 
   /** Mark that the file can be transferred with zero copy. */
   void set_zero_copy() { m_flag |= HA_CLONE_ZERO_COPY; }
 
   /** Check if zero copy optimization is suggested. */
-  bool is_zero_copy() { return (m_flag & HA_CLONE_ZERO_COPY); }
+  bool is_zero_copy() const { return (m_flag & HA_CLONE_ZERO_COPY); }
+
+  /** Mark that data needs secure transfer. */
+  void set_secure() { m_flag |= HA_CLONE_SECURE; }
+
+  /** Check if data needs secure transfer. */
+  bool is_secure() const { return (m_flag & HA_CLONE_SECURE); }
+
+  /** Set state information and notify state change.
+  @param[in]	estimate	estimated bytes for current state. */
+  void mark_state_change(uint64_t estimate) {
+    m_flag |= HA_CLONE_STATE_CHANGE;
+    m_state_estimate = estimate;
+  }
+
+  /** Check if SE notified state change. */
+  bool is_state_change(uint64_t &estimate) {
+    estimate = m_state_estimate;
+    return (m_flag & HA_CLONE_STATE_CHANGE);
+  }
 
  private:
   /** Handlerton for the SE */
@@ -1108,6 +1134,8 @@ class Ha_clone_cbk {
 
   /** SE's Serialized data descriptor */
   const uchar *m_data_desc;
+
+  /** SE's Serialized descriptor length. */
   uint m_desc_len;
 
   /** Current source file name */
@@ -1115,6 +1143,9 @@ class Ha_clone_cbk {
 
   /** Current destination file name */
   const char *m_dest_name;
+
+  /** Estimated bytes to be transferred. */
+  uint64_t m_state_estimate;
 
   /** Flag storing data related options */
   int m_flag;
@@ -1127,6 +1158,12 @@ class Ha_clone_cbk {
 
   /** Data file can be transferred with zero copy. */
   const int HA_CLONE_ZERO_COPY = 0x04;
+
+  /** Data needs to be transferred securely over SSL connection. */
+  const int HA_CLONE_SECURE = 0x08;
+
+  /** State change notification by SE. */
+  const int HA_CLONE_STATE_CHANGE = 0x10;
 };
 
 /**

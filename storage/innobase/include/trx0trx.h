@@ -970,7 +970,7 @@ struct trx_t {
   contains a pointer to the latest file
   name; this is NULL if binlog is not
   used */
-  int64_t mysql_log_offset;
+  uint64_t mysql_log_offset;
   /*!< if MySQL binlog is used, this
   field contains the end offset of the
   binlog entry */
@@ -1091,6 +1091,9 @@ struct trx_t {
                  transactions are always treated as
                  read-write. */
                  /*------------------------------*/
+  /** Transaction persists GTID. */
+  bool persists_gtid;
+
 #ifdef UNIV_DEBUG
   ulint start_line;       /*!< Track where it was started from */
   const char *start_file; /*!< Filename where it was started */
@@ -1384,6 +1387,15 @@ class TrxInInnoDB {
   Transaction instance crossing the handler boundary from the Server. */
   trx_t *m_trx;
 };
+
+/** Check if transaction is internal XA transaction
+@param[in]	trx	transaction
+@return true, iff internal XA transaction. */
+bool trx_is_mysql_xa(trx_t *trx);
+
+/** Update transaction binlog file name and position from session THD.
+@param[in,out]  trx     current transaction. */
+void trx_sys_update_binlog_position(trx_t *trx);
 
 #include "trx0trx.ic"
 #endif /* !UNIV_HOTBACKUP */

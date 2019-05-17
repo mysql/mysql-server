@@ -50,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0cur.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
+#include "clone0api.h"
 #include "dict0dd.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
@@ -355,6 +356,7 @@ void MetadataRecover::apply() {
 
     mutex_enter(&dict_persist->mutex);
 
+    uint64_t autoinc_persisted = table->autoinc_persisted;
     bool is_dirty = dict_table_apply_dynamic_metadata(table, metadata);
 
     if (is_dirty) {
@@ -370,6 +372,15 @@ void MetadataRecover::apply() {
       table->dirty_status.store(METADATA_DIRTY);
       ut_d(table->in_dirty_dict_tables_list = true);
       ++dict_persist->num_dirty_tables;
+
+      /* For those tables which are not initialized by
+      innobase_initialize_autoinc(), the next counter should be advanced to
+      point to the next auto increment value.  This is simlilar to
+      metadata_applier::operator(). */
+      if (autoinc_persisted != table->autoinc_persisted &&
+          table->autoinc != ~0ULL) {
+        ++table->autoinc;
+      }
     }
 
     mutex_exit(&dict_persist->mutex);
@@ -1711,7 +1722,9 @@ static byte *recv_parse_or_apply_log_rec_body(
         recovered. Otherwise, redo will not find the key
         to decrypt the data pages. */
 
-        if (page_no == 0 && !fsp_is_system_or_temp_tablespace(space_id)) {
+        if (page_no == 0 && !fsp_is_system_or_temp_tablespace(space_id) &&
+            /* For cloned db header page has the encryption information. */
+            !recv_sys->is_cloned_db) {
           return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id));
         }
 #ifdef UNIV_HOTBACKUP
@@ -3464,7 +3477,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
     encryption_request = IORequestLogRead;
 
     if (Encryption::decode_encryption_info(
-            key, iv, log_block_buf + LOG_HEADER_CREATOR_END)) {
+            key, iv, log_block_buf + LOG_HEADER_CREATOR_END, true)) {
       /* If redo log encryption is enabled, set the
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
@@ -3740,6 +3753,11 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   } else if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR,
                             (byte *)LOG_HEADER_CREATOR_CLONE,
                             (sizeof LOG_HEADER_CREATOR_CLONE) - 1)) {
+    /* Refuse clone database recovery in read only mode. */
+    if (srv_read_only_mode) {
+      ib::error(ER_IB_MSG_736);
+      return (DB_READ_ONLY);
+    }
     recv_sys->is_cloned_db = true;
     ib::info(ER_IB_MSG_731);
   }

@@ -1,0 +1,63 @@
+# Test clone all error conditions
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $MYSQLD_DATADIR= `select @@datadir;`
+
+--echo # 1. PLUGIN not loaded - clone local
+--let $clone_err = ER_PLUGIN_IS_NOT_LOADED
+--source ../include/clone_command.inc
+--let $clone_err = 0
+
+--echo # 1A. PLUGIN not installed - Uninstall plugin
+--error ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN clone;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo # 1B. PLUGIN already loaded - Install plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--error ER_UDF_EXISTS
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+if($remote_clone) {
+--let $PORT =`select @@port + 1`
+--let $clone_err = ER_CLONE_DONOR
+--source ../include/clone_command.inc
+--let $PORT =`select @@port`
+--let $clone_err = 0
+}
+
+--echo #1C. Clone data without error
+--source ../include/clone_command.inc
+
+--echo # 2A. Incorrect PATH - Relative path
+--let $CLONE_DATADIR = ./data
+--let $clone_err = ER_WRONG_VALUE
+--source ../include/clone_command.inc
+--let $clone_err = 0
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--echo # 2B. Incorrect PATH - Too long
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new/a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################
+--let $clone_err = ER_PATH_LENGTH
+--source ../include/clone_command.inc
+--let $clone_err = 0
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--echo # 2C. Incorrect PATH - Within data directory
+--let $CLONE_DATADIR = $MYSQLD_DATADIR/data
+--let $clone_err = ER_PATH_IN_DATADIR
+--source ../include/clone_command.inc
+--let $clone_err = 0
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--echo # 2D. Incorrect PATH - data directory exists
+--let $clone_err = ER_DB_CREATE_EXISTS
+--source ../include/clone_command.inc
+--let $clone_err = 0
+
+--echo #Cleanup
+UNINSTALL PLUGIN clone;
+
+--force-rmdir $CLONE_DATADIR

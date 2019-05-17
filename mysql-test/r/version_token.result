@@ -261,6 +261,7 @@ Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
 BINLOG_ENCRYPTION_ADMIN	Server Admin	
+CLONE_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
 Create role	Server Admin	To create new roles

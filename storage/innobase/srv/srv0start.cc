@@ -97,6 +97,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "buf0rea.h"
 #include "clone0api.h"
+#include "clone0clone.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0load.h"
@@ -181,6 +182,8 @@ mysql_pfs_key_t log_archiver_thread_key;
 mysql_pfs_key_t page_archiver_thread_key;
 mysql_pfs_key_t buf_dump_thread_key;
 mysql_pfs_key_t buf_resize_thread_key;
+mysql_pfs_key_t clone_ddl_thread_key;
+mysql_pfs_key_t clone_gtid_thread_key;
 mysql_pfs_key_t dict_stats_thread_key;
 mysql_pfs_key_t fts_optimize_thread_key;
 mysql_pfs_key_t fts_parallel_merge_thread_key;
@@ -1789,6 +1792,7 @@ static dberr_t srv_init_abort_low(bool create_new_db,
     ib::error(ER_IB_MSG_1105, msg.str().c_str(), ut_strerr(err));
   }
 
+  clone_files_error();
   srv_shutdown_all_bg_threads();
 
   return (err);
@@ -1988,6 +1992,15 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
   fil_init(srv_max_n_open_files);
 
+  /* Must replace clone files before scanning directories. When
+  clone replaces current database, cloned files are moved to data files
+  at this stage. */
+  err = clone_init();
+
+  if (err != DB_SUCCESS) {
+    return (srv_init_abort(err));
+  }
+
   err = fil_scan_for_tablespaces(scan_directories);
 
   if (err != DB_SUCCESS) {
@@ -2104,11 +2117,6 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
   fsp_init();
   pars_init();
-  err = clone_init();
-  if (err != DB_SUCCESS) {
-    return (srv_init_abort(err));
-  }
-
   recv_sys_create();
   recv_sys_init(buf_pool_get_curr_size());
   trx_sys_create();
@@ -2426,6 +2434,8 @@ files_checked:
       return (srv_init_abort(err));
     }
 
+    ut_ad(clone_check_recovery_crashpoint(recv_sys->is_cloned_db));
+
     /* We need to start log threads before asking to flush
     all dirty pages. That's because some dirty pages could
     be dirty because of ibuf merges. The ibuf merges could
@@ -2490,10 +2500,6 @@ files_checked:
 
     /* We have successfully recovered from the redo log. The
     data dictionary should now be readable. */
-
-    if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO && recv_needed_recovery) {
-      trx_sys_print_mysql_binlog_offset();
-    }
 
     if (recv_sys->found_corrupt_log) {
       ib::warn(ER_IB_MSG_1140);
@@ -2571,6 +2577,10 @@ files_checked:
       RECOVERY_CRASH(5);
 
       log_sys_close();
+
+      /* Finish clone file recovery before creating new log files. We
+      roll forward to remove any intermediate files here. */
+      clone_files_recovery(true);
 
       ib::info(ER_IB_MSG_1143);
 
@@ -2796,6 +2806,10 @@ files_checked:
     }
   }
 
+  /* Finish clone files recovery. This call is idempotent and is no op
+  if it is already done before creating new log files. */
+  clone_files_recovery(true);
+
   ib::info(ER_IB_MSG_1151, INNODB_VERSION_STR,
            ulonglong{log_get_lsn(*log_sys)});
 
@@ -3008,6 +3022,10 @@ static void srv_shutdown_background_threads();
 the data dictionary. */
 void srv_pre_dd_shutdown() {
   ut_a(!srv_is_being_shutdown);
+
+  /* Stop service for persisting GTID */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.stop();
 
   if (srv_read_only_mode) {
     /* In read-only mode, no background tasks should
@@ -3489,8 +3507,6 @@ void srv_shutdown() {
   btr_search_disable(true);
 
   ibuf_close();
-  clone_free();
-  arch_free();
   ddl_log_close();
   log_sys_close();
   recv_sys_close();
@@ -3514,6 +3530,9 @@ void srv_shutdown() {
 
   pars_lexer_close();
   buf_pool_free_all();
+
+  clone_free();
+  arch_free();
 
   os_thread_close();
 

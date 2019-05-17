@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 
 #include "btr0sea.h"
+#include "clone0clone.h"
 #include "dict0dd.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
@@ -64,6 +65,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 #include "mysql/plugin.h"
+#include "sql/clone_handler.h"
 
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
@@ -143,6 +145,8 @@ static void trx_init(trx_t *trx) {
   trx->id = 0;
 
   trx->no = TRX_ID_MAX;
+
+  trx->persists_gtid = false;
 
   trx->skip_lock_inheritance = false;
 
@@ -439,6 +443,8 @@ static trx_t *trx_create_low() {
 
   /* We just got trx from pool, it should be non locking */
   ut_ad(trx->will_lock == 0);
+
+  trx->persists_gtid = false;
 
   trx->api_trx = false;
 
@@ -995,11 +1001,6 @@ void trx_lists_init_at_db_start(void) {
 
   for (TrxIdSet::iterator it = trx_sys->rw_trx_set.begin(); it != end; ++it) {
     ut_ad(it->m_trx->in_rw_trx_list);
-#ifdef UNIV_DEBUG
-    if (it->m_trx->id > trx_sys->rw_max_trx_id) {
-      trx_sys->rw_max_trx_id = it->m_trx->id;
-    }
-#endif /* UNIV_DEBUG */
 
     if (it->m_trx->state == TRX_STATE_ACTIVE ||
         it->m_trx->state == TRX_STATE_PREPARED) {
@@ -1221,6 +1222,7 @@ static void trx_start_low(
   } else if (trx->will_lock == 0) {
     trx->read_only = true;
   }
+  trx->persists_gtid = false;
 
 #ifdef UNIV_DEBUG
   /* If the transaction is DD attachable trx, it should be AC-NL-RO
@@ -1284,11 +1286,6 @@ static void trx_start_low(
     UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 
     ut_d(trx->in_rw_trx_list = true);
-#ifdef UNIV_DEBUG
-    if (trx->id > trx_sys->rw_max_trx_id) {
-      trx_sys->rw_max_trx_id = trx->id;
-    }
-#endif /* UNIV_DEBUG */
 
     trx->state = TRX_STATE_ACTIVE;
 
@@ -1368,6 +1365,9 @@ static bool trx_serialisation_number_get(
   trx_sys_mutex_enter();
 
   trx->no = trx_sys_get_new_trx_id();
+
+  /* Update the latest transaction number. */
+  ut_d(trx_sys->rw_max_trx_no = trx->no);
 
   /* Track the minimum serialisation number. */
   if (!trx->read_only) {
@@ -1492,8 +1492,12 @@ static bool trx_write_serialisation_history(
       with same trx-no as single unit. */
       bool update_rseg_len = !(trx->rsegs.m_noredo.update_undo != NULL);
 
-      trx_undo_update_cleanup(trx, &trx->rsegs.m_redo, undo_hdr_page,
-                              update_rseg_len, (update_rseg_len ? 1 : 0), mtr);
+      /* Set flag if GTID information need to persist. */
+      auto undo_ptr = &trx->rsegs.m_redo;
+      trx_undo_gtid_set(trx, undo_ptr->update_undo);
+
+      trx_undo_update_cleanup(trx, undo_ptr, undo_hdr_page, update_rseg_len,
+                              (update_rseg_len ? 1 : 0), mtr);
     }
 
     DBUG_EXECUTE_IF("ib_trx_crash_during_commit", DBUG_SUICIDE(););
@@ -1524,16 +1528,11 @@ static bool trx_write_serialisation_history(
 
   MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
 
-  /* Update the latest MySQL binlog name and offset info
-  in trx sys header if MySQL binlogging is on or the database
-  server is a MySQL replication slave */
-
-  if (trx->mysql_log_file_name != NULL && trx->mysql_log_file_name[0] != '\0') {
-    trx_sys_update_mysql_binlog_offset(trx->mysql_log_file_name,
-                                       trx->mysql_log_offset,
-                                       TRX_SYS_MYSQL_LOG_INFO, mtr);
-
-    trx->mysql_log_file_name = NULL;
+  /* Update the latest MySQL binlog name and offset information
+  in trx sys header only if MySQL binary logging is on and clone
+  is has ensured commit order at final stage. */
+  if (Clone_handler::need_commit_order()) {
+    trx_sys_update_mysql_binlog_offset(trx, mtr);
   }
 
   return (serialised);
@@ -1684,14 +1683,25 @@ Erase the transaction from running transaction lists and serialization
 list. Active RW transaction list of a MVCC snapshot(ReadView::prepare)
 won't include this transaction after this call. All implicit locks are
 also released by this call as trx is removed from rw_trx_list.
-@param[in] trx		Transaction to erase, must have an ID > 0
-@param[in] serialised	true if serialisation log was written */
-static void trx_erase_lists(trx_t *trx, bool serialised) {
+@param[in]	trx		Transaction to erase, must have an ID > 0
+@param[in]	serialised	true if serialisation log was written
+@param[in]	gtid_desc	GTID information to persist */
+static void trx_erase_lists(trx_t *trx, bool serialised, Gtid_desc &gtid_desc) {
   ut_ad(trx->id > 0);
   ut_ad(trx_sys_mutex_own());
 
   if (serialised) {
     UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
+
+    /* Add GTID to be persisted to disk table. It must be done ...
+    1.After the transaction is marked committed in undo. Otherwise
+      GTID might get committed before the transaction commit on disk.
+    2.Before it is removed from serialization list. Otherwise the transaction
+      undo could get purged before persisting GTID on disk table. */
+    if (gtid_desc.m_is_set) {
+      auto &gtid_persistor = clone_sys->get_gtid_persistor();
+      gtid_persistor.add(gtid_desc);
+    }
   }
 
   trx_ids_t::iterator it = std::lower_bound(trx_sys->rw_trx_ids.begin(),
@@ -1728,6 +1738,11 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized) {
   bool trx_sys_latch_is_needed =
       (trx->id > 0) || trx_state_eq(trx, TRX_STATE_PREPARED);
 
+  /* Check and get GTID to be persisted. Do it outside trx_sys mutex. */
+  Gtid_desc gtid_desc;
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.get_gtid_info(trx, gtid_desc);
+
   if (trx_sys_latch_is_needed) {
     trx_sys_mutex_enter();
   }
@@ -1736,7 +1751,7 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized) {
     /* For consistent snapshot, we need to remove current
     transaction from running transaction id list for mvcc
     before doing commit and releasing locks. */
-    trx_erase_lists(trx, serialized);
+    trx_erase_lists(trx, serialized, gtid_desc);
   }
 
   if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
@@ -1849,6 +1864,10 @@ written */
     the atomic counter. */
     rseg->trx_ref_count--;
   }
+
+  /* Reset flag that SE persists GTID. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.set_persist_gtid(trx, false);
 
   if (mtr != NULL) {
     if (trx->rsegs.m_redo.insert_undo != NULL) {
@@ -2242,6 +2261,8 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
   sig to the transaction, we must here make sure that trx has been
   started. */
 
+  dberr_t db_err = DB_SUCCESS;
+
   switch (trx->state) {
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:
@@ -2253,8 +2274,16 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
       /* fall through */
     case TRX_STATE_ACTIVE:
     case TRX_STATE_PREPARED:
-
       trx->op_info = "committing";
+
+      /* For GTID persistence we need update undo segment. */
+      db_err = trx_undo_gtid_add_update_undo(trx, false, false);
+      if (db_err != DB_SUCCESS) {
+        return (db_err);
+      }
+
+      /* Flush prepare GTID for XA prepared transactions. */
+      trx_undo_gtid_flush_prepare(trx);
 
       if (trx->id != 0) {
         trx_update_mod_tables_timestamp(trx);
@@ -2584,6 +2613,9 @@ static lsn_t trx_prepare_low(
     }
 
     if (undo_ptr->update_undo != NULL) {
+      if (!noredo_logging) {
+        trx_undo_gtid_set(trx, undo_ptr->update_undo);
+      }
       trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, false, &mtr);
     }
 
@@ -2605,12 +2637,17 @@ static lsn_t trx_prepare_low(
   return 0;
 }
 
+bool trx_is_mysql_xa(trx_t *trx) {
+  auto my_xid = trx->xid->get_my_xid();
+  return (my_xid != 0);
+}
+
 /** Prepares a transaction. */
 static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
 {
   /* This transaction has crossed the point of no return and cannot
   be rolled back asynchronously now. It must commit or rollback
-  synhronously. */
+  synchronously. */
 
   lsn_t lsn = 0;
 
@@ -2628,13 +2665,25 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
     trx_prepare_low(trx, &trx->rsegs.m_noredo, true);
   }
 
+  /* Check and get GTID to be persisted. Do it outside trx_sys mutex. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  Gtid_desc gtid_desc;
+  gtid_persistor.get_gtid_info(trx, gtid_desc);
+
   /*--------------------------------------*/
   ut_a(trx->state == TRX_STATE_ACTIVE);
   trx_sys_mutex_enter();
   trx->state = TRX_STATE_PREPARED;
   trx_sys->n_prepared_trx++;
+  /* Add GTID to be persisted to disk table, if needed. */
+  if (gtid_desc.m_is_set) {
+    gtid_persistor.add(gtid_desc);
+  }
   trx_sys_mutex_exit();
   /*--------------------------------------*/
+
+  /* Reset after successfully adding GTID to in memory table. */
+  trx->persists_gtid = false;
 
   /* Force isolation level to RC and release GAP locks
   for test purpose. */
@@ -2696,6 +2745,12 @@ dberr_t trx_prepare_for_mysql(trx_t *trx) {
 
   if (trx_in_innodb.is_aborted() && trx->killed_by != os_thread_get_curr_id()) {
     return (DB_FORCED_ABORT);
+  }
+
+  /* For GTID persistence we need update undo segment. */
+  auto db_err = trx_undo_gtid_add_update_undo(trx, true, false);
+  if (db_err != DB_SUCCESS) {
+    return (db_err);
   }
 
   trx->op_info = "preparing";
@@ -3010,12 +3065,6 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
     MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
   }
 
-#ifdef UNIV_DEBUG
-  if (trx->id > trx_sys->rw_max_trx_id) {
-    trx_sys->rw_max_trx_id = trx->id;
-  }
-#endif /* UNIV_DEBUG */
-
   UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 
   ut_d(trx->in_rw_trx_list = true);
@@ -3176,4 +3225,21 @@ void trx_kill_blocking(trx_t *trx) {
   if (had_dict_lock) {
     row_mysql_freeze_data_dictionary(trx);
   }
+}
+
+/* To get current session thread default THD */
+THD *thd_get_current_thd();
+
+void trx_sys_update_binlog_position(trx_t *trx) {
+  THD *thd = trx->mysql_thd;
+  /* For XA commit/rollback by XID, transaction thd could be null. */
+  if (thd == nullptr) {
+    thd = thd_get_current_thd();
+    if (thd == nullptr) {
+      return;
+    }
+  }
+  ulonglong pos;
+  thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+  trx->mysql_log_offset = static_cast<uint64_t>(pos);
 }

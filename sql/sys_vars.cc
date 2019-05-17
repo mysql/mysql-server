@@ -1035,7 +1035,7 @@ static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
              var->var->name.str);
     return true;
   }
-  if (!thd->owned_gtid.is_empty()) {
+  if (!thd->owned_gtid_is_empty()) {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
     if (thd->owned_gtid.sidno > 0)
       thd->owned_gtid.to_string(thd->owned_sid, buf);

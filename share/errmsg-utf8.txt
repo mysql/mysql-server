@@ -8225,10 +8225,10 @@ ER_CMD_NEED_SUPER
 ER_PATH_IN_DATADIR
   eng "Path is within the current data directory '%-.192s'"
 
-ER_DDL_IN_PROGRESS
-  eng "Concurrent DDL is performed during the operation. Please try again."
+ER_CLONE_DDL_IN_PROGRESS
+  eng "Concurrent DDL is performed during clone operation. Please try again."
 
-ER_TOO_MANY_CONCURRENT_CLONES
+ER_CLONE_TOO_MANY_CONCURRENT_CLONES
   eng "Too many concurrent clone operations. Maximum allowed - %d."
 
 ER_APPLIER_LOG_EVENT_VALIDATION_ERROR
@@ -8931,6 +8931,45 @@ ER_WARN_DEPRECATED_INTEGER_DISPLAY_WIDTH
 # ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
 ER_WARN_DEPRECATED_ZEROFILL
   eng "The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column."
+
+ER_CLONE_DONOR
+  eng "Clone Donor Error: %.512s."
+
+ER_CLONE_PROTOCOL
+  eng "Clone received unexpected response from Donor : %.512s."
+
+ER_CLONE_DONOR_VERSION
+  eng "Clone Donor MySQL version: %.64s is different from Recipient MySQL version %.64s."
+
+ER_CLONE_OS
+  eng "Clone Donor OS: %.64s is different from Recipient OS: %.64s."
+
+ER_CLONE_PLATFORM
+  eng "Clone Donor platform: %.64s is different from Recipient platform: %.64s."
+
+ER_CLONE_CHARSET
+  eng "Clone Donor collation: %.128s is unavailable in Recipient."
+
+ER_CLONE_CONFIG
+  eng "Clone Configuration %.128s: Donor value: %.128s is different from Recipient value: %.128s."
+
+ER_CLONE_SYS_CONFIG
+  eng "Clone system configuration: %.512s"
+
+ER_CLONE_PLUGIN_MATCH
+  eng "Clone Donor plugin %.128s is not active in Recipient."
+
+ER_CLONE_LOOPBACK
+  eng "Clone cannot use loop back connection while cloning into current data directory."
+
+ER_CLONE_ENCRYPTION
+  eng "Clone needs SSL connection for encrypted table."
+
+ER_CLONE_DISK_SPACE
+  eng "Clone estimated database size is %.64s. Available space %.64s is not enough."
+
+ER_CLONE_IN_PROGRESS
+  eng "Concurrent clone in progress. Please try after clone is complete."
 
 #
 #  End of 8.0 error messages.
@@ -12060,13 +12099,13 @@ ER_RPL_FILTERS_NOT_ATTACHED_TO_CHANNEL
 ER_FAILED_TO_BUILD_DO_AND_IGNORE_TABLE_HASHES
   eng "An error occurred while building do_table and ignore_table rules to hashes for per-channel filter."
 
-ER_CLONE_PLUGIN_NOT_LOADED
-  eng "Clone plugin not loaded."
+ER_CLONE_PLUGIN_NOT_LOADED_TRACE
+  eng "Clone plugin cannot be loaded."
 
-ER_CLONE_HANDLER_EXISTS
+ER_CLONE_HANDLER_EXIST_TRACE
   eng "Clone Handler exists."
 
-ER_FAILED_TO_CREATE_CLONE_HANDLER
+ER_CLONE_CREATE_HANDLER_FAIL_TRACE
   eng "Could not create Clone Handler."
 
 ER_CYCLE_TIMER_IS_NOT_AVAILABLE
@@ -14880,25 +14919,25 @@ ER_IB_MSG_147
 ER_IB_MSG_148
   eng "%s"
 
-ER_IB_MSG_149
+ER_IB_CLONE_INTERNAL
   eng "%s"
 
-ER_IB_MSG_150
+ER_IB_CLONE_TIMEOUT
   eng "%s"
 
-ER_IB_MSG_151
+ER_IB_CLONE_STATUS_FILE
   eng "%s"
 
-ER_IB_MSG_152
+ER_IB_CLONE_SQL
   eng "%s"
 
-ER_IB_MSG_153
+ER_IB_CLONE_VALIDATE
   eng "%s"
 
-ER_IB_MSG_154
+ER_IB_CLONE_PUNCH_HOLE
   eng "%s"
 
-ER_IB_MSG_155
+ER_IB_CLONE_GTID_PERSIST
   eng "%s"
 
 ER_IB_MSG_156
@@ -18775,16 +18814,16 @@ ER_IB_MSG_DIR_DOES_NOT_EXIST
 ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS
   eng "%s"
 
-ER_CLONE_REMOTE_ERROR
-  eng "Clone Remote Error: %.512s."
+ER_CLONE_DONOR_TRACE
+  eng "Clone donor reported : %.512s."
 
-ER_CLONE_PROTOCOL_ERROR
-  eng "Clone Protocol Error: %.512s."
+ER_CLONE_PROTOCOL_TRACE
+  eng "Clone received unexpected response from donor : %.512s."
 
-ER_CLONE_INFO_CLIENT
+ER_CLONE_CLIENT_TRACE
   eng "Client: %.512s."
 
-ER_CLONE_INFO_SERVER
+ER_CLONE_SERVER_TRACE
   eng "Server: %.512s."
 
 ER_THREAD_POOL_PFS_TABLES_INIT_FAILED
@@ -19341,6 +19380,27 @@ ER_LOCK_ORDER_SCANNER_SYNTAX
 ER_DATA_DIRECTORY_UNUSABLE_DELETABLE
   eng "The newly created data directory %s by --initialize is unusable. You can remove it."
   bg "Новосъздадената от --initialize папка за базата %s е неизползваема. Можете да я изтриете."
+
+ER_IB_MSG_BTREE_LEVEL_LIMIT_EXCEEDED
+  eng "No. of B-tree level created for index %s has crossed the permissible limit. If debug option innodb_limit_optimistic_insert_debug is being used try tweaking it to include more records in a page."
+
+ER_IB_CLONE_START_STOP
+  eng "%s"
+
+ER_IB_CLONE_OPERATION
+  eng "%s"
+
+ER_IB_CLONE_RESTART
+  eng "%s"
+
+ER_IB_CLONE_USER_DATA
+  eng "Clone removing all user data for provisioning: %s"
+
+ER_IB_CLONE_NON_INNODB_TABLE
+  eng "Non innodb table: %s.%s is not cloned and is empty."
+
+ER_CLONE_SHUTDOWN_TRACE
+  eng "Clone shutting down server as RESTART failed. Please start server to complete clone operation."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

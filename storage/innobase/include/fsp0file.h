@@ -356,10 +356,10 @@ class Datafile {
   else DB_ERROR. */
   dberr_t find_space_id();
 
-#ifdef UNIV_HOTBACKUP
   /** @return file size in number of pages */
   page_no_t size() const { return (m_size); }
 
+#ifdef UNIV_HOTBACKUP
   /** Set the tablespace ID.
   @param[in]	space_id	Tablespace ID to set */
   void set_space_id(space_id_t space_id) {

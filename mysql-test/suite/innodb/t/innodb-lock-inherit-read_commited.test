@@ -80,10 +80,7 @@ SET debug_sync = 'now WAIT_FOR con2_blocked';
 SET GLOBAL innodb_purge_run_now=ON;
 
 # Wait for purge to delete the delete-marked record
-let $wait_condition=
-    SELECT COUNT(*) = 1 FROM performance_schema.global_status
-    WHERE VARIABLE_NAME='INNODB_PURGE_TRX_ID_AGE' AND VARIABLE_VALUE=2;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 
 SET debug_sync = 'now SIGNAL con2_go WAIT_FOR con2_insert_done';
 SET debug_sync = 'now SIGNAL con1_go WAIT_FOR con1_insert_done';

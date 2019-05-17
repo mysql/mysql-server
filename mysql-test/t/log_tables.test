@@ -127,7 +127,7 @@ SET GLOBAL SLOW_QUERY_LOG=ON;
 
 show open tables;
 flush logs;
-show open tables;
+show open tables like 'general%';
 
 #
 # check that FLUSH TABLES does flush the log tables

@@ -384,7 +384,7 @@ end:
   DBUG_RETURN(error);
 }
 
-int Gtid_table_persistor::save(const Gtid_set *gtid_set) {
+int Gtid_table_persistor::save(const Gtid_set *gtid_set, bool compress) {
   DBUG_ENTER("Gtid_table_persistor::save(Gtid_set *gtid_set)");
   int ret = 0;
   int error = 0;
@@ -412,7 +412,8 @@ end:
   if (!ret && deinit_ret) ret = -1;
 
   /* Notify compression thread to compress gtid_executed table. */
-  if (error == 0 && DBUG_EVALUATE_IF("dont_compress_gtid_table", 0, 1)) {
+  if (error == 0 && compress &&
+      DBUG_EVALUATE_IF("dont_compress_gtid_table", 0, 1)) {
     mysql_mutex_lock(&LOCK_compress_gtid_table);
     should_compress = true;
     mysql_cond_signal(&COND_compress_gtid_table);

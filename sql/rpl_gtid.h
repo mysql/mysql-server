@@ -2990,6 +2990,10 @@ class Gtid_state {
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
   enum_return_status add_lost_gtids(Gtid_set *gtid_set, bool starts_with_plus);
+
+  /** Updates previously logged GTID set before writing to table. */
+  void update_prev_gtids(Gtid_set *write_gtid_set);
+
   /// Return a pointer to the Gtid_set that contains the lost gtids.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /*
@@ -3096,14 +3100,12 @@ class Gtid_state {
   /**
     Save the set of gtids logged in the last binlog into gtid_executed table.
 
-    @param on_rotation  true if it is on binlog rotation.
-
     @retval
       0    OK
     @retval
       -1   Error
   */
-  int save_gtids_of_last_binlog_into_table(bool on_rotation);
+  int save_gtids_of_last_binlog_into_table();
   /**
     Fetch gtids from gtid_executed table and store them into
     gtid_executed set.

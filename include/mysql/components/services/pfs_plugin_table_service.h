@@ -780,6 +780,8 @@ END_SERVICE_DEFINITION(pfs_plugin_column_datetime_v1)
 BEGIN_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v1)
 DECLARE_METHOD(void, set,
                (PSI_field * f, const char *str, unsigned int length));
+/* Set time stamp value in microseconds as returned by my_micro_time(). */
+DECLARE_METHOD(void, set2, (PSI_field * f, unsigned long long val));
 DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
 /* No support for indexes. */
 END_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v1)

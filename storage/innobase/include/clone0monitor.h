@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,7 +34,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* mysql_stage_inc_work_completed */
 #include "mysql/psi/mysql_stage.h"
+#include "univ.i"
 #include "ut0dbg.h"
+
+/** Function to alert caller for long wait.
+@return error code */
+using Clone_Alert_Func = std::function<int()>;
 
 /** Class used to report CLONE progress via Performance Schema. */
 class Clone_Monitor {
@@ -134,9 +139,7 @@ class Clone_Monitor {
 
       case ESTIMATE_WORK:
         if (m_estimate_bytes_left != 0) {
-          m_estimate_bytes_left = 0;
-          m_estimate++;
-          mysql_stage_set_work_estimated(m_progress, m_estimate);
+          mysql_stage_set_work_estimated(m_progress, m_estimate + 1);
         }
 
         m_cur_phase = COMPLETE_WORK;
@@ -144,8 +147,11 @@ class Clone_Monitor {
 
       case COMPLETE_WORK:
         if (m_work_bytes_left != 0) {
-          m_work_bytes_left = 0;
-          if (m_work_done != m_estimate) {
+          uint64_t rounded_estimate = m_estimate;
+          if (m_estimate_bytes_left != 0) {
+            ++rounded_estimate;
+          }
+          if (m_work_done < rounded_estimate) {
             m_work_done++;
           }
           mysql_stage_set_work_completed(m_progress, m_work_done);

@@ -1,0 +1,285 @@
+# Monitor clone operations using performance schema's stage and statement events.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+# Disable PFS monitoring for threads by default
+connect (con1,localhost,root,,);
+CALL sys.ps_setup_disable_thread(CONNECTION_ID());
+
+connect (con2,localhost,root,,);
+CALL sys.ps_setup_disable_thread(CONNECTION_ID());
+
+connect (con3,localhost,root,,);
+CALL sys.ps_setup_disable_thread(CONNECTION_ID());
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+# Enable all the required PFS instruments.
+--replace_regex /[0-9]/X/
+CALL sys.ps_setup_enable_instrument('%stage/innodb/clone%');
+--replace_regex /[0-9]/X/
+CALL sys.ps_setup_enable_instrument('statement/clone/%');
+
+--replace_regex /[0-9]/X/
+CALL sys.ps_setup_enable_consumer('events_statements%');
+--replace_regex /[0-9]/X/
+CALL sys.ps_setup_enable_consumer('events_stages%');
+
+SELECT *
+FROM performance_schema.setup_instruments
+WHERE name LIKE "%stage/innodb/clone%"
+OR name LIKE "statement/clone/%"
+OR name LIKE "wait/io/file/innodb/innodb_clone_file"
+ORDER BY NAME;
+
+SELECT *
+FROM performance_schema.setup_consumers
+WHERE name LIKE "events_statements_%" OR name LIKE "events_stages_%"
+ORDER BY NAME;
+
+TRUNCATE TABLE performance_schema.events_stages_history;
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+TRUNCATE TABLE performance_schema.events_statements_history;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--echo # Case 1 - Monitoring a normal Clone operation.
+--connection con1
+CALL sys.ps_setup_enable_thread(CONNECTION_ID());
+--source ../include/clone_command.inc
+
+--replace_regex /FROM '.*'@'.*':[0-9]+ /FROM USER@HOST:PORT / /DATA DIRECTORY = '.*'/DATA DIRECTORY = '$CLONE_DATADIR'/
+SELECT EVENT_NAME, TIMER_START > 0, TIMER_END > 0, TIMER_WAIT > 0,
+SQL_TEXT, CURRENT_SCHEMA
+FROM performance_schema.events_statements_history_long
+WHERE event_name LIKE "statement/clone/%"
+ORDER BY EVENT_NAME;
+
+SELECT EVENT_NAME, TIMER_START > 0,
+TIMER_END > 0, WORK_COMPLETED = WORK_ESTIMATED
+FROM performance_schema.events_stages_history_long
+WHERE event_name LIKE "%stage/innodb/clone%"
+ORDER BY EVENT_NAME;
+
+TRUNCATE TABLE performance_schema.events_stages_history;
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+TRUNCATE TABLE performance_schema.events_statements_history;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--force-rmdir $CLONE_DATADIR
+
+--echo # Case 2 - Monitoring Clone operation which has more estimated work
+--echo # during file and page copy stage than in a default run.
+
+--connection con1
+
+DELIMITER |;
+CREATE PROCEDURE prepare_data(IN val INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+
+  WHILE i < val DO
+    INSERT INTO t1 (b,c) VALUES (REPEAT(a,500), REPEAT(b,100));
+    INSERT INTO t2 (b,c) VALUES (REPEAT(a,500), REPEAT(b,100));
+    INSERT INTO t3 (b,c) VALUES (REPEAT(a,500), REPEAT(b,100));
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+
+SET GLOBAL innodb_buf_flush_list_now = 1;
+
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL page_signal WAIT_FOR go_page';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL redo_signal WAIT_FOR go_redo';
+
+--source ../include/clone_command_send.inc
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR page_signal';
+
+# Insert data in the middle of file copy to add extra pages which will
+# need to be copied across during page copy.
+CALL prepare_data(50);
+SET GLOBAL innodb_buf_flush_list_now = 1;
+
+SET DEBUG_SYNC = 'now SIGNAL go_page';
+
+# Check PFS statement event and insert data in the middle of page copy
+# to add extra redo chunks to be copied across during redo copy.
+
+--connection con3
+SET DEBUG_SYNC = 'now WAIT_FOR redo_signal';
+
+--replace_regex /FROM '.*'@'.*':[0-9]+ /FROM USER@HOST:PORT / /DATA DIRECTORY = '.*'/DATA DIRECTORY = '$CLONE_DATADIR'/
+SELECT EVENT_NAME, TIMER_START > 0, TIMER_END > 0, TIMER_WAIT > 0,
+SQL_TEXT, CURRENT_SCHEMA
+FROM performance_schema.events_statements_current
+WHERE event_name LIKE "statement/clone/%"
+ORDER BY EVENT_NAME;
+
+CALL prepare_data(50);
+
+SET DEBUG_SYNC = 'now SIGNAL go_redo';
+
+--connection con1
+--reap
+
+# Check PFS stage and statements event in their corresponding
+# history_long tables.
+
+SELECT EVENT_NAME, WORK_COMPLETED > 0, TIMER_START > 0,
+TIMER_END > 0, WORK_COMPLETED = WORK_ESTIMATED
+FROM performance_schema.events_stages_history_long
+WHERE event_name LIKE "%stage/innodb/clone%"
+ORDER BY EVENT_NAME;
+
+--replace_regex /FROM '.*'@'.*':[0-9]+ /FROM USER@HOST:PORT / /DATA DIRECTORY = '.*'/DATA DIRECTORY = '$CLONE_DATADIR'/
+SELECT EVENT_NAME, TIMER_START > 0, TIMER_END > 0, TIMER_WAIT > 0,
+SQL_TEXT, CURRENT_SCHEMA
+FROM performance_schema.events_statements_history_long
+WHERE thread_id = sys.ps_thread_id(CONNECTION_ID())
+AND event_name LIKE "statement/clone/%";
+
+SET DEBUG_SYNC='RESET';
+
+TRUNCATE TABLE performance_schema.events_stages_history;
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+TRUNCATE TABLE performance_schema.events_statements_history;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--force-rmdir $CLONE_DATADIR
+
+--echo # Case 3 - Monitoring progress in the middle of file copy.
+
+--connection con1
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT);
+CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT);
+CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT);
+
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL file_signal WAIT_FOR go_file';
+--source ../include/clone_command_send.inc
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR file_signal';
+
+SELECT EVENT_NAME, WORK_COMPLETED <= WORK_ESTIMATED
+FROM performance_schema.events_stages_current
+WHERE event_name LIKE "%file copy%"
+ORDER BY EVENT_NAME;
+
+SET DEBUG_SYNC= 'now SIGNAL go_file';
+
+--connection con1
+--reap
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+TRUNCATE TABLE performance_schema.events_stages_history;
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+TRUNCATE TABLE performance_schema.events_statements_history;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--force-rmdir $CLONE_DATADIR
+
+--echo # Case 4 - Monitoring progress in the middle of page copy.
+--connection con1
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+SET GLOBAL innodb_buf_flush_list_now = 1;
+
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL page_signal WAIT_FOR go_page';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL page_middle_signal WAIT_FOR go_page_middle';
+--source ../include/clone_command_send.inc
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR page_signal';
+CALL prepare_data(50);
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SET DEBUG_SYNC = 'now SIGNAL go_page';
+
+--connection con3
+SET DEBUG_SYNC = 'now WAIT_FOR page_middle_signal';
+
+SELECT EVENT_NAME, WORK_COMPLETED <= WORK_ESTIMATED
+FROM performance_schema.events_stages_current
+WHERE event_name LIKE "%page copy%"
+ORDER BY EVENT_NAME;
+
+SET DEBUG_SYNC = 'now SIGNAL go_page_middle';
+
+--connection con1
+--reap
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+TRUNCATE TABLE performance_schema.events_stages_history;
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+TRUNCATE TABLE performance_schema.events_statements_history;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--force-rmdir $CLONE_DATADIR
+
+--echo # Case 5 - Monitoring progress in the middle of redo copy.
+
+--connection con1
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
+
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL redo_signal WAIT_FOR go_redo';
+SET DEBUG_SYNC = 'clone_redo_copy SIGNAL redo_middle_signal WAIT_FOR go_redo_middle';
+--source ../include/clone_command_send.inc
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR redo_signal';
+
+CALL prepare_data(50);
+SET DEBUG_SYNC= 'now SIGNAL go_redo';
+
+--connection con3
+SET DEBUG_SYNC = 'now WAIT_FOR redo_middle_signal';
+
+SELECT EVENT_NAME, WORK_COMPLETED <= WORK_ESTIMATED
+FROM performance_schema.events_stages_current
+WHERE event_name LIKE "%redo copy%"
+ORDER BY EVENT_NAME;
+
+SET DEBUG_SYNC = 'now SIGNAL go_redo_middle';
+--connection con1
+--reap
+SET DEBUG_SYNC = 'RESET';
+DROP PROCEDURE prepare_data;
+
+USE test;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--connection default
+
+--force-rmdir $CLONE_DATADIR
+UNINSTALL PLUGIN clone;
+
+--disconnect con1
+--disconnect con2
+--disconnect con3
+
+--source include/wait_until_count_sessions.inc

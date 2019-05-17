@@ -224,6 +224,9 @@ struct Srv_threads {
   /** Thread doing optimization for FTS index. */
   IB_thread m_fts_optimize;
 
+  /** Thread for GTID persistence */
+  IB_thread m_gtid_persister;
+
 #ifdef UNIV_DEBUG
   /** Used in test scenario to delay threads' cleanup until the pre_dd_shutdown
   is ended and final plugin's shutdown is started (when plugin is DELETED).
@@ -699,6 +702,8 @@ extern mysql_pfs_key_t log_archiver_thread_key;
 extern mysql_pfs_key_t page_archiver_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
+extern mysql_pfs_key_t clone_ddl_thread_key;
+extern mysql_pfs_key_t clone_gtid_thread_key;
 extern mysql_pfs_key_t dict_stats_thread_key;
 extern mysql_pfs_key_t fts_optimize_thread_key;
 extern mysql_pfs_key_t fts_parallel_merge_thread_key;
@@ -1104,9 +1109,9 @@ struct export_var_t {
   ulint innodb_undo_tablespaces_active;   /*!< number of active undo
                                           tablespaces */
 #ifdef UNIV_DEBUG
-  ulint innodb_purge_trx_id_age;      /*!< rw_max_trx_id - purged trx_id */
-  ulint innodb_purge_view_trx_id_age; /*!< rw_max_trx_id
-                                      - purged view's min trx_id */
+  ulint innodb_purge_trx_id_age;      /*!< rw_max_trx_no - purged trx_no */
+  ulint innodb_purge_view_trx_id_age; /*!< rw_max_trx_no
+                                      - purged view's min trx_no */
   ulint innodb_ahi_drop_lookups;      /*!< number of adaptive hash
                                       index lookups when freeing
                                       file pages */

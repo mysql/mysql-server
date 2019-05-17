@@ -145,12 +145,14 @@ class Gtid_table_persistor {
     @param gtid_set  contains a set of gtid, which holds
                      the sidno and the gno.
 
+    @param compress notify to compress gtid_executed table
+
     @retval
       0    OK
     @retval
       -1   Error
   */
-  int save(const Gtid_set *gtid_set);
+  int save(const Gtid_set *gtid_set, bool compress = true);
   /**
     Delete all rows from the table.
 

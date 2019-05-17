@@ -274,6 +274,11 @@ inline bool log_lsn_validate(lsn_t lsn) {
 
 #ifndef UNIV_HOTBACKUP
 
+/** @return total capacity of log files in bytes. */
+inline uint64_t log_get_file_capacity(const log_t &log) {
+  return (log.files_real_capacity);
+}
+
 inline lsn_t log_get_lsn(const log_t &log) {
   return (log_translate_sn_to_lsn(log.sn.load()));
 }

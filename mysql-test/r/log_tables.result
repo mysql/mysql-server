@@ -106,7 +106,7 @@ show open tables;
 Database	Table	In_use	Name_locked
 mysql	general_log	0	0
 flush logs;
-show open tables;
+show open tables like 'general%';
 Database	Table	In_use	Name_locked
 mysql	general_log	0	0
 flush tables;

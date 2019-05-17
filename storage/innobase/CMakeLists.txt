@@ -76,6 +76,7 @@ SET(INNOBASE_SOURCES
 	clone/clone0apply.cc
 	clone/clone0desc.cc
 	clone/clone0snapshot.cc
+	clone/clone0repl.cc
 	data/data0data.cc
 	data/data0type.cc
 	dict/dict0boot.cc

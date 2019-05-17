@@ -38,6 +38,7 @@
 #include "my_systime.h"
 #include "my_thread.h"
 #include "sql/check_stack.h"
+#include "sql/clone_handler.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #ifdef HAVE_UNISTD_H
@@ -1670,7 +1671,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
   {
     gtid_state->update_on_commit(thd);
   } else if (thd->variables.gtid_next.type == ASSIGNED_GTID &&
-             thd->owned_gtid.is_empty()) {
+             thd->owned_gtid_is_empty()) {
     DBUG_ASSERT(thd->has_gtid_consistency_violation == false);
     gtid_state->update_on_commit(thd);
   }
@@ -5497,9 +5498,13 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
     Flush logs for storage engines, so that the last transaction
     is persisted inside storage engines.
   */
+  DBUG_ASSERT(!thd->is_log_reset());
+  thd->set_log_reset();
   if (ha_flush_logs()) {
+    thd->clear_log_reset();
     DBUG_RETURN(1);
   }
+  thd->clear_log_reset();
 
   ha_reset_logs(thd);
 
@@ -6402,7 +6407,7 @@ int MYSQL_BIN_LOG::new_file_impl(
 
   if (!is_relay_log) {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
-    if ((error = gtid_state->save_gtids_of_last_binlog_into_table(true))) {
+    if ((error = gtid_state->save_gtids_of_last_binlog_into_table())) {
       if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
         close_on_error =
             m_binlog_file->get_real_file_size() >=
@@ -8511,7 +8516,7 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
     at process_commit_stage_queue (i.e. --binlog-order-commits=0)
     the thd still has the ownership of a GTID and we must handle it.
   */
-  if (!thd->owned_gtid.is_empty()) {
+  if (!thd->owned_gtid_is_empty()) {
     /*
       Gtid is added to gtid_state.executed_gtids and removed from owned_gtids
       on update_on_commit().
@@ -8860,7 +8865,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     commit stage if binlog_error_action is ABORT_SERVER.
   */
 commit_stage:
-  if (opt_binlog_order_commits &&
+  /* Clone needs binlog commit order. */
+  if ((opt_binlog_order_commits || Clone_handler::need_commit_order()) &&
       (sync_error == 0 || binlog_error_action != ABORT_SERVER)) {
     if (change_stage(thd, Stage_manager::COMMIT_STAGE, final_queue,
                      leave_mutex_before_commit_stage, &LOCK_commit)) {

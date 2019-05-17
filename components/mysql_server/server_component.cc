@@ -265,9 +265,12 @@ mysql_acquire_backup_lock,
     mysql_release_backup_lock END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, clone_protocol)
-mysql_clone_start_statement, mysql_clone_finish_statement, mysql_clone_connect,
+mysql_clone_start_statement, mysql_clone_finish_statement,
+    mysql_clone_get_charsets, mysql_clone_validate_charsets,
+    mysql_clone_get_configs, mysql_clone_validate_configs, mysql_clone_connect,
     mysql_clone_send_command, mysql_clone_get_response, mysql_clone_kill,
-    mysql_clone_disconnect, mysql_clone_get_command, mysql_clone_send_response,
+    mysql_clone_disconnect, mysql_clone_get_error, mysql_clone_get_command,
+    mysql_clone_send_response,
     mysql_clone_send_error END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)

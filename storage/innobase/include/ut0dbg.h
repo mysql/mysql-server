@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,7 +35,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Do not include univ.i because univ.i includes this. */
 
+#include <functional>
 #include "os0thread.h"
+
+/** Set a callback function to be called before exiting.
+@param[in]	callback	user callback function */
+void ut_set_assert_callback(std::function<void()> &callback);
 
 /** Report a failed assertion. */
 [[noreturn]] void ut_dbg_assertion_failed(

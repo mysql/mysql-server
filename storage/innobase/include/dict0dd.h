@@ -1185,17 +1185,18 @@ dd_space_states dd_tablespace_get_state_enum(
 bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space);
 
 /** Get the MDL for the named tablespace.  The mdl_ticket pointer can
-be provided if it is needed by the caller.  If for_trx is set to false,
+be provided if it is needed by the caller.  If foreground is set to false,
 then the caller must explicitly release that ticket with dd_release_mdl().
 Otherwise, it will ne released with the transaction.
 @param[in]  space_name  tablespace name
 @param[in]  mdl_ticket  tablespace MDL ticket, default to nullptr
-@param[in]  for_trx     How long will the MDL be held. defaults to true for
-                        MDL_TRANSACTION, false for MDL_EXPLICIT
-@return DB_SUCCESS or DD_FAILURE. */
+@param[in]  foreground  true, if the caller is foreground thread. Default
+                        is true. For foreground, the lock duration is
+                        MDL_TRANSACTION. Otherwise, it is MDL_EXPLICIT.
+@return DD_SUCCESS or DD_FAILURE. */
 bool dd_tablespace_get_mdl(const char *space_name,
                            MDL_ticket **mdl_ticket = nullptr,
-                           bool for_trx = true);
+                           bool foreground = true);
 /** Set discard attribute value in se_private_dat of tablespace
 @param[in]  dd_space  dd::Tablespace object
 @param[in]  discard   true if discarded, else false */

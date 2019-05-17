@@ -153,7 +153,13 @@ INSERT INTO t1 VALUES (100);
 --source include/rpl_connection.inc
 --let $thd_mem_root_usage_on_M1_after_experiment=`$perf_query`
 --let $assert_text= thd::main_mem_root on M1 should be the same value as before experiment value.
---let $assert_cond= $thd_mem_root_usage_on_M1_after_experiment = $thd_mem_root_usage_on_M1_before_experiment
+# Tolerate up to 1M change. The usage value is converted to MB earlier by
+# (high_number_of_bytes_used/1024/1024) but it is evaluated as double making
+# the precision of this check in bytes. As any background thread can add
+# to mem root allocation, with zero tolerance it results in intermittent
+# failure. Failure observed in ASAN build with 64 bytes more allocation
+# after clone GTID background is added.
+--let $assert_cond= $thd_mem_root_usage_on_M1_after_experiment < $thd_mem_root_usage_on_M1_before_experiment + 1
 --source include/assert.inc
 
 --echo #
@@ -165,7 +171,8 @@ INSERT INTO t1 VALUES (100);
 --source include/rpl_connection.inc
 --let $thd_mem_root_usage_on_M2_after_experiment=`$perf_query`
 --let $assert_text= thd::main_mem_root on M2 should be the same value as before experiment value.
---let $assert_cond= $thd_mem_root_usage_on_M2_after_experiment = $thd_mem_root_usage_on_M2_before_experiment
+# Tolerate up to 1M change.
+--let $assert_cond= $thd_mem_root_usage_on_M2_after_experiment < $thd_mem_root_usage_on_M2_before_experiment + 1
 --source include/assert.inc
 
 --echo #

@@ -9430,7 +9430,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         error = ER_RUN_HOOK_ERROR;
         strcpy(buf, "applier_log_event");
       } else {
-        if (!thd->owned_gtid.is_empty() && thd->owned_gtid.sidno > 0) {
+        if (!thd->owned_gtid_is_empty() && thd->owned_gtid.sidno > 0) {
           thd->owned_gtid.to_string(thd->owned_sid, buf);
         } else {
           strcpy(buf, "ANONYMOUS");
@@ -12697,8 +12697,8 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
     owns nothing, but its gtid_next->type == ASSIGNED_GTID.
   */
   const Gtid_specification *gtid_next = &thd->variables.gtid_next;
-  if (!thd->owned_gtid.is_empty() ||
-      (thd->owned_gtid.is_empty() && gtid_next->type == ASSIGNED_GTID)) {
+  if (!thd->owned_gtid_is_empty() ||
+      (thd->owned_gtid_is_empty() && gtid_next->type == ASSIGNED_GTID)) {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
       but the GTID wasn't consumed yet (the transaction was not committed,

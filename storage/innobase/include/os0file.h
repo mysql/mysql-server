@@ -49,6 +49,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #ifndef _WIN32
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <time.h>
 #else
 #include <Strsafe.h>
@@ -58,6 +59,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include <functional>
 #include <stack>
+
+/** Prefix all files and directory created under data directory with special
+string so that it never conflicts with MySQL schema directory. */
+#define OS_FILE_PREFIX "#"
 
 /** File node of a tablespace or the log data space */
 struct fil_node_t;
@@ -384,13 +389,14 @@ struct Encryption {
   static void get_master_key(ulint *master_key_id, byte **master_key);
 
   /** Fill the encryption information.
-  @param[in]	key		encryption key
-  @param[in]	iv		encryption iv
+  @param[in]		key		encryption key
+  @param[in]		iv		encryption iv
   @param[in,out]	encrypt_info	encryption information
-  @param[in]	is_boot		if it's for bootstrap
+  @param[in]		is_boot		if it's for bootstrap
+  @param[in]		encrypt_key	encrypt with master key
   @return true if success. */
   static bool fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                   bool is_boot);
+                                   bool is_boot, bool encrypt_key);
 
   /** Get master key from encryption information
   @param[in]	encrypt_info	encryption information
@@ -408,9 +414,10 @@ struct Encryption {
   @param[in,out]	key		key
   @param[in,out]	iv		iv
   @param[in]		encryption_info	encryption info
+  @param[in]		decrypt_key	decrypt key using master key
   @return true if success */
-  static bool decode_encryption_info(byte *key, byte *iv,
-                                     byte *encryption_info);
+  static bool decode_encryption_info(byte *key, byte *iv, byte *encryption_info,
+                                     bool decrypt_key);
 
   /** Encrypt the redo log block.
   @param[in]	type		IORequest
@@ -1839,6 +1846,12 @@ void os_aio_print_pending_io(FILE *file);
 
 #endif /* UNIV_DEBUG */
 
+/** Get available free space on disk
+@param[in]	path		pathname of a directory or file in disk
+@param[out]	free_space	free space available in bytes
+@return DB_SUCCESS if all OK */
+dberr_t os_get_free_space(const char *path, uint64_t &free_space);
+
 /** This function returns information about the specified file
 @param[in]	path		pathname of the file
 @param[in]	stat_info	information of a file in a directory
@@ -1914,6 +1927,18 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 dberr_t os_file_decompress_page(bool dblwr_recover, byte *src, byte *dst,
                                 ulint dst_len)
     MY_ATTRIBUTE((warn_unused_result));
+
+/** Compress a data page
+@param[in]	compression	Compression algorithm
+@param[in]	block_size	File system block size
+@param[in]	src		Source contents to compress
+@param[in]	src_len		Length in bytes of the source
+@param[out]	dst		Compressed page contents
+@param[out]	dst_len		Length in bytes of dst contents
+@return buffer data, dst_len will have the length of the data */
+byte *os_file_compress_page(Compression compression, ulint block_size,
+                            byte *src, ulint src_len, byte *dst,
+                            ulint *dst_len);
 
 /** Determine if O_DIRECT is supported.
 @retval	true	if O_DIRECT is supported.

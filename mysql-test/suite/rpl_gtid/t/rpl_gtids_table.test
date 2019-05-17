@@ -169,10 +169,10 @@ INSERT INTO t1 VALUES(11);
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
 --source include/assert.inc
 --echo #
---echo # The gtid_executed table is empty on slave currently
+--echo # The gtid_executed table would only have GTID for Innodb transactions
 --echo #
---replace_result $master_uuid MASTER_UUID
-SELECT * FROM mysql.gtid_executed;
+#--replace_result $master_uuid MASTER_UUID
+#SELECT * FROM mysql.gtid_executed;
 --echo #
 --echo # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
 --echo #

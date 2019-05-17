@@ -82,6 +82,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"  // ha_initalize_handlerton
 #include "sql/key.h"      // key_copy
+#include "sql/lock.h"     // acquire_shared_global...
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"              // files_charset_info
@@ -977,8 +978,15 @@ plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name, int type) {
 static st_plugin_int *plugin_insert_or_reuse(st_plugin_int *plugin) {
   DBUG_ENTER("plugin_insert_or_reuse");
   st_plugin_int *tmp;
-  for (st_plugin_int **it = plugin_array->begin(); it != plugin_array->end();
-       ++it) {
+  /* During server bootstrap, don't reuse free slot. In case some early plugin
+  load like key_ring fails, an user plugin could occupy that empty slot and
+  get installed before mandatory plugins like PFS. This will cause issue if
+  the plugin has dependency on PFS like creating dynamic PFS table. This issue
+  is observed during clone plugin testing. */
+  bool reuse_free_slot = (get_server_state() != SERVER_BOOTING);
+
+  for (st_plugin_int **it = plugin_array->begin();
+       reuse_free_slot && it != plugin_array->end(); ++it) {
     tmp = *it;
     if (tmp->state == PLUGIN_IS_FREED) {
       *tmp = std::move(*plugin);
@@ -2110,7 +2118,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
       check_table_access(thd, INSERT_ACL, &tables, false, 1, false))
     DBUG_RETURN(true);
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
@@ -2301,7 +2310,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name) {
     DBUG_RETURN(true);
   }
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);
 
   Disable_autocommit_guard autocommit_guard(thd);
@@ -2540,6 +2550,8 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs, int type,
   mysql_mutex_lock(&LOCK_plugin);
   total = type == MYSQL_ANY_PLUGIN ? plugin_array->size()
                                    : plugin_hash[type]->size();
+  size_t binlog_index = 0;
+  bool found_binlog = false;
   /*
     Do the alloca out here in case we do have a working alloca:
         leaving the nested stack frame invalidates alloca allocation.
@@ -2556,12 +2568,26 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs, int type,
     idx = 0;
     for (const auto &key_and_value : *hash) {
       plugin = key_and_value.second;
+      /* Note index of binlog */
+      if (type == MYSQL_STORAGE_ENGINE_PLUGIN &&
+          (0 == std::strcmp(plugin->name.str, "binlog"))) {
+        binlog_index = idx;
+        found_binlog = true;
+      }
       plugins[idx++] = !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
   mysql_mutex_unlock(&LOCK_plugin);
 
   for (; *funcs != NULL; ++funcs) {
+    /* Call binlog engine function first. This is required as GTID is generated
+    by binlog to be used by othe SE. */
+    if (found_binlog) {
+      DBUG_ASSERT(type == MYSQL_STORAGE_ENGINE_PLUGIN);
+      plugin = plugins[binlog_index];
+      if (plugin && (*funcs)(thd, plugin_int_to_ref(plugin), arg)) goto err;
+      plugins[binlog_index] = nullptr;
+    }
     for (idx = 0; idx < total; idx++) {
       if (unlikely(version != plugin_array_version)) {
         mysql_mutex_lock(&LOCK_plugin);

@@ -90,6 +90,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0lru.h"
 #include "buf0stats.h"
 #include "clone0api.h"
+#include "clone0clone.h"
 #include "dd/dd.h"
 #include "dd/dictionary.h"
 #include "dd/properties.h"
@@ -710,6 +711,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(log_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(page_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(buf_dump_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(clone_ddl_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(clone_gtid_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(dict_stats_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(io_handler_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(io_ibuf_thread, 0, 0, PSI_DOCUMENT_ME),
@@ -3591,7 +3594,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
       }
 
       /* We might need to fix tables for CSV and MyISAM SE */
-      if (recv_sys->is_cloned_db && fix_cloned_tables(thd)) {
+      if (fix_cloned_tables(thd)) {
         return (true);
       }
 
@@ -3681,8 +3684,12 @@ static void innobase_post_recover() {
     ut_ad(0);
   }
 
+  /* Start and consume all GTIDs for recovered transactions. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.start();
+
   /* Now the InnoDB Metadata and file system should be consistent.
-  start the Purge thread */
+  Start the Purge thread */
   srv_start_purge_threads();
 }
 
@@ -5145,6 +5152,12 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
     DBUG_RETURN(false);
   }
 
+  /* Signal and wait for all GTIDs to persist on disk. */
+  if (!binlog_group_flush) {
+    auto &gtid_persistor = clone_sys->get_gtid_persistor();
+    gtid_persistor.wait_flush(true, true, true, nullptr);
+  }
+
   /* Flush the redo log buffer to the redo log file.
   Sync it to disc if we are in FLUSH LOGS, or if
   innodb_flush_log_at_trx_commit=1
@@ -5315,7 +5328,7 @@ static int innobase_commit(handlerton *hton, /*!< in: InnoDB handlerton */
 
       thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
 
-      trx->mysql_log_offset = static_cast<int64_t>(pos);
+      trx->mysql_log_offset = static_cast<uint64_t>(pos);
 
       /* Don't do write + flush right now. For group commit
       to work we want to do the flush later. */
@@ -8668,6 +8681,12 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
   }
 
   innobase_srv_conc_exit_innodb(m_prebuilt);
+
+  /* If inserting GTID directly, flush GTIDs in memory. */
+  if (true) {
+    auto &gtid_persistor = clone_sys->get_gtid_persistor();
+    gtid_persistor.flush_if_implicit_gtid(m_user_thd);
+  }
 
 report_error:
   /* Cleanup and exit. */
@@ -20387,30 +20406,44 @@ static void innodb_undo_tablespaces_update(
   innodb_undo_tablespaces_deprecate();
 }
 
-/** Update the value of innodb_undo_log_encrypt global variable. This function
+/* Declare default check function for boolean system variable. Cannot include
+sql_plugin_var.h header in this file due to conflicting macro definitions. */
+int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value);
+
+/** Validate the value of innodb_undo_log_encrypt global variable. This function
 is registered as a callback with MySQL.
 @param[in]	thd       thread handle
 @param[in]	var       pointer to system variable
-@param[in]	var_ptr   where the formal string goes
-@param[in]	save      immediate result from check function */
-static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
-                                           SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                           void *var_ptr MY_ATTRIBUTE((unused)),
-                                           const void *save) {
-  bool target = *static_cast<const bool *>(save);
+@param[in]	save      possibly updated variable value
+@param[in]	value     current variable value
+@return error code */
+static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
+                                            struct st_mysql_value *value) {
+  /* Call the default check function first. */
+  auto error = check_func_bool(thd, var, save, value);
+  if (error != 0) {
+    return (error);
+  }
+  bool target = *static_cast<bool *>(save);
+
+  /* Set the default output to current value for all error cases. */
+  *static_cast<bool *>(save) = srv_undo_log_encrypt;
 
   if (srv_undo_log_encrypt == target) {
     /* No change */
-    return;
+    return (0);
   }
 
-  /* UNDO tablespace encryption to be mutually exclusive with any UNDO DDL */
-  mutex_enter(&(undo::ddl_mutex));
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write UNDO pages encrypted from now on. */
-  if (srv_undo_log_encrypt == true) {
-    srv_undo_log_encrypt = false;
-    goto exit;
+  if (target == false) {
+    /* Check and exit if concurrent clone in progress. */
+    if (clone_check_active()) {
+      my_error(ER_CLONE_IN_PROGRESS, MYF(0));
+      return (ER_CLONE_IN_PROGRESS);
+    }
+    *static_cast<bool *>(save) = false;
+    return (0);
   }
 
   /* There would be at least 2 UNDO tablespaces */
@@ -20418,58 +20451,89 @@ static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
 
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1051);
-    goto exit;
+    return (0);
   }
+
+  /* Check and exit if concurrent clone in progress. The mark ensures
+  that any new clone waits while we set encryption information. */
+  if (!clone_mark_wait()) {
+    my_error(ER_CLONE_IN_PROGRESS, MYF(0));
+    return (ER_CLONE_IN_PROGRESS);
+  }
+
+  /* UNDO tablespace encryption to be mutually exclusive with any UNDO DDL */
+  mutex_enter(&(undo::ddl_mutex));
 
   /* Enable encryption for UNDO tablespaces */
-  if (!srv_enable_undo_encryption(false)) {
+  bool ret = srv_enable_undo_encryption(false);
+
+  if (!ret) {
     /* At this point, all UNDO tablespaces have been encrypted. */
-    srv_undo_log_encrypt = true;
+    *static_cast<bool *>(save) = true;
   }
 
-exit:
   mutex_exit(&(undo::ddl_mutex));
-  return;
+  clone_mark_free();
+  return (0);
 }
 
-/** Update the value of innodb_redo_log_encrypt global variable. This function
+/** Validate the value of innodb_redo_log_encrypt global variable. This function
 is registered as a callback with MySQL.
 @param[in]	thd       thread handle
 @param[in]	var       pointer to system variable
-@param[in]	var_ptr   where the formal string goes
-@param[in]	save      immediate result from check function */
-static void update_innodb_redo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
-                                           SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                           void *var_ptr MY_ATTRIBUTE((unused)),
-                                           const void *save) {
-  bool target = *static_cast<const bool *>(save);
+@param[in]	save      possibly updated variable value
+@param[in]	value     current variable value
+@return error code */
+static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
+                                            struct st_mysql_value *value) {
+  /* Call the default check function first. */
+  auto error = check_func_bool(thd, var, save, value);
+  if (error != 0) {
+    return (error);
+  }
+  bool target = *static_cast<bool *>(save);
+
+  /* Set the default output to current value for all error cases. */
+  *static_cast<bool *>(save) = srv_redo_log_encrypt;
 
   if (srv_redo_log_encrypt == target) {
     /* No change */
-    return;
+    return (0);
   }
 
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write REDO encrypted from now on. */
-  if (srv_redo_log_encrypt == true) {
-    srv_redo_log_encrypt = false;
-    return;
+  if (target == false) {
+    /* Check and exit if concurrent clone in progress. */
+    if (clone_check_active()) {
+      my_error(ER_CLONE_IN_PROGRESS, MYF(0));
+      return (ER_CLONE_IN_PROGRESS);
+    }
+    *static_cast<bool *>(save) = false;
+    return (0);
   }
 
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1242);
-    return;
+    return (0);
+  }
+
+  /* Check and exit if concurrent clone in progress. The mark ensures
+  that any new clone waits while we set encryption information. */
+  if (!clone_mark_wait()) {
+    my_error(ER_CLONE_IN_PROGRESS, MYF(0));
+    return (ER_CLONE_IN_PROGRESS);
   }
 
   /* Enable encryption for REDO tablespaces */
   bool ret = srv_enable_redo_encryption(false);
 
-  if (ret == false) {
-    /* At this point, REDO log has been encrypted. */
-    srv_redo_log_encrypt = true;
+  if (!ret) {
+    /* At this point, REDO log is set to be encrypted. */
+    *static_cast<bool *>(save) = true;
   }
-
-  return;
+  clone_mark_free();
+  return (0);
 }
 
 /** Update the number of rollback segments per tablespace when the
@@ -21871,8 +21935,8 @@ static MYSQL_SYSVAR_ULONG(
 
 static MYSQL_SYSVAR_BOOL(undo_log_encrypt, srv_undo_log_encrypt,
                          PLUGIN_VAR_OPCMDARG,
-                         "Enable or disable Encrypt of UNDO tablespace.", NULL,
-                         update_innodb_undo_log_encrypt, FALSE);
+                         "Enable or disable Encrypt of UNDO tablespace.",
+                         validate_innodb_undo_log_encrypt, nullptr, FALSE);
 
 static MYSQL_SYSVAR_LONG(
     autoinc_lock_mode, innobase_autoinc_lock_mode,
@@ -22065,7 +22129,7 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
                          PLUGIN_VAR_OPCMDARG,
                          "Enable or disable Encryption of REDO tablespace.",
-                         NULL, update_innodb_redo_log_encrypt, FALSE);
+                         validate_innodb_redo_log_encrypt, nullptr, FALSE);
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,

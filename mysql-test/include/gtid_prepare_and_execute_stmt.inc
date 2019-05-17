@@ -24,5 +24,6 @@ SET GTID_NEXT = 'AUTOMATIC';
 EXECUTE stmt;
 
 --connection connection_for_table_check
+FLUSH LOGS;
 --let $gtid_step_check_table= 1
 --source include/gtid_step_assert.inc

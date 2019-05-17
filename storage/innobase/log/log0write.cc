@@ -729,14 +729,6 @@ and log flush_notifier thread is not notified! (optimization)
 @param[in,out]	log   redo log */
 static void log_flush_low(log_t &log);
 
-/** Writes encryption information to log header.
-@param[in,out]  buf       log file header
-@param[in]      key       encryption key
-@param[in]      iv        encryption iv
-@param[in]      is_boot   if it's for bootstrap */
-static bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
-                                            bool is_boot);
-
 /**************************************************/ /**
 
  @name Waiting for redo log written or flushed up to lsn
@@ -2620,8 +2612,7 @@ bool log_read_encryption() {
   log_block_buf =
       static_cast<byte *>(ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
-  err = fil_redo_io(IORequestLogRead, page_id, univ_page_size,
-                    LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+  err = fil_redo_io(IORequestLogRead, page_id, univ_page_size, LOG_ENCRYPTION,
                     OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
 
   ut_a(err == DB_SUCCESS);
@@ -2637,7 +2628,7 @@ bool log_read_encryption() {
     }
 
     if (Encryption::decode_encryption_info(
-            key, iv, log_block_buf + LOG_HEADER_CREATOR_END)) {
+            key, iv, log_block_buf + LOG_HEADER_CREATOR_END, true)) {
       /* If redo log encryption is enabled, set the
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
@@ -2670,11 +2661,12 @@ bool log_read_encryption() {
   return (true);
 }
 
-static bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
-                                            bool is_boot) {
+bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
+                                     bool is_boot, bool encrypt_key) {
   byte encryption_info[ENCRYPTION_INFO_SIZE];
 
-  if (!Encryption::fill_encryption_info(key, iv, encryption_info, is_boot)) {
+  if (!Encryption::fill_encryption_info(key, iv, encryption_info, is_boot,
+                                        encrypt_key)) {
     return (false);
   }
 
@@ -2703,14 +2695,13 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot) {
     iv = space->encryption_iv;
   }
 
-  if (!log_file_header_fill_encryption(log_block_buf, key, iv, is_boot)) {
+  if (!log_file_header_fill_encryption(log_block_buf, key, iv, is_boot, true)) {
     ut_free(log_block_buf_ptr);
     return (false);
   }
 
   auto err = fil_redo_io(IORequestLogWrite, page_id, univ_page_size,
-                         LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-                         OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
+                         LOG_ENCRYPTION, OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
 
   ut_a(err == DB_SUCCESS);
 

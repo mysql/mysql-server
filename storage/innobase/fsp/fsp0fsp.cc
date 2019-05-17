@@ -947,8 +947,9 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
   DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure", return (false););
 
   /* Fill encryption info. */
-  if (!Encryption::fill_encryption_info(
-          space->encryption_key, space->encryption_iv, encrypt_info, false)) {
+  if (!Encryption::fill_encryption_info(space->encryption_key,
+                                        space->encryption_iv, encrypt_info,
+                                        false, true)) {
     return (false);
   }
 
@@ -1059,7 +1060,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 
     if (!Encryption::fill_encryption_info(space->encryption_key,
                                           space->encryption_iv, encryption_info,
-                                          is_boot)) {
+                                          is_boot, true)) {
       space->encryption_type = Encryption::NONE;
       memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
       memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
@@ -1129,7 +1130,7 @@ bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
     return (false);
   }
 
-  return (Encryption::decode_encryption_info(key, iv, page + offset));
+  return (Encryption::decode_encryption_info(key, iv, page + offset, true));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -4098,7 +4099,8 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       Encryption::random_value(iv);
 
       /* Prepare encrypted encryption information to be written on page 0. */
-      if (!Encryption::fill_encryption_info(key, iv, encryption_info, false)) {
+      if (!Encryption::fill_encryption_info(key, iv, encryption_info, false,
+                                            true)) {
         ut_ad(0);
       }
 

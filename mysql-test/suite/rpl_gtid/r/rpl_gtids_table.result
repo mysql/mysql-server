@@ -128,10 +128,8 @@ INSERT INTO t1 VALUES(11);
 include/assert.inc [Table t1 must not contain 11]
 include/assert.inc [committed gtids MASTER_UUID:1-11]
 #
-# The gtid_executed table is empty on slave currently
+# The gtid_executed table would only have GTID for Innodb transactions
 #
-SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
 #
 # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
 #

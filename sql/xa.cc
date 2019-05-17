@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,8 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/binlog.h"      // is_transaction_empty
+#include "sql/binlog.h"  // is_transaction_empty
+#include "sql/clone_handler.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/handler.h"     // handlerton
 #include "sql/item.h"
@@ -506,15 +507,19 @@ static Transaction_ctx *find_trn_for_recover_and_check_its_state(
 
 bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd) {
   XID_STATE *xid_state = thd->get_transaction()->xid_state();
+  bool res = true;
 
   DBUG_ASSERT(!thd->slave_thread || xid_state->get_xid()->is_null() ||
               m_xa_opt == XA_ONE_PHASE);
 
+  /* Inform clone handler of XA operation. */
+  Clone_handler::XA_Operation xa_guard(thd);
   if (!xid_state->has_same_xid(m_xid)) {
-    return process_external_xa_commit(thd, m_xid, xid_state);
+    res = process_external_xa_commit(thd, m_xid, xid_state);
   } else {
-    return process_internal_xa_commit(thd, xid_state);
+    res = process_internal_xa_commit(thd, xid_state);
   }
+  return (res);
 }
 
 /**
@@ -768,12 +773,16 @@ bool Sql_cmd_xa_commit::execute(THD *thd) {
 
 bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd) {
   XID_STATE *xid_state = thd->get_transaction()->xid_state();
+  bool res = true;
 
+  /* Inform clone handler of XA operation. */
+  Clone_handler::XA_Operation xa_guard(thd);
   if (!xid_state->has_same_xid(m_xid)) {
-    return process_external_xa_rollback(thd, m_xid, xid_state);
+    res = process_external_xa_rollback(thd, m_xid, xid_state);
   } else {
-    return process_internal_xa_rollback(thd, xid_state);
+    res = process_internal_xa_rollback(thd, xid_state);
   }
+  return (res);
 }
 
 /**

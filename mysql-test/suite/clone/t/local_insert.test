@@ -1,0 +1,84 @@
+# Test clone with insert
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+DELIMITER |;
+CREATE PROCEDURE prepare_data(IN val INT)
+BEGIN
+  DECLARE i INT DEFAULT 1;
+
+  WHILE i < val DO
+    INSERT INTO t1 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
+    INSERT INTO t2 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
+    INSERT INTO t3 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+
+--echo # Case 1 - Normal page archiving process using clone client.
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c
+LONGBLOB);
+CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c
+LONGBLOB);
+CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c
+LONGBLOB);
+
+--connection con1
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL page_signal WAIT_FOR go_page';
+--source ../include/clone_command_send.inc
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR page_signal';
+CALL prepare_data(100);
+SET DEBUG_SYNC = 'now SIGNAL go_page';
+
+--connection con1
+--reap
+
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t3;
+
+# Restart server on cloned data directory
+--replace_result $CLONE_DATADIR CLONE_DATADIR
+--let restart_parameters="restart: --datadir=$CLONE_DATADIR"
+--source include/restart_mysqld.inc
+
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t3;
+
+#Cleanup
+--let restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+--connection con1
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+SET DEBUG_SYNC = 'RESET';
+
+--force-rmdir $CLONE_DATADIR
+
+DROP PROCEDURE prepare_data;
+
+UNINSTALL PLUGIN clone;
+
+--disconnect con1
+--disconnect con2
+--disconnect con3

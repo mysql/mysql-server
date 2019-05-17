@@ -1,0 +1,54 @@
+# Test clone remote restart command
+
+--source include/have_debug.inc
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+--let remote_clone = 1
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64));
+
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+
+SELECT * from t1 ORDER BY col1;
+
+# Install Clone Plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME LIKE '%clone%';
+
+SET GLOBAL CLONE_MAX_CONCURRENCY = 8;
+SHOW VARIABLES LIKE '%CLONE_MAX_CONCURRENCY%';
+SET GLOBAL CLONE_MAX_CONCURRENCY = default;
+
+# Clone data
+SET global debug="+d,clone_restart_apply";
+--source ../include/clone_command.inc
+SET global debug="-d,clone_restart_apply";
+
+# Restart server on cloned data directory
+--replace_result $CLONE_DATADIR CLONE_DATADIR
+--let restart_parameters="restart: --datadir=$CLONE_DATADIR"
+--source include/restart_mysqld.inc
+
+# Validate data
+SELECT * from t1 ORDER BY col1;
+INSERT INTO t1 VALUES(40, 'clone row 4');
+SELECT * from t1 ORDER BY col1;
+
+#Cleanup
+--let restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+SELECT * from t1 ORDER BY col1;
+UNINSTALL PLUGIN clone;
+
+DROP TABLE t1;
+
+--force-rmdir $CLONE_DATADIR

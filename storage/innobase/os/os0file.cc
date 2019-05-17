@@ -1330,9 +1330,9 @@ ulint AIO::pending_io_count() const {
 @param[out]	dst		Compressed page contents
 @param[out]	dst_len		Length in bytes of dst contents
 @return buffer data, dst_len will have the length of the data */
-static byte *os_file_compress_page(Compression compression, ulint block_size,
-                                   byte *src, ulint src_len, byte *dst,
-                                   ulint *dst_len) {
+byte *os_file_compress_page(Compression compression, ulint block_size,
+                            byte *src, ulint src_len, byte *dst,
+                            ulint *dst_len) {
   ulint len = 0;
   ulint compression_level = page_zip_level;
   ulint page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
@@ -3479,6 +3479,29 @@ os_file_size_t os_file_get_size(const char *filename) {
   return (file_size);
 }
 
+/** Get available free space on disk
+@param[in]	path		pathname of a directory or file in disk
+@param[out]	free_space	free space available in bytes
+@return DB_SUCCESS if all OK */
+static dberr_t os_get_free_space_posix(const char *path, uint64_t &free_space) {
+  struct statvfs stat;
+  auto ret = statvfs(path, &stat);
+
+  if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+    /* file or directory  does not exist */
+    return (DB_NOT_FOUND);
+
+  } else if (ret) {
+    /* file exists, but stat call failed */
+    os_file_handle_error_no_exit(path, "statvfs", false);
+    return (DB_FAIL);
+  }
+
+  free_space = stat.f_bsize;
+  free_space *= stat.f_bavail;
+  return (DB_SUCCESS);
+}
+
 /** This function returns information about the specified file
 @param[in]	path		pathname of the file
 @param[out]	stat_info	information of a file in a directory
@@ -4579,6 +4602,50 @@ os_file_size_t os_file_get_size(const char *filename) {
   return (file_size);
 }
 
+/** Get available free space on disk
+@param[in]	path		pathname of a directory or file in disk
+@param[out]	block_size	Block size to use for IO in bytes
+@param[out]	free_space	free space available in bytes
+@return DB_SUCCESS if all OK */
+static dberr_t os_get_free_space_win32(const char *path, uint32_t &block_size,
+                                       uint64_t &free_space) {
+  char volname[MAX_PATH];
+  BOOL result = GetVolumePathName(path, volname, MAX_PATH);
+
+  if (!result) {
+    ib::error(ER_IB_MSG_806)
+        << "os_file_get_status_win32: "
+        << "Failed to get the volume path name for: " << path
+        << "- OS error number " << GetLastError();
+
+    return (DB_FAIL);
+  }
+
+  DWORD sectorsPerCluster;
+  DWORD bytesPerSector;
+  DWORD numberOfFreeClusters;
+  DWORD totalNumberOfClusters;
+
+  result =
+      GetDiskFreeSpace((LPCSTR)volname, &sectorsPerCluster, &bytesPerSector,
+                       &numberOfFreeClusters, &totalNumberOfClusters);
+
+  if (!result) {
+    ib::error(ER_IB_MSG_807) << "GetDiskFreeSpace(" << volname << ",...) "
+                             << "failed "
+                             << "- OS error number " << GetLastError();
+
+    return (DB_FAIL);
+  }
+
+  block_size = bytesPerSector * sectorsPerCluster;
+
+  free_space = static_cast<uint64_t>(block_size);
+  free_space *= numberOfFreeClusters;
+
+  return (DB_SUCCESS);
+}
+
 /** This function returns information about the specified file
 @param[in]	path		pathname of the file
 @param[out]	stat_info	information of a file in a directory
@@ -4637,37 +4704,12 @@ static dberr_t os_file_get_status_win32(const char *path,
       }
     }
 
-    char volname[MAX_PATH];
-    BOOL result = GetVolumePathName(path, volname, MAX_PATH);
+    uint64_t free_space;
+    auto err = os_get_free_space_win32(path, stat_info->block_size, free_space);
 
-    if (!result) {
-      ib::error(ER_IB_MSG_806)
-          << "os_file_get_status_win32: "
-          << "Failed to get the volume path name for: " << path
-          << "- OS error number " << GetLastError();
-
-      return (DB_FAIL);
+    if (err != DB_SUCCESS) {
+      return (err);
     }
-
-    DWORD sectorsPerCluster;
-    DWORD bytesPerSector;
-    DWORD numberOfFreeClusters;
-    DWORD totalNumberOfClusters;
-
-    result =
-        GetDiskFreeSpace((LPCSTR)volname, &sectorsPerCluster, &bytesPerSector,
-                         &numberOfFreeClusters, &totalNumberOfClusters);
-
-    if (!result) {
-      ib::error(ER_IB_MSG_807) << "GetDiskFreeSpace(" << volname << ",...) "
-                               << "failed "
-                               << "- OS error number " << GetLastError();
-
-      return (DB_FAIL);
-    }
-
-    stat_info->block_size = bytesPerSector * sectorsPerCluster;
-
     /* On Windows the block size is not used as the allocation
     unit for sparse files. The underlying infra-structure for
     sparse files is based on NTFS compression. The punch hole
@@ -4897,7 +4939,6 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   if (type.is_compressed()) {
     /* We don't compress the first page of any file. */
     ut_ad(offset > 0);
-
     block = os_file_compress_page(type, buf, &n);
   } else {
     block = NULL;
@@ -5805,6 +5846,18 @@ bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh) {
 
   return (err == DB_SUCCESS);
 #endif /* _WIN32 */
+}
+
+dberr_t os_get_free_space(const char *path, uint64_t &free_space) {
+#ifdef _WIN32
+  uint32_t block_size;
+  auto err = os_get_free_space_win32(path, block_size, free_space);
+
+#else
+  auto err = os_get_free_space_posix(path, free_space);
+
+#endif /* _WIN32 */
+  return (err);
 }
 
 /** This function returns information about the specified file
@@ -8108,38 +8161,35 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/** Fill the encryption information.
-@param[in]	key		encryption key
-@param[in]	iv		encryption iv
-@param[in,out]	encrypt_info	encryption information
-@param[in]	is_boot		if it's for bootstrap
-@return true if success */
 bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                      bool is_boot) {
+                                      bool is_boot, bool encrypt_key) {
   byte *master_key = nullptr;
-  ulint master_key_id;
+  ulint master_key_id = 0;
   bool is_default_master_key = false;
 
   /* Get master key from key ring. For bootstrap, we use a default
   master key which master_key_id is 0. */
-  if (is_boot
+  if (encrypt_key) {
+    if (is_boot
 #ifndef UNIV_HOTBACKUP
-      || (strlen(server_uuid) == 0)
+        || (strlen(server_uuid) == 0)
 #endif
-  ) {
-    master_key_id = 0;
+    ) {
+      master_key_id = 0;
 
-    master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+      master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 
-    ut_ad(ENCRYPTION_KEY_LEN >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+      ut_ad(ENCRYPTION_KEY_LEN >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
 
-    strcpy(reinterpret_cast<char *>(master_key), ENCRYPTION_DEFAULT_MASTER_KEY);
-    is_default_master_key = true;
-  } else {
-    get_master_key(&master_key_id, &master_key);
+      strcpy(reinterpret_cast<char *>(master_key),
+             ENCRYPTION_DEFAULT_MASTER_KEY);
+      is_default_master_key = true;
+    } else {
+      get_master_key(&master_key_id, &master_key);
 
-    if (master_key == nullptr) {
-      return (false);
+      if (master_key == nullptr) {
+        return (false);
+      }
     }
   }
 
@@ -8169,14 +8219,19 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
 
   memcpy(key_info + ENCRYPTION_KEY_LEN, iv, ENCRYPTION_KEY_LEN);
 
-  /* Encrypt key and iv. */
-  auto elen =
-      my_aes_encrypt(key_info, sizeof(key_info), ptr, master_key,
-                     ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
+  if (encrypt_key) {
+    /* Encrypt key and iv. */
+    auto elen =
+        my_aes_encrypt(key_info, sizeof(key_info), ptr, master_key,
+                       ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
-  if (elen == MY_AES_BAD_DATA) {
-    my_free(master_key);
-    return (false);
+    if (elen == MY_AES_BAD_DATA) {
+      my_free(master_key);
+      return (false);
+    }
+  } else {
+    /* Keep tablespace key unencrypted. Used by clone. */
+    memcpy(ptr, key_info, sizeof(key_info));
   }
 
   ptr += sizeof(key_info);
@@ -8186,10 +8241,13 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
 
   mach_write_to_4(ptr, crc);
 
-  if (is_default_master_key) {
-    ut_free(master_key);
-  } else {
-    my_free(master_key);
+  if (encrypt_key) {
+    ut_ad(master_key != nullptr);
+    if (is_default_master_key) {
+      ut_free(master_key);
+    } else {
+      my_free(master_key);
+    }
   }
 
   return (true);
@@ -8289,16 +8347,12 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
   return (ptr);
 }
 
-/** Decoding the encryption info from the first page of a tablespace.
-@param[in,out]	key		key
-@param[in,out]	iv		iv
-@param[in]	encryption_info	encryption info
-@return true if success */
 bool Encryption::decode_encryption_info(byte *key, byte *iv,
-                                        byte *encryption_info) {
+                                        byte *encryption_info,
+                                        bool decrypt_key) {
   byte *ptr;
   byte *master_key = nullptr;
-  uint32 m_key_id;
+  uint32 master_key_id = 0;
   byte key_info[ENCRYPTION_KEY_LEN * 2];
   ulint crc1;
   ulint crc2;
@@ -8334,39 +8388,50 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
 
   ptr += ENCRYPTION_MAGIC_SIZE;
 
-  /* Get master key by key id. */
-  ptr =
-      get_master_key_from_info(ptr, version, &m_key_id, srv_uuid, &master_key);
+  if (decrypt_key) {
+    /* Get master key by key id. */
+    ptr = get_master_key_from_info(ptr, version, &master_key_id, srv_uuid,
+                                   &master_key);
 
-  /* If can't find the master key, return failure. */
-  if (master_key == nullptr) {
-    return (false);
-  }
+    /* If can't find the master key, return failure. */
+    if (master_key == nullptr) {
+      return (false);
+    }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  {
-    std::ostringstream msg;
+    {
+      std::ostringstream msg;
 
-    ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
+      ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
 
-    ib::info(ER_IB_MSG_838)
-        << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
-  }
+      ib::info(ER_IB_MSG_838)
+          << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
+    }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  /* Decrypt tablespace key and iv. */
-  auto len = my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
-                            ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
+    /* Decrypt tablespace key and iv. */
+    auto len =
+        my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
+                       ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
-  if (m_key_id == 0) {
-    ut_free(master_key);
+    if (master_key_id == 0) {
+      ut_free(master_key);
+    } else {
+      my_free(master_key);
+    }
+
+    /* If decryption failed, return error. */
+    if (len == MY_AES_BAD_DATA) {
+      return (false);
+    }
   } else {
-    my_free(master_key);
-  }
+    ut_ad(version == ENCRYPTION_VERSION_3);
+    /* Skip master Key and server UUID*/
+    ptr += sizeof(uint32);
+    ptr += ENCRYPTION_SERVER_UUID_LEN;
 
-  /* If decryption failed, return error. */
-  if (len == MY_AES_BAD_DATA) {
-    return (false);
+    /* Get tablespace key information. */
+    memcpy(key_info, ptr, sizeof(key_info));
   }
 
   /* Check checksum bytes. */
@@ -8376,6 +8441,9 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   crc2 = ut_crc32(key_info, sizeof(key_info));
 
   if (crc1 != crc2) {
+    /* This check could fail only while decrypting key. */
+    ut_ad(decrypt_key);
+
     ib::error(ER_IB_MSG_839)
         << "Failed to decrypt encryption information,"
         << " please check whether key file has been changed!";
@@ -8405,8 +8473,8 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  if (s_master_key_id < m_key_id) {
-    s_master_key_id = m_key_id;
+  if (decrypt_key && (s_master_key_id < master_key_id)) {
+    s_master_key_id = master_key_id;
     memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
   }
 

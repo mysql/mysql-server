@@ -235,6 +235,17 @@ void Arch_Log_Sys::update_header(byte *header, lsn_t checkpoint_lsn) {
   byte *dest = header + LOG_CHECKPOINT_2;
 
   memcpy(dest, src, OS_FILE_LOG_BLOCK_SIZE);
+
+  /* Fill encryption information. */
+  auto redo_space = fil_space_get(dict_sys_t::s_log_space_first_id);
+  if (redo_space->encryption_type == Encryption::NONE) {
+    return;
+  }
+  byte *key = redo_space->encryption_key;
+  byte *iv = redo_space->encryption_iv;
+  dest = header + LOG_ENCRYPTION;
+
+  log_file_header_fill_encryption(dest, key, iv, false, false);
 }
 
 /** Start redo log archiving.
@@ -276,7 +287,6 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
   }
 
   /* Start archiving from checkpoint LSN. */
-  log_checkpointer_mutex_enter(*log_sys);
   log_writer_mutex_enter(*log_sys);
 
   start_lsn = log_sys->last_checkpoint_lsn;
@@ -299,14 +309,11 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
     create_new_group = true;
   }
 
-  log_checkpointer_mutex_exit(*log_sys);
-
   /* Set archiver state to active. */
   if (m_state != ARCH_STATE_ACTIVE) {
     m_state = ARCH_STATE_ACTIVE;
     os_event_set(log_archiver_thread_event);
   }
-
   log_writer_mutex_exit(*log_sys);
 
   /* Create a new group. */

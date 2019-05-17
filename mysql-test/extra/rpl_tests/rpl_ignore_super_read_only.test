@@ -82,10 +82,11 @@ RESET SLAVE;
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 
-# Check that mysql.gtid_executed table is empty.
---let $assert_text= mysql.gtid_executed table must have zero records
---let $assert_cond= [SELECT count(*) FROM mysql.gtid_executed] = 0
---source include/assert.inc
+# After wl#9211, GTID is persisted periodically by background thread and
+# mysql.gtid_executed table is not necessarily empty. Commenting check/assert.
+#--let $assert_text= mysql.gtid_executed table must have zero records
+#--let $assert_cond= [SELECT count(*) FROM mysql.gtid_executed] = 0
+#--source include/assert.inc
 
 --echo ####################################################################
 --echo # Test Case6: FLUSH BINARY LOGS command

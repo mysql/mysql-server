@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,6 +40,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 
 #include "ut0dbg.h"
+
+static std::function<void()> assert_callback;
+
+void ut_set_assert_callback(std::function<void()> &callback) {
+  assert_callback = callback;
+}
 
 /** Report a failed assertion. */
 [[noreturn]] void ut_dbg_assertion_failed(
@@ -89,5 +95,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
   fflush(stderr);
   fflush(stdout);
+  /* Call any registered callback function. */
+  if (assert_callback) {
+    assert_callback();
+  }
   abort();
 }

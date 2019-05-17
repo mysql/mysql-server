@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -30,8 +30,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "clone0snapshot.h"
-#include "handler.h"
 #include "page0zip.h"
+#include "sql/handler.h"
 
 /** Snapshot heap initial size */
 const uint SNAPSHOT_MEM_INITIAL_SIZE = 16 * 1024;
@@ -56,6 +56,7 @@ Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
       m_max_file_name_len(),
       m_num_data_files(),
       m_num_data_chunks(),
+      m_data_bytes_disk(),
       m_page_ctx(false),
       m_num_pages(),
       m_num_duplicate_pages(),
@@ -99,9 +100,11 @@ void Clone_Snapshot::get_state_info(bool do_estimate,
   state_desc->m_is_start = true;
   state_desc->m_is_ack = false;
   state_desc->m_estimate = 0;
+  state_desc->m_estimate_disk = 0;
 
   if (do_estimate) {
     state_desc->m_estimate = m_monitor.get_estimate();
+    state_desc->m_estimate_disk = m_data_bytes_disk;
   }
 
   switch (m_snapshot_state) {
@@ -143,6 +146,7 @@ void Clone_Snapshot::set_state_info(Clone_Desc_State *state_desc) {
   if (m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY) {
     m_num_data_files = state_desc->m_num_files;
     m_num_data_chunks = state_desc->m_num_chunks;
+    m_data_bytes_disk = state_desc->m_estimate_disk;
     m_data_file_vector.resize(m_num_data_files, nullptr);
 
     m_monitor.init_state(srv_stage_clone_file_copy.m_key, m_enable_pfs);
@@ -249,7 +253,8 @@ uint Clone_Snapshot::detach() {
 
 int Clone_Snapshot::change_state(Clone_Desc_State *state_desc,
                                  Snapshot_State new_state, byte *temp_buffer,
-                                 uint temp_buffer_len, uint &pending_clones) {
+                                 uint temp_buffer_len, Clone_Alert_Func cbk,
+                                 uint &pending_clones) {
   ut_ad(m_snapshot_state != CLONE_SNAPSHOT_NONE);
 
   mutex_enter(&m_snapshot_mutex);
@@ -289,7 +294,7 @@ int Clone_Snapshot::change_state(Clone_Desc_State *state_desc,
   m_num_clones_next = 0;
 
   /* Initialize the new state. */
-  auto err = init_state(state_desc, temp_buffer, temp_buffer_len);
+  auto err = init_state(state_desc, temp_buffer, temp_buffer_len, cbk);
 
   mutex_exit(&m_snapshot_mutex);
 
@@ -555,7 +560,7 @@ void Clone_Snapshot::update_block_size(uint buff_size) {
 }
 
 int Clone_Snapshot::init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
-                               uint temp_buffer_len) {
+                               uint temp_buffer_len, Clone_Alert_Func cbk) {
   int err = 0;
   m_num_current_chunks = 0;
 
@@ -574,7 +579,7 @@ int Clone_Snapshot::init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
       break;
 
     case CLONE_SNAPSHOT_FILE_COPY:
-      ib::info(ER_IB_MSG_155) << "Clone State BEGIN FILE COPY";
+      ib::info(ER_IB_CLONE_OPERATION) << "Clone State BEGIN FILE COPY";
 
       m_monitor.init_state(srv_stage_clone_file_copy.m_key, m_enable_pfs);
       err = init_file_copy();
@@ -584,7 +589,7 @@ int Clone_Snapshot::init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
       break;
 
     case CLONE_SNAPSHOT_PAGE_COPY:
-      ib::info(ER_IB_MSG_155) << "Clone State BEGIN PAGE COPY";
+      ib::info(ER_IB_CLONE_OPERATION) << "Clone State BEGIN PAGE COPY";
 
       m_monitor.init_state(srv_stage_clone_page_copy.m_key, m_enable_pfs);
       err = init_page_copy(temp_buffer, temp_buffer_len);
@@ -593,15 +598,15 @@ int Clone_Snapshot::init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
       break;
 
     case CLONE_SNAPSHOT_REDO_COPY:
-      ib::info(ER_IB_MSG_155) << "Clone State BEGIN REDO COPY";
+      ib::info(ER_IB_CLONE_OPERATION) << "Clone State BEGIN REDO COPY";
 
       m_monitor.init_state(srv_stage_clone_redo_copy.m_key, m_enable_pfs);
-      err = init_redo_copy();
+      err = init_redo_copy(cbk);
       m_monitor.change_phase();
       break;
 
     case CLONE_SNAPSHOT_DONE:
-      ib::info(ER_IB_MSG_155) << "Clone State DONE ";
+      ib::info(ER_IB_CLONE_OPERATION) << "Clone State DONE ";
 
       m_monitor.init_state(PSI_NOT_INSTRUMENTED, m_enable_pfs);
       m_redo_ctx.release();
@@ -709,7 +714,8 @@ int Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
   /* Get page from buffer pool. */
   page_id_t page_id(clone_page.m_space_id, clone_page.m_page_no);
 
-  auto err = get_page_for_write(page_id, page_size, data_buf, data_size);
+  auto err =
+      get_page_for_write(page_id, page_size, file_meta, data_buf, data_size);
 
   /* Update size from space header page. */
   if (clone_page.m_page_no == 0) {
@@ -726,11 +732,103 @@ int Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
   return (err);
 }
 
+bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
+                                               uint32_t header_len) {
+  byte encryption_key[ENCRYPTION_KEY_LEN];
+  byte encryption_iv[ENCRYPTION_KEY_LEN];
+
+  size_t offset = LOG_ENCRYPTION + LOG_HEADER_CREATOR_END;
+  ut_a(offset + ENCRYPTION_INFO_SIZE <= header_len);
+
+  auto encryption_info = log_header + offset;
+
+  /* Get log Encryption Key and IV. */
+  auto success = Encryption::decode_encryption_info(
+      &encryption_key[0], &encryption_iv[0], encryption_info, false);
+
+  if (success) {
+    /* Encrypt with master key and fill encryption information. */
+    success = Encryption::fill_encryption_info(
+        &encryption_key[0], &encryption_iv[0], encryption_info, false, true);
+  }
+  return (success);
+}
+
+bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
+                                           byte *page_data) {
+  byte encryption_key[ENCRYPTION_KEY_LEN];
+  byte encryption_iv[ENCRYPTION_KEY_LEN];
+
+  auto offset = fsp_header_get_encryption_offset(page_size);
+  ut_ad(offset != 0 && offset + ENCRYPTION_INFO_SIZE <= UNIV_PAGE_SIZE);
+
+  auto encryption_info = page_data + offset;
+
+  /* Get tablespace Encryption Key and IV. */
+  auto success = Encryption::decode_encryption_info(
+      &encryption_key[0], &encryption_iv[0], encryption_info, false);
+  if (!success) {
+    return (false);
+  }
+
+  /* Encrypt with master key and fill encryption information. */
+  success = Encryption::fill_encryption_info(
+      &encryption_key[0], &encryption_iv[0], encryption_info, false, true);
+  if (!success) {
+    return (false);
+  }
+
+  const auto frame_lsn =
+      static_cast<lsn_t>(mach_read_from_8(page_data + FIL_PAGE_LSN));
+
+  /* Update page checksum */
+  page_update_for_flush(page_size, frame_lsn, page_data);
+
+  return (true);
+}
+
+void Clone_Snapshot::decrypt_key_in_header(fil_space_t *space,
+                                           const page_size_t &page_size,
+                                           byte *&page_data) {
+  byte encryption_info[ENCRYPTION_INFO_SIZE];
+
+  /* Get tablespace encryption information. */
+  Encryption::fill_encryption_info(space->encryption_key, space->encryption_iv,
+                                   encryption_info, false, false);
+
+  /* Set encryption information in page. */
+  auto offset = fsp_header_get_encryption_offset(page_size);
+  ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
+  memcpy(page_data + offset, encryption_info, sizeof(encryption_info));
+}
+
+void Clone_Snapshot::page_update_for_flush(const page_size_t &page_size,
+                                           lsn_t page_lsn, byte *&page_data) {
+  /* For compressed table, must copy the compressed page. */
+  if (page_size.is_compressed()) {
+    page_zip_des_t page_zip;
+
+    auto data_size = page_size.physical();
+    page_zip_set_size(&page_zip, data_size);
+    page_zip.data = page_data;
+#ifdef UNIV_DEBUG
+    page_zip.m_start =
+#endif /* UNIV_DEBUG */
+        page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
+
+    buf_flush_init_for_writing(nullptr, page_data, &page_zip, page_lsn, false,
+                               false);
+  } else {
+    buf_flush_init_for_writing(nullptr, page_data, nullptr, page_lsn, false,
+                               false);
+  }
+}
+
 int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
                                        const page_size_t &page_size,
+                                       Clone_File_Meta *file_meta,
                                        byte *&page_data, uint &data_size) {
   auto space = fil_space_get(page_id.space());
-  IORequest request(IORequest::WRITE);
 
   mtr_t mtr;
   mtr_start(&mtr);
@@ -738,7 +836,6 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   ut_ad(data_size >= 2 * page_size.physical());
 
   data_size = page_size.physical();
-  auto encrypted_data = page_data + data_size;
 
   /* Space header page is modified with SX latch while extending. Also,
   we would like to serialize with page flush to disk. */
@@ -747,11 +844,29 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
                        Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
   auto bpage = &block->page;
 
+  buf_page_mutex_enter(block);
+  ut_ad(!fsp_is_checksum_disabled(bpage->id.space()));
+  /* Get oldest and newest page modification LSN for dirty page. */
+  auto oldest_lsn = bpage->oldest_modification;
+  auto newest_lsn = bpage->newest_modification;
+  buf_page_mutex_exit(block);
+
+  bool page_is_dirty = (oldest_lsn > 0);
+
   byte *src_data;
 
   if (bpage->zip.data != nullptr) {
     ut_ad(bpage->size.is_compressed());
-    src_data = bpage->zip.data;
+    /* If the page is not dirty, then zip descriptor always has the latest
+    flushed page copy with LSN and checksum set properly. If the page is
+    dirty, the latest modified page is in uncompressed form for uncompressed
+    page types. The LSN in such case is to be taken from block newest LSN and
+    checksum needs to be recalculated. */
+    if (page_is_dirty && page_is_uncompressed_type(block->frame)) {
+      src_data = block->frame;
+    } else {
+      src_data = bpage->zip.data;
+    }
   } else {
     ut_ad(!bpage->size.is_compressed());
     src_data = block->frame;
@@ -763,41 +878,31 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   const auto frame_lsn =
       static_cast<lsn_t>(mach_read_from_8(page_data + FIL_PAGE_LSN));
 
-  buf_page_mutex_enter(block);
-  ut_ad(!fsp_is_checksum_disabled(bpage->id.space()));
-  /* Get oldest and newest page modification LSN for dirty page. */
-  auto oldest_lsn = bpage->oldest_modification;
-  auto newest_lsn = bpage->newest_modification;
-  buf_page_mutex_exit(block);
+  /* First page of a encrypted tablespace. */
+  if (space->encryption_type != Encryption::NONE && page_id.page_no() == 0) {
+    /* Update unencrypted tablespace key in page 0 to be send over
+    SSL connection. */
+    decrypt_key_in_header(space, page_size, page_data);
+
+    /* Force to recalculate the checksum if the page is not dirty. */
+    if (!page_is_dirty) {
+      page_is_dirty = true;
+      newest_lsn = frame_lsn;
+    }
+  }
 
   /* If the page is not dirty but frame LSN is zero, it could be half
   initialized page left from incomplete operation. Assign valid LSN and checksum
   before copy. */
   if (frame_lsn == 0 && oldest_lsn == 0) {
-    oldest_lsn = cur_lsn;
+    page_is_dirty = true;
     newest_lsn = cur_lsn;
   }
 
   /* If page is dirty, we need to set checksum and page LSN. */
-  if (oldest_lsn > 0) {
+  if (page_is_dirty) {
     ut_ad(newest_lsn > 0);
-    /* For compressed table, must copy the compressed page. */
-    if (page_size.is_compressed()) {
-      page_zip_des_t page_zip;
-
-      page_zip_set_size(&page_zip, data_size);
-      page_zip.data = page_data;
-#ifdef UNIV_DEBUG
-      page_zip.m_start =
-#endif /* UNIV_DEBUG */
-          page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
-
-      buf_flush_init_for_writing(nullptr, block->frame, &page_zip, newest_lsn,
-                                 false, false);
-    } else {
-      buf_flush_init_for_writing(nullptr, page_data, nullptr, newest_lsn, false,
-                                 false);
-    }
+    page_update_for_flush(page_size, newest_lsn, page_data);
   }
 
   BlockReporter reporter(false, page_data, page_size, false);
@@ -817,27 +922,47 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
     err = ER_INTERNAL_ERROR;
   }
 
+  auto encrypted_data = page_data + data_size;
+  /* Data length could be less for compressed page */
+  auto data_len = data_size;
+
+  /* Do transparent page compression if needed. */
+  if (page_id.page_no() != 0 && file_meta->m_punch_hole &&
+      space->compression_type != Compression::NONE) {
+    auto compressed_data = page_data + data_size;
+    memset(compressed_data, 0, data_size);
+
+    IORequest request(IORequest::WRITE);
+    request.compression_algorithm(space->compression_type);
+    ulint compressed_len = 0;
+
+    auto buf_ptr = os_file_compress_page(
+        request.compression_algorithm(), file_meta->m_fsblk_size, page_data,
+        data_size, compressed_data, &compressed_len);
+
+    if (buf_ptr != page_data) {
+      encrypted_data = page_data;
+      page_data = compressed_data;
+      data_len = static_cast<uint>(compressed_len);
+    }
+  }
+
+  IORequest request(IORequest::WRITE);
   fil_io_set_encryption(request, page_id, space);
 
   /* Encrypt page if TDE is enabled. */
   if (err == 0 && request.is_encrypted()) {
     Encryption encryption(request.encryption_algorithm());
-    ulint data_len;
-    byte *ret_data;
+    ulint encrypt_len = data_len;
 
-    data_len = data_size;
-
-    ret_data = encryption.encrypt(request, page_data, data_size, encrypted_data,
-                                  &data_len);
+    memset(encrypted_data, 0, data_size);
+    auto ret_data = encryption.encrypt(request, page_data, data_len,
+                                       encrypted_data, &encrypt_len);
     if (ret_data != page_data) {
       page_data = encrypted_data;
-      data_size = static_cast<uint>(data_len);
+      data_len = static_cast<uint>(encrypt_len);
     }
   }
-
-  /* NOTE: We don't do transparent compression (TDC) here as punch hole
-  support may not be there on remote. Also, punching hole for every page
-  in remote during clone could be expensive. */
 
   mtr_commit(&mtr);
   return (err);
