@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,20 +50,26 @@ void Logger::detach_handler(std::string name,
                            "'");
 }
 
+bool Logger::is_handled(LogLevel level) const {
+  if (level > level_) return false;
+
+  return registry_->is_handled(level);
+}
+
 void Logger::handle(const Record &record) {
-  if (record.level <= level_) {
-    for (const std::string &handler_id : handlers_) {
-      std::shared_ptr<Handler> handler;
-      try {
-        handler = registry_->get_handler(handler_id.c_str());
-      } catch (std::logic_error &) {
-        // It may happen that another thread has removed this handler since
-        // we got a copy of our Logger object, and we now have a dangling
-        // reference. In such case, simply skip it.
-        continue;
-      }
-      if (record.level <= handler->get_level()) handler->handle(record);
+  if (record.level > level_) return;
+
+  for (const std::string &handler_id : handlers_) {
+    std::shared_ptr<Handler> handler;
+    try {
+      handler = registry_->get_handler(handler_id);
+    } catch (const std::logic_error &) {
+      // It may happen that another thread has removed this handler since
+      // we got a copy of our Logger object, and we now have a dangling
+      // reference. In such case, simply skip it.
+      continue;
     }
+    if (record.level <= handler->get_level()) handler->handle(record);
   }
 }
 

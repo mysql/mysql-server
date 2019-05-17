@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,20 @@ class HARNESS_EXPORT Logger {
   void attach_handler(std::string name);
   void detach_handler(std::string name, bool handler_must_exist = true);
   void handle(const Record &record);
+
+  /**
+   * check if the log-level will be handled.
+   *
+   * log-messages may be filtered on global and on handler level.
+   *
+   * in case it is not handled, there is no need call the prepare data for
+   * the log-function.
+   *
+   * @returns if log-level will be handled or not
+   * @retval true log-level (quite likely) will be handled
+   * @retval false log-level will be ignored
+   */
+  bool is_handled(LogLevel level) const;
   const std::set<std::string> &get_handler_names() const { return handlers_; }
 
   void set_level(LogLevel level) { level_ = level; }
