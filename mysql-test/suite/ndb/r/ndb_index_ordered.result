@@ -692,29 +692,24 @@ a
 3
 delete from t1;
 drop table t1;
-create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
+create table nationaldish (DishID int unsigned NOT NULL AUTO_INCREMENT,
 CountryCode char(3) NOT NULL,
 DishTitle varchar(64) NOT NULL,
-calories smallint(5) unsigned DEFAULT NULL,
+calories smallint unsigned DEFAULT NULL,
 PRIMARY KEY (DishID),
 INDEX i USING HASH (countrycode,calories)
 ) ENGINE=ndbcluster;
 ERROR HY000: Can't create table 'nationaldish'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Ndb does not support non-unique hash based indexes'
 Error	1005	Can't create table 'nationaldish'
-create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
+create table nationaldish (DishID int unsigned NOT NULL AUTO_INCREMENT,
 CountryCode char(3) NOT NULL,
 DishTitle varchar(64) NOT NULL,
-calories smallint(5) unsigned DEFAULT NULL,
+calories smallint unsigned DEFAULT NULL,
 PRIMARY KEY (DishID)
 ) ENGINE=ndbcluster;
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create index i on nationaldish(countrycode,calories) using hash;
 ERROR 42000: Table 'nationaldish' uses an extension that doesn't exist in this MySQL version
 drop table nationaldish;

@@ -728,6 +728,8 @@ ADD COLUMN cl_type ENUM('page', 'subcat', 'file') NOT NULL default
 ADD INDEX (cl_collation),
 DROP INDEX cl_sortkey,
 ADD INDEX cl_sortkey (cl_to, cl_type, cl_sortkey, cl_from);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE TABLE categorylinks;
 Table	Create Table
 categorylinks	CREATE TABLE `categorylinks` (
