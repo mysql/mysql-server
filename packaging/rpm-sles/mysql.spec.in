@@ -43,7 +43,6 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
-%{!?with_systemd:                %global systemd 0}
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
@@ -73,11 +72,6 @@
 %global license_type          GPLv2
 %endif
 
-%if 0%{?suse_version} == 1110
-%global dist                  .sles11
-%global sles11                1
-%endif
-
 %if 0%{?suse_version} == 1315
 %global dist                  .sles12
 %global sles12                1
@@ -94,10 +88,7 @@
 %endif
 
 # https://en.opensuse.org/openSUSE:Systemd_packaging_guidelines
-%{?sles12:                %global systemd 1}
-%{?sles15:                %global systemd 1}
-%{?sles16:                %global systemd 1}
-%{!?_tmpfilesdir:         %global _tmpfilesdir /usr/lib/tmpfiles.d}
+%{!?_tmpfilesdir:             %global _tmpfilesdir /usr/lib/tmpfiles.d}
 
 %global min                   8.0.11
 
@@ -140,14 +131,11 @@ BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%{?sles11:BuildRequires: gcc48 gcc48-c++}
 %{?sles12:BuildRequires: gcc7 gcc7-c++}
 %{?sles16:BuildRequires: rpcgen pkgconfig(libtirpc)}
-%if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  systemd-rpm-macros
-%endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
@@ -234,12 +222,7 @@ Obsoletes:      mariadb-server
 Obsoletes:      mariadb-tools
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql-tools = %{version}-%{release}
-%if 0%{?systemd}
 Requires:       systemd >= 228
-%{?systemd_requires}
-%else
-PreReq:         insserv
-%endif
 PreReq:         sed
 PreReq:         pwdutils
 Conflicts:      otherproviders(mysql)
@@ -587,9 +570,6 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
-%{?sles11:export CC=/usr/bin/gcc-4.8}
-%{?sles11:export CXX=/usr/bin/g++-4.8}
-
 # Build debug versions of mysqld
 mkdir debug
 (
@@ -605,11 +585,9 @@ mkdir debug
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
-%if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
-%endif
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -655,11 +633,9 @@ mkdir release
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-%if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
-%endif
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -711,10 +687,6 @@ make DESTDIR=%{buildroot} install
 install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 packaging/rpm-common/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
-%if 0%{?systemd}
-%else
-install -D -m 0755 packaging/rpm-sles/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
-%endif
 
 # Make library links
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
@@ -724,12 +696,8 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 install -d -m 0755 %{buildroot}/var/log/mysqlrouter
 install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 
-%if 0%{?systemd}
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
-%else
-install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
-%endif
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # Remove files pages we explicitly do not want to package
@@ -752,11 +720,7 @@ rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
-%if 0%{?systemd}
 ln -sf %{_sbindir}/service %{buildroot}%{_sbindir}/rcmysql
-%else
-ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
-%endif
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -779,38 +743,19 @@ rm -r $(readlink var) var
 /usr/sbin/groupadd -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 60 mysql >/dev/null 2>&1 || :
-%if 0%{?systemd}
 %service_add_pre mysql.service
-%endif
 
 %post server
 [ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
-%if 0%{?systemd}
 %service_add_post mysql.service
 /usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysql.conf >/dev/null 2>&1 || :
 /bin/systemctl enable mysql.service >/dev/null 2>&1 || :
-%else
-/sbin/insserv /etc/init.d/mysql
-%endif
 
 %preun server
-%if 0%{?systemd}
 %service_del_preun mysql.service
-%else
-if [ "$1" -eq 0 ]; then
-    /usr/sbin/rcmysql stop >/dev/null 2>&1 || :
-    /sbin/insserv /etc/init.d
-fi
-%endif
 
 %postun server
-%if 0%{?systemd}
 %service_del_postun mysql.service
-%else
-if [ $1 -ge 1 ]; then
-    /usr/sbin/rcmysql condrestart >/dev/null 2>&1 || :
-fi
-%endif
 
 %post libs -p /sbin/ldconfig
 
@@ -829,31 +774,14 @@ fi
 
 %post -n mysql-router-%{product_suffix}
 /sbin/ldconfig
-%if 0%{?systemd}
 %systemd_post mysqlrouter.service
-%else
-/sbin/chkconfig --add mysqlrouter
-%endif # systemd
 
 %preun -n mysql-router-%{product_suffix}
-%if 0%{?systemd}
 %systemd_preun mysqlrouter.service
-%else
-if [ "$1" = 0 ]; then
-    /sbin/service mysqlrouter stop >/dev/null 2>&1 || :
-    /sbin/chkconfig --del mysqlrouter
-fi
-%endif # systemd
 
 %postun -n mysql-router-%{product_suffix}
 /sbin/ldconfig
-%if 0%{?systemd}
 %systemd_postun_with_restart mysqlrouter.service
-%else
-if [ $1 -ge 1 ]; then
-    /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
-fi
-%endif # systemd
 
 %files server
 %defattr(-, root, root, -)
@@ -868,13 +796,8 @@ fi
 %attr(644, root, root) %{_mandir}/man1/myisamlog.1*
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
-%if 0%{?systemd}
 %exclude %{_mandir}/man1/mysqld_multi.1*
 %exclude %{_mandir}/man1/mysqld_safe.1*
-%else
-%attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
-%attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
-%endif
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
@@ -904,12 +827,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/lz4_decompress
 %attr(755, root, root) %{_bindir}/zlib_decompress
-%if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
-%else
-%attr(755, root, root) %{_bindir}/mysqld_multi
-%attr(755, root, root) %{_bindir}/mysqld_safe
-%endif
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
@@ -1010,13 +928,9 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
-%if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysql.service
 %attr(644, root, root) %{_unitdir}/mysql@.service
 %attr(644, root, root) %{_tmpfilesdir}/mysql.conf
-%else
-%attr(755, root, root) %{_sysconfdir}/init.d/mysql
-%endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(751, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysql
@@ -1407,12 +1321,8 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_passwd.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
-%if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf
-%else
-%{_sysconfdir}/init.d/mysqlrouter
-%endif
 %{_libdir}/libmysqlharness.so.*
 %{_libdir}/libmysqlrouter.so.*
 %{_libdir}/libmysqlrouter_http.so.*
@@ -1424,6 +1334,7 @@ fi
 %changelog
 * Mon May 13 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.17-1
 - Add router man pages
+- Remove support for System V init
 
 * Mon Feb 18 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.16-1
 - Add back support for alternative with_ssl
