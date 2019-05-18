@@ -163,8 +163,14 @@ int RoutingSockOps::get_mysql_socket(
   int sock = routing::kInvalidSocket;
 
   for (info = servinfo; info != nullptr; info = info->ai_next) {
-    if ((sock = ::socket(info->ai_family, info->ai_socktype,
-                         info->ai_protocol)) == -1) {
+    auto sock_type = info->ai_socktype;
+#if defined(__linux__) || defined(__FreeBSD__)
+    // linux|freebsd allows to set NONBLOCK as part of the socket() call to safe
+    // the extra syscall
+    sock_type |= SOCK_NONBLOCK;
+#endif
+    if ((sock = ::socket(info->ai_family, sock_type, info->ai_protocol)) ==
+        -1) {
       log_error("Failed opening socket: %s",
                 get_message_error(so_->get_errno()).c_str());
     } else {
@@ -226,7 +232,7 @@ int RoutingSockOps::get_mysql_socket(
 
   // set blocking; MySQL protocol is blocking and we do not take advantage of
   // any non-blocking possibilities
-  so_->set_socket_blocking(sock, false);
+  so_->set_socket_blocking(sock, true);
 
   int opt_nodelay = 1;
   if (setsockopt(

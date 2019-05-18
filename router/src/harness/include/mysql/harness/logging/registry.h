@@ -137,12 +137,21 @@ class HARNESS_EXPORT Registry {
    *
    * @throws std::logic_error if no handler is registered for given name
    */
-  std::shared_ptr<Handler> get_handler(std::string name) const;
+  std::shared_ptr<Handler> get_handler(const std::string &name) const;
 
   /**
    * Get the handler names from the internal registry
    */
   std::set<std::string> get_handler_names() const;
+
+  /**
+   * Check if a log-level is handled by at least one handler.
+   *
+   * @returns if at least one handler handles the log-level
+   * @retval true at least one handler
+   * @retval false log-level will be ignored.
+   */
+  bool is_handled(LogLevel level) const;
 
   /**
    * Flag that the registry has been initialized

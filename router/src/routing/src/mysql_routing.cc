@@ -341,32 +341,35 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
 
       bool is_tcp = (ndx == kAcceptTcpNdx);
 
-      if (is_tcp) {
-        log_debug("[%s] fd=%d connection accepted at %s",
-                  context_.get_name().c_str(), sock_client,
-                  context_.get_bind_address().str().c_str());
-      } else {
-#if !defined(_WIN32)
-        pid_t peer_pid;
-        uid_t peer_uid;
-
-        // try to be helpful of who tried to connect to use and failed.
-        // who == PID + UID
-        //
-        // if we can't get the PID, we'll just show a simpler errormsg
-
-        if (0 == unix_getpeercred(sock_client, peer_pid, peer_uid)) {
-          log_debug(
-              "[%s] fd=%d connection accepted at %s from (pid=%d, uid=%d)",
-              context_.get_name().c_str(), sock_client,
-              context_.get_bind_named_socket().str().c_str(), peer_pid,
-              peer_uid);
-        } else
-        // fall through
-#endif
+      if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+        // if the messages wouldn't be logged, don't get the peercreds
+        if (is_tcp) {
           log_debug("[%s] fd=%d connection accepted at %s",
                     context_.get_name().c_str(), sock_client,
-                    context_.get_bind_named_socket().str().c_str());
+                    context_.get_bind_address().str().c_str());
+        } else {
+#if !defined(_WIN32)
+          pid_t peer_pid;
+          uid_t peer_uid;
+
+          // try to be helpful of who tried to connect to use and failed.
+          // who == PID + UID
+          //
+          // if we can't get the PID, we'll just show a simpler errormsg
+
+          if (0 == unix_getpeercred(sock_client, peer_pid, peer_uid)) {
+            log_debug(
+                "[%s] fd=%d connection accepted at %s from (pid=%d, uid=%d)",
+                context_.get_name().c_str(), sock_client,
+                context_.get_bind_named_socket().str().c_str(), peer_pid,
+                peer_uid);
+          } else
+          // fall through
+#endif
+            log_debug("[%s] fd=%d connection accepted at %s",
+                      context_.get_name().c_str(), sock_client,
+                      context_.get_bind_named_socket().str().c_str());
+        }
       }
 
       // TODO: creation of new element by [] is most-likely unneccessary

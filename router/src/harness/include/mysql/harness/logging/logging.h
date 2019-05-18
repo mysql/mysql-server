@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -237,6 +237,12 @@ static inline void log_debug(const char *fmt, ...) {
 #ifdef __cplusplus
 }
 #endif
+
+HARNESS_EXPORT bool log_level_is_handled(LogLevel level, const char *domain);
+
+static inline bool log_level_is_handled(LogLevel level) {
+  return log_level_is_handled(level, MYSQL_ROUTER_LOG_DOMAIN);
+}
 
 }  // namespace logging
 
