@@ -27,13 +27,8 @@
 %{?with_cluster: %global cluster 1}
 
 # Pass path to mecab lib
-%if 0%{?rhel} >= 8
-%global mecab_option -DWITH_MECAB=system
-%global mecab 1
-%else
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
-%endif
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
@@ -72,7 +67,6 @@ BuildRequires:  cmake >= 3.6.1
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  libtirpc-devel
-BuildRequires:  mecab-devel
 BuildRequires:  rpcgen
 %else
 BuildRequires:  cmake3 >= 3.6.1
@@ -395,9 +389,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %if 0%{?mecab}
-%if 0%{?rhel} < 8
 %{_libdir}/mysql/mecab
-%endif # rhel
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
 %endif # mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
@@ -463,6 +455,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Thu May 16 2019 Terje Rosten <terje.rosten@oracle.com> - 8.0.17-1
+- Bundle mecab as usual on el8
+
 * Thu Jan 31 2019 Terje Rosten <terje.rosten@oracle.com> - 8.0.16-1
 - Initial el8 packaging
 
