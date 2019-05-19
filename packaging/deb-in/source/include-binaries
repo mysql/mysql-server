@@ -106,6 +106,7 @@ debian/extra/libtest_x_sessions_init-plugin
 debian/extra/ddl_rewriter-plugin
 debian/extra/locking_service-plugin
 debian/extra/mypluglib-plugin
+debian/extra/mysql_clone-plugin
 debian/extra/mysql_no_login-plugin
 debian/extra/mysqlx-plugin
 debian/extra/qa_auth_client-plugin
