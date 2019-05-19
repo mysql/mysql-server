@@ -118,6 +118,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0crc32.h"
 #include "ut0new.h"
 
+#include "srv0file.h"
+
 /** fil_space_t::flags for hard-coded tablespaces */
 extern uint32_t predefined_flags;
 
@@ -146,15 +148,17 @@ static bool srv_start_has_been_called = false;
 determine which threads need to be stopped if we need to abort during
 the initialisation step. */
 enum srv_start_state_t {
-  SRV_START_STATE_NONE = 0,     /*!< No thread started */
-  SRV_START_STATE_LOCK_SYS = 1, /*!< Started lock-timeout
-                                thread. */
-  SRV_START_STATE_IO = 2,       /*!< Started IO threads */
-  SRV_START_STATE_MONITOR = 4,  /*!< Started montior thread */
-  SRV_START_STATE_MASTER = 8,   /*!< Started master threadd. */
-  SRV_START_STATE_PURGE = 16,   /*!< Started purge thread(s) */
-  SRV_START_STATE_STAT = 32     /*!< Started bufdump + dict stat
-                                and FTS optimize thread. */
+  SRV_START_STATE_NONE = 0,       /*!< No thread started */
+  SRV_START_STATE_LOCK_SYS = 1,   /*!< Started lock-timeout
+                                  thread. */
+  SRV_START_STATE_IO = 2,         /*!< Started IO threads */
+  SRV_START_STATE_MONITOR = 4,    /*!< Started montior thread */
+  SRV_START_STATE_MASTER = 8,     /*!< Started master threadd. */
+  SRV_START_STATE_PURGE = 16,     /*!< Started purge thread(s) */
+  SRV_START_STATE_STAT = 32,      /*!< Started bufdump + dict stat
+                                  and FTS optimize thread. */
+  SRV_START_STATE_FILE_PURGE = 64,/*!< Started file purge thread. */
+
 };
 
 /** Track server thrd starting phases */
@@ -1686,6 +1690,11 @@ void srv_shutdown_all_bg_threads() {
       }
     }
 
+    /* Wakeup file purge background thread */
+    if (srv_start_state_is_set(SRV_START_STATE_FILE_PURGE)) {
+      srv_wakeup_file_purge_thread();
+    }
+
     if (srv_start_state_is_set(SRV_START_STATE_IO)) {
       /* e. Exit the i/o threads */
       if (!srv_read_only_mode) {
@@ -2725,6 +2734,11 @@ files_checked:
     os_thread_create(srv_monitor_thread_key, srv_monitor_thread);
 
     srv_start_state_set(SRV_START_STATE_MONITOR);
+
+    /* Create file purge thread */
+    srv_threads.m_file_purge_thread_active = true;
+    os_thread_create(srv_file_purge_thread_key, srv_file_purge_thread);
+    srv_start_state_set(SRV_START_STATE_FILE_PURGE);
   }
 
   srv_sys_tablespaces_open = true;

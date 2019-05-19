@@ -207,7 +207,9 @@ SET(INNOBASE_SOURCES
 	ut/ut0rnd.cc
 	ut/ut0ut.cc
 	ut/ut0vec.cc
-	ut/ut0wqueue.cc)
+	ut/ut0wqueue.cc
+	srv/srv0file.cc
+	fil/fil0purge.cc)
 
 IF(WITH_INNODB)
   # Legacy option

@@ -1,0 +1,134 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/have_log_bin.inc
+
+LET $old_innodb_data_file_purge = `SELECT @@innodb_data_file_purge`;
+LET $old_innodb_print_data_file_purge_process = `SELECT @@innodb_print_data_file_purge_process`;
+LET $old_innodb_ddl_log_crash_reset_debug = `SELECT @@innodb_ddl_log_crash_reset_debug`;
+
+SET global innodb_print_data_file_purge_process = ON;
+SET global innodb_data_file_purge = ON;
+
+SHOW GLOBAL VARIABLES LIKE '%data_file_purge%';
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+FLUSH LOGS;
+
+
+SET SESSION debug= '+d, skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
+
+--echo # Test normal case.
+CREATE TABLE  t1(a INT, b INT, c INT, key(a), key(b));
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+show create table t1;
+
+
+--echo # Test drop table crash/recovery rollback(before purge file)
+set global innodb_ddl_log_crash_reset_debug = 1;
+eval set session debug = '+d, ddl_log_crash_before_purge_file_log_counter_1';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval DROP TABLE t1;
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+-- error ER_NO_SUCH_TABLE
+show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+
+--echo # Test drop table crash/recovery rollback(after purge file)
+set global innodb_ddl_log_crash_reset_debug = 1;
+eval set session debug = '+d, ddl_log_crash_after_purge_file_log_counter_1';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval DROP TABLE t1;
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+-- error ER_NO_SUCH_TABLE
+show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+
+--echo # Test truncate table crash/recovery rollback(before purge file)
+set global innodb_ddl_log_crash_reset_debug = 1;
+eval set session debug = '+d, ddl_log_crash_before_purge_file_log_counter_1';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval TRUNCATE TABLE t1;
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+show create table t1;
+drop table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+
+--echo # Test drop table crash/recovery rollback(after purge file)
+set global innodb_ddl_log_crash_reset_debug = 1;
+eval set session debug = '+d, ddl_log_crash_after_purge_file_log_counter_1';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
+
+--eval TRUNCATE TABLE t1;
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+show create table t1;
+drop table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $old_innodb_ddl_log_crash_reset_debug;
+eval SET GLOBAL innodb_data_file_purge= $old_innodb_data_file_purge;
+eval SET GLOBAL innodb_print_data_file_purge_process = $old_innodb_print_data_file_purge_process;
+
+--echo
+--echo ###
+--echo ### done
+--echo ###

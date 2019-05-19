@@ -1260,8 +1260,10 @@ datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	buf_remove	Specify the action to take on the pages
 for this table in the buffer pool.
+@param[in]  new_filepath  Rename the original datafile to new_filepath.
 @return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
-dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove)
+dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove,
+                              const char *new_filepath)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Open a single-table tablespace and optionally check the space id is

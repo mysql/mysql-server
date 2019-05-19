@@ -89,6 +89,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0mem.h"
 
+#include "srv0file.h"
+
 #ifdef UNIV_HOTBACKUP
 #include "page0size.h"
 #else
@@ -1155,6 +1157,8 @@ void srv_free(void) {
   ut_free(srv_sys);
 
   srv_sys = 0;
+
+  srv_file_purge_destroy();
 }
 
 /** Initializes the synchronization primitives, memory system, and the thread
@@ -1168,6 +1172,7 @@ static void srv_general_init() {
   que_init();
   row_mysql_init();
   undo_spaces_init();
+  srv_file_purge_init();
 }
 
 /** Boots the InnoDB server. */
@@ -1781,6 +1786,8 @@ const char *srv_any_background_threads_are_active() {
     thread_active = "buf_dump_thread";
   } else if (srv_threads.m_buf_resize_thread_active) {
     thread_active = "buf_resize_thread";
+  } else if (srv_threads.m_file_purge_thread_active) {
+    thread_active = "file_purge_thread";
   }
 
   os_event_set(srv_error_event);
@@ -1788,6 +1795,8 @@ const char *srv_any_background_threads_are_active() {
   os_event_set(srv_buf_dump_event);
   os_event_set(lock_sys->timeout_event);
   os_event_set(srv_buf_resize_event);
+
+  srv_wakeup_file_purge_thread();
 
   return (thread_active);
 }

@@ -1,0 +1,97 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/have_log_bin.inc
+
+call mtr.add_suppression("Cannot open temp data file for read-write");
+
+LET MYSQLD_DATADIR =`SELECT @@datadir`;
+
+LET $old_innodb_data_file_purge = `SELECT @@innodb_data_file_purge`;
+LET $old_innodb_data_file_purge_all_at_shutdown = `SELECT @@innodb_data_file_purge_all_at_shutdown`;
+LET $old_innodb_print_data_file_purge_process = `SELECT @@innodb_print_data_file_purge_process`;
+
+SET global innodb_print_data_file_purge_process = ON;
+SET global innodb_data_file_purge = ON;
+SET global innodb_data_file_purge_all_at_shutdown = ON;
+
+create database db_1;
+use db_1;
+
+SHOW GLOBAL VARIABLES LIKE '%data_file_purge%';
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+FLUSH LOGS;
+
+
+SET SESSION debug= '+d, skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+--echo # Test normal case.
+CREATE TABLE  t1(a INT, b INT, c INT, key(a), key(b)) engine = innodb;
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+show create table t1;
+
+
+--echo # Test rename error
+SET DEBUG='+d,Data_file_purge_rename_fail';
+CREATE TABLE  t1(a INT, b INT, c INT, key(a), key(b)) engine = innodb;
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+show create table t1;
+
+--remove_file $MYSQLD_DATADIR/db_1/t1.ibd
+
+SET DEBUG='-d,Data_file_purge_rename_fail';
+CREATE TABLE  t1(a INT, b INT, c INT, key(a), key(b)) engine = innodb;
+DROP TABLE t1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT shutdown
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+let GREP_FILE=$log_error_;
+
+--sleep 10
+
+perl;
+   use strict;
+   use File::stat;
+   my $file= $ENV{'GREP_FILE'} or die("grep file not set");
+   my $pattern="Data File Purge : complete cleanup";
+   my $cnt = 0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /$pattern/) {
+       $cnt++;
+     }
+   }
+   if ($cnt > 0) {
+    print "File purge cleanup completely\n";
+   }
+   close(FILE);
+EOF
+
+eval SET GLOBAL innodb_data_file_purge= $old_innodb_data_file_purge;
+eval SET GLOBAL innodb_data_file_purge_all_at_shutdown= $old_innodb_data_file_purge_all_at_shutdown;
+eval SET GLOBAL innodb_print_data_file_purge_process = $old_innodb_print_data_file_purge_process;
+
+drop database db_1;
+
+--echo
+--echo ###
+--echo ### done
+--echo ###

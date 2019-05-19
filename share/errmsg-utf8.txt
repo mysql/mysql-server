@@ -19229,6 +19229,16 @@ ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
 ER_LDAP_EMPTY_USERDN_PASSWORD
   eng "Empty user dn or password is not allowed, not attempting LDAP bind."
 
+ER_IB_MSG_FILE_PURGE
+  eng "%s"
+
+ER_IB_MSG_FP_CLEANUP
+  eng "Data File Purge : cleanup tmp data files, still have %lu"
+
+ER_IB_MSG_FP_COMPLETE
+  eng "Data File Purge : complete cleanup"
+
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

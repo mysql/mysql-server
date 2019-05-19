@@ -66,8 +66,12 @@ enum class Log_Type : uint32_t {
   /** Alter Encrypt a tablespace */
   ALTER_ENCRYPT_TABLESPACE_LOG,
 
+  /** Purge file async */
+  PURGE_FILE_LOG = 64,
+
   /** Biggest log type */
-  BIGGEST_LOG = ALTER_ENCRYPT_TABLESPACE_LOG
+  BIGGEST_LOG = PURGE_FILE_LOG
+
 };
 
 /** DDL log record */
@@ -144,6 +148,14 @@ class DDL_Record {
   @return true if record is deletable. */
   bool get_deletable() const { return (m_deletable); }
 
+  /** If this record can be removed.
+  @return true if record is removed. */
+  bool get_removable() const { return (m_removable); }
+
+  /** Set removability of this record.
+  @param[in] removable removability. */
+  void set_removable(bool removable) { m_removable = removable; }
+
   /** Get the old file path/name present in the DDL log record.
   @return old file path/name. */
   const char *get_old_file_path() const { return (m_old_file_path); }
@@ -209,6 +221,10 @@ class DDL_Record {
 
   /** If this record can be deleted */
   bool m_deletable;
+
+  /** If this record can be removed. like PURGE_FILE_LOG will be deleted
+  by background thread, so front thread set its removable = false */
+  bool m_removable;
 };
 
 /** Forward declaration */
@@ -452,6 +468,18 @@ class Log_DDL {
   @return DB_SUCCESS or error */
   dberr_t write_remove_cache_log(trx_t *trx, dict_table_t *table);
 
+  /** Write a PURGE file log record
+  @param[out] id          record id
+  @param[in]  thread id   Purge thread
+  @param[in]  file path   New file path
+  @return DB_SUCCESS or error */
+  dberr_t write_purge_file_log(uint64_t *id, ulint thread_id,
+                               const char *file_path);
+
+  /** Remove the record by id
+  @param[in]  id          record id
+  @return DB_SUCCESS or error */
+  dberr_t remove_by_id(uint64_t id);
   /** Replay DDL log record
   @param[in,out]	record	DDL log record
   return DB_SUCCESS or error */
@@ -592,6 +620,20 @@ class Log_DDL {
   @param[in]	table_name	table name */
   void replay_remove_cache_log(table_id_t table_id, const char *table_name);
 
+  /** Insert a PURGE file log record
+  @param[in]  id            log id
+  @param[in]	thread_id	    thread id
+  @param[in]	new_file_path	new file path
+  @return DB_SUCCESS or error */
+  dberr_t insert_purge_file_log(uint64_t id, ulint thread_id,
+                                const char *new_file_path);
+
+  /** Replay PURGE file log
+  @param[in]  id            log id
+  @param[in]	thread_id	    thread id
+  @param[in]	new_file_path	new file path */
+  void replay_purge_file_log(uint64_t id, ulint thread_id,
+                             const char *file_path);
   /** Delete log record by id
   @param[in]	trx		transaction instance
   @param[in]	id		log id

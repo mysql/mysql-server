@@ -56,6 +56,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0new.h"
 
+#include "srv0file.h"
+
 #ifdef UNIV_DEBUG
 
 bool srv_sync_debug;
@@ -1479,6 +1481,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(CLONE_SNAPSHOT, SYNC_NO_ORDER_CHECK,
                   clone_snapshot_mutex_key);
+
+  LATCH_ADD_MUTEX(FILE_PURGE_LIST, SYNC_NO_ORDER_CHECK,
+                  file_purge_list_mutex_key);
 
   latch_id_t id = LATCH_ID_NONE;
 

@@ -1,0 +1,44 @@
+call mtr.add_suppression("Cannot open temp data file for read-write");
+SET global innodb_print_data_file_purge_process = ON;
+SET global innodb_data_file_purge = ON;
+SET global innodb_data_file_purge_all_at_shutdown = ON;
+create database db_1;
+use db_1;
+SHOW GLOBAL VARIABLES LIKE '%data_file_purge%';
+Variable_name	Value
+innodb_data_file_purge	ON
+innodb_data_file_purge_all_at_shutdown	ON
+innodb_data_file_purge_dir	
+innodb_data_file_purge_immediate	OFF
+innodb_data_file_purge_interval	100
+innodb_data_file_purge_max_size	512
+innodb_print_data_file_purge_process	ON
+FLUSH LOGS;
+SET SESSION debug= '+d, skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test normal case.
+CREATE TABLE  t1(a INT, b INT, c INT, key(a), key(b)) engine = innodb;
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+show create table t1;
+ERROR 42S02: Table 'db_1.t1' doesn't exist
+# Test rename error
+SET DEBUG='+d,Data_file_purge_rename_fail';
+CREATE TABLE  t1(a INT, b INT, c INT, key(a), key(b)) engine = innodb;
+DROP TABLE t1;
+show create table t1;
+ERROR 42S02: Table 'db_1.t1' doesn't exist
+SET DEBUG='-d,Data_file_purge_rename_fail';
+CREATE TABLE  t1(a INT, b INT, c INT, key(a), key(b)) engine = innodb;
+DROP TABLE t1;
+File purge cleanup completely
+SET GLOBAL innodb_data_file_purge= 0;
+SET GLOBAL innodb_data_file_purge_all_at_shutdown= 0;
+SET GLOBAL innodb_print_data_file_purge_process = 0;
+drop database db_1;
+
+###
+### done
+###

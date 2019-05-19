@@ -1,0 +1,95 @@
+--echo #
+--echo # File purge
+--echo #
+
+SET @old_log_error_verbosity = @@global.log_error_verbosity;
+SET @@global.log_error_verbosity=3;
+
+SET @old_innodb_data_file_purge = @@global.innodb_data_file_purge;
+SET @@global.innodb_data_file_purge = ON;
+
+SET @old_innodb_print_data_file_purge_process = @@global.innodb_print_data_file_purge_process;
+SET @@global.innodb_print_data_file_purge_process = ON;
+
+SHOW GLOBAL VARIABLES LIKE '%data_file_purge%';
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+FLUSH LOGS;
+
+
+--echo #
+--echo # normal table
+--echo #
+
+create database db_1;
+use db_1;
+create table t(id int, col1 int)engine = innodb;
+drop table t;
+drop database db_1;
+
+
+
+--echo #
+--echo # drop database
+--echo #
+create database db_1;
+use db_1;
+create table t1(id int, col1 int)engine = innodb;
+create table t2(id int, col1 int)engine = innodb;
+drop database db_1;
+
+--echo #
+--echo # tablespace
+--echo #
+create tablespace ts_1 add datafile 'ts_1.ibd' FILE_BLOCK_SIZE=1k;
+drop tablespace ts_1;
+
+--echo #
+--echo # data directory
+--echo #
+create database db_1;
+use db_1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t_3 (a int, b text) KEY_BLOCK_SIZE=1 DATA DIRECTORY='$MYSQL_TMP_DIR';
+drop table t_3;
+drop database db_1;
+
+--rmdir $MYSQL_TMP_DIR/db_1
+
+let GREP_FILE=$log_error_;
+
+--sleep 10
+
+perl;
+   use strict;
+   use File::stat;
+   my $file= $ENV{'GREP_FILE'} or die("grep file not set");
+   my $pattern="File purge";
+   my $cnt = 0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /$pattern/) {
+       $cnt++;
+     }
+   }
+   if ($cnt > 10) {
+     print "File purge record:\n";
+   }
+   close(FILE);
+EOF
+
+SET @@global.log_error_verbosity=@old_log_error_verbosity;
+SET @@global.innodb_data_file_purge=@old_innodb_data_file_purge;
+SET @@global.innodb_print_data_file_purge_process = @old_innodb_print_data_file_purge_process;
+
+--echo
+--echo ###
+--echo ### done
+--echo ###

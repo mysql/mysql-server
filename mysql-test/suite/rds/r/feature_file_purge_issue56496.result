@@ -1,0 +1,56 @@
+#
+# File purge
+#
+SET @old_log_error_verbosity = @@global.log_error_verbosity;
+SET @@global.log_error_verbosity=3;
+SET @old_innodb_data_file_purge = @@global.innodb_data_file_purge;
+SET @@global.innodb_data_file_purge = ON;
+SET @old_innodb_print_data_file_purge_process = @@global.innodb_print_data_file_purge_process;
+SET @@global.innodb_print_data_file_purge_process = ON;
+SHOW GLOBAL VARIABLES LIKE '%data_file_purge%';
+Variable_name	Value
+innodb_data_file_purge	ON
+innodb_data_file_purge_all_at_shutdown	OFF
+innodb_data_file_purge_dir	
+innodb_data_file_purge_immediate	OFF
+innodb_data_file_purge_interval	100
+innodb_data_file_purge_max_size	512
+innodb_print_data_file_purge_process	ON
+FLUSH LOGS;
+#
+# normal table
+#
+create database db_1;
+use db_1;
+create table t(id int, col1 int)engine = innodb;
+drop table t;
+drop database db_1;
+#
+# drop database
+#
+create database db_1;
+use db_1;
+create table t1(id int, col1 int)engine = innodb;
+create table t2(id int, col1 int)engine = innodb;
+drop database db_1;
+#
+# tablespace
+#
+create tablespace ts_1 add datafile 'ts_1.ibd' FILE_BLOCK_SIZE=1k;
+drop tablespace ts_1;
+#
+# data directory
+#
+create database db_1;
+use db_1;
+CREATE TABLE t_3 (a int, b text) KEY_BLOCK_SIZE=1 DATA DIRECTORY='MYSQL_TMP_DIR';
+drop table t_3;
+drop database db_1;
+File purge record:
+SET @@global.log_error_verbosity=@old_log_error_verbosity;
+SET @@global.innodb_data_file_purge=@old_innodb_data_file_purge;
+SET @@global.innodb_print_data_file_purge_process = @old_innodb_print_data_file_purge_process;
+
+###
+### done
+###

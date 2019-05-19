@@ -162,6 +162,9 @@ struct Srv_threads {
 
   /** true if tablespace alter encrypt thread is created */
   bool m_ts_alter_encrypt_thread_active;
+
+  /** true if file purge thread is created */
+  bool m_file_purge_thread_active;
 };
 
 struct Srv_cpu_usage {
