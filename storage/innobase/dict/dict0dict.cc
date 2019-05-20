@@ -5876,6 +5876,7 @@ void dict_resize() {
 
   mutex_exit(&dict_sys->mutex);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Closes the data dictionary module. */
 void dict_close(void) {
@@ -5901,6 +5902,7 @@ void dict_close(void) {
     dict_table_close(dict_sys->ddl_log, true, false);
   }
 
+#ifndef UNIV_HOTBACKUP
   /* Free the hash elements. We don't remove them from the table
   because we are going to destroy the table anyway. */
   for (ulint i = 0; i < hash_get_n_cells(dict_sys->table_id_hash); i++) {
@@ -5917,6 +5919,7 @@ void dict_close(void) {
       dict_table_remove_from_cache(prev_table);
     }
   }
+#endif /* !UNIV_HOTBACKUP */
 
   hash_table_free(dict_sys->table_hash);
 
@@ -5924,7 +5927,9 @@ void dict_close(void) {
   therefore we don't delete the individual elements. */
   hash_table_free(dict_sys->table_id_hash);
 
+#ifndef UNIV_HOTBACKUP
   dict_ind_free();
+#endif /* !UNIV_HOTBACKUP */
 
   mutex_exit(&dict_sys->mutex);
   mutex_free(&dict_sys->mutex);
@@ -5936,10 +5941,12 @@ void dict_close(void) {
 
   mutex_free(&dict_foreign_err_mutex);
 
+#ifndef UNIV_HOTBACKUP
   if (dict_foreign_err_file != NULL) {
     fclose(dict_foreign_err_file);
     dict_foreign_err_file = NULL;
   }
+#endif /* !UNIV_HOTBACKUP */
 
   ut_ad(dict_sys->size == 0);
 
@@ -5947,6 +5954,7 @@ void dict_close(void) {
   dict_sys = NULL;
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Validate the dictionary table LRU list.
  @return true if valid */
