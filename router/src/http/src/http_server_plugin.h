@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,17 @@ class HttpRequestThread {
         ev_http(evhttp_new(ev_base.get()), &evhttp_free),
         ev_shutdown_timer(event_new(ev_base.get(), -1, EV_PERSIST,
                                     stop_eventloop, ev_base.get()),
-                          &event_free) {}
+                          &event_free) {
+    // enable all methods to allow the higher layers to handle them
+    //
+    // CONNECT, TRACE and OPTIONS are disabled by default if not explicitly
+    // enabled.
+    evhttp_set_allowed_methods(
+        ev_http.get(), EVHTTP_REQ_CONNECT | EVHTTP_REQ_DELETE | EVHTTP_REQ_GET |
+                           EVHTTP_REQ_HEAD | EVHTTP_REQ_OPTIONS |
+                           EVHTTP_REQ_PATCH | EVHTTP_REQ_POST | EVHTTP_REQ_PUT |
+                           EVHTTP_REQ_TRACE);
+  }
 
   harness_socket_t get_socket_fd() { return accept_fd_; }
 

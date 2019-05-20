@@ -718,7 +718,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"metadata_list_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/", "/metadata",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
+         HttpMethod::Connect,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -729,7 +730,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
          metadata_cache_section_name + "/status",
      "/metadata/{metadataName}/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
+         HttpMethod::Connect,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -740,74 +742,12 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
          metadata_cache_section_name + "/config",
      "/metadata/{metadataName}/config",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
+         HttpMethod::Connect,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
      RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
-
-    // OPTIONS, CONNECT and TRACE are disabled in libevent via
-    // evhttp_set_allowed_methods() and return 501, which is ok-ish.
-    // The socpe of WL#12441 was limited and does not include those
-    //    {"cluster_list_unimplemented_methods",
-    //     std::string(rest_api_basepath) + "/clusters/",
-    //     "/clusters",
-    //     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-    //     HttpStatusCode::NotImplemented,
-    //     kContentTypeHtml,
-    //     kRestApiUsername,
-    //     kRestApiPassword,
-    //     /*request_authentication =*/true,
-    //     {}},
-
-    //    {"cluster_nodes_unimplemented_methods",
-    //     std::string(rest_api_basepath) + "/clusters/71286871562387612/nodes",
-    //     "/clusters/{clusterName}/nodes",
-    //     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-    //     HttpStatusCode::NotImplemented,
-    //     kContentTypeHtml,
-    //     kRestApiUsername,
-    //     kRestApiPassword,
-    //     /*request_authentication =*/true,
-    //     {}},
-
-    {"metadata_list_unimplemented_methods",
-     std::string(rest_api_basepath) + "/metadata/",
-     "/metadata",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-     HttpStatusCode::NotImplemented,
-     kContentTypeHtml,
-     kRestApiUsername,
-     kRestApiPassword,
-     /*request_authentication =*/true,
-     {},
-     kMetadataSwaggerPaths},
-
-    {"metadata_status_unimplemented_methods",
-     std::string(rest_api_basepath) + "/metadata/" +
-         metadata_cache_section_name + "/status",
-     "/metadata/{metadataName}/status",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-     HttpStatusCode::NotImplemented,
-     kContentTypeHtml,
-     kRestApiUsername,
-     kRestApiPassword,
-     /*request_authentication =*/true,
-     {},
-     kMetadataSwaggerPaths},
-
-    {"metadata_config_unimplemented_methods",
-     std::string(rest_api_basepath) + "/metadata/" +
-         metadata_cache_section_name + "/config",
-     "/metadata/{metadataName}/config",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-     HttpStatusCode::NotImplemented,
-     kContentTypeHtml,
-     kRestApiUsername,
-     kRestApiPassword,
-     /*request_authentication =*/true,
-     {},
-     kMetadataSwaggerPaths},
 };
 
 INSTANTIATE_TEST_CASE_P(
