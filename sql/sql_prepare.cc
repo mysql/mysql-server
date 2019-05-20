@@ -2777,6 +2777,7 @@ reexecute:
                            true)) {
         thd->clear_error();
         error = reprepare();
+        DEBUG_SYNC(thd, "after_statement_reprepare");
       } else {
         /*
           Reprepare_observer sets error status in DA but Sql_condition is not

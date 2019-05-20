@@ -5856,19 +5856,6 @@ restart:
         goto err;
       }
     }
-
-    /*
-      When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
-      we do not go through mysql_lock_tables(), which sets lock type to use
-      by SE. Here, we request SE to use read lock for these implicitly opened
-      DD tables using ha_external_lock().
-    */
-    if (tbl && in_LTM(thd) && belongs_to_dd_table(tables)) {
-      DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
-      tbl->file->init_table_handle_for_HANDLER();
-      tbl->file->ha_external_lock(thd, F_RDLCK);
-    }
-
   }  // End of for(;;)
 
 err:
@@ -6676,6 +6663,32 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
       thd->enter_locked_tables_mode(LTM_PRELOCKED);
     }
   } else {
+    /*
+      When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
+      we do not go through mysql_lock_tables(), which sets lock type to use
+      by SE. Here, we request SE to use read lock for these implicitly opened
+      DD tables using ha_external_lock().
+
+      TODO: In PRELOCKED under LOCKED TABLE mode, if sub-statement is a IS
+            query then for DD table ha_external_lock is called more than once.
+            This works for now as in this mode each sub-statement gets its own
+            brand new TABLE instances for each table.
+            Allocating a brand new TABLE instances for each sub-statement is
+            a resources wastage. Once this issue is fixed, following code
+            should be adjusted to not to call ha_external_lock in sub-statement
+            mode (similar to how code in close_thread_table() behaves).
+    */
+    if (in_LTM(thd)) {
+      for (table = tables; table; table = table->next_global) {
+        TABLE *tbl = table->table;
+        if (tbl && belongs_to_dd_table(table)) {
+          DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
+          tbl->file->init_table_handle_for_HANDLER();
+          tbl->file->ha_external_lock(thd, F_RDLCK);
+        }
+      }
+    }
+
     TABLE_LIST *first_not_own = thd->lex->first_not_own_table();
     /*
       When open_and_lock_tables() is called for a single table out of
