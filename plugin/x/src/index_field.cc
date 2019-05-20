@@ -24,6 +24,7 @@
 
 #include "plugin/x/src/index_field.h"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 
@@ -67,7 +68,8 @@ std::string docpath_hash(const std::string &path) {
 
 void extract_type_details(const std::string &type_name, int32_t *precision,
                           int32_t *scale, bool *is_unsigned) {
-  static const Regex re("\\w+(?:\\(([0-9]+)(?:,([0-9]+))?\\))?( UNSIGNED)?.*");
+  static const Regex re(
+      "\\w+(?:\\(([0-9]+)(?: *, *([0-9]+))?\\))?( +UNSIGNED)?.*");
   Regex::Group_list groups;
   if (!re.match_groups(type_name.c_str(), &groups, false) || groups.size() < 4)
     return;
@@ -309,13 +311,13 @@ const Index_field *Index_field::create(
   static const Regex re{
       "(BIT)(?:\\([0-9]+\\))?|"
       "(TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT)"
-      "(?:\\([0-9]+\\))?(?: UNSIGNED)?|"
+      "(?:\\([0-9]+\\))?(?: +UNSIGNED)?|"
       "(DECIMAL|FLOAT|DOUBLE|REAL|NUMERIC)"
-      "(?:\\([0-9]+(?:,[0-9]+)?\\))?(?: UNSIGNED)?|"
+      "(?:\\([0-9]+(?: *, *[0-9]+)?\\))?(?: +UNSIGNED)?|"
       "(DATE)|(TIME|TIMESTAMP|DATETIME)(?:\\([0-6]\\))?|(YEAR)(?:\\(4\\))?|"
       "(BLOB)(?:(\\([0-9]+\\)))?|"
       "(CHAR|TEXT)(?:(\\([0-9]+\\)))?"
-      "(?: (?:CHARACTER SET|CHARSET) \\w+)?(?: COLLATE \\w+)?|"
+      "(?: +(?:CHARACTER SET|CHARSET) +\\w+)?(?: +COLLATE +\\w+)?|"
       "(GEOJSON|FULLTEXT)",
   };
 
@@ -336,7 +338,7 @@ const Index_field *Index_field::create(
   if (type_id != Type_id::k_geojson &&
       (is_valid(info.m_options) || is_valid(info.m_srid))) {
     *error = ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
-                        "Unsupported argumet specification for '%s'",
+                        "Unsupported argument specification for '%s'",
                         info.m_path.c_str());
     return nullptr;
   }
