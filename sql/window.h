@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1296,7 +1296,8 @@ class Window {
   void reset_partition_state() { reset_execution_state(RL_PARTITION); }
 
   /**
-    Reset execution state for next call to JOIN::exec, cf. JOIN::reset.
+    Reset execution state for next call to JOIN::exec, cf. JOIN::reset,
+    or using [Buffering]WindowingIterator::Init.
   */
   void reset_round() { reset_execution_state(RL_ROUND); }
 
