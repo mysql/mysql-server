@@ -2878,6 +2878,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       outparam->record[1] = outparam->record[0];  // Safety
   }
   outparam->null_flags_saved = record + (records * share->rec_buff_length);
+  memset(outparam->null_flags_saved, '\0', share->null_bytes);
 
   if (!(field_ptr = root->ArrayAlloc<Field *>(share->fields + 1)))
     goto err; /* purecov: inspected */
