@@ -1465,7 +1465,7 @@ bool WindowingIterator::Init() {
   if (m_source->Init()) {
     return true;
   }
-  m_window->reset_all_wf_state();
+  m_window->reset_round();
 
   // Store which slice we will be reading from.
   m_input_slice = m_join->get_ref_item_slice();
@@ -1515,7 +1515,7 @@ bool BufferingWindowingIterator::Init() {
   if (m_source->Init()) {
     return true;
   }
-  m_window->reset_all_wf_state();
+  m_window->reset_round();
   m_possibly_buffered_rows = false;
   m_last_input_row_started_new_partition = false;
   m_eof = false;
