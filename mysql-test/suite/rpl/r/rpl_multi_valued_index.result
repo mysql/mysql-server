@@ -181,7 +181,7 @@ create table t1(j json, key mvi((cast(j as datetime(6) array))));
 [connection master]
 insert into t1 values ('"01-01-01 01:01:01.0"');
 Warnings:
-Warning	13445	Invalid JSON value for CAST for functional index 'mvi'
+Warning	3903	Invalid JSON value for CAST for functional index 'mvi'.
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
@@ -209,7 +209,7 @@ create table t1(j json, key mvi((cast(j as date array))));
 [connection master]
 insert into t1 values ('"01-01-01"');
 Warnings:
-Warning	13445	Invalid JSON value for CAST for functional index 'mvi'
+Warning	3903	Invalid JSON value for CAST for functional index 'mvi'.
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
@@ -237,7 +237,7 @@ create table t1(j json, key mvi((cast(j as time(6) array))));
 [connection master]
 insert into t1 values ('"01:01:01.0"');
 Warnings:
-Warning	13445	Invalid JSON value for CAST for functional index 'mvi'
+Warning	3903	Invalid JSON value for CAST for functional index 'mvi'.
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc

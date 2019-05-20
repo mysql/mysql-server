@@ -1462,7 +1462,8 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                        &was_truncated);
 
   if (was_truncated) {
-    LogErr(ERROR_LEVEL, ER_IDENT_CAUSES_TOO_LONG_PATH, sizeof(path) - 1, path);
+    LogErr(ERROR_LEVEL, ER_IDENT_CAUSES_TOO_LONG_PATH_IN_UPGRADE,
+           sizeof(path) - 1, path);
     return true;
   }
 

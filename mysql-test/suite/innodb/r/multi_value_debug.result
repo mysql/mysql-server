@@ -338,7 +338,7 @@ SET DEBUG_SYNC='row_search_for_mysql_before_return SIGNAL scanning WAIT_FOR cont
 SELECT * FROM t1;;
 SET DEBUG_SYNC='now WAIT_FOR scanning';
 SET DEBUG_SYNC='now SIGNAL drop_created';
-ERROR 22018: Invalid JSON value for CAST for functional index 'mv_idx_date'
+ERROR 22018: Invalid JSON value for CAST for functional index 'mv_idx_date'.
 SET DEBUG_SYNC='now SIGNAL continue_scan';
 j
 ["test"]
@@ -582,7 +582,7 @@ SET DEBUG_SYNC='row_search_for_mysql_before_return SIGNAL scanning WAIT_FOR cont
 SELECT * FROM t1;;
 SET DEBUG_SYNC='now WAIT_FOR scanning';
 SET DEBUG_SYNC='now SIGNAL try_drop';
-ERROR 22018: Invalid JSON value for CAST for functional index 'mv_idx_date'
+ERROR 22018: Invalid JSON value for CAST for functional index 'mv_idx_date'.
 SET DEBUG_SYNC='now SIGNAL continue';
 id	j1	j2	j3	j4	j5
 1	[5, -1, 0]	[9, 8, 0, 1]	["foobar"]	["HelloWorld"]	["HelloMySQL"]

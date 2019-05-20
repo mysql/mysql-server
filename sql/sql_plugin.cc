@@ -2202,7 +2202,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
       error = true;
 
     if (error) {
-      report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name.str,
+      report_error(REPORT_TO_USER, ER_DA_PLUGIN_INSTALL_ERROR, name.str,
                    "error acquiring metadata lock");
     }
   }
@@ -2225,7 +2225,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
       char errbuf[MYSQL_ERRMSG_SIZE];
       my_strerror(errbuf, sizeof(errbuf), error);
       snprintf(buf, sizeof(buf), msg, errbuf);
-      report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name.str, buf);
+      report_error(REPORT_TO_USER, ER_DA_PLUGIN_INSTALL_ERROR, name.str, buf);
     } else {
       mysql_mutex_lock(&LOCK_plugin);
 
@@ -2243,7 +2243,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
       if (!error && store_infoschema_metadata) {
         error = dd::info_schema::store_dynamic_plugin_I_S_metadata(thd, tmp);
         if (error) {
-          report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name.str,
+          report_error(REPORT_TO_USER, ER_DA_PLUGIN_INSTALL_ERROR, name.str,
                        "error storing metadata");
         }
       }
@@ -2255,7 +2255,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
             thd, INFORMATION_SCHEMA_NAME.str, tmp->name.str, false,
             &uncommitted_tables);
         if (error) {
-          report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name.str,
+          report_error(REPORT_TO_USER, ER_DA_PLUGIN_INSTALL_ERROR, name.str,
                        "error updating metadata");
         }
       }

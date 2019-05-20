@@ -7053,7 +7053,7 @@ bool check_authorization_id_string(THD *thd, const char *buffer,
                                           consts::system_user, true)
                        .first) {
             // Send error to both, client and server error log.
-            my_error(ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES,
+            my_error(ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES,
                      MYF(0), el.first.c_str(), el.second.c_str(),
                      consts::system_user.c_str());
             LogErr(ERROR_LEVEL,

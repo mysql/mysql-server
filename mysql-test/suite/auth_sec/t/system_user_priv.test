@@ -108,20 +108,20 @@ connection default;
 --echo #------------------------------------------------------------------------
 --echo
 --echo # 5.1 Check with root user
---error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+--error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
 
---error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+--error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 SET @@GLOBAL.MANDATORY_ROLES='sys_role';
 
 SET @@GLOBAL.MANDATORY_ROLES='non_sys_role';
 --echo
 --echo # 5.2 Check with user who does not have system user privilege
 connection non_sys_usr_con;
---error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+--error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
 
---error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+--error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 SET @@GLOBAL.MANDATORY_ROLES='sys_role';
 
 SET @@GLOBAL.MANDATORY_ROLES='non_sys_role';
@@ -157,7 +157,7 @@ DROP ROLE test_role;
 CREATE ROLE r1, r2;
 GRANT r1 TO r2;
 GRANT sys_role TO r1;
---error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+--error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 SET @@GLOBAL.MANDATORY_ROLES='r2';
 DROP ROLE r1, r2;
 --echo #------------------------------------------------------------------------

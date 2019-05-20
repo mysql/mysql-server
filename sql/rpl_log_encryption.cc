@@ -89,7 +89,7 @@ void Rpl_encryption::report_keyring_error(Keyring_status error,
       if (current_thd)
         my_error(ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY, MYF(0));
       else
-        LogErr(ERROR_LEVEL, ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY);
+        LogErr(ERROR_LEVEL, ER_SERVER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY);
       break;
     case Keyring_status::SUCCESS:
     default:

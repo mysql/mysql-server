@@ -74,6 +74,10 @@ ADD_CUSTOM_TARGET(GenError
                   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
                   ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt)
 
+MYSQL_ADD_EXECUTABLE(range_check_err range_check_err.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(range_check_err mysys)
+add_dependencies(range_check_err GenError)
+
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 

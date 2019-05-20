@@ -1160,7 +1160,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                   &table_obj))
       return true;
     DBUG_EXECUTE_IF("sim_acq_fail_in_store_ci", {
-      my_error(ER_UNKNOWN_ERROR_NUMBER, MYF(0), 42);
+      my_error(ER_DA_UNKNOWN_ERROR_NUMBER, MYF(0), 42);
       return true;
     });
   }

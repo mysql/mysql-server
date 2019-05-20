@@ -16,7 +16,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 group_replication_switch_to_multi_primary_mode()
 Mode switched to multi-primary with some reported warnings: It was not possible to persist the configuration values for this mode. Check your server configuration for future server restarts and/or try to use SET PERSIST_ONLY.
 Warnings:
-Warning	13223	It was not possible to persist the configuration values for this mode. Check your server configuration for future server restarts and/or try to use SET PERSIST_ONLY.
+Warning	3910	It was not possible to persist the configuration values for this mode. Check your server configuration for future server restarts and/or try to use SET PERSIST_ONLY.
 
 # 3. Assert servers are in multi primary mode
 include/gr_assert_multi_primary_mode.inc
@@ -34,7 +34,7 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
 Mode switched to single-primary with reported warnings: It was not possible to persist the configuration values for this mode. Check your server configuration for future server restarts and/or try to use SET PERSIST_ONLY.
 Warnings:
-Warning	13223	It was not possible to persist the configuration values for this mode. Check your server configuration for future server restarts and/or try to use SET PERSIST_ONLY.
+Warning	3910	It was not possible to persist the configuration values for this mode. Check your server configuration for future server restarts and/or try to use SET PERSIST_ONLY.
 
 # 6. Check if the members roles are the expected ones
 [connection server1]

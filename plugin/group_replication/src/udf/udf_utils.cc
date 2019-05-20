@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,13 +141,14 @@ void log_group_action_result_message(Group_action_diagnostics *result_area,
                                      unsigned long *length) {
   switch (result_area->get_execution_message_level()) {
     case Group_action_diagnostics::GROUP_ACTION_LOG_ERROR:
-      my_error(ER_GRP_RPL_UDF_ERROR, MYF(ME_ERRORLOG), action_name,
+      my_error(ER_GRP_RPL_UDF_ERROR, MYF(0), action_name,
                result_area->get_execution_message().c_str());
+      LogErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_UDF_ERROR, action_name,
+             result_area->get_execution_message().c_str());
       break;
     case Group_action_diagnostics::GROUP_ACTION_LOG_WARNING:
       my_stpcpy(result_message, result_area->get_execution_message().c_str());
       *length = result_area->get_execution_message().length();
-
       if (current_thd)
         push_warning(current_thd, Sql_condition::SL_WARNING,
                      ER_GRP_RPL_UDF_ERROR,
