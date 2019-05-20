@@ -73,6 +73,11 @@ add_test_file(test_auth_method.cc
   LIB_DEPENDS http_server
   )
 
+add_test_file(test_content_type.cc
+  MODULE http
+  )
+
+
 add_test_file(test_matcher.cc
   MODULE http
   )
