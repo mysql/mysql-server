@@ -555,7 +555,7 @@ bool add_sdi_info(THD *thd) {
     }
 
     if (dd::sdi::store(thd, table)) {
-      LogErr(ERROR_LEVEL, ER_BAD_TABLE_ERROR, table->name().c_str());
+      LogErr(ERROR_LEVEL, ER_UNKNOWN_TABLE_IN_UPGRADE, table->name().c_str());
       trans_rollback_stmt(thd);
     }
     trans_commit_stmt(thd);

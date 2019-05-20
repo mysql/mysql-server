@@ -1152,22 +1152,22 @@ GRANT SELECT, INSERT ON *.* TO `bar`@`%`
 GRANT INSERT ON `mysql`.* TO `bar`@`%`
 REVOKE SELECT, INSERT ON `mysql`.* FROM `bar`@`%`
 GRANT INSERT ON *.* TO bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 REVOKE INSERT ON *.* FROM bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 GRANT INSERT ON mysql.* TO bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 REVOKE INSERT ON mysql.* FROM bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 # We should not even able to grant/revoke fresh privileges.
 GRANT UPDATE ON mysql.* TO bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 REVOKE UPDATE ON mysql.* FROM bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 GRANT UPDATE ON *.* TO bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 REVOKE UPDATE ON *.* FROM bar;
-ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted.
+ERROR HY000: 'INSERT' privilege for database 'mysql' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted.
 SELECT CURRENT_USER();
 CURRENT_USER()
 bar@%

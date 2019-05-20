@@ -3389,7 +3389,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
       We're bailing after rather than before printing to make the
       culprit easier to track down.)
     */
-    DBUG_ASSERT(errno < ER_SERVER_RANGE_START);
+    DBUG_ASSERT(error < ER_SERVER_RANGE_START);
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */

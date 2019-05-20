@@ -241,13 +241,13 @@ command ok
 
 1 rows affected
 Got expected error (code 0)
-Got expected error: Invalid JSON value for CAST for functional index 'integer_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'text_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'text_default_type_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'time_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'date_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'datetime_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'float_idx' (code 13445)
+Got expected error: Invalid JSON value for CAST for functional index 'integer_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'text_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'text_default_type_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'time_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'date_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'datetime_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'float_idx'. (code 3903)
 
 Create collection 'data2'
 =========================
@@ -256,13 +256,13 @@ command ok
 
 1 rows affected
 Got expected error (code 0)
-Got expected error: Invalid JSON value for CAST for functional index 'integer_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'text_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'text_default_type_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'time_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'date_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'datetime_idx' (code 13445)
-Got expected error: Invalid JSON value for CAST for functional index 'float_idx' (code 13445)
+Got expected error: Invalid JSON value for CAST for functional index 'integer_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'text_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'text_default_type_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'time_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'date_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'datetime_idx'. (code 3903)
+Got expected error: Invalid JSON value for CAST for functional index 'float_idx'. (code 3903)
 ## 6. Create different types of index on an empty array
 
 Create collection 'data3'
@@ -377,7 +377,7 @@ command ok
 
 1 rows affected
 Got expected error (code 0)
-Got expected error: Invalid JSON value for CAST for functional index 'mixed_signed_idx' (code 13445)
+Got expected error: Invalid JSON value for CAST for functional index 'mixed_signed_idx'. (code 3903)
 Got expected error: Value is out of range for functional index 'mixed_unsigned_idx' at row 1 (code 3752)
 
 command ok
@@ -385,7 +385,7 @@ Got expected error (code 0)
 Got expected error: Data truncated for functional index 'mixed_date_idx' at row 1 (code 3751)
 Got expected error: Data truncated for functional index 'mixed_time_idx' at row 1 (code 3751)
 Got expected error: Data truncated for functional index 'mixed_datetime_idx' at row 1 (code 3751)
-Got expected error: Invalid JSON value for CAST for functional index 'mixed_decimal_idx' (code 13445)
+Got expected error: Invalid JSON value for CAST for functional index 'mixed_decimal_idx'. (code 3903)
 
 command ok
 Got expected error (code 0)

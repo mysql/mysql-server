@@ -35,7 +35,7 @@ SET SESSION information_schema_stats_expiry=default;
 CREATE TABLE t1(i INT);
 
 SET SESSION debug="+d,sim_acq_fail_in_store_ci";
---error ER_UNKNOWN_ERROR_NUMBER
+--error ER_DA_UNKNOWN_ERROR_NUMBER
 SHOW CREATE TABLE t1;
 
 SET SESSION debug="";

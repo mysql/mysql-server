@@ -1612,11 +1612,11 @@ class Alter_instance_reload_tls : public Alter_instance {
       const char *error_text = sslGetErrString(error);
       if (force_) {
         push_warning_printf(m_thd, Sql_condition::SL_WARNING,
-                            ER_SSL_LIBRARY_ERROR,
-                            ER_THD(m_thd, ER_SSL_LIBRARY_ERROR), error_text);
+                            ER_DA_SSL_LIBRARY_ERROR,
+                            ER_THD(m_thd, ER_DA_SSL_LIBRARY_ERROR), error_text);
         LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR, sslGetErrString(error));
       } else {
-        my_error(ER_SSL_LIBRARY_ERROR, MYF(0), error_text);
+        my_error(ER_DA_SSL_LIBRARY_ERROR, MYF(0), error_text);
         res = true;
       }
     }

@@ -7761,22 +7761,22 @@ OBSOLETE_ER_AUDIT_LOG_JSON_FILTERING_NOT_ENABLED
 OBSOLETE_ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%s'@'%s'. SUPER privilege or AUDIT_ADMIN role needed to perform operation"
 
-ER_AUDIT_LOG_SUPER_PRIVILEGE_REQUIRED
+OBSOLETE_ER_AUDIT_LOG_SUPER_PRIVILEGE_REQUIRED
   eng "SUPER privilege or AUDIT_ADMIN role required for '%s'@'%s' user."
 
 OBSOLETE_ER_COULD_NOT_REINITIALIZE_AUDIT_LOG_FILTERS
   eng "Could not reinitialize audit log filters."
 
-ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_TYPE
+OBSOLETE_ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_TYPE
   eng "Invalid argument type"
 
-ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_COUNT
+OBSOLETE_ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_COUNT
   eng "Invalid argument count"
 
-ER_AUDIT_LOG_HAS_NOT_BEEN_INSTALLED
+OBSOLETE_ER_AUDIT_LOG_HAS_NOT_BEEN_INSTALLED
   eng "audit_log plugin has not been installed using INSTALL PLUGIN syntax."
 
-ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
+OBSOLETE_ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
   eng "Invalid \"max_array_length\" argument type."
 
 ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE
@@ -8581,7 +8581,7 @@ ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
 ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
   eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT."
 
-ER_XA_CANT_CREATE_MDL_BACKUP
+OBSOLETE_ER_XA_CANT_CREATE_MDL_BACKUP
   eng "XA: Failed to take MDL Lock backup of PREPARED XA transaction during client disconnect."
 
 ER_TABLE_WITHOUT_PK
@@ -8973,6 +8973,117 @@ ER_CLONE_IN_PROGRESS
 
 ER_CLONE_DISALLOWED
   eng "The clone operation cannot be executed when %s."
+
+ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
+  eng "Cannot grant roles to an anonymous user."
+
+ER_SECONDARY_ENGINE_PLUGIN
+  eng "%s"
+
+ER_SECOND_PASSWORD_CANNOT_BE_EMPTY
+  eng "Empty password can not be retained as second password for user '%s'@'%s'."
+
+ER_DB_ACCESS_DENIED
+  eng "Access denied for AuthId `%.64s`@`%.64s` to database '%-.192s'."
+
+ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+  eng "Cannot set mandatory_roles: AuthId `%.64s`@`%.64s` has '%s' privilege."
+
+ER_DA_RPL_GTID_TABLE_CANNOT_OPEN
+  eng "Gtid table is not ready to be used. Table '%s.%s' cannot be opened."
+
+ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT SU001
+  eng "The geometry passed to function %s is in SRID 0, which doesn't specify a length unit. Can't convert to '%s'."
+
+ER_DA_PLUGIN_INSTALL_ERROR
+  eng "Error installing plugin '%s': %s"
+
+ER_NO_SESSION_TEMP
+  eng "Storage engine could not allocate temporary tablespace for this session."
+
+ER_DA_UNKNOWN_ERROR_NUMBER
+  eng "Got unknown error: %d"
+
+ER_COLUMN_CHANGE_SIZE
+  eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."
+
+ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+  eng "A capture group has an invalid name."
+
+ER_DA_SSL_LIBRARY_ERROR
+   eng "Failed to set up SSL because of the following SSL library error: %s"
+
+ER_SECONDARY_ENGINE
+  eng "Secondary engine operation failed. %s."
+
+ER_SECONDARY_ENGINE_DDL
+  eng "DDLs on a table with a secondary engine defined are not allowed."
+
+ER_INCORRECT_CURRENT_PASSWORD
+  eng "Incorrect current password. Specify the correct password which has to be replaced."
+
+ER_MISSING_CURRENT_PASSWORD
+  eng "Current password needs to be specified in the REPLACE clause in order to change it."
+
+ER_CURRENT_PASSWORD_NOT_REQUIRED
+  eng "Do not specify the current password while changing it for other users."
+
+ER_PASSWORD_CANNOT_BE_RETAINED_ON_PLUGIN_CHANGE
+  eng "Current password can not be retained for user '%s'@'%s' because authentication plugin is being changed."
+
+ER_CURRENT_PASSWORD_CANNOT_BE_RETAINED
+  eng "Current password can not be retained for user '%s'@'%s' because new password is empty."
+
+ER_PARTIAL_REVOKES_EXIST
+  eng "At least one partial revoke exists on a database. The system variable '@@partial_revokes' must be set to ON."
+
+ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
+  eng "AuthId `%.64s`@`%.64s` is set as mandatory_roles. Cannot grant the '%s' privilege."
+
+ER_XA_REPLICATION_FILTERS
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+
+ER_UNSUPPORTED_SQL_MODE
+  eng "sql_mode=0x%08x is not supported."
+
+ER_REGEXP_INVALID_FLAG
+  eng "Invalid match mode flag in regular expression."
+
+ER_PARTIAL_REVOKE_AND_DB_GRANT_BOTH_EXISTS
+  eng "'%s' privilege for database '%s' exists both as partial revoke and mysql.db simultaneously. It could mean that the 'mysql' schema is corrupted."
+
+ER_UNIT_NOT_FOUND SU001
+  eng "There's no unit of measure named '%s'."
+
+ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX 22018
+  eng "Invalid JSON value for CAST for functional index '%-.64s'."
+
+ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
+  eng "Out of range JSON value for CAST for functional index '%-.64s'."
+
+ER_EXCEEDED_MV_KEYS_NUM
+  eng "Exceeded max number of values per record for multi-valued index '%-.64s' by %u value(s)."
+
+ER_EXCEEDED_MV_KEYS_SPACE
+  eng "Exceeded max total length of values per record for multi-valued index '%-.64s' by %u bytes."
+
+ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG 22001
+  eng "Data too long for functional index '%-.64s'."
+
+ER_WRONG_MVI_VALUE
+  eng "Cannot store an array or an object in a scalar key part of the index '%.192s'."
+
+ER_WARN_FUNC_INDEX_NOT_APPLICABLE
+  eng "Cannot use functional index '%-.64s' due to type or collation conversion."
+
+ER_GRP_RPL_UDF_ERROR
+  eng "The function '%s' failed. %s"
+
+ER_UPDATE_GTID_PURGED_WITH_GR
+  eng "Cannot update GTID_PURGED with the Group Replication plugin running"
+
+ER_GROUPING_ON_TIMESTAMP_IN_DST
+  eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
 
 #
 #  End of 8.0 error messages.
@@ -12822,7 +12933,7 @@ ER_SSL_FIPS_MODE_ERROR
 ER_CONN_INIT_CONNECT_IGNORED
   eng "init_connect variable is ignored for user: %s host: %s due to expired password."
 
-ER_UNSUPPORTED_SQL_MODE
+OBSOLETE_ER_UNSUPPORTED_SQL_MODE
   eng "sql_mode=0x%08x is not supported"
 
 ER_REWRITER_OOM
@@ -18330,7 +18441,7 @@ ER_OOM_SAVE_GTIDS
 ER_LCTN_NOT_FOUND
   eng "The lower_case_table_names setting for the data dictionary was not found. Starting the server using lower_case_table_names = '%u'."
 
-ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+OBSOLETE_ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
   eng "A capture group has an invalid name."
 
 ER_COMPONENT_FILTER_WRONG_VALUE
@@ -18526,13 +18637,13 @@ ER_SERVER_SHUTDOWN_INFO
 ER_GRP_RPL_PLUGIN_ABORT
   eng "The plugin encountered a critical error and will abort: %s"
 
-ER_REGEXP_INVALID_FLAG
+OBSOLETE_ER_REGEXP_INVALID_FLAG
   eng "Invalid match mode flag in regular expression."
 
-ER_XA_REPLICATION_FILTERS
+OBSOLETE_ER_XA_REPLICATION_FILTERS
   eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
 
-ER_UPDATE_GTID_PURGED_WITH_GR
+OBSOLETE_ER_UPDATE_GTID_PURGED_WITH_GR
   eng "Cannot update GTID_PURGED with the Group Replication plugin running"
 
 ER_AUDIT_LOG_TABLE_DEFINITION_NOT_UPDATED
@@ -18674,16 +18785,16 @@ ER_GRP_RPL_UDF_UNREGISTER_ERROR
 ER_GRP_RPL_UDF_REGISTER_SERVICE_ERROR
   eng "Could not execute the installation of Group Replication UDF functions. Check for other errors in the log and try to reinstall the plugin"
 
-ER_GRP_RPL_UDF_ERROR
+ER_GRP_RPL_SERVER_UDF_ERROR
   eng "The function '%s' failed. %s"
 
-ER_CURRENT_PASSWORD_NOT_REQUIRED
+OBSOLETE_ER_CURRENT_PASSWORD_NOT_REQUIRED
   eng "Do not specify the current password while changing it for other users."
 
-ER_INCORRECT_CURRENT_PASSWORD
+OBSOLETE_ER_INCORRECT_CURRENT_PASSWORD
   eng "Incorrect current password. Specify the correct password which has to be replaced."
 
-ER_MISSING_CURRENT_PASSWORD
+OBSOLETE_ER_MISSING_CURRENT_PASSWORD
   eng "Current password needs to be specified in the REPLACE clause in order to change it."
 
 ER_SERVER_WRONG_VALUE_FOR_VAR
@@ -18695,13 +18806,13 @@ ER_COULD_NOT_CREATE_WINDOWS_REGISTRY_KEY
 ER_SERVER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
   eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT."
 
-ER_SECONDARY_ENGINE
+OBSOLETE_ER_SECONDARY_ENGINE
   eng "Secondary engine operation failed. %s."
 
-ER_SECONDARY_ENGINE_DDL
+OBSOLETE_ER_SECONDARY_ENGINE_DDL
   eng "DDLs on a table with a secondary engine defined are not allowed."
 
-ER_NO_SESSION_TEMP
+OBSOLETE_ER_NO_SESSION_TEMP
   eng "Unable to allocate temporary tablespace for this session"
 
 ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX
@@ -18751,7 +18862,7 @@ ER_IB_MSG_MADV_DONTDUMP_UNSUPPORTED
 ER_IB_MSG_MADVISE_FAILED
   eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet madvise(%p,%zu,%s) failed with %s"
 
-ER_COLUMN_CHANGE_SIZE
+OBSOLETE_ER_COLUMN_CHANGE_SIZE
   eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."
 
 ER_WARN_REMOVED_SQL_MODE
@@ -18895,13 +19006,13 @@ ER_WARNING_RETAIN_CURRENT_PASSWORD_CLAUSE_VOID
 ER_WARNING_DISCARD_OLD_PASSWORD_CLAUSE_VOID
   eng "DISCARD OLD PASSWORD ignored for user '%s'@'%s' as its authentication plugin %s does not support multiple passwords."
 
-ER_SECOND_PASSWORD_CANNOT_BE_EMPTY
+OBSOLETE_ER_SECOND_PASSWORD_CANNOT_BE_EMPTY
   eng "Empty password can not be retained as second password for user '%s'@'%s'."
 
-ER_PASSWORD_CANNOT_BE_RETAINED_ON_PLUGIN_CHANGE
+OBSOLETE_ER_PASSWORD_CANNOT_BE_RETAINED_ON_PLUGIN_CHANGE
   eng "Current password can not be retained for user '%s'@'%s' because authentication plugin is being changed."
 
-ER_CURRENT_PASSWORD_CANNOT_BE_RETAINED
+OBSOLETE_ER_CURRENT_PASSWORD_CANNOT_BE_RETAINED
   eng "Current password can not be retained for user '%s'@'%s' because new password is empty."
 
 ER_WARNING_AUTHCACHE_INVALID_USER_ATTRIBUTES
@@ -18961,11 +19072,11 @@ ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_WAIT_FOR_SYNC_BEFORE_EXEC
 ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED
   eng "Error waiting for group executed transactions commit on session '%u'."
 
-ER_UNIT_NOT_FOUND SU001
+OBSOLETE_ER_UNIT_NOT_FOUND SU001
   eng "There's no unit of measure named '%s'."
 
-ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT SU001
-  eng "The geometry passed to function %s is in SRID 0, which doesn't specify a length unit. Can't convert to '%s'."
+OBSOLETE_ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT SU001
+  eng "The function %s uses %s as a unit, but was passed geometry without units (\"SRID 0\"). Conversion is not possible."
 
 ER_WARN_PROPERTY_STRING_PARSE_FAILED
   eng "Could not parse key-value pairs in property string '%s'"
@@ -19000,7 +19111,7 @@ ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING
 ER_TRG_WRONG_ORDER
   eng "Trigger %s.%s for table %s.%s is listed in wrong order. Please drop and recreate all triggers for the table."
 
-ER_SECONDARY_ENGINE_PLUGIN
+OBSOLETE_ER_SECONDARY_ENGINE_PLUGIN
   eng "%s"
 
 ER_LDAP_AUTH_GRP_SEARCH_NOT_SPECIAL_HDL
@@ -19102,16 +19213,16 @@ ER_SERVER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
 ER_SERVER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
   eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
-ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
+OBSOLETE_ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
   eng "AuthId `%.64s`@`%.64s` is set as mandatory_roles. Cannot grant the '%s' privilege."
 
-ER_PARTIAL_REVOKE_AND_DB_GRANT_BOTH_EXISTS
+OBSOLETE_ER_PARTIAL_REVOKE_AND_DB_GRANT_BOTH_EXISTS
   eng "'%s' privilege for database '%s' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted."
 
-ER_DB_ACCESS_DENIED
+OBSOLETE_ER_DB_ACCESS_DENIED
   eng "Access denied for AuthId `%.64s`@`%.64s` to database '%-.192s'."
 
-ER_PARTIAL_REVOKES_EXIST
+OBSOLETE_ER_PARTIAL_REVOKES_EXIST
   eng "At least one partial revoke exists on a database. The system variable '@@partial_revokes' must be set to ON."
 
 ER_TURNING_ON_PARTIAL_REVOKES
@@ -19219,7 +19330,7 @@ ER_GRP_RPL_SRV_GTID_WAIT_ERROR
 ER_GRP_DELAYED_VCLE_LOGGING
   eng "Unable to log the group change View log event in its exaction position in the log. This will not however affect the group replication recovery process or the overall plugin process."
 
-ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
+OBSOLETE_ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
   eng "Cannot grant roles to an anonymous user."
 
 ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY
@@ -19335,31 +19446,31 @@ ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
 ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
 
-ER_WRONG_MVI_VALUE
+OBSOLETE_ER_WRONG_MVI_VALUE
   eng "Can't store an array or an object in a scalar key part of the index '%.192s'"
 
-ER_WARN_FUNC_INDEX_NOT_APPLICABLE
+OBSOLETE_ER_WARN_FUNC_INDEX_NOT_APPLICABLE
   eng "Cannot use functional index '%-.64s' due to type or collation conversion"
 
-ER_EXCEEDED_MV_KEYS_NUM
+OBSOLETE_ER_EXCEEDED_MV_KEYS_NUM
   eng "Exceeded max number of values per record for multi-valued index '%-.64s' by %u value(s)"
 
-ER_EXCEEDED_MV_KEYS_SPACE
+OBSOLETE_ER_EXCEEDED_MV_KEYS_SPACE
   eng "Exceeded max total length of values per record for multi-valued index '%-.64s' by %u bytes"
 
-ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG 22001
+OBSOLETE_ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG 22001
   eng "Data too long for functional index '%-.64s'"
 
-ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX 22018
+OBSOLETE_ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX 22018
   eng "Invalid JSON value for CAST for functional index '%-.64s'"
 
-ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
+OBSOLETE_ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
   eng "Out of range JSON value for CAST for functional index '%-.64s'"
 
 ER_LDAP_EMPTY_USERDN_PASSWORD
   eng "Empty user dn or password is not allowed, not attempting LDAP bind."
 
-ER_GROUPING_ON_TIMESTAMP_IN_DST
+OBSOLETE_ER_GROUPING_ON_TIMESTAMP_IN_DST
   eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
 
 ER_ACL_WRONG_OR_MISSING_ACL_TABLES_LOG
@@ -19440,6 +19551,30 @@ ER_GRP_RPL_RECOVERY_STRAT_NO_FALLBACK
 
 ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE
   eng "The '%s' thread of channel '%s' will error out as the server will attempt to clone another server"
+
+ER_UNKNOWN_TABLE_IN_UPGRADE
+  eng "Unknown table '%-.129s'"
+
+ER_IDENT_CAUSES_TOO_LONG_PATH_IN_UPGRADE
+  eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
+
+ER_XA_CANT_CREATE_MDL_BACKUP
+  eng "XA: Failed to take MDL Lock backup of PREPARED XA transaction during client disconnect."
+
+ER_AUDIT_LOG_SUPER_PRIVILEGE_REQUIRED
+  eng "SUPER privilege or AUDIT_ADMIN role required for '%s'@'%s' user."
+
+ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_TYPE
+  eng "Invalid argument type"
+
+ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_COUNT
+  eng "Invalid argument count"
+
+ER_AUDIT_LOG_HAS_NOT_BEEN_INSTALLED
+  eng "audit_log plugin has not been installed using INSTALL PLUGIN syntax."
+
+ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
+  eng "Invalid \"max_array_length\" argument type."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

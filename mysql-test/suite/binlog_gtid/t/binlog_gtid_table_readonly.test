@@ -98,7 +98,7 @@ CALL mtr.add_suppression(".Gtid table is not ready to be used.");
 --source include/rpl_log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
---error ER_RPL_GTID_TABLE_CANNOT_OPEN
+--error ER_DA_RPL_GTID_TABLE_CANNOT_OPEN
 FLUSH BINARY LOGS;
 
 # 3) Assert that binary log didn't rotate.
@@ -130,7 +130,7 @@ SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
 --source include/rpl_log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
---error ER_RPL_GTID_TABLE_CANNOT_OPEN
+--error ER_DA_RPL_GTID_TABLE_CANNOT_OPEN
 FLUSH BINARY LOGS;
 
 # 4) Assert that binary log didn't rotate.

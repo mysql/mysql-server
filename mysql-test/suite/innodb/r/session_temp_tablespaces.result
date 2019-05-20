@@ -231,13 +231,13 @@ SELECT @@innodb_temp_tablespaces_dir;
 # Create a new connection.
 SET SESSION DEBUG='+d,ibt_pool_exhausted';
 CREATE TEMPORARY TABLE t1 (a INT);
-ERROR HY000: Unable to allocate temporary tablespace for this session
+ERROR HY000: Storage engine could not allocate temporary tablespace for this session.
 SET SESSION DEBUG='-d,ibt_pool_exhausted';
 CREATE TABLE t3(a INT, b BLOB);
 INSERT INTO t3 VALUES (1, 'hi'), (2, 'hello');
 SET SESSION DEBUG='+d,ibt_pool_exhausted';
 INSERT INTO t3 SELECT * FROM t3;
-ERROR HY000: Unable to allocate temporary tablespace for this session
+ERROR HY000: Storage engine could not allocate temporary tablespace for this session.
 SET SESSION DEBUG='-d,ibt_pool_exhausted';
 # Create Workload and execute queries involving intrinsic tables.
 explain format = json select a from t1 group by b order by sum(a);

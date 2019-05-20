@@ -156,7 +156,7 @@ DROP TABLE t1;
 CREATE TABLE t1(j JSON);
 INSERT INTO t1 VALUES('[]'), ('null');
 CREATE INDEX mv_idx_date ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
-ERROR 22018: Invalid JSON value for CAST for functional index 'mv_idx_date'
+ERROR 22018: Invalid JSON value for CAST for functional index 'mv_idx_date'.
 DELETE FROM t1;
 INSERT INTO t1 VALUES (CAST('[9,8,0,1]' AS JSON));
 CREATE INDEX mv_idx_date ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
@@ -456,7 +456,7 @@ DROP TABLE t1;
 SET sql_mode = default;
 CREATE TABLE t1(j json, KEY ((CAST(j->'$' AS UNSIGNED ARRAY))));
 INSERT INTO t1 VALUES ('[]'), ('null');
-ERROR 22018: Invalid JSON value for CAST for functional index 'functional_index'
+ERROR 22018: Invalid JSON value for CAST for functional index 'functional_index'.
 SELECT * FROM t1;
 j
 DROP TABLE t1;

@@ -695,7 +695,8 @@ int Gtid_state::save_gtids_of_last_binlog_into_table() {
   int ret = 0;
 
   if (DBUG_EVALUATE_IF("gtid_executed_readonly", true, false)) {
-    my_error(ER_RPL_GTID_TABLE_CANNOT_OPEN, MYF(0), "mysql", "gtid_executed");
+    my_error(ER_DA_RPL_GTID_TABLE_CANNOT_OPEN, MYF(0), "mysql",
+             "gtid_executed");
     DBUG_RETURN(ER_RPL_GTID_TABLE_CANNOT_OPEN);
   }
 
