@@ -85,6 +85,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "my_inttypes.h"
+
 struct {
   const char *name;        ///< MySQL error symbol ("ER_STARTUP")
   uint mysql_errno;        ///< MySQL error code (consecutive within sections)
