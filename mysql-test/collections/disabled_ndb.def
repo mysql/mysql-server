@@ -18,10 +18,6 @@ gcol_ndb.gcol_column_def_options_ndb : BUG#26609059 PB2 failures.
 # ndb_big suite tests
 ndb_big.smoke : BUG#29110705 Not ready for automated testing yet.
 
-# ndb_binlog suite tests
-# Problem with missing binlog events after restore
-ndb_binlog.ndb_binlog_restore : WL#9185 MySQL Cluster support for new DD.
-
 # ndb_ddl suite tests
 # Problem with alter table while MDL lock is held on other mysqld
 ndb_ddl.alter_open_trans: WL#10164 Schema dist prepare phase
