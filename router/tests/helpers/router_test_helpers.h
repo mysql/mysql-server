@@ -123,22 +123,6 @@ const std::string get_cwd();
  */
 const std::string change_cwd(std::string &dir);
 
-/** @brief Checks whether string ends with the specified suffix
- *
- * Returns true if the string ends with the given suffix.
- *
- * @return bool
- */
-bool ends_with(const std::string &str, const std::string &suffix);
-
-/** @brief Checks whether string starts with the specified prefix
- *
- * Returns true if the string begins with the given prefix.
- *
- * @return bool
- */
-bool starts_with(const std::string &str, const std::string &prefix);
-
 /** @brief Reads a specified number of bytes from a non-blocking socket
  *
  * reads a non-blocking socket until one of three things happen:

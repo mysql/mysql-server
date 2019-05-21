@@ -32,6 +32,7 @@
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/utility/string.h"
 #include "mysql_session_replayer.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
@@ -2024,7 +2025,7 @@ TEST_F(ConfigGeneratorTest, full_test) {
   config.read("delme/mysqlrouter.conf");
 
   value = config.get_default("master_key_path");
-  EXPECT_TRUE(ends_with(value, "delme/masterkey"));
+  EXPECT_TRUE(mysql_harness::utility::ends_with(value, "delme/masterkey"));
 
   value = config.get_default("name");
   EXPECT_EQ(value, "foo");

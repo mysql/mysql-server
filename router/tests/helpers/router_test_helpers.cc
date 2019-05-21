@@ -125,19 +125,6 @@ const std::string change_cwd(std::string &dir) {
   return cwd;
 }
 
-bool ends_with(const std::string &str, const std::string &suffix) {
-  auto suffix_size = suffix.size();
-  auto str_size = str.size();
-  return (str_size >= suffix_size &&
-          str.compare(str_size - suffix_size, str_size, suffix) == 0);
-}
-
-bool starts_with(const std::string &str, const std::string &prefix) {
-  auto prefix_size = prefix.size();
-  auto str_size = str.size();
-  return (str_size >= prefix_size && str.compare(0, prefix_size, prefix) == 0);
-}
-
 size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
                                uint64_t timeout_in_ms) {
   // returns epoch time (aka unix time, etc), expressed in milliseconds

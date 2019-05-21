@@ -52,6 +52,7 @@
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
 #include "mysql_session.h"
 #include "print_version.h"
@@ -59,8 +60,8 @@
 
 #ifndef _WIN32
 #include <fcntl.h>
-#include <signal.h>
 #include <unistd.h>
+#include <csignal>
 const char dir_sep = '/';
 const std::string path_sep = ":";
 #else
@@ -1223,8 +1224,19 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   }
 }
 
-void MySQLRouter::show_help() noexcept {
-  FILE *fp;
+// format filename with indent
+//
+// if file isn't readable, wrap it in (...)
+static void markup_configfile(std::ostream &os, const std::string &filename) {
+  const bool file_is_readable = mysql_harness::Path(filename).is_readable();
+
+  os << "  "
+     //
+     << (file_is_readable ? "" : "(") << filename
+     << (file_is_readable ? "" : ")") << std::endl;
+}
+
+void MySQLRouter::show_help() {
   out_stream_ << get_version_line() << std::endl;
   out_stream_ << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
 
@@ -1235,12 +1247,17 @@ void MySQLRouter::show_help() noexcept {
     out_stream_ << line << std::endl;
   }
 
-  for (auto file : default_config_files_) {
-    if ((fp = std::fopen(file.c_str(), "r")) == nullptr) {
-      out_stream_ << "  (" << file << ")" << std::endl;
-    } else {
-      std::fclose(fp);
-      out_stream_ << "  " << file << std::endl;
+  for (const auto &file : default_config_files_) {
+    markup_configfile(out_stream_, file);
+
+    // fallback to .ini for each .conf file
+    const std::string conf_ext(".conf");
+    if (mysql_harness::utility::ends_with(file, conf_ext)) {
+      // replace .conf by .ini
+      std::string ini_filename =
+          file.substr(0, file.size() - conf_ext.size()) + ".ini";
+
+      markup_configfile(out_stream_, ini_filename);
     }
   }
   const std::map<std::string, std::string> paths = get_default_paths();

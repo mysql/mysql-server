@@ -25,6 +25,7 @@
 #include <gmock/gmock.h>
 
 #include "config_builder.h"
+#include "mysql/harness/utility/string.h"
 #include "router_component_test.h"
 #include "temp_dir.h"
 
@@ -365,12 +366,12 @@ TEST_F(RouterCmdlineTest, help_output_is_sane) {
       if (line.empty()) {
         break;
       }
-      if (starts_with(line, indent)) {
+      if (mysql_harness::utility::starts_with(line, indent)) {
         auto file = line.substr(indent.size(), line.size());
         config_files.push_back(file);
       }
     }
-    if (starts_with(line, "Configuration read")) {
+    if (mysql_harness::utility::starts_with(line, "Configuration read")) {
       it++;  // skip next line
       found = true;
     }
