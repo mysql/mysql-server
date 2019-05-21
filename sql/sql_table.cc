@@ -4875,7 +4875,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
           if (thd->is_error()) return true;
         } else {
           my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
-          return true;
+          if (thd->is_error()) return true;
         }
       }
     }  // is_blob
@@ -4939,7 +4939,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       return true;
     } else {
       my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
-      return true;
+      if (thd->is_error()) return true;
     }
   }
   key_part_info->length = static_cast<uint16>(key_part_length);
@@ -8382,8 +8382,12 @@ static bool create_table_impl(
   /* Suppress key length errors if this is a white listed table. */
   Key_length_error_handler error_handler;
   bool is_whitelisted_table =
-      dd::get_dictionary()->is_dd_table_name(db, error_table_name) ||
-      dd::get_dictionary()->is_system_table_name(db, error_table_name);
+      (create_info->options & HA_LEX_CREATE_TMP_TABLE) !=
+          HA_LEX_CREATE_TMP_TABLE &&
+      (thd->is_server_upgrade_thread() ||
+       create_info->db_type->db_type == DB_TYPE_INNODB) &&
+      (dd::get_dictionary()->is_dd_table_name(db, error_table_name) ||
+       dd::get_dictionary()->is_system_table_name(db, error_table_name));
   if (is_whitelisted_table) thd->push_internal_handler(&error_handler);
 
   bool prepare_error = mysql_prepare_create_table(
