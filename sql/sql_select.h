@@ -800,8 +800,7 @@ inline JOIN_TAB::JOIN_TAB()
   @return
     true if jt1 is smaller than jt2, false otherwise
 */
-class Join_tab_compare_default
-    : public std::binary_function<const JOIN_TAB *, const JOIN_TAB *, bool> {
+class Join_tab_compare_default {
  public:
   bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2) {
     // Sorting distinct tables, so a table should not be compared with itself
@@ -830,8 +829,7 @@ class Join_tab_compare_default
   query which is reflected in JOIN_TAB::dependent. Table size and key
   dependencies are ignored here.
 */
-class Join_tab_compare_straight
-    : public std::binary_function<const JOIN_TAB *, const JOIN_TAB *, bool> {
+class Join_tab_compare_straight {
  public:
   bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2) {
     // Sorting distinct tables, so a table should not be compared with itself
@@ -857,8 +855,7 @@ class Join_tab_compare_straight
   semi-join nest go first. Used when optimizing semi-join
   materialization nests.
 */
-class Join_tab_compare_embedded_first
-    : public std::binary_function<const JOIN_TAB *, const JOIN_TAB *, bool> {
+class Join_tab_compare_embedded_first {
  private:
   const TABLE_LIST *emb_nest;
 

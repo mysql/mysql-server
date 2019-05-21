@@ -3524,8 +3524,7 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
   return false;
 }
 
-class MDL_request_cmp : public std::binary_function<const MDL_request *,
-                                                    const MDL_request *, bool> {
+class MDL_request_cmp {
  public:
   bool operator()(const MDL_request *req1, const MDL_request *req2) {
     int rc = req1->key.cmp(&req2->key);

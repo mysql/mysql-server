@@ -75,9 +75,7 @@
 #include "sql/trigger_def.h"
 #include "unsafe_string_append.h"
 
-class Cmp_splocal_locations
-    : public std::binary_function<const Item_splocal *, const Item_splocal *,
-                                  bool> {
+class Cmp_splocal_locations {
  public:
   bool operator()(const Item_splocal *a, const Item_splocal *b) {
     DBUG_ASSERT(a->pos_in_query != b->pos_in_query);

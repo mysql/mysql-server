@@ -99,7 +99,7 @@ class ACL_ACCESS {
   ulong access;
 };
 
-class ACL_compare : public std::binary_function<ACL_ACCESS, ACL_ACCESS, bool> {
+class ACL_compare {
  public:
   bool operator()(const ACL_ACCESS &a, const ACL_ACCESS &b);
   bool operator()(const ACL_ACCESS *a, const ACL_ACCESS *b);

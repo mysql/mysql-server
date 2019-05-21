@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ bool Find_thd_with_id::operator()(THD *thd) {
   implementation.
 */
 
-class Do_THD : public std::unary_function<THD *, void> {
+class Do_THD {
  public:
   explicit Do_THD(Do_THD_Impl *impl) : m_impl(impl) {}
 
@@ -89,7 +89,7 @@ class Do_THD : public std::unary_function<THD *, void> {
   Internal class used in find_thd() implementation.
 */
 
-class Find_THD : public std::unary_function<THD *, bool> {
+class Find_THD {
  public:
   explicit Find_THD(Find_THD_Impl *impl) : m_impl(impl) {}
 

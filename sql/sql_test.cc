@@ -311,8 +311,7 @@ static inline int dl_compare(const TABLE_LOCK_INFO *a,
   return 1;
 }
 
-class DL_commpare : public std::binary_function<const TABLE_LOCK_INFO &,
-                                                const TABLE_LOCK_INFO &, bool> {
+class DL_commpare {
  public:
   bool operator()(const TABLE_LOCK_INFO &a, const TABLE_LOCK_INFO &b) {
     return dl_compare(&a, &b) < 0;

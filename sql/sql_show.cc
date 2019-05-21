@@ -1803,9 +1803,7 @@ class thread_info {
 };
 
 // For sorting by thread_id.
-class thread_info_compare
-    : public std::binary_function<const thread_info *, const thread_info *,
-                                  bool> {
+class thread_info_compare {
  public:
   bool operator()(const thread_info *p1, const thread_info *p2) {
     return p1->thread_id < p2->thread_id;
@@ -2166,8 +2164,7 @@ static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2) {
   return strcmp(var1->name, var2->name);
 }
 
-class Show_var_cmp
-    : public std::binary_function<const SHOW_VAR &, const SHOW_VAR &, bool> {
+class Show_var_cmp {
  public:
   bool operator()(const SHOW_VAR &var1, const SHOW_VAR &var2) {
     return show_var_cmp(&var1, &var2) < 0;

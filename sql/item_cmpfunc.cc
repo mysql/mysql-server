@@ -3803,9 +3803,7 @@ static int cmp_longlong(const in_longlong::packed_longlong *a,
     return cmp_longs(a->val, b->val);
 }
 
-class Cmp_longlong
-    : public std::binary_function<const in_longlong::packed_longlong &,
-                                  const in_longlong::packed_longlong &, bool> {
+class Cmp_longlong {
  public:
   bool operator()(const in_longlong::packed_longlong &a,
                   const in_longlong::packed_longlong &b) {
@@ -3830,8 +3828,7 @@ bool in_longlong::compare_elems(uint pos1, uint pos2) const {
   return cmp_longlong(&base[pos1], &base[pos2]) != 0;
 }
 
-class Cmp_row : public std::binary_function<const cmp_item_row *,
-                                            const cmp_item_row *, bool> {
+class Cmp_row {
  public:
   bool operator()(const cmp_item_row *a, const cmp_item_row *b) {
     return a->compare(b) < 0;

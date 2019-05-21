@@ -113,8 +113,7 @@ struct LatchDebug {
   typedef OSMutex Mutex;
 
   /** Comparator for the ThreadMap. */
-  struct os_thread_id_less
-      : public std::binary_function<os_thread_id_t, os_thread_id_t, bool> {
+  struct os_thread_id_less {
     /** @return true if lhs < rhs */
     bool operator()(const os_thread_id_t &lhs,
                     const os_thread_id_t &rhs) const UNIV_NOTHROW {
@@ -352,8 +351,7 @@ struct LatchDebug {
 
  private:
   /** Comparator for the Levels . */
-  struct latch_level_less
-      : public std::binary_function<latch_level_t, latch_level_t, bool> {
+  struct latch_level_less {
     /** @return true if lhs < rhs */
     bool operator()(const latch_level_t &lhs,
                     const latch_level_t &rhs) const UNIV_NOTHROW {
