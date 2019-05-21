@@ -642,12 +642,12 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 
   if (!path.exists()) {
-    if (mysql_harness::mkdir(directory.c_str(), kStrictDirectoryPerm) < 0) {
+    int err = mysql_harness::mkdir(directory, kStrictDirectoryPerm);
+    if (err != 0) {
       log_error("Cannot create directory '%s': %s",
-                truncate_string(directory).c_str(),
-                get_strerror(errno).c_str());
+                truncate_string(directory).c_str(), get_strerror(err).c_str());
 #ifndef _WIN32
-      if (errno == EACCES || errno == EPERM) log_error(kAppArmorMsg);
+      if (err == EACCES || err == EPERM) log_error(kAppArmorMsg);
 #endif
       throw std::runtime_error("Could not create deployment directory");
     }
@@ -709,8 +709,8 @@ void ConfigGenerator::bootstrap_directory_deployment(
       }
     }
     if (do_mkdir) {
-      int res = mysql_harness::mkdir(options[option_name].c_str(),
-                                     kStrictDirectoryPerm);
+      int res =
+          mysql_harness::mkdir(options[option_name], kStrictDirectoryPerm);
       if (res != 0) {
         if (res != EEXIST) {
           log_error("Cannot create directory '%s': %s",
