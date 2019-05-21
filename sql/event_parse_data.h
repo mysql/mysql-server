@@ -71,8 +71,8 @@ class Event_parse_data {
 
   bool body_changed;
 
-  LEX_STRING dbname;
-  LEX_STRING name;
+  LEX_CSTRING dbname;
+  LEX_CSTRING name;
   LEX_STRING definer;  // combination of user and host
   LEX_STRING comment;
 

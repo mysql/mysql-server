@@ -75,19 +75,15 @@ void sp_condition_value::print(String *str) const {
 }
 
 void sp_handler::print_conditions(String *str) const {
-  List_iterator_fast<const sp_condition_value> li(
-      const_cast<List<const sp_condition_value> &>(condition_values));
-  const sp_condition_value *cv;
   bool first = true;
-
-  while ((cv = li++)) {
+  for (const sp_condition_value &cv : condition_values) {
     if (first) {
       first = false;
       str->append(STRING_WITH_LEN(" HANDLER FOR"));
     } else
       str->append(STRING_WITH_LEN(","));
 
-    cv->print(str);
+    cv.print(str);
   }
 }
 

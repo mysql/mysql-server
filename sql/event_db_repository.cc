@@ -119,8 +119,8 @@ bool Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 */
 
 bool Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
-                                       LEX_STRING *new_dbname,
-                                       LEX_STRING *new_name) {
+                                       const LEX_CSTRING *new_dbname,
+                                       const LEX_CSTRING *new_name) {
   DBUG_TRACE;
   sp_head *sp = thd->lex->sphead;
 
@@ -202,7 +202,7 @@ bool Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   @retval true error (reported)
 */
 
-bool Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
+bool Event_db_repository::drop_event(THD *thd, LEX_CSTRING db, LEX_CSTRING name,
                                      bool drop_if_exists, bool *event_exists) {
   DBUG_TRACE;
   /*
@@ -285,8 +285,8 @@ bool Event_db_repository::drop_schema_events(THD *thd,
   @retval true   error
 */
 
-bool Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
-                                           LEX_STRING name, Event_basic *etn) {
+bool Event_db_repository::load_named_event(THD *thd, LEX_CSTRING dbname,
+                                           LEX_CSTRING name, Event_basic *etn) {
   const dd::Event *event_obj = nullptr;
 
   DBUG_TRACE;
@@ -318,7 +318,7 @@ bool Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
 */
 
 bool Event_db_repository::update_timing_fields_for_event(
-    THD *thd, LEX_STRING event_db_name, LEX_STRING event_name,
+    THD *thd, LEX_CSTRING event_db_name, LEX_CSTRING event_name,
     my_time_t last_executed, ulonglong status) {
   DBUG_TRACE;
   // Turn off autocommit.

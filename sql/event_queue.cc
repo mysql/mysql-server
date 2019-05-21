@@ -200,7 +200,7 @@ bool Event_queue::create_event(THD *thd, Event_queue_element *new_element,
       new_name   New name, in case of RENAME TO, otherwise NULL
 */
 
-void Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+void Event_queue::update_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
                                Event_queue_element *new_element) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("thd: %p  et=[%s.%s]", thd, dbname.str, name.str));
@@ -241,7 +241,7 @@ void Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
       name    Name of the event to drop
 */
 
-void Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
+void Event_queue::drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("thd: %p  db :%s  name: %s", thd, dbname.str, name.str));
 
@@ -272,8 +272,8 @@ void Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
     Expected is the caller to acquire lock on LOCK_event_queue
 */
 
-void Event_queue::drop_matching_events(LEX_STRING pattern,
-                                       bool (*comparator)(LEX_STRING,
+void Event_queue::drop_matching_events(LEX_CSTRING pattern,
+                                       bool (*comparator)(LEX_CSTRING,
                                                           Event_basic *)) {
   size_t i = 0;
   DBUG_TRACE;
@@ -323,7 +323,7 @@ void Event_queue::drop_matching_events(LEX_STRING pattern,
       schema    The schema name
 */
 
-void Event_queue::drop_schema_events(LEX_STRING schema) {
+void Event_queue::drop_schema_events(LEX_CSTRING schema) {
   DBUG_TRACE;
   LOCK_QUEUE_DATA();
   drop_matching_events(schema, event_basic_db_equal);
@@ -343,7 +343,7 @@ void Event_queue::drop_schema_events(LEX_STRING schema) {
     actual signalling in case an event is removed from the queue.
 */
 
-void Event_queue::find_n_remove_event(LEX_STRING db, LEX_STRING name) {
+void Event_queue::find_n_remove_event(LEX_CSTRING db, LEX_CSTRING name) {
   DBUG_TRACE;
 
   for (size_t i = 0; i < queue.size(); ++i) {

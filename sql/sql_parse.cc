@@ -3650,15 +3650,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
             break;
           }
           case SQLCOM_ALTER_EVENT: {
-            LEX_STRING db_lex_str = NULL_STR;
+            LEX_CSTRING name_lex_str = NULL_CSTR;
             if (lex->spname) {
-              db_lex_str.str = const_cast<char *>(lex->spname->m_db.str);
-              db_lex_str.length = lex->spname->m_db.length;
+              name_lex_str.str = lex->spname->m_name.str;
+              name_lex_str.length = lex->spname->m_name.length;
             }
 
-            res = Events::update_event(
-                thd, lex->event_parse_data, lex->spname ? &db_lex_str : NULL,
-                lex->spname ? &lex->spname->m_name : NULL);
+            res =
+                Events::update_event(thd, lex->event_parse_data,
+                                     lex->spname ? &lex->spname->m_db : nullptr,
+                                     lex->spname ? &name_lex_str : nullptr);
             break;
           }
           default:
@@ -3676,15 +3677,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
       /* lex->unit->cleanup() is called outside, no need to call it here */
       break;
     case SQLCOM_SHOW_CREATE_EVENT: {
-      LEX_STRING db_lex_str = {const_cast<char *>(lex->spname->m_db.str),
-                               lex->spname->m_db.length};
-      res = Events::show_create_event(thd, db_lex_str, lex->spname->m_name);
+      res = Events::show_create_event(thd, lex->spname->m_db,
+                                      to_lex_cstring(lex->spname->m_name));
       break;
     }
     case SQLCOM_DROP_EVENT: {
-      LEX_STRING db_lex_str = {const_cast<char *>(lex->spname->m_db.str),
-                               lex->spname->m_db.length};
-      if (!(res = Events::drop_event(thd, db_lex_str, lex->spname->m_name,
+      if (!(res = Events::drop_event(thd, lex->spname->m_db,
+                                     to_lex_cstring(lex->spname->m_name),
                                      lex->drop_if_exists)))
         my_ok(thd);
       break;
@@ -4121,7 +4120,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
           }
           if (is_acl_user(thd, current_host.str, current_user.str)) {
             security_context.change_security_context(
-                thd, current_user, current_host, &thd->lex->sphead->m_db,
+                thd, current_user, current_host, thd->lex->sphead->m_db.str,
                 &backup);
             restore_backup_context = true;
           }

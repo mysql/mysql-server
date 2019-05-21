@@ -276,7 +276,7 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
 
 bool Security_context::change_security_context(
     THD *thd, const LEX_CSTRING &definer_user, const LEX_CSTRING &definer_host,
-    LEX_STRING *db, Security_context **backup, bool force) {
+    const char *db, Security_context **backup, bool force) {
   bool needs_change;
 
   DBUG_TRACE;
@@ -289,10 +289,8 @@ bool Security_context::change_security_context(
        my_strcasecmp(system_charset_info, definer_host.str,
                      thd->security_context()->priv_host().str));
   if (needs_change || force) {
-    if (acl_getroot(thd, this, const_cast<char *>(definer_user.str),
-                    const_cast<char *>(definer_host.str),
-                    const_cast<char *>(definer_host.str),
-                    (db ? db->str : nullptr))) {
+    if (acl_getroot(thd, this, definer_user.str, definer_host.str,
+                    definer_host.str, db)) {
       my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str, definer_host.str);
       return true;
     }

@@ -279,7 +279,8 @@ static void load_event_creation_context(THD *thd, TABLE *table,
 */
 
 static bool update_event_timing_fields(THD *thd, TABLE *table,
-                                       char *event_db_name, char *event_name) {
+                                       const char *event_db_name,
+                                       const char *event_name) {
   dd::Event *new_event = nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 

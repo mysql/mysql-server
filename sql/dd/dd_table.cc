@@ -226,10 +226,10 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
 */
 
 dd::String_type get_sql_type_by_create_field(TABLE *table,
-                                             Create_field *field) {
+                                             const Create_field &field) {
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<Field> fld(make_field(*field, table->s));
+  unique_ptr_destroy_only<Field> fld(make_field(field, table->s));
   fld->init(table);
 
   // Read column display type.
@@ -539,72 +539,69 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
   //
   // Iterate through all the table columns
   //
-  Create_field *field;
-  List_iterator<Create_field> it(
-      const_cast<List<Create_field> &>(create_fields));
-  while ((field = it++)) {
+  for (const Create_field &field : create_fields) {
     //
     // Add new DD column
     //
 
     dd::Column *col_obj = tab_obj->add_column();
 
-    col_obj->set_name(field->field_name);
+    col_obj->set_name(field.field_name);
 
-    col_obj->set_type(dd::get_new_field_type(field->sql_type));
+    col_obj->set_type(dd::get_new_field_type(field.sql_type));
 
-    col_obj->set_char_length(field->max_display_width_in_bytes());
+    col_obj->set_char_length(field.max_display_width_in_bytes());
 
     // Set result numeric scale.
     uint value = 0;
-    if (get_field_numeric_scale(field, &value) == false)
+    if (get_field_numeric_scale(&field, &value) == false)
       col_obj->set_numeric_scale(value);
 
     // Set result numeric precision.
-    if (get_field_numeric_precision(field, &value) == false)
+    if (get_field_numeric_precision(&field, &value) == false)
       col_obj->set_numeric_precision(value);
 
     // Set result datetime precision.
-    if (get_field_datetime_precision(field, &value) == false)
+    if (get_field_datetime_precision(&field, &value) == false)
       col_obj->set_datetime_precision(value);
 
-    col_obj->set_nullable(field->maybe_null);
+    col_obj->set_nullable(field.maybe_null);
 
-    col_obj->set_unsigned(field->is_unsigned);
+    col_obj->set_unsigned(field.is_unsigned);
 
-    col_obj->set_zerofill(field->is_zerofill);
+    col_obj->set_zerofill(field.is_zerofill);
 
-    col_obj->set_srs_id(field->m_srid);
+    col_obj->set_srs_id(field.m_srid);
 
     // Check that the hidden type isn't the type that is used internally by
     // storage engines.
-    DBUG_ASSERT(field->hidden != dd::Column::enum_hidden_type::HT_HIDDEN_SE);
-    col_obj->set_hidden(field->hidden);
+    DBUG_ASSERT(field.hidden != dd::Column::enum_hidden_type::HT_HIDDEN_SE);
+    col_obj->set_hidden(field.hidden);
 
     /*
       AUTO_INCREMENT, DEFAULT/ON UPDATE CURRENT_TIMESTAMP properties are
       stored in Create_field::auto_flags.
     */
-    if (field->auto_flags & Field::DEFAULT_NOW)
-      col_obj->set_default_option(now_with_opt_decimals(field->decimals));
+    if (field.auto_flags & Field::DEFAULT_NOW)
+      col_obj->set_default_option(now_with_opt_decimals(field.decimals));
 
-    if (field->auto_flags & Field::ON_UPDATE_NOW)
-      col_obj->set_update_option(now_with_opt_decimals(field->decimals));
+    if (field.auto_flags & Field::ON_UPDATE_NOW)
+      col_obj->set_update_option(now_with_opt_decimals(field.decimals));
 
-    col_obj->set_auto_increment((field->auto_flags & Field::NEXT_NUMBER) != 0);
+    col_obj->set_auto_increment((field.auto_flags & Field::NEXT_NUMBER) != 0);
 
     // Handle generated default
-    if (field->m_default_val_expr) {
+    if (field.m_default_val_expr) {
       char buffer[128];
       String default_val_expr(buffer, sizeof(buffer), &my_charset_bin);
       // Convert the expression from Item* to text
-      field->m_default_val_expr->print_expr(thd, &default_val_expr);
+      field.m_default_val_expr->print_expr(thd, &default_val_expr);
       col_obj->set_default_option(
           dd::String_type(default_val_expr.ptr(), default_val_expr.length()));
     }
 
     // Handle generated columns
-    if (field->gcol_info) {
+    if (field.gcol_info) {
       /*
         It is important to normalize the expression's text into the DD, to
         make it independent from sql_mode. For example, 'a||b' means 'a OR b'
@@ -614,8 +611,8 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
        */
       char buffer[128];
       String gc_expr(buffer, sizeof(buffer), &my_charset_bin);
-      col_obj->set_virtual(!field->stored_in_db);
-      field->gcol_info->print_expr(thd, &gc_expr);
+      col_obj->set_virtual(!field.stored_in_db);
+      field.gcol_info->print_expr(thd, &gc_expr);
       col_obj->set_generation_expression(
           dd::String_type(gc_expr.ptr(), gc_expr.length()));
 
@@ -627,41 +624,41 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
           dd::String_type(gc_expr_for_IS.ptr(), gc_expr_for_IS.length()));
     }
 
-    if (field->comment.str && field->comment.length)
+    if (field.comment.str && field.comment.length)
       col_obj->set_comment(
-          dd::String_type(field->comment.str, field->comment.length));
+          dd::String_type(field.comment.str, field.comment.length));
 
     // Collation ID
-    col_obj->set_collation_id(field->charset->number);
+    col_obj->set_collation_id(field.charset->number);
 
     // Was collation supplied explicitly ?
-    col_obj->set_is_explicit_collation(field->is_explicit_collation);
+    col_obj->set_is_explicit_collation(field.is_explicit_collation);
 
     /*
       Store numeric scale for types relying on this info (old and new decimal
       and floating point types). Also store 0 for integer types to simplify I_S
       implementation.
     */
-    switch (field->sql_type) {
+    switch (field.sql_type) {
       case MYSQL_TYPE_FLOAT:
       case MYSQL_TYPE_DOUBLE:
         /* For these types we show NULL in I_S if scale was not given. */
-        if (field->decimals != DECIMAL_NOT_SPECIFIED)
-          col_obj->set_numeric_scale(field->decimals);
+        if (field.decimals != DECIMAL_NOT_SPECIFIED)
+          col_obj->set_numeric_scale(field.decimals);
         else {
           DBUG_ASSERT(col_obj->is_numeric_scale_null());
         }
         break;
       case MYSQL_TYPE_NEWDECIMAL:
       case MYSQL_TYPE_DECIMAL:
-        col_obj->set_numeric_scale(field->decimals);
+        col_obj->set_numeric_scale(field.decimals);
         break;
       case MYSQL_TYPE_TINY:
       case MYSQL_TYPE_SHORT:
       case MYSQL_TYPE_LONG:
       case MYSQL_TYPE_INT24:
       case MYSQL_TYPE_LONGLONG:
-        DBUG_ASSERT(field->decimals == 0);
+        DBUG_ASSERT(field.decimals == 0);
         col_obj->set_numeric_scale(0);
         break;
       default:
@@ -681,28 +678,28 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       when SE starts supporting optimized BIT storage but still needs
       to handle correctly columns which were created before this change.
     */
-    if (field->sql_type == MYSQL_TYPE_BIT)
-      col_options->set("treat_bit_as_char", field->treat_bit_as_char);
+    if (field.sql_type == MYSQL_TYPE_BIT)
+      col_options->set("treat_bit_as_char", field.treat_bit_as_char);
 
     // Store geometry sub type
-    if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
-      col_options->set("geom_type", field->geom_type);
+    if (field.sql_type == MYSQL_TYPE_GEOMETRY) {
+      col_options->set("geom_type", field.geom_type);
     }
 
     // Field storage media and column format options
-    if (field->field_storage_type() != HA_SM_DEFAULT)
+    if (field.field_storage_type() != HA_SM_DEFAULT)
       col_options->set("storage",
-                       static_cast<uint32>(field->field_storage_type()));
+                       static_cast<uint32>(field.field_storage_type()));
 
-    if (field->column_format() != COLUMN_FORMAT_TYPE_DEFAULT)
+    if (field.column_format() != COLUMN_FORMAT_TYPE_DEFAULT)
       col_options->set("column_format",
-                       static_cast<uint32>(field->column_format()));
+                       static_cast<uint32>(field.column_format()));
 
     // NOT SECONDARY column option.
-    if (field->flags & NOT_SECONDARY_FLAG)
+    if (field.flags & NOT_SECONDARY_FLAG)
       col_options->set("not_secondary", true);
 
-    if (field->is_array) {
+    if (field.is_array) {
       col_options->set("is_array", true);
     }
 
@@ -710,12 +707,12 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     // Write intervals
     //
     uint i = 0;
-    if (field->interval) {
+    if (field.interval) {
       uchar buff[MAX_FIELD_WIDTH];
       String tmp((char *)buff, sizeof(buff), &my_charset_bin);
       tmp.length(0);
 
-      for (const char **pos = field->interval->type_names; *pos; pos++) {
+      for (const char **pos = field.interval->type_names; *pos; pos++) {
         //
         // Create enum/set object
         //
@@ -726,7 +723,7 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
 
         //  Copy type_lengths[i] bytes including '\0'
         //  This helps store typelib names that are of different charsets.
-        dd::String_type interval_name(*pos, field->interval->type_lengths[i]);
+        dd::String_type interval_name(*pos, field.interval->type_lengths[i]);
         elem_obj->set_name(interval_name);
 
         i++;
@@ -740,13 +737,13 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     col_options->set("interval_count", i);
 
     // Store geometry sub type
-    if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
-      col_options->set("geom_type", field->geom_type);
+    if (field.sql_type == MYSQL_TYPE_GEOMETRY) {
+      col_options->set("geom_type", field.geom_type);
     }
 
     // Reset the buffer and assign the column's default value.
     memset(buf, 0, bufsize);
-    if (prepare_default_value(thd, buf, table, *field, col_obj)) return true;
+    if (prepare_default_value(thd, buf, table, field, col_obj)) return true;
 
     /**
       Storing default value specified for column in
@@ -763,7 +760,7 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       prepared in prepare_default_value() is used.
     */
     String def_val;
-    prepare_default_value_string(buf, &table, *field, col_obj, &def_val);
+    prepare_default_value_string(buf, &table, field, col_obj, &def_val);
     if (def_val.ptr() != nullptr)
       col_obj->set_default_value_utf8(
           dd::String_type(def_val.ptr(), def_val.length()));
@@ -917,7 +914,7 @@ static void fill_dd_index_elements_from_key_parts(
 }
 
 //  Check if a given key is candidate to be promoted to primary key.
-static bool is_candidate_primary_key(THD *thd, KEY *key,
+static bool is_candidate_primary_key(THD *thd, const KEY *key,
                                      const List<Create_field> &create_fields) {
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *key_part_end = key->key_part + key->user_defined_key_parts;
@@ -1095,7 +1092,7 @@ static void fill_dd_indexes_from_keyinfo(
       fill_dd_index_elements_from_key_parts() about the same.
     */
     if (primary_key_info == nullptr &&
-        is_candidate_primary_key(thd, const_cast<KEY *>(key), create_fields)) {
+        is_candidate_primary_key(thd, key, create_fields)) {
       primary_key_info = key;
     }
 
@@ -2630,7 +2627,7 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
                            is_unsigned, 0);
   field.charset = field_charset;
 
-  return get_sql_type_by_create_field(&table, &field);
+  return get_sql_type_by_create_field(&table, field);
 }
 
 bool fix_row_type(THD *thd, dd::Table *table_def, row_type correct_row_type) {

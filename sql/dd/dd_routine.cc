@@ -94,7 +94,7 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
 
   // Reset result data type in utf8
   sf->set_result_data_type_utf8(
-      get_sql_type_by_create_field(&table, return_field));
+      get_sql_type_by_create_field(&table, *return_field));
 
   // Set result is_zerofill flag.
   sf->set_result_zerofill(return_field->is_zerofill);
@@ -160,7 +160,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   table.s->db_low_byte_first = 1;
 
   // Reset data type in utf8
-  param->set_data_type_utf8(get_sql_type_by_create_field(&table, field));
+  param->set_data_type_utf8(get_sql_type_by_create_field(&table, *field));
 
   // Set is_zerofill flag.
   param->set_zerofill(field->is_zerofill);

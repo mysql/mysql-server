@@ -147,15 +147,9 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue);
     1   s > t
 */
 
-int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, (uchar *)s.str, s.length, (uchar *)t.str,
-                               t.length);
-}
-
-void convert_name_lowercase(const char *from, char *to, size_t len) {
-  my_stpncpy(to, from, len - 1);
-  my_casedn_str(&my_charset_utf8_tolower_ci, to);
-  to[len - 1] = '\0';
+int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, CHARSET_INFO *cs) {
+  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s.str), s.length,
+                               pointer_cast<const uchar *>(t.str), t.length);
 }
 
 /*
@@ -480,7 +474,8 @@ err_with_rollback:
 */
 
 bool Events::update_event(THD *thd, Event_parse_data *parse_data,
-                          LEX_STRING *new_dbname, LEX_STRING *new_name) {
+                          const LEX_CSTRING *new_dbname,
+                          const LEX_CSTRING *new_name) {
   std::unique_ptr<Event_queue_element> new_element(nullptr);
 
   DBUG_TRACE;
@@ -542,8 +537,8 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
       goto err_with_rollback;
     }
 
-    LEX_STRING dbname = new_dbname ? *new_dbname : parse_data->dbname;
-    LEX_STRING name = new_name ? *new_name : parse_data->name;
+    LEX_CSTRING dbname = new_dbname ? *new_dbname : parse_data->dbname;
+    LEX_CSTRING name = new_name ? *new_name : parse_data->name;
     if (Event_db_repository::load_named_event(thd, dbname, name,
                                               new_element.get()))
       goto err_with_rollback;
@@ -629,7 +624,7 @@ err_with_rollback:
   @retval  true   Error (reported)
 */
 
-bool Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+bool Events::drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
                         bool if_exists) {
   DBUG_TRACE;
 
@@ -746,8 +741,7 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
   @returns false  drop events from database succeeded.
 */
 bool Events::drop_schema_events(THD *thd, const dd::Schema &schema) {
-  LEX_STRING db_lex = {const_cast<char *>(schema.name().c_str()),
-                       schema.name().length()};
+  LEX_CSTRING db_lex = {schema.name().c_str(), schema.name().length()};
 
   if (event_queue) event_queue->drop_schema_events(db_lex);
 
@@ -837,7 +831,7 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
   @retval  true   error (reported)
 */
 
-bool Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
+bool Events::show_create_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name) {
   Event_timed et;
   bool ret;
 

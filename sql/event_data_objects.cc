@@ -90,14 +90,6 @@ PSI_statement_info Event_queue_element_for_exec::psi_info = {0, "event", 0,
                                                              PSI_DOCUMENT_ME};
 #endif
 
-static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root, const char *str) {
-  LEX_STRING lex_str;
-  size_t len = strlen(str);
-  lex_str.str = strmake_root(mem_root, str, len);
-  lex_str.length = len;
-  return lex_str;
-}
-
 static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root,
                                          const dd::String_type &str) {
   LEX_STRING lex_str;
@@ -190,14 +182,14 @@ bool Event_creation_ctx::create_event_creation_ctx(
     true   Error (OOM)
 */
 
-bool Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n) {
+bool Event_queue_element_for_exec::init(LEX_CSTRING db, LEX_CSTRING n) {
   if (!(dbname.str =
             my_strndup(key_memory_Event_queue_element_for_exec_names, db.str,
                        dbname.length = db.length, MYF(MY_WME))))
     return true;
   if (!(name.str = my_strndup(key_memory_Event_queue_element_for_exec_names,
                               n.str, name.length = n.length, MYF(MY_WME)))) {
-    my_free(dbname.str);
+    my_free(const_cast<char *>(dbname.str));
     return true;
   }
   return false;
@@ -216,8 +208,8 @@ void Event_queue_element_for_exec::claim_memory_ownership() {
 */
 
 Event_queue_element_for_exec::~Event_queue_element_for_exec() {
-  my_free(dbname.str);
-  my_free(name.str);
+  my_free(const_cast<char *>(dbname.str));
+  my_free(const_cast<char *>(name.str));
 }
 
 /*
@@ -228,7 +220,7 @@ Event_queue_element_for_exec::~Event_queue_element_for_exec() {
 */
 
 Event_basic::Event_basic()
-    : m_schema_name(NULL_STR), m_event_name(NULL_STR), m_time_zone(nullptr) {
+    : m_schema_name(NULL_CSTR), m_event_name(NULL_CSTR), m_time_zone(nullptr) {
   DBUG_TRACE;
   /* init memory root */
   init_sql_alloc(key_memory_event_basic_root, &mem_root, 256, 512);
@@ -328,13 +320,13 @@ bool Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
                                      const char *schema_name) {
   DBUG_TRACE;
 
-  m_schema_name = make_lex_string(&mem_root, schema_name);
-  m_event_name = make_lex_string(&mem_root, event_obj.name());
+  m_schema_name = make_lex_cstring(&mem_root, schema_name);
+  m_event_name = make_lex_cstring(&mem_root, event_obj.name());
 
   dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
-  m_definer = make_lex_string(&mem_root, tmp);
+  m_definer = make_lex_cstring(&mem_root, tmp);
 
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone = my_tz_find(thd, &str);
@@ -359,14 +351,14 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
                                           const char *schema_name) {
   DBUG_TRACE;
 
-  m_schema_name = make_lex_string(&mem_root, schema_name);
-  m_event_name = make_lex_string(&mem_root, event_obj.name());
+  m_schema_name = make_lex_cstring(&mem_root, schema_name);
+  m_event_name = make_lex_cstring(&mem_root, event_obj.name());
 
   dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
 
-  m_definer = make_lex_string(&mem_root, tmp);
+  m_definer = make_lex_cstring(&mem_root, tmp);
 
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone = my_tz_find(thd, &str);
@@ -1043,12 +1035,12 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     mysql_change_db will be invoked anyway later, to activate the
     procedure database before it's executed.
   */
-  thd->set_db(to_lex_cstring(m_schema_name));
+  thd->set_db(m_schema_name);
 
   lex_start(thd);
 
   if (event_sctx.change_security_context(thd, m_definer_user, m_definer_host,
-                                         &m_schema_name, &save_sctx)) {
+                                         m_schema_name.str, &save_sctx)) {
     LogErr(ERROR_LEVEL, ER_EVENT_EXECUTION_FAILED_CANT_AUTHENTICATE_USER,
            m_definer.str, m_schema_name.str, m_event_name.str);
     goto end;
@@ -1207,9 +1199,8 @@ end:
   Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
   PRESERVE event.
 */
-bool construct_drop_event_sql(THD *thd, String *sp_sql,
-                              const LEX_STRING &schema_name,
-                              const LEX_STRING &event_name) {
+bool construct_drop_event_sql(THD *thd, String *sp_sql, LEX_CSTRING schema_name,
+                              LEX_CSTRING event_name) {
   LEX_STRING buffer;
   const uint STATIC_SQL_LENGTH = 14;
   int ret = 0;
@@ -1246,7 +1237,7 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
     false  Not equal
 */
 
-bool event_basic_db_equal(LEX_STRING db, Event_basic *et) {
+bool event_basic_db_equal(LEX_CSTRING db, Event_basic *et) {
   return !sortcmp_lex_string(et->m_schema_name, db, system_charset_info);
 }
 
@@ -1264,7 +1255,7 @@ bool event_basic_db_equal(LEX_STRING db, Event_basic *et) {
     false  Not equal
 */
 
-bool event_basic_identifier_equal(LEX_STRING db, LEX_STRING name,
+bool event_basic_identifier_equal(LEX_CSTRING db, LEX_CSTRING name,
                                   Event_basic *b) {
   return !sortcmp_lex_string(name, b->m_event_name, system_charset_info) &&
          !sortcmp_lex_string(db, b->m_schema_name, system_charset_info);

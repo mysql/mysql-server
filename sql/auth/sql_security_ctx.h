@@ -262,7 +262,7 @@ class Security_context {
   void set_password_expired(bool password_expired);
 
   bool change_security_context(THD *thd, const LEX_CSTRING &definer_user,
-                               const LEX_CSTRING &definer_host, LEX_STRING *db,
+                               const LEX_CSTRING &definer_host, const char *db,
                                Security_context **backup, bool force = false);
 
   void restore_security_context(THD *thd, Security_context *backup);

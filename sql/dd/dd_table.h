@@ -362,7 +362,8 @@ bool fill_dd_columns_from_create_fields(THD *thd, Abstract_table *tab_obj,
   @return dd::String_type representing column type.
 */
 
-dd::String_type get_sql_type_by_create_field(TABLE *table, Create_field *field);
+dd::String_type get_sql_type_by_create_field(TABLE *table,
+                                             const Create_field &field);
 
 /**
   Helper method to get numeric scale for types using Create_field type

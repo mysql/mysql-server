@@ -2379,7 +2379,7 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
   */
   DBUG_ASSERT(m_chistics->suid != SP_IS_NOT_SUID);
   if (m_security_ctx.change_security_context(thd, definer_user, definer_host,
-                                             &m_db, &save_ctx))
+                                             m_db.str, &save_ctx))
     return true;
 
   /*
@@ -3376,7 +3376,7 @@ bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx) {
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd, definer_user, definer_host,
-                                             &m_db, save_ctx)) {
+                                             m_db.str, save_ctx)) {
     return true;
   }
 
