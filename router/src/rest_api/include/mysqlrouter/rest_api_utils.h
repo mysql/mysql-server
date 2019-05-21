@@ -81,6 +81,18 @@ bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods);
 bool ensure_auth(HttpRequest &req, const std::string require_realm);
 
 /**
+ * ensure request has no parameters.
+ *
+ * sends HTTP-response with status 400 if request contained a query string.
+ *
+ * @returns success
+ * @retval true if request did not contain a query-string
+ * @retval false if request contained a query-string and HTTP response has
+ * been sent
+ */
+bool ensure_no_params(HttpRequest &req);
+
+/**
  * send a JsonProblem "Not Found" error.
  *
  * @param req HttpRequest object to send error-msg

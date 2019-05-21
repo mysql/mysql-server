@@ -139,6 +139,17 @@ static const RestApiTestParams rest_api_valid_methods[]{
           }},
      },
      kRouterSwaggerPaths},
+    {"router_status_no_params",
+     std::string(rest_api_basepath) + "/router/status?someparam",
+     "/router/status",
+     HttpMethod::Get,
+     HttpStatusCode::BadRequest,
+     kContentTypeJsonProblem,
+     kRestApiUsername,
+     kRestApiPassword,
+     /*request_authentication =*/true,
+     {},
+     kRouterSwaggerPaths},
 };
 
 INSTANTIATE_TEST_CASE_P(
@@ -182,25 +193,12 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"router_status_invalid_methods",
      std::string(rest_api_basepath) + "/router/status", "/router/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
+         HttpMethod::Connect,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
      RestApiComponentTest::kProblemJsonMethodNotAllowed, kRouterSwaggerPaths},
-
-    // OPTIONS, CONNECT and TRACE are disabled in libevent via
-    // evhttp_set_allowed_methods() and return 501, which is ok-ish.
-    {"router_status_unimplemented_methods",
-     std::string(rest_api_basepath) + "/router/status",
-     "/router/status",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-     HttpStatusCode::NotImplemented,
-     kContentTypeHtml,
-     kRestApiUsername,
-     kRestApiPassword,
-     /*request_authentication =*/true,
-     {},
-     kRouterSwaggerPaths},
 };
 
 INSTANTIATE_TEST_CASE_P(

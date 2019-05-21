@@ -366,7 +366,7 @@ class MySQLRouter {
    *
    *     shell> mysqlrouter --help
    */
-  void show_help() noexcept;
+  void show_help();
 
   /** @brief Saves the selected command line option in the internal options
    * array after verifying it's value not empty and the router is doing

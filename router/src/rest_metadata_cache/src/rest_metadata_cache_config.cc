@@ -47,6 +47,8 @@ static rapidjson::Value json_value_from_string(const std::string &s,
 bool RestMetadataCacheConfig::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
     const std::vector<std::string> &path_matches) {
+  if (!ensure_no_params(req)) return true;
+
   if (path_matches[1] !=
       metadata_cache::MetadataCacheAPI::instance()->instance_name()) {
     send_rfc7807_not_found_error(req);

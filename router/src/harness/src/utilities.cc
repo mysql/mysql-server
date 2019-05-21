@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,11 @@
 
 #include "utilities.h"
 
-#include <string.h>
 #include <algorithm>
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 
 using std::string;
 using std::vector;
@@ -119,6 +119,19 @@ vector<string> wrap_string(const string &to_wrap, size_t width,
   }
 
   return res;
+}
+
+bool ends_with(const std::string &str, const std::string &suffix) {
+  auto suffix_size = suffix.size();
+  auto str_size = str.size();
+  return (str_size >= suffix_size &&
+          str.compare(str_size - suffix_size, str_size, suffix) == 0);
+}
+
+bool starts_with(const std::string &str, const std::string &prefix) {
+  auto prefix_size = prefix.size();
+  auto str_size = str.size();
+  return (str_size >= prefix_size && str.compare(0, prefix_size, prefix) == 0);
 }
 
 #ifndef _WIN32

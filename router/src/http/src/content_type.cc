@@ -22,40 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "rest_clusters_list.h"
+#include "content_type.h"
 
-#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
-#include "my_rapidjson_size_t.h"
-#endif
-
-#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
-
-#include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/rest_api_utils.h"
-
-constexpr const char RestClustersList::path_regex[];
-
-bool RestClustersList::on_handle_request(
-    HttpRequest &req, const std::string & /* base_path */,
-    const std::vector<std::string> & /* path_matches */) {
-  if (!ensure_no_params(req)) return true;
-
-  auto out_hdrs = req.get_output_headers();
-  out_hdrs.add("Content-Type", "application/json");
-
-  rapidjson::Document json_doc;
-  {
-    rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
-
-    rapidjson::Value items(rapidjson::kArrayType);
-
-    json_doc.SetObject().AddMember("items", items, allocator);
-  }
-
-  send_json_document(req, HttpStatusCode::Ok, json_doc);
-
-  return true;
-}
+constexpr const char MimeType::ApplicationJavascript[];
+constexpr const char MimeType::ApplicationJson[];
+constexpr const char MimeType::ApplicationOctetStream[];
+constexpr const char MimeType::TextCss[];
+constexpr const char MimeType::TextHtml[];
+constexpr const char MimeType::ImageJpeg[];
+constexpr const char MimeType::ImagePng[];
+constexpr const char MimeType::ImageSvgXML[];

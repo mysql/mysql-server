@@ -275,7 +275,7 @@ TEST_P(HttpServerPlainTest, ensure) {
     ASSERT_TRUE(wait_for_port_ready(http_port))
         << http_server.get_full_logfile();
 
-    SCOPED_TRACE("// GETing " + rel_uri);
+    SCOPED_TRACE("// requesting " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), GetParam().status_code);
@@ -476,7 +476,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      HttpMethod::Trace,
      "/with_index/index.html",
      "",
-     501},
+     HttpStatusCode::MethodNotAllowed},
 
     {"CONNECT, file-exists",
      "WL11891::TS-21",
@@ -490,7 +490,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      HttpMethod::Connect,
      "/with_index/index.html",
      "",
-     501},
+     HttpStatusCode::MethodNotAllowed},
 
     {"POST, file-exists",
      "WL11891::TS-22",
@@ -560,7 +560,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      HttpMethod::Patch,
      "/with_index/index.html",
      "",
-     501},
+     HttpStatusCode::MethodNotAllowed},
 
     {"DELETE, file-exists",
      "WL11891::TS-27",

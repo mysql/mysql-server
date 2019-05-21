@@ -286,26 +286,14 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"swagger_json_invalid_methods",
      rest_api_basepath,
      "/swagger.json",
-     HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch,
+     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect |
+         HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch,
      HttpStatusCode::MethodNotAllowed,
      kContentTypeJsonProblem,
      kRestApiUsername,
      kRestApiPassword,
      /*request_authentication =*/true,
      RestApiComponentTest::kProblemJsonMethodNotAllowed,
-     {}},
-    // OPTIONS, CONNECT and TRACE are disabled in libevent via
-    // evhttp_set_allowed_methods() and return 501, which is ok-ish.
-    {"swagger_json_unimplemented_methods",
-     rest_api_basepath,
-     "/swagger.json",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-     HttpStatusCode::NotImplemented,
-     kContentTypeHtml,
-     kRestApiUsername,
-     kRestApiPassword,
-     /*request_authentication =*/true,
-     {},
      {}},
 };
 
@@ -325,26 +313,14 @@ static const RestApiTestParams rest_api_invalid_methods_no_auth_params[]{
     {"swagger_json_invalid_methods_no_auth",
      rest_api_basepath,
      "/swagger.json",
-     HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch,
+     HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
+         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
      HttpStatusCode::MethodNotAllowed,
      kContentTypeJsonProblem,
      /*username =*/"",
      /*password =*/"",
      /*request_authentication =*/false,
      RestApiComponentTest::kProblemJsonMethodNotAllowed,
-     {}},
-    // OPTIONS, CONNECT and TRACE are disabled in libevent via
-    // evhttp_set_allowed_methods() and return 501, which is ok-ish.
-    {"swagger_json_unimplemented_methods_no_auth",
-     rest_api_basepath,
-     "/swagger.json",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
-     HttpStatusCode::NotImplemented,
-     kContentTypeHtml,
-     /*username =*/"",
-     /*password =*/"",
-     /*request_authentication =*/false,
-     {},
      {}},
 };
 

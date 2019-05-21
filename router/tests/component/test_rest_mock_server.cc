@@ -553,11 +553,11 @@ INSTANTIATE_TEST_CASE_P(
         std::make_tuple(HttpMethod::Delete, kMockServerGlobalsRestUri,
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Trace, kMockServerGlobalsRestUri,
-                        HttpStatusCode::NotImplemented),
+                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Options, kMockServerGlobalsRestUri,
-                        HttpStatusCode::NotImplemented),
+                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Connect, kMockServerGlobalsRestUri,
-                        HttpStatusCode::NotImplemented),
+                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerGlobalsRestUri,
                         HttpStatusCode::MethodNotAllowed)));
 
@@ -571,11 +571,11 @@ INSTANTIATE_TEST_CASE_P(
         std::make_tuple(HttpMethod::Delete, kMockServerConnectionsRestUri,
                         HttpStatusCode::Ok),
         std::make_tuple(HttpMethod::Trace, kMockServerConnectionsRestUri,
-                        HttpStatusCode::NotImplemented),
+                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Options, kMockServerConnectionsRestUri,
-                        HttpStatusCode::NotImplemented),
+                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Connect, kMockServerConnectionsRestUri,
-                        HttpStatusCode::NotImplemented),
+                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerConnectionsRestUri,
                         HttpStatusCode::MethodNotAllowed)));
 
