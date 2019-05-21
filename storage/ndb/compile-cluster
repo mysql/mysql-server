@@ -175,7 +175,7 @@ if(! -d "$opt_srcdir/libmysqld")
     push(@args, "-DWITH_RAPID=0"); # No RAPID
 
     # Also removing Unit tests - not unrelated
-    push(@args, "-DWITH_UNIT_TEST=0"); # No Unit tests
+    push(@args, "-DWITH_UNIT_TESTS=0"); # No Unit tests
   }
 
   if ($opt_autotest)
