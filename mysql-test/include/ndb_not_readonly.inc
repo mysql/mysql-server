@@ -25,7 +25,6 @@ while (!$connected)
   if (!$mysql_errno)
   {
     let $connected = 1;
-    DROP TABLE check_not_readonly;
   }
   # else
   if ($mysql_errno)
@@ -35,6 +34,34 @@ while (!$connected)
       die Timeout while waiting for MySQL Server to connect to cluster;
     }
     dec $counter;
+    --sleep 0.1
+  }
+}
+
+# Drop the table.
+# Allow retry when failure to lock GSL occurs, this is due
+# to contention when starting more than one MySQL Server who
+# need to lock the GSL to sync DD.
+
+let $drop_counter = 600;
+let $dropped = 0;
+while(!$dropped)
+{
+  --error 0, ER_LOCK_WAIT_TIMEOUT
+  DROP TABLE check_not_readonly;
+
+  if (!$mysql_errno)
+  {
+    let $dropped = 1;
+  }
+  # else
+  if ($mysql_errno)
+  {
+    dec $drop_counter;
+    if (!$drop_counter)
+    {
+      die Timeout while waiting for 'DROP TABLE check_not_readonly' to succeed;
+    }
     --sleep 0.1
   }
 }
