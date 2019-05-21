@@ -3292,7 +3292,7 @@ static int check_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *save,
 
   if (autorejoin_module->is_autorejoin_ongoing()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    my_message(ER_GRP_RPL_STARTED_AUTO_REJOIN,
+    my_message(ER_DA_GRP_RPL_STARTED_AUTO_REJOIN,
                "Cannot update the number of auto-rejoin retry attempts when "
                "an auto-rejoin process is already running.",
                MYF(0));
@@ -3320,7 +3320,7 @@ static void update_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *var_ptr,
   *static_cast<uint *>(var_ptr) = in_val;
 
   if (autorejoin_module->is_autorejoin_ongoing()) {
-    my_message(ER_GRP_RPL_STARTED_AUTO_REJOIN,
+    my_message(ER_DA_GRP_RPL_STARTED_AUTO_REJOIN,
                "Cannot update the number of auto-rejoin retry attempts when "
                "an auto-rejoin process is already running.",
                MYF(0));

@@ -3379,15 +3379,57 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
                                MyFlags & ME_FATALERROR);
 
     /*
-      Only error-codes from the client range should be seen here.
+      Messages intended for the error-log are in the range
+      starting at ER_SERVER_RANGE_START (error_code 10,000);
+      messages intended for sending to a client are in the
+      range below ER_SERVER_RANGE_START. If a message is to
+      be sent to both a client and the error log, it must
+      be added twice (once in each range), and two separate
+      calls (e.g. my_error() and LogErr()) must be added to
+      the code.
+
+      Only error-codes from the client range should be seen
+      here. If your patch asserts here, one of two things
+      probably happened:
+
+      - You added a new message to errmsg-utf8.txt:
+        The message was added to the server range
+        (appended at the end of the list), but code
+        was added that tries to send the message to
+        a client (my_error(), push_warning_printf(),
+        etc.).
+        => Move the new message to the correct range
+           in the message file. The error-log range
+           starts at the line "start-error-number 10000";
+           move your message right before that.
+           Rebuild the server; rerun your test.
+
+      - You used an existing message:
+        The existing message is intended for use with
+        the error-log (it appears in the messages file
+        below "start-error-number 10000"), but the new
+        code tries to send it to a client (my_error(),
+        push_warning_printf(), etc.).
+        => Copy the existing message to the client
+           range, that is to say, right before the
+           line "start-error-number 10000" in the
+           messages file. The copied message will
+           need its own symbol; if in doubt, call
+           this copy of ER_EXAMPLE_MESSAGE
+           ER_DA_EXAMPLE_MESSAGE (as this version
+           is for use with the diagnostics area).
+           Then make sure that your new code references
+           this new symbol when it sends the message
+           to a client.
+           Rebuild the server; rerun your test.
+
       We'll assert this here (rather than in raise_condition) as
-      SQL's SIGNAL command calls that as well, and is currently
-      allowed to set any error-code. Those values will be handled
-      in a uniform way, that is to say, SIGNALing an error-code
-      from the error-log range will not result in writing to that
-      log to prevent abuse.
-      We're bailing after rather than before printing to make the
-      culprit easier to track down.)
+      SQL's SIGNAL command also calls raise_condition, and SIGNAL
+      is currently allowed to set any error-code (regardless of
+      range). SIGNALing an error-code from the error-log range
+      will not result in writing to that log to prevent abuse.
+      We're asserting after rather than before printing to make
+      the culprit easier to track down.
     */
     DBUG_ASSERT(error < ER_SERVER_RANGE_START);
   }
@@ -3407,11 +3449,15 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
   if (MyFlags & ME_ERRORLOG) {
     /*
       We've removed most uses of ME_ERRORLOG in the server.
-      This leaves three possible cases:
+      This leaves three possible cases, in which we'll rewrite
+      the error-code from one in the client-range to one in
+      the error-log range here:
 
       - EE_OUTOFMEMORY: Correct to ER_SERVER_OUT_OF_RESOURCES so
                         mysys can remain logger-agnostic.
+
       - HA_* range:     Correct to catch-all ER_SERVER_HANDLER_ERROR.
+
       - otherwise:      Flag as using info from the diagnostics area
                         (ER_ERROR_INFO_FROM_DA). This is a failsafe;
                         if your code triggers it, your code is probably

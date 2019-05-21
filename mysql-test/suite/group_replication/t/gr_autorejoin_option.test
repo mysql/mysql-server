@@ -119,7 +119,7 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
 --echo # sysvar when an auto-rejoin is ongoing.
 --echo ####
 --echo
---error ER_GRP_RPL_STARTED_AUTO_REJOIN
+--error ER_DA_GRP_RPL_STARTED_AUTO_REJOIN
 SET GLOBAL group_replication_autorejoin_tries = 1;
 
 SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";

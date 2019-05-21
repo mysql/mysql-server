@@ -9085,6 +9085,18 @@ ER_UPDATE_GTID_PURGED_WITH_GR
 ER_GROUPING_ON_TIMESTAMP_IN_DST
   eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
 
+ER_TABLE_NAME_CAUSES_TOO_LONG_PATH
+  eng "Long database name and identifier for object resulted in a path length too long for table '%s'. Please check the path limit for your OS."
+
+ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
+  eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
+
+ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
+  eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
+
+ER_DA_GRP_RPL_STARTED_AUTO_REJOIN
+  eng "Started auto-rejoin procedure attempt %lu of %lu"
+
 #
 #  End of 8.0 error messages.
 #
@@ -11877,7 +11889,7 @@ ER_FILE_HAS_OLD_FORMAT
 ER_VIEW_CREATION_CTX_NOT_SET
   eng "View `%-.64s`.`%-.64s` has no creation context"
 
-ER_TABLE_NAME_CAUSES_TOO_LONG_PATH
+OBSOLETE_ER_TABLE_NAME_CAUSES_TOO_LONG_PATH
   eng "Long database name and identifier for object resulted in a path length too long for table '%s'. Please check the path limit for your OS."
 
 ER_TABLE_UPGRADE_REQUIRED
@@ -19440,10 +19452,10 @@ ER_AUDIT_LOG_CANNOT_STORE_PASSWORD
 ER_AUDIT_LOG_CANNOT_REMOVE_PASSWORD
   eng "Cannot remove password: '%.32s'"
 
-ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
+OBSOLETE_ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
   eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
 
-ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
+OBSOLETE_ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
 
 OBSOLETE_ER_WRONG_MVI_VALUE
