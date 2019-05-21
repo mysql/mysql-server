@@ -3985,21 +3985,10 @@ class Ndb_schema_event_handler {
       return false;
     }
 
-    const dd::sdi_t sdi = serialized_metadata.c_str();
-    if (!install_table_in_dd(
-            schema_name, table_name, sdi, ndbtab->getObjectId(),
-            ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
-            tablespace_name, force_overwrite, invalidate_referenced_tables)) {
-      ndb_log_warning(
-          "Failed to update table definition in DD, continue anyway...");
-    }
-
-    // Setup binlogging for this table. In many cases the NDB_SHARE, the
-    // event and event subscriptions are already created/setup, but this
-    // function is called anyway in order to create/setup any missing parts.
 
     // Deserialize the metadata from NDB
     Ndb_dd_table dd_table(m_thd);
+    const dd::sdi_t sdi = serialized_metadata.c_str();
     if (!dd_table.deserialize(sdi)) {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to deserialize metadata for table '%s.%s'",
@@ -4007,7 +3996,9 @@ class Ndb_schema_event_handler {
       return false;
     }
 
-    // Check if binlogging should be setup for this table
+    // Setup binlogging for this table. In many cases the NDB_SHARE, the
+    // event and event subscriptions are already created/setup, but this
+    // function is called anyway in order to create/setup any missing parts.
     if (ndbcluster_binlog_setup_table(m_thd, ndb, schema_name, table_name,
                                       dd_table.get_table_def())) {
       // Error information has been logged AND pushed -> clear warnings
@@ -4015,6 +4006,17 @@ class Ndb_schema_event_handler {
       ndb_log_error("Failed to setup binlogging for table '%s.%s'", schema_name,
                     table_name);
       return false;
+    }
+
+    // Install the table definition in DD
+    // NOTE! This is done after create/setup the NDB_SHARE to avoid that
+    // server tries to open the table before the NDB_SHARE has been created
+    if (!install_table_in_dd(
+            schema_name, table_name, sdi, ndbtab->getObjectId(),
+            ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
+            tablespace_name, force_overwrite, invalidate_referenced_tables)) {
+      ndb_log_warning(
+          "Failed to update table definition in DD, continue anyway...");
     }
 
     return true;
