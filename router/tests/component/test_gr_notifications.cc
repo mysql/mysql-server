@@ -259,6 +259,18 @@ class GrNotificationsTest : public RouterComponentTest {
             "}");
   }
 
+  int wait_for_md_queries(int expected_md_queries_count, uint16_t http_port) {
+    int md_queries_count, retries{0};
+    do {
+      std::this_thread::sleep_for(100ms);
+      const std::string server_globals =
+          MockServerRestClient(http_port).get_globals_as_json_string();
+      md_queries_count = get_ttl_queries_count(server_globals);
+    } while (md_queries_count != expected_md_queries_count && retries++ < 50);
+
+    return md_queries_count;
+  }
+
   TcpPortPool port_pool_;
   std::unique_ptr<JsonValue> notices_;
   std::unique_ptr<JsonValue> gr_id_;
@@ -361,17 +373,19 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
 
   std::this_thread::sleep_for(test_params.router_uptime);
 
-  const std::string server_globals =
-      MockServerRestClient(cluster_http_ports[0]).get_globals_as_json_string();
-
   // +1 is for expected initial metadata read that the router does at the
   // beginning
-  const int ttl_counts = get_ttl_queries_count(server_globals);
-  ASSERT_EQ(test_params.expected_md_queries_count + 1, ttl_counts)
+  const int expected_md_queries_count =
+      test_params.expected_md_queries_count + 1;
+
+  // we only expect initial ttl read (hence 1), because x-port is not valid
+  // there are not metadata refresh triggered by the notifications
+  int md_queries_count =
+      wait_for_md_queries(expected_md_queries_count, cluster_http_ports[0]);
+  ASSERT_EQ(expected_md_queries_count, md_queries_count)
       << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
       << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << router.get_full_logfile() << "\n"
-      << "server globals: " << server_globals;
+      << "router: " << router.get_full_logfile();
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -380,7 +394,7 @@ INSTANTIATE_TEST_CASE_P(
         // 0) single notification received from single (first) node
         // we expect 1 metadata cache update
         GrNotificationsTestParams(
-            1500ms, 1,
+            500ms, 1,
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -391,7 +405,7 @@ INSTANTIATE_TEST_CASE_P(
         // 1) 3 notifications with the same view id, again only 1
         // mdc update expected
         GrNotificationsTestParams(
-            1500ms, 1,
+            500ms, 1,
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -416,7 +430,7 @@ INSTANTIATE_TEST_CASE_P(
         // 2) 3 notifications; 2 have different view id this time so the
         // refresh should be triggered twice
         GrNotificationsTestParams(
-            2000ms, 2,
+            1000ms, 2,
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -450,7 +464,7 @@ INSTANTIATE_TEST_CASE_P(
               {0, 1}}}),
         // 4) 2 notifications on both nodes with different view ids
         GrNotificationsTestParams(
-            1500ms, 2,
+            700ms, 2,
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -536,24 +550,20 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
 
-  SCOPED_TRACE("// Launch ther router");
+  SCOPED_TRACE("// Launch the router");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
                                routing_section, state_file);
 
-  std::this_thread::sleep_for(1s);
+  SCOPED_TRACE("// Let the router run for a while");
+  std::this_thread::sleep_for(500ms);
 
-  const std::string server_globals =
-      MockServerRestClient(cluster_http_ports[0]).get_globals_as_json_string();
-
-  const int ttl_counts = get_ttl_queries_count(server_globals);
   // we only expect initial ttl read (hence 1), because x-port is not valid
   // there are not metadata refresh triggered by the notifications
-  ASSERT_EQ(1, ttl_counts) << "mock[0]: " << cluster_nodes[0]->get_full_output()
-                           << "\n"
-                           << "mock[1]: " << cluster_nodes[1]->get_full_output()
-                           << "\n"
-                           << "router: " << router.get_full_logfile() << "\n"
-                           << "server globals: " << server_globals;
+  int md_queries_count = wait_for_md_queries(1, cluster_http_ports[0]);
+  ASSERT_EQ(1, md_queries_count)
+      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
+      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
+      << "router: " << router.get_full_logfile();
 }
 
 /**
@@ -618,18 +628,13 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
       << cluster_nodes[1]->get_full_output();
   std::this_thread::sleep_for(1s);
 
-  const std::string server_globals =
-      MockServerRestClient(cluster_http_ports[0]).get_globals_as_json_string();
-
-  const int ttl_counts = get_ttl_queries_count(server_globals);
   // we only xpect initial ttl read plus the one caused by the x-protocol
   // notifier connection to the node we killed
-  ASSERT_EQ(2, ttl_counts) << "mock[0]: " << cluster_nodes[0]->get_full_output()
-                           << "\n"
-                           << "mock[1]: " << cluster_nodes[1]->get_full_output()
-                           << "\n"
-                           << "router: " << router.get_full_logfile() << "\n"
-                           << "server globals: " << server_globals;
+  int md_queries_count = wait_for_md_queries(2, cluster_http_ports[0]);
+  ASSERT_EQ(2, md_queries_count)
+      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
+      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
+      << "router: " << router.get_full_logfile();
 }
 
 struct ConfErrorTestParams {
