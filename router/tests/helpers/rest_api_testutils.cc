@@ -383,32 +383,37 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
       SCOPED_TRACE("// fetching openapi spec");
 
       JsonDocument openapi_json_doc;
-      // if we test for authorization failure this will still return Ok as
-      // accessing swagger.json does not require authorization,
-      // same with InternalError from a path, that does not affect the swagger
-      HttpStatusCode::key_type expected_code =
-          test_params.status_code == HttpStatusCode::Unauthorized ||
-                  test_params.status_code == HttpStatusCode::InternalError
-              ? HttpStatusCode::Ok
-              : test_params.status_code;
-      std::string expected_content_type =
-          test_params.status_code == HttpStatusCode::Unauthorized ||
-                  test_params.status_code == HttpStatusCode::InternalError
-              ? kContentTypeJson
-              : test_params.expected_content_type;
+      {
+        // if we test for authorization failure this will still return Ok as
+        // accessing swagger.json does not require authorization,
+        // same with InternalError, BadRequest from a path, that does not affect
+        // the swagger
+        HttpStatusCode::key_type expected_code =
+            test_params.status_code == HttpStatusCode::Unauthorized ||
+                    test_params.status_code == HttpStatusCode::BadRequest ||
+                    test_params.status_code == HttpStatusCode::InternalError
+                ? HttpStatusCode::Ok
+                : test_params.status_code;
+        std::string expected_content_type =
+            test_params.status_code == HttpStatusCode::Unauthorized ||
+                    test_params.status_code == HttpStatusCode::BadRequest ||
+                    test_params.status_code == HttpStatusCode::InternalError
+                ? kContentTypeJson
+                : test_params.expected_content_type;
 
-      // also if the method is HEAD it's not really invalid method for
-      // swagger.json file, it's only invalid for the path (API call) itself
-      // later
-      if (method == HttpMethod::Head &&
-          test_params.status_code == HttpStatusCode::MethodNotAllowed) {
-        expected_code = HttpStatusCode::Ok;
-        expected_content_type = kContentTypeJson;
+        // also if the method is HEAD it's not really invalid method for
+        // swagger.json file, it's only invalid for the path (API call) itself
+        // later
+        if (method == HttpMethod::Head &&
+            test_params.status_code == HttpStatusCode::MethodNotAllowed) {
+          expected_code = HttpStatusCode::Ok;
+          expected_content_type = kContentTypeJson;
+        }
+
+        ASSERT_NO_FATAL_FAILURE(request_json(
+            rest_client, rest_api_openapi_json, method, expected_code,
+            openapi_json_doc, expected_content_type));
       }
-
-      ASSERT_NO_FATAL_FAILURE(
-          request_json(rest_client, rest_api_openapi_json, method,
-                       expected_code, openapi_json_doc, expected_content_type));
 
       // verify response against the schema of the openapi spec
       SCOPED_TRACE("// API call");

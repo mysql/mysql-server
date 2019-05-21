@@ -139,6 +139,17 @@ static const RestApiTestParams rest_api_valid_methods[]{
           }},
      },
      kRouterSwaggerPaths},
+    {"router_status_no_params",
+     std::string(rest_api_basepath) + "/router/status?someparam",
+     "/router/status",
+     HttpMethod::Get,
+     HttpStatusCode::BadRequest,
+     kContentTypeJsonProblem,
+     kRestApiUsername,
+     kRestApiPassword,
+     /*request_authentication =*/true,
+     {},
+     kRouterSwaggerPaths},
 };
 
 INSTANTIATE_TEST_CASE_P(

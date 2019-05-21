@@ -144,6 +144,19 @@ bool ensure_auth(HttpRequest &req, const std::string require_realm) {
   return true;
 }
 
+bool ensure_no_params(HttpRequest &req) {
+  if (!req.get_uri().get_query().empty()) {
+    send_rfc7807_error(req, HttpStatusCode::BadRequest,
+                       {
+                           {"title", "validation error"},
+                           {"detail", "parameters not allowed"},
+                       });
+    return false;
+  }
+
+  return true;
+}
+
 bool ensure_modified_since(HttpRequest &req, time_t last_modified) {
   if (!req.is_modified_since(last_modified)) {
     req.send_reply(HttpStatusCode::NotModified);

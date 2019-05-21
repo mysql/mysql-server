@@ -327,7 +327,9 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   g_refresh_succeeded = 0;
   g_time_last_refresh_failed = "";
 
-  fetch_and_validate_schema_and_resource(GetParam(), router_proc);
+  EXPECT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), router_proc))
+      << router_proc.get_full_output();
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
   if (GetParam().status_code == HttpMethod::Get &&
@@ -551,40 +553,43 @@ static const RestApiTestParams rest_api_non_existig_resouces[]{
      /*request_authentication =*/true,
      {},
      kMetadataSwaggerPaths},
-    //    {"metadata_unsupported_param",
-    //        std::string(rest_api_basepath) + "/metadata/?limit=10",
-    //     "/metadata",
-    //     HttpMethod::Get,
-    //     HttpStatusCode::NotFound,
-    //     kContentTypeJson,
-    //     kRestApiUsername,
-    //     kRestApiPassword,
-    //     /*request_authentication =*/true,
-    //     {}},
-    //    {"metadata_status_unsupported_param",
-    //        std::string(rest_api_basepath) + "/metadata/" +
-    //            metadata_cache_section_name +
-    //            "/status??refreshFailed=0&refreshSucceeded=1",
-    //     "/metadata/{metadataName}/status",
-    //     HttpMethod::Get,
-    //     HttpStatusCode::NotFound,
-    //     kContentTypeJson,
-    //     kRestApiUsername,
-    //     kRestApiPassword,
-    //     /*request_authentication =*/true,
-    //     {}},
-    //    {"metadata_config_unsupported_param",
-    //        std::string(rest_api_basepath) + "/metadata/" +
-    //            metadata_cache_section_name +
-    //            "/status??refreshFailed=0&refreshSucceeded=1",
-    //     "/metadata/{metadataName}/status",
-    //     HttpMethod::Get,
-    //     HttpStatusCode::NotFound,
-    //     kContentTypeJson,
-    //     kRestApiUsername,
-    //     kRestApiPassword,
-    //     /*request_authentication =*/true,
-    //     {}},
+    {"metadata_unsupported_param",
+     std::string(rest_api_basepath) + "/metadata/?limit=10",
+     "/metadata",
+     HttpMethod::Get,
+     HttpStatusCode::BadRequest,
+     kContentTypeJsonProblem,
+     kRestApiUsername,
+     kRestApiPassword,
+     /*request_authentication =*/true,
+     {},
+     kMetadataSwaggerPaths},
+    {"metadata_status_unsupported_param",
+     std::string(rest_api_basepath) + "/metadata/" +
+         metadata_cache_section_name +
+         "/status?refreshFailed=0&refreshSucceeded=1",
+     "/metadata/{metadataName}/status",
+     HttpMethod::Get,
+     HttpStatusCode::BadRequest,
+     kContentTypeJsonProblem,
+     kRestApiUsername,
+     kRestApiPassword,
+     /*request_authentication =*/true,
+     {},
+     kMetadataSwaggerPaths},
+    {"metadata_config_unsupported_param",
+     std::string(rest_api_basepath) + "/metadata/" +
+         metadata_cache_section_name +
+         "/config?refreshFailed=0&refreshSucceeded=1",
+     "/metadata/{metadataName}/config",
+     HttpMethod::Get,
+     HttpStatusCode::BadRequest,
+     kContentTypeJsonProblem,
+     kRestApiUsername,
+     kRestApiPassword,
+     /*request_authentication =*/true,
+     {},
+     kMetadataSwaggerPaths},
 };
 
 INSTANTIATE_TEST_CASE_P(

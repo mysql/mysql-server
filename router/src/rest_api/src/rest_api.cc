@@ -37,6 +37,8 @@ bool RestApiSpecHandler::try_handle_request(HttpRequest &req,
     return true;
   }
 
+  if (!ensure_no_params(req)) return true;
+
   auto out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 

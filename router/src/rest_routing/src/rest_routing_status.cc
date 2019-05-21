@@ -43,6 +43,8 @@ constexpr const char RestRoutingStatus::path_regex[];
 bool RestRoutingStatus::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
     const std::vector<std::string> &path_matches) {
+  if (!ensure_no_params(req)) return true;
+
   MySQLRoutingAPI inst =
       MySQLRoutingComponent::get_instance().api(path_matches[1]);
 
