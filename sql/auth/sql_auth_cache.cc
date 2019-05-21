@@ -2642,8 +2642,7 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
       acl_user.plugin.str =
           strmake_root(&global_acl_memory, plugin.str, plugin.length);
     acl_user.credentials[PRIMARY_CRED].m_auth_string.str =
-        auth.str ? strmake_root(&global_acl_memory, auth.str, auth.length)
-                 : const_cast<char *>("");
+        auth.str ? strmake_root(&global_acl_memory, auth.str, auth.length) : "";
     acl_user.credentials[PRIMARY_CRED].m_auth_string.length =
         auth.str ? auth.length : 0;
     if (second_auth.length) {
@@ -2869,7 +2868,7 @@ struct Acl_hash_entry {
 const uchar *hash_key(const uchar *el, size_t *length) {
   const Acl_hash_entry *entry = reinterpret_cast<const Acl_hash_entry *>(el);
   *length = entry->key_length;
-  return const_cast<uchar *>(entry->key);
+  return entry->key;
 }
 
 /**

@@ -7947,11 +7947,9 @@ bool Field_json::pack_diff(uchar **to, ulonglong value_format) const {
 }
 
 bool Field_json::is_before_image_equal_to_after_image() const {
-  Field_json *non_const_this = const_cast<Field_json *>(this);
   ptrdiff_t row_offset = table->record[1] - table->record[0];
-  if (non_const_this->get_length(row_offset) != non_const_this->get_length())
-    return false;
-  if (non_const_this->cmp(ptr, ptr + row_offset) != 0) return false;
+  if (get_length(row_offset) != get_length()) return false;
+  if (cmp(ptr, ptr + row_offset) != 0) return false;
   return true;
 }
 
@@ -7965,7 +7963,7 @@ longlong Field_json::get_diff_vector_and_length(
     return 0;
   }
 
-  longlong length_of_full_format = const_cast<Field_json *>(this)->get_length();
+  longlong length_of_full_format = get_length();
   longlong length = -1;
   const Json_diff_vector *diff_vector = nullptr;
   // Is the partial update smaller than the full update?

@@ -4884,9 +4884,8 @@ bool TABLE_LIST::prepare_view_security_context(THD *thd) {
   if (view_suid) {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot(thd, view_sctx, const_cast<char *>(definer.user.str),
-                    const_cast<char *>(definer.host.str),
-                    const_cast<char *>(definer.host.str), thd->db().str)) {
+    if (acl_getroot(thd, view_sctx, definer.user.str, definer.host.str,
+                    definer.host.str, thd->db().str)) {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) {
         push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,

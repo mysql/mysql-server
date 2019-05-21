@@ -5126,12 +5126,10 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const {
     return false;
   // Item_cond never uses "args". Inspect "list" instead.
   DBUG_ASSERT(arg_count == 0 && item_cond->arg_count == 0);
-  List_iterator_fast<Item> it1(const_cast<Item_cond *>(this)->list);
-  List_iterator_fast<Item> it2(const_cast<Item_cond *>(item_cond)->list);
-  Item *i;
-  while ((i = it1++))
-    if (!i->eq(it2++, binary_cmp)) return false;
-  return true;
+  return std::equal(list.begin(), list.end(), item_cond->list.begin(),
+                    [binary_cmp](const Item &i1, const Item &i2) {
+                      return i1.eq(&i2, binary_cmp);
+                    });
 }
 
 bool Item_cond::walk(Item_processor processor, enum_walk walk, uchar *arg) {
@@ -6136,18 +6134,16 @@ uint Item_equal::members() { return fields.elements; }
   @param field   field whose occurrence is to be checked
 
   @retval
-    1       if nultiple equality contains a reference to field
+    true       if multiple equality contains a reference to field
   @retval
-    0       otherwise
+    false      otherwise
 */
 
-bool Item_equal::contains(Field *field) {
-  List_iterator_fast<Item_field> it(fields);
-  Item_field *item;
-  while ((item = it++)) {
-    if (field->eq(item->field)) return 1;
+bool Item_equal::contains(const Field *field) const {
+  for (const Item_field &item : fields) {
+    if (field->eq(item.field)) return true;
   }
-  return 0;
+  return false;
 }
 
 /**

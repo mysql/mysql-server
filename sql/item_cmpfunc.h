@@ -2221,7 +2221,7 @@ class Item_equal final : public Item_bool_func {
   bool add(THD *thd, Item *c);
   void add(Item_field *f);
   uint members();
-  bool contains(Field *field);
+  bool contains(const Field *field) const;
   /**
     Get the first field of multiple equality, use for semantic checking.
 

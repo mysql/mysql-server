@@ -186,11 +186,9 @@ void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_host(user->host.str, user->host.length, system_charset_info);
   if (comma) str->append(',');
-  append_query_string(const_cast<THD *>(thd), system_charset_info, &from_user,
-                      str);
+  append_query_string(thd, system_charset_info, &from_user, str);
   str->append(STRING_WITH_LEN("@"));
-  append_query_string(const_cast<THD *>(thd), system_charset_info, &from_host,
-                      str);
+  append_query_string(thd, system_charset_info, &from_host, str);
 }
 /**
   Used with List<>::sort for alphabetic sorting of LEX_USER records

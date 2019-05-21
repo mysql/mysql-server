@@ -3469,7 +3469,7 @@ class Item_field : public Item_ident {
   bool check_column_privileges(uchar *arg) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   void cleanup() override;
-  Item_equal *find_item_equal(COND_EQUAL *cond_equal);
+  Item_equal *find_item_equal(COND_EQUAL *cond_equal) const;
   bool subst_argument_checker(uchar **arg) override;
   Item *equal_fields_propagator(uchar *arg) override;
   bool set_no_const_sub(uchar *) override;
@@ -5912,7 +5912,7 @@ class Item_cache_str final : public Item_cache {
         is_varbinary(item->type() == FIELD_ITEM &&
                      data_type() == MYSQL_TYPE_VARCHAR &&
                      !((const Item_field *)item)->field->has_charset()) {
-    collation.set(const_cast<DTCollation &>(item->collation));
+    collation.set(item->collation);
   }
   double val_real() override;
   longlong val_int() override;

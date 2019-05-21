@@ -5624,7 +5624,7 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   *table_name = Table_ident(node_unit);
   if (tl->is_recursive_reference()) recursive_dummy_unit = node_unit;
   DBUG_ASSERT(table_name->is_derived_table());
-  tl->db = const_cast<char *>(table_name->db.str);
+  tl->db = table_name->db.str;
   tl->db_length = table_name->db.length;
   tl->save_name_temporary();
   return false;

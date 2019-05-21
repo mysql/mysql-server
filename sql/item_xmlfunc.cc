@@ -474,9 +474,8 @@ class Item_func_xpath_sum : public Item_real_func {
         if ((node->parent == flt.num) && (node->type == MY_XML_NODE_TEXT)) {
           const char *end;
           int err;
-          double add =
-              my_strntod(collation.collation, const_cast<char *>(node->beg),
-                         node->end - node->beg, &end, &err);
+          double add = my_strntod(collation.collation, node->beg,
+                                  node->end - node->beg, &end, &err);
           if (!err) sum += add;
         }
       }

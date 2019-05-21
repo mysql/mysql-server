@@ -178,11 +178,9 @@ static void set_pack_record_and_unused_preamble_bits(bool pack_record,
 size_t max_pack_length(const List<Create_field> &create_fields) {
   size_t max_pack_length = 0;
   // Iterate over the create fields and find the largest one.
-  List_iterator<Create_field> field_it(
-      const_cast<List<Create_field> &>(create_fields));
-  Create_field *field;
-  while ((field = field_it++))
-    max_pack_length = std::max<size_t>(field->pack_length(), max_pack_length);
+  for (const Create_field &field : create_fields) {
+    max_pack_length = std::max(field.pack_length(), max_pack_length);
+  }
   return max_pack_length;
 }
 

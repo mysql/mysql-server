@@ -998,8 +998,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     if (pushed_cond) {
       StringBuffer<64> buff(cs);
       if (can_print_clauses())
-        const_cast<Item *>(pushed_cond)
-            ->print(explain_thd, &buff, cond_print_flags);
+        pushed_cond->print(explain_thd, &buff, cond_print_flags);
       if (push_extra(ET_USING_PUSHED_CONDITION, buff)) return true;
     }
     if (((quick_type >= 0 && tab->quick_optim()->reverse_sorted()) ||

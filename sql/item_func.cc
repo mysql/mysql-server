@@ -904,8 +904,7 @@ static void gc_subst_overlaps_contains(Item_func **func, Json_wrapper &vals_wr,
     tkm.intersect(fld.table->keys_in_use_for_query);
 
     if (tkm.is_clear_all() || !fld.is_array()) continue;
-    Functional_index_error_handler func_idx_err_hndl(
-        const_cast<const Field *>(&fld), thd);
+    Functional_index_error_handler func_idx_err_hndl(&fld, thd);
     found = nullptr;
 
     get_gc_for_expr(func, &fld, fld.result_type(), &found);

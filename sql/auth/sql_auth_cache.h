@@ -119,7 +119,7 @@ class ACL_HOST : public ACL_ACCESS {
 class Acl_credential {
  public:
   Acl_credential() {
-    m_auth_string = {const_cast<char *>(""), 0};
+    m_auth_string = {"", 0};
     memset(m_salt, 0, SCRAMBLE_LENGTH + 1);
     m_salt_len = 0;
   }

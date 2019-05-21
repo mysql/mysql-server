@@ -821,7 +821,7 @@ bool Item_sum::wf_common_init() {
 */
 
 static int simple_str_key_cmp(const void *arg, const void *a, const void *b) {
-  Field *f = const_cast<Field *>(pointer_cast<const Field *>(arg));
+  const Field *f = pointer_cast<const Field *>(arg);
   const uchar *key1 = pointer_cast<const uchar *>(a);
   const uchar *key2 = pointer_cast<const uchar *>(b);
   return f->cmp(key1, key2);

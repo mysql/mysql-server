@@ -244,7 +244,7 @@ namespace AQP
     {
       return (field_item->item_equal != NULL)
                ? field_item->item_equal
-               : const_cast<Item_field*>(field_item)->find_item_equal(cond_equal);
+               : field_item->find_item_equal(cond_equal);
     }
     return NULL;
   }

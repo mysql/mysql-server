@@ -11905,17 +11905,14 @@ static bool is_inplace_alter_impossible(TABLE *table,
     But not if we are changing to the NULL SRID. In that case, we can do it
     inplace (only metadata change, and no verification needed).
   */
-  Alter_info *alter_info_nonconst = const_cast<Alter_info *>(alter_info);
-  List_iterator<Create_field> create_it(alter_info_nonconst->create_list);
-  Create_field *new_field_def;
-  while ((new_field_def = create_it++)) {
-    if (new_field_def->field != nullptr &&
-        new_field_def->field->type() == MYSQL_TYPE_GEOMETRY) {
+  for (const Create_field &new_field_def : alter_info->create_list) {
+    if (new_field_def.field != nullptr &&
+        new_field_def.field->type() == MYSQL_TYPE_GEOMETRY) {
       const Field_geom *field_geom =
-          down_cast<const Field_geom *>(new_field_def->field);
+          down_cast<const Field_geom *>(new_field_def.field);
 
-      if (field_geom->get_srid() != new_field_def->m_srid &&
-          new_field_def->m_srid.has_value())
+      if (field_geom->get_srid() != new_field_def.m_srid &&
+          new_field_def.m_srid.has_value())
         return true;
     }
   }
@@ -18474,7 +18471,7 @@ static bool is_any_check_constraints_evaluation_required(
       changed. Check constraint re-evaluation is required in this case.
     */
     if (alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN) {
-      for (auto &fld : const_cast<Alter_info *>(alter_info)->create_list) {
+      for (const Create_field &fld : alter_info->create_list) {
         // Get fields used by check constraint.
         List<Item_field> fields;
         cc_spec->check_expr->walk(&Item::collect_item_field_processor,

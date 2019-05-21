@@ -221,16 +221,14 @@ bool Role_activation::activate_role_all() {
     for (; role_it != granted_roles.end(); ++role_it) {
       bool found_except_role = false;
       if (m_role_list && m_role_list->elements > 0) {
-        List_iterator<LEX_USER> role_list_it(
-            *(const_cast<List<LEX_USER> *>(m_role_list)));
-        while (LEX_USER *except_role = (LEX_USER *)role_list_it.next()) {
-          if ((except_role->user.length == role_it->first.user().length()) &&
-              (except_role->host.length == role_it->first.host().length()) &&
-              strncmp(except_role->user.str, role_it->first.user().c_str(),
-                      except_role->user.length) == 0 &&
-              native_strncasecmp(except_role->host.str,
+        for (const LEX_USER &except_role : *m_role_list) {
+          if ((except_role.user.length == role_it->first.user().length()) &&
+              (except_role.host.length == role_it->first.host().length()) &&
+              strncmp(except_role.user.str, role_it->first.user().c_str(),
+                      except_role.user.length) == 0 &&
+              native_strncasecmp(except_role.host.str,
                                  role_it->first.host().c_str(),
-                                 except_role->host.length) == 0) {
+                                 except_role.host.length) == 0) {
             found_except_role = true;
             break;
           }

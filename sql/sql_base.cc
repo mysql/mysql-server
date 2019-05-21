@@ -9152,7 +9152,7 @@ bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
         if ((thd->lex->sql_command == SQLCOM_UPDATE ||
              thd->lex->sql_command == SQLCOM_UPDATE_MULTI) &&
             !bitmap_is_subset(&table_cc->value_generator()->base_columns_map,
-                              const_cast<TABLE *>(table)->write_set)) {
+                              table->write_set)) {
           DEBUG_SYNC(thd, "skip_check_constraints_on_unaffected_columns");
           continue;
         }
@@ -9161,7 +9161,7 @@ bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
           Set the columns used by the enforced check constraint expression in
           the TABLE read_set.
         */
-        bitmap_union(const_cast<TABLE *>(table)->read_set,
+        bitmap_union(table->read_set,
                      &table_cc->value_generator()->base_columns_map);
 
         // Validate check constraint.

@@ -3117,7 +3117,7 @@ double double_from_string_with_check(const CHARSET_INFO *cs, const char *cptr,
   double tmp;
 
   const char *endptr = end;
-  tmp = my_strntod(cs, const_cast<char *>(cptr), end - cptr, &endptr, &error);
+  tmp = my_strntod(cs, cptr, end - cptr, &endptr, &error);
   if (error || (end != endptr && !check_if_only_end_space(cs, endptr, end))) {
     ErrConvString err(cptr, end - cptr, cs);
     push_warning_printf(
@@ -5376,15 +5376,13 @@ void Item_field::cleanup() {
 
   @return
     - First Item_equal containing the field, if success
-    - 0, otherwise
+    - nullptr, otherwise
 */
 
-Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal) {
-  Item_equal *item = 0;
+Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal) const {
   while (cond_equal) {
-    List_iterator_fast<Item_equal> li(cond_equal->current_level);
-    while ((item = li++)) {
-      if (item->contains(field)) return item;
+    for (Item_equal &item : cond_equal->current_level) {
+      if (item.contains(field)) return &item;
     }
     /*
       The field is not found in any of the multiple equalities
@@ -5392,7 +5390,7 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal) {
     */
     cond_equal = cond_equal->upper_levels;
   }
-  return 0;
+  return nullptr;
 }
 
 /**
