@@ -32,8 +32,8 @@ SET(TESTS
   test_uri.cc
   test_utils.cc
   test_windows_service.cc
-  mysqlrouter_app.cc
-  mysqlrouter_utils.cc
+  test_mysqlrouter_app.cc
+  test_mysqlrouter_utils.cc
   )
 
 FOREACH(TEST_FILE ${TESTS})
