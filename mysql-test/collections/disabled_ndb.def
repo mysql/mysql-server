@@ -79,9 +79,6 @@ ndb.ndb_restore_schema_rewrites : WL#9185 MySQL Cluster support for new DD
 # Clusterj fails in windows due to Bug#28532563
 ndb.clusterj @windows: BUG#28532563 CLUSTERJ MTR TEST FAILS IN WINDOWS DUE TO NOT BEING ABLE TO LOAD LIBNDBCLIENT
 
-# Test fails with varying failures in all versions
-ndb.ndb_truncate_nologging : BUG#14845851 Could not acquire global schema lock
-
 # Failure to acquire MDL lock properly during drop database with uppercase
 # database name, affects lower_case_table_names=2 platform
 ndb.ndb_addnode_restart @darwin: BUG#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
