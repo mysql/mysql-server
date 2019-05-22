@@ -11478,6 +11478,7 @@ Dbdih::checkEmptyLcpComplete(Signal *signal)
     }
     
     c_lcpMasterTakeOverState.set(LMTOS_INITIAL, __LINE__);
+    m_master_lcp_req_lcp_already_completed = false;
     MasterLCPReq * const req = (MasterLCPReq *)&signal->theData[0];
     req->masterRef = reference();
     req->failedNodeId = c_lcpMasterTakeOverState.failedNodeId;
@@ -11952,11 +11953,10 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   ndbrequire(found);
 
   bool ok = false;
-  bool current_lcp_completed = false;
   switch(lcpState){
   case MasterLCPConf::LCP_STATUS_IDLE:
     ok = true;
-    current_lcp_completed = true;
+    m_master_lcp_req_lcp_already_completed = true;
     break;
   case MasterLCPConf::LCP_STATUS_ACTIVE:
   case MasterLCPConf::LCP_TAB_COMPLETED:
@@ -11972,7 +11972,7 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   // We have now received all responses and are ready to take over the LCP
   // protocol as master.
   /*-------------------------------------------------------------------------*/
-  MASTER_LCPhandling(signal, failedNodeId, current_lcp_completed);
+  MASTER_LCPhandling(signal, failedNodeId);
 }//Dbdih::execMASTER_LCPCONF()
 
 void Dbdih::execMASTER_LCPREF(Signal* signal) 
@@ -11997,9 +11997,10 @@ void Dbdih::execMASTER_LCPREF(Signal* signal)
   MASTER_LCPhandling(signal, failedNodeId);
 }//Dbdih::execMASTER_LCPREF()
 
-void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId,
-                               bool lcp_already_completed) 
+void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
 {
+  bool lcp_already_completed = m_master_lcp_req_lcp_already_completed;
+  m_master_lcp_req_lcp_already_completed = false;
   /*-------------------------------------------------------------------------
    *
    * WE ARE NOW READY TO CONCLUDE THE TAKE OVER AS MASTER. 
