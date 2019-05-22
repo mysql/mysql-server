@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "router_component_system_layout.h"
@@ -197,35 +198,6 @@ class StateFileTest : public RouterComponentTest {
 class StateFileDynamicChangesTest : public StateFileTest {
  protected:
   void SetUp() override { StateFileTest::SetUp(); }
-
-  std::string to_string(const JsonValue &json_doc) {
-    JsonStringBuffer out_buffer;
-
-    rapidjson::Writer<JsonStringBuffer> out_writer{out_buffer};
-    json_doc.Accept(out_writer);
-    return out_buffer.GetString();
-  }
-
-  void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                         const std::vector<uint16_t> &gr_node_ports) {
-    JsonValue json_doc(rapidjson::kObjectType);
-    JsonAllocator allocator;
-    json_doc.AddMember("gr_id", JsonValue(gr_id.c_str(), gr_id.length()),
-                       allocator);
-
-    JsonValue gr_nodes_json(rapidjson::kArrayType);
-    for (auto &gr_node : gr_node_ports) {
-      JsonValue node(rapidjson::kArrayType);
-      node.PushBack(JsonValue((int)gr_node), allocator);
-      node.PushBack(JsonValue("ONLINE", strlen("ONLINE")), allocator);
-      gr_nodes_json.PushBack(node, allocator);
-    }
-    json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
-
-    const auto json_str = to_string(json_doc);
-
-    EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
-  }
 
   void kill_server(ProcessWrapper *server) {
     EXPECT_NO_THROW(server->kill()) << server->get_full_output();

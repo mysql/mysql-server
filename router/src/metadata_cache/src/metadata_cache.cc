@@ -651,15 +651,18 @@ inline bool compare_instance_lists(const MetaData::ReplicaSetsByName &map_a,
   auto ai = map_a.begin();
   auto bi = map_b.begin();
   for (; ai != map_a.end(); ++ai, ++bi) {
-    if ((ai->first != bi->first) ||
-        (ai->second.members.size() != bi->second.members.size()))
+    if ((ai->first != bi->first)) return false;
+    // we need to compare 2 vectors if their content is the same
+    // but order of their elements can be different as we use
+    // SQL with no "ORDER BY" to fetch them from different nodes
+    if (ai->second.members.size() != bi->second.members.size()) return false;
+    if (!std::is_permutation(ai->second.members.begin(),
+                             ai->second.members.end(),
+                             bi->second.members.begin())) {
       return false;
-    auto a = ai->second.members.begin();
-    auto b = bi->second.members.begin();
-    for (; a != ai->second.members.end(); ++a, ++b) {
-      if (!(*a == *b)) return false;
     }
   }
+
   return true;
 }
 

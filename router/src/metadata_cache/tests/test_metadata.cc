@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -694,9 +694,6 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     };
     EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(
                                          servers_in_metadata, server_status));
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
-    EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(1).mode);
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
 
     auto r = {ServerMode::ReadOnly, ServerMode::ReadWrite,
               ServerMode::ReadOnly};
@@ -714,9 +711,6 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     };
     EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(
                                          servers_in_metadata, server_status));
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
-    EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(2).mode);
 
     auto r = {ServerMode::ReadOnly, ServerMode::ReadOnly,
               ServerMode::ReadWrite};
@@ -734,9 +728,6 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     };
     EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(
                                          servers_in_metadata, server_status));
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
 
     auto r = {ServerMode::ReadOnly, ServerMode::ReadOnly, ServerMode::ReadOnly};
     EXPECT_TRUE(std::equal(
@@ -756,9 +747,6 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
 #ifdef NDEBUG  // guardian assert() should fail in Debug
     EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(
                                          servers_in_metadata, server_status));
-    EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
-    EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(1).mode);
-    EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
 
     auto r = {ServerMode::ReadWrite, ServerMode::ReadWrite,
               ServerMode::ReadOnly};
