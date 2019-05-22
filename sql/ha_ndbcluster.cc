@@ -11466,9 +11466,9 @@ int ha_ndbcluster::create(const char *name,
     (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                  0,                 // drop_flags
                                  false);            // skip_related
-    NDB_SHARE::release_reference(share, "create");  // temporary ref.
     mysql_mutex_lock(&ndbcluster_mutex);
     NDB_SHARE::mark_share_dropped(&share);
+    NDB_SHARE::release_reference_have_lock(share, "create");  // temporary ref.
     mysql_mutex_unlock(&ndbcluster_mutex);
     DBUG_RETURN(create.failed_warning_already_pushed());
   }

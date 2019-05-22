@@ -239,8 +239,13 @@ public:
   static void release_reference_have_lock(NDB_SHARE *share,
                                           const char *reference);
 
-  // Mark share as dropped in list of tables
-  static void mark_share_dropped(NDB_SHARE** share);
+  /**
+    @brief Mark NDB_SHARE as dropped, remove from list of open shares and
+    put in list of dropped shares if the NDB_SHARE is still referenced.
+
+    @param share_ptr Pointer to the NDB_SHARE pointer
+   */
+  static void mark_share_dropped(NDB_SHARE** share_ptr);
 
   // Rename share, rename in list of tables
   static int rename_share(NDB_SHARE *share,
@@ -266,7 +271,7 @@ private:
 private:
   uint m_use_count;
   uint increment_use_count() { return ++m_use_count; }
-  uint decrement_use_count() { return --m_use_count; }
+  uint decrement_use_count();
   uint use_count() const { return m_use_count; }
 
   enum {
@@ -276,7 +281,14 @@ private:
 
   const char* share_state_string() const;
 
-  static void real_free_share(NDB_SHARE **share);
+  /**
+     @brief Permanently free a NDB_SHARE which is no longer referred.
+     @note The NDB_SHARE must already be marked as dropped and be in
+     the dropped list.
+
+     @param share_ptr Pointer to NDB_SHARE pointer
+  */
+  static void real_free_share(NDB_SHARE **share_ptr);
   static void free_share(NDB_SHARE** share);
 
   static NDB_SHARE* acquire_reference_impl(const char *key);

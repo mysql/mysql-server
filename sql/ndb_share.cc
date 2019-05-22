@@ -32,6 +32,7 @@
 #include "sql/ndb_event_data.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_name_util.h"
+#include "sql/ndb_require.h"
 #include "sql/ndb_table_map.h"
 #include "sql/sql_class.h"
 #include "sql/strfunc.h"
@@ -538,6 +539,10 @@ NDB_SHARE::debug_print_shares(std::string& out)
   out = ss.str();
 }
 
+uint NDB_SHARE::decrement_use_count() {
+  ndbcluster::ndbrequire(m_use_count > 0);
+  return --m_use_count;
+}
 
 void
 NDB_SHARE::print_remaining_open_tables(void)
@@ -742,132 +747,77 @@ NDB_SHARE::release_extra_share_references(void)
   mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
-
-/**
- * Permanently free a share which is no longer referred.
- * Share is assumed to already be in state NSS_DROPPED,
- * which also implies that there are no remaining 'index_stat'
- *
- * The table should be in the dropped_tables list, from which it
- * is removed. It should *not* be in the dropped_tables list.
- *
- * Precondition: ndbcluster_mutex lock should be held.
- */
-void NDB_SHARE::real_free_share(NDB_SHARE **share_ptr)
-{
+void NDB_SHARE::real_free_share(NDB_SHARE **share_ptr) {
   NDB_SHARE* share = *share_ptr;
-
-  DBUG_ENTER("NDB_SHARE::real_free_share");
-
+  DBUG_TRACE;
   mysql_mutex_assert_owner(&ndbcluster_mutex);
 
-  if (share->state == NSS_DROPPED)
-  {
-    // Remove from dropped_tables hash-list.
-    const bool found =
-      ndbcluster_dropped_tables->erase(share->key_string()) != 0;
-    assert(found); (void)found;
+  // Share must already be marked as dropped
+  ndbcluster::ndbrequire(share->state == NSS_DROPPED);
 
-    // Share is no longer referenced by 'ndbcluster_dropped_tables'
-    share->refs_erase("ndbcluster_dropped_tables");
+  // Share must be in dropped list
+  ndbcluster::ndbrequire(
+      find_or_nullptr(*ndbcluster_dropped_tables, share->key_string()));
 
-    // A DROPPED share, should not be in the open list.
-    assert(ndbcluster_open_tables->erase(share->key_string()) == 0);
-  }
-  else
-  {
-    ndb_log_warning("ndbcluster_real_free_share: %s, still open - "
-                      "ignored 'free' (leaked?)", share->key_string());
-    assert(false); // Don't free a share not yet DROPPED
-  }
+  // Remove share from dropped list
+  ndbcluster::ndbrequire(ndbcluster_dropped_tables->erase(share->key_string()));
+
+  // Remove shares reference from 'ndbcluster_dropped_tables'
+  share->refs_erase("ndbcluster_dropped_tables");
 
   NDB_SHARE::destroy(share);
-  *share_ptr= 0;
-
-  DBUG_VOID_RETURN;
 }
-
 
 extern void ndb_index_stat_free(NDB_SHARE*);
 
-
-/**
- * NDB_SHARE::mark_share_dropped(): Set the share state to NSS_DROPPED.
- *
- * As a 'DROPPED' share could no longer be in the 'ndbcluster_open_tables' hash,
- * it is removed from this hash list. As we are not interested in any index_stat
- * for a dropped table, it is also freed now.
- *
- * The share reference count related to the 'open_tables' ref is decremented,
- * and the share is permanently deleted if '==0'.
- * Else, the share is put into the 'ndbcluster_dropped_tables' where it may
- * exist until the last reference has been removed.
- *
- * The lock on the ndbcluster_mutex should be held when calling function.
- */
-void
-NDB_SHARE::mark_share_dropped(NDB_SHARE** share_ptr)
-{
+void NDB_SHARE::mark_share_dropped(NDB_SHARE **share_ptr) {
   NDB_SHARE* share = *share_ptr;
-
+  DBUG_TRACE;
   mysql_mutex_assert_owner(&ndbcluster_mutex);
-
-  if (share->state == NSS_DROPPED)
-  {
-    // A DROPPED share should not be in the open_tables list
-    assert(ndbcluster_open_tables->erase(share->key_string()) != 0);
-    return;
-  }
-  // A non-DROPPED share should not be in dropped_tables list yet.
-  assert(ndbcluster_dropped_tables->erase(share->key_string()) == 0);
-
-  share->state= NSS_DROPPED;
-  share->decrement_use_count();
-
-  // Share is no longer referenced by 'ndbcluster_open_tables'
-  // after the above decrement_use_count() although it's not taken out of
-  // the list yet
-  share->refs_erase("ndbcluster_open_tables");
-
-  // index_stat not needed anymore, free it.
-  ndb_index_stat_free(share);
 
   // The NDB_SHARE should not have any event operations, those
   // should have been removed already _before_ marking the NDB_SHARE
   // as dropped.
   DBUG_ASSERT(share->op == nullptr);
 
-  if (ndbcluster_open_tables->erase(share->key_string()) != 0)
-  {
-    // When dropped a share is either immediately destroyed, or
-    // put in 'dropped' list awaiting remaining refs to be freed.
-    if (share->use_count() == 0)
-    {
-      NDB_SHARE::destroy(share);
-      *share_ptr= nullptr;
-    }
-    else
-    {
-      // Insert the share into the dropped tables list to keep track of
-      // it until all handler references has been released
-      ndbcluster_dropped_tables->emplace(share->key_string(), share);
-
-      std::string s;
-      share->debug_print(s, "\n");
-      std::cerr << "dropped_share: " << s << std::endl;
-
-      // Share is referenced by 'ndbcluster_dropped_tables'
-      share->refs_insert("ndbcluster_dropped_tables");
-    }
+  if (share->state == NSS_DROPPED) {
+    // The NDB_SHARE was already marked as dropped
+    return;
   }
-  else
-  {
-    ndb_log_error("INTERNAL ERROR: Failed to remove NDB_SHARE %s from list of "
-                  "open shares", share->key_string());
-    abort();
+
+  // The index_stat is not needed anymore, free it.
+  ndb_index_stat_free(share);
+
+  // Mark share as dropped
+  share->state = NSS_DROPPED;
+
+  // Remove share from list of open shares
+  ndbcluster::ndbrequire(ndbcluster_open_tables->erase(share->key_string()));
+
+  // Remove reference from list of open shares and decrement use count
+  share->refs_erase("ndbcluster_open_tables");
+  share->decrement_use_count();
+
+  // Destroy the NDB_SHARE if noone is using it, this is normally a special
+  // case for shutdown code path. In all other cases the caller will hold
+  // reference to the share.
+  if (share->use_count() == 0) {
+    NDB_SHARE::destroy(share);
+    return;
   }
+
+  // Someone is still using the NDB_SHARE, insert it into the list of dropped
+  // to keep track of it until all references has been released
+  ndbcluster_dropped_tables->emplace(share->key_string(), share);
+
+  std::string s;
+  share->debug_print(s, "\n");
+  std::cerr << "dropped_share: " << s << std::endl;
+
+  // Share is referenced by 'ndbcluster_dropped_tables'
+  share->refs_insert("ndbcluster_dropped_tables");
+  // NOTE! The refcount has not been incremented
 }
-
 
 #ifndef DBUG_OFF
 void

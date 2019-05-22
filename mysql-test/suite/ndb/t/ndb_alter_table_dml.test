@@ -12,9 +12,6 @@ connect (j4,localhost,root,,test);
 connect (ddl,localhost,root,,test);
 
 connection ddl;
-call mtr.add_suppression(".*NDB_SHARE.*Moving away for safety, but possible memleak");
-
-use test;
 
 create table parent(a int primary key, b int, key(b)) engine=ndb
   comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
