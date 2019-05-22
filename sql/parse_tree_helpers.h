@@ -62,28 +62,28 @@ class Parse_tree_item : public Item {
  public:
   explicit Parse_tree_item(const POS &pos) : Item(pos) {}
 
-  virtual enum Type type() const { return INVALID_ITEM; }
-  virtual double val_real() {
+  enum Type type() const override { return INVALID_ITEM; }
+  double val_real() override {
     DBUG_ASSERT(0);
     return 0;
   }
-  virtual longlong val_int() {
+  longlong val_int() override {
     DBUG_ASSERT(0);
     return 0;
   }
-  virtual String *val_str(String *) {
+  String *val_str(String *) override {
     DBUG_ASSERT(0);
     return NULL;
   }
-  virtual my_decimal *val_decimal(my_decimal *) {
+  my_decimal *val_decimal(my_decimal *) override {
     DBUG_ASSERT(0);
     return NULL;
   }
-  virtual bool get_date(MYSQL_TIME *, uint) {
+  bool get_date(MYSQL_TIME *, uint) override {
     DBUG_ASSERT(0);
     return false;
   }
-  virtual bool get_time(MYSQL_TIME *) {
+  bool get_time(MYSQL_TIME *) override {
     DBUG_ASSERT(0);
     return false;
   }
@@ -99,7 +99,7 @@ class PT_item_list : public Parse_tree_node {
  public:
   List<Item> value;
 
-  virtual bool contextualize(Parse_context *pc) {
+  bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc)) return true;
     List_iterator<Item> it(value);
     Item *item;
