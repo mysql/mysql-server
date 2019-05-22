@@ -84,6 +84,16 @@ static const std::vector<SwaggerPath> kMetadataSwaggerPaths{
 size_t g_refresh_failed = 0, g_refresh_succeeded = 0;
 std::string g_time_last_refresh_succeeded, g_time_last_refresh_failed;
 
+#if 0
+// precondition to these tests is that we can start a router agianst a metadata-cluster
+// which has no nodes. But with Bug#28352482 (no empty bootstrap_server_addresses) fixed
+// we can't bring the metadata into that state anymore. We just won't start.
+//
+// An empty dynamic_config file will also not allow to start.
+//
+// In case that functionally ever comes back, we'll leave this code around, but disabled.
+
+
 class RestMetadataCacheApiWithoutClusterTest
     : public RestApiTestBase,
       public ::testing::WithParamInterface<RestApiTestParams> {};
@@ -274,6 +284,7 @@ INSTANTIATE_TEST_CASE_P(
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
       return info.param.test_name;
     });
+#endif
 
 /**
  * with cluster.

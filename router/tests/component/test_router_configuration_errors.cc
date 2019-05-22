@@ -46,8 +46,13 @@ class RouterTestBrokenConfig
 };
 
 TEST_P(RouterTestBrokenConfig, ensure) {
+  // create a keyring, just in case.
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir_.name());
+
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(GetParam().sections, "\n"))};
+      conf_dir_.name(), mysql_harness::join(GetParam().sections, "\n"),
+      &default_section)};
   auto &router{launch_router({"-c", conf_file}, EXIT_FAILURE)};
 
   EXPECT_NO_THROW(EXPECT_EQ(EXIT_FAILURE, router.wait_for_exit()));
@@ -167,6 +172,29 @@ static const BrokenConfigParams broken_config_params[]{
      },
      "option bootstrap_server_addresses in [metadata_cache] is incorrect "
      "(invalid URI: invalid port: impossible port number",
+     ""},
+    {"metadata_cache_no_bootstrap_server_addresses",
+     {
+         ConfigBuilder::build_section("metadata_cache",
+                                      {
+                                          {"user", "foobar"},
+                                      }),
+     },
+     "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "
+     "configuration file is empty or not set and no known "
+     "'dynamic_config'-file",
+     ""},
+    {"metadata_cache_empty_bootstrap_server_addresses",
+     {
+         ConfigBuilder::build_section("metadata_cache",
+                                      {
+                                          {"user", "foobar"},
+                                          {"bootstrap_server_address", ""},
+                                      }),
+     },
+     "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "
+     "configuration file is empty or not set and no known "
+     "'dynamic_config'-file",
      ""},
 
     {"metadata_cache_must_be_single",

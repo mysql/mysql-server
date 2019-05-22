@@ -149,16 +149,18 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
     ++i;
   }
 
-  // create a "dead" metada-cache referenced by the routing "_" to check
+  // create a "dead" metadata-cache referenced by the routing "_" to check
   // route/health isActive == 0
   const std::string keyring_username = "mysql_router1_user";
   config_sections.push_back(ConfigBuilder::build_section(
-      "metadata_cache:test", {
-                                 {"router_id", "3"},
-                                 {"user", keyring_username},
-                                 {"metadata_cluster", "test"},
-                                 //"ttl", "0.5"
-                             }));
+      "metadata_cache:test",
+      {
+          {"router_id", "3"},
+          {"user", keyring_username},
+          {"metadata_cluster", "test"},
+          {"bootstrap_server_addresses", "mysql://does-not-exist"},
+          //"ttl", "0.5"
+      }));
 
   std::map<std::string, std::string> default_section = get_DEFAULT_defaults();
   init_keyring(default_section, conf_dir_.name());

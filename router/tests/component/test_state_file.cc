@@ -696,14 +696,14 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+                               routing_section, state_file, EXIT_FAILURE);
 
   wait_for_port_ready(router_port);
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache tried "
       "to refresh the metadata");
-  std::this_thread::sleep_for(std::chrono::milliseconds(3 * kTTL));
+  std::this_thread::sleep_for(3 * kTTL);
 
   // proper error should get logged
   const bool found = find_in_file(
@@ -711,7 +711,9 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
       [&](const std::string &line) -> bool {
         return pattern_found(
             line,
-            "Failed fetching metadata from any of the 0 metadata servers");
+            "'bootstrap_server_addresses' is the configuration file is empty "
+            "or not set and list of 'cluster-metadata-servers' in "
+            "'dynamic_config'-file is empty, too.");
       },
       std::chrono::milliseconds(0));
   EXPECT_TRUE(found) << router.get_full_logfile();

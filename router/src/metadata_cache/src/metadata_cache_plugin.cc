@@ -149,7 +149,21 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   // launch metadata cache
   try {
+    using namespace std::string_literals;
+
     MetadataCachePluginConfig config(section);
+
+    if (config.metadata_servers_addresses.size() == 0 &&
+        (!config.metadata_cache_dynamic_state ||
+         config.metadata_cache_dynamic_state->get_metadata_servers().empty())) {
+      throw std::runtime_error(
+          "list of metadata-servers is empty: 'bootstrap_server_addresses' is the configuration file is empty or not set and "s +
+          (!config.metadata_cache_dynamic_state
+               ? "no known 'dynamic_config'-file"
+               : "list of 'cluster-metadata-servers' in 'dynamic_config'-file "
+                 "is empty, too."));
+    }
+
     std::chrono::milliseconds ttl{config.ttl};
     string metadata_cluster{config.metadata_cluster};
 
