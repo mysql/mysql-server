@@ -105,7 +105,7 @@ alter table t_alter comment = 'new comment';
 --echo # turned off.
 --echo #
 let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/transaction_read_only.log;
-let $restart_parameters = "restart: --init-file=$INIT_SQL --transaction-read-only=1 --log-error=$MYSQLD_LOG" ;
+let $restart_parameters = "restart: --init-file=$INIT_SQL --transaction-read-only=1 --log-error=$MYSQLD_LOG";
 replace_result $MYSQLD_LOG MYSQLD_LOG $INIT_SQL INIT_SQL;
 source include/restart_mysqld.inc;
 source include/wait_until_connected_again.inc;
@@ -243,7 +243,7 @@ force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
 exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
 let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only_$VERSION.log;
 --error 1
-exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG;
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG --secure-file-priv="";
 
 let SEARCH_FILE = $MYSQLD_LOG;
 let SEARCH_PATTERN = Database upgrade cannot be accomplished in read-only mode;
@@ -321,7 +321,7 @@ exec unzip -qo $MYSQL_TMP_DIR/data_$VERSION.zip -d $MYSQL_TMP_DIR;
 let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only_$VERSION.log;
 # Failed start expected; with ASAN, the process fails with error code 42.
 --error 1, 42
-exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG;
+exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG --secure-file-priv="";
 
 let SEARCH_FILE = $MYSQLD_LOG;
 let SEARCH_PATTERN = Cannot resize log files in read-only mode;

@@ -90,7 +90,7 @@ ERROR HY000: The MySQL server is running with the --super-read-only option so it
 # the THDs that execute statements have transaction_read_only explicitly
 # turned off.
 #
-# restart: --init-file=INIT_SQL --transaction-read-only=1 --log-error=MYSQLD_LOG 
+# restart: --init-file=INIT_SQL --transaction-read-only=1 --log-error=MYSQLD_LOG
 set @@session.transaction_read_only = 0;
 select * from t_create;
 @@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
