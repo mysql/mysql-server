@@ -88,6 +88,7 @@ class Item_func_to_days final : public Item_int_func {
   Item_func_to_days(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "to_days"; }
+  enum Functype functype() const override { return TO_DAYS_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(6);
     maybe_null = true;

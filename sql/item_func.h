@@ -194,6 +194,7 @@ class Item_func : public Item_result_field {
     YEAR_FUNC,
     MONTH_FUNC,
     DAY_FUNC,
+    TO_DAYS_FUNC,
     DATE_FUNC,
     HOUR_FUNC,
     MINUTE_FUNC,
