@@ -379,7 +379,7 @@ public:
      * Once per scan frag (next) req/conf
      */
     bool newScan();
-    void scanConf(Uint32 noOfOps, Uint32 opLen);
+    void scanConf(Uint32 noOfOps, Uint32 opLen, Uint32 buffer_data_len);
     Uint32 publishBufferData();
     void closeScan();
     
