@@ -73,9 +73,6 @@ ndb.ndb_alter_table_online_multi : WL#9185 MySQL Cluster support for new DD
 # invalid THD_NDB_SHARE
 ndb.ndb_alter_table_error : WL#9185 MySQL Cluster support for new DD
 
-# Problem with table present in DD and not in SE
-ndb.ndb_restore_schema_rewrites : WL#9185 MySQL Cluster support for new DD
-
 # Clusterj fails in windows due to Bug#28532563
 ndb.clusterj @windows: BUG#28532563 CLUSTERJ MTR TEST FAILS IN WINDOWS DUE TO NOT BEING ABLE TO LOAD LIBNDBCLIENT
 
