@@ -382,8 +382,12 @@ class Guardian {
 /* The innodb_redo_log_archive_dirs plugin variable value. */
 char *redo_log_archive_dirs{};
 
-/* Whether redo_log_archive has already been initialized. */
-static bool redo_log_archive_initialized{};
+/*
+  Whether redo_log_archive has already been initialized.
+  This could be read by redo_log_archive_session_end() even before
+  the InnoDB subsystem has started. Hence the atomic qualifier.
+*/
+static std::atomic<bool> redo_log_archive_initialized{};
 
 /** Mutex to synchronize start and stop of the redo log archiving. */
 static ib_mutex_t redo_log_archive_admin_mutex;
@@ -1433,34 +1437,45 @@ static bool redo_log_archive_stop(THD *thd) {
   Security function to be called when the current session ends.
 */
 void redo_log_archive_session_end(innodb_session_t *session) {
-  bool stop_required = false;
-  THD *thd{};
+  /*
+    This function can be called after the InnoDB handlerton has been
+    initialized and before InnoDB is started. In such case the
+    redo_log_archive_admin_mutex has not yet been created. To prevent
+    the access of a non-existing mutex, the global atomic variable
+    redo_log_archive_initialized can be used as it is true only when the
+    mutex exists. Due to the std::atomic qualifier it should be thread
+    safe in protecting access to the mutex.
+  */
+  if (redo_log_archive_initialized) {
+    bool stop_required = false;
+    THD *thd{};
 
-  /* Synchronize with with other threads while using global objects. */
-  mutex_enter(&redo_log_archive_admin_mutex);
-  if (redo_log_archive_active) {
-    if (redo_log_archive_session == session) {
-      DBUG_PRINT("redo_log_archive",
-                 ("Redo log archiving is active by this session. Stopping."));
-      stop_required = true;
-      redo_log_archive_session_ending = true;
-      thd = redo_log_archive_thd;
-      if (!redo_log_archive_recorded_error.empty()) {
-        redo_log_archive_recorded_error.append("; "); /* purecov: inspected */
+    /* Synchronize with with other threads while using global objects. */
+    mutex_enter(&redo_log_archive_admin_mutex);
+    if (redo_log_archive_active) {
+      if (redo_log_archive_session == session) {
+        DBUG_PRINT("redo_log_archive",
+                   ("Redo log archiving is active by this session. Stopping."));
+        stop_required = true;
+        redo_log_archive_session_ending = true;
+        thd = redo_log_archive_thd;
+        if (!redo_log_archive_recorded_error.empty()) {
+          redo_log_archive_recorded_error.append("; "); /* purecov: inspected */
+        }
+        redo_log_archive_recorded_error.append(
+            "Session terminated with active redo log archiving");
       }
-      redo_log_archive_recorded_error.append(
-          "Session terminated with active redo log archiving");
     }
-  }
-  mutex_exit(&redo_log_archive_admin_mutex);
+    mutex_exit(&redo_log_archive_admin_mutex);
 
-  if (stop_required && (thd != nullptr)) {
-    LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-           (logmsgpfx + "Unexpected termination of the session that started"
-                        " redo log archiving. Stopping redo log archiving.")
-               .c_str());
-    if (redo_log_archive_stop(thd)) {
-      /* return value must be used. */
+    if (stop_required && (thd != nullptr)) {
+      LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+             (logmsgpfx + "Unexpected termination of the session that started"
+                          " redo log archiving. Stopping redo log archiving.")
+                 .c_str());
+      if (redo_log_archive_stop(thd)) {
+        /* return value must be used. */
+      }
     }
   }
 }
