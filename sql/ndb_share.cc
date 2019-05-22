@@ -26,6 +26,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <unordered_set>
 
 #include "m_string.h"
 #include "sql/ndb_conflict.h"
@@ -42,9 +43,13 @@
 extern Ndb* g_ndb;
 extern mysql_mutex_t ndbcluster_mutex;
 
-/// Table lock handling
+// List of NDB_SHARE's which correspond to an open table.
 std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
-  ndbcluster_open_tables, ndbcluster_dropped_tables;
+  ndbcluster_open_tables;
+
+// List of NDB_SHARE's which have been dropped, they are kept in this list
+// until all references to them have been released.
+static std::unordered_set<NDB_SHARE*> dropped_shares;
 
 NDB_SHARE*
 NDB_SHARE::create(const char* key)
@@ -674,58 +679,46 @@ NDB_SHARE::initialize(CHARSET_INFO* charset)
   ndbcluster_open_tables.reset
       (new collation_unordered_map<std::string, NDB_SHARE *>
        (charset, PSI_INSTRUMENT_ME));
-  ndbcluster_dropped_tables.reset
-      (new collation_unordered_map<std::string, NDB_SHARE *>
-       (charset, PSI_INSTRUMENT_ME));
 }
 
 
 void
 NDB_SHARE::deinitialize(void)
 {
-  {
-    mysql_mutex_lock(&ndbcluster_mutex);
-    auto save = ndbcluster_open_tables->size();
-    (void)save;
-    while (!ndbcluster_open_tables->empty())
-    {
-      NDB_SHARE *share= ndbcluster_open_tables->begin()->second;
-#ifndef DBUG_OFF
-      fprintf(stderr,
-              "NDB: table share %s with use_count %d state: %s(%u) still open\n",
-              share->key_string(), share->use_count(),
-              share->share_state_string(),
-              (uint)share->state);
-#endif
+  mysql_mutex_lock(&ndbcluster_mutex);
 
-      // If last ref, share is destructed, else moved to dropped_tables (see below)
-      NDB_SHARE::mark_share_dropped(&share);
-    }
-    mysql_mutex_unlock(&ndbcluster_mutex);
-    DBUG_ASSERT(save == 0);
-  }
-  ndbcluster_open_tables->clear();
+  // There should not be any NDB_SHARE's left -> crash after logging in debug
+  const class Debug_require {
+    const bool m_required_val;
 
-  {
-    mysql_mutex_lock(&ndbcluster_mutex);
-    auto save = ndbcluster_dropped_tables->size();
-    (void)save;
-    while (!ndbcluster_dropped_tables->empty())
-    {
-      NDB_SHARE *share= ndbcluster_dropped_tables->begin()->second;
-#ifndef DBUG_OFF
-      fprintf(stderr,
-              "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
-              share->key_string(), share->use_count(),
-              share->share_state_string(),
-              (uint)share->state);
-#endif
-      NDB_SHARE::real_free_share(&share);
-    }
-    mysql_mutex_unlock(&ndbcluster_mutex);
-    DBUG_ASSERT(save == 0);
+   public:
+    Debug_require(bool val) : m_required_val(val) {}
+    ~Debug_require() { DBUG_ASSERT(m_required_val); }
+  } shares_remaining(ndbcluster_open_tables->empty() && dropped_shares.empty());
+
+  // Drop remaining open shares, drop one NDB_SHARE after the other
+  // until open tables list is empty
+  while (!ndbcluster_open_tables->empty()) {
+    NDB_SHARE *share = ndbcluster_open_tables->begin()->second;
+    ndb_log_error("Still open NDB_SHARE '%s', use_count: %d, state: %s",
+                  share->key_string(), share->use_count(),
+                  share->share_state_string());
+    // If last ref, share is destroyed immediately, else moved to list of
+    // dropped shares
+    NDB_SHARE::mark_share_dropped(&share);
   }
-  ndbcluster_dropped_tables.reset();
+
+  // Release remaining dropped shares, release one NDB_SHARE after the other
+  // until dropped list is empty
+  while (!dropped_shares.empty()) {
+    NDB_SHARE *share = *dropped_shares.begin();
+    ndb_log_error("Not freed NDB_SHARE '%s', use_count: %d, state: %s",
+                  share->key_string(), share->use_count(),
+                  share->share_state_string());
+    NDB_SHARE::real_free_share(&share);
+  }
+
+  mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 
@@ -756,14 +749,13 @@ void NDB_SHARE::real_free_share(NDB_SHARE **share_ptr) {
   ndbcluster::ndbrequire(share->state == NSS_DROPPED);
 
   // Share must be in dropped list
-  ndbcluster::ndbrequire(
-      find_or_nullptr(*ndbcluster_dropped_tables, share->key_string()));
+  ndbcluster::ndbrequire(dropped_shares.find(share) != dropped_shares.end());
 
   // Remove share from dropped list
-  ndbcluster::ndbrequire(ndbcluster_dropped_tables->erase(share->key_string()));
+  ndbcluster::ndbrequire(dropped_shares.erase(share));
 
-  // Remove shares reference from 'ndbcluster_dropped_tables'
-  share->refs_erase("ndbcluster_dropped_tables");
+  // Remove shares reference from 'dropped_shares'
+  share->refs_erase("dropped_shares");
 
   NDB_SHARE::destroy(share);
 }
@@ -808,14 +800,16 @@ void NDB_SHARE::mark_share_dropped(NDB_SHARE **share_ptr) {
 
   // Someone is still using the NDB_SHARE, insert it into the list of dropped
   // to keep track of it until all references has been released
-  ndbcluster_dropped_tables->emplace(share->key_string(), share);
+  dropped_shares.emplace(share);
 
+#ifndef DBUG_OFF
   std::string s;
   share->debug_print(s, "\n");
   std::cerr << "dropped_share: " << s << std::endl;
+#endif
 
-  // Share is referenced by 'ndbcluster_dropped_tables'
-  share->refs_insert("ndbcluster_dropped_tables");
+  // Share is referenced by 'dropped_shares'
+  share->refs_insert("dropped_shares");
   // NOTE! The refcount has not been incremented
 }
 
@@ -836,14 +830,10 @@ NDB_SHARE::dbg_check_shares_update()
   }
 
   ndb_log_info("dbug_check_shares dropped:");
-  for (const auto &key_and_value : *ndbcluster_dropped_tables)
-  {
-    const NDB_SHARE *share= key_and_value.second;
-    ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
-                 share->db, share->table_name,
-                 share->share_state_string(),
-                 (unsigned)share->state,
-                 share->use_count());
+  for (const NDB_SHARE * share: dropped_shares) {
+    ndb_log_info("  %s.%s: state: %s(%u) use_count: %u", share->db,
+                 share->table_name, share->share_state_string(),
+                 (unsigned)share->state, share->use_count());
     assert(share->state == NSS_DROPPED);
   }
 
@@ -857,11 +847,9 @@ NDB_SHARE::dbg_check_shares_update()
   }
 
   /**
-   * Only shares in mysql database may be open...
+   * Only shares in mysql database may be in dropped list...
    */
-  for (const auto &key_and_value : *ndbcluster_dropped_tables)
-  {
-    const NDB_SHARE *share= key_and_value.second;
+  for (const NDB_SHARE *share : dropped_shares) {
     assert(strcmp(share->db, "mysql") == 0);
   }
 }

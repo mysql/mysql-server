@@ -25,7 +25,6 @@
 #ifndef NDB_SHARE_H
 #define NDB_SHARE_H
 
-#include <stdio.h>           // FILE, stderr
 #include <string>
 #ifndef DBUG_OFF
 #include <unordered_set>
