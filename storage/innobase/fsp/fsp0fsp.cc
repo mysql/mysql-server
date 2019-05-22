@@ -2360,14 +2360,33 @@ static ulint fseg_n_reserved_pages_low(
   ut_ad(inode && used && mtr);
   ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_SX_FIX));
 
-  *used = mach_read_from_4(inode + FSEG_NOT_FULL_N_USED) +
-          FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL) +
-          fseg_get_n_frag_pages(inode, mtr);
+  /* number of used segment pages in the FSEG_NOT_FULL list */
+  ulint n_used_not_full = mach_read_from_4(inode + FSEG_NOT_FULL_N_USED);
 
-  ret = fseg_get_n_frag_pages(inode, mtr) +
-        FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FREE) +
-        FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_NOT_FULL) +
-        FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL);
+  /* total number of segment pages in the FSEG_NOT_FULL list */
+  ulint n_total_not_full =
+      FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_NOT_FULL);
+
+  /* n_used can be zero only if n_total is zero. */
+  ut_ad(n_used_not_full > 0 || n_total_not_full == 0);
+  ut_ad((n_used_not_full < n_total_not_full) ||
+        ((n_used_not_full == 0) && (n_total_not_full == 0)));
+
+  /* total number of pages in FSEG_FULL list. */
+  ulint n_total_full = FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL);
+
+  /* total number of pages in FSEG_FREE list. */
+  ulint n_total_free = FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FREE);
+
+  /* Number of fragment pages in the segment. */
+  ulint n_frags = fseg_get_n_frag_pages(inode, mtr);
+
+  *used = n_frags + n_total_full + n_used_not_full;
+  ret = n_frags + n_total_full + n_total_free + n_total_not_full;
+
+  ut_ad(*used <= ret);
+  ut_ad((*used < ret) || ((n_used_not_full == 0) && (n_total_not_full == 0) &&
+                          (n_total_free == 0)));
 
   return (ret);
 }
@@ -3217,6 +3236,7 @@ static void fseg_mark_page_used(
     flst_remove(seg_inode + FSEG_NOT_FULL, descr + XDES_FLST_NODE, mtr);
     flst_add_last(seg_inode + FSEG_FULL, descr + XDES_FLST_NODE, mtr);
 
+    ut_ad(not_full_n_used >= FSP_EXTENT_SIZE);
     mlog_write_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
                      not_full_n_used - FSP_EXTENT_SIZE, MLOG_4BYTES, mtr);
   }
@@ -3343,6 +3363,8 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
   the segment.*/
   if (state == XDES_FSEG_FRAG && n_used == XDES_FRAG_N_USED) {
     n_used = 0;
+
+    ut_ad(not_full_n_used >= XDES_FRAG_N_USED);
     not_full_n_used -= XDES_FRAG_N_USED;
   }
 
