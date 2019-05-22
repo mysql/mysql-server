@@ -116,13 +116,13 @@ Array_field_info fail_on_create_array_field_param[] = {
 INSTANTIATE_TEST_CASE_P(fail_on_create_field, Index_array_field_create_test,
                         ::testing::ValuesIn(fail_on_create_array_field_param));
 
-struct Param_index_field_add_field {
+struct Param_index_array_field_add_field {
   std::string expect;
   Array_field_info info;
 };
 
 class Index_array_field_add_field_test
-    : public ::testing::TestWithParam<Param_index_field_add_field> {};
+    : public ::testing::TestWithParam<Param_index_array_field_add_field> {};
 
 TEST_P(Index_array_field_add_field_test, add_field) {
   const auto &param = GetParam();
@@ -135,7 +135,7 @@ TEST_P(Index_array_field_add_field_test, add_field) {
   ASSERT_STREQ(param.expect.c_str(), qb.get().c_str());
 }
 
-Param_index_field_add_field add_array_field_param[] = {
+Param_index_array_field_add_field add_array_field_param[] = {
     {CAST_TO_ARRAY("BINARY"), {PATH, "BINARY"}},
     {CAST_TO_ARRAY("binary(20)"), {PATH, "binary(20)"}},
     {CAST_TO_ARRAY("date"), {PATH, "date"}},
