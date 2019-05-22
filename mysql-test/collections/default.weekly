@@ -74,10 +74,10 @@ perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-time
 
 #######SECTION 4 : EXTENDED RUNS FOR INNODB SUITES #####
 # Run innodb suite including big-test with innodb-page-size=4k
-perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60   --comment=innodb-page-size-4k --vardir=var-innodb-page-size-4k   --initialize=--innodb-page-size=4k --suite=innodb,innodb_undo --no-skip
+perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60   --comment=innodb-page-size-4k --vardir=var-innodb-page-size-4k   --initialize=--innodb-page-size=4k --suite=innodb,innodb_undo,clone --no-skip
 
 # Run innodb suite with innodb-page-size=8k
-perl mysql-test-run.pl --debug-server --timer --force  --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k   --initialize=--innodb-page-size=8k --suite=innodb,innodb_undo --no-skip
+perl mysql-test-run.pl --debug-server --timer --force  --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k   --initialize=--innodb-page-size=8k --suite=innodb,innodb_undo,clone --no-skip
 
 ####END OF SECTION4(EXTENDED INNODB) ####################
 ####### END OF SECTION - REPEAT DAILY###############################
@@ -102,9 +102,9 @@ perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force 
 # Runs with innodb-page-size=4k and 8k are covered in SECTION 4
 
 # Run innodb suite including big-test with innodb-page-size=32k and 64k
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_32k_size --vardir=var-innodb_32k   --initialize=--innodb-page-size=32k --suite=innodb,innodb_undo,innodb_zip --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_32k_size --vardir=var-innodb_32k   --initialize=--innodb-page-size=32k --suite=innodb,innodb_undo,innodb_zip,clone --no-skip
 
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_64k_size --vardir=var-innodb-64k  --initialize=--innodb-page-size=64k --suite=innodb,innodb_undo,innodb_zip --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_64k_size --vardir=var-innodb-64k  --initialize=--innodb-page-size=64k --suite=innodb,innodb_undo,innodb_zip,clone --no-skip
 
 # Run innodb_gis suite including big-test with innodb-page-size=4k
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_gis_4k_size --vardir=var-innodb_gis-4k   --initialize=--innodb-page-size=4k --suite=innodb_gis --no-skip
