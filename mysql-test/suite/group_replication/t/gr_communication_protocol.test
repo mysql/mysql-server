@@ -97,8 +97,7 @@ SELECT group_replication_get_communication_protocol(NULL);
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_set_communication_protocol();
 
-# This one fails on the main UDF function, so the error is reflected as a
-# return message.
+--error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_set_communication_protocol(NULL);
 
 --error ER_CANT_INITIALIZE_UDF
@@ -132,9 +131,36 @@ SELECT group_replication_set_communication_protocol("5.7.13");
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_set_communication_protocol("99.99.99");
 
-# Exercise error handling in the main UDF function.
---replace_result $mysql_version MYSQL_VERSION
-SELECT group_replication_set_communication_protocol(s) FROM t1;
+# With dynamic arguments, the error returned is ER_GRP_RPL_UDF_ERROR
+
+# NULL
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=1;
+
+# Empty
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=2;
+
+# 5
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=3;
+
+# 5.7
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=4;
+
+#5.7.14a
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=5;
+
+#5.7.13
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=6;
+
+#99.99.99
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=7;
+
 
 # Stop GR on server2
 --let $rpl_connection_name= server2

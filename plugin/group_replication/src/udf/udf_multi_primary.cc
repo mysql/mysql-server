@@ -27,8 +27,11 @@
 
 static char *group_replication_switch_to_multi_primary_mode(
     UDF_INIT *, UDF_ARGS *, char *result, unsigned long *length,
-    unsigned char *, unsigned char *) {
+    unsigned char *is_null, unsigned char *error) {
   DBUG_TRACE;
+
+  *is_null = 0;  // result is not null
+  *error = 0;
 
   if (local_member_info && !local_member_info->in_primary_mode()) {
     const char *return_message = "The group is already on multi-primary mode.";
@@ -46,9 +49,11 @@ static char *group_replication_switch_to_multi_primary_mode(
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
       &group_action, &execution_message_area);
-  log_group_action_result_message(
-      &execution_message_area, "group_replication_switch_to_multi_primary_mode",
-      result, length);
+  if (log_group_action_result_message(
+          &execution_message_area,
+          "group_replication_switch_to_multi_primary_mode", result, length)) {
+    *error = 1;
+  }
 
   return result;
 }
@@ -57,6 +62,15 @@ static bool group_replication_switch_to_multi_primary_mode_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_TRACE;
 
+  /*
+    Increment only after verifying the plugin is not stopping
+    Do NOT increment before accessing volatile plugin structures.
+    Stop is checked again after increment as the plugin might have stopped
+  */
+  if (get_plugin_is_stopping()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
   UDF_counter udf_counter;
 
   if (get_plugin_is_stopping()) {

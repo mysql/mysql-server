@@ -28,43 +28,25 @@
 static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
                                               char *result,
                                               unsigned long *length,
-                                              unsigned char *,
-                                              unsigned char *) {
+                                              unsigned char *is_null,
+                                              unsigned char *error) {
   DBUG_TRACE;
 
-  size_t ulength = 0;
-  if (!args->args[0] || !(ulength = args->lengths[0])) {
-    const char *return_message =
-        "Wrong arguments: You need to specify a server uuid.";
-    size_t return_length = strlen(return_message);
-    strcpy(result, return_message);
-    *length = return_length;
-    return result;
-  }
+  const char *action_name = "group_replication_set_as_primary";
+  *is_null = 0;  // result is not null
+  *error = 0;
 
-  // Double checking for dynamic values
-  if (!binary_log::Uuid::is_valid(args->args[0], ulength)) {
-    const char *return_message =
-        "Wrong arguments: The server uuid is not valid.";
-    size_t return_length = strlen(return_message);
-    strcpy(result, return_message);
-    *length = return_length;
-    return result;
-  }
+  std::string uuid =
+      (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
+  size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
+  if (args->arg_count > 0) {
+    const char *return_message = NULL;
+    bool invalid_uuid = validate_uuid_parameter(uuid, ulength, &return_message);
 
-  std::string uuid = args->arg_count > 0 ? args->args[0] : "";
-  if (group_member_mgr) {
-    Group_member_info *member_info =
-        group_member_mgr->get_group_member_info(uuid);
-    if (member_info == nullptr) {
-      const char *return_message =
-          "The requested uuid is not a member of the group.";
-      size_t return_length = strlen(return_message);
-      strcpy(result, return_message);
-      *length = return_length;
+    if (invalid_uuid) {
+      *error = 1;
+      throw_udf_error(action_name, return_message);
       return result;
-    } else {
-      delete member_info;
     }
   }
 
@@ -96,9 +78,10 @@ static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
       &group_action, &execution_message_area);
-  log_group_action_result_message(&execution_message_area,
-                                  "group_replication_set_as_primary", result,
-                                  length);
+  if (log_group_action_result_message(&execution_message_area, action_name,
+                                      result, length)) {
+    *error = 1;
+  }
 
   return result;
 }
@@ -108,6 +91,15 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
                                                   char *message) {
   DBUG_TRACE;
 
+  /*
+    Increment only after verifying the plugin is not stopping
+    Do NOT increment before accessing volatile plugin structures.
+    Stop is checked again after increment as the plugin might have stopped
+  */
+  if (get_plugin_is_stopping()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
   UDF_counter udf_counter;
 
   if (get_plugin_is_stopping()) {
@@ -148,27 +140,17 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
     return true;
   }
 
-  const char *uuid = args->args[0];
-  // We can do this test here for dynamic values (e.g.: SQL query values)
-  if (uuid != nullptr) {
-    size_t length = 0;
-    if (uuid) length = strlen(uuid);
-    if (!binary_log::Uuid::is_valid(uuid, length)) {
-      my_stpcpy(message, "Wrong arguments: The server uuid is not valid.");
-      return true;
-    }
+  const char *uuid_arg = args->args[0];
+  if (uuid_arg != nullptr) {
+    size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
+    std::string uuid =
+        (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
+    const char *return_message = NULL;
+    bool invalid_uuid = validate_uuid_parameter(uuid, ulength, &return_message);
 
-    if (group_member_mgr) {
-      Group_member_info *member_info =
-          group_member_mgr->get_group_member_info(uuid);
-      if (member_info == NULL) {
-        const char *return_message =
-            "The requested uuid is not a member of the group.";
-        strcpy(message, return_message);
-        return true;
-      } else {
-        delete member_info;
-      }
+    if (invalid_uuid) {
+      my_stpcpy(message, return_message);
+      return true;
     }
   }
 
@@ -198,8 +180,12 @@ udf_descriptor set_as_primary_udf() {
 
 static char *group_replication_switch_to_single_primary_mode(
     UDF_INIT *, UDF_ARGS *args, char *result, unsigned long *length,
-    unsigned char *, unsigned char *) {
+    unsigned char *is_null, unsigned char *error) {
   DBUG_TRACE;
+
+  const char *action_name = "group_replication_switch_to_single_primary_mode";
+  *is_null = 0;  // result is not null
+  *error = 0;
 
   if (local_member_info && local_member_info->in_primary_mode()) {
     const char *return_message;
@@ -219,40 +205,15 @@ static char *group_replication_switch_to_single_primary_mode(
 
   std::string uuid =
       (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
+  size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
   if (args->arg_count > 0) {
-    size_t ulength = 0;
-    if (!args->args[0] || !(ulength = args->lengths[0])) {
-      const char *return_message =
-          "Wrong arguments: You need to specify a server uuid.";
-      size_t return_length = strlen(return_message);
-      strcpy(result, return_message);
-      *length = return_length;
-      return result;
-    }
+    const char *return_message = NULL;
+    bool invalid_uuid = validate_uuid_parameter(uuid, ulength, &return_message);
 
-    // Double checking for dynamic values
-    if (!binary_log::Uuid::is_valid(args->args[0], ulength)) {
-      const char *return_message =
-          "Wrong arguments: The server uuid is not valid.";
-      size_t return_length = strlen(return_message);
-      strcpy(result, return_message);
-      *length = return_length;
+    if (invalid_uuid) {
+      *error = 1;
+      throw_udf_error(action_name, return_message);
       return result;
-    }
-
-    if (group_member_mgr) {
-      Group_member_info *member_info =
-          group_member_mgr->get_group_member_info(uuid);
-      if (member_info == nullptr) {
-        const char *return_message =
-            "The requested uuid is not a member of the group.";
-        size_t return_length = strlen(return_message);
-        strcpy(result, return_message);
-        *length = return_length;
-        return result;
-      } else {
-        delete member_info;
-      }
     }
   }
 
@@ -263,9 +224,10 @@ static char *group_replication_switch_to_single_primary_mode(
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
       &group_action, &execution_message_area);
-  log_group_action_result_message(
-      &execution_message_area,
-      "group_replication_switch_to_single_primary_mode", result, length);
+  if (log_group_action_result_message(&execution_message_area, action_name,
+                                      result, length)) {
+    *error = 1;
+  }
 
   return result;
 }
@@ -274,6 +236,15 @@ static bool group_replication_switch_to_single_primary_mode_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_TRACE;
 
+  /*
+    Increment only after verifying the plugin is not stopping
+    Do NOT increment before accessing volatile plugin structures.
+    Stop is checked again after increment as the plugin might have stopped
+  */
+  if (get_plugin_is_stopping()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
   UDF_counter udf_counter;
 
   if (get_plugin_is_stopping()) {
@@ -327,23 +298,17 @@ static bool group_replication_switch_to_single_primary_mode_init(
 
   // We can do this test here for dynamic values (e.g.: SQL query values)
   if (args->arg_count == 1 && args->args[0] != nullptr) {
-    const char *uuid = args->args[0];
-    size_t length = strlen(uuid);
-    if (length == 0 || !binary_log::Uuid::is_valid(uuid, length)) {
-      my_stpcpy(message, "Wrong arguments: The server uuid is not valid.");
-      return true;
-    }
+    std::string uuid =
+        (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
+    size_t ulength = args->lengths[0];
+    if (args->arg_count > 0) {
+      const char *return_message = NULL;
+      bool invalid_uuid =
+          validate_uuid_parameter(uuid, ulength, &return_message);
 
-    if (group_member_mgr) {
-      Group_member_info *member_info =
-          group_member_mgr->get_group_member_info(uuid);
-      if (member_info == NULL) {
-        const char *return_message =
-            "The requested uuid is not a member of the group.";
-        strcpy(message, return_message);
+      if (invalid_uuid) {
+        my_stpcpy(message, return_message);
         return true;
-      } else {
-        delete member_info;
       }
     }
   }

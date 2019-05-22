@@ -23,6 +23,7 @@
 #include "plugin/group_replication/include/udf/udf_utils.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/dynamic_privilege.h"
+#include "mysql/components/services/mysql_runtime_error_service.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "sql/auth/auth_acls.h"
 
@@ -135,16 +136,61 @@ bool group_contains_recovering_member() {
   return false;
 }
 
-void log_group_action_result_message(Group_action_diagnostics *result_area,
+bool validate_uuid_parameter(std::string &uuid, size_t length,
+                             const char **error_message) {
+  if (uuid.empty() || length == 0) {
+    *error_message = server_uuid_not_present_str;
+    return true;
+  }
+
+  if (!binary_log::Uuid::is_valid(uuid.c_str(), length)) {
+    *error_message = server_uuid_not_valid_str;
+    return true;
+  }
+
+  if (group_member_mgr) {
+    std::unique_ptr<Group_member_info> member_info{
+        group_member_mgr->get_group_member_info(uuid)};
+    if (member_info.get() == nullptr) {
+      *error_message = server_uuid_not_on_group_str;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool throw_udf_error(const char *action_name, const char *error_message,
+                     bool log_error) {
+  SERVICE_TYPE(registry) *registry = NULL;
+  if ((registry = get_plugin_registry())) {
+    my_service<SERVICE_TYPE(mysql_runtime_error)> svc_error(
+        "mysql_runtime_error", registry);
+    if (svc_error.is_valid()) {
+      mysql_error_service_emit_printf(svc_error, ER_GRP_RPL_UDF_ERROR, MYF(0),
+                                      action_name, error_message);
+      if (log_error)
+        LogErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_UDF_ERROR, action_name,
+               error_message);
+      return false;
+    }
+  }
+  // Log the error in case we can't do much
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_UDF_ERROR, action_name,
+               error_message);
+  return true;
+}
+
+bool log_group_action_result_message(Group_action_diagnostics *result_area,
                                      const char *action_name,
                                      char *result_message,
                                      unsigned long *length) {
+  bool error = false;
   switch (result_area->get_execution_message_level()) {
     case Group_action_diagnostics::GROUP_ACTION_LOG_ERROR:
-      my_error(ER_GRP_RPL_UDF_ERROR, MYF(0), action_name,
-               result_area->get_execution_message().c_str());
-      LogErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_UDF_ERROR, action_name,
-             result_area->get_execution_message().c_str());
+      throw_udf_error(action_name, result_area->get_execution_message().c_str(),
+                      true);
+      error = true;
       break;
     case Group_action_diagnostics::GROUP_ACTION_LOG_WARNING:
       my_stpcpy(result_message, result_area->get_execution_message().c_str());
@@ -167,6 +213,7 @@ void log_group_action_result_message(Group_action_diagnostics *result_area,
       *length = result.length();
       /* purecov: end */
   }
+  return error;
 }
 
 bool check_locked_tables(char *message) {
