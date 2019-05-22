@@ -222,6 +222,8 @@ std::string SocketOperations::get_local_hostname() {
     ret =
         getnameinfo(ifap->ifa_addr, addrlen, buf,
                     static_cast<socklen_t>(sizeof(buf)), NULL, 0, NI_NAMEREQD);
+
+    if (0 == ret) break;
   }
   if (ret != EAI_NONAME && ret != 0) {
     throw LocalHostnameResolutionError(
