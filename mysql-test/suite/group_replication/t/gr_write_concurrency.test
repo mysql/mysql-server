@@ -20,11 +20,11 @@
 #    outside of a group
 ################################################################################
 # Create table before GR because it is incompatible.
-CREATE TABLE t1 (i INT);
-INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (9);
-INSERT INTO t1 VALUES (42);
-INSERT INTO t1 VALUES (201);
+CREATE TABLE t1 (i INT, v INT, PRIMARY KEY (i));
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 9);
+INSERT INTO t1 VALUES (3, 42);
+INSERT INTO t1 VALUES (4, 201);
 
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 2
@@ -124,8 +124,22 @@ SELECT group_replication_set_write_concurrency(9);
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_set_write_concurrency(4097);
 
-# Exercise error handling in the main UDF function.
-SELECT group_replication_set_write_concurrency(i) FROM t1;
+# With dynamic arguments, the error returned is ER_GRP_RPL_UDF_ERROR
+
+# NULL
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=1;
+
+# 9
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=2;
+
+# 42
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=3;
+
+# 201
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=4;
 
 # Stop GR on M2
 --let $rpl_connection_name= server2
@@ -168,7 +182,7 @@ START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
 CREATE TABLE t2 (a INT PRIMARY KEY);
 --source include/rpl_sync.inc
 
-# Insert some data onto t1 with sql_log_bin=0 so that M2 goes to ERROR state.
+# Insert some data onto t2 with sql_log_bin=0 so that M2 goes to ERROR state.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin=0;
@@ -210,6 +224,7 @@ DROP TABLE t2;
 --echo # 9. Stop GR and try to call group_replication_{get,set}_write_concurrency outside of a group
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
 --source include/group_replication_end.inc
 
 --error ER_CANT_INITIALIZE_UDF

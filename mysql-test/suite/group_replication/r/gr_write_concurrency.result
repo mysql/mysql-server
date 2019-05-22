@@ -1,8 +1,8 @@
-CREATE TABLE t1 (i INT);
-INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (9);
-INSERT INTO t1 VALUES (42);
-INSERT INTO t1 VALUES (201);
+CREATE TABLE t1 (i INT, v INT, PRIMARY KEY (i));
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 9);
+INSERT INTO t1 VALUES (3, 42);
+INSERT INTO t1 VALUES (4, 201);
 include/group_replication.inc [rpl_server_count=2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -59,12 +59,15 @@ SELECT group_replication_set_write_concurrency(9);
 ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Argument must be between 10 and 200.
 SELECT group_replication_set_write_concurrency(4097);
 ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Argument must be between 10 and 200.
-SELECT group_replication_set_write_concurrency(i) FROM t1;
-group_replication_set_write_concurrency(i)
-UDF takes one integer argument.
-Argument must be between 10 and 200.
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=1;
+ERROR HY000: The function 'group_replication_set_write_concurrency' failed. UDF takes one integer argument.
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=2;
+ERROR HY000: The function 'group_replication_set_write_concurrency' failed. Argument must be between 10 and 200.
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=3;
+group_replication_set_write_concurrency(v)
 UDF is asynchronous, check log or call group_replication_get_write_concurrency().
-Argument must be between 10 and 200.
+SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=4;
+ERROR HY000: The function 'group_replication_set_write_concurrency' failed. Argument must be between 10 and 200.
 [connection server2]
 include/stop_group_replication.inc
 ###############################################################################
