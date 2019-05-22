@@ -93,8 +93,5 @@ ndb.ndb_read_location_domain : BUG#27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN 
 # Flaky test
 ndb.ndb_import2 : BUG#28239197 NDB_IMPORT2 FAILS SPORADICALLY IN 7.6
 
-# Fails on slow machines
-ndb.ndb_bushy_joins: BUG#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
-
 # Disabled due to Bug#29305977 which is waiting on Bug#29205142 to be fixed
 ndb.ndbinfo_upgrade: Bug#29305977 NDB.NDBINFO_UPGRADE TEST FAILS
