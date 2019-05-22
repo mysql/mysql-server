@@ -77,9 +77,9 @@ ERROR HY000: The function 'group_replication_set_communication_protocol' failed.
 SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=5;
 ERROR HY000: The function 'group_replication_set_communication_protocol' failed. '5.7.14a' is not version string argument with format major.minor.patch
 SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=6;
-ERROR HY000: The function 'group_replication_set_communication_protocol' failed. 5.7.13 is not between 5.7.14 and 8.0.17
+ERROR HY000: The function 'group_replication_set_communication_protocol' failed. 5.7.13 is not between 5.7.14 and 8.0.18
 SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=7;
-ERROR HY000: The function 'group_replication_set_communication_protocol' failed. 99.99.99 is not between 5.7.14 and 8.0.17
+ERROR HY000: The function 'group_replication_set_communication_protocol' failed. 99.99.99 is not between 5.7.14 and 8.0.18
 [connection server2]
 include/stop_group_replication.inc
 ###############################################################################
