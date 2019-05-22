@@ -2105,14 +2105,14 @@ int Dbtup::handleInsertReq(Signal* signal,
   if (ERROR_INSERTED(4014))
   {
     dst = 0;
-    goto undo_buffer_error;
+    goto trans_mem_error;
   }
 
   dst= alloc_copy_tuple(regTabPtr, &regOperPtr.p->m_copy_tuple_location);
 
   if (unlikely(dst == 0))
   {
-    goto undo_buffer_error;
+    goto trans_mem_error;
   }
   tuple_ptr= req_struct->m_tuple_ptr= dst;
   set_change_mask_info(regTabPtr, get_change_mask_ptr(regTabPtr, dst));
@@ -2491,9 +2491,9 @@ size_change_error:
   terrorCode = ZMEM_NOMEM_ERROR;
   goto exit_error;
   
-undo_buffer_error:
+trans_mem_error:
   jam();
-  terrorCode= ZNO_UNDO_BUFFER_MEMORY_ERROR;
+  terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
   regOperPtr.p->m_undo_buffer_space = 0;
   if (mem_insert)
     regOperPtr.p->m_tuple_location.setNull();
