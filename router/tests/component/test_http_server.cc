@@ -1075,6 +1075,9 @@ class HttpServerSecureTest
   mysql_harness::Path ssl_cert_data_dir_;
 };
 
+constexpr const char kErrmsgRegexWeakSslKey[]{
+    "keylength of RSA public-key of certificate"};
+
 TEST_P(HttpServerSecureTest, ensure) {
   // const size_t placeholder_length = strlen(kPlaceholder);
 
@@ -1142,8 +1145,18 @@ TEST_P(HttpServerSecureTest, ensure) {
     EXPECT_EQ(EXIT_FAILURE,
               http_server.wait_for_exit(1000));  // assume it finishes in 1s
     EXPECT_EQ(kSuccessfulLogOutput, http_server.get_full_output());
+
+    // if openssl 1.1.0 is used and it is compiled with
+    // "-DOPENSSL_TLS_SECURITY_LEVEL" > 1 we may also get "ee key too small"
+    // instead of kErrmsgRegexWeakSslKey.
+    const auto errmsg_regex =
+        (GetParam().errmsg_regex == kErrmsgRegexWeakSslKey &&
+         TlsClientContext().security_level() > 1)
+            ? "ee key too small"
+            : GetParam().errmsg_regex;
+
     EXPECT_THAT(http_server.get_full_logfile(),
-                ::testing::ContainsRegex(GetParam().errmsg_regex));
+                ::testing::ContainsRegex(errmsg_regex));
   }
 }
 
@@ -1356,10 +1369,7 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
           kPlaceholderStddataDir + std::string("/") + kServerCertRsa1024File},
      },
      false,
-     // if openssl 1.1.0 is used and it is compiled with
-     // "-DOPENSSL_TLS_SECURITY_LEVEL" > 1 we may also get "ee key too small"
-     // here.
-     "keylength of RSA public-key of certificate"},
+     kErrmsgRegexWeakSslKey},
     {"ecdh cipher",
      "WL12524::TS_SR6_01",
      {
@@ -1374,7 +1384,7 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
      },
      true,
      // if openssl 1.1.0 is used and it is compiled with
-     // "-DOPENSSL_TLS_SECURITY_LEVEL" > 1 we may also get "ee key too small"
+     // "-DOPENSSL_TLS_SECURITY_LEVEL" > 4 we may also get "ee key too small"
      // here.
      "no-error"},
 };
