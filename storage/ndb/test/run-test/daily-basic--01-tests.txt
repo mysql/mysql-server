@@ -23,7 +23,7 @@
 # GENERATED FILE
 #
 cmd: testScan
-args: -n TupCheckSumError T1
+args: -n TupCheckSumError T18
 max-time: 180
 
 cmd: testNodeRestart
