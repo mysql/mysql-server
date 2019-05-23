@@ -1981,3 +1981,35 @@ CREATE TABLE t8(a INTEGER, b INTEGER CHECK (a + b > 0) UNIQUE CHECK ( a - b < 10
 CREATE TABLE t7(a INTEGER, b INTEGER CHECK (b > 0) UNIQUE CHECK ( a - b < 1000));
 #Cleanup
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29706621 - CHECK CONSTRAINT COMPARING COLUMNS IS NOT ALWAYS
+--echo #                ENFORCED WITH UPDATE QUERIES.
+--echo #-----------------------------------------------------------------------
+SET @binlog_format_saved = @@binlog_format;
+--echo # In default case, when ROW format and full row image are used the bug
+--echo # is hidden, as all columns are marked as modified by UPDATE.
+SET binlog_format = 'STATEMENT';
+
+CREATE TABLE tst (
+  id INT,
+  start_date DATE,
+  end_date DATE,
+  PRIMARY KEY (id),
+  CONSTRAINT chk_dat CHECK (end_date > start_date)
+);
+
+INSERT INTO tst (id, start_date, end_date) VALUES (1, '2019-04-25', '2019-04-30');
+--echo # Without fix, check constraint is not evaluated and following statement succeeds.
+--echo # With fix, error is reported.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE tst SET end_date = '2019-04-20' WHERE id = 1;
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE tst SET start_date = '2019-05-01' WHERE id = 1;
+UPDATE tst SET id = 5 WHERE start_date = '2019-04-25';
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2019-04-23' WHERE id = 5;
+UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2049-04-23' WHERE id = 5;
+DROP TABLE tst;
+SET binlog_format=@binlog_format_saved;
