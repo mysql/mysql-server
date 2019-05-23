@@ -166,6 +166,8 @@ public:
                                  std::unordered_set<std::string> *local_tables);
   bool have_local_tables_in_schema(const char* schema_name,
                                    bool* found_local_tables);
+  bool is_local_table(const char* schema_name, const char* table_name,
+                      bool &local_table);
   bool schema_exists(const char* schema_name, bool* schema_exists);
   bool update_schema_version(const char* schema_name,
                              unsigned int counter, unsigned int node_id);

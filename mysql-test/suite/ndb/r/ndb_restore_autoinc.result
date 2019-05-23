@@ -166,6 +166,8 @@ drop table filler5, filler6, filler7, filler8;
 ----------------------------------------
 8.  Use ndb_restore metadata restore
 ----------------------------------------
+SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 ----------------------------------------
 9.  Check autoincrement info
 ----------------------------------------
@@ -196,6 +198,7 @@ TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
 Expect 6
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
 ----------------------------------------
 6.  Test via inserts
 ----------------------------------------

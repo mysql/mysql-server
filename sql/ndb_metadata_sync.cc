@@ -625,8 +625,21 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   }
 
   if (exists_in_DD) {
-    // Table exists in DD but not in NDB. Correct this by removing the table
-    // from DD
+    // Table exists in DD but not in NDB
+    // Check if it's a local table
+    bool local_table;
+    if (!dd_client.is_local_table(db_name.c_str(), table_name.c_str(),
+                                  local_table)) {
+      ndb_log_info("Failed to determine if table '%s.%s' was a local table",
+                   db_name.c_str(), table_name.c_str());
+      return false;
+    }
+    if (local_table) {
+      // Local table, the mismatch is expected
+      return true;
+    }
+
+    // Remove the table from DD
     Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
     if (!dd_client.remove_table(db_name.c_str(), table_name.c_str(),
                                 &invalidator)) {

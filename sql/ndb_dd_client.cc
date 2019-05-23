@@ -1087,6 +1087,26 @@ Ndb_dd_client::have_local_tables_in_schema(const char* schema_name,
 }
 
 
+bool Ndb_dd_client::is_local_table(const char* schema_name,
+                                   const char* table_name, bool &local_table)
+{
+  const dd::Table *table;
+  if (m_client->acquire(schema_name, table_name, &table))
+  {
+    // Failed to acquire the requested table
+    return false;
+  }
+  if (table == nullptr)
+  {
+    // The table doesn't exist
+    DBUG_ASSERT(false);
+    return false;
+  }
+  local_table = table->engine() != "ndbcluster";
+  return true;
+}
+
+
 bool
 Ndb_dd_client::schema_exists(const char* schema_name,
                                   bool* schema_exists)
