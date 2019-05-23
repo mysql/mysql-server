@@ -26,11 +26,13 @@ INCLUDE_DIRECTORIES(helpers
   ${PROJECT_SOURCE_DIR}/src/harness/include
   ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
   ${PROJECT_SOURCE_DIR}/src/http/include/
+  ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
   )
 
 SET(helper_sources
   helpers/filesystem_utils.cc
   helpers/gtest_testname.cc
+  helpers/mock_server_testutils.cc
   helpers/mysql_session_replayer.cc
   helpers/process_manager.cc
   helpers/process_wrapper.cc
@@ -49,7 +51,8 @@ ENDIF()
 
 ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 
-TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib rest_api_lib)
+TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib
+  rest_api_lib mock_server_rest_client)
 
 FOREACH(test_dir tools)
     IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})

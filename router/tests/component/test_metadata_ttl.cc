@@ -22,18 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
-#include "my_rapidjson_size_t.h"
-#endif
-
-#include <rapidjson/document.h>
 #include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
+#include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -45,12 +40,23 @@ using ::testing::PrintToString;
 
 class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
-  std::string get_metadata_cache_section(unsigned metadata_server_port,
-                                         const std::string &ttl = "0.5") {
+  std::string get_metadata_cache_section(
+      std::vector<uint16_t> metadata_server_ports,
+      const std::string &ttl = "0.5") {
+    std::string bootstrap_server_addresses;
+    bool use_comma = false;
+    for (const auto &port : metadata_server_ports) {
+      if (use_comma) {
+        bootstrap_server_addresses += ",";
+      } else {
+        use_comma = true;
+      }
+      bootstrap_server_addresses += "mysql://localhost:" + std::to_string(port);
+    }
     return "[metadata_cache:test]\n"
            "router_id=1\n"
-           "bootstrap_server_addresses=mysql://localhost:" +
-           std::to_string(metadata_server_port) + "\n" +
+           "bootstrap_server_addresses=" +
+           bootstrap_server_addresses + "\n" +
            "user=mysql_router1_user\n"
            "connect_timeout=1\n"
            "metadata_cluster=test\n" +
@@ -206,7 +212,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
-      get_metadata_cache_section(md_server_port, test_params.ttl);
+      get_metadata_cache_section({md_server_port}, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   auto &router =
@@ -278,7 +284,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   // launch the router with metadata-cache configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
-      get_metadata_cache_section(md_server_port, test_params.ttl);
+      get_metadata_cache_section({md_server_port}, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   auto &router =
@@ -299,6 +305,82 @@ INSTANTIATE_TEST_CASE_P(CheckInvalidTTLRefusesStart,
                                           MetadataTTLTestParams("3600.001"),
                                           MetadataTTLTestParams("INVALID"),
                                           MetadataTTLTestParams("1,1")));
+
+static size_t count_str_occurences(const std::string &s,
+                                   const std::string &needle) {
+  if (needle.length() == 0) return 0;
+  size_t result = 0;
+  for (size_t pos = s.find(needle); pos != std::string::npos;) {
+    ++result;
+    pos = s.find(needle, pos + needle.length());
+  }
+  return result;
+}
+
+/**
+ * @test Checks that when for some reason the metadata server starts
+ *       returning the information about the cluster nodes in different order we
+ *       will not treat this as a change (Bug#29264764).
+ */
+TEST_F(MetadataChacheTTLTest, InstancesListUnordered) {
+  // create and RAII-remove tmp dirs
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
+
+  const std::string kGroupID = "";
+
+  SCOPED_TRACE("// launch 2 server mocks");
+  std::vector<ProcessWrapper *> nodes;
+  std::vector<uint16_t> node_classic_ports;
+  std::vector<uint16_t> node_http_ports;
+  const std::string json_metadata =
+      get_data_dir().join("metadata_dynamic_nodes.js").str();
+  for (size_t i = 0; i < 2; ++i) {
+    node_classic_ports.push_back(port_pool_.get_next_available());
+    node_http_ports.push_back(port_pool_.get_next_available());
+
+    nodes.push_back(
+        &launch_mysql_server_mock(json_metadata, node_classic_ports[i],
+                                  EXIT_SUCCESS, false, node_http_ports[i]));
+    bool ready = wait_for_port_ready(node_classic_ports[i]);
+    ASSERT_TRUE(ready) << nodes[i]->get_full_output();
+
+    ASSERT_TRUE(
+        MockServerRestClient(node_http_ports[i]).wait_for_rest_endpoint_ready())
+        << nodes[i]->get_full_output();
+  }
+
+  for (size_t i = 0; i < 2; ++i) {
+    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports);
+  }
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  const auto router_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(node_classic_ports, "0.1");
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+  auto &router = launch_router(temp_test_dir.name(), conf_dir.name(),
+                               metadata_cache_section, routing_section,
+                               EXIT_SUCCESS, true);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  SCOPED_TRACE("// instruct the mocks to return nodes in reverse order");
+  std::vector<uint16_t> node_classic_ports_reverse(node_classic_ports.rbegin(),
+                                                   node_classic_ports.rend());
+  for (size_t i = 0; i < 2; ++i) {
+    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports_reverse);
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  SCOPED_TRACE("// check it is not treated as a change");
+  const std::string needle = "Potential changes detected in cluster";
+  const std::string log_content = router.get_full_logfile();
+
+  // 1 is expected, that comes from the inital reading of the metadata
+  EXPECT_EQ(1, count_str_occurences(log_content, needle));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
