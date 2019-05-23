@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ NdbImportUtil::~NdbImportUtil()
   log_debug(1, "dtor");
   delete c_blobs_free;
   delete c_rows_free;
+  require(c_tables.m_tables.empty());
 }
 
 NdbOut&
@@ -768,7 +769,7 @@ NdbImportUtil::Table::Table()
   m_tabid = Inval_uint;
   m_tab = 0;
   m_rec = 0;
-  m_keyrec = 0;
+  m_keyrec = NULL;
   m_recsize = 0;
   m_has_hidden_pk = false;
 }
@@ -1071,6 +1072,18 @@ NdbImportUtil::get_table(uint tabid)
   return table;
 }
 
+void
+NdbImportUtil::remove_table(NdbDictionary::Dictionary* dic, uint tabid)
+{
+  std::map<uint, Table>::const_iterator it;
+  it = c_tables.m_tables.find(tabid);
+  require(it != c_tables.m_tables.end());
+  const Table& table = it->second;
+
+  dic->releaseRecord(const_cast<NdbRecord*>(table.m_keyrec));
+  c_tables.m_tables.erase(it);
+}
+
 // rows
 
 NdbImportUtil::Row::Row()
@@ -1123,6 +1136,11 @@ NdbImportUtil::RowList::RowList()
 
 NdbImportUtil::RowList::~RowList ()
 {
+  Row *one_row;
+  while ((one_row = pop_front()) != NULL)
+  {
+    delete one_row;
+  }
 }
 
 void
@@ -1386,6 +1404,17 @@ NdbImportUtil::free_row(Row* row)
 {
   RowList& rows = *c_rows_free;
   rows.lock();
+  
+  for (uint i = 0; i < row->m_blobs.size(); ++i)
+  {
+    Blob* blob = row->m_blobs[i];
+    if (blob != NULL)
+    {
+      free_blob(blob);
+    }
+  }
+  row->m_blobs.clear();
+
   rows.push_back(row);
   rows.unlock();
 }
@@ -1419,6 +1448,12 @@ NdbImportUtil::BlobList::BlobList()
 
 NdbImportUtil::BlobList::~BlobList()
 {
+
+  Blob *blob = NULL;
+  while ((blob = pop_front()) != NULL)
+  {
+    delete blob;
+  }
 }
 
 void
