@@ -2163,6 +2163,21 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime) {
            1000000LL +
        interval.second_part) *
       (interval.neg ? -1 : 1);
+
+  // Possible overflow adding date and interval values below.
+  if (usec1 > 0 && usec2 > 0) {
+    lldiv_t usec2_as_seconds;
+    usec2_as_seconds.quot = usec2 / 1000000;
+    usec2_as_seconds.rem = 0;
+    MYSQL_TIME unused;
+    if ((null_value = sec_to_time(usec2_as_seconds, &unused))) {
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
+          ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), "time");
+      return true;
+    }
+  }
+
   longlong diff = usec1 + usec2;
   lldiv_t seconds;
   seconds.quot = diff / 1000000;

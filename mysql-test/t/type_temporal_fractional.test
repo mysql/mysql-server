@@ -7991,3 +7991,10 @@ SELECT * FROM t1 WHERE
 '2018-10-15 01:29:55'=(c1 + INTERVAL(json_keys(0xceedc36e,'$$')) SECOND);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29587536 UBSAN: SIGNED INTEGER OVERFLOW IN
+--echo #              ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
+--echo #
+
+do date_add(utc_time(), interval(oct(-11779)) microsecond);

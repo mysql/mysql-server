@@ -17741,3 +17741,10 @@ SELECT * FROM t1 WHERE
 '2018-10-15 01:29:55'=(c1 + INTERVAL(json_keys(0xceedc36e,'$$')) SECOND);
 ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
 DROP TABLE t1;
+#
+# Bug#29587536 UBSAN: SIGNED INTEGER OVERFLOW IN
+#              ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
+#
+do date_add(utc_time(), interval(oct(-11779)) microsecond);
+Warnings:
+Warning	1441	Datetime function: time field overflow
