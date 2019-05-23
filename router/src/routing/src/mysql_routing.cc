@@ -427,9 +427,10 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
 
   // wait until all connections are closed
   {
-    std::unique_lock<std::mutex> lk(context_.active_client_threads_cond_m_);
-    context_.active_client_threads_cond_.wait(
-        lk, [&] { return context_.active_client_threads_ == 0; });
+    std::unique_lock<std::mutex> lk(
+        connection_container_.connection_removed_cond_m_);
+    connection_container_.connection_removed_cond_.wait(
+        lk, [&] { return connection_container_.empty(); });
   }
 
   log_info("[%s] stopped", context_.get_name().c_str());
@@ -446,13 +447,18 @@ void MySQLRouting::create_connection(int client_socket,
   int server_socket = destination_->get_server_socket(
       context_.get_destination_connect_timeout(), &error, &server_address);
 
-  std::unique_ptr<MySQLRoutingConnection> new_connection(
-      new MySQLRoutingConnection(context_, client_socket, client_addr,
-                                 server_socket, server_address,
-                                 remove_callback));
+  auto new_connection = std::make_unique<MySQLRoutingConnection>(
+      context_, client_socket, client_addr, server_socket, server_address,
+      remove_callback);
 
-  new_connection->start();
+  // - add connection to the container,
+  // - start the connection thread
+  //   - either starts a thread which calls remove_callback at end
+  //   - or fails to start and calls remove_callback
+  auto *new_conn_ptr = new_connection.get();
+
   connection_container_.add_connection(std::move(new_connection));
+  new_conn_ptr->start();
 }
 
 // throws std::runtime_error

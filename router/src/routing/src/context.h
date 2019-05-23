@@ -105,8 +105,6 @@ class MySQLRoutingContext {
    */
   const std::vector<ClientIpArray> get_blocked_client_hosts() const;
 
-  void increase_active_thread_counter();
-  void decrease_active_thread_counter();
   void increase_info_active_routes();
   void decrease_info_active_routes();
   void increase_info_handled_routes();
@@ -185,11 +183,6 @@ class MySQLRoutingContext {
 
   /** @brief Max connect errors blocking hosts when handshake not completed */
   unsigned long long max_connect_errors_;
-
-  /** number of active client threads. */
-  uint64_t active_client_threads_{0};
-  std::condition_variable active_client_threads_cond_;
-  std::mutex active_client_threads_cond_m_;
 
   /** @brief Number of active routes */
   std::atomic<uint16_t> info_active_routes_{0};

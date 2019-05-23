@@ -72,7 +72,6 @@ MySQLRoutingConnection::MySQLRoutingConnection(
       started_(std::chrono::system_clock::now()) {}
 
 void MySQLRoutingConnection::start(bool detached) {
-  context_.increase_active_thread_counter();
   try {
     // both lines can throw std::runtime_error
     mysql_harness::MySQLRouterThread connect_thread(
@@ -101,7 +100,7 @@ void MySQLRoutingConnection::start(bool detached) {
           client_address_.c_str(), err.what());
     }
 
-    context_.decrease_active_thread_counter();
+    remove_callback_(this);
   }
 }
 
@@ -145,11 +144,7 @@ bool MySQLRoutingConnection::check_sockets() {
 }
 
 void MySQLRoutingConnection::run() {
-  // adding the decrease-active-thread must be the first step
-  // as it guarentees the active-thread is always decremented
   std::shared_ptr<void> thread_exit_guard(nullptr, [&](void *) {
-    context_.decrease_active_thread_counter();
-
     // remove callback has to be executed as a last thing in connection
     remove_callback_(this);
   });
