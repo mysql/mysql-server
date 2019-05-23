@@ -2111,7 +2111,7 @@ int decimal_mul(const decimal_t *from_1, const decimal_t *from_2,
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error); /* bound size */
   to->sign = from1->sign != from2->sign;
   to->frac = from1->frac + from2->frac; /* store size in digits */
-  set_if_smaller(to->frac, NOT_FIXED_DEC);
+  set_if_smaller(to->frac, DECIMAL_NOT_SPECIFIED);
   to->intg = intg0 * DIG_PER_DEC1;
 
   if (unlikely(error)) {

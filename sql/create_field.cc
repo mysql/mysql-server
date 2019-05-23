@@ -246,9 +246,9 @@ bool Create_field::init(
                DATETIME_MAX_DECIMALS);
       return true;
     }
-  } else if (decimals >= NOT_FIXED_DEC) {
+  } else if (decimals >= DECIMAL_NOT_SPECIFIED) {
     my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
-             static_cast<ulong>(NOT_FIXED_DEC - 1));
+             static_cast<ulong>(DECIMAL_NOT_SPECIFIED - 1));
     return true;
   }
 
@@ -437,15 +437,15 @@ bool Create_field::init(
           m_max_display_width_in_codepoints = MAX_DOUBLE_STR_LENGTH;
         } else
           m_max_display_width_in_codepoints = MAX_FLOAT_STR_LENGTH;
-        decimals = NOT_FIXED_DEC;
+        decimals = DECIMAL_NOT_SPECIFIED;
         break;
       }
       if (!display_width_in_codepoints && !fld_decimals) {
         m_max_display_width_in_codepoints = MAX_FLOAT_STR_LENGTH;
-        decimals = NOT_FIXED_DEC;
+        decimals = DECIMAL_NOT_SPECIFIED;
       }
       if (m_max_display_width_in_codepoints < decimals &&
-          decimals != NOT_FIXED_DEC) {
+          decimals != DECIMAL_NOT_SPECIFIED) {
         my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
         return true;
       }
@@ -454,10 +454,10 @@ bool Create_field::init(
       allowed_type_modifier = AUTO_INCREMENT_FLAG;
       if (!display_width_in_codepoints && !fld_decimals) {
         m_max_display_width_in_codepoints = DBL_DIG + 7;
-        decimals = NOT_FIXED_DEC;
+        decimals = DECIMAL_NOT_SPECIFIED;
       }
       if (m_max_display_width_in_codepoints < decimals &&
-          decimals != NOT_FIXED_DEC) {
+          decimals != DECIMAL_NOT_SPECIFIED) {
         my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
         return true;
       }

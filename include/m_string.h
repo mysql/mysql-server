@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "decimal.h"
 #include "lex_string.h"
 #include "my_config.h"
 #include "my_inttypes.h"
@@ -252,14 +253,13 @@ size_t my_fcvt_compact(double x, char *to, bool *error);
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
                bool *error);
 
-#define NOT_FIXED_DEC 31
-
 /*
   The longest string my_fcvt can return is 311 + "precision" bytes.
-  Here we assume that we never cal my_fcvt() with precision >= NOT_FIXED_DEC
+  Here we assume that we never call my_fcvt() with precision >=
+  DECIMAL_NOT_SPECIFIED
   (+ 1 byte for the terminating '\0').
 */
-#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
+static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
 
 /*
   We want to use the 'e' format in some cases even if we have enough space

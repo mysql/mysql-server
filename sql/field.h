@@ -1996,7 +1996,7 @@ class Field_str : public Field {
   Item_result numeric_context_result_type() const final override {
     return REAL_RESULT;
   }
-  uint decimals() const override { return NOT_FIXED_DEC; }
+  uint decimals() const override { return DECIMAL_NOT_SPECIFIED; }
   void make_field(Send_field *field) const final override;
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override = 0;
@@ -2073,7 +2073,7 @@ class Field_real : public Field_num {
              bool unsigned_arg)
       : Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                   field_name_arg, dec_arg, zero_arg, unsigned_arg),
-        not_fixed(dec_arg >= NOT_FIXED_DEC) {}
+        not_fixed(dec_arg >= DECIMAL_NOT_SPECIFIED) {}
   type_conversion_status store_decimal(const my_decimal *) final override;
   type_conversion_status store_time(MYSQL_TIME *ltime,
                                     uint8 dec) final override;
@@ -2692,10 +2692,11 @@ class Field_temporal : public Field {
   uint8 dec;  // Number of fractional digits
 
   /**
-    Adjust number of decimal digits from NOT_FIXED_DEC to DATETIME_MAX_DECIMALS
+    Adjust number of decimal digits from DECIMAL_NOT_SPECIFIED to
+    DATETIME_MAX_DECIMALS
   */
   static uint8 normalize_dec(uint8 dec_arg) {
-    return dec_arg == NOT_FIXED_DEC ? DATETIME_MAX_DECIMALS : dec_arg;
+    return dec_arg == DECIMAL_NOT_SPECIFIED ? DATETIME_MAX_DECIMALS : dec_arg;
   }
 
   /**

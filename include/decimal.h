@@ -146,6 +146,9 @@ static inline int decimal_string_size(const decimal_t *dec) {
 #define E_DEC_ERROR 31
 #define E_DEC_FATAL_ERROR 30
 
+static constexpr int DECIMAL_MAX_SCALE{30};
+static constexpr int DECIMAL_NOT_SPECIFIED{DECIMAL_MAX_SCALE + 1};
+
 #endif  // MYSQL_ABI_CHECK
 
 #endif  // DECIMAL_INCLUDED

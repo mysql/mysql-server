@@ -52,7 +52,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"        // Item_result_field
-#include "sql/my_decimal.h"  // string2my_decimal
+#include "sql/my_decimal.h"  // str2my_decimal
 #include "sql/parse_tree_node_base.h"
 #include "sql/set_var.h"  // enum_var_type
 #include "sql/sql_const.h"
@@ -2077,7 +2077,8 @@ class Item_func_udf_str : public Item_udf_func {
   my_decimal *val_decimal(my_decimal *dec_buf) override {
     String *res = val_str(&str_value);
     if (!res) return NULL;
-    string2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf);
+    str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
+                   dec_buf);
     return dec_buf;
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {

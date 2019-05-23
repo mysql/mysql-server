@@ -3384,7 +3384,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
       case MYSQL_TYPE_DOUBLE: {
         const Name_string field_name(fields_info->field_name,
                                      strlen(fields_info->field_name));
-        if ((item = new Item_float(field_name, 0.0, NOT_FIXED_DEC,
+        if ((item = new Item_float(field_name, 0.0, DECIMAL_NOT_SPECIFIED,
                                    fields_info->field_length)) == NULL)
           return NULL;
         break;

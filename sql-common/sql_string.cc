@@ -192,7 +192,7 @@ static bool set_floating_point(double num, uint decimals,
   char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
 
-  if (decimals >= NOT_FIXED_DEC) {
+  if (decimals >= DECIMAL_NOT_SPECIFIED) {
     size_t len = my_gcvt(num, gcvt_arg_type, static_cast<int>(sizeof(buff)) - 1,
                          buff, nullptr);
     return destination->copy(buff, len, &my_charset_latin1, cs, &dummy_errors);

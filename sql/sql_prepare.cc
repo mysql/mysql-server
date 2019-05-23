@@ -1577,7 +1577,7 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len) {
     if (it != thd->user_vars.end() && it->second->ptr()) {
       user_var_entry *entry = it->second.get();
       bool is_var_null;
-      var_value = entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
+      var_value = entry->val_str(&is_var_null, &str, DECIMAL_NOT_SPECIFIED);
 
       mysql_mutex_unlock(&thd->LOCK_thd_data);
 

@@ -493,7 +493,7 @@ Item *sys_var::copy_value(THD *thd) {
     }
     case GET_DOUBLE:
       return new Item_float(*pointer_cast<const double *>(val_ptr),
-                            NOT_FIXED_DEC);
+                            DECIMAL_NOT_SPECIFIED);
     default:
       DBUG_ASSERT(0);
   }

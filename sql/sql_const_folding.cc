@@ -273,11 +273,13 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         if (v > 0) {
           // underflow on the positive side
           String s("0.1", thd->charset());
-          err = string2my_decimal(E_DEC_FATAL_ERROR, &s, &dec);
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
           DBUG_ASSERT(err == 0);
         } else {
           String s("-0.1", thd->charset());
-          err = string2my_decimal(E_DEC_FATAL_ERROR, &s, &dec);
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
           DBUG_ASSERT(err == 0);
         }
       }

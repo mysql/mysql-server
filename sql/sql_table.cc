@@ -8551,7 +8551,7 @@ static void warn_on_deprecated_float_auto_increment(
 
 static void warn_on_deprecated_float_precision(THD *thd,
                                                const Create_field &sql_field) {
-  if (sql_field.decimals != NOT_FIXED_DEC) {
+  if (sql_field.decimals != DECIMAL_NOT_SPECIFIED) {
     if (sql_field.sql_type == MYSQL_TYPE_FLOAT ||
         sql_field.sql_type == MYSQL_TYPE_DOUBLE) {
       push_warning(thd, Sql_condition::SL_WARNING,

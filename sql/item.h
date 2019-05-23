@@ -32,6 +32,7 @@
 #include <new>
 #include <string>
 
+#include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -1054,7 +1055,7 @@ class Item : public Parse_tree_node {
   /// Set the data type of the Item to be double precision floating point.
   inline void set_data_type_double() {
     set_data_type(MYSQL_TYPE_DOUBLE);
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     max_length = float_length(decimals);
     collation.set_numeric();
   }
@@ -1062,7 +1063,7 @@ class Item : public Parse_tree_node {
   /// Set the data type of the Item to be single precision floating point.
   inline void set_data_type_float() {
     set_data_type(MYSQL_TYPE_FLOAT);
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     max_length = float_length(decimals);
     collation.set_numeric();
   }
@@ -1070,7 +1071,7 @@ class Item : public Parse_tree_node {
   /// Initialize an Item to be of VARCHAR type, other properties undetermined.
   inline void set_data_type_string_init() {
     set_data_type(MYSQL_TYPE_VARCHAR);
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
   }
 
   /**
@@ -1214,7 +1215,7 @@ class Item : public Parse_tree_node {
   void set_data_type_json() {
     set_data_type(MYSQL_TYPE_JSON);
     collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     max_length = MAX_BLOB_WIDTH;
   }
 
@@ -1232,7 +1233,7 @@ class Item : public Parse_tree_node {
   */
   inline void set_data_type_geometry() {
     set_data_type(MYSQL_TYPE_GEOMETRY);
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     max_length = MAX_BLOB_WIDTH;
   }
 
@@ -1796,8 +1797,8 @@ class Item : public Parse_tree_node {
   virtual Item *clone_item() const { return nullptr; }
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const {
-    return decimals != NOT_FIXED_DEC ? (DBL_DIG + 2 + decimals_par)
-                                     : DBL_DIG + 8;
+    return decimals != DECIMAL_NOT_SPECIFIED ? (DBL_DIG + 2 + decimals_par)
+                                             : DBL_DIG + 8;
   }
   virtual uint decimal_precision() const;
   inline int decimal_int_part() const {
@@ -4217,7 +4218,7 @@ class Item_string : public Item_basic_constant {
     */
     max_length = static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name.copy(str, length, cs);
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed = 1;
     /*
@@ -4250,7 +4251,7 @@ class Item_string : public Item_basic_constant {
     collation.set(cs, dv);
     set_data_type(MYSQL_TYPE_VARCHAR);
     max_length = 0;
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     fixed = 1;
   }
 
@@ -4264,7 +4265,7 @@ class Item_string : public Item_basic_constant {
     set_data_type(MYSQL_TYPE_VARCHAR);
     max_length = static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name = name_par;
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed = 1;
   }
@@ -4278,7 +4279,7 @@ class Item_string : public Item_basic_constant {
     set_data_type(MYSQL_TYPE_VARCHAR);
     max_length = static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name = name_par;
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed = 1;
   }
@@ -4295,7 +4296,7 @@ class Item_string : public Item_basic_constant {
     set_data_type(MYSQL_TYPE_VARCHAR);
     max_length = static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name = name_par;
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed = 1;
   }

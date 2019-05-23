@@ -366,7 +366,7 @@ bool get_field_numeric_scale(const Create_field *field, uint *scale) {
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
       /* For these types we show NULL in I_S if scale was not given. */
-      if (field->decimals != NOT_FIXED_DEC) {
+      if (field->decimals != DECIMAL_NOT_SPECIFIED) {
         *scale = field->decimals;
         return false;
       }
@@ -646,7 +646,7 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       case MYSQL_TYPE_FLOAT:
       case MYSQL_TYPE_DOUBLE:
         /* For these types we show NULL in I_S if scale was not given. */
-        if (field->decimals != NOT_FIXED_DEC)
+        if (field->decimals != DECIMAL_NOT_SPECIFIED)
           col_obj->set_numeric_scale(field->decimals);
         else {
           DBUG_ASSERT(col_obj->is_numeric_scale_null());

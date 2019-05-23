@@ -608,8 +608,8 @@ bool Rpl_info_table::do_set_info(const int pos, const int value) {
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const float value) {
-  return (
-      field_values->value[pos].set_real(value, NOT_FIXED_DEC, &my_charset_bin));
+  return (field_values->value[pos].set_real(value, DECIMAL_NOT_SPECIFIED,
+                                            &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value) {

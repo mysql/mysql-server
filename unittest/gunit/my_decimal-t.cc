@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,8 @@ TEST_F(DecimalTest, RoundOverflow) {
   const char arg_str[] = "999999999";
   String str(arg_str, &my_charset_bin);
 
-  EXPECT_EQ(E_DEC_OK, string2my_decimal(E_DEC_FATAL_ERROR, &str, &d1));
+  EXPECT_EQ(E_DEC_OK, str2my_decimal(E_DEC_FATAL_ERROR, str.ptr(), str.length(),
+                                     str.charset(), &d1));
   d1.sanity_check();
 
   for (int ix = 0; ix < DECIMAL_MAX_POSSIBLE_PRECISION; ++ix) {
@@ -128,13 +129,13 @@ TEST_F(DecimalTest, Multiply) {
   EXPECT_EQ(E_DEC_OK, chars_2_decimal(arg2, &d2));
 
   // Limit the precision, otherwise "1.75" will be truncated to "1."
-  set_if_smaller(d1.frac, NOT_FIXED_DEC);
-  set_if_smaller(d2.frac, NOT_FIXED_DEC);
+  set_if_smaller(d1.frac, DECIMAL_NOT_SPECIFIED);
+  set_if_smaller(d2.frac, DECIMAL_NOT_SPECIFIED);
   EXPECT_EQ(
       0, my_decimal_mul(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, &prod, &d1, &d2));
-  EXPECT_EQ(NOT_FIXED_DEC, d1.frac);
+  EXPECT_EQ(DECIMAL_NOT_SPECIFIED, d1.frac);
   EXPECT_EQ(2, d2.frac);
-  EXPECT_EQ(NOT_FIXED_DEC, prod.frac);
+  EXPECT_EQ(DECIMAL_NOT_SPECIFIED, prod.frac);
   bufsz = sizeof(buff);
   EXPECT_EQ(0, decimal2string(&prod, buff, &bufsz, 0, 0, 0));
   EXPECT_STREQ("1.9250000000000000000000000000000", buff);

@@ -866,7 +866,7 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
     decimals = col_obj.numeric_scale();
   } else if (field_type == MYSQL_TYPE_FLOAT ||
              field_type == MYSQL_TYPE_DOUBLE) {
-    decimals = col_obj.is_numeric_scale_null() ? NOT_FIXED_DEC
+    decimals = col_obj.is_numeric_scale_null() ? DECIMAL_NOT_SPECIFIED
                                                : col_obj.numeric_scale();
   } else
     decimals = 0;

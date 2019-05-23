@@ -101,8 +101,8 @@ static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
     numeric_scale = param.numeric_scale();
   else if (param.data_type() == dd::enum_column_types::FLOAT ||
            param.data_type() == dd::enum_column_types::DOUBLE)
-    numeric_scale =
-        param.is_numeric_scale_null() ? NOT_FIXED_DEC : param.numeric_scale();
+    numeric_scale = param.is_numeric_scale_null() ? DECIMAL_NOT_SPECIFIED
+                                                  : param.numeric_scale();
 
   return make_field(*THR_MALLOC, share, nullptr, param.char_length(), nullptr,
                     0, dd_get_old_field_type(param.data_type()),

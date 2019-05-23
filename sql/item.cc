@@ -3328,7 +3328,7 @@ void Item_param::set_double(double d) {
   value.real = d;
   state = REAL_VALUE;
   max_length = DBL_DIG + 8;
-  decimals = NOT_FIXED_DEC;
+  decimals = DECIMAL_NOT_SPECIFIED;
   maybe_null = 0;
 }
 
@@ -3685,7 +3685,8 @@ my_decimal *Item_param::val_decimal(my_decimal *dec) {
       return dec;
     case STRING_VALUE:
     case LONG_DATA_VALUE:
-      string2my_decimal(E_DEC_FATAL_ERROR, &str_value, dec);
+      str2my_decimal(E_DEC_FATAL_ERROR, str_value.ptr(), str_value.length(),
+                     str_value.charset(), dec);
       return dec;
     case TIME_VALUE:
       return date2my_decimal(&value.time, dec);
@@ -3703,7 +3704,7 @@ String *Item_param::val_str(String *str) {
     case LONG_DATA_VALUE:
       return &str_value_ptr;
     case REAL_VALUE:
-      str->set_real(value.real, NOT_FIXED_DEC, &my_charset_bin);
+      str->set_real(value.real, DECIMAL_NOT_SPECIFIED, &my_charset_bin);
       return str;
     case INT_VALUE:
       str->set(value.integer, &my_charset_bin);
@@ -3745,7 +3746,7 @@ const String *Item_param::query_val_str(const THD *thd, String *str) const {
       str->set_int(value.integer, unsigned_flag, &my_charset_bin);
       break;
     case REAL_VALUE:
-      str->set_real(value.real, NOT_FIXED_DEC, &my_charset_bin);
+      str->set_real(value.real, DECIMAL_NOT_SPECIFIED, &my_charset_bin);
       break;
     case DECIMAL_VALUE:
       if (my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, str) >
@@ -3820,7 +3821,7 @@ bool Item_param::convert_str_value() {
                                      str_value.charset()->mbmaxlen);
 
     /* For the strings converted to numeric form within some functions */
-    decimals = NOT_FIXED_DEC;
+    decimals = DECIMAL_NOT_SPECIFIED;
     /*
       str_value_ptr is returned from val_str(). It must be not alloced
       to prevent it's modification by val_str() invoker.
@@ -4138,7 +4139,8 @@ String *Item_copy_string::val_str(String *) {
 my_decimal *Item_copy_string::val_decimal(my_decimal *decimal_value) {
   // Item_copy_string is used without fix_fields call
   if (null_value) return (my_decimal *)0;
-  string2my_decimal(E_DEC_FATAL_ERROR, &str_value, decimal_value);
+  str2my_decimal(E_DEC_FATAL_ERROR, str_value.ptr(), str_value.length(),
+                 str_value.charset(), decimal_value);
   return (decimal_value);
 }
 
@@ -6188,19 +6190,19 @@ static uint nr_of_decimals(const char *str, const char *end) {
   /* Find position for '.' */
   for (;;) {
     if (str == end) return 0;
-    if (*str == 'e' || *str == 'E') return NOT_FIXED_DEC;
+    if (*str == 'e' || *str == 'E') return DECIMAL_NOT_SPECIFIED;
     if (*str++ == '.') break;
   }
   decimal_point = str;
   for (; str < end && my_isdigit(system_charset_info, *str); str++)
     ;
-  if (str < end && (*str == 'e' || *str == 'E')) return NOT_FIXED_DEC;
+  if (str < end && (*str == 'e' || *str == 'E')) return DECIMAL_NOT_SPECIFIED;
   /*
     QQ:
     The number of decimal digist in fact should be (str - decimal_point - 1).
     But it seems the result of nr_of_decimals() is never used!
 
-    In case of 'e' and 'E' nr_of_decimals returns NOT_FIXED_DEC.
+    In case of 'e' and 'E' nr_of_decimals returns DECIMAL_NOT_SPECIFIED.
     In case if there is no 'e' or 'E' parser code in sql_yacc.yy
     never calls Item_float::Item_float() - it creates Item_decimal instead.
 
@@ -6818,13 +6820,13 @@ void Item::aggregate_float_properties(Item **item, uint nitems) {
   uint8 decimals_cnt = 0;
   uint32 maxl = 0;
   for (uint i = 0; i < nitems; i++) {
-    if (decimals_cnt != NOT_FIXED_DEC) {
+    if (decimals_cnt != DECIMAL_NOT_SPECIFIED) {
       set_if_bigger(decimals_cnt, item[i]->decimals);
       set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
     }
     set_if_bigger(maxl, item[i]->max_length);
   }
-  if (decimals_cnt != NOT_FIXED_DEC) {
+  if (decimals_cnt != DECIMAL_NOT_SPECIFIED) {
     maxl = length;
     length += decimals_cnt;
     if (length < maxl)  // If previous operation gave overflow
@@ -6934,7 +6936,7 @@ bool Item::aggregate_string_properties(const char *name, Item **items,
     */
     fix_char_length(max_length);
   } else
-    set_if_smaller(decimals, NOT_FIXED_DEC);
+    set_if_smaller(decimals, DECIMAL_NOT_SPECIFIED);
   aggregate_char_length(items, nitems);
 
   /*
@@ -9031,7 +9033,8 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val) {
   DBUG_ASSERT(fixed == 1);
   if (!has_value()) return NULL;
   if (value)
-    string2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
+    str2my_decimal(E_DEC_FATAL_ERROR, value->ptr(), value->length(),
+                   value->charset(), decimal_val);
   else
     decimal_val = 0;
   return decimal_val;

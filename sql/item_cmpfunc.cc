@@ -763,7 +763,8 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
     case DECIMAL_RESULT:
       break;
     case REAL_RESULT: {
-      if ((*a)->decimals < NOT_FIXED_DEC && (*b)->decimals < NOT_FIXED_DEC) {
+      if ((*a)->decimals < DECIMAL_NOT_SPECIFIED &&
+          (*b)->decimals < DECIMAL_NOT_SPECIFIED) {
         precision = 5 / log_10[max((*a)->decimals, (*b)->decimals) + 1];
         if (func == &Arg_comparator::compare_real)
           func = &Arg_comparator::compare_real_fixed;

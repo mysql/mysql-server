@@ -586,8 +586,8 @@ void Item_func::fix_num_length_and_dec() {
   }
   max_length = float_length(decimals);
   if (fl_length > max_length) {
-    decimals = NOT_FIXED_DEC;
-    max_length = float_length(NOT_FIXED_DEC);
+    decimals = DECIMAL_NOT_SPECIFIED;
+    max_length = float_length(DECIMAL_NOT_SPECIFIED);
   }
 }
 
@@ -2062,9 +2062,9 @@ bool Item_func_div::resolve_type(THD *thd) {
   switch (hybrid_type) {
     case REAL_RESULT: {
       decimals = max(args[0]->decimals, args[1]->decimals) + prec_increment;
-      set_if_smaller(decimals, NOT_FIXED_DEC);
+      set_if_smaller(decimals, DECIMAL_NOT_SPECIFIED);
       uint tmp = float_length(decimals);
-      if (decimals == NOT_FIXED_DEC)
+      if (decimals == DECIMAL_NOT_SPECIFIED)
         max_length = tmp;
       else {
         max_length = args[0]->max_length - args[0]->decimals + decimals;
@@ -2341,7 +2341,7 @@ bool Item_func_abs::resolve_type(THD *thd) {
 }
 
 bool Item_dec_func::resolve_type(THD *) {
-  decimals = NOT_FIXED_DEC;
+  decimals = DECIMAL_NOT_SPECIFIED;
   max_length = float_length(decimals);
   maybe_null = true;
   return reject_geometry_args(arg_count, args, this);
@@ -2998,8 +2998,8 @@ bool Item_func_round::resolve_type(THD *) {
   else
     decimals_to_set = (val1 > INT_MAX) ? INT_MAX : (int)val1;
 
-  if (args[0]->decimals == NOT_FIXED_DEC) {
-    decimals = min(decimals_to_set, NOT_FIXED_DEC);
+  if (args[0]->decimals == DECIMAL_NOT_SPECIFIED) {
+    decimals = min(decimals_to_set, DECIMAL_NOT_SPECIFIED);
     max_length = float_length(decimals);
     set_data_type(MYSQL_TYPE_DOUBLE);
     hybrid_type = REAL_RESULT;
@@ -3011,7 +3011,7 @@ bool Item_func_round::resolve_type(THD *) {
     case STRING_RESULT:
       set_data_type(MYSQL_TYPE_DOUBLE);
       hybrid_type = REAL_RESULT;
-      decimals = min(decimals_to_set, NOT_FIXED_DEC);
+      decimals = min(decimals_to_set, DECIMAL_NOT_SPECIFIED);
       max_length = float_length(decimals);
       break;
     case INT_RESULT:
@@ -3236,7 +3236,7 @@ longlong Item_func_sign::val_int() {
 }
 
 bool Item_func_units::resolve_type(THD *) {
-  decimals = NOT_FIXED_DEC;
+  decimals = DECIMAL_NOT_SPECIFIED;
   max_length = float_length(decimals);
   return reject_geometry_args(arg_count, args, this);
 }
@@ -3986,7 +3986,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     func->maybe_null = initid.maybe_null;
     if (!initid.const_item && used_tables_cache == 0)
       used_tables_cache = RAND_TABLE_BIT;
-    func->decimals = min<uint>(initid.decimals, NOT_FIXED_DEC);
+    func->decimals = min<uint>(initid.decimals, DECIMAL_NOT_SPECIFIED);
     func->set_data_type_string(func->max_length, &my_charset_bin);
   }
   initialized = 1;
@@ -6113,7 +6113,7 @@ err:
 
 bool Item_func_get_user_var::resolve_type(THD *thd) {
   maybe_null = true;
-  decimals = NOT_FIXED_DEC;
+  decimals = DECIMAL_NOT_SPECIFIED;
   max_length = MAX_BLOB_WIDTH;
 
   used_tables_cache =
@@ -6339,7 +6339,7 @@ bool Item_func_get_system_var::resolve_type(THD *thd) {
       mysql_mutex_unlock(&LOCK_global_system_variables);
       collation.set(system_charset_info, DERIVATION_SYSCONST);
       max_length *= system_charset_info->mbmaxlen;
-      decimals = NOT_FIXED_DEC;
+      decimals = DECIMAL_NOT_SPECIFIED;
       break;
     case SHOW_LEX_STRING: {
       set_data_type(MYSQL_TYPE_VARCHAR);
@@ -6351,7 +6351,7 @@ bool Item_func_get_system_var::resolve_type(THD *thd) {
       mysql_mutex_unlock(&LOCK_global_system_variables);
       collation.set(system_charset_info, DERIVATION_SYSCONST);
       max_length *= system_charset_info->mbmaxlen;
-      decimals = NOT_FIXED_DEC;
+      decimals = DECIMAL_NOT_SPECIFIED;
     } break;
     case SHOW_BOOL:
     case SHOW_MY_BOOL:

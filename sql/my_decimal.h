@@ -44,17 +44,17 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "sql_string.h" /* String */
 
+class String;
 struct MYSQL_TIME;
 
-#define DECIMAL_LONGLONG_DIGITS 22
+static constexpr int DECIMAL_LONGLONG_DIGITS{22};
 
 /** maximum length of buffer in our big digits (uint32). */
-#define DECIMAL_BUFF_LENGTH 9
+static constexpr int DECIMAL_BUFF_LENGTH{9};
 
-/* the number of digits that my_decimal can possibly contain */
-#define DECIMAL_MAX_POSSIBLE_PRECISION (DECIMAL_BUFF_LENGTH * 9)
+/** the number of digits that my_decimal can possibly contain */
+static constexpr int DECIMAL_MAX_POSSIBLE_PRECISION{DECIMAL_BUFF_LENGTH * 9};
 
 /**
   maximum guaranteed precision of number in decimal digits (number of our
@@ -62,28 +62,19 @@ struct MYSQL_TIME;
   digits in one our big digit decreased by 1 (because we always put decimal
   point on the border of our big digits))
 */
-#define DECIMAL_MAX_PRECISION (DECIMAL_MAX_POSSIBLE_PRECISION - 8 * 2)
-#define DECIMAL_MAX_SCALE 30
-#define DECIMAL_NOT_SPECIFIED 31
+static constexpr int DECIMAL_MAX_PRECISION{DECIMAL_MAX_POSSIBLE_PRECISION -
+                                           8 * 2};
 
 /**
   maximum length of string representation (number of maximum decimal
   digits + 1 position for sign + 1 position for decimal point, no terminator)
 */
-#define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_POSSIBLE_PRECISION + 2)
+static constexpr int DECIMAL_MAX_STR_LENGTH{DECIMAL_MAX_POSSIBLE_PRECISION + 2};
 
 /**
   maximum size of packet length.
 */
-#define DECIMAL_MAX_FIELD_SIZE DECIMAL_MAX_PRECISION
-
-inline uint my_decimal_size(uint precision, uint scale) {
-  /*
-    Always allocate more space to allow library to put decimal point
-    where it want
-  */
-  return decimal_size(precision, scale) + 1;
-}
+static constexpr int DECIMAL_MAX_FIELD_SIZE{DECIMAL_MAX_PRECISION};
 
 inline int my_decimal_int_part(uint precision, uint decimals) {
   return precision - ((decimals == DECIMAL_NOT_SPECIFIED) ? 0 : decimals);
@@ -353,11 +344,6 @@ inline int str2my_decimal(uint mask, const char *str, my_decimal *d,
 
 int str2my_decimal(uint mask, const char *from, size_t length,
                    const CHARSET_INFO *charset, my_decimal *decimal_value);
-
-inline int string2my_decimal(uint mask, const String *str, my_decimal *d) {
-  return str2my_decimal(mask, str->ptr(), (uint)str->length(), str->charset(),
-                        d);
-}
 
 my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
 my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);

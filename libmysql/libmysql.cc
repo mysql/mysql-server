@@ -3252,7 +3252,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       */
       char buff[FLOATING_POINT_BUFFER];
       size_t len;
-      if (field->decimals >= NOT_FIXED_DEC)
+      if (field->decimals >= DECIMAL_NOT_SPECIFIED)
         len = my_gcvt(value, type,
                       (int)MY_MIN(sizeof(buff) - 1, param->buffer_length), buff,
                       NULL);

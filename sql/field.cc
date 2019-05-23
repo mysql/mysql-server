@@ -4213,12 +4213,12 @@ String *Field_float::val_str(String *val_buffer,
   char *to = val_buffer->ptr();
   size_t len;
 
-  if (dec >= NOT_FIXED_DEC)
+  if (dec >= DECIMAL_NOT_SPECIFIED)
     len = my_gcvt(nr, MY_GCVT_ARG_FLOAT, to_length - 1, to, NULL);
   else {
     /*
       We are safe here because the buffer length is 70, and
-      fabs(float) < 10^39, dec < NOT_FIXED_DEC. So the resulting string
+      fabs(float) < 10^39, dec < DECIMAL_NOT_SPECIFIED. So the resulting string
       will be not longer than 69 chars + terminating '\0'.
     */
     len = my_fcvt(nr, dec, to, NULL);
@@ -4298,7 +4298,7 @@ int Field_float::do_save_field_metadata(uchar *metadata_ptr) const {
 }
 
 void Field_float::sql_type(String &res) const {
-  if (dec == NOT_FIXED_DEC) {
+  if (dec == DECIMAL_NOT_SPECIFIED) {
     res.set_ascii(STRING_WITH_LEN("float"));
   } else {
     const CHARSET_INFO *cs = res.charset();
@@ -4488,7 +4488,7 @@ String *Field_double::val_str(String *val_buffer,
   char *to = val_buffer->ptr();
   size_t len;
 
-  if (dec >= NOT_FIXED_DEC)
+  if (dec >= DECIMAL_NOT_SPECIFIED)
     len = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, to_length - 1, to, NULL);
   else
     len = my_fcvt(nr, dec, to, NULL);
@@ -4558,7 +4558,7 @@ int Field_double::do_save_field_metadata(uchar *metadata_ptr) const {
 
 void Field_double::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  if (dec == NOT_FIXED_DEC) {
+  if (dec == DECIMAL_NOT_SPECIFIED) {
     res.set_ascii(STRING_WITH_LEN("double"));
   } else {
     res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
@@ -7206,7 +7206,7 @@ type_conversion_status Field_blob::store(const char *from, size_t length,
 
 type_conversion_status Field_blob::store(double nr) {
   const CHARSET_INFO *cs = charset();
-  value.set_real(nr, NOT_FIXED_DEC, cs);
+  value.set_real(nr, DECIMAL_NOT_SPECIFIED, cs);
   return Field_blob::store(value.ptr(), value.length(), cs);
 }
 

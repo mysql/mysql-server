@@ -2105,7 +2105,8 @@ bool Item_sum_avg::resolve_type(THD *thd) {
     f_scale = args[0]->decimals;
     dec_bin_size = my_decimal_get_binary_size(f_precision, f_scale);
   } else {
-    decimals = min<uint>(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
+    decimals =
+        min<uint>(args[0]->decimals + prec_increment, DECIMAL_NOT_SPECIFIED);
     max_length = args[0]->max_length + prec_increment;
   }
   set_data_type_from_result(hybrid_type, max_length);

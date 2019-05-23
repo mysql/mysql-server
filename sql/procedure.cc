@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,8 @@
 
 my_decimal *Item_proc_string::val_decimal(my_decimal *decimal_value) {
   if (null_value) return 0;
-  string2my_decimal(E_DEC_FATAL_ERROR, &str_value, decimal_value);
+  str2my_decimal(E_DEC_FATAL_ERROR, str_value.ptr(), str_value.length(),
+                 str_value.charset(), decimal_value);
   return (decimal_value);
 }
 
