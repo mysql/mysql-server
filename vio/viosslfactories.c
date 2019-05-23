@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -542,8 +542,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
                     SSL_OP_NO_TLSv1_1
 #ifndef HAVE_YASSL
                     | SSL_OP_NO_TLSv1_2
-
-
+                    | SSL_OP_NO_TICKET
 #endif
                    );
   if (!(ssl_fd= ((struct st_VioSSLFd*)
