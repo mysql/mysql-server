@@ -98,6 +98,10 @@ SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_datetime_v1){NULL,
 
 SERVICE_TYPE(pfs_plugin_column_timestamp_v1)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v1){
+    NULL, NULL};
+
+SERVICE_TYPE(pfs_plugin_column_timestamp_v2)
+SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v2){
     NULL, NULL, NULL};
 
 SERVICE_TYPE(pfs_plugin_column_year_v1)

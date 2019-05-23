@@ -1452,6 +1452,10 @@ BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_datetime_v1)
 END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v1)
+    set_field_timestamp_v1, get_field_timestamp_v1
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v2)
     set_field_timestamp_v1, set_field_timestamp2_v1, get_field_timestamp_v1
 END_SERVICE_IMPLEMENTATION();
 
