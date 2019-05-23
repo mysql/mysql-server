@@ -895,7 +895,9 @@ install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/
 %endif
 
 # Fix a cluster script
+%if 0%{?cluster}
 %{?el8:/usr/bin/pathfix.py -i /usr/bin/python2 -n -p %{buildroot}%{_bindir}/ndb_setup.py}
+%endif # cluster
 
 %if 0%{?systemd}
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
