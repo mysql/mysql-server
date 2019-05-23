@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +123,7 @@ public:
 
   // tables are shared and can also be added outside job context
   int add_table(const char* database, const char* table, uint& tabid);
+  int remove_table(uint table_id);
 
   // job
 
@@ -167,6 +168,7 @@ public:
     void do_destroy();
     int add_table(const char* database, const char* table, uint& tabid);
     void set_table(uint tabid);
+    int remove_table(uint table_id);
     bool has_error() const;
     const Error& get_error() const;
     NdbImport& m_imp;

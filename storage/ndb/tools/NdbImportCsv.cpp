@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1054,6 +1054,10 @@ NdbImportCsv::Eval::do_eval()
     }
     Row* row = rows_chunk.pop_front();
     eval_line(row, line);
+    if (line->m_reject)
+    {
+      m_util.free_row(row);
+    }
     // stop loading if error
     if (m_input.has_error())
     {

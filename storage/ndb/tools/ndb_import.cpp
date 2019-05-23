@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -889,6 +889,10 @@ doimp()
         if (g_opt.m_monitor != 0)
           domonitor(job);
         job.do_wait();
+        if (job.remove_table(tabid) == -1)
+        {
+          break;
+        }
       } while (0);
       bool imp_error = imp.has_error();
       bool job_error = job.has_error();
