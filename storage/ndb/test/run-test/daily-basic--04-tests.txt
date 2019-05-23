@@ -23,7 +23,7 @@
 # GENERATED FILE
 #
 cmd: testScan
-args: -n InterpretNok6000 T1
+args: -n InterpretNok6000 T18
 max-time: 180
 
 cmd: testNdbApi
