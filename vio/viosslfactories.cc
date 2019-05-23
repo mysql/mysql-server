@@ -579,6 +579,9 @@ static struct st_VioSSLFd *new_VioSSLFd(
 #ifdef HAVE_TLSv13
                      | SSL_OP_NO_TLSv1_3
 #endif /* HAVE_TLSv13 */
+#ifndef HAVE_WOLFSSL
+                     | SSL_OP_NO_TICKET
+#endif
                     );
   if (!(ssl_fd = ((struct st_VioSSLFd *)my_malloc(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
