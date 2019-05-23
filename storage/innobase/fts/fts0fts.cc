@@ -4161,7 +4161,7 @@ fts_sync_write_words(
 				DBUG_EXECUTE_IF("fts_instrument_sync",
 			                        os_thread_sleep(10000000););
 				if (!unlock_cache) {
-					ulint cache_lock_time = ut_time() - sync_start_time;
+					ulint cache_lock_time = ut_time_monotonic() - sync_start_time;
 					if (cache_lock_time > lock_threshold) {
 						if (!timeout_extended) {
 							os_atomic_increment_ulint(
