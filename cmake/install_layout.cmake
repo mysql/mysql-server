@@ -440,11 +440,28 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # Set INSTALL_FOODIR variables for chosen layout (for example, INSTALL_BINDIR
 # will be defined  as ${INSTALL_BINDIR_STANDALONE} by default if STANDALONE
 # layout is chosen)
-FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE DOC MAN
-  INFO MYSQLTEST DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST
-  SECURE_FILE_PRIV MYSQLKEYRING)
-  SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
-  CACHE STRING "${var} installation directory" ${FORCE})
+FOREACH(var
+    BIN
+    DOC
+    DOCREADME
+    INCLUDE
+    INFO
+    LIB
+    MAN
+    MYSQLDATA
+    MYSQLKEYRING
+    MYSQLSHARE
+    MYSQLTEST
+    PLUGIN
+    PLUGINTEST
+    SBIN
+    SECURE_FILE_PRIV
+    SHARE
+    SUPPORTFILES
+    )
+  SET(INSTALL_${var}DIR
+    ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
+    CACHE STRING "${var} installation directory" ${FORCE})
   MARK_AS_ADVANCED(INSTALL_${var}DIR)
 ENDFOREACH()
 
@@ -471,3 +488,113 @@ ELSE()
   SET(DEFAULT_PARTIAL_REVOKES 0
       CACHE INTERNAL "default --partial-revokes" FORCE)
 ENDIF()
+
+
+# Install layout for router, follows the same pattern as above.
+#
+# Supported layouts here are STANDALONE, WIN, RPM, DEB, SVR4 or
+# FREEBSD.
+# Layouts GLIBC, OSX, TARGZ and SLES seems unused and are similar to
+# STANDALONE or RPM any way.
+
+# Variables ROUTER_INSTALL_${X}DIR, where
+#  X = BIN, LIB and DOC is using
+# inheritance from correspondig server variable.
+# While, when
+#  X = CONFIG, DATA, LOG and RUNTIME
+# default value is set by install layouts below.
+# finally, when
+#  X = plugin
+# ROUTER_INSTALL_LIBDIR/mysqlrouter is used by default.
+
+# Relative to CMAKE_INSTALL_PREFIX or absolute
+IF("${ROUTER_INSTALL_BINDIR}" STREQUAL "")
+  SET(ROUTER_INSTALL_BINDIR "${INSTALL_BINDIR}")
+ENDIF()
+
+# If router libdir not set, use MySQL libdir (for libharness and libmysqlrouter)
+IF("${ROUTER_INSTALL_LIBDIR}" STREQUAL "")
+  SET(ROUTER_INSTALL_LIBDIR "${INSTALL_LIBDIR}")
+ENDIF()
+
+# If router plugindir not set, use $router_install_libdir[/mysqlrouter]
+IF("${ROUTER_INSTALL_PLUGINDIR}" STREQUAL "")
+  IF(WIN32)
+    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}")
+  ELSE()
+    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
+  ENDIF()
+ENDIF()
+
+IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")
+  SET(ROUTER_INSTALL_DOCDIR "${INSTALL_DOCDIR}")
+ENDIF()
+
+IF(NOT ROUTER_INSTALL_LAYOUT)
+  SET(DEFAULT_ROUTER_INSTALL_LAYOUT "${INSTALL_LAYOUT}")
+ENDIF()
+
+SET(ROUTER_INSTALL_LAYOUT "${DEFAULT_ROUTER_INSTALL_LAYOUT}"
+  CACHE
+  STRING
+  "Installation directory layout. Options are:  WIN (as in zip installer), STANDALONE,  RPM, DEB or FREEBSD")
+
+# If are _pure_ STANDALONE we can write into data/ as it is all ours
+# if we are shared STANDALONE with the the server, we shouldn't write
+# into the server's data/ as that would create a "schemadir" in
+# mysql-servers sense
+#
+# STANDALONE layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_STANDALONE  ".")
+SET(ROUTER_INSTALL_DATADIR_STANDALONE    "var/lib/mysqlrouter")
+SET(ROUTER_INSTALL_LOGDIR_STANDALONE     ".")
+SET(ROUTER_INSTALL_RUNTIMEDIR_STANDALONE "run")
+#
+# Win layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_WIN  ".")
+SET(ROUTER_INSTALL_DATADIR_WIN    ".")
+SET(ROUTER_INSTALL_LOGDIR_WIN     "log/mysqlrouter")
+SET(ROUTER_INSTALL_RUNTIMEDIR_WIN ".")
+#
+# FreeBSD layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_FREEBSD  "/usr/local/etc/mysqlrouter")
+SET(ROUTER_INSTALL_DATADIR_FREEBSD    "/var/db/mysqlrouter")
+SET(ROUTER_INSTALL_LOGDIR_FREEBSD     "/var/log/mysqlrouter")
+SET(ROUTER_INSTALL_RUNTIMEDIR_FREEBSD "/var/run/mysqlrouter")
+#
+# RPM layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_RPM    "/etc/mysqlrouter")
+SET(ROUTER_INSTALL_DATADIR_RPM      "/var/lib/mysqlrouter")
+SET(ROUTER_INSTALL_LOGDIR_RPM       "/var/log/mysqlrouter")
+IF (LINUX_FEDORA)
+  SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/run/mysqlrouter")
+ELSE()
+  SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/var/run/mysqlrouter")
+ENDIF()
+#
+# DEB layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_DEB  "/etc/mysqlrouter")
+SET(ROUTER_INSTALL_DATADIR_DEB    "/var/run/mysqlrouter")
+SET(ROUTER_INSTALL_LOGDIR_DEB     "/var/log/mysqlrouter")
+SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/var/run/mysqlrouter")
+
+# Set ROUTER_INSTALL_FOODIR variables for chosen layout for example,
+# ROUTER_INSTALL_CONFIGDIR will be defined as
+# ${ROUTER_INSTALL_CONFIGDIR_STANDALONE} by default if STANDALONE
+# layout is chosen.
+FOREACH(directory
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    )
+  SET(ROUTER_INSTALL_${directory}DIR
+    ${ROUTER_INSTALL_${directory}DIR_${ROUTER_INSTALL_LAYOUT}}
+    CACHE STRING "Router ${directory} installation directory")
+  MARK_AS_ADVANCED(ROUTER_INSTALL_${directory}DIR)
+ENDFOREACH()
