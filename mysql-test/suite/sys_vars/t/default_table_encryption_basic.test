@@ -20,6 +20,10 @@ SHOW GRANTS FOR CURRENT_USER();
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION default_table_encryption=true;
 
+SET SESSION default_table_encryption=false;
+
+SET SESSION default_table_encryption=DEFAULT;
+
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET GLOBAL default_table_encryption=true;
 
@@ -45,6 +49,10 @@ SHOW GRANTS FOR CURRENT_USER();
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION default_table_encryption=true;
+
+SET SESSION default_table_encryption=false;
+
+SET SESSION default_table_encryption=DEFAULT;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET GLOBAL default_table_encryption=true;
@@ -73,6 +81,10 @@ SHOW GRANTS FOR CURRENT_USER();
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION default_table_encryption=true;
 
+SET SESSION default_table_encryption=false;
+
+SET SESSION default_table_encryption=DEFAULT;
+
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET GLOBAL default_table_encryption=true;
 
@@ -99,6 +111,12 @@ SHOW GRANTS FOR CURRENT_USER();
 
 SET SESSION default_table_encryption=true;
 SELECT @@session.default_table_encryption = true;
+
+SET SESSION default_table_encryption=false;
+SELECT @@session.default_table_encryption = false;
+
+SET SESSION default_table_encryption=DEFAULT;
+SELECT @@session.default_table_encryption = false;
 
 SET GLOBAL default_table_encryption=false;
 SELECT @@global.default_table_encryption = false;

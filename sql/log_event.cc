@@ -137,12 +137,13 @@
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"  // sql_exchange
 #include "sql/sql_lex.h"
-#include "sql/sql_list.h"    // I_List
-#include "sql/sql_load.h"    // Sql_cmd_load_table
-#include "sql/sql_locale.h"  // my_locale_by_number
-#include "sql/sql_parse.h"   // mysql_test_parse_for_slave
-#include "sql/sql_plugin.h"  // plugin_foreach
-#include "sql/sql_show.h"    // append_identifier
+#include "sql/sql_list.h"        // I_List
+#include "sql/sql_load.h"        // Sql_cmd_load_table
+#include "sql/sql_locale.h"      // my_locale_by_number
+#include "sql/sql_parse.h"       // mysql_test_parse_for_slave
+#include "sql/sql_plugin.h"      // plugin_foreach
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_tablespace.h"  // Sql_cmd_tablespace
 #include "sql/table.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql/transaction_info.h"
@@ -3652,13 +3653,25 @@ static bool is_sql_require_primary_key_needed(const LEX *lex) {
   requires `Q_DEFAULT_TABLE_ENCRYPTION` to be logged together with the
   statement.
  */
-static bool is_sql_require_default_table_encryption(const LEX *lex) {
+static bool is_default_table_encryption_needed(const LEX *lex) {
   enum enum_sql_command cmd = lex->sql_command;
   switch (cmd) {
     case SQLCOM_CREATE_DB:
-    case SQLCOM_ALTER_DB:
-    case SQLCOM_ALTER_TABLESPACE:
-      return true;
+      // If it is CREATE DATABASE without an ENCRYPTION clause
+      return !(lex->create_info->used_fields &
+               HA_CREATE_USED_DEFAULT_ENCRYPTION);
+    case SQLCOM_ALTER_TABLESPACE: {
+      /*
+        If it is CREATE TABLESPACE without an ENCRYPTION clause.  Note
+        that CREATE TABLESPACE uses SQLCOM_ALTER_TABLESPACE, so to
+        know if it is really a CREATE TABLESPACE we check that the
+        dynamic_cast to Sql_cmd_create_tablespace works.
+      */
+      const Sql_cmd_tablespace *sct =
+          dynamic_cast<const Sql_cmd_create_tablespace *>(lex->m_sql_cmd);
+      return ((sct != nullptr) &&
+              (sct->get_options().encryption.str == nullptr));
+    }
     default:
       break;
   }
@@ -4009,7 +4022,7 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
 
   need_sql_require_primary_key = is_sql_require_primary_key_needed(lex);
 
-  needs_default_table_encryption = is_sql_require_default_table_encryption(lex);
+  needs_default_table_encryption = is_default_table_encryption_needed(lex);
 
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
