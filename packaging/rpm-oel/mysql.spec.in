@@ -590,6 +590,7 @@ Requires:       python-paramiko
 %{?el6:Requires:  python-crypto}
 %{?el7:Requires:  python2-crypto}
 %{?el8:Requires:  python2-crypto}
+%{?el8:BuildRequires: /usr/bin/pathfix.py}
 %description    auto-installer
 This package contains the MySQL Cluster web-based graphical
 configuration installer, which can be used to set up and start or stop
@@ -893,6 +894,9 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{__isa_bits}
 install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/mysql_config
 %endif
+
+# Fix a cluster script
+%{?el8:/usr/bin/pathfix.py -i /usr/bin/python2 -n -p %{buildroot}%{_bindir}/ndb_setup.py}
 
 %if 0%{?systemd}
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
