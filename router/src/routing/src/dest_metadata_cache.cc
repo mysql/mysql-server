@@ -442,6 +442,9 @@ int DestMetadataCacheGroup::get_server_socket(
 
 DestMetadataCacheGroup::AddrVector DestMetadataCacheGroup::get_destinations()
     const {
+  // don't call lookup if the cache-api is not ready yet.
+  if (!cache_api_->is_initialized()) return {};
+
   auto available = get_available(
       cache_api_->lookup_replicaset(ha_replicaset_).instance_vector);
 
