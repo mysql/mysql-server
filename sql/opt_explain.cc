@@ -1590,8 +1590,6 @@ bool Explain_join::explain_extra() {
         buff.append("Block Nested Loop");
       else if (t == JOIN_CACHE::ALG_BKA)
         buff.append("Batched Key Access");
-      else if (t == JOIN_CACHE::ALG_BKA_UNIQUE)
-        buff.append("Batched Key Access (unique)");
       else
         DBUG_ASSERT(0); /* purecov: inspected */
       if (push_extra(ET_USING_JOIN_BUFFER, buff)) return true;

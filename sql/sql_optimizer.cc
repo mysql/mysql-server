@@ -3083,9 +3083,7 @@ static void revise_cache_usage(JOIN_TAB *join_tab) {
     access method.  In that case, a JOIN_CACHE_BNL type is always employed.
 
     If an index is used to access rows of the joined table and
-  batched_key_access is on, then a JOIN_CACHE_BKA type is employed. (Unless
-  debug flag, test_bka unique, is set, then a JOIN_CACHE_BKA_UNIQUE type is
-  employed instead.)
+  batched_key_access is on, then a JOIN_CACHE_BKA type is employed.
 
     If the function decides that a join buffer can be used to join the table
     'tab' then it sets @c tab->use_join_cache to reflect the chosen algorithm.
@@ -3133,8 +3131,6 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
 
   const uint tableno = tab->idx();
   const uint tab_sj_strategy = tab->get_sj_strategy();
-  bool use_bka_unique = false;
-  DBUG_EXECUTE_IF("test_bka_unique", use_bka_unique = true;);
 
   // Set preliminary join cache setting based on decision from greedy search
   if (!join->select_count)
@@ -3317,22 +3313,17 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
       rows = tab->table()->file->multi_range_read_info(
           tab->ref().key, 10, 20, &bufsz, &join_cache_flags, &cost);
       /*
-        Cannot use BKA/BKA_UNIQUE if
-        1. MRR scan cannot be performed, or
-        2. MRR default implementation is used
         Cannot use BKA if
+        1. MRR scan cannot be performed, or
+        2. MRR default implementation is used, or
         3. HA_MRR_NO_ASSOCIATION flag is set
       */
       if ((rows == HA_POS_ERROR) ||                        // 1
           (join_cache_flags & HA_MRR_USE_DEFAULT_IMPL) ||  // 2
-          ((join_cache_flags & HA_MRR_NO_ASSOCIATION) &&   // 3
-           !use_bka_unique))
+          (join_cache_flags & HA_MRR_NO_ASSOCIATION))      // 3
         goto no_join_cache;
 
-      if (use_bka_unique)
-        tab->set_use_join_cache(JOIN_CACHE::ALG_BKA_UNIQUE);
-      else
-        tab->set_use_join_cache(JOIN_CACHE::ALG_BKA);
+      tab->set_use_join_cache(JOIN_CACHE::ALG_BKA);
 
       tab->join_cache_flags = join_cache_flags;
       return false;

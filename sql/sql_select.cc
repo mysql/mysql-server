@@ -2689,12 +2689,12 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
         For BKA cache we store condition to special BKA cache field
         because evaluation of the condition requires additional operations
         before the evaluation. This condition is used in
-        JOIN_CACHE_BKA[_UNIQUE]::skip_index_tuple() functions.
+        JOIN_CACHE_BKA::skip_index_tuple() functions.
       */
       if (join_tab->use_join_cache() &&
           /*
             if cache is used then the value is true only
-            for BKA[_UNIQUE] cache (see setup_join_buffering() func).
+            for BKA cache (see setup_join_buffering() func).
             In this case other_tbls_ok is an equivalent of
             cache->is_key_access().
           */
@@ -2940,10 +2940,6 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab) {
     case JOIN_CACHE::ALG_BKA:
       op = new (*THR_MALLOC)
           JOIN_CACHE_BKA(join_, this, join_tab->join_cache_flags, prev_cache);
-      break;
-    case JOIN_CACHE::ALG_BKA_UNIQUE:
-      op = new (*THR_MALLOC) JOIN_CACHE_BKA_UNIQUE(
-          join_, this, join_tab->join_cache_flags, prev_cache);
       break;
     default:
       DBUG_ASSERT(0);
