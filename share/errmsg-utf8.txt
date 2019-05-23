@@ -29,6 +29,20 @@ languages czech=cze latin2, danish=dan latin1, dutch=nla latin1, english=eng lat
 
 default-language eng
 
+################################################################################
+# Error numbers below 1000 are reserved for "global errors", that is to say,
+# error codes and messages provided by mysys that exist both in clients and
+# in the server. They are hard-coded in mysys/errors.cc + include/mysys_err.h
+# so we are not defining any messages here, but we do skip the the range to
+# prevent collisions with the server's error-numbers.
+################################################################################
+
+# See the FAQ at the end of the file for more information!
+
+################################################################################
+# Error numbers starting at 1000: server-to-client messages =< 5.6
+################################################################################
+
 start-error-number 1000
 
 OBSOLETE_ER_HASHCHK  
@@ -7098,15 +7112,22 @@ WARN_NAMED_PIPE_ACCESS_EVERYONE
   eng "Setting named_pipe_full_access_group='%s' is insecure. Consider using a Windows group with fewer members."
 
 #
-#  End of 5.6 error messages.
+#  End of 5.6 error messages (server-to-client).
 #
+
 
 ################################################################################
 # Error numbers 2000 to 2999 are reserved for the client libraries (for
 # errors generated at the client side). Please do not use them for errors
-# generated at the server.
+# generated in the server. See the FAQ at the end of this file for further
+# information!
 ################################################################################
+
 reserved-error-section 2000 2999
+
+################################################################################
+# Error numbers starting at 3000: server-to-client messages 5.7
+################################################################################
 
 start-error-number 3000
 
@@ -7807,8 +7828,18 @@ OBSOLETE_WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
   eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
 
 #
-#  End of 5.7 error messages.
+#  End of 5.7 error messages (server-to-client).
 #
+
+
+################################################################################
+# Error numbers starting at 3500: server-to-client messages 8.0
+################################################################################
+
+# Do NOT add messages intended for the error log here;
+# they have their own section below.
+#
+# See the FAQ at the end of the file for more information.
 
 start-error-number 3500
 
@@ -9091,7 +9122,7 @@ ER_TABLE_NAME_CAUSES_TOO_LONG_PATH
 ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
 
-ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
+OBSOLETE_ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
   eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
 
 ER_DA_GRP_RPL_STARTED_AUTO_REJOIN
@@ -9104,26 +9135,29 @@ ER_GLOBSTAT_CHANGE_DURING_QUERY
   eng "A plugin was loaded or unloaded during a query, a global status variable was changed."
 
 #
-#  End of 8.0 error messages.
+#  End of 8.0 error messages (server-to-client).
+#  Do NOT add messages intended for the error log above!
 #
+
 
 ################################################################################
 # Error numbers 5000 to 5999 are reserved for X Plugin. Please do not use
-# them for the other error messages.
+# them for other error messages.
 ################################################################################
+
+
 reserved-error-section 5000 5999
 
+
+################################################################################
 #
-# Start of 8.0 error messages intended to be logged to the server error log.
+# Start of 8.0 error messages (error log).
 #
-# Note:
-#     *) Error messages intended to be sent to client should *not* be added here.
-#        Please add them to "8.0 error messages" section.
+# DO NOT add server-to-client here;
+# they have their own section above.
 #
-#     *) If the same error message is intended to be logged to the server
-#        error log and also sent to the client, add separate error codes:
-#        One for the server error log and another to send to the client.
-#
+# See the FAQ at the end of the file for more information.
+
 start-error-number 10000
 
 ER_PARSER_TRACE XX999
@@ -19458,7 +19492,7 @@ ER_AUDIT_LOG_CANNOT_STORE_PASSWORD
 ER_AUDIT_LOG_CANNOT_REMOVE_PASSWORD
   eng "Cannot remove password: '%.32s'"
 
-OBSOLETE_ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
+ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
   eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
 
 OBSOLETE_ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
@@ -19594,12 +19628,182 @@ ER_AUDIT_LOG_HAS_NOT_BEEN_INSTALLED
 ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
   eng "Invalid \"max_array_length\" argument type."
 
+ER_LOG_CANNOT_WRITE_EXTENDED
+  eng "Failed to write to %s: %s (%s)"
+
+# DO NOT add server-to-client messages here!
+# This range is for messages intended for the error log only.
+# See the FAQ at the end of the file for further information.
+
 #
-# End of 8.0 error messages intended to be logged to the server error log.
+# End of 8.0 error messages intended to be written to the server error log.
 #
 
 ################################################################################
-# Error numbers 50000 to 51999 are reserved. Please do not use them for the
+# Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.
 ################################################################################
 reserved-error-section 50000 51999
+
+
+################################################################################
+#
+# FREQUENTLY ASKED QUESTIONS (FAQ)
+#
+# Where do I add messages intended for the error log?
+# (Messages used with LogErr() / LogEvent())
+#
+#   To add a new message intended for the error log (as opposed to
+#   server-to-client messages), simply search backward to the line
+#   ending in "written to the server error log." for the server
+#   version you are adding the message to, and add the message above
+#   it.
+#
+# Where do I add server-to-client messages?
+# (Messages used with my_error(), push_warning_printf())
+#
+#   The ranges of messages intended for server-to-client messages
+#   precede the ones for error log. To add a new message intended
+#   for sending to clients, simply search backward to the line ending
+#   in "error messages (server-to-client)" for the server version you
+#   are adding the message to, and add the message above it.
+#
+# What do I do if a message needs to go to both the error log AND the
+# client?
+#
+#   If your message needs to be sent both to the client and to the
+#   error log, please add it twice,
+#
+#   - once at the end of the range of messages to the error
+#   - once at the end of the range of messages sent to the client
+#
+#   Several ranges may exist for each, pick the one corresponding
+#   to the lowest MySQL server version for which you are adding
+#   the message.
+#
+#   Then, place two calls in the code (e.g. my_error() to send the
+#   one message to the client, and e.g. LogErr() to send the other
+#   message to the error log).
+#
+#   If in doubt, use ER_ as the prefix for the error-log message,
+#   and ER_DA_ ("diagnostics area") for the one intended for the
+#   client, e.g.
+#
+#     # section for messages to the client
+#     ER_DA_MY_MESSAGE
+#       eng "Hi!"
+#
+#     [...]
+#
+#     # section for server messages
+#     ER_MY_MESSAGE
+#
+#       eng "Hi!"
+#
+#   While both messages are allowed to have the same text, they
+#   do not need to do so, and you are encouraged to taylor each
+#   of the two strings to suit the intended audience and context.
+#
+# I'm fixing existing code, how do I know where its message goes?
+#
+#   As a general guideline, messages for the error log are usually
+#   logged using LogErr() or LogEvent(), while messages are usually
+#   sent to the client using my_error() or push_warning_printf().
+#
+# The test suite aborted with an assert() having to do with error numbers?
+#
+#   This usually means that you tried to send a message intended for
+#   the error log to a client, or tried to write a message intended
+#   for the client to the error log. Find out whether two versions
+#   of this message already exist; if so, use the correct one; if not,
+#   add the missing message (see above for more information).
+#
+# Upmerging my new message into trunk failed, there already is a
+# message in that place. What do I do?
+#
+#   For each range of messages in trunk, the order should become
+#
+#     1 - messages that existed in both in trunk and the lower branch
+#     2 - messages you newly added to the lower branch
+#     3 - messages that exist only in trunk
+#
+#   This way, the message you add will have the same number in
+#   trunk as in the lower branch.
+#
+#   However, it also means that the error numbers of new features
+#   in trunk, and ONLY in trunk, may change (as bug fixes are
+#   upmerged from the lower tree, and their messages inserted before
+#   the trunk-only ones).
+#
+#   It is more important to keep the error numbers that are in both
+#   trees (and therefore in released versions) stable between MySQL
+#   server versions than it is to keep the error numbers of new
+#   messages that exist only in trunk stable between commits to trunk.
+#   When error-numbers change, certain .result files may have to be
+#   re-recorded!
+#
+#   This should ONLY happen when merging to trunk; once a branch is
+#   added for a new server version (e.g. "mysql-9.0"), a new range
+#   for 9.0 error log messages should be added, and a new range for
+#   9.0 messages-to-clients. New messages to are most likely to be
+#   added for features (and therefore, in trunk), but if one were to
+#   be added in an 8.0 bug fix, it would go at the end of the 8.0
+#   range (for error log or client messages, depending on the bug);
+#   this would not interfere with 9.0 messages as they'd be in a
+#   new, separate range. Interference / renumbering / merge problems
+#   should only ever occur between trunk and the most modern tree
+#   (mysql-x.y) below it!
+#
+# What files are generated from this one? What other files are there?
+#
+#   For each language in this file, an errmsg.sys is created.
+#   At runtime, the server will read the messages from the file
+#   for the configured language.
+#
+#   Further, the messages for the default language, English, are
+#   built into the server. mysqld_ername.h contains those messages
+#   as C code; mysqld_error.h maps the symbol ("ER_MY_EXAMPLE_MESSAGE")
+#   to its error-number.
+#
+#   The "global errors" defined by the mysys library are similarly
+#   built in from mysys/errors.cc (messages) and include/mysys_err.h
+#   (symbol to error number mapping), respectively.
+#
+#   The client library also contains some error messages. These are
+#   not the same messages as the "messages intended for sending to
+#   the client"! The messages-to-the-client are part of this file
+#   and are sent from the MySQL server to a client; the client
+#   library messages are part of that library, and therefore of
+#   the client. These messages in the client let us provide diagnostics
+#   even when the server is not connected, or has no information about
+#   a client-side issue.
+
+#   The messages for the client library are not part of this file.
+#   mysqlclient_ername.h contains the union of messages, error numbers,
+#   and symbol names as C code. It is generated from the symbol to
+#   error number mapping in errmsg.h and the  messages in errmsg.cc.
+#   The code in errmsg.cc serves as the client-library equivalent of
+#   this file.
+#
+#   As a guideline, client-library symbols begin with CR_, while server
+#   messages (both to the error log and for sending to the client) begin
+#   with ER_.
+#
+# What's with the OBSOLETE_ symbols?
+#
+#   Symbols for obsolete messages are not defined in the build and
+#   therefore can't be used accidentally. The corresponding message
+#   however is still included in the errmsg.sys files (because older
+#   versions of the server may still use them), and the error number
+#   is still reserved (so the messages following below don't all have
+#   their error-number decreased by one when we make a message obsolete).
+
+
+# DO NOT add error messages here!
+#
+#   If you came here to add a message, please read the FAQ above to see
+#   where it should go!  Error log messages and client messages go to
+#   different places!  Messages for different server versions go to
+#   different places!
+#
+# DO NOT add error messages here!
