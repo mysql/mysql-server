@@ -1,47 +1,47 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License, version 2.0,
-as published by the Free Software Foundation.
-
-This program is also distributed with certain software (including
-but not limited to OpenSSL) that is licensed under separate terms,
-as designated in a particular file or component or in included license
-documentation.  The authors of MySQL hereby grant you an additional
-permission to link the program and your derivative works with the
-separately licensed software that they have included with MySQL.
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License, version 2.0, for more details.
+GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 -->
 <html dir="ltr" lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
         <title>MySQL Cluster</title>
-        <link rel="icon" type="image/x-icon" href="img/favicon.ico"/>
+        <link rel="icon" type="image/x-icon" href="/img/favicon.ico"/>
         <link rel="stylesheet" type="text/css" 
                 href="dojo/dijit/themes/claro/claro.css"/>
         <link rel="stylesheet" type="text/css" href="css/welcome.css"/>
         <style type="text/css">
             @import "dojo/dojox/form/resources/CheckedMultiSelect.css";
         </style>
-        <script type="text/javascript" src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
-
+        <script type="text/javascript" src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true, locale: 'en'"></script>
         <script type="text/javascript">
             // Path to top level mcc module
             dojo.registerModulePath("mcc", "../../js/mcc");
+            dojo.require("dijit.form.Button");
+            dojo.require("dojo.dom");
+            dojo.require("dojo.dom-construct");
+            dojo.require("dojo.domReady!");
+            dojo.require("dojox.widget.Standby");
 
             // MCC modules immediately required
-            dojo.require("mcc.userconfig");
-
+            if (!!window.MSInputMethodContext && !!document.documentMode) {
+                dojo.require("mcc.userconfigIE");
+            } else {
+                dojo.require("mcc.userconfig");
+            }
             function parseURLParams(url) {
                 var queryStart = url.indexOf("?") + 1,
                     queryEnd   = url.indexOf("#") + 1 || url.length + 1,
@@ -53,29 +53,256 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
                 //Actually there are no K/V pairs in this concrete example.
                 //The output is in form of [config1.mcc, config2.mcc,...].
                 return pairs;
-            };
+            }
             var url = window.location.href;
             var cfgList = parseURLParams(url);
-            var viewORopen = "OPEN";
-            console.log("cfgList: " + cfgList);
-            let picked = "NEW CONFIGURATION";
-            dojo.require("dijit.form.ValidationTextBox");
-            dojo.require("dijit.form.Button");
-            dojo.require("dojo.dom");
-            dojo.require("dojo.dom-construct");
-            dojo.require("dojo.domReady!");
-            dojo.require("dojox.widget.Standby");
+            console.debug('[DBG]cfgList: ' + cfgList);
+            let picked = 'New configuration';
             var standby = new dojox.widget.Standby({target: "configure-box"});
-            //configListContainer or createNewCluster
+
+
+            function doStuff() {
+                standby.show();
+                
+                function do_post(msg) {
+                    // Convert to json string
+                    var jsonMsg = JSON.stringify(msg); //dojo.toJson(msg);
+                    //var dbgMsg = JSON.stringify(msg); //dojo.toJson(msg);
+                    // Return deferred from xhrPost
+                    return dojo.xhrPost({
+                        url: "/cmd",
+                        headers: { "Content-Type": "application/json" },
+                        postData: jsonMsg,
+                        handleAs: "json"
+                    });
+                }
+                // Generic error handler closure
+                function errorHandler(req, onError) {
+                    if (onError) {
+                        return onError;
+                    } else {
+                        return function (error) {
+                            console.error("An error occurred while executing '" + req.cmd + 
+                                    " (" + req.seq + ")': " + error);
+                        };
+                    }
+                }
+                
+                // Generic reply handler closure
+                function replyHandler(onReply, onError) {
+                    return function (reply) {
+                        if (reply && reply.stat && reply.stat.errMsg != "OK") {
+                            if (onError) {
+                                onError(reply.stat.errMsg, reply);
+                            } else {
+                                alert(reply.stat.errMsg);
+                            }
+                        } else {
+                            try{
+                                onReply(reply);
+                            } catch (E) {
+                                alert("Error in formatting reply.");
+                            }
+                        }
+                    };
+                }
+                
+                function cffileExistsReq(mesg, onReply, onError) {
+                    console.debug("[DBG]Composing cffileExistsReq message for host localhost.");
+                    var ms = mesg;       
+                    // Call do_post, provide callbacks
+                    do_post(ms).then(replyHandler(onReply, onError), 
+                        errorHandler(ms.head, onError));
+                }
+                function createCfgFileReq(mesg, onReply, onError) {
+                    console.debug("[DBG]Composing createCfgFileReq message for host localhost.");
+                    var ms = mesg;       
+                    // Call do_post, provide callbacks
+                    do_post(ms).then(replyHandler(onReply, onError), 
+                        errorHandler(ms.head, onError));
+                }
+                function readCfgFileReq(mesg, onReply, onError) {
+                    console.debug("[DBG]Composing readCfgFileReq message for host localhost.");
+                    var ms = mesg;       
+                    // Call do_post, provide callbacks
+                    do_post(ms).then(replyHandler(onReply, onError), 
+                            errorHandler(ms.head, onError));
+                }
+                
+                var cf = picked;
+                if (cf) {
+                    if (cf == 'New configuration') {
+                        cf = "NewConfig";
+                        cf = prompt("Please provide the name for new configuration file: ");
+                        if (cf == null || cf == "") {
+                            //Cancelled or empty.
+                            console.warn("window.location.reload() - CF name NULL or EMPTY");
+                            standby.hide();
+                            window.location.reload();
+                            return;
+                        }
+                    }
+                    // We are no longer sending cfgname.MCC from back end!
+                    if ( /\.(mcc)$/i.test(cf) === false ) {
+                        cf += '.mcc'; 
+                    }
+                    mcc.userconfig.setConfigFile(cf);
+                    
+                    var defCfg = mcc.userconfig.getDefaultCfg();
+                    var fileExists = false;
+                    var res = new dojo.Deferred();
+                    var msg = {
+                        head: {cmd: "cffileExistsReq", seq: 0},
+                        body: {
+                            ssh: {keyBased: false, user: "", pwd: ""},
+                            hostName: 'localhost',
+                            path: "~",
+                            fname: cf 
+                        }
+                    };
+                    cffileExistsReq(
+                        msg,
+                        function (reply) {
+                            //File with that name already exists. Will load that later on.
+                            console.debug("[DBG]reply.body.hostRes.exists is: " + reply.body.hostRes.exists);
+                            fileExists = reply.body.hostRes.exists == 1;
+                            res.resolve(true);
+                            return res;
+                        },
+                        function (errMsg, reply) {
+                            console.error("Error happened while checking for existence of " + cf + ' file!'+
+                                    "Error message is: " + errMsg);
+                            alert("Error happened while checking for existence of " + cf + ' file!'+
+                                    "Error message is: " + errMsg);
+                            res.resolve(false);
+                            return res;
+                        }
+                    );
+                    res.then(function(success){
+                        console.debug("[DBG]cffileExistsReq success: ", success);
+                        return true;
+                    }, function(error){
+                        console.error("cffileExistsReq error: ", error);
+                        return false;
+                    }).then(function(info){
+                        console.debug("[DBG]cffileExistsReq has finished with success status: " + info);
+                        if (info) {
+                            //var cfNoExt = cf.substr(0, cf.lastIndexOf('.')) || cf;
+                            console.debug("[DBG]FileExists is NOT " + (!fileExists));
+                            if (!fileExists) {
+                                var res2 = new dojo.Deferred();
+                                console.debug("[DBG]Config doesn't exit. Creating file, writing defaults.");
+                                //Fill new config with predefined defaults:
+                                msg = {
+                                    head: {cmd: "createCfgFileReq", seq: 1},
+                                    body: {
+                                        ssh: {keyBased: false, user: "", pwd: ""},
+                                        hostName: 'localhost',
+                                        path: "~",
+                                        fname: cf,
+                                        contentString: defCfg,
+                                        phr: ""
+                                    }
+                                };
+                                createCfgFileReq(
+                                        msg,
+                                    function (resFNC) {
+                                        console.debug("[DBG]Configuration didn't exits. Created."); 
+                                        res2.resolve(true);
+                                        return res2;
+                                    },  
+                                    function (errMsgFNC) {
+                                        console.error("Unable to create config file " + cf+ " in HOME directory: " + errMsgFNC);
+                                        //This is bad, bail out and just work from tree.
+                                        cf = "";
+                                        res2.resolve(false);
+                                        return res2;
+                                    }
+                                );
+                                res2.then(function(success1){
+                                    console.debug("[DBG]createCfgFileReq success: ", success1);
+                                    return true;
+                                }, function(error1){
+                                    console.error("createCfgFileReq error: ", error1);
+                                    return false;
+                                }).then(function(info1){
+                                    console.debug("[DBG]createCfgFileReq has finished with success status: ", info1);
+                                    if (info1) {
+                                        console.debug("[DBG]Setting global conf file.");
+                                        mcc.userconfig.setConfigFile(cf);
+                                        mcc.userconfig.setConfigFileContents(defCfg);
+                                        window.name = JSON.stringify({
+                                            "CFC": mcc.userconfig.getConfigFileContents(),
+                                            "CF": cf,
+                                            "CFPP": ""});
+                                        standby.hide();
+                                        window.open('content.html', '_self');
+                                    }
+                                });
+                            } else {
+                                console.debug("[DBG]Reading from existing config file.");
+                                console.debug("[DBG]Setting global conf file.");
+                                mcc.userconfig.setConfigFile(cf);
+                                msg = {
+                                    head: {cmd: "readCfgFileReq", seq: 1},
+                                    body: {
+                                        ssh: {keyBased: false, user: "", pwd: ""},
+                                        hostName: 'localhost',
+                                        path: "~",
+                                        fname: cf,
+                                        phr: ""
+                                    }
+                                };
+                                readCfgFileReq(
+                                    msg,
+                                    function (reply) {
+                                        console.debug("[DBG]readCfgFileReq has finished with success.");
+                                        // Just in case someone thinks it's funny to create empty mcc file...
+                                        if (reply.body.hostRes.contentString.length > 10) {
+                                            // "Someone" thought _on_ would be nice value for Boolean.
+                                            // Now have to convert to _true_.
+                                            mcc.userconfig.setConfigFileContents(
+                                                reply.body.hostRes.contentString.replace(/"on"/g, 'true'));
+                                        } else {
+                                            mcc.userconfig.setConfigFileContents(defCfg);
+                                        }
+                                        window.name = JSON.stringify({ 
+                                            "CFC": mcc.userconfig.getConfigFileContents(),
+                                            "CF": cf,
+                                            "CFPP": ""});
+                                        standby.hide();
+                                        window.open('content.html', '_self');
+                                    },
+                                    function (errMsgFNC) {
+                                        console.error("window.location.reload() - errMsgFNC");
+                                        standby.hide();
+                                        alert("Unable to read config file " + cf +
+                                            " in HOME directory: " + errMsgFNC); 
+                                        //This is bad, bail out and just work from tree.
+                                        cf = "";
+                                        window.location.reload();
+                                        return;
+                                    }
+                                );
+                            }
+                        }
+                    });
+                } else {
+                    console.debug("[DBG]window.location.reload() - LAST");
+                    standby.hide();
+                    window.location.reload();
+                    return;
+                }
+            } //doStuff()
 
             dojo.ready(function() {
                 // Check browser type
                 var supportedUa = navigator.userAgent.match(/firefox|safari|chrome|msie/gi);
 
-                console.log("Browser application name is " + navigator.appName);
-                console.log("Browser application version is " + navigator.appVersion);
-                console.log("User agent string is: " + navigator.userAgent);
-                console.log("User agent " + supportedUa + " is supported"); 
+                console.debug("[DBG]Browser application name is " + navigator.appName);
+                console.debug("[DBG]Browser application version is " + navigator.appVersion);
+                console.debug("[DBG]User agent string is: " + navigator.userAgent);
+                console.debug("[DBG]User agent " + supportedUa + " is supported"); 
                 
                 if (!supportedUa) {
                     alert("You seem to be using a " + navigator.appName + 
@@ -91,8 +318,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
                 // No need to send path along as it is always HOME.
                 function populateMultiSelect(optionData){
                     require([
-                      "dojox/form/CheckedMultiSelect",
-                      "dojo/dom", "dojo/_base/window", "dojo/domReady!"
+                        "dojox/form/CheckedMultiSelect",
+                        "dojo/dom", "dojo/_base/window", "dojo/domReady!"
                     ], function(CheckedMultiSelect, dom, win){
                         var sel = dojo.byId('sid1');
                         var ss1 = new CheckedMultiSelect({
@@ -100,459 +327,85 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
                             options: optionData,
                             onChange: function(val){
                                     picked = val;
-                                    console.log("PICKED: " + picked);
-                                    document.getElementById("d_passphrase").focus();
+                                    console.debug("[DBG]PICKED: " + picked);
                                 },
                             multiple: false,
                             class: "narrow wrap",
-                            style: "white-space: normal;"
+                            style: "white-space: normal; height: 85%;"
                         }, sel);
                         ss1.startup();
                         document.getElementById("sid1").focus();
                         ss1.on("keydown", function(e) {
-                            console.log("CMS.keydown");
+                            console.debug("[DBG]CMS.keydown");
                             switch(e.keyCode) {
                                 case dojo.keys.ENTER:
                                     dojo.stopEvent(e);
-                                    console.log("CMS.keydown ENTER");
-                                    console.log("d_passphrase.focus");
-                                    document.getElementById("d_passphrase").focus();
+                                    console.debug("[DBG]CMS.keydown ENTER");
                                     break;
                                 case dojo.keys.TAB:
                                     dojo.stopEvent(e);
-                                    console.log("CMS.keydown TAB");
-                                    console.log("d_passphrase.focus");
-                                    document.getElementById("d_passphrase").focus();
+                                    console.debug("[DBG]CMS.keydown TAB");
                                     break;
                                 default:
                             }
                         });
                     });
-                };
+                }
 
                 var opts = new Array();
                 opts.push(
-                            {value: "NEW CONFIGURATION",
-                            label: "NEW CONFIGURATION",
+                            {value: "New configuration",
+                            label: "New configuration",
                             selected: true}
                 );
                 
                 if (cfgList) {
-                    console.log("Found " + cfgList.length + " configurations.");
-                    console.log(cfgList);
-                    for (i = 0; i < cfgList.length; i++) {
+                    console.debug("[DBG]Found " + cfgList.length + " configurations.");
+                    console.info('List of configurations found: %s', cfgList);
+                    for (var i = 0; i < cfgList.length; i++) {
                         opts.push({value:cfgList[i], label:cfgList[i]});
-                    };
+                    }
                 } else {
-                    console.log("No existing configurations found.");
-                };
-                populateMultiSelect(opts);
-                
-                var pp_textBox = dijit.byId("d_passphrase");
-                var co_textBox = dijit.byId("d_confirm");
-                pp_textBox.on("focus", function(even) {
-                    console.log("PP.onfocus");
-                    if (picked == 'NEW CONFIGURATION') {
-                        console.log("PP.onfocus NEW conf");
-                        co_textBox.set("required", "true");
-                    }
-                    return;
-                });
-
-                co_textBox.on("focus", function(eve) {
-                    console.log("CO.onfocus");
-                    if (pp_textBox.getValue() == "") {
-                        console.log("CO.onfocus PP empty");
-                        alert("First set PASSPHRASE please!");
-                    };
-                    return;
-                });
-
-                co_textBox.validator = function(value, constraints){
-                    if ((co_textBox.focused) || (pp_textBox.getValue() == "")) {
-                        return true;
-                    };
-                    if (picked == 'NEW CONFIGURATION') { //|| picked == ''
-                        if ((pp_textBox.getValue() == co_textBox.getValue()) && pp_textBox.getValue() != "") {
-                            dijit.byId("createNewCluster").set("Disabled", false);
-                            dijit.byId("createNewCluster").set("iconClass", 'newClusterIcon');
-                            dijit.byId("viewConfig").set("Disabled", false);
-                            document.getElementById("createNewCluster").focus();
-                            return true;
-                        } else {
-                            alert("Passphrases do not match!");
-                            dijit.byId("createNewCluster").set("Disabled", true);
-                            dijit.byId("viewConfig").set("Disabled", true);
-                            return false;
-                        }
-                    }else{
-                        //NO validation if it's old configuration.
-                        return true;
-                    }
+                    console.warn("No existing configurations found.");
                 }
-
-                pp_textBox.on("keydown", function(e) {
-                    console.log("PP.keydown");
-                    //Can not OR key codes :-/
-                    switch(e.keyCode) {
-                        case dojo.keys.ENTER:
-                            dojo.stopEvent(e);
-                            console.log("PP.keydown ENTER");
-                            if (picked == 'NEW CONFIGURATION' || picked == '') {
-                                console.log("d_confirm.focus");
-                                document.getElementById("d_confirm").focus();
-                            } else {
-                                console.log("createNewCluster.focus");
-                                dijit.byId("createNewCluster").set("Disabled", false);
-                                dijit.byId("createNewCluster").set("iconClass", 'newClusterIcon');
-                                dijit.byId("viewConfig").set("Disabled", false);
-                                document.getElementById("createNewCluster").focus();
-                            }
-                            break;
-                        case dojo.keys.TAB:
-                            dojo.stopEvent(e);
-                            console.log("PP.keydown TAB");
-                            if (picked == 'NEW CONFIGURATION' || picked == '') {
-                                console.log("d_confirm.focus");
-                                document.getElementById("d_confirm").focus();
-                            } else {
-                                console.log("createNewCluster.focus");
-                                dijit.byId("createNewCluster").set("Disabled", false);
-                                dijit.byId("createNewCluster").set("iconClass", 'newClusterIcon');
-                                dijit.byId("viewConfig").set("Disabled", false);
-                                document.getElementById("createNewCluster").focus();
-                            }
-                            break;
-                        default:
-                    }
-                });
-
-                co_textBox.on("keydown", function(ev) {
-                    console.log("CO.keydown");
-                    switch(ev.keyCode) {
-                        case dojo.keys.ENTER:
-                            dojo.stopEvent(ev);
-                            console.log("CO.keydown ENTER");
-                            console.log("createNewCluster.focus 2");
-                            //Try loosing focus to trigger validation.
-                            document.getElementById("createNewCluster").focus();
-                            break;
-                        case dojo.keys.TAB:
-                            dojo.stopEvent(ev);
-                            console.log("CO.keydown TAB");
-                            console.log("createNewCluster.focus 2");
-                            //Try loosing focus to trigger validation.
-                            document.getElementById("createNewCluster").focus();
-                            break;
-                        default:
-                    }
-                });
+                populateMultiSelect(opts);
             });
         </script>
     </head>
     <body class="claro">
         <!-- Welcome title image -->
         <div id="title"><img alt="Oracle logo" src="img/welcome-title.png"></div>
-
         <!-- Big MySQL Logo image in the background -->
         <div id="mysql-logo"><img alt="MySQL logo" src="img/welcome-mysql-logo.png"></div>
-        <!-- Configuration box: Start from scratch or continue -->
-        <div id="configure-box-wrapper">
-            <div id="configure-box">
-                <div id = "configListContainer" style="width: 50%;height: 70%;margin: 0 auto;float: left;text-align: left;border: 0;">
-                    <select id="sid1"></select>
+            <!-- Configuration box: Start from scratch or continue -->
+            <div id="configure-box-wrapper" style="display: flex; flex-wrap: nowrap;top: 300px">
+                <div id="intro-box" style="width: -webkit-fill-available; display: flow-root; margin-right: 2%; height: 400px; font-size: large;color: wheat;">
+                    <h2>&emsp;MCC quick reference:</h2>
+                    <p>&emsp;&#10148;&emsp;Create <b>New configuration</b> or resume work on existing one by picking it from the list.</p>
+                    <p>&emsp;&#10148;&emsp;RUN configuration will load it from disk to MCC and allow you to continue working on/with it.</p>
+                    <p>&emsp;&#10148;&emsp;SECURITY: The configuration files are located in your HOME/.mcc directory and stored in plain text. Configuration files do not store sensitive information, like passwords, but do store user names and External/Internal IP addresses of hosts.</p>
+                    <p>&emsp;&#10148;&emsp;SECURITY: Please use properly signed certificate to encrypt communication between front and back end.</p>
+                    <p>&emsp;&#10148;&emsp;Make sure to allow pop-up windows in the browser where MCC runs as we communicate important things using that mechanism.</p>
                 </div>
-                <div id = "configPassContainer" style="width: 50%;height: 70%;margin: 0;float: right;text-align: left;">
-                    <label for="d_passphrase">PASSPHRASE:</label>
-                    <br><input type="password" name="d_passphrase" value=""
-                        data-dojo-type="dijit.form.ValidationTextBox"
-                        data-dojo-props="trim:true, propercase:false, required:true" id="d_passphrase">
-                    <br><br><label for="d_confirm">CONFIRM PP:</label>
-                    <br><input type="password" name="d_confirm" value=""
-                        data-dojo-type="dijit.form.ValidationTextBox"
-                        data-dojo-props="trim:true, propercase:false, required:true" id="d_confirm">
-                </div>
-                <div id = "configBtnContainer" style="width: 100%;height: 30%;margin: 0 auto;">
-                    <button 
-                        id="viewConfig"
-                        data-dojo-type="dijit.form.Button"
-                        data-dojo-props="iconClass: 
-                            'viewConfigIcon', showLabel: true, 
-                            label: 'View cfg', disabled: true"
-                        type="button"> View cfg.  
-                            <script type="dojo/on" data-dojo-event="click" data-dojo-args="evt">
-                                viewORopen = "VIEW";
-                                dijit.byId("createNewCluster").onClick();
-                                return;
-                            </script>
-                    </button>
-                    <button 
-                        id="createNewCluster"
-                        data-dojo-type="dijit.form.Button"
-                        data-dojo-props="iconClass: 
-                            'continueClusterDisabledIcon', showLabel: true, 
-                            label: ' Continue  ', disabled: true"
-                        type="button"> Continue  
-                            <script type="dojo/on" data-dojo-event="click" data-dojo-args="evt">
-                                require(["dojo/dom"], function(dom){
-                                    standby.show();
-                                    function do_post(msg) {
-                                        // Convert to json string
-                                        var jsonMsg = dojo.toJson(msg);
-
-                                        var dbgMsg = dojo.toJson(msg);
-                                        // Return deferred from xhrPost
-                                        return dojo.xhrPost({
-                                            url: "/cmd",
-                                            headers: { "Content-Type": "application/json" },
-                                            postData: jsonMsg,
-                                            handleAs: "json"
-                                        });
-                                    }
-                                    // Generic error handler closure
-                                    function errorHandler(req, onError) {
-                                        if (onError) {
-                                            return onError;
-                                        } else {
-                                            return function (error) {
-                                                console.log("An error occurred while executing '" + req.cmd + 
-                                                        " (" + req.seq + ")': " + error);
-                                            }
-                                        }
-                                    }
-                                    // Generic reply handler closure
-                                    function replyHandler(onReply, onError) {
-                                        return function (reply) {
-                                            if (reply && reply.stat && reply.stat.errMsg != "OK") {
-                                                if (onError) {
-                                                    onError(reply.stat.errMsg, reply);
-                                                } else {
-                                                    alert(reply.stat.errMsg);
-                                                }
-                                            } else {
-                                                onReply(reply);
-                                            }
-                                        }
-                                    }
-                                    function fileExistsReq(mesg, onReply, onError) {
-                                        console.log("Composing fileExistsReq message for host localhost.");
-                                        var ms = mesg;       
-                                        // Call do_post, provide callbacks
-                                        do_post(ms).then(replyHandler(onReply, onError), 
-                                            errorHandler(ms.head, onError));
-                                    }
-                                    function createCfgFileReq(mesg, onReply, onError) {
-                                        console.log("Composing createCfgFileReq message for host localhost.");
-                                        var ms = mesg;       
-                                        // Call do_post, provide callbacks
-                                        do_post(ms).then(replyHandler(onReply, onError), 
-                                            errorHandler(ms.head, onError));
-                                    }
-                                    function readCfgFileReq(mesg, onReply, onError) {
-                                        console.log("Composing readCfgFileReq message for host localhost.");
-                                        var ms = mesg;       
-                                        // Call do_post, provide callbacks
-                                        do_post(ms).then(replyHandler(onReply, onError), 
-                                                errorHandler(ms.head, onError));
-                                    }
-                                    
-                                    var cf = picked;
-                                    if (cf) {
-                                        if (cf == 'NEW CONFIGURATION') {
-                                            var cf = "NewConfig";
-                                            cf = prompt("Please provide the name for new configuration file: ");
-                                            if (cf == null || cf == "") {
-                                                //Cancelled or empty.
-                                                console.log("window.location.reload() - CF NULL or EMPTY");
-                                                standby.hide();
-                                                window.location.reload();
-                                                return;
-                                            }
-                                            if ( /\.(mcc)$/i.test(cf) === false ) {
-                                                cf += '.mcc'; 
-                                            };
-                                        };
-                                        mcc.userconfig.setConfigFile(cf);
-                                        mcc.userconfig.setConfKey(dijit.byId("d_passphrase").getValue());
-                                        
-                                        var defCfg = mcc.userconfig.getDefaultCfg();
-                                        var fileExists = false;
-                                        var res = new dojo.Deferred();
-                                        var msg = {
-                                            head: {cmd: "fileExistsReq", seq: 0},
-                                            body: {
-                                                ssh: {keyBased: false, user: "", pwd: ""},
-                                                hostName: 'localhost',
-                                                path: "~",
-                                                fname: cf 
-                                            }
-                                        };
-                                        fileExistsReq(
-                                            msg,
-                                            function (reply) {
-                                                //File with that name already exists. Will load that later on.
-                                                console.log("reply.body.hostRes.exists is: " + reply.body.hostRes.exists);
-                                                fileExists = reply.body.hostRes.exists == 1;
-                                                res.resolve(true);
-                                                return res;
-                                            },
-                                            function (errMsg, reply) {
-                                                console.log("Error happened while checking for existence of " + cf + ' file!'+
-                                                        "Error message is: " + errMsg);
-                                                alert("Error happened while checking for existence of " + cf + ' file!'+
-                                                        "Error message is: " + errMsg);
-                                                res.resolve(false);
-                                                return res;
-                                            }
-                                        );
-                                        res.then(function(success){
-                                            console.log("fileExistsReq success: ", success);
-                                            return true;
-                                        }, function(error){
-                                            console.log("fileExistsReq error: ", error)
-                                            return false;
-                                        }).then(function(info){
-                                            console.log("fileExistsReq has finished with success status: " + info);
-                                            if (info) {
-                                                var cfNoExt = cf.substr(0, cf.lastIndexOf('.')) || cf;
-                                                if (!fileExists) {
-                                                    var res2 = new dojo.Deferred();
-                                                    console.log("Config doesn't exit. Creating file, writing defaults.");
-                                                    //Fill new config with predefined defaults:
-                                                    msg = {
-                                                        head: {cmd: "createCfgFileReq", seq: 1},
-                                                        body: {
-                                                            ssh: {keyBased: false, user: "", pwd: ""},
-                                                            hostName: 'localhost',
-                                                            path: "~",
-                                                            fname: cf,
-                                                            contentString: defCfg,
-                                                            phr: mcc.userconfig.getConfKey()
-                                                        }
-                                                    };
-                                                    createCfgFileReq(
-                                                            msg,
-                                                        function (resFNC) {
-                                                            console.log("Configuration didn't exits. Created."); 
-                                                            res2.resolve(true);
-                                                            return res2;
-                                                        },  
-                                                        function (errMsgFNC) {
-alert("Unable to create config file " + cf+ " in HOME directory: " + errMsgFNC);
-                                                            //This is bad, bail out and just work from tree.
-                                                            cf = "";
-                                                            res2.resolve(false);
-                                                            return res2;
-                                                        }
-                                                    );
-                                                    res2.then(function(success1){
-                                                        console.log("createCfgFileReq success: ", success1);
-                                                        return true;
-                                                    }, function(error1){
-                                                        console.log("createCfgFileReq error: ", error1)
-                                                        return false;
-                                                    }).then(function(info1){
-                                                        console.log("createCfgFileReq has finished with success status: ", info1);
-                                                        if (info1) {
-                                                            console.log("Setting global conf file.");
-                                                            mcc.userconfig.setConfigFile(cf);
-                                                            mcc.userconfig.setConfigFileContents(defCfg);
-                                                            window.name = JSON.stringify({ "CFC": mcc.userconfig.getConfigFileContents(),
-                                                                                         "CF": cf,
-                                                                                         "CFPP": mcc.userconfig.getConfKey()});
-                                                            standby.hide();
-                                                            if (viewORopen == "VIEW") {
-                                                                //Show cfg
-                                                                viewORopen = "OPEN";
-                                                                var win = window.open("",//meaning "about:blank",
-                                                                                      null,"width=500, height=500, resizable=yes,scrollbars=yes");
-                                                                if (win) {
-                                                                    var doc = win.document;
-                                                                    doc.open("text/html");
-                                                                    var lines = mcc.userconfig.getConfigFileContents().split('\n');
-                                                                    for(var i = 0;i < lines.length;i++){
-                                                                        doc.writeln(lines[i] + '<br>');
-                                                                    }
-                                                                    doc.close();
-                                                                } else {
-                                                                    alert("Pop-up blocker prevented displaying configuration!")
-                                                                }
-                                                                return;
-                                                            } else {
-                                                                window.open('content.html', '_self');
-                                                            }
-                                                        }
-                                                    });
-                                                } else {
-                                                    console.log("Reading from existing config file.");
-                                                    console.log("Setting global conf file.");
-                                                    mcc.userconfig.setConfigFile(cf);
-                                                    msg = {
-                                                        head: {cmd: "readCfgFileReq", seq: 1},
-                                                        body: {
-                                                            ssh: {keyBased: false, user: "", pwd: ""},
-                                                            hostName: 'localhost',
-                                                            path: "~",
-                                                            fname: cf,
-                                                            phr: mcc.userconfig.getConfKey()
-                                                        }
-                                                    };
-                                                    readCfgFileReq(
-                                                            msg,
-                                                        function (reply) {
-                                                            console.log("readCfgFileReq has finished with success.");
-                                                            mcc.userconfig.setConfigFileContents(reply.body.hostRes.contentString);
-
-                                                            window.name = JSON.stringify({ "CFC": mcc.userconfig.getConfigFileContents(),
-                                                                                         "CF": cf,
-                                                                                         "CFPP": mcc.userconfig.getConfKey()});
-                                                            standby.hide();
-                                                            if (viewORopen == "VIEW") {
-                                                                //Show cfg
-                                                                viewORopen = "OPEN";
-                                                                var win = window.open("",
-                                                                                      null,"width=500, height=500, resizable=yes,scrollbars=yes");
-                                                                if (win) {
-                                                                    var doc = win.document;
-                                                                    doc.open("text/html");
-                                                                    var lines = mcc.userconfig.getConfigFileContents().split('\n');
-                                                                    for(var i = 0;i < lines.length;i++){
-                                                                        doc.writeln(lines[i] + '<br>');
-                                                                    }
-                                                                    doc.close();
-                                                                } else {
-                                                                    alert("Pop-up blocker prevented displaying configuration!")
-                                                                }
-                                                                return;
-                                                            } else {
-                                                                window.open('content.html', '_self');
-                                                            }
-                                                        },
-                                                        function (errMsgFNC) {
-                                                            console.log("window.location.reload() - errMsgFNC");
-                                                            standby.hide();
-                                                            alert("Unable to read config file " + cf + " in HOME directory: " + errMsgFNC); 
-                                                            //This is bad, bail out and just work from tree.
-                                                            cf = "";
-                                                            viewORopen = "OPEN";
-                                                            window.location.reload();
-                                                            return;
-                                                        }
-                                                    );
-                                                }
-                                            }
-                                        });
-                                    } else {
-                                        console.log("window.location.reload() - LAST")
-                                        standby.hide();
-                                        window.location.reload();
-                                        return;
-                                    }
-                                });
-                            </script>
-                    </button>
-                </div>
-            </div>
-        </div>
+                <div id="configure-box" style="margin: 5px auto; height: 400px; float: right;position: relative">
+                    <div id = "configListContainer" style="width: 95%; height: 85%;margin: 10 auto;float: left;text-align: left;border: 0;">
+                        <select id="sid1"  class="narrow wrap"></select>
+                    </div>
+                    <div id = "configBtnContainer" style="width: 95%; margin: 10 auto; position: absolute; bottom: 0;">
+                        <button 
+                            type="button"
+                            id="createNewCluster"
+                            style="width: 100%;height: 80%;margin: 5 auto;float: left;text-align: center;border: 2px solid;background-color: #011D33;font-size: large;"
+                            >RUN configuration
+                        </button>
+                        <script type="text/javascript">
+                            function clickRunB() {
+                                doStuff();
+                            }
+                            document.getElementById("createNewCluster").addEventListener("click", clickRunB);
+                        </script>
+                    </div>
+                </div><!--CONFIGUREBOX-->
+            </div> <!--CONFIGUREBOX WRAPPER-->
     </body>
 </html>

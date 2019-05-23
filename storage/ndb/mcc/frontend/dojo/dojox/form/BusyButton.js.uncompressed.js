@@ -1,3 +1,9 @@
+/*
+This file was modified by Oracle on 2019-05-23.
+At LN144, we first make button state "BUSY" and only then call onClick. This prevents
+button from receiving multiple clicks while already triggered.
+Modifications copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+*/
 define("dojox/form/BusyButton", [
 	"dojo/_base/lang",
 	"dojo/dom-attr",

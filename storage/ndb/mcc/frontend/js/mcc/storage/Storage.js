@@ -1,25 +1,18 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2019 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License, version 2.0,
-as published by the Free Software Foundation.
-
-This program is also distributed with certain software (including
-but not limited to OpenSSL) that is licensed under separate terms,
-as designated in a particular file or component or in included license
-documentation.  The authors of MySQL hereby grant you an additional
-permission to link the program and your derivative works with the
-separately licensed software that they have included with MySQL.
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License, version 2.0, for more details.
+GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
 /******************************************************************************
@@ -28,13 +21,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  ***                                                                        ***
  ******************************************************************************
  *
- *  Module: 
+ *  Module:
  *      Name: mcc.storage.Storage
  *
  *  Description:
  *      Generic storage class wrapping an ItemFileWriteStore
  *
- *  External interface: 
+ *  External interface:
  *      mcc.storage.Storage: Constructor
  *      debug: Report contents
  *      getNextId: Return next available id, increment nextId
@@ -50,54 +43,53 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *      deleteStorage: Delete all items and save
  *      save: Save store
  *
- *  External data: 
+ *  External data:
  *      None
  *
- *  Internal interface: 
+ *  Internal interface:
  *      None
  *
- *  Internal data: 
+ *  Internal data:
  *      statics.nextId: Id of next store item, shared by all storages
  *      StorageItem: Constructor for storage items
  *      store: Reference to itemFileWriteStore holding data
  *      name: Name used for debugging basically
  *
- *  Unit test interface: 
+ *  Unit test interface:
  *      None
  *
  *  Todo:
  *      Rewrite forItems to take item function as parameter and return deferred
  *      Possibly remove or rewrite ifItemId
  *      Implement unit tests.
- * 
+ *
  ******************************************************************************/
 
-/****************************** Import/export  ********************************/
+/******************************* Import/export ********************************/
+dojo.provide('mcc.storage.Storage');
 
-dojo.provide("mcc.storage.Storage");
+dojo.require('mcc.util');
+dojo.require('mcc.storage.StorageItem');
+dojo.require('mcc.userconfig');
 
-dojo.require("mcc.util");
-dojo.require("mcc.storage.StorageItem");
+/******************************* Implementation *******************************/
 
-/****************************** Implementation  *******************************/
-
-/************************** Generic storage class *****************************/
-
-dojo.declare("mcc.storage.Storage", null, {
-    statics: {nextId: 0},     // Shared data
+/**************************** Generic storage class ***************************/
+dojo.declare('mcc.storage.Storage', null, {
+    statics: { nextId: 0 },     // Shared data
     StorageItem: mcc.storage.StorageItem,
     store: null,
-    name: "Storage", 
+    name: 'Storage',
     constructor: function (args) {
         dojo.safeMixin(this, args);
         this.debug();
     },
     // Report contents
     debug: function () {
-        mcc.util.dbg(this.name + " contents:");
+        console.debug(this.name + ' contents:');
         this.forItems({}, function (item) {
-            mcc.util.dbg("   " + item.getId() + ": " + item.getValue("name"));
-        });  
+            console.debug('   ' + item.getId() + ': ' + item.getValue('name'));
+        });
     },
     // Return next available id, increment nextId
     getNextId: function () {
@@ -182,18 +174,13 @@ dojo.declare("mcc.storage.Storage", null, {
         var realItem = item;
         if (!realItem) return false;
         // If item is a storage item, get store item
-        if (item.constructor == this.StorageItem) {
-            realItem = item.item;
-        }
+        if (item.constructor === this.StorageItem) { realItem = item.item; }
         return this.store().isItem(realItem);
     },
     // Add new item and save
     newItem: function (object, parent) {
         // Add id member if it does not exist, increment nextId
-        if (!object.hasOwnProperty("id")) {
-            object.id = this.getNextId();
-        }
-        mcc.util.dbg(this.name + ": add id=" + object.id)
+        if (!object.hasOwnProperty('id')) { object.id = this.getNextId(); }
         this.store().newItem(object, parent);
         this.save();
     },
@@ -201,14 +188,11 @@ dojo.declare("mcc.storage.Storage", null, {
     deleteItem: function (item) {
         var realItem = item;
         // If item is a storage item, get store item
-        if (item.constructor == this.StorageItem) {
-            realItem = item.item;
-        }
-        mcc.util.dbg(this.name + ": delete id=" + realItem.id)
+        if (item.constructor === this.StorageItem) { realItem = item.item; }
         this.store().deleteItem(realItem);
         this.save();
     },
-    // Delete all items and save
+    // Delete all items and saves
     deleteStorage: function () {
         var waitCondition = new dojo.Deferred();
         this.forItems({}, function (item) {
@@ -224,14 +208,75 @@ dojo.declare("mcc.storage.Storage", null, {
     },
     // Save store
     save: function () {
+        var reDeploy;
         this.store().save();
+        switch (this.name) {
+            case 'Cluster storage':
+                if (mcc.userconfig.getIsNewConfig() || mcc.userconfig.isShadowEmpty('cluster')) {
+                    dojo.style(dijit.byId('fbtnGetClProblems').domNode, 'background', 'green');
+                } else {
+                    reDeploy = mcc.userconfig.getConfigProblems('cluster');
+                    if (((((reDeploy || {}).body || {}).error || {}).items || []).length) {
+                        dojo.style(dijit.byId('fbtnGetClProblems').domNode, 'background', 'red');
+                    } else {
+                        dojo.style(dijit.byId('fbtnGetClProblems').domNode, 'background', 'green');
+                    }
+                }
+                break;
+            case 'Host storage':
+                if (mcc.userconfig.getIsNewConfig() || mcc.userconfig.isShadowEmpty('host')) {
+                    dojo.style(dijit.byId('fbtnGetHoProblems').domNode, 'background', 'green');
+                } else {
+                    reDeploy = mcc.userconfig.getConfigProblems('host');
+                    if (((((reDeploy || {}).body || {}).error || {}).items || []).length) {
+                        dojo.style(dijit.byId('fbtnGetHoProblems').domNode, 'background', 'red');
+                    } else {
+                        dojo.style(dijit.byId('fbtnGetHoProblems').domNode, 'background', 'green');
+                    }
+                }
+                break;
+            case 'Process storage':
+                if (mcc.userconfig.getIsNewConfig() || mcc.userconfig.isShadowEmpty('process')) {
+                    dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'green');
+                } else {
+                    reDeploy = mcc.userconfig.getConfigProblems('process');
+                    if (((((reDeploy || {}).body || {}).error || {}).items || []).length) {
+                        dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'red');
+                    } else {
+                        reDeploy = mcc.userconfig.getConfigProblems('processtype');
+                        if (((((reDeploy || {}).body || {}).error || {}).items || []).length) {
+                            dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'red');
+                        } else {
+                            dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'green');
+                        }
+                    }
+                }
+                break;
+            case 'Process type storage':
+                if (mcc.userconfig.getIsNewConfig() || mcc.userconfig.isShadowEmpty('processtype')) {
+                    dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'green');
+                } else {
+                    reDeploy = mcc.userconfig.getConfigProblems('processtype');
+                    if (((((reDeploy || {}).body || {}).error || {}).items || []).length) {
+                        dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'red');
+                    } else {
+                        // check the linked one before declaring all ok
+                        reDeploy = mcc.userconfig.getConfigProblems('process');
+                        if (((((reDeploy || {}).body || {}).error || {}).items || []).length) {
+                            dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'red');
+                        } else {
+                            dojo.style(dijit.byId('fbtnGetPrProblems').domNode, 'background', 'green');
+                        }
+                    }
+                }
+                break;
+            default:
+                break;
+        }
     }
 });
 
-/******************************* Initialize ***********************************/
-
+/******************************** Initialize **********************************/
 dojo.ready(function () {
-    mcc.util.dbg("Storage class module initialized");
+    console.info('[INF]Storage class module initialized');
 });
-
-

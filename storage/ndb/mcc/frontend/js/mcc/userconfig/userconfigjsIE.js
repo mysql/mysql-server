@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,73 +25,41 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 /******************************************************************************
  ***                                                                        ***
  ***                                User choices                            ***
- ***                                                                        ***
+ ***                                    IE11                                ***
  ******************************************************************************
  *
  *  Module:
- *      Name: mcc.userconfig.userconfigjs
+ *      Name: mcc.userconfig.userconfigjsIE
+ *      Original: mcc.userconfig.userconfigjs
  *
  *  Description:
- *      Setup global variables based on users choices.
- *
- *  External interface:
- *      mcc.userconfig.userconfigjs.setConfigFile: Set the name of configuration user selected.
- *      mcc.userconfig.userconfigjs.getConfigFile: Get the name of configuration user selected.
- *      mcc.userconfig.userconfigjs.setConfigFileContents: Set contents of configuration file to
- *          variable.
- *      mcc.userconfig.userconfigjs.getConfigFileContents: Retrieve contents of configuration file
- *          from variable.
- *      mcc.userconfig.userconfigjs.getDefaultCfg: Provide default stores configuration.
- *      mcc.userconfig.userconfigjs.writeConfigFile: Write configuration to file;
- *      mcc.userconfig.userconfigjs.setOriginalStore: Set shadow Store to track changes.
- *      mcc.userconfig.userconfigjs.setIsNewConfig: set status of loaded config
- *      mcc.userconfig.userconfigjs.getIsNewConfig: is the loaded config new?
- *      //-
- *      mcc.userconfig.userconfigjs.getConfigProblems: Compare store with shadow, set HTML string,
- *          configProblems_store_
- *      mcc.userconfig.userconfigjs.getCconfigProblemsGeneral: return HTML string with general
- *          problems, configProblemsGeneral
- *      // only list of problems not coming from shadow comparison needs setter too
- *      mcc.userconfig.userconfigjs.setCcfgPrGen: set/append HTML string with general problems,
- *          configProblemsGeneral
- *
- *  External data:
- *      TBD
- *
- *  Internal interface:
- *      mcc.userconfig.userconfigjs.compareStores: Compare stores with shadow according to rules
- *          for each one of them.
- *
- *  Internal data:
- *      Many...
- *
- *  Unit test interface:
- *      None
+ *      Setup global variables based on users choices, IE11.
  *
  ******************************************************************************/
 
-/****************************** Import/export  ********************************/
-dojo.provide('mcc.userconfig.userconfigjs');
+/******************************* Import/export ********************************/
+dojo.provide('mcc.userconfig.userconfigjsIE');
 
-/**************************** External interface  *****************************/
-mcc.userconfig.userconfigjs.setConfigFile = setConfigFile;
-mcc.userconfig.userconfigjs.getConfigFile = getConfigFile;
-mcc.userconfig.userconfigjs.setConfigFileContents = setConfigFileContents;
-mcc.userconfig.userconfigjs.getConfigFileContents = getConfigFileContents;
-mcc.userconfig.userconfigjs.getDefaultCfg = getDefaultCfg;
-mcc.userconfig.userconfigjs.writeConfigFile = writeConfigFile;
-mcc.userconfig.userconfigjs.setOriginalStore = setOriginalStore;
-mcc.userconfig.userconfigjs.isShadowEmpty = isShadowEmpty;
-mcc.userconfig.userconfigjs.setIsNewConfig = setIsNewConfig;
-mcc.userconfig.userconfigjs.getIsNewConfig = getIsNewConfig;
+/***************************** External interface *****************************/
+mcc.userconfig.userconfigjsIE.setConfigFile = setConfigFile;
+mcc.userconfig.userconfigjsIE.getConfigFile = getConfigFile;
+mcc.userconfig.userconfigjsIE.setConfigFileContents = setConfigFileContents;
+mcc.userconfig.userconfigjsIE.getConfigFileContents = getConfigFileContents;
+mcc.userconfig.userconfigjsIE.getDefaultCfg = getDefaultCfg;
+mcc.userconfig.userconfigjsIE.writeConfigFile = writeConfigFile;
+mcc.userconfig.userconfigjsIE.setOriginalStore = setOriginalStore;
+mcc.userconfig.userconfigjsIE.setIsNewConfig = setIsNewConfig;
+mcc.userconfig.userconfigjsIE.getIsNewConfig = getIsNewConfig;
+mcc.userconfig.userconfigjsIE.compareStores = compareStores;
+mcc.userconfig.userconfigjsIE.isShadowEmpty = isShadowEmpty;
 //-
-mcc.userconfig.userconfigjs.getConfigProblems = getConfigProblems;
-mcc.userconfig.userconfigjs.setCcfgPrGen = setCcfgPrGen;
-mcc.userconfig.userconfigjs.setMsgForGenPr = setMsgForGenPr;
-mcc.userconfig.userconfigjs.wasCfgStarted = wasCfgStarted;
-mcc.userconfig.userconfigjs.setCfgStarted = setCfgStarted;
+mcc.userconfig.userconfigjsIE.getConfigProblems = getConfigProblems;
+mcc.userconfig.userconfigjsIE.setCcfgPrGen = setCcfgPrGen;
+mcc.userconfig.userconfigjsIE.setMsgForGenPr = setMsgForGenPr;
+mcc.userconfig.userconfigjsIE.wasCfgStarted = wasCfgStarted;
+mcc.userconfig.userconfigjsIE.setCfgStarted = setCfgStarted;
 
-/****************************** Internal data   *******************************/
+/******************************* Internal data  *******************************/
 var configFile = '';
 var configFileContents = '';
 var defCfg1 = '{\n' +
@@ -135,9 +103,9 @@ var isNewConfig = false;
 var configProblemsGeneral = {
     items: []
 };
-var cfgStarted = false;
+var cfgStarted;
 
-/****************************** Implementation  *******************************/
+/******************************* Implementation *******************************/
 //-
 /**
  *Provides current timestamp.
@@ -239,9 +207,9 @@ function getConfigProblems (store) {
  * @param {String} txt text member value, HTML formatted string
  * @param {String} lvl Level of message (general, warning or error)
  * @param {String} hdr header member value, HTML formatted string, if any
- * @param {String} oneT message can be repeated, leave for later
+ * @param {String} onet message can be repeated, leave for later
  */
-function setCcfgPrGen (name, key, txt, lvl, hdr, oneT) {
+function setCcfgPrGen (name, key, txt, lvl, hdr, onet) {
     console.debug('Running setCcfgPrGen with %s, %s', name, key);
     if (name) { // key is optional && (key || '')
         for (var i in configProblemsGeneral.items) {
@@ -270,7 +238,7 @@ function setCcfgPrGen (name, key, txt, lvl, hdr, oneT) {
             text: txt,
             key: key,
             level: lvl,
-            onetime: oneT,
+            onetime: onet,
             displayed: true
         });
         // go ahead and display whatever
@@ -423,7 +391,7 @@ function setOriginalStore (storeName) {
  *Utility function to reduce clutter in other units and traffic.
  *
  * @param {string} shadowName cluster, host, process, processtype
- * @returns {Boolean} shadow empty or not
+ * @returns {boolean} shadow empty or not
  */
 function isShadowEmpty (shadowName) {
     switch (shadowName) {
@@ -447,7 +415,7 @@ function isShadowEmpty (shadowName) {
  */
 function compareStores (storeName) {
     console.debug('[DBG]Comparing Shadow with ' + storeName + 'Store.');
-    // we are just interested in ITEMS array.
+    // we are just interesed in ITEMS array.
     var totalDif;
     var shadow;
     var working;
@@ -550,64 +518,45 @@ function compareStores (storeName) {
     }
 }
 /**
- *Get diff of two arrays of JSON objects.
+ *Get diff from two JSON arrays. In our case, it's two arrays of JSON objects.
  *
  * @param {JSON} obj1
  * @param {JSON} obj2
- * @returns {[JSON]} differences in form of [{}] - no diff for item in array,
- * {undefined} item from object1 does not exists in object2, {K/V(,K/v)} values
- * from object2 that are different than values for same keys in object1 or entire
- * set if object1 is missing that item.
+ * @returns {[JSON]} The difference from diffObjects is in that if item from obj1
+ * does not exist in obj2 you will not see that in result. So here, if
+ * obj1.items.length !== obj2.items.length, we need two calls with switched parameters.
  *
  */
 function diffObjects (obj1, obj2) {
-    /* Example:
-    obj1 is HostsShadow, obj2 is HostsStore
-    diffObjects:
-    Output 1:
-    {
-        0:	{}                                      Host 0 (AnyHost) is the same.
-        1:	{}                                      Host 1 is the same.
-        2:	{}                                      Host 2 is the same.
-        3:	{SWInstalled: false}                    For Host 3, user changed SWInstalled from TRUE to FALSE.
-        4:	{id: 9, name: "New", anyHost: false}    Host at index 4 is added, doesn't exist in shadow copy.
-    }
-    Output 2:
-    {
-        0:	{}                                      Host 0 (AnyHost) is the same.
-        1:	{}                                      Host 1 is the same.
-        2:	{}                                      Host 2 is the same.
-        3:	{SWInstalled: true}                     For Host 3, user changed SWInstalled from FALSE to TRUE.
-        4:	undefined                               Host at index 4 is removed, exists only in shadow copy.
-    }
-    Output 3:
-    { ...
-        4:	{
-        hwResFetchSeq:	14                          For 5th host (AnyHost + 4) hwResFetchSeq changed to 14
-        fqdn:	undefined                           and fqdn was removed from configuration
-    ...
-    }
-    */
-    const result = {};
-    if (Object.is(obj1, obj2)) {
-        return undefined;
-    }
-    if (!obj2 || typeof obj2 !== 'object') {
-        return obj2;
-    }
-    Object.keys(obj1 || {}).concat(Object.keys(obj2 || {})).forEach(key => {
-        if (obj2[key] !== obj1[key] && !Object.is(obj1[key], obj2[key])) {
-            result[key] = obj2[key];
+    var result = {};
+    for (var key in obj1) {
+        if (obj2[key] !== obj1[key]) result[key] = obj2[key];
+        // eslint-disable-next-line valid-typeof
+        if (typeof obj2[key] == 'array' && typeof obj1[key] == 'array') {
+            // eslint-disable-next-line no-caller
+            result[key] = arguments.callee(obj1[key], obj2[key]);
         }
-        if (typeof obj2[key] === 'object' && typeof obj1[key] === 'object') {
-            const value = diffObjects(obj1[key], obj2[key]);
-            if (value !== undefined) {
-                result[key] = value;
-            }
+        if (typeof obj2[key] == 'object' && typeof obj1[key] == 'object') {
+            // eslint-disable-next-line no-caller
+            result[key] = arguments.callee(obj1[key], obj2[key]);
         }
-    });
+    }
+    // now the other way around :-/
+    for (key in obj2) {
+        if (obj1[key] !== obj2[key]) result[key] = obj1[key];
+        // eslint-disable-next-line valid-typeof
+        if (typeof obj1[key] == 'array' && typeof obj2[key] == 'array') {
+            // eslint-disable-next-line no-caller
+            result[key] = arguments.callee(obj2[key], obj1[key]);
+        }
+        if (typeof obj1[key] == 'object' && typeof obj2[key] == 'object') {
+            // eslint-disable-next-line no-caller
+            result[key] = arguments.callee(obj2[key], obj1[key]);
+        }
+    }
     return result;
 }
+
 /**
  *Parse output from diffObjects to determine the extent and log the change appropriately.
  *
@@ -1303,7 +1252,7 @@ function replacePlaceholders (obj) {
 function padObject (obj1, obj2) {
     var sID = -1;
     var wID = -1;
-    var wItem;
+    var witem;
     var index = 0;
     var ndx = -1;
     while (true) {
@@ -1318,7 +1267,7 @@ function padObject (obj1, obj2) {
         if (index <= obj1.length - 1 && index > obj2.length - 1) {
             // item from the bottom of obj1 missing in obj2
             sID = obj1[index]['id'];
-            // console.debug('[DBG]OBJ2::Adding ID:' + sID + ' at ' + index);
+            console.debug('[DBG]OBJ2::Adding ID:' + sID + ' at ' + index);
             obj2.splice(index, 0, { id: sID });
             continue; // for same index!
         }
@@ -1342,9 +1291,9 @@ function padObject (obj1, obj2) {
                 } else {
                     console.debug('[DBG]OBJ2, moving item at index ' + ndx + ', ID:' + wID +
                         ' to position ' + index);
-                    wItem = obj2[ndx];
+                    witem = obj2[ndx];
                     obj2.splice(ndx, 1);
-                    obj2.splice(index, 0, wItem);
+                    obj2.splice(index, 0, witem);
                     continue; // for same index!
                 }
             } else {
@@ -1356,9 +1305,9 @@ function padObject (obj1, obj2) {
                 } else {
                     console.debug('[DBG]OBJ1, moving item at index ' + ndx + ', ID:' + sID +
                         ' to position ' + index);
-                    wItem = obj1[ndx];
+                    witem = obj1[ndx];
                     obj1.splice(ndx, 1);
-                    obj1.splice(index, 0, wItem);
+                    obj1.splice(index, 0, witem);
                     continue; // for same index!
                 }
             }
@@ -1369,7 +1318,7 @@ function padObject (obj1, obj2) {
 /**
  *set status of loaded config
  *
- * @param {Boolean} setTo new status of loaded config
+ * @param {boolean} setTo new status of loaded config
  */
 function setIsNewConfig (setTo) {
     isNewConfig = setTo;
@@ -1377,7 +1326,7 @@ function setIsNewConfig (setTo) {
 /**
  *Is loaded config new?
  *
- * @returns {Boolean} loaded config status
+ * @returns {boolean} loaded config status
  */
 function getIsNewConfig () {
     return isNewConfig;
@@ -1398,9 +1347,9 @@ function setConfigFile (fnm) {
 }
 
 /**
- *Utility function to provide configuration NAME which was read from back end.
+ *Utility function to provide configuration read from back end.
  *
- * @returns {string} configuration NAME
+ * @returns {string} configuration read from back end in JSON format
  */
 function getConfigFile () {
     return configFile;
@@ -1471,7 +1420,7 @@ function errorHandler (req, onError) {
 }
 
 /**
- *Generic reply handler to XHRPost message. Generally a good place to reconsider what's failure.
+ *Generic reploy handler to XHRPost message. Generally a good place to reconsider what's failure.
  *
  * @param {function} onReply   Reply response function
  * @param {function} onError   Error response function
@@ -1516,7 +1465,7 @@ function createCfgFileReq (message, onReply, onError) {
  */
 function writeConfigFile (contents, fileName) {
     var res2 = new dojo.Deferred();
-    console.debug('[DBG]Writing to config file %s.', fileName);
+    console.debug('[DBG]Writing to config file.');
     // Fill new config with predefined defaults:
     var msg = {
         head: { cmd: 'createCfgFileReq', seq: 1 },
@@ -1568,7 +1517,6 @@ function writeConfigFile (contents, fileName) {
  * @returns {Boolean} global cfgStarted
  */
 function wasCfgStarted () {
-    console.debug('[DBG]Returning cfgStarted:' + cfgStarted);
     return cfgStarted;
 }
 /**
@@ -1577,10 +1525,9 @@ function wasCfgStarted () {
  * @param {Boolean} res
  */
 function setCfgStarted (res) {
-    console.debug('[DBG]Setting cfgStarted to ' + res);
     cfgStarted = res;
 }
-/******************************** Initialize  *********************************/
+/********************************* Initialize *********************************/
 dojo.ready(function () {
-    console.info('[INF]Userconfig class module initialized');
+    console.info('[INF]UserconfigIE class module initialized');
 });

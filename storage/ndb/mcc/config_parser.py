@@ -1,51 +1,49 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License, version 2.0,
-# as published by the Free Software Foundation.
-#
-# This program is also distributed with certain software (including
-# but not limited to OpenSSL) that is licensed under separate terms,
-# as designated in a particular file or component or in included license
-# documentation.  The authors of MySQL hereby grant you an additional
-# permission to link the program and your derivative works with the
-# separately licensed software that they have included with MySQL.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License, version 2.0, for more details.
+# GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 """ Tools for parsing and extracting information from cluster config.ini files. """
 import StringIO
 import ConfigParser
 
 def parse_cluster_config_ini(path):
+    """Unused"""
     with open(path) as ini:
-        return parse_cluster_conifg_ini_(ini)
+        return parse_cluster_config_ini_(ini)
 
-def parse_cluster_conifg_ini_(ini):
+def parse_cluster_config_ini_(ini):
+    """Unused"""
     c = []
     s = None
     for l in map(str.rstrip, ini):
         if l == '' or l.startswith('#'):
             continue
         if l.startswith('['):
-            s = { 'name': l[1:-1], 'options': {} }
+            s = {'name': l[1:-1], 'options': {}}
             c.append(s)
             continue
-        (k,v) = l.split('=', 1)
+        (k, v) = l.split('=', 1)
         s['options'][k] = v
     return c
 
 def write_cluster_config_ini(c):
-    return '\n'.join([ '[{0}]\n{1}\n'.format(s['name'], '\n'.join(['{0}={1}'.format(k, s['options'][k]) for k in s['options'].keys()])) for s in c ])
+    """-"""
+    return '\n'.join(['[{0}]\n{1}\n'.format(s['name'], '\n'.join(['{0}={1}'.\
+        format(k, s['options'][k]) for k in s['options'].keys()])) for s in c])
 
 def parse_cluster_config_ini_x(path):
+    """-"""
     c = {}
     with open(path) as ini:
         key = None
@@ -58,14 +56,14 @@ def parse_cluster_config_ini_x(path):
                     c[key] = opts
                 key = l
                 continue
-            (k,v) = l.split('=', 1)
+            (k, v) = l.split('=', 1)
             opts[k] = v
             if k == 'NodeId':
                 key = (key, v)
     return c
 
-# Below is deprecated
 def parse_config_ini(path):
+    """Deprecated"""
     ini = open(path)
     buf = StringIO.StringIO()
     sections = {}
@@ -82,19 +80,22 @@ def parse_config_ini(path):
             buf.write(l+'\n')
     ini.close()
     buf.seek(0)
-    
+
     cp = ConfigParser.ConfigParser()
     cp.optionxform = str
     cp.readfp(buf)
     buf.close()
     return cp
 
-
 def get_option_value_set(cp, option):
-    return set([cp.get(s, option) for s in filter(lambda s: cp.has_option(s, option), cp.sections())])
+    """-"""
+    return set([cp.get(s, option) for s in filter(lambda s: cp.has_option(s, option), \
+        cp.sections())])
 
 def get_node_dicts(cp, portbase):
-    node_sections = filter(lambda s: cp.has_option(s, 'NodeId') and not 'API' in s, cp.sections())
+    """-"""
+    node_sections = filter(lambda s: cp.has_option(s, 'NodeId') and not 'API' in s, \
+        cp.sections())
     ndicts = []
     for ns in node_sections:
         t = '_'.join(ns.split('_')[:-1])
@@ -104,17 +105,19 @@ def get_node_dicts(cp, portbase):
             portbase += 1
         if cp.has_section(t+' DEFAULT'):
             nalist += cp.items(t+' DEFAULT')
-        
+
         nalist += cp.items(ns)
         ndicts.append(dict(nalist))
     return ndicts
 
 def get_actual_section(s):
+    """-"""
     if 'DEFAULT' in s:
         return s
     return '_'.join(s.split('_')[:-1])
 
 def get_proct1(s):
+    """-"""
     if 'DEFAULT' in s:
         s = s.rstrip(' DEFAULT')
     else:
@@ -122,25 +125,31 @@ def get_proct1(s):
     return s.lower()
 
 def get_pid1(cp, s):
-    if cp.has_option(s,'NodeId'):
+    """-"""
+    if cp.has_option(s, 'NodeId'):
         return cp.get(s, 'NodeId')
     return None
 
 def get_ndbconnecturl(cp):
-    return ','.join(["{0}:{1}".format(cp.get(s, 'HostName'), cp.get(s, 'PortNumber') ) for s in filter(lambda se: 'NDB_MGMD_' in se, cp.sections())])
+    """Returns data node connection string"""
+    return ','.join(["{0}:{1}".format(cp.get(s, 'HostName'), cp.get(s, 'PortNumber')) \
+        for s in filter(lambda se: 'NDB_MGMD_' in se, cp.sections())])
 
 def get_configvalues(cp):
-    return [ {'section': get_actual_section(s), 'key': k, 'proct1': get_proct1(s), 'pid1': get_pid1(cp,s), 'proct2':None, 'pid2':None, 'val': v} for s in cp.sections() for (k,v) in cp.items(s) ]
+    """-"""
+    return [{'section': get_actual_section(s), 'key': k, 'proct1': get_proct1(s), \
+        'pid1': get_pid1(cp, s), 'proct2':None, 'pid2':None, 'val': v} for s in cp.sections() \
+            for (k, v) in cp.items(s)]
 
 def get_processes(cp):
-    return [ {'desired_process_status': 0,
-              'restartlevel': 0, 
-              'xtraoptions': 0,
-              'processname': get_proct1(s), 
-              'internalid': get_pid1(cp,s), 
-              'package': {}, 
-              'hostaddress': cp.get(s, 'HostName'),
-              'configfilepath':None,
-              'ndbconnecturl': get_ndbconnecturl(cp)} for s in filter(lambda s: cp.has_option(s, 'NodeId') and not 'API' in s, cp.sections()) ]
-
-    
+    """-"""
+    return [{'desired_process_status': 0,
+             'restartlevel': 0,
+             'xtraoptions': 0,
+             'processname': get_proct1(s),
+             'internalid': get_pid1(cp, s),
+             'package': {},
+             'hostaddress': cp.get(s, 'HostName'),
+             'configfilepath':None,
+             'ndbconnecturl': get_ndbconnecturl(cp)} for s in filter(\
+                  lambda s: cp.has_option(s, 'NodeId') and not 'API' in s, cp.sections())]
