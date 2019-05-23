@@ -154,10 +154,12 @@ SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=4;
 SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=5;
 
 #5.7.13
+--replace_result $mysql_version MYSQL_VERSION
 --error ER_GRP_RPL_UDF_ERROR
 SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=6;
 
 #99.99.99
+--replace_result $mysql_version MYSQL_VERSION
 --error ER_GRP_RPL_UDF_ERROR
 SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=7;
 
