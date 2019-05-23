@@ -2104,6 +2104,13 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
     DBUG_RETURN(true);
   }
 
+  /*
+   TODO: This method is supposed to be called only once per-statement. But
+         currently it is called for each row inserted by INSERT SELECT. Which
+         looks like unnessary and results in resource wastage.
+  */
+  prepare_triggers_for_insert_stmt(thd, table);
+
   if (invoke_table_check_constraints(thd, table)) {
     // return false when IGNORE clause is used.
     DBUG_RETURN(thd->is_error());
@@ -2119,7 +2126,6 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
     }
   }
 
-  prepare_triggers_for_insert_stmt(thd, table);
   error = write_record(thd, table, &info, &update);
   table->auto_increment_field_not_null = false;
 

@@ -5710,6 +5710,9 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
   }
   /* Mark dependent generated columns as writable */
   if (vfield) mark_generated_columns(true);
+  /* Mark columns needed for check constraints evaluation */
+  if (table_check_constraint_list != nullptr)
+    mark_check_constraint_columns(true);
   DBUG_VOID_RETURN;
 }
 
@@ -6092,6 +6095,9 @@ void TABLE::mark_columns_needed_for_insert(THD *thd) {
   if (found_next_number_field) mark_auto_increment_column();
   /* Mark all generated columns as writable */
   if (vfield) mark_generated_columns(false);
+  /* Mark columns needed for check constraints evaluation */
+  if (table_check_constraint_list != nullptr)
+    mark_check_constraint_columns(false);
 }
 
 /*
@@ -6183,6 +6189,50 @@ void TABLE::mark_generated_columns(bool is_update) {
       tmp_vfield = *vfield_ptr;
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
       tmp_vfield->table->mark_column_used(tmp_vfield, MARK_COLUMNS_WRITE);
+      bitmap_updated = true;
+    }
+  }
+
+  if (bitmap_updated) file->column_bitmaps_signal();
+}
+
+/*
+  Update the read_map with columns needed for check constraint evaluation when
+  doing update and insert operations.
+
+  The read_map is filled with the base columns and generated columns to be read
+  to evaluate check constraints. Prerequisites for UPDATE is, write_map is
+  filled with the base columns to be updated and generated columns that are
+  dependent on updated base columns.
+
+  @param        is_update  true means the operation is UPDATE.
+                           false means it's INSERT.
+
+  @return       void
+*/
+void TABLE::mark_check_constraint_columns(bool is_update) {
+  DBUG_ASSERT(table_check_constraint_list != nullptr);
+
+  bool bitmap_updated = false;
+  for (Sql_table_check_constraint *tbl_cc : *table_check_constraint_list) {
+    if (tbl_cc->is_enforced()) {
+      /*
+        For update operation, check constraint should be evaluated if it is
+        dependent on any of the updated column.
+      */
+      if (is_update &&
+          !bitmap_is_overlapping(write_set,
+                                 &tbl_cc->value_generator()->base_columns_map))
+        continue;
+
+      // Mark all the columns used in the check constraint.
+      const MY_BITMAP *columns_map =
+          &tbl_cc->value_generator()->base_columns_map;
+      for (uint i = bitmap_get_first_set(columns_map); i != MY_BIT_NONE;
+           i = bitmap_get_next_set(columns_map, i)) {
+        DBUG_ASSERT(i < s->fields);
+        mark_column_used(field[i], MARK_COLUMNS_READ);
+      }
       bitmap_updated = true;
     }
   }
