@@ -802,32 +802,26 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  rest_api_srv.add_path(
-      RestMetadataCacheStatus::path_regex,
-      std::make_unique<RestMetadataCacheStatus>(require_realm_metadata_cache));
-  rest_api_srv.add_path(
-      RestMetadataCacheConfig::path_regex,
-      std::make_unique<RestMetadataCacheConfig>(require_realm_metadata_cache));
-  rest_api_srv.add_path(
-      RestMetadataCacheList::path_regex,
-      std::make_unique<RestMetadataCacheList>(require_realm_metadata_cache));
-  // The socpe of WL#12441 was limited and does not include those:
-  //  rest_api_srv.add_path(RestClustersList::path_regex,
-  //                        std::make_unique<RestClustersList>(require_realm_metadata_cache));
-  //  rest_api_srv.add_path(RestClustersNodes::path_regex,
-  //                        std::make_unique<RestClustersNodes>(require_realm_metadata_cache));
+  std::array<RestApiComponentPath, 3> paths{{
+      {rest_api_srv, RestMetadataCacheStatus::path_regex,
+       std::make_unique<RestMetadataCacheStatus>(require_realm_metadata_cache)},
+      {rest_api_srv, RestMetadataCacheConfig::path_regex,
+       std::make_unique<RestMetadataCacheConfig>(require_realm_metadata_cache)},
+      {rest_api_srv, RestMetadataCacheList::path_regex,
+       std::make_unique<RestMetadataCacheList>(require_realm_metadata_cache)},
+
+      // The socpe of WL#12441 was limited and does not include those:
+      //  {rest_api_srv, RestClustersList::path_regex,
+      //                        std::make_unique<RestClustersList>(require_realm_metadata_cache)},
+      //  {rest_api_srv, RestClustersNodes::path_regex,
+      //                        std::make_unique<RestClustersNodes>(require_realm_metadata_cache)},
+  }};
 
   wait_for_stop(env, 0);
 
   // in case rest_api never initialized, ensure the rest_api_component doesn't
   // have a callback to use
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
-
-  rest_api_srv.remove_path(RestMetadataCacheStatus::path_regex);
-  rest_api_srv.remove_path(RestMetadataCacheConfig::path_regex);
-  rest_api_srv.remove_path(RestMetadataCacheList::path_regex);
-  //  rest_api_srv.remove_path(RestClustersList::path_regex);
-  //  rest_api_srv.remove_path(RestClustersNodes::path_regex);
 }
 
 #if defined(_MSC_VER) && defined(rest_metadata_cache_EXPORTS)

@@ -180,4 +180,28 @@ class REST_API_EXPORT RestApiComponent {
   RestApiComponent() = default;
 };
 
+/**
+ * Helper class to make unregistering paths in plugins easier.
+ */
+class RestApiComponentPath {
+ public:
+  RestApiComponentPath(RestApiComponent &rest_api_srv, std::string regex,
+                       std::unique_ptr<BaseRestApiHandler> endpoint)
+      : rest_api_srv_{rest_api_srv}, regex_(std::move(regex)) {
+    rest_api_srv_.add_path(regex_, std::move(endpoint));
+  }
+
+  ~RestApiComponentPath() {
+    try {
+      rest_api_srv_.remove_path(regex_);
+    } catch (...) {
+      // if it already is removed manually, ignore it
+    }
+  }
+
+ private:
+  RestApiComponent &rest_api_srv_;
+  std::string regex_;
+};
+
 #endif

@@ -1080,40 +1080,29 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   auto &rest_api_srv = RestApiComponent::get_instance();
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
-  rest_api_srv.add_path(
-      RestRoutingList::path_regex,
-      std::make_unique<RestRoutingList>(require_realm_routing));
-  rest_api_srv.add_path(
-      RestRoutingBlockedHosts::path_regex,
-      std::make_unique<RestRoutingBlockedHosts>(require_realm_routing));
-  rest_api_srv.add_path(
-      RestRoutingDestinations::path_regex,
-      std::make_unique<RestRoutingDestinations>(require_realm_routing));
-  rest_api_srv.add_path(
-      RestRoutingConfig::path_regex,
-      std::make_unique<RestRoutingConfig>(require_realm_routing));
-  rest_api_srv.add_path(
-      RestRoutingStatus::path_regex,
-      std::make_unique<RestRoutingStatus>(require_realm_routing));
-  rest_api_srv.add_path(
-      RestRoutingHealth::path_regex,
-      std::make_unique<RestRoutingHealth>(require_realm_routing));
-  rest_api_srv.add_path(
-      RestRoutingConnections::path_regex,
-      std::make_unique<RestRoutingConnections>(require_realm_routing));
+
+  std::array<RestApiComponentPath, 7> paths{{
+      {rest_api_srv, RestRoutingList::path_regex,
+       std::make_unique<RestRoutingList>(require_realm_routing)},
+      {rest_api_srv, RestRoutingBlockedHosts::path_regex,
+       std::make_unique<RestRoutingBlockedHosts>(require_realm_routing)},
+      {rest_api_srv, RestRoutingDestinations::path_regex,
+       std::make_unique<RestRoutingDestinations>(require_realm_routing)},
+      {rest_api_srv, RestRoutingConfig::path_regex,
+       std::make_unique<RestRoutingConfig>(require_realm_routing)},
+      {rest_api_srv, RestRoutingStatus::path_regex,
+       std::make_unique<RestRoutingStatus>(require_realm_routing)},
+      {rest_api_srv, RestRoutingHealth::path_regex,
+       std::make_unique<RestRoutingHealth>(require_realm_routing)},
+      {rest_api_srv, RestRoutingConnections::path_regex,
+       std::make_unique<RestRoutingConnections>(require_realm_routing)},
+  }};
 
   wait_for_stop(env, 0);
 
   // in case rest_api never initialized, ensure the rest_api_component doesn't
   // have a callback to use
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
-
-  rest_api_srv.remove_path(RestRoutingConnections::path_regex);
-  rest_api_srv.remove_path(RestRoutingList::path_regex);
-  rest_api_srv.remove_path(RestRoutingStatus::path_regex);
-  rest_api_srv.remove_path(RestRoutingConfig::path_regex);
-  rest_api_srv.remove_path(RestRoutingDestinations::path_regex);
-  rest_api_srv.remove_path(RestRoutingBlockedHosts::path_regex);
 }
 
 const char *rest_routing_plugin_requires[] = {
