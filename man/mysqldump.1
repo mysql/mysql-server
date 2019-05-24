@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/20/2019
+.\"      Date: 05/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -382,7 +382,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 Connection Options.PP
 The
 \fBmysqldump\fR
@@ -426,7 +426,7 @@ Compress all information sent between the client and the server if both support 
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -442,7 +442,7 @@ Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&6.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -455,7 +455,7 @@ Section\ \&6.5.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .\}
 \fB\-\-get\-server\-public\-key\fR
 .sp
-Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
@@ -467,7 +467,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.5.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -505,24 +505,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-network\-timeout\fR,
-\fB\-M\fR
-.sp
-Enable large tables to be dumped by setting
-\fBmax_allowed_packet\fR
-to its maximum value and network read and write timeouts to a large value\&. This option is enabled by default\&. To disable it, use
-\fB\-\-skip\-network\-timeout\fR\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -581,7 +564,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqldump\fR
 does not find it\&. See
-Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -609,7 +592,7 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+Section\ \&4.2.3, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
 .RS 4
@@ -654,8 +637,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.5.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.5.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -686,7 +669,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+Section\ \&6.3.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -703,7 +686,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
-Section\ \&6.6, \(lqFIPS Support\(rq\&.
+Section\ \&6.5, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -781,7 +764,7 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
 .sp
 For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.3.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.16\&.
 .RE
@@ -797,7 +780,7 @@ This option was added in MySQL 8\&.0\&.16\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.3.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -812,48 +795,6 @@ Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
 The MySQL user name to use when connecting to the server\&.
-.RE
-.PP
-You can also set the following variables by using
-\fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR
-syntax:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-max_allowed_packet
-.sp
-The maximum size of the buffer for client/server communication\&. The default is 24MB, the maximum is 1GB\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-net_buffer_length
-.sp
-The initial size of the buffer for client/server communication\&. When creating multiple\-row
-INSERT
-statements (as with the
-\fB\-\-extended\-insert\fR
-or
-\fB\-\-opt\fR
-option),
-\fBmysqldump\fR
-creates rows up to
-net_buffer_length
-bytes long\&. If you increase this variable, ensure that the MySQL server
-net_buffer_length
-system variable has a value at least this large\&.
 .RE
 Option\-File Options.PP
 These options are used to control which option files to read\&.
@@ -873,7 +814,7 @@ Read this option file after the global option file but (on Unix) before the user
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -895,7 +836,7 @@ Exception: Even with
 \&.mylogin\&.cnf\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -926,7 +867,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -954,7 +895,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -970,7 +911,7 @@ Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 DDL Options.PP
 Usage scenarios for
@@ -2441,6 +2382,59 @@ statements\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
+The maximum size of the buffer for client/server communication\&. The default is 24MB, the maximum is 1GB\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-net\-buffer\-length=\fR\fB\fIvalue\fR\fR
+The initial size of the buffer for client/server communication\&. When creating multiple\-row
+INSERT
+statements (as with the
+\fB\-\-extended\-insert\fR
+or
+\fB\-\-opt\fR
+option),
+\fBmysqldump\fR
+creates rows up to
+\fB\-\-net\-buffer\-length\fR
+bytes long\&. If you increase this variable, ensure that the MySQL server
+net_buffer_length
+system variable has a value at least this large\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-network\-timeout\fR,
+\fB\-M\fR
+.sp
+Enable large tables to be dumped by setting
+\fB\-\-max\-allowed\-packet\fR
+to its maximum value and network read and write timeouts to a large value\&. This option is enabled by default\&. To disable it, use
+\fB\-\-skip\-network\-timeout\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-opt\fR
 .sp
 This option, enabled by default, is shorthand for the combination of
@@ -3011,7 +3005,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 Downgrade Notes
 .RS 4
-\%http://dev.mysql.com/doc/refman/5.7/en/downgrading-to-previous-series.html
+\%https://dev.mysql.com/doc/refman/5.7/en/downgrading-to-previous-series.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
