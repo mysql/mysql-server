@@ -1976,6 +1976,7 @@ class Sys_var_tz : public sys_var {
                 parse_flag) {
     DBUG_ASSERT(getopt.id == -1);
     DBUG_ASSERT(size == sizeof(Time_zone *));
+    option.var_type = GET_STR;
   }
   bool do_check(THD *thd, set_var *var) {
     char buff[MAX_TIME_ZONE_NAME_LENGTH];

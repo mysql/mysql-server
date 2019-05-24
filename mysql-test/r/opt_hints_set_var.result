@@ -874,3 +874,44 @@ Warning	1064	A size parameter was incorrectly specified, either number or on the
 SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551615) */ 1;
 1
 1
+#
+# Bug#29776464 MAKE 'TIME_ZONE' VARIABLE OPTIMIZER HINT SETTABLE.
+#
+SET time_zone = '-01:00';
+SELECT TIMEDIFF(NOW(), UTC_TIMESTAMP);
+TIMEDIFF(NOW(), UTC_TIMESTAMP)
+-01:00:00
+SELECT /*+ SET_VAR(time_zone = '+04:00') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+TIMEDIFF(NOW(), UTC_TIMESTAMP)
+04:00:00
+SELECT @@time_zone;
+@@time_zone
+-01:00
+SELECT /*+ SET_VAR(time_zone = 'UTC') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+TIMEDIFF(NOW(), UTC_TIMESTAMP)
+00:00:00
+SELECT @@time_zone;
+@@time_zone
+-01:00
+CREATE TABLE t1(f1 VARCHAR(10));
+INSERT INTO t1 VALUES (@@time_zone);
+SELECT * FROM t1;
+f1
+-01:00
+UPDATE /*+ SET_VAR(time_zone = 'UTC') */ t1 SET f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+f1
+00:00:00
+INSERT /*+ SET_VAR(time_zone = 'UTC') */ t1 VALUES (TIMEDIFF(NOW(), UTC_TIMESTAMP));
+SELECT * FROM t1;
+f1
+00:00:00
+00:00:00
+DELETE /*+ SET_VAR(time_zone = 'UTC') */ FROM t1 WHERE f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+f1
+SELECT @@time_zone;
+@@time_zone
+-01:00
+DROP TABLE t1;
+SET time_zone = default;
