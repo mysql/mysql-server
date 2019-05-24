@@ -7046,7 +7046,11 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     close_on_error= TRUE;
     goto end;
   }
-  else
+  /*
+    Make sure that the log_file is initialized before writing
+    Rotate_log_event into it.
+  */
+  if (log_file.alloced_buffer)
   {
     /*
       We log the whole file name for log file as the user may decide
