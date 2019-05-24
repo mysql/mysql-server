@@ -24,6 +24,12 @@
 //    Define Ndb standard tables 
 //
 //  USE ONLY UPPERLETTERS IN TAB AND COLUMN NAMES
+//
+// Tables need to have at least two Unsigned columns.
+// The first found will be used as id.
+// The last found which is not part of primary key will be used for update
+// count.  See HugoCalculator.
+//
 /* ******************************************************* */
 
 static const NdbDictionary::Column::StorageType MM=
@@ -603,9 +609,9 @@ NDBT_Table T16("T16", sizeof(T16Attribs)/sizeof(NDBT_Attribute), T16Attribs);
 static
 const
 NDBT_Attribute T18Attribs[] = {
-  NDBT_Attribute("PK1", NdbDictionary::Column::Int, 1, true),
-  NDBT_Attribute("PK2", NdbDictionary::Column::Int, 1, true),
-  NDBT_Attribute("A1", NdbDictionary::Column::Int, 1),
+  NDBT_Attribute("PK1", NdbDictionary::Column::Unsigned, 1, true),
+  NDBT_Attribute("PK2", NdbDictionary::Column::Unsigned, 1, true),
+  NDBT_Attribute("A1", NdbDictionary::Column::Unsigned, 1),
 };
 
 static
