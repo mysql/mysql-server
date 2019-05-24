@@ -60,6 +60,7 @@
 #include "sql/error_handler.h"  // Ignore_error_handler
 #include "sql/filesort.h"       // filesort_free_buffers
 #include "sql/handler.h"
+#include "sql/intrusive_list_iterator.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
@@ -110,6 +111,12 @@ static store_key *get_store_key(THD *thd, Key_use *keyuse,
                                 uchar *key_buff, uint maybe_null);
 static uint actual_key_flags(KEY *key_info);
 bool const_expression_in_where(Item *conds, Item *item, Item **comp_item);
+
+using Global_tables_iterator =
+    IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_global>;
+
+/// A list interface over the TABLE_LIST::next_global pointer.
+using Global_tables_list = IteratorContainer<Global_tables_iterator>;
 
 /**
   Handle data manipulation query which is not represented by Sql_cmd_dml class.
@@ -991,7 +998,7 @@ bool Sql_cmd_select::precheck(THD *thd) {
   else
     res = check_access(thd, SELECT_ACL, any_db, nullptr, nullptr, 0, 0);
 
-  return res || check_locking_clause_access(thd, tables);
+  return res || check_locking_clause_access(thd, Global_tables_list(tables));
 }
 
 /*****************************************************************************

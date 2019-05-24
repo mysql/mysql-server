@@ -37,6 +37,7 @@
 #include "sql/dd/types/column.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/gis/srid.h"
+#include "sql/intrusive_list_iterator.h"
 #include "sql/item_timefunc.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"
@@ -1512,6 +1513,12 @@ bool PT_locking_clause::contextualize(Parse_context *pc) {
 
   return set_lock_for_tables(pc);
 }
+
+using Local_tables_iterator =
+    IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_local>;
+
+/// A list interface over the TABLE_LIST::next_local pointer.
+using Local_tables_list = IteratorContainer<Local_tables_iterator>;
 
 bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc) {
   Local_tables_list local_tables(pc->select->table_list.first);

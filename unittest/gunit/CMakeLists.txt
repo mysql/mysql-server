@@ -297,6 +297,7 @@ SET(TESTS
   filesort_compare
   float_compare
   inplace_vector
+  intrusive_list_iterator
   key
   like_range
   m_string
