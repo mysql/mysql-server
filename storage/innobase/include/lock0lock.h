@@ -761,8 +761,18 @@ struct lock_sys_t {
                                        in the waiting_threads array,
                                        protected by
                                        lock_sys->wait_mutex */
-  int n_waiting;                       /*!< Number of slots in use.
-                                       Protected by lock_sys->mutex */
+
+  /** Number of slots in use. Writes are protected by lock_sys->wait_mutex, but
+  we read this without any latch in the lock_use_fcfs() heuristic. Also, we use
+  relaxed memory ordering for both writes and reads, because this is just a
+  counter field which does not "acquire" or "release" anything, and
+  lock_use_fcfs is just a heuristic anyway, so even if it reads a value not
+  synchronized with other fields/variables it is not a big deal. OTOH this field
+  is accessed pretty often during trx->age updating, so we try to minimize the
+  chance of performance issues. One can say that the only reason it is atomic
+  is to avoid torn reads in lock_use_fcfs(). */
+  std::atomic<int> n_waiting{0};
+
   ibool rollback_complete;
   /*!< TRUE if rollback of all
   recovered transactions is
