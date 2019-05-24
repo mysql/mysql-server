@@ -9350,7 +9350,7 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
-  if (c_lqh->handleLCPSurfacing(signal))
+  if (ptr.p->is_lcp() && c_lqh->handleLCPSurfacing(signal))
   {
     jam();
     TablePtr tabPtr;
@@ -9370,6 +9370,8 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
       OperationRecord & loop_op = loopFilePtr.p->operation;
       // The extra lcp files only use operation for the data buffer.
       loop_op.publishBufferData();
+      // Always update maxRecordSize, op.maxRecordSize may have changed.
+      loop_op.maxRecordSize = op.maxRecordSize;
     }
   }
 
