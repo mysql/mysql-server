@@ -8547,7 +8547,9 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_date_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_time_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_datetime_v1),
+    /* Deprecated, use pfs_plugin_column_timestamp_v2. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
     END_COMPONENT_PROVIDES();
 
