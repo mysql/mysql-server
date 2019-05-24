@@ -6,7 +6,7 @@
 # ==== Implementation ====
 #
 # 1) SET GLOBAL debug='d,error_unique_log_filename' to
-#    cause 'FLUSH LOGS' error and 'RESET MASTER' error.
+#    cause 'FLUSH LOGS' and 'RESET MASTER' commands to error out.
 # 2) Execute 'FLUSH LOGS' to verify that it does not cause
 #    assertion failure any more.
 #
@@ -27,7 +27,8 @@ call mtr.add_suppression("Failed to locate old binlog or relay log files");
 call mtr.add_suppression('Could not open .*');
 --enable_query_log
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
-SET GLOBAL debug='+d,error_unique_log_filename';
+--let $debug_point= error_unique_log_filename
+--source include/add_debug_point.inc
 
 --error ER_NO_UNIQUE_LOGFILE
 FLUSH LOGS;
@@ -35,13 +36,12 @@ FLUSH LOGS;
 # Restart the server to enable binary log.
 --source include/restart_mysqld.inc
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
-SET GLOBAL debug='+d,error_unique_log_filename';
+--source include/add_debug_point.inc
 
 --error ER_NO_UNIQUE_LOGFILE
 RESET MASTER;
 
-SET GLOBAL debug='-d,error_unique_log_filename';
-SET @@GLOBAL.DEBUG= @debug_save;
+--source include/remove_debug_point.inc
 
 --error ER_UNKNOWN_TARGET_BINLOG
 RESET MASTER;
