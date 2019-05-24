@@ -5788,9 +5788,9 @@ static Sys_var_struct<MY_LOCALE, Get_locale_name> Sys_lc_time_names(
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_locale));
 
 static Sys_var_tz Sys_time_zone("time_zone", "time_zone",
-                                SESSION_VAR(time_zone), NO_CMD_LINE,
-                                DEFAULT(&default_tz), NO_MUTEX_GUARD,
-                                IN_BINLOG);
+                                HINT_UPDATEABLE SESSION_VAR(time_zone),
+                                NO_CMD_LINE, DEFAULT(&default_tz),
+                                NO_MUTEX_GUARD, IN_BINLOG);
 
 static bool fix_host_cache_size(sys_var *, THD *, enum_var_type) {
   hostname_cache_resize(host_cache_size);

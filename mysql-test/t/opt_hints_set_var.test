@@ -450,3 +450,28 @@ DROP PROCEDURE test_hint;
 
 SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551616) */ 1;
 SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551615) */ 1;
+
+--echo #
+--echo # Bug#29776464 MAKE 'TIME_ZONE' VARIABLE OPTIMIZER HINT SETTABLE.
+--echo #
+
+SET time_zone = '-01:00';
+
+SELECT TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT /*+ SET_VAR(time_zone = '+04:00') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT @@time_zone;
+SELECT /*+ SET_VAR(time_zone = 'UTC') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT @@time_zone;
+CREATE TABLE t1(f1 VARCHAR(10));
+INSERT INTO t1 VALUES (@@time_zone);
+SELECT * FROM t1;
+UPDATE /*+ SET_VAR(time_zone = 'UTC') */ t1 SET f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+INSERT /*+ SET_VAR(time_zone = 'UTC') */ t1 VALUES (TIMEDIFF(NOW(), UTC_TIMESTAMP));
+SELECT * FROM t1;
+DELETE /*+ SET_VAR(time_zone = 'UTC') */ FROM t1 WHERE f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+SELECT @@time_zone;
+DROP TABLE t1;
+
+SET time_zone = default;
