@@ -63,19 +63,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
-  SET (DEB_INCLUDE_BINARIES_EXTRA
-"
-debian/extra/audit_log-plugin
-debian/extra/authentication_pam-plugin
-debian/extra/authentication_ldap_sasl-plugin
-debian/extra/authentication_ldap_simple-plugin
-debian/extra/firewall-plugin
-debian/extra/keyring_okv-plugin
-debian/extra/keyring_encrypted_file-plugin
-debian/extra/openssl_udf-plugin
-debian/extra/thread_pool-plugin
-debian/extra/component_test_page_track_component-plugin
-")
   SET (DEB_INSTALL_SERVER_PLUGINS
 "
 usr/lib/mysql/plugin/audit_log.so
@@ -109,9 +96,6 @@ usr/lib/mysql/plugin/debug/component_test_page_track_component.so
 
   IF (DEB_AWS_SDK)
     SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
-    SET (DEB_INCLUDE_BINARIES_EXTRA "${DEB_INCLUDE_BINARIES_EXTRA}
-debian/extra/keyring_aws-plugin
-")
     SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
 usr/lib/mysql/plugin/keyring_aws.so
 ")
