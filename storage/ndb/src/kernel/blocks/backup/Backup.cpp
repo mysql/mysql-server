@@ -7154,7 +7154,6 @@ Backup::parseTableDescription(Signal* signal,
   if (lcp)
   {
     jam();
-    c_lqh->handleLCPSurfacing(signal);
     Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     tabPtr.p->maxRecordSize = 1 + tup->get_max_lcp_record_size(tmpTab.TableId);
   }
