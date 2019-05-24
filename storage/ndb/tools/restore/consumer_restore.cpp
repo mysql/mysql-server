@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <NDBT_ReturnCodes.h>
 #include "consumer_restore.hpp"
 #include <kernel/ndb_limits.h>
 #include <my_sys.h>
@@ -2964,8 +2963,7 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
 void BackupRestore::exitHandler() 
 {
   release();
-  NDBT_ProgramExit(NDBT_FAILED);
-  exit(NDBT_FAILED);
+  exit(NdbRestoreStatus::Failed);
 }
 
 
