@@ -89,6 +89,13 @@ class concurrent_map {
     return result;
   }
 
+  bool empty() const {
+    for (const auto &each_bucket : buckets_) {
+      if (!each_bucket.empty()) return false;
+    }
+    return true;
+  }
+
  private:
   static const unsigned kDefaultNumberOfBucket = 127;
 
@@ -120,6 +127,11 @@ class concurrent_map {
     std::size_t size() const {
       std::lock_guard<std::mutex> lock(data_mutex_);
       return data_.size();
+    }
+
+    bool empty() const {
+      std::lock_guard<std::mutex> lock(data_mutex_);
+      return data_.empty();
     }
 
    private:
@@ -209,6 +221,18 @@ class ConnectionContainer {
    * @param connection The connection to remove from container
    */
   void remove_connection(MySQLRoutingConnection *connection);
+
+  /** number of active client threads. */
+  std::condition_variable connection_removed_cond_;
+  std::mutex connection_removed_cond_m_;
+
+  /**
+   * check if container is empty.
+   *
+   * as the map is concurrent, empty() only gives a reasonable result if it is
+   * ensured no other thread is currently adding connections.
+   */
+  bool empty() const { return connections_.empty(); }
 };
 
 #endif /* ROUTING_CONNECTION_CONTAINER_INCLUDED */

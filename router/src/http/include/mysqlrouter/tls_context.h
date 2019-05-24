@@ -182,6 +182,11 @@ class HTTP_COMMON_EXPORT TlsContext {
    */
   InfoCallback info_callback() const;
 
+  /**
+   * get security_level.
+   */
+  int security_level() const;
+
  protected:
   std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> ssl_ctx_{nullptr,
                                                              &SSL_CTX_free};
