@@ -73,6 +73,12 @@ static void lock_wait_table_release_slot(
 #endif /* UNIV_DEBUG */
 
   lock_wait_mutex_enter();
+  /* We omit trx_mutex_enter and lock_mutex_enter here, because we are only
+  going to touch thr->slot, which is a member used only by lock0wait.cc and is
+  sufficiently protected by lock_wait_mutex. Yes, there are readers who read
+  the thr->slot holding only trx->mutex and lock_sys->mutex, but they do so,
+  when they are sure that we were not woken up yet, so our thread can't be here.
+  See comments in lock_wait_release_thread_if_suspended() for more details. */
 
   ut_ad(slot->in_use);
   ut_ad(slot->thr != NULL);
@@ -83,23 +89,13 @@ static void lock_wait_table_release_slot(
   ut_ad(slot >= lock_sys->waiting_threads);
   ut_ad(slot < upper);
 
-  /* Note: When we reserve the slot we use the trx_t::mutex to update
-  the slot values to change the state to reserved. Here we are using the
-  lock mutex to change the state of the slot to free. This is by design,
-  because when we query the slot state we always hold both the lock and
-  trx_t::mutex. To reduce contention on the lock mutex when reserving the
-  slot we avoid acquiring the lock mutex. */
-
-  lock_mutex_enter();
-
   slot->thr->slot = NULL;
   slot->thr = NULL;
   slot->in_use = FALSE;
 
-  --lock_sys->n_waiting;
-
-  lock_mutex_exit();
-
+  /* This operation is guarded by lock_wait_mutex_enter/exit and we don't care
+  about its relative ordering with other operations in this critical section. */
+  lock_sys->n_waiting.fetch_sub(1, std::memory_order_relaxed);
   /* Scan backwards and adjust the last free slot pointer. */
   for (slot = lock_sys->last_slot;
        slot > lock_sys->waiting_threads && !slot->in_use; --slot) {
@@ -233,21 +229,18 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
 
     start_time = ut_time_monotonic_us();
   }
-
+  /* This operation is guarded by lock_wait_mutex_enter/exit and we don't care
+  about its relative ordering with other operations in this critical section. */
+  lock_sys->n_waiting.fetch_add(1, std::memory_order_relaxed);
   lock_wait_mutex_exit();
+
+  /* We hold trx->mutex here, which is required to call
+  lock_set_lock_and_trx_wait. This means that the value in
+  trx->lock.wait_lock_type which we are about to read comes from the latest
+  call to lock_set_lock_and_trx_wait before we obtained the trx->mutex, which is
+  precisely what we want for our stats */
+  auto lock_type = trx->lock.wait_lock_type;
   trx_mutex_exit(trx);
-
-  ulint lock_type = ULINT_UNDEFINED;
-
-  lock_mutex_enter();
-
-  if (const lock_t *wait_lock = trx->lock.wait_lock) {
-    lock_type = lock_get_type_low(wait_lock);
-  }
-
-  ++lock_sys->n_waiting;
-
-  lock_mutex_exit();
 
   ulint had_dict_lock = trx->dict_operation_lock_mode;
 
@@ -281,12 +274,9 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
   }
 
   /* Unknown is also treated like a record lock */
-  if (lock_type == ULINT_UNDEFINED || lock_type == LOCK_REC) {
-    thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_LOCK);
-  } else {
-    ut_ad(lock_type == LOCK_TABLE);
-    thd_wait_begin(trx->mysql_thd, THD_WAIT_TABLE_LOCK);
-  }
+  ut_a(lock_type == LOCK_REC || lock_type == LOCK_TABLE);
+  thd_wait_begin(trx->mysql_thd, lock_type == LOCK_REC ? THD_WAIT_ROW_LOCK
+                                                       : THD_WAIT_TABLE_LOCK);
 
   DEBUG_SYNC_C("lock_wait_will_wait");
 

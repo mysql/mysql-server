@@ -558,11 +558,12 @@ ulint lock_get_size(void) { return ((ulint)sizeof(lock_t)); }
 UNIV_INLINE
 void lock_set_lock_and_trx_wait(lock_t *lock) {
   auto trx = lock->trx;
-  ut_ad(trx->lock.wait_lock == NULL);
+  ut_a(trx->lock.wait_lock == NULL);
   ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(trx));
 
   trx->lock.wait_lock = lock;
+  trx->lock.wait_lock_type = lock_get_type_low(lock);
   lock->type_mode |= LOCK_WAIT;
 }
 
@@ -1258,9 +1259,14 @@ lock_sys->prdt_page_hash and lock_sys->prdt_hash.
 @return true if FCFS algorithm should be used */
 static bool lock_use_fcfs(const lock_t *lock) {
   ut_ad(lock_mutex_own());
-
+  /* We read n_waiting without holding lock_wait_mutex_enter/exit, so we use
+  atomic read, to avoid torn read. Because `lock_use_fcfs` is just a heuristic
+  which can tolerate a slightly desynchronized (w.r.t. other variables)
+  information called quite often during trx->age updating, we use relaxed
+  memory ordering */
   return (thd_is_replication_slave_thread(lock->trx->mysql_thd) ||
-          lock_sys->n_waiting < LOCK_CATS_THRESHOLD ||
+          lock_sys->n_waiting.load(std::memory_order_relaxed) <
+              LOCK_CATS_THRESHOLD ||
           !lock->is_record_lock() || lock->is_predicate());
 }
 
@@ -1408,7 +1414,6 @@ static void lock_update_age(lock_t *new_lock, ulint heap_no) {
 
   } else if (age > 0) {
     ut_a(new_lock->trx->state == TRX_STATE_ACTIVE);
-    ut_ad(!lock_use_fcfs(new_lock));
 
     lock_update_trx_age(new_lock->trx, age);
   }
@@ -6803,7 +6808,7 @@ const lock_t *DeadlockChecker::get_first_lock(ulint *heap_no) const {
   }
 
   /* Must find at least two locks, otherwise there cannot be a
-  waiting lock, secondly the first lock cannot be the wait_lock.
+  waiting lock.
   The CATS algorithm moves granted locks to the front of the queue, which means
   that if a previous iteration of the loop in check_and_resolve has already
   granted our lock due to a deadlock being resolved in our favor, then our lock
@@ -6813,7 +6818,6 @@ const lock_t *DeadlockChecker::get_first_lock(ulint *heap_no) const {
   have already checked.
   */
   ut_a(lock != nullptr);
-  ut_a(lock != m_wait_lock || !lock_use_fcfs(lock));
 
   /* Check that the lock type doesn't change. */
   ut_ad(lock_get_type_low(lock) == lock_get_type_low(m_wait_lock));

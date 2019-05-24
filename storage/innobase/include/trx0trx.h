@@ -549,16 +549,41 @@ struct trx_lock_t {
                        == TRX_STATE_ACTIVE: TRX_QUE_RUNNING,
                        TRX_QUE_LOCK_WAIT, ... */
 
-  lock_t *wait_lock;         /*!< if trx execution state is
-                             TRX_QUE_LOCK_WAIT, this points to
-                             the lock request, otherwise this is
-                             NULL; set to non-NULL when holding
-                             both trx->mutex and lock_sys->mutex;
-                             set to NULL when holding
-                             lock_sys->mutex; readers should
-                             hold lock_sys->mutex, except when
-                             they are holding trx->mutex and
-                             wait_lock==NULL */
+  /** If trx execution state is TRX_QUE_LOCK_WAIT, this points to the lock
+  request, otherwise this is NULL; set to non-NULL when holding both trx->mutex
+  and lock_sys->mutex; set to NULL when holding lock_sys->mutex; readers should
+  hold lock_sys->mutex, except when they are holding trx->mutex and
+  wait_lock==NULL */
+  lock_t *wait_lock;
+
+  /** Stores the type of the most recent lock for which this trx had to wait.
+  Set to lock_get_type_low(wait_lock) together with wait_lock in
+  lock_set_lock_and_trx_wait().
+  This field is not cleared when wait_lock is set to NULL during
+  lock_reset_lock_and_trx_wait() as in lock_wait_suspend_thread() we are
+  interested in reporting the last known value of this field via
+  thd_wait_begin(). When a thread has to wait for a lock, it first releases
+  lock-sys mutex, and then calls lock_wait_suspend_thread() where among other
+  things it tries to report statistic via thd_wait_begin() about the kind of
+  lock (THD_WAIT_ROW_LOCK vs THD_WAIT_TABLE_LOCK) that caused the wait. But
+  there is a possibility that before it gets to call thd_wait_begin() some other
+  thread could latch lock-sys and grant the lock and call
+  lock_reset_lock_and_trx_wait(). In other words: in case another thread was
+  quick enough to grant the lock, we still would like to report the reason for
+  attempting to sleep.
+  Another common scenario of "setting trx->lock.wait_lock to NULL" is page
+  reorganization: when we have to move records between pages, we also move
+  locks, and when doing so, we temporarily remove the old waiting lock, and then
+  add another one. For example look at lock_rec_move_low(). It first calls
+  lock_reset_lock_and_trx_wait() which changes trx->lock.wait_lock to NULL, but
+  then calls lock_rec_add_to_queue() -> RecLock::create() -> RecLock::lock_add()
+  -> lock_set_lock_and_trx_wait() to set it again to the new lock. This all
+  happens while holding lock-sys mutex, but we read wait_lock_type without this
+  mutex, so we should not clear the wait_lock_type simply because somebody
+  changed wait_lock to NULL.
+  Protected by trx->mutex. */
+  uint32_t wait_lock_type;
+
   ib_uint64_t deadlock_mark; /*!< A mark field that is initialized
                              to and checked against lock_mark_counter
                              by lock_deadlock_recursive(). */
