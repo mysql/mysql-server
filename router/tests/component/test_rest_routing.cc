@@ -38,25 +38,24 @@
 
 #include "config_builder.h"
 #include "dim.h"
+#include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
 #include "mysql_session.h"
+#include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 #include "temp_dir.h"
 
-#include "mysqlrouter/rest_client.h"
+using namespace std::string_literals;
 
 class RestRoutingApiTest
     : public RestApiComponentTest,
       public ::testing::WithParamInterface<RestApiTestParams> {
  protected:
-  RestRoutingApiTest() : mock_port_{port_pool_.get_next_available()} {
-    for (size_t i = 0; i < kRoutesQty; ++i) {
-      routing_ports_.push_back(port_pool_.get_next_available());
-    }
-  }
+  RestRoutingApiTest() : mock_port_{port_pool_.get_next_available()} {}
 
   bool wait_route_ready(std::chrono::milliseconds max_wait_time,
                         const std::string &route_name, const uint16_t http_port,
@@ -120,6 +119,9 @@ static const std::vector<SwaggerPath> kRoutingSwaggerPaths{
 TEST_P(RestRoutingApiTest, ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string http_uri = GetParam().uri;
+  for (size_t i = 0; i < kRoutesQty; ++i) {
+    routing_ports_.push_back(port_pool_.get_next_available());
+  }
 
   const std::string userfile = create_password_file();
 
@@ -1060,6 +1062,262 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
       router_output.npos)
       << router_output;
 }
+
+static std::string get_server_addr_list(const std::vector<uint16_t> &ports) {
+  std::string result;
+  bool use_comma = false;
+
+  for (const auto &port : ports) {
+    if (use_comma) {
+      result += ",";
+    } else {
+      use_comma = true;
+    }
+    result += "mysql://localhost:" + std::to_string(port);
+  }
+
+  return result;
+}
+
+class RestRoutingApiTestCluster : public RestRoutingApiTest {};
+
+/**
+ * @test check /routes/
+ *
+ * - start router with rest_routing module loaded, with metadata_cache
+ * - and mock inndodb cluster
+ */
+TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
+  const std::string http_hostname = "127.0.0.1";
+  const std::string http_uri = GetParam().uri;
+  TempDirectory temp_test_dir;
+
+  SCOPED_TRACE("// start the cluster with 1 RW and 2 RO nodes");
+  std::vector<ProcessWrapper *> nodes;
+  std::vector<uint16_t> node_classic_ports;
+  uint16_t first_node_http_port{0};
+  const std::string json_metadata =
+      get_data_dir().join("metadata_2_secondaries.js").str();
+  for (size_t i = 0; i < 3; ++i) {
+    node_classic_ports.push_back(port_pool_.get_next_available());
+    if (i == 0) first_node_http_port = port_pool_.get_next_available();
+
+    nodes.push_back(&launch_mysql_server_mock(
+        json_metadata, node_classic_ports[i], EXIT_SUCCESS, false,
+        i == 0 ? first_node_http_port : 0));
+    bool ready = wait_for_port_ready(node_classic_ports[i]);
+    ASSERT_TRUE(ready) << nodes[i]->get_full_output();
+  }
+
+  ASSERT_TRUE(
+      MockServerRestClient(first_node_http_port).wait_for_rest_endpoint_ready())
+      << nodes[0]->get_full_output();
+  set_mock_metadata(first_node_http_port, "", node_classic_ports);
+
+  SCOPED_TRACE("// start the router with rest_routing enabled");
+  for (size_t i = 0; i < 2; ++i) {
+    routing_ports_.push_back(port_pool_.get_next_available());
+  }
+  const std::string userfile = create_password_file();
+  const std::vector<std::string> route_names{"cluster_rw", "cluster_ro"};
+
+  auto config_sections = get_restapi_config("rest_routing", userfile,
+                                            GetParam().request_authentication);
+  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
+
+  size_t i = 0;
+  for (const auto &route_name : route_names) {
+    const std::string role = (i == 0) ? "PRIMARY" : "SECONDARY";
+    const std::string destinations =
+        "metadata-cache://test/default?role=" + role;
+    config_sections.push_back(ConfigBuilder::build_section(
+        "routing:"s + route_name,
+        {
+            {"bind_port", std::to_string(routing_ports_[i])},
+            {"bind_address", "127.0.0.1"},
+            {"destinations", destinations},
+            {"routing_strategy", "round-robin"},
+            {"client_connect_timeout", "60"},
+            {"connect_timeout", "70"},
+            {"max_connect_errors", "3"},
+            {"max_connections", "1000"},
+        }));
+    ++i;
+  }
+
+  config_sections.push_back(
+      ConfigBuilder::build_section("logger", {
+                                                 {"level", "debug"},
+                                             }));
+
+  const std::string keyring_username = "mysql_router1_user";
+  config_sections.push_back(ConfigBuilder::build_section(
+      "metadata_cache:test", {
+                                 {"router_id", "3"},
+                                 {"user", keyring_username},
+                                 {"metadata_cluster", "test"},
+                                 {"bootstrap_server_addresses",
+                                  get_server_addr_list(node_classic_ports)},
+                             }));
+
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir_.name());
+
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      &default_section)};
+
+  ProcessWrapper &http_server = launch_router({"-c", conf_file});
+
+  // wait for both (rw and ro) routes being available
+  for (size_t i = 0; i < 2; ++i) {
+    ASSERT_TRUE(wait_route_ready(std::chrono::milliseconds(5000),
+                                 route_names[i], http_port_, "127.0.0.1",
+                                 kRestApiUsername, kRestApiPassword))
+        << http_server.get_full_output() << "\n"
+        << http_server.get_full_logfile();
+  }
+
+  // make 1 connection to route "rw"
+  mysqlrouter::MySQLSession client_ro_1;
+  EXPECT_NO_THROW(client_ro_1.connect("127.0.0.1", routing_ports_[0],
+                                      "username", "password", "", ""));
+
+  // make 2 connection to route "ro"
+  mysqlrouter::MySQLSession client_rw_1;
+  EXPECT_NO_THROW(client_rw_1.connect("127.0.0.1", routing_ports_[1],
+                                      "username", "password", "", ""));
+  mysqlrouter::MySQLSession client_rw_2;
+  EXPECT_NO_THROW(client_rw_2.connect("127.0.0.1", routing_ports_[1],
+                                      "username", "password", "", ""));
+
+  EXPECT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), http_server));
+}
+
+static const RestApiTestParams rest_api_valid_methods_params_cluster[]{
+    {"routing_rw_status",
+     std::string(rest_api_basepath) + "/routes/cluster_rw/status",
+     "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_status_fields(/*expected_active_connections=*/1,
+                                /*expected_total_connections=*/1,
+                                /*expected_blocked_hosts*=*/0),
+     kRoutingSwaggerPaths},
+
+    {"routing_ro_status",
+     std::string(rest_api_basepath) + "/routes/cluster_ro/status",
+     "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_status_fields(/*expected_active_connections=*/2,
+                                /*expected_total_connections=*/2,
+                                /*expected_blocked_hosts*=*/0),
+     kRoutingSwaggerPaths},
+
+    {"cluster_routes",
+     std::string(rest_api_basepath) + "/routes",
+     "/routes",
+     HttpMethod::Get,
+     HttpStatusCode::Ok,
+     kContentTypeJson,
+     kRestApiUsername,
+     kRestApiPassword,
+     /*request_authentication =*/true,
+     {
+         {"/items",
+          [](const JsonValue *value) {
+            ASSERT_NE(value, nullptr);
+            ASSERT_TRUE(value->IsArray());
+            ASSERT_EQ(value->GetArray().Size(), 2);
+          }},
+         {"/items/0/name",
+          [](const JsonValue *value) {
+            ASSERT_TRUE(value != nullptr);
+            ASSERT_TRUE(value->IsString());
+            ASSERT_STREQ(value->GetString(), "cluster_ro");
+          }},
+         {"/items/1/name",
+          [](const JsonValue *value) {
+            ASSERT_TRUE(value != nullptr);
+            ASSERT_TRUE(value->IsString());
+            ASSERT_STREQ(value->GetString(), "cluster_rw");
+          }},
+     },
+     kRoutingSwaggerPaths},
+    {"routes_config_cluster_rw",
+     std::string(rest_api_basepath) + "/routes/cluster_rw/config",
+     "/routes/{routeName}/config", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true, get_expected_config_fields(),
+     kRoutingSwaggerPaths},
+    {"routes_config_cluster_ro",
+     std::string(rest_api_basepath) + "/routes/cluster_ro/config",
+     "/routes/{routeName}/config", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true, get_expected_config_fields(),
+     kRoutingSwaggerPaths},
+    {"routes_health_cluster_rw",
+     std::string(rest_api_basepath) + "/routes/cluster_rw/health",
+     "/routes/{routeName}/health", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true, get_expected_health_fields(true),
+     kRoutingSwaggerPaths},
+    {"routes_health_cluster_ro",
+     std::string(rest_api_basepath) + "/routes/cluster_ro/health",
+     "/routes/{routeName}/health", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true, get_expected_health_fields(true),
+     kRoutingSwaggerPaths},
+    {"routes_destinations_cluster_rw",
+     std::string(rest_api_basepath) + "/routes/cluster_rw/destinations",
+     "/routes/{routeName}/destinations", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true, get_expected_destinations_fields(1),
+     kRoutingSwaggerPaths},
+    {"routes_destinations_cluster_ro",
+     std::string(rest_api_basepath) + "/routes/cluster_ro/destinations",
+     "/routes/{routeName}/destinations", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true, get_expected_destinations_fields(2),
+     kRoutingSwaggerPaths},
+    {"routes_blockedhosts_cluster_rw",
+     std::string(rest_api_basepath) + "/routes/cluster_rw/blockedHosts",
+     "/routes/{routeName}/blockedHosts", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_blocked_hosts_fields(/*expected_blocked_hosts=*/0),
+     kRoutingSwaggerPaths},
+    {"routes_blockedhosts_cluster_ro",
+     std::string(rest_api_basepath) + "/routes/cluster_ro/blockedHosts",
+     "/routes/{routeName}/blockedHosts", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_blocked_hosts_fields(/*expected_blocked_hosts=*/0),
+     kRoutingSwaggerPaths},
+    {"routes_connections_cluster_rw",
+     std::string(rest_api_basepath) + "/routes/cluster_rw/connections",
+     "/routes/{routeName}/connections", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_connections_fields_fields(/*expected_connection_qty=*/1),
+     kRoutingSwaggerPaths},
+    {"routes_connections_cluster_ro",
+     std::string(rest_api_basepath) + "/routes/cluster_ro/connections",
+     "/routes/{routeName}/connections", HttpMethod::Get, HttpStatusCode::Ok,
+     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_connections_fields_fields(/*expected_connection_qty=*/2),
+     kRoutingSwaggerPaths},
+};
+
+INSTANTIATE_TEST_CASE_P(
+    ValidMethodsCluster, RestRoutingApiTestCluster,
+    ::testing::ValuesIn(rest_api_valid_methods_params_cluster),
+    [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
+      return info.param.test_name;
+    });
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
