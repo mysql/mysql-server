@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <NDBT_ReturnCodes.h>
 #include "consumer_restore.hpp"
 #include <kernel/ndb_limits.h>
 #include <NdbSleep.h>
@@ -3756,8 +3755,7 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
 void BackupRestore::exitHandler() 
 {
   release();
-  NDBT_ProgramExit(NDBT_FAILED);
-  exit(NDBT_FAILED);
+  exit(NdbRestoreStatus::Failed);
 }
 
 
