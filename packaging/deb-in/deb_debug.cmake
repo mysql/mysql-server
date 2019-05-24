@@ -33,7 +33,7 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \\
 		-DINSTALL_MANDIR=share/man \\
 		-DINSTALL_MYSQLTESTDIR=lib/mysql-test \\
-		-DINSTALL_PLUGINDIR=lib/mysql/plugin \\
+		-DINSTALL_PLUGINDIR=lib/mysql/plugin/debug \\
 		-DINSTALL_SBINDIR=sbin \\
 		-DSYSCONFDIR=/etc/mysql \\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \\
@@ -176,4 +176,42 @@ usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
 usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
+")
+
+IF (DEB_PRODUCT STREQUAL "commercial")
+  # Add debug versions of commercial plugins, if enabled
+  IF (DEFINED DEB_WITH_DEBUG)
+    SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS "${DEB_INSTALL_DEBUG_SERVER_PLUGINS}
+usr/lib/mysql/plugin/debug/audit_log.so
+usr/lib/mysql/plugin/debug/authentication_pam.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
+usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
+usr/lib/mysql/plugin/debug/data_masking.so
+usr/lib/mysql/plugin/debug/keyring_okv.so
+usr/lib/mysql/plugin/debug/keyring_encrypted_file.so
+usr/lib/mysql/plugin/debug/openssl_udf.so
+usr/lib/mysql/plugin/debug/thread_pool.so
+usr/lib/mysql/plugin/debug/firewall.so
+usr/lib/mysql/plugin/debug/component_test_page_track_component.so
+")
+  ENDIF()
+  IF (DEB_AWS_SDK)
+    SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS "${DEB_INSTALL_DEBUG_SERVER_PLUGINS}
+usr/lib/mysql/plugin/debug/keyring_aws.so
+")
+  ENDIF()
+ENDIF()
+SET (DEB_CONTROL_DEBUG
+"
+Package: mysql-${DEB_PRODUCTNAME}-server-debug
+Architecture: any
+Section: debug
+Depends: \${misc:Depends}
+Description: Debug binaries for MySQL Server
+
+Package: mysql-${DEB_PRODUCTNAME}-test-debug
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-test, \${misc:Depends}
+Description: Debug binaries for MySQL Testsuite
 ")
