@@ -45,6 +45,8 @@
  * @brief Component Tests for the bootstrap operation
  */
 
+using namespace std::chrono_literals;
+
 // we create a number of classes to logically group tests together. But to avoid
 // code duplication, we derive them from a class which contains the common code
 // they need.
@@ -69,7 +71,7 @@ class CommonBootstrapTest : public RouterComponentTest {
       const std::vector<std::string> &router_options = {},
       int expected_exitcode = 0,
       const std::vector<std::string> &expected_output_regex = {},
-      unsigned wait_for_exit_timeout_ms = 10000);
+      std::chrono::milliseconds wait_for_exit_timeout = 10000ms);
 
   friend std::ostream &operator<<(
       std::ostream &os,
@@ -103,7 +105,7 @@ void CommonBootstrapTest::bootstrap_failover(
     const std::vector<Config> &mock_server_configs,
     const std::vector<std::string> &router_options, int expected_exitcode,
     const std::vector<std::string> &expected_output_regex,
-    unsigned wait_for_exit_timeout_ms) {
+    std::chrono::milliseconds wait_for_exit_timeout) {
   std::string cluster_name("mycluster");
 
   // build environment
@@ -172,10 +174,7 @@ void CommonBootstrapTest::bootstrap_failover(
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  // wait_for_exit() throws at timeout.
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(wait_for_exit_timeout_ms),
-                            expected_exitcode)
-                  << router.get_full_output());
+  check_exit_code(router, expected_exitcode, wait_for_exit_timeout);
 
   // split the output into lines
   std::vector<std::string> lines;
@@ -730,7 +729,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
         "MySQL Router configured for the InnoDB cluster 'test'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
-    EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS);
+    check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();
   };
@@ -781,7 +780,7 @@ TEST_F(RouterAccountHostTest, argument_missing) {
   EXPECT_TRUE(router.expect_output(
       "option '--account-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -797,7 +796,7 @@ TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
   EXPECT_TRUE(router.expect_output(
       "Option --account-host can only be used together with -B/--bootstrap"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -835,7 +834,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
       << router.get_full_output() << std::endl
       << "server:\n"
       << server_mock.get_full_output();
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 class RouterReportHostTest : public CommonBootstrapTest {};
@@ -870,7 +869,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
                              "InnoDB cluster 'mycluster'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
-    EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS);
+    check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();
   };
@@ -905,7 +904,7 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
   EXPECT_TRUE(
       router.expect_output("Option --report-host can only be used once."))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -922,7 +921,7 @@ TEST_F(RouterReportHostTest, argument_missing) {
   EXPECT_TRUE(router.expect_output(
       "option '--report-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -938,7 +937,7 @@ TEST_F(RouterReportHostTest, without_bootstrap_flag) {
   EXPECT_TRUE(router.expect_output(
       "Option --report-host can only be used together with -B/--bootstrap"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -961,7 +960,7 @@ TEST_F(RouterReportHostTest, invalid_hostname) {
   EXPECT_TRUE(
       router.expect_output("Error: Option --report-host has an invalid value."))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -1082,8 +1081,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
-      << "output:" << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
 
   // check if the valid config option was added to the file
   EXPECT_TRUE(find_in_file(
@@ -1127,8 +1125,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
-      << "output:" << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
 
   // check if valid config option was added to the file
   EXPECT_TRUE(find_in_file(
@@ -1157,7 +1154,7 @@ TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
       router.expect_output("Error: Option --conf-use-gr-notifications can only "
                            "be used together with -B/--bootstrap"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -1173,7 +1170,7 @@ TEST_F(RouterReportHostTest, ConfUseGrNotificationsHasValue) {
       router.expect_output("Error: option '--conf-use-gr-notifications' does "
                            "not expect a value, but got a value"))
       << router.get_full_output() << std::endl;
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 class ErrorReportTest : public CommonBootstrapTest {};
@@ -1221,7 +1218,7 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
                         "' already contains files\n"
                         "Error: Directory already exits";
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 // unfortunately it's not (reasonably) possible to make folders read-only on
@@ -1274,7 +1271,7 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
       "This may be caused by insufficient rights or AppArmor settings.\n.*"
       "Error: Could not check contents of existing deployment directory";
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -1327,7 +1324,7 @@ TEST_F(ErrorReportTest,
       "This may be caused by insufficient rights or AppArmor settings.\n.*"
       "Error: Could not create deployment directory";
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 #endif
 

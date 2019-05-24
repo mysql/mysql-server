@@ -28,6 +28,8 @@
 #include <thread>
 #include <vector>
 
+using namespace std::chrono_literals;
+
 namespace {
 
 template <typename Out>
@@ -48,12 +50,12 @@ std::vector<std::string> split_str(const std::string &s, char delim = ' ') {
 
 }  // namespace
 
-int ProcessWrapper::wait_for_exit(unsigned timeout_ms) {
+int ProcessWrapper::wait_for_exit(std::chrono::milliseconds timeout) {
   if (exit_code_set_) return exit_code();
 
   // wait_for_exit() is a convenient short name, but a little unclear with
   // respect to what this function actually does
-  return wait_for_exit_while_reading_and_autoresponding_to_output(timeout_ms);
+  return wait_for_exit_while_reading_and_autoresponding_to_output(timeout);
 }
 
 int ProcessWrapper::kill() {
@@ -70,10 +72,10 @@ int ProcessWrapper::kill() {
 }
 
 int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
-    unsigned timeout_ms) {
+    std::chrono::milliseconds timeout) {
   namespace ch = std::chrono;
-  ch::time_point<ch::steady_clock> timeout =
-      ch::steady_clock::now() + ch::milliseconds(timeout_ms);
+  ch::time_point<ch::steady_clock> timeout_timestamp =
+      ch::steady_clock::now() + timeout;
 
   // We alternate between non-blocking read() and non-blocking waitpid() here.
   // Reading/autoresponding must be done, because the child might be blocked on
@@ -81,12 +83,12 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
   // exit until we deal with its output.
   std::exception_ptr eptr;
   exit_code_set_ = false;
-  while (ch::steady_clock::now() < timeout) {
-    read_and_autorespond_to_output(0);
+  while (ch::steady_clock::now() < timeout_timestamp) {
+    read_and_autorespond_to_output(0ms);
 
     try {
       // throws std::runtime_error or std::system_error
-      exit_code_ = launcher_.wait(0);
+      exit_code_ = launcher_.wait(0ms);
       exit_code_set_ = true;
       break;
     } catch (const std::system_error &e) {
@@ -106,7 +108,7 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
   if (exit_code_set_) {
     // the child exited, but there might still be some data left in the pipe to
     // read, so let's consume it all
-    while (read_and_autorespond_to_output(1, false))
+    while (read_and_autorespond_to_output(1ms, false))
       ;  // false = disable autoresponder
     return exit_code_;
   } else {
@@ -116,9 +118,9 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
 }
 
 bool ProcessWrapper::expect_output(const std::string &str, bool regex,
-                                   unsigned timeout_ms) {
+                                   std::chrono::milliseconds timeout) {
   auto now = std::chrono::steady_clock::now();
-  auto until = now + std::chrono::milliseconds(timeout_ms);
+  auto until = now + timeout;
   for (;;) {
     if (output_contains(str, regex)) return true;
 
@@ -129,8 +131,7 @@ bool ProcessWrapper::expect_output(const std::string &str, bool regex,
     }
 
     if (!read_and_autorespond_to_output(
-            std::chrono::duration_cast<std::chrono::milliseconds>(until - now)
-                .count()))
+            std::chrono::duration_cast<std::chrono::milliseconds>(until - now)))
       return false;
   }
 }
@@ -145,7 +146,7 @@ bool ProcessWrapper::output_contains(const std::string &str, bool regex) const {
 }
 
 bool ProcessWrapper::read_and_autorespond_to_output(
-    unsigned timeout_ms, bool autoresponder_enabled /*= true*/) {
+    std::chrono::milliseconds timeout, bool autoresponder_enabled /*= true*/) {
   char cmd_output[kReadBufSize] = {
       0};  // hygiene (cmd_output[bytes_read] = 0 would suffice)
 
@@ -153,7 +154,7 @@ bool ProcessWrapper::read_and_autorespond_to_output(
   // read (unlikely) throws std::runtime_error on read error
   int bytes_read =
       launcher_.read(cmd_output, kReadBufSize - 1,
-                     timeout_ms);  // cmd_output may contain multiple lines
+                     timeout);  // cmd_output may contain multiple lines
 
   if (bytes_read > 0) {
 #ifdef _WIN32

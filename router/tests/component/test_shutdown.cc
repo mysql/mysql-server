@@ -46,6 +46,7 @@
 #include "tcp_port_pool.h"
 
 using ::testing::Eq;
+using namespace std::chrono_literals;
 
 class ShutdownTest : public RouterComponentTest {
  protected:
@@ -215,7 +216,7 @@ class ShutdownTest : public RouterComponentTest {
 TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   // MdC's refresh thread can block up to this many seconds on
   // mysql_real_connect(<metadata server>)
-  constexpr int kConnectTimeout = 2;
+  constexpr std::chrono::milliseconds kConnectTimeout = 2000ms;
 
   // This is our expectation - the test will pass if Router shuts down within
   // these many seconds. The value should should allow for up do
@@ -223,8 +224,9 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   // additional CPU cycles needed. But it should not be at 2 * kConnectTimeout
   // or higher, because we want to make sure no more than one metadata server
   // is blocking the shutdown.
-  constexpr int kAcceptableShutdownWait =
-      kConnectTimeout * 1.5;  // should be between 1 and 2 * kConnectTimeout
+  constexpr std::chrono::milliseconds kAcceptableShutdownWait =
+      kConnectTimeout +
+      kConnectTimeout / 2;  // should be between 1 and 2 * kConnectTimeout
 
   TempDirectory temp_test_dir;
 
@@ -269,7 +271,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   servers.resize(servers.size() - 1);  // trim last ","
   const std::string config =
       /*[DEFAULT]*/
-      "connect_timeout = " + std::to_string(kConnectTimeout) +
+      "connect_timeout = " + std::to_string(kConnectTimeout.count()) +
       "\n"
       "\n"
       "[metadata_cache:test]\n"
@@ -314,13 +316,9 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   }
 
   // and tell Router to shutdown and expect it to finish it within
-  // kAcceptableShutdownWait seconds (wait_for_exit() will throw if timeout is
-  // exceeded)
+  // kAcceptableShutdownWait seconds
   EXPECT_FALSE(router.send_clean_shutdown_event());
-  EXPECT_NO_THROW(router.wait_for_exit(kAcceptableShutdownWait * 1000))
-      << "full output:\n"
-      << router.get_full_output() << "\nrouter log:\n"
-      << router.get_full_logfile() << std::endl;
+  check_exit_code(router, EXIT_SUCCESS, kAcceptableShutdownWait * 1000);
 }
 
 int main(int argc, char *argv[]) {

@@ -520,7 +520,7 @@ TEST_F(RouterEventlogTest, wrapper_running_as_unknown) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"--service"}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   // verify the message WAS written to STDERR
   const std::string out = router.get_full_output();
@@ -594,7 +594,7 @@ TEST_F(RouterEventlogTest, wrapper_running_as_process) {
   // run the router and wait for it to exit
   auto &router = launch_router({"--install-service"},
                                EXIT_FAILURE);  // missing -c <config>
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);
@@ -665,7 +665,7 @@ TEST_F(RouterEventlogTest, application_running_as_process_preconfig) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", "bogus.conf"}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);
@@ -726,7 +726,7 @@ TEST_F(RouterEventlogTest, application_running_as_process_postconfig) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE) << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);

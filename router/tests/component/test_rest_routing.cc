@@ -51,6 +51,8 @@
 
 using namespace std::string_literals;
 
+using namespace std::chrono_literals;
+
 class RestRoutingApiTest
     : public RestApiComponentTest,
       public ::testing::WithParamInterface<RestApiTestParams> {
@@ -942,8 +944,8 @@ TEST_F(RestRoutingApiTest, routing_api_no_auth) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find("plugin 'rest_routing' init failed: option "
@@ -969,8 +971,8 @@ TEST_F(RestRoutingApiTest, invalid_realm) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_NE(
@@ -994,8 +996,8 @@ TEST_F(RestRoutingApiTest, routing_api_no_rest_api) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find("Plugin 'rest_routing' needs plugin "
@@ -1025,8 +1027,8 @@ TEST_F(RestRoutingApiTest, rest_routing_section_twice) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find(
@@ -1052,8 +1054,8 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_NE(

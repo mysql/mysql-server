@@ -35,11 +35,13 @@ using mysql_harness::Path;
 // test performance tweaks
 // shorter timeout -> faster test execution, longer timeout -> increased test
 // stability
-constexpr unsigned kDefaultExpectOutputTimeout = 1000;
+static constexpr auto kDefaultExpectOutputTimeout =
+    std::chrono::milliseconds(1000);
 
 // wait-timeout should be less than infinite, and long enough that even with
 // valgrind we properly pass the tests
-static constexpr unsigned kDefaultWaitForExitTimeout = 10 * 1000;
+static constexpr auto kDefaultWaitForExitTimeout =
+    std::chrono::milliseconds(10000);
 
 static constexpr size_t kReadBufSize = 1024;
 
@@ -59,14 +61,15 @@ class ProcessWrapper {
    * also calls autoresponder to react to any prompts issued by the child
    * process.
    *
-   * @param str         Expected output string
-   * @param regex       True if str is a regex pattern
-   * @param timeout_ms  Timeout in milliseconds, to wait for the output
+   * @param str      Expected output string
+   * @param regex    True if str is a regex pattern
+   * @param timeout  timeout in milliseconds, to wait for the output
    * @return Returns bool flag indicating if the specified string appeared
    *                 in the process' output.
    */
-  bool expect_output(const std::string &str, bool regex = false,
-                     unsigned timeout_ms = kDefaultExpectOutputTimeout);
+  bool expect_output(
+      const std::string &str, bool regex = false,
+      std::chrono::milliseconds timeout = kDefaultExpectOutputTimeout);
 
   /** @brief Returns the full output that was produced the process till moment
    *         of calling this method.
@@ -74,7 +77,7 @@ class ProcessWrapper {
    * be fixed.
    */
   std::string get_full_output() {
-    while (read_and_autorespond_to_output(0)) {
+    while (read_and_autorespond_to_output(std::chrono::milliseconds(0))) {
     }
     return execute_output_raw_;
   }
@@ -143,7 +146,8 @@ class ProcessWrapper {
    * @throws std::runtime_error on timeout, std::system_error on failure
    * @returns exit code of the process
    */
-  int wait_for_exit(unsigned timeout_ms = kDefaultWaitForExitTimeout);
+  int wait_for_exit(
+      std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
 
   /** @brief Returns process PID
    *
@@ -182,11 +186,11 @@ class ProcessWrapper {
   /** @brief read() output from child until timeout expires, optionally
    * autoresponding to prompts
    *
-   * @param timeout_ms timeout in milliseconds
+   * @param timeout timeout in milliseconds
    * @param autoresponder_enabled autoresponder is enabled if true (default)
    * @returns true if at least one byte was read
    */
-  bool read_and_autorespond_to_output(unsigned timeout_ms,
+  bool read_and_autorespond_to_output(std::chrono::milliseconds timeout,
                                       bool autoresponder_enabled = true);
 
   /** @brief write() predefined responses on found predefined patterns
@@ -206,7 +210,7 @@ class ProcessWrapper {
 
   /** @brief see wait_for_exit() */
   int wait_for_exit_while_reading_and_autoresponding_to_output(
-      unsigned timeout_ms);
+      std::chrono::milliseconds timeout);
 
   mysql_harness::ProcessLauncher
       launcher_;  // <- this guy's destructor takes care of

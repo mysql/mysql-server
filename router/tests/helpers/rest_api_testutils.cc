@@ -1,4 +1,3 @@
-
 /*
   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
@@ -227,7 +226,7 @@ std::string RestApiComponentTest::create_password_file() {
                        {"set", userfile, kRestApiUsername}, EXIT_SUCCESS, true);
     cmd.register_response("Please enter password",
                           std::string(kRestApiPassword) + "\n");
-    EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
+    check_exit_code(cmd, EXIT_SUCCESS);
   }
 
   return userfile;

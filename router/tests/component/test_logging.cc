@@ -71,7 +71,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, 1);
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
   // plugin 'invalid' failed to
@@ -97,7 +97,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, 1);
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear in log:
   // 2018-12-19 03:54:04 main ERROR [7f539f628780] Configuration error: option
@@ -143,7 +143,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
     // run the router and wait for it to exit
     auto &router = launch_router({"-c", conf_file}, 1);
-    EXPECT_EQ(router.wait_for_exit(), 1);
+    check_exit_code(router, EXIT_FAILURE);
 
     // expect something like this to appear on STDERR
     // Error: Error when creating dir '/bla': 13
@@ -167,7 +167,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
     // run the router and wait for it to exit
     auto &router = launch_router({"-c", conf_file}, 1);
-    EXPECT_EQ(router.wait_for_exit(), 1);
+    check_exit_code(router, EXIT_FAILURE);
 
     // expect something like this to appear on STDERR
     // Error: Cannot create file in directory //mysqlrouter.log: Permission
@@ -207,7 +207,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
     // run the router and wait for it to exit
     auto &router = launch_router({"-c", conf_file}, 1);
-    EXPECT_EQ(router.wait_for_exit(), 1);
+    check_exit_code(router, EXIT_FAILURE);
 
     // expect something like this to appear on STDERR
     // Error: Cannot create file in directory /etc/passwd/mysqlrouter.log: Not a
@@ -246,7 +246,7 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, 1);
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
   // Error: Configuration error: Section 'logger' already exists
@@ -269,7 +269,7 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, 1);
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
   // Error: Section 'logger' does not support key
@@ -291,7 +291,7 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, 1);
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
   // Configuration error: Log level 'unknown' is not valid. Valid values are:
@@ -760,7 +760,7 @@ TEST_P(RouterLoggingConfigError, LoggingConfigError) {
 
   auto &router = launch_router({"-c", conf_file}, 1);
 
-  EXPECT_EQ(1, router.wait_for_exit());
+  check_exit_code(router, EXIT_FAILURE);
 
   // the error happens during the logger initialization so we expect the message
   // on the console which is the default sink until we switch to the
@@ -984,7 +984,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
                            "fake-pass\n");
 
   // wait for router to exit
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
   // Error: Router name
@@ -1028,7 +1028,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS) << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
   EXPECT_THAT(router.get_full_output(),
               testing::Not(testing::HasSubstr("Executing query:")));
 }
@@ -1075,9 +1075,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
   EXPECT_THAT(router.get_full_output(), testing::HasSubstr("Executing query:"));
 }
 
@@ -1122,9 +1120,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
 
   auto matcher = [](const std::string &line) -> bool {
     return line.find("Executing query:") != line.npos;
@@ -1182,9 +1178,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS)
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
 
   // check if logs are not written to output
   EXPECT_THAT(router.get_full_output(),
@@ -1550,7 +1544,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   // we expect the router to exit,
   // as the logfile is no longer usable it will fallback to logging to the
   // stderr
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE) << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.get_full_output(),
               HasSubstr("File exists, but cannot open for writing"));
   EXPECT_THAT(router.get_full_output(), HasSubstr("Unloading all plugins."));

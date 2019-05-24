@@ -55,7 +55,7 @@ TEST_P(RouterTestBrokenConfig, ensure) {
       &default_section)};
   auto &router{launch_router({"-c", conf_file}, EXIT_FAILURE)};
 
-  EXPECT_NO_THROW(EXPECT_EQ(EXIT_FAILURE, router.wait_for_exit()));
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_THAT(router.get_full_logfile(),
               ::testing::HasSubstr(GetParam().expected_logfile_substring));
@@ -346,7 +346,7 @@ class RouterCmdlineTest : public RouterComponentTest {
 TEST_F(RouterCmdlineTest, help_output_is_sane) {
   auto &router{launch_router(std::vector<std::string>{"--help"})};
 
-  EXPECT_NO_THROW(EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit()));
+  check_exit_code(router, EXIT_SUCCESS);
 
   EXPECT_THAT(router.get_full_output(),
               ::testing::StartsWith("MySQL Router  Ver "));
@@ -418,7 +418,7 @@ TEST_F(RouterCmdlineTest, one_plugin_works) {
       conf_dir_.name(), mysql_harness::join(sections, "\n"))};
   auto &router{launch_router({"-c", conf_file})};
 
-  EXPECT_NO_THROW(EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit()));
+  check_exit_code(router, EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[]) {

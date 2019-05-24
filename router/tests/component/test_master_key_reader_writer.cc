@@ -47,6 +47,8 @@
  * @brief Component Tests for the master-key-reader and master-key-writer
  */
 
+using namespace std::chrono_literals;
+
 MATCHER_P(FileContentEqual, master_key, "") {
   std::ifstream file(arg);
   std::stringstream file_content;
@@ -226,7 +228,7 @@ TEST_F(MasterKeyReaderWriterTest,
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(30000), 0);
+  check_exit_code(router, EXIT_SUCCESS, 30000ms);
   EXPECT_TRUE(router.expect_output(
       "MySQL Router configured for the InnoDB cluster 'mycluster'"))
       << router.get_full_output() << std::endl
@@ -280,7 +282,7 @@ TEST_F(MasterKeyReaderWriterTest,
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(30000), 0);
+  check_exit_code(router, EXIT_SUCCESS, 30000ms);
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
                            "InnoDB cluster 'mycluster'"))
@@ -346,7 +348,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot fetch master key file using master key reader"))
       << router.get_full_output() << std::endl
@@ -387,7 +389,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot write master key file using master key writer"))
       << router.get_full_output() << std::endl
@@ -433,7 +435,7 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   ASSERT_THAT(keyring_path.str(), FileContentEqual("keyring file content"));
 }
 
@@ -468,7 +470,7 @@ TEST_F(MasterKeyReaderWriterTest, MasterKeyRestoredWhenBootstrapFails) {
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   ASSERT_THAT(master_key_path.str(), FileContentEqual(""));
 }
 
@@ -507,7 +509,7 @@ TEST_F(MasterKeyReaderWriterTest,
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(30000), 0);
+  check_exit_code(router, EXIT_SUCCESS, 30000ms);
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
                            "InnoDB cluster 'mycluster'"))
@@ -554,7 +556,7 @@ TEST_F(MasterKeyReaderWriterTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), 0) << router.get_full_output();
+  check_exit_code(router);
   ASSERT_THAT(Path(tmp_dir_.name()).join("master_key").str(),
               FileContentEqual("master key value"));
 }
@@ -687,7 +689,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
       },
       EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 /**
@@ -722,8 +724,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
                                 &incorrect_master_key_default_section_map)},
       EXIT_FAILURE);
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 }
 /*
  * These tests are executed only for STANDALONE layout and are not executed for
@@ -846,8 +847,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 0))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
@@ -891,8 +891,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot fetch master key file using master key reader"))
@@ -931,8 +930,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot write master key file using master key writer"))
@@ -980,8 +978,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   ASSERT_THAT(keyring_path.str(), FileContentEqual("keyring file content"));
 }
@@ -1016,8 +1013,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   ASSERT_THAT(master_key_path.str(), FileContentEqual(""));
 }

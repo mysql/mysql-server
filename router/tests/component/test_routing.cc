@@ -111,11 +111,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   router_bootstrapping.register_response(
       "Please enter MySQL password for root: ", "fake-pass\n");
 
-  ASSERT_EQ(router_bootstrapping.wait_for_exit(), EXIT_SUCCESS)
-      << "bootstrap output: " << router_bootstrapping.get_full_output()
-      << std::endl
-      << "routing log: " << router_bootstrapping.get_full_logfile() << std::endl
-      << "server output: " << server_mock.get_full_output() << std::endl;
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
       "MySQL Router configured for the InnoDB cluster 'test'"))

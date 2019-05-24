@@ -73,6 +73,8 @@ static_assert(sizeof(kInvalidBindAddress) > 7 + 1,
               "kInvalidBindAddress is too short");
 #endif
 
+using namespace std::chrono_literals;
+
 const std::string kHttpBasedir(kPlaceholderHttpBaseDir);
 
 uint16_t kHttpDefaultPort{8081};
@@ -280,8 +282,8 @@ TEST_P(HttpServerPlainTest, ensure) {
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), GetParam().status_code);
   } else {
-    EXPECT_EQ(EXIT_FAILURE,
-              http_server.wait_for_exit(1000));  // assume it finishes in 1s
+    check_exit_code(http_server, EXIT_FAILURE,
+                    1000ms);  // assume it finishes in 1s
     EXPECT_THAT(http_server.get_full_output(),
                 ::testing::ContainsRegex(GetParam().stderr_regex));
     EXPECT_THAT(http_server.get_full_logfile(),
@@ -1142,8 +1144,8 @@ TEST_P(HttpServerSecureTest, ensure) {
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), 404);
   } else {
-    EXPECT_EQ(EXIT_FAILURE,
-              http_server.wait_for_exit(1000));  // assume it finishes in 1s
+    check_exit_code(http_server, EXIT_FAILURE,
+                    1000ms);  // assume it finishes in 1s
     EXPECT_EQ(kSuccessfulLogOutput, http_server.get_full_output());
 
     // if openssl 1.1.0 is used and it is compiled with
@@ -1610,7 +1612,7 @@ TEST_P(HttpServerAuthFailTest, ensure) {
     ASSERT_EQ(req.get_response_code(), 404);
   } else {
     SCOPED_TRACE("// wait process to exit with with error");
-    EXPECT_NO_THROW({ ASSERT_NE(0, http_server.wait_for_exit()); });
+    check_exit_code(http_server, EXIT_FAILURE);
     EXPECT_THAT(http_server.get_full_logfile(),
                 ::testing::HasSubstr(GetParam().expected_errmsg));
   }
