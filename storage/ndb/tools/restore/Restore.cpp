@@ -2300,12 +2300,11 @@ LogEntry::printSqlLog() const {
   ndbout << ";";
 }
 
-#include <NDBT.hpp>
-
-NdbOut & 
-operator<<(NdbOut& ndbout, const TableS & table){
-  
-  ndbout << (* (NDBT_Table*)table.m_dictTable) << endl;
+NdbOut &
+operator<<(NdbOut& ndbout, const TableS & table)
+{
+  ndbout << "-- " << table.getTableName() << " --" << endl;
+  ndbout << *(table.m_dictTable) << endl;
   return ndbout;
 }
 
