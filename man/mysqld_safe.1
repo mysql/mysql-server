@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/20/2019
+.\"      Date: 05/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -86,7 +86,7 @@ are passed to
 if they are specified on the command line, but ignored if they are specified in the
 [mysqld_safe]
 group of an option file\&. See
-Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .PP
 \fBmysqld_safe\fR
 reads all options from the
@@ -121,7 +121,7 @@ sections, but to be current you should rename such sections to
 .PP
 \fBmysqld_safe\fR
 accepts options on the command line and in option files, as described in the following table\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -211,7 +211,7 @@ Read this option file in addition to the usual option files\&. If the file does 
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -229,7 +229,7 @@ Use only the given option file\&. If the file does not exist or is otherwise ina
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -589,7 +589,7 @@ Do not read any option files\&. If program startup fails due to reading unknown 
 can be used to prevent them from being read\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -667,7 +667,7 @@ The path name of the plugin directory\&.
 .sp
 The port number that the server should use when listening for TCP/IP connections\&. The port number must be 1024 or higher unless the server is started by the
 root
-system user\&.
+operating system user\&.
 .RE
 .sp
 .RS 4
@@ -728,7 +728,7 @@ facility/severity is used for all log messages\&.
 Using these options to control
 \fBmysqld\fR
 logging is deprecated\&. To write error log output to the system log, use the instructions at
-Section\ \&5.4.2.3, \(lqError Logging to the System Log\(rq\&. To control the facility, use the server
+Section\ \&5.4.2.7, \(lqError Logging to the System Log\(rq\&. To control the facility, use the server
 log_syslog_facility
 system variable\&.
 .RE
@@ -762,7 +762,7 @@ Using this option to control
 logging is deprecated\&. Use the server
 log_syslog_tag
 system variable instead\&. See
-Section\ \&5.4.2.3, \(lqError Logging to the System Log\(rq\&.
+Section\ \&5.4.2.7, \(lqError Logging to the System Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -996,7 +996,7 @@ logging from
 is deprecated\&. Use the server\*(Aqs native
 syslog
 support instead\&. For more information, see
-Section\ \&5.4.2.3, \(lqError Logging to the System Log\(rq\&.
+Section\ \&5.4.2.7, \(lqError Logging to the System Log\(rq\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"

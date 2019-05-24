@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/20/2019
+.\"      Date: 05/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.347.\ \&Command\-line options common to all MySQL NDB Cluster programs
+.B Table\ \&22.360.\ \&Command\-line options common to all MySQL NDB Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -522,7 +522,7 @@ T}
 .TE
 .sp 1
 Write a core file if the program dies\&. The name and location of the core file are system\-dependent\&. (For NDB Cluster programs nodes running on Linux, the default location is the program\*(Aqs working directory\(emfor a data node, this is the node\*(Aqs
-DataDir\&.) For some systems, there may be restrictions or limitations; for example, it might be necessary to execute
+DataDir\&.) For some systems, there may be restrictions or limitations\&. For example, it might be necessary to execute
 \fBulimit \-c unlimited\fR
 before starting the server\&. Consult your system documentation for detailed information\&.
 .sp
@@ -620,7 +620,7 @@ T}
 Read this file after global option files are read\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -664,7 +664,7 @@ T}
 Read default options from this file\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -708,7 +708,7 @@ T}
 Also read groups with names ending in this suffix\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -786,7 +786,7 @@ T}
 Read this path from the login file\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -975,7 +975,7 @@ T}
 Do not read default options from any option file other than login file\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1060,7 +1060,7 @@ T}
 Print the program argument list and exit\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4

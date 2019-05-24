@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/20/2019
+.\"      Date: 05/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.326.\ \&Command\-line options for the ndb_config program
+.B Table\ \&22.339.\ \&Command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -817,8 +817,7 @@ localhost:1186\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-nodeid=\fR\fB\fInode_id\fR\fR,
-\fB\-\-id=\fR\fB\fInode_id\fR\fR
+\fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
 .TS
 allbox tab(:);
 lB lB.
@@ -849,8 +848,6 @@ T}
 .TE
 .sp 1
 Specify the node ID of the node for which configuration information is to be obtained\&.
-\fB\-\-nodeid\fR
-is the preferred form\&.
 .RE
 .sp
 .RS 4
@@ -947,17 +944,17 @@ T}
 .sp 1
 This is a comma\-delimited list of
 \fIquery options\fR\(emthat is, a list of one or more node attributes to be returned\&. These include
-id
+nodeid
 (node ID), type (node type\(emthat is,
 ndbd,
 mysqld, or
 ndb_mgmd), and any configuration parameters whose values are to be obtained\&.
 .sp
 For example,
-\fB\-\-query=nodeid,type,indexmemory,datamemory\fR
+\fB\-\-query=nodeid,type,datamemory,datadir\fR
 returns the node ID, node type,
 DataMemory, and
-IndexMemory
+DataDir
 for each node\&.
 .if n \{\
 .sp
@@ -1015,8 +1012,6 @@ T}
 .TE
 .sp 1
 Returns a comma\-delimited list of all query options (node attributes; note that this list is a single string\&.
-.sp
-This option was introduced in NDB 7\&.5\&.7 (Bug #60095, Bug #11766869)\&.
 .RE
 .sp
 .RS 4
@@ -1308,7 +1303,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.25\-ndb\-7\&.5\&.13"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.26\-ndb\-7\&.5\&.15"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1528,7 +1523,7 @@ To obtain the node ID and type of each node in the cluster:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-query=id,type \-\-fields=\*(Aq:\*(Aq \-\-rows=\*(Aq\en\*(Aq\fR
+shell> \fB\&./ndb_config \-\-query=nodeid,type \-\-fields=\*(Aq:\*(Aq \-\-rows=\*(Aq\en\*(Aq\fR
 1:ndbd
 2:ndbd
 3:ndbd
@@ -1586,8 +1581,8 @@ This invocation of
 checks only data nodes (using the
 \fB\-\-type\fR
 option), and shows the values for each node\*(Aqs ID and host name, as well as the values set for its
-DataMemory,
-IndexMemory, and
+DataMemory
+and
 DataDir
 parameters:
 .sp
@@ -1595,11 +1590,11 @@ parameters:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-type=ndbd \-\-query=id,host,datamemory,indexmemory,datadir \-f \*(Aq : \*(Aq \-r \*(Aq\en\*(Aq\fR
-1 : 198\&.51\&.100\&.193 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-2 : 198\&.51\&.100\&.112 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-3 : 198\&.51\&.100\&.176 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-4 : 198\&.51\&.100\&.119 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+shell> \fB\&./ndb_config \-\-type=ndbd \-\-query=nodeid,host,datamemory,datadir \-f \*(Aq : \*(Aq \-r \*(Aq\en\*(Aq\fR
+1 : 198\&.51\&.100\&.193 : 83886080 : /usr/local/mysql/cluster\-data
+2 : 198\&.51\&.100\&.112 : 83886080 : /usr/local/mysql/cluster\-data
+3 : 198\&.51\&.100\&.176 : 83886080 : /usr/local/mysql/cluster\-data
+4 : 198\&.51\&.100\&.119 : 83886080 : /usr/local/mysql/cluster\-data
 .fi
 .if n \{\
 .RE
@@ -1609,7 +1604,9 @@ In this example, we used the short options
 \fB\-f\fR
 and
 \fB\-r\fR
-for setting the field delimiter and row separator, respectively\&.
+for setting the field delimiter and row separator, respectively, as well as the short option
+\fB\-q\fR
+to pass a list of parameters to be obtained\&.
 .RE
 .sp
 .RS 4

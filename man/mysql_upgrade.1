@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/20/2019
+.\"      Date: 05/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -53,9 +53,7 @@ Section\ \&2.11.3, \(lqWhat the MySQL Upgrade Process Upgrades\(rq)\&. Consequen
 \fBmysql_upgrade\fR
 is unneeded and is deprecated as of that version, and will be removed in a future MySQL version\&. Because
 \fBmysql_upgrade\fR
-no longer performs upgrade tasks, it exits with status 2 (EXIT_ALREADY_UPGRADED), except that it exits with status 0 (EXIT_SUCCESS) if invoked with the
-\fB\-\-force\fR
-option\&.
+no longer performs upgrade tasks, it exits with status 0 unconditionally\&.
 .sp .5v
 .RE
 .PP
@@ -368,23 +366,12 @@ sys
 schema first\&.
 .PP
 \fBmysql_upgrade\fR
-checks for partitioned
-InnoDB
-tables that were created using the generic partitioning handler and attempts to upgrade them to
-InnoDB
-native partitioning\&. You can upgrade such tables individually in the
-\fBmysql\fR
-client using the
-ALTER TABLE \&.\&.\&. UPGRADE PARTITIONING
-SQL statement\&.
-.PP
-\fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
 [mysql_upgrade]
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -496,7 +483,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -530,7 +517,7 @@ Read this option file after the global option file but (on Unix) before the user
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -548,7 +535,7 @@ Use only the given option file\&. If the file does not exist or is otherwise ina
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -579,7 +566,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -609,7 +596,7 @@ has already been executed for the current version of MySQL\&.
 .\}
 \fB\-\-get\-server\-public\-key\fR
 .sp
-Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
@@ -621,7 +608,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.5.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -658,7 +645,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -712,7 +699,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -771,7 +758,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysql_upgrade\fR
 does not find it\&. See
-Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -812,7 +799,7 @@ Print the program name and all options that it gets from option files\&.
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+Section\ \&4.2.3, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
 .RS 4
@@ -844,8 +831,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.5.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.5.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -913,7 +900,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+Section\ \&6.3.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -930,7 +917,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
-Section\ \&6.6, \(lqFIPS Support\(rq\&.
+Section\ \&6.5, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -1008,7 +995,7 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
 .sp
 For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.3.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.16\&.
 .RE
@@ -1024,7 +1011,7 @@ This option was added in MySQL 8\&.0\&.16\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.3.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
