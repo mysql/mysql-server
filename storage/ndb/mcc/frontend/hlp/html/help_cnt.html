@@ -32,20 +32,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
             // Get the util module for retrieving doc root
             dojo.require("mcc.util");
             dojo.ready(function() {
-                var coll = document.getElementsByClassName("collapsible");
-                for (var i = 0; i < coll.length; i++) {
-                    console.log("Adding listener");
-                    coll[i].addEventListener("click", function() {
-                        this.classList.toggle("active");
-                        var content = this.nextElementSibling;
-                        if (content.style.display === "block") {
-                          content.style.display = "none";
-                        } else {
-                          content.style.display = "block";
-                        }
-                    });
-                }
-
                 dojo.byId("docUrlRoot").innerHTML = 
                     "<a href=\"" + mcc.util.getDocUrlRoot() + 
                     "mysql-cluster-installation.html\">MySQL Cluster documentation</a>";
@@ -337,7 +323,7 @@ may stop supporting it very soon.</p>
     Version 2 or higher is required, and can be downloaded from 
     <a href="http://www.lag.net/paramiko/">http://www.lag.net/paramiko/</a></li>
 <li><b>Cryptography: </b> Cryptography module required by Paramiko. Version 1.9 or 
-    higher is required, and can be installed with $ pip install cryptography.</li>
+    higher is required, and can be installed with $ pip install cryptography==1.9.</li>
 <li>For development, we use Python 2.7.14, Paramiko 2.1.2 and cryptography 1.9.</li>
 </ul>
 
@@ -761,7 +747,7 @@ to <em>ClusterStore</em> since there can be just one Cluster configuration per f
 The lowest ID is always reserved for dummy entry <b>"Any host"</b> which serves to 
 initialize empty store. It is the only entry with <b>"anyHost": true</b>!<br/>
 The rest represent various choices available on 
-<a href="#configWizardDefineHosts">Define Hosts</a>page.<br/><br/>
+<a href="#configWizardDefineHosts">Define Hosts</a> page.<br/><br/>
 <b>4)   processStore:</b><br/>
 <pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>{
 	"identifier": "id",
@@ -1630,6 +1616,109 @@ missing credentials.</p>
     Finally, since I added 3rd DATA process, NoOfReplicas changed from 2 to 1 making this 
     configuration unstartable without redeployment and deletion of old DataDirs.<br /><br />
 </p>
+<!--
+********************************************************************************
+***                                                                          ***
+***                          Quick start                                     ***
+***                                                                          ***
+********************************************************************************
+-->
+<br>
+<a name="QuickStart"><h2>Quick start on Oracle Cloud Infrastructure</h2></a>
+<button class="collapsible">Click to show/hide information about Oracle Cloud setup</button>
+<div class="content">
+<ul>
+<li> Set up Oracle Cloud account:<br />
+Sign up for free trial of Oracle Cloud <a href="https://cloud.oracle.com/en_US/tryit" target="_blank">here</a> 
+or use account you have to log in.<br />
+</li>
+<li> Set up Oracle Virtual Cloud Network:<br />
+Easiest is to create it plus related resources.
+Open Security list for the VCN and add following ingress rule (Stateless NO for all):</li>
+<ul>
+    <li>Source: 10.0.0.0/16, IP protocol: TCP, Source Port Range: all, Destination Port Range: all, TCP traffic for ports: All</li>
+</ul>
+This opens up all ports for communication within the VCN. <br />
+</li>
+<li> Set up Oracle Compute Instances: <br />
+Pick Compute/Instances from menu bar.<br />
+Click Create instance and leave everything default on next page if VM.Standard2.1 is enough.<br />
+Use the appropriate Availability Domain. <br />
+Use the appropriate Compartment for the cluster setup. <br />
+Provide your public key for authentication to instance.<br />
+Use the VCN created for this cluster setup.<br />
+Set the appropriate Failure Domain (under Show Advanced Options) <br />
+Start the VM or Bare Metal server by clicking the Create button. <br />
+<li>Make note of the External IP addresses of your VMs. <br />
+These are found on the instance information page under Primary VNIC information, pick the Public IP Address:<br />
+Those you will provide to MCC on the Cluster configuration page.</li><br />
+</ul>
+</div>
+<button class="collapsible">Click to show/hide information about setting up box that will be running MCC</button>
+<div class="content">
+<ul>
+<li> Setup: Make sure you have Python 2.7 installed and in path on box running MCC. 
+Add cryptography 1.9 to your Python site packages via pip ($ pip install cryptography==1.9). 
+After that, add Paramiko 2.1.2 to your site packages too ($ pip install paramiko==2.1.2). 
+Order matters. If you add Paramiko before Cryptography, it will pull latest version which is 
+not guaranteed to work with MCC.<br />
+</li>
+<li>Install MySQL Cluster locally or extract archive somewhere to get MCC scripts.</li>
+<ul>
+  <li>Startup Python script will be in your /bin directory always, either OS /bin 
+  or rootDirectoryOfYourInstallation/bin. If you installed MySQL Cluster on Linux, 
+  MCC will be in /usr/share/mcc. If you just extracted archive or if you're on 
+  Windows, it will be in rootDirectory/share/mcc.</li>
+  <li>Windows: Open command prompt as <b>Administrator</b> and browse to rootDirectory of your installation. 
+  Locate and start setup.bat or setup-debug.bat.</li>
+  <li>Linux: Open shell and start ndb_setup.py: <samp>python /usr/bin/ndb_setup.py -H -d DEBUG -o - %*</samp> 
+  or <samp>python /usr/bin/ndb_setup.py -H -d WARNING -o - %*</samp></li>
+</ul>
+<li>MCC should open in your default browser. If not, you will see the URL printed in console.</li>
+<li>Pick "New configuration" on welcome page and click <span class="guibutton"><b>Run configuration</b></span>. 
+Give some meaningful name. The configuration will be saved in your HOME/.mcc/your_config_name.mcc file.</li>
+<li>On Cluster page, enter external IP addresses into <i>Host list</i> box separated by comma: 
+129.146.79.107,129.146.164.105,129.146.116.59<br />
+as described on <a href="#configWizardDefineCluster">Define Cluster</a> page. Set or leave 
+defaults for Application area, Write load and Cluster version.<br />
+Check <i>Key based SSH</i> box and enter "opc" into <i>Key user</i> field. If the key you provided 
+when creating OCI instances is HOME/.ssh/id_rsa.pub, you are done with credentials. If not, 
+you need to enter full path to and key name in <i>Key file</i> field such as: /home/user/.ssh/my_key.pem 
+or similar. If your key is protected with passphrase, please put it into <i>Key passphrase</i> field.<br />
+Set <i>Install MySQL Cluster</i> to REPO and check <b>both</b> <i>Open ports in firewall</i> 
+and <i>Use internal IP addresses (VPN)</i>.<br />
+Click <span class="guibutton"><b>Save&amp;Next</b></span> to get to Hosts page.</li>
+<li>Since we already provided everything necessary, Hosts page will start collecting 
+information on your hosts immediately. Please wait till process finishes and you see 
+all the information on hosts in Cluster inside the grid. To check on Internal IP 
+address discovered, press <span class="guibutton"><b>Show extended info</b></span> button. 
+If some host does not have proper address in InternalIP field, you can enter it by hand 
+from Instance details in OCI console.<br />
+Standard <i>DATADIR</i> will be <i>/home/opc/MySQL_Cluster</i>. You can change this if you 
+want it somewhere else.<br />
+Click <span class="guibutton"><b>Save&amp;Next</b></span> to get to Processes page.</li>
+<li>MCC will distribute default processes over your hosts so you can just click 
+<span class="guibutton"><b>Save&amp;Next</b></span> to get to Parameters page.</li>
+<li>MCC will configure default processes over your hosts so you can just click 
+<span class="guibutton"><b>Save&amp;Next</b></span> to get to Deploy page.</li>
+<li>On DEPLOY page, click <span class="guibutton"><b>Install cluster</b></span>. 
+Check on generated commands and click OK in confirm dialog.<br />
+After Installation is done, check on success of commands issued by clicking on  <span class="guibutton"><b>View commands</b></span> 
+button. Some commands are allowed to fail, such as removing mysqld.service if none is encountered, 
+but some are not, like opening ports in firewall. Use your better judgment when reviewing log.<br />
+If all is fine, click <span class="guibutton"><b>Deploy cluster</b></span>. This command will do sanity check on 
+configuration, create all necessary directories, distribute configuration files, open 
+ports in firewall necessary for Cluster processes to communicate and initialize (insecure) 
+all SQL processes. Check the success either by looking into WebConsole or by clicking 
+<span class="guibutton"><b>View commands</b></span> again.<br />
+If all is fine, you can click <span class="guibutton"><b>Start cluster</b></span> now. 
+Depending on your settings, full startup should be over in a minute or so.<br />
+You can now connect to any SQL node and issue queries against the Cluster or use your 
+own NDBAPI code to attach from any API node you defined.<br />
+Once you have no use for running Cluster, stop it with <span class="guibutton"><b>Stop cluster</b></span> button.
+</li>
+</div>
+<br />
 
 <!--
 ********************************************************************************
@@ -1920,9 +2009,24 @@ files from remote hosts to examine what went wrong.
 <br>
 <br>
 <strong>Paramiko takes too long to connect/fail?</strong><br />
-There is a known problem in Paramiko when you provide wrong credentials described
-<a href="https://github.com/paramiko/paramiko/issues/387">here</a> and
+There is a known problem in Paramiko when you provide wrong credentials described 
+<a href="https://github.com/paramiko/paramiko/issues/387">here</a> and 
 <a href="https://github.com/paramiko/paramiko/issues/1317">here</a>.
 <br>
+<br>
+        <script type="text/javascript">
+            var coll = document.getElementsByClassName("collapsible");
+            for (var i = 0; i < coll.length; i++) {
+                coll[i].addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    var content = this.nextElementSibling;
+                    if (content.style.display === "block") {
+                      content.style.display = "none";
+                    } else {
+                      content.style.display = "block";
+                    }
+                });
+            }
+        </script>
     </body>
 </html>
