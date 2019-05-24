@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/Restore.cpp
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static)
 
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
