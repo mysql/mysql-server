@@ -3490,22 +3490,45 @@ static void print_table_data(MYSQL_RES *result) {
   MYSQL_ROW cur;
   MYSQL_FIELD *field;
   bool *num_flag;
+  size_t *numcells;
   size_t sz;
 
   sz = sizeof(bool) * mysql_num_fields(result);
   num_flag = (bool *)my_safe_alloca(sz, MAX_ALLOCA_SIZE);
+
+  /* the number of text cells on the screen for each column */
+  numcells = (size_t *)my_safe_alloca(sz * sizeof(*numcells), MAX_ALLOCA_SIZE);
+
+  uint field_index = 0;
+  while ((field = mysql_fetch_field(result))) {
+    numcells[field_index++] = charset_info->cset->numcells(charset_info, field->name, field->name + field->name_length);
+  }
+  mysql_field_seek(result, 0);
+
+  if (!quick) {
+    uint row_index = 0;
+    while ((cur = mysql_fetch_row(result))) {
+      ulong *lengths = mysql_fetch_lengths(result);
+      for (field_index = 0; field_index < sz; field_index++) {
+        size_t nc = charset_info->cset->numcells(charset_info, cur[row_index], cur[row_index] + lengths[row_index]);
+        numcells[field_index] = max<size_t>(numcells[field_index], nc);
+      }
+      row_index++;
+    }
+    mysql_data_seek(result, 0);
+  }
+
   if (column_types_flag) {
     print_field_types(result);
     if (!mysql_num_rows(result)) return;
     mysql_field_seek(result, 0);
   }
   separator.copy("+", 1, charset_info);
+  field_index = 0;
   while ((field = mysql_fetch_field(result))) {
-    size_t length = column_names ? field->name_length : 0;
+    size_t length = column_names ? numcells[field_index++] : 0;
     if (quick)
       length = max<size_t>(length, field->length);
-    else
-      length = max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length = 4;  // Room for "NULL"
     if (opt_binhex && is_binary_field(field)) length = 2 + length * 2;
@@ -3588,6 +3611,7 @@ static void print_table_data(MYSQL_RES *result) {
   }
   tee_puts((char *)separator.ptr(), PAGER);
   my_safe_afree((bool *)num_flag, sz, MAX_ALLOCA_SIZE);
+  my_safe_afree((size_t *)numcells, sz * sizeof(*numcells), MAX_ALLOCA_SIZE);
 }
 
 /**
