@@ -33,7 +33,6 @@
 #include "sql/lexer_yystype.h"                          // Lexer_yystype
 #include "sql/opt_hints.h"                              // opt_hints_enum
 #include "sql/parse_tree_hints.h"
-#include "sql/parser_yystype.h"
 #include "sql_admin.h"            // Sql_cmd_analyze_table::Histogram_command
 #include "sql_alter.h"            // Alter_info::enum_with_validation
 #include "sql_exchange.h"         // Line_separators, enum_filetype
