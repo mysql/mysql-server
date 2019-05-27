@@ -1,0 +1,445 @@
+# ==== Purpose ====
+# The purpose of this script is to test that binary logging returns an error
+# when its format is incompatible with the statement to be logged and to verify
+# the correctness of the error message.
+#
+# ==== Requirements ====
+# For the conditions 1 to 7 listed in the comments section of method
+# decide_logging_format() verify that binary logging returns the proper error or
+# warning.
+#
+# R1. When both row-incapable and statement-incapable storage engines are
+#     involved then binary logging returns error
+#     `ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE`.
+# R2. When binlog_format = ROW and the SQL statement contains a table stored in
+#     a engine limited to statement-logging then binary logging returns error
+#      `ER_BINLOG_ROW_MODE_AND_STMT_ENGINE`.
+# R3. When binlog_format = ROW and a row is injected in a engine limited to
+#     statement-logging then binary_log returns error
+#     `ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE`.
+# R4. When binlog_format = MIXED, the SQL statement is unsafe and the storage
+#     engine is limited to statement-logging then binary logs returns error
+#     `ER_BINLOG_UNSAFE_AND_STMT_ENGINE`.
+# R5. When binlog_format = STATEMENT and the SQL statement contains a table
+#     stored in a engine limited to row-logging then binary log returns error
+#     `ER_BINLOG_STMT_MODE_AND_ROW_ENGINE`.
+# R6. When binlog_format = STATEMENT and a row is injected then binary logging
+#     returns error `ER_BINLOG_ROW_INJECTION_AND_STMT_MODE`.
+# R7. When binlog_format = STATEMENT and the SQL statement is unsafe then a
+#     warning is returned.
+#
+# ==== Implementation ====
+#
+# TC1. Verify that when both row-incapable and statement-incapable storage
+# engines are involved in a SQL statement then binary logging returns the
+# error `ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = ROW :
+# 1) Create a trigger which inserts data on a row-only table upon insertion of
+#    data in statement-only table.
+# 2) Try to insert data in the statement-only table.
+# 3) Verify that error `ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE` is returned.
+# 4) Verify that no data was inserted in the statement-only table.
+# 5) Verify that no data was inserted in the row-only table.
+#
+# TC2. Verify that when binlog_format = ROW and the SQL statement contains a
+#      table stored in a engine limited to statement-logging then binary logging
+#      returns the error `ER_BINLOG_ROW_MODE_AND_STMT_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = ROW :
+#
+# 1) Try to insert data in a statement-only table.
+# 2) Verify that `ER_BINLOG_ROW_MODE_AND_STMT_ENGINE` is returned.
+# 3) Verify that no data was inserted in the statement-only table.
+#
+# TC3. Verify that when binlog_format = ROW and the SQL statement modifies data
+#      of a table stored on the slave server in a engine limited to
+#      statement-logging then binary logging returns the error
+#      `ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = ROW :
+# 1) On the master server insert data in a table which is stored in the slave as
+#    statement-only.
+# 2) On the slave server verify that error
+#    `ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE` is returned.
+# 3) On the slave server verify that no data was inserted in the
+#    statement-only table.
+#
+# TC4. Verify that when binlog_format = ROW and a row is injected in a table
+#      stored in a engine limited to statement-logging then binary logging
+#      returns the error
+#      `ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = ROW :
+# 1) Execute a BINLOG statement which inserts data in a
+#    statement-only table.
+# 2) Verify that error `ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE` is returned.
+# 3) Verify that no data was inserted in the statement-only
+#    table.
+#
+# TC5. Verify that when binlog_format = MIXED, the SQL statement is unsafe and
+#      the storage engine is limited to statement-logging then binary logging
+#      returns the error `ER_BINLOG_UNSAFE_AND_STMT_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = MIXED :
+# 1) Try to execute an unsafe statement on a statement-only table.
+# 2) Verify that error `ER_BINLOG_UNSAFE_AND_STMT_ENGINE` is returned.
+# 3) Verify that no data was inserted in the statement-only table.
+#
+# TC6. Verify that when binlog_format = MIXED and a multi-unsafe statement is
+#      executed in a table stored in a engine limited to statement-logging then
+#      binary logging returns the error `ER_BINLOG_UNSAFE_AND_STMT_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = MIXED :
+# 1) Try to execute a multi-unsafe statement in a statement-only table.
+# 2) Verify that error `ER_BINLOG_UNSAFE_AND_STMT_ENGINE` is returned.
+# 3) Verify that no data was inserted in the statement-only table.
+#
+# TC7. Verify that when binlog_format = STATEMENT and the SQL statement modifies
+#      a table stored in INNODB engine as row-only then binary logging returns
+#      the error `ER_BINLOG_STMT_MODE_AND_ROW_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT :
+# 1) Try to insert data on table stored in INNODB as row-only.
+# 2) Verify that error `ER_BINLOG_STMT_MODE_AND_ROW_ENGINE` is returned.
+# 3) Verify that no data was inserted in the table.
+#
+# TC8. Verify that when binlog_format = STATEMENT and the default database is
+#      ignored by binary logging no error is returned if the SQL statement
+#      modifies a table stored in INNODB as row-only.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT :
+# 1) Set the default database to a database which is ignored by binary logging.
+# 2) Insert data in the table stored in INNODB as row-only.
+# 3) Verify that data was inserted.
+#
+# TC9. Verify that when binlog_format = STATEMENT and the SQL statement modifies
+#      a table stored in a row-only engine then binary logging returns the error
+#      `ER_BINLOG_STMT_MODE_AND_ROW_ENGINE`.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT:
+# 1) Try to insert data in a table stored in a row-only engine.
+# 2) Verify that error `ER_BINLOG_STMT_MODE_AND_ROW_ENGINE` is returned.
+# 3) Verify that no data was inserted in the row-only table.
+#
+# TC10. Verify that when binlog_format = STATEMENT and the default database is
+#       ignored by binary logging no error is returned if the SQL statement
+#       modifies a table stored in a row-only engine.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT :
+# 1) Set the default database to a database which is ignored by binary logging.
+# 2) Insert data in a table stored in the row-only engine.
+# 3) Verify that data was inserted.
+#
+# TC11. Verify that when binlog_format = STATEMENT and a row is injected then
+#       binary logging returns the error `ER_BINLOG_ROW_INJECTION_AND_STMT_MODE`.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT :
+# 1) Execute a BINLOG statement which inserts data.
+# 2) Verify that error `ER_BINLOG_ROW_INJECTION_AND_STMT_MODE` is returned.
+# 3) Verify that no data was inserted.
+#
+# TC12. Verify that when binlog_format = STATEMENT and the default database is
+#       ignored by binary logging no error is returned for row injection.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT :
+# 1) Set the default database to a database which is ignored by binary logging.
+# 2) Execute a BINLOG statement which inserts data.
+# 3) Verify that data was inserted.
+#
+# TC13. Verify that when binlog_format = STATEMENT and the SQL statement is
+#       unsafe then a warning is returned.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT :
+# 1) Execute a unsafe SQL statement.
+# 2) Verify that warning is returned.
+# 3) Verify that data was inserted.
+#
+# TC14. Verify that when binlog_format = STATEMENT and the default database is
+#       ignored by binary logging no warning is returned for an SQL unsafe
+#       statement.
+# ------------------------------------------------------------------
+# With binlog_format = STATEMENT :
+# 1) Set the default database to a database which is ignored by binary logging.
+# 2) Execute a unsafe statement.
+# 3) Verify that no warning is returned.
+# 4) Verify that data was inserted.
+#
+# TC15. Verify that when binlog_format = STATEMENT, a row is injected in the
+#       master server having binlog_format = MIXED and the slave server has
+#       binlog_format = STATEMENT then binary returns the error
+#       `ER_BINLOG_ROW_INJECTION_AND_STMT_MODE`.
+# ------------------------------------------------------------------
+# With binlog_format = MIXED for the master server and binlog_format = STATEMENT
+# for the slave server
+# 1) On the master server execute a BINLOG statement which injects a row.
+# 2) Verify that on the slave server the error
+#    `ER_BINLOG_ROW_INJECTION_AND_STMT_MODE` is returned.
+# 3) Verify that no data was inserted in the slave server.
+#
+# ==== References ====
+# BUG#39934: Slave stops for engine that only support row-based logging
+# BUG#42829: binlogging enabled for all schemas regardless of binlog-do-db /
+# binlog-ignore-db
+#
+# ==== Related test cases ====
+#
+# binlog.binlog_unsafe verifies more thoroughly that a warning is
+# given for the case when an unsafe statement is executed and
+# binlog_format = STATEMENT.
+#
+# ndb_rpl.ndb_rpl_binlog_format_errors verifies that a binlog error is issued
+# if more than one engine is involved in a statement and at least one is doing
+# it's own logging (is *self-logging*), which is the case for NDB engine.
+
+# Need debug so that 'SET @@session.debug' works.
+--source include/have_debug.inc
+# Need example plugin because it is the only statement-only engine.
+# Dynamic loading of Example does not work on Windows currently.
+--source include/not_windows.inc
+--source include/have_example_plugin.inc
+# The test changes binlog_format, so there is no reason to run it
+# under more than one binlog format.
+--source include/have_binlog_format_row.inc
+# Disable multi threaded slave since an error in a worker slave leads to an
+# upper-level error in the coordinator
+--source include/not_mts_slave_parallel_workers.inc
+# The test does not support group replication plugin since binlog_format is
+# not equal to 'ROW' for some test cases
+--source include/not_group_replication_plugin.inc
+# The test requires MyISAM engine
+--source include/have_myisam.inc
+
+--source include/master-slave.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since binlog_format = STATEMENT");
+CALL mtr.add_suppression("Cannot execute statement: impossible to write to binary log");
+--enable_query_log
+
+--echo ==== Initialize ====
+
+--echo [on slave]
+--source include/rpl_connection_slave.inc
+
+SET @old_binlog_format= @@global.binlog_format;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+
+--echo [on master]
+--source include/rpl_connection_master.inc
+
+SET @old_binlog_format= @@global.binlog_format;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+
+CREATE TABLE t (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE TABLE t_row (a VARCHAR(100)) ENGINE = INNODB;
+CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
+CREATE TABLE t_slave_stmt (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE TABLE t_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+CREATE TABLE t_double_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+
+--eval CREATE TRIGGER trig_autoinc BEFORE INSERT ON t_autoinc FOR EACH ROW BEGIN INSERT INTO t_stmt VALUES ('x'); END
+--eval CREATE TRIGGER trig_double_autoinc BEFORE INSERT ON t_double_autoinc FOR EACH ROW BEGIN INSERT INTO t_autoinc VALUES (NULL); END
+
+CREATE DATABASE other;
+
+# This makes the innodb table row-only
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+
+DROP TABLE t_slave_stmt;
+CREATE TABLE t_slave_stmt (a INT) ENGINE = EXAMPLE;
+
+--echo [on master]
+--source include/rpl_connection_master.inc
+
+# This is a format description event.  It is needed because any BINLOG
+# statement containing a row event must be preceded by a BINLOG
+# statement containing a format description event.
+BINLOG '
+1gRVSg8BAAAAZgAAAGoAAAABAAQANS4xLjM2LWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
+';
+
+
+--echo ==== Test ====
+
+--echo ---- binlog_format='row' ----
+
+
+--echo * TC1: Modify both row-only and stmt-only table
+--eval CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END
+--error ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
+INSERT INTO t_stmt VALUES (1);
+SELECT * FROM t_stmt /* should be empty */;
+SELECT * FROM t_row /* should be empty */;
+DROP TRIGGER trig_2;
+
+--echo * TC2: Stmt-only table and binlog_format='row'
+--error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
+INSERT INTO t_stmt VALUES (1);
+SELECT * FROM t_stmt /* should be empty */;
+
+--echo * TC3: Row injection and stmt-only table: in slave sql thread
+INSERT INTO t_slave_stmt VALUES (1);
+--echo [on slave]
+--source include/rpl_connection_slave.inc
+# 1664 = ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
+--let $slave_sql_errno= 1664
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
+--source include/rpl_connection_slave.inc
+SELECT * FROM t_slave_stmt /* should be empty */;
+
+--echo [on master]
+--source include/rpl_connection_master.inc
+--echo * TC4: Row injection and stmt-only table: use BINLOG statement
+# This is a Table_map_event and a Write_rows_event. Together, they are
+# equivalent to 'INSERT INTO t_stmt VALUES (1)'
+--error ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
+BINLOG '
+1gRVShMBAAAALwAAAEABAAAAABcAAAAAAAAABHRlc3QABnRfc3RtdAABDwJkAAE=
+1gRVShcBAAAAIAAAAGABAAAQABcAAAAAAAEAAf/+ATE=
+';
+SELECT * FROM t_stmt /* should be empty */;
+
+
+--echo ---- binlog_format=mixed ----
+
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET @@global.binlog_format = MIXED;
+--source include/start_slave.inc
+--echo [on master]
+--source include/rpl_connection_master.inc
+SET @@global.binlog_format = MIXED;
+SET @@session.binlog_format = MIXED;
+
+--echo * TC5: Unsafe statement and stmt-only engine
+--error ER_BINLOG_UNSAFE_AND_STMT_ENGINE
+INSERT INTO t_stmt VALUES (UUID());
+SELECT * FROM t_stmt; /* should be empty */;
+
+# Concatenate two unsafe values, and then concatenate NULL to
+# that so that the result is NULL and we instead use autoinc.
+--echo * TC6: Multi-unsafe statement and stmt-only engine
+--error ER_BINLOG_UNSAFE_AND_STMT_ENGINE
+INSERT INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
+SELECT * FROM t_double_autoinc; /* should be empty */;
+
+
+--echo ---- binlog_format=statement ----
+
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET @@global.binlog_format = STATEMENT;
+--source include/start_slave.inc
+--echo [on master]
+--source include/rpl_connection_master.inc
+SET @@global.binlog_format = STATEMENT;
+SET @@session.binlog_format = STATEMENT;
+
+--echo * TC7: Row-only engine and binlog_format=statement: innodb-specific message
+--error ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
+INSERT INTO t_row VALUES (1);
+SELECT * FROM t_row /* should be empty */;
+
+--echo * TC8: Same statement, but db filtered out - no error
+USE other;
+INSERT INTO test.t_row VALUES (1);
+USE test;
+SELECT * FROM t_row /* should contain the value 1 */;
+USE other;
+DELETE FROM test.t_row;
+USE test;
+
+--echo * TC9: Row-only engine and binlog_format=statement: generic message
+SET @@session.debug= '+d,no_innodb_binlog_errors';
+--error ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
+INSERT INTO t_row VALUES (1);
+SELECT * FROM t_row /* should be empty */;
+
+--echo * TC10: Same statement, but db filtered out - no error
+USE other;
+INSERT INTO test.t_row VALUES (1);
+USE test;
+SET @@session.debug= '';
+SELECT * FROM t_row /* should contain the value 1 */;
+
+--echo * TC11: Row injection and binlog_format=statement: BINLOG statement
+# This is a Table_map_event and a Write_rows_event. Together, they are
+# equivalent to 'INSERT INTO t VALUES (1)'.
+--error ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
+BINLOG '
+cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
+cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
+';
+SELECT * FROM t /* should be empty */;
+
+--echo * TC12: Same statement, but db filtered out - no error
+# This is a Table_map_event and a Write_rows_event. Together, they are
+# equivalent to 'INSERT INTO t VALUES (1)'.
+USE other;
+BINLOG '
+cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
+cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
+';
+USE test;
+SELECT * FROM t /* should contain the value 1 */;
+DELETE FROM t;
+
+--echo * TC13: Unsafe statement and binlog_format=statement
+# This will give a warning.
+INSERT INTO t VALUES (COALESCE(1, UUID()));
+SELECT * FROM t /* should contain the value 1 */;
+DELETE FROM t;
+
+--echo * TC14: Same statement, but db filtered out - no message
+USE other;
+INSERT INTO test.t VALUES (COALESCE(1, UUID()));
+USE test;
+SELECT * FROM t /* should contain the value 1 */;
+DELETE FROM t;
+
+
+--echo ---- master: binlog_format=mixed, slave: binlog_format=statement ----
+
+SET @@global.binlog_format = MIXED;
+SET @@session.binlog_format = MIXED;
+
+--echo * TC15: Row injection and binlog_format=statement: in slave sql thread
+INSERT INTO t VALUES (COALESCE(1, UUID()));
+--echo [on slave]
+--source include/rpl_connection_slave.inc
+# 1666 = ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
+--let $slave_sql_errno= 1666
+--let $show_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
+--source include/rpl_connection_slave.inc
+SELECT * FROM t /* should be empty */;
+--echo [on master]
+--source include/rpl_connection_master.inc
+
+
+--echo ==== Clean up ====
+
+DROP TRIGGER trig_autoinc;
+DROP TRIGGER trig_double_autoinc;
+DROP TABLE t, t_row, t_stmt, t_slave_stmt, t_autoinc, t_double_autoinc;
+DROP DATABASE other;
+SET @@global.binlog_format = @old_binlog_format;
+SET @@session.binlog_format = @old_binlog_format;
+UNINSTALL PLUGIN example;
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET @@global.binlog_format = @old_binlog_format;
+SET @@session.binlog_format = @old_binlog_format;
+--source include/start_slave.inc
+UNINSTALL PLUGIN example;
+
+--source include/rpl_end.inc
