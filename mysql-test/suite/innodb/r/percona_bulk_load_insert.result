@@ -1,0 +1,30 @@
+SET GLOBAL innodb_fill_factor = 10;
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 120;
+SET GLOBAL DEBUG = '+d, innodb_bulk_load_compress_sleep';
+CREATE TABLE t1(
+class   INT,
+id      INT,
+title   VARCHAR(100),
+title2  VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 30000) DO
+INSERT INTO t1 VALUES (i, i, uuid(), uuid());
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SET DEBUG_SYNC = 'bulk_load_insert SIGNAL alter_started WAIT_FOR resume_alter';
+CREATE INDEX idx_title ON t1(title, title2);;
+SET DEBUG_SYNC = 'now WAIT_FOR alter_started';
+SET DEBUG_SYNC = 'row_ins_sec_index_enter SIGNAL resume_alter';
+INSERT INTO t1 VALUES (32000, 32000, uuid(), uuid());;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL innodb_fill_factor = 100;
+SET GLOBAL DEBUG = '-d, innodb_bulk_load_compress_sleep';
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 600;
+DROP PROCEDURE populate_t1;

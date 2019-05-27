@@ -1,0 +1,69 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+
+--let $orig_fill_factor = `SELECT @@innodb_fill_factor`
+SET GLOBAL innodb_fill_factor = 10;
+
+--let $orig_sem_timeout = `SELECT @@innodb_semaphore_wait_timeout_debug`
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 120;
+
+# This statement helps to run ALTER for long time without actually
+# creating a very big table
+SET GLOBAL DEBUG = '+d, innodb_bulk_load_compress_sleep';
+
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+
+CREATE TABLE t1(
+  class   INT,
+  id      INT,
+  title   VARCHAR(100),
+ title2  VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+
+DELIMITER |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+        DECLARE i int DEFAULT 1;
+
+        START TRANSACTION;
+        WHILE (i <= 30000) DO
+                INSERT INTO t1 VALUES (i, i, uuid(), uuid());
+                SET i = i + 1;
+        END WHILE;
+        COMMIT;
+END|
+DELIMITER ;|
+
+--disable_query_log
+CALL populate_t1();
+--enable_query_log
+
+--connection con1
+SET DEBUG_SYNC = 'bulk_load_insert SIGNAL alter_started WAIT_FOR resume_alter';
+--send CREATE INDEX idx_title ON t1(title, title2);
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR alter_started';
+SET DEBUG_SYNC = 'row_ins_sec_index_enter SIGNAL resume_alter';
+--send INSERT INTO t1 VALUES (32000, 32000, uuid(), uuid());
+
+--connection con1
+--reap
+
+--connection default
+--reap
+
+--disconnect con1
+
+DROP TABLE t1;
+
+SET DEBUG_SYNC = 'RESET';
+
+eval SET GLOBAL innodb_fill_factor = $orig_fill_factor;
+SET GLOBAL DEBUG = '-d, innodb_bulk_load_compress_sleep';
+eval SET GLOBAL innodb_semaphore_wait_timeout_debug = $orig_sem_timeout;
+DROP PROCEDURE populate_t1;
+--source include/wait_until_count_sessions.inc
