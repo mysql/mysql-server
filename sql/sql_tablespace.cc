@@ -40,6 +40,7 @@
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::create_object
+#include "sql/dd/dd_kill_immunizer.h"        // dd::DD_kill_immunizer
 #include "sql/dd/dd_table.h"                 // dd::is_encrypted
 #include "sql/dd/impl/sdi_utils.h"           // dd::sdi_utils::make_guard
 #include "sql/dd/properties.h"
@@ -714,10 +715,13 @@ bool Sql_cmd_drop_tablespace::execute(THD *thd) {
 }
 
 /*
-  Mark the tables in the tablespace with ENCRYPTION='y/n'. We check if the
-  table encryption type conflicts with the schema default encryption, and
-  throw error if table_encryption_privilege_check is enabled and the user
-  does not own TABLE_ENCRYPTION_ADMIN privilege.
+  Mark the tables in the tablespace with ENCRYPTION='y/n'. We only update
+  DD objects in memory and the real update of the data-dictionary happens
+  later.
+
+  We also check if the table encryption type conflicts with the schema
+  default encryption, and throw error if table_encryption_privilege_check
+  is enabled and the user does not own TABLE_ENCRYPTION_ADMIN privilege.
 
   @param thd    Thread.
   @param ts     Reference to tablespace object being altered.
@@ -729,11 +733,11 @@ bool Sql_cmd_drop_tablespace::execute(THD *thd) {
 
   @returns true on error, false on success
 */
-static bool update_table_encryption(THD *thd, const dd::Tablespace &ts,
-                                    dd::Tablespace_table_ref_vec *trefs,
-                                    Table_pair_list *tpl,
-                                    const LEX_STRING &requested_encryption,
-                                    MDL_request_list *table_mdl_reqs) {
+static bool set_table_encryption_type(THD *thd, const dd::Tablespace &ts,
+                                      dd::Tablespace_table_ref_vec *trefs,
+                                      Table_pair_list *tpl,
+                                      const LEX_STRING &requested_encryption,
+                                      MDL_request_list *table_mdl_reqs) {
   bool is_request_to_encrypt = dd::is_encrypted(requested_encryption);
 
   // If the source tablespace encryption type is same as request type.
@@ -817,6 +821,50 @@ static bool update_table_encryption(THD *thd, const dd::Tablespace &ts,
   return false;
 }
 
+/*
+  We upgrade the table lock to X so that we can update the dictionary
+  table metadata with proper ENCRYPTION clause.
+
+  @param thd    Thread.
+  @param table_mdl_reqs Pointer to MDL_request_list containing all MDL
+                        lock requests.
+
+  @note hton->alter_tablespace() in InnoDB SE doesn't support rollback yet.
+        To workaround this issue, which caused assertions in ntest runs
+        we make lock upgrade immune to KILL QUERY and low timeout
+        values.
+
+  @returns true on error,
+           false on success or when there are no tables in tablespace.
+ */
+
+static bool upgrade_lock_for_tables_in_tablespace(
+    THD *thd, MDL_request_list *table_mdl_reqs) {
+  /*
+    The following code gets executed only when there is request to change
+    the tablespace ENCRYPTION "and" if there are some tables in the
+    tablespace.
+  */
+  if (table_mdl_reqs->elements() == 0) return false;
+
+  // Install KILL QUERY immunizer.
+  dd::DD_kill_immunizer m_kill_immunizer(thd);
+
+  DEBUG_SYNC(thd, "upgrade_lock_for_tables_in_tablespace_kill_point");
+
+  MDL_request_list::Iterator it(*table_mdl_reqs);
+  const size_t req_count = table_mdl_reqs->elements();
+  for (size_t i = 0; i < req_count; ++i) {
+    MDL_request *r = it++;
+    if (r->key.mdl_namespace() == MDL_key::TABLE &&
+        thd->mdl_context.upgrade_shared_lock(r->ticket, MDL_EXCLUSIVE,
+                                             LONG_TIMEOUT))
+      return true;
+  }
+
+  return false;
+}
+
 Sql_cmd_alter_tablespace::Sql_cmd_alter_tablespace(
     const LEX_STRING &ts_name, const Tablespace_options *options)
     : Sql_cmd_tablespace{ts_name, options} {}
@@ -884,8 +932,9 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
     if (hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION) {
       tsmp.second->options().set("encryption",
                                  dd::make_string_type(m_options->encryption));
-      if (update_table_encryption(thd, *tsmp.first, &trefs, &table_object_pairs,
-                                  m_options->encryption, &table_mdl_reqs))
+      if (set_table_encryption_type(thd, *tsmp.first, &trefs,
+                                    &table_object_pairs, m_options->encryption,
+                                    &table_mdl_reqs))
         return true;
     }
   }
@@ -915,16 +964,8 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
     return true;
   }
 
-  // Upgrade SU to X on table names and then modified the DD objects.
-  MDL_request_list::Iterator it(table_mdl_reqs);
-  const size_t req_count = table_mdl_reqs.elements();
-  for (size_t i = 0; i < req_count; ++i) {
-    MDL_request *r = it++;
-    if (r->key.mdl_namespace() == MDL_key::TABLE &&
-        thd->mdl_context.upgrade_shared_lock(r->ticket, MDL_EXCLUSIVE,
-                                             thd->variables.lock_wait_timeout))
-      return true;
-  }
+  // Upgrade SU to X on table names.
+  if (upgrade_lock_for_tables_in_tablespace(thd, &table_mdl_reqs)) return true;
 
   // Wait and remove TABLE object from TDC.
   for (auto &tref : trefs) {

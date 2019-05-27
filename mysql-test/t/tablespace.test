@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
 
 --echo #
 --echo # WL#3627 Add COLUMN_FORMAT and STORAGE for fields
@@ -678,3 +679,87 @@ DROP TABLESPACE ts2;
 connection default;
 disconnect con1;
 DROP USER user1@localhost;
+
+--echo #
+--echo # Test case for:
+--echo # Bug#29756808 assertion failure: trx0trx.*trx_state_eq(((trx)), trx_state_not_started).*
+--echo # Bug#29368581 server crash assertion failure: buf0buf.cc after executing check table
+--echo # Bug#29601004 assertion failure: buf0buf.cc.*:found while doing check table extended
+--echo # Bug#29600913 assertion failure: fsp0fsp.cc:.*((space->flags & ((~(~0u << 1))<< (((((((0 + 1.*
+--echo #
+
+--echo #
+--echo # Check that the kill query request is ignored when acquiring
+--echo # locks on tables in tablespace, when ALTER TABLESPACE changes
+--echo # encryption type.
+--echo #
+
+--echo # Create table t1 in tablespace and hold read lock on it.
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (f1 int) tablespace=ts;
+LOCK TABLE t1 read;
+
+connect (con1, localhost, root);
+let $ID= `SELECT @id := CONNECTION_ID()`;
+--echo # In another thread, wait when ALTER TABLESPACE request for lock
+--echo # upgrade.
+SET DEBUG_SYNC= 'upgrade_lock_for_tables_in_tablespace_kill_point SIGNAL cond2 WAIT_FOR cond3';
+--send ALTER TABLESPACE ts ENCRYPTION='Y'
+
+connection default;
+let $ignore= `SELECT @id := $ID`;
+--echo # Wait for ALTER to reach above condition and set KILL QUERY request.
+SET DEBUG_SYNC= 'now WAIT_FOR cond2';
+KILL QUERY @id;
+SET DEBUG_SYNC= 'now SIGNAL cond3';
+UNLOCK TABLES;
+
+--echo # Verify that ALTER TABLESPACE does not fail with the fix.
+connection con1;
+--reap
+disconnect con1;
+
+--echo # Verify that server restarts after the fix.
+connection default;
+SET DEBUG_SYNC= "RESET";
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+DROP TABLESPACE ts;
+
+--echo #
+--echo # Check that the lock_wait_timeout is ignored when acquiring
+--echo # locks on tables in tablespace, when ALTER TABLESPACE changes
+--echo # encryption type.
+--echo #
+
+--echo # Create table t1 in tablespace and hold read lock on it.
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (f1 INT) TABLESPACE=ts;
+LOCK TABLE t1 READ, performance_schema.threads READ;
+
+connect (con1, localhost, root);
+set @@session.lock_wait_timeout=1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+--send ALTER TABLESPACE ts ENCRYPTION='Y'
+
+connection default;
+--sleep 1
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM performance_schema.threads
+    WHERE PROCESSLIST_STATE = "Waiting for table metadata lock"
+    AND PROCESSLIST_ID=$ID;
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Verify that ALTER TABLESPACE does not fail with the fix.
+connection con1;
+--reap
+disconnect con1;
+
+--echo # Verify that server restarts after the fix.
+connection default;
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+DROP TABLESPACE ts;
