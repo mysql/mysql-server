@@ -92,11 +92,8 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   auto &router_static = launch_router({"-c", conf_file});
 
   // wait for both to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
-
-  ASSERT_TRUE(wait_for_port_ready(router_port))
-      << router_static.get_full_logfile();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router_static, router_port));
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
@@ -151,9 +148,8 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   auto &router = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_logfile();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
@@ -199,10 +195,8 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   auto &router_static = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port))
-      << router_static.get_full_logfile();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router_static, router_port));
 
   // don't allow router to create any more (client) threads
   pid_t pid = router_static.get_pid();
@@ -320,14 +314,13 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   auto &router = launch_router({"-c", conf_file});
 
   // wait for mock server to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // wait for router to begin accepting the connections
   // NOTE: this should cause connection/disconnection which
   //       should be treated as connection error and increment
   //       connection errors counter.  This test relies on that.
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_logfile();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // wait until blocking client host info appears in the log
   bool res =
@@ -442,9 +435,8 @@ TEST_F(RouterRoutingTest, test1) {
   auto &router = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_logfile();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // we loop just for good measure, to additionally test that this behaviour is
   // repeatable

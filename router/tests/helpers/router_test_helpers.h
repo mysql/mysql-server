@@ -79,7 +79,7 @@
 
 #include "mysql/harness/filesystem.h"
 
-constexpr unsigned kDefaultPortReadyTimeout{5000};
+constexpr auto kDefaultPortReadyTimeout = std::chrono::milliseconds(5000);
 
 /** @brief Returns the CMake source root folder
  *
@@ -166,15 +166,15 @@ void init_windows_sockets();
 
 /** @brief Probes if the selected TCP port is accepting the connections.
  *
- * @param port          TCP port number to check
- * @param timeout_msec  maximum timeout to wait for the port
- * @param hostname      name/IP address of the network host to check
+ * @param port      TCP port number to check
+ * @param timeout   maximum timeout to wait for the port
+ * @param hostname  name/IP address of the network host to check
  *
  * @returns true if the selected port accepts connections, false otherwise
  */
-bool wait_for_port_ready(unsigned port,
-                         unsigned timeout_msec = kDefaultPortReadyTimeout,
-                         const std::string &hostname = "127.0.0.1");
+bool wait_for_port_ready(
+    uint16_t port, std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
+    const std::string &hostname = "127.0.0.1");
 
 /** @brief Initializes keyring and adds keyring-related config items to
  * [DEFAULT] section

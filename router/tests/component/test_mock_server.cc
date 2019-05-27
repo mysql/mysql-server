@@ -125,8 +125,7 @@ TEST_F(MockServerCLITest, fail_on_no_more_stmts) {
   auto &server_mock =
       launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   mysqlrouter::MySQLSession client;
 

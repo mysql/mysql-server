@@ -201,8 +201,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     rewrite_js_to_tracefile(json_my_port_template, json_my_port, env_vars);
     auto &cluster_node = ProcessManager::launch_mysql_server_mock(
         json_my_port, cluster_port, EXIT_SUCCESS, false);
-    bool ready = wait_for_port_ready(cluster_port);
-    EXPECT_TRUE(ready) << cluster_node.get_full_output();
 
     return cluster_node;
   }
@@ -215,7 +213,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   }
 
   ProcessWrapper &launch_router_static(const std::string &conf_dir,
-                                       unsigned router_port,
                                        const std::string &routing_section,
                                        bool expect_error = false,
                                        bool log_to_console = true) {
@@ -229,40 +226,22 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     const int expected_exit_code = expect_error ? EXIT_FAILURE : EXIT_SUCCESS;
     auto &router =
         ProcessManager::launch_router({"-c", conf_file}, expected_exit_code);
-    if (!expect_error) {
-      bool ready = wait_for_port_ready(router_port);
-      EXPECT_TRUE(ready) << (log_to_console ? router.get_full_output()
-                                            : router.get_full_logfile());
-    }
 
     return router;
   }
 
-  ProcessWrapper &launch_router(unsigned router_port,
-                                const std::string &temp_test_dir,
+  ProcessWrapper &launch_router(const std::string &temp_test_dir,
                                 const std::string &metadata_cache_section,
-                                const std::string &routing_section,
-                                bool catch_stderr = true,
-                                bool with_sudo = false, bool wait_ready = true,
-                                bool log_to_stdout = false) {
+                                const std::string &routing_section) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
     // launch the router with metadata-cache configuration
-    if (log_to_stdout) {
-      default_section["logging_folder"] = "";
-    }
-
-    TempDirectory conf_dir("conf");
     const std::string conf_file = create_config_file(
-        conf_dir.name(), metadata_cache_section + routing_section,
+        temp_test_dir, metadata_cache_section + routing_section,
         &default_section);
-    auto &router = ProcessManager::launch_router(
-        {"-c", conf_file}, EXIT_SUCCESS, catch_stderr, with_sudo);
-    if (wait_ready) {
-      bool ready = wait_for_port_ready(router_port);
-      EXPECT_TRUE(ready) << router.get_full_logfile();
-    }
+    auto &router = ProcessManager::launch_router({"-c", conf_file},
+                                                 EXIT_SUCCESS, true, false);
 
     return router;
   }
@@ -321,7 +300,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   TempDirectory temp_test_dir;
 
-  const std::vector<unsigned> cluster_nodes_ports{
+  const std::vector<uint16_t> cluster_nodes_ports{
       port_pool_.get_next_available(),  // first is PRIMARY
       port_pool_.get_next_available(), port_pool_.get_next_available(),
       port_pool_.get_next_available()};
@@ -354,8 +333,8 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                           primary_json_env_vars);
   auto &primary_node = launch_mysql_server_mock(
       json_primary_node, cluster_nodes_ports[0], EXIT_SUCCESS, false);
-  bool ready = wait_for_port_ready(cluster_nodes_ports[0]);
-  EXPECT_TRUE(ready) << primary_node.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(
+      check_port_ready(primary_node, cluster_nodes_ports[0]));
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the router with metadata-cache configuration
@@ -369,15 +348,19 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   const std::string monitoring_section =
       get_monitoring_section(monitoring_port, temp_test_dir.name());
 
-  auto &router = launch_router(router_port, temp_test_dir.name(),
+  auto &router = launch_router(temp_test_dir.name(),
                                metadata_cache_section + monitoring_section,
                                routing_section);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port))
+      << router.get_full_output();
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
     auto &secondary_node = launch_cluster_node(
         cluster_nodes_ports[port], get_data_dir().str(), temp_test_dir.name());
     cluster_nodes.emplace_back(&secondary_node);
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(secondary_node, cluster_nodes_ports[port]));
   }
 
   // give the router a chance to initialise metadata-cache module
@@ -417,7 +400,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
       if (i == 0) {  // first-connection
         const auto &real_port_iter =
             std::find(cluster_nodes_ports.begin(), cluster_nodes_ports.end(),
-                      (unsigned)std::atoi(node_port.c_str()));
+                      static_cast<uint16_t>(std::atoi(node_port.c_str())));
         ASSERT_NE(real_port_iter, cluster_nodes_ports.end());
         auto port_id_ = real_port_iter - std::begin(cluster_nodes_ports);
 
@@ -508,6 +491,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   for (auto &server_port : server_ports) {
     auto &secondary_node = launch_standalone_server(
         server_port, get_data_dir().str(), temp_test_dir.name());
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
     server_instances.emplace_back(&secondary_node);
   }
 
@@ -518,7 +502,8 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  launch_router_static(conf_dir.name(), router_port, routing_section);
+  auto &router = launch_router_static(conf_dir.name(), routing_section);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_static_ready_timeout));
@@ -570,6 +555,8 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   for (auto &server_port : server_ports) {
     auto &secondary_node = launch_standalone_server(
         server_port, get_data_dir().str(), temp_test_dir.name());
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
+
     server_instances.emplace_back(&secondary_node);
   }
 
@@ -580,7 +567,8 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  launch_router_static(conf_dir.name(), router_port, routing_section);
+  auto &router = launch_router_static(conf_dir.name(), routing_section);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -607,6 +595,8 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   // bring back 1st server
   server_instances.emplace_back(&launch_standalone_server(
       server_ports[0], get_data_dir().str(), temp_test_dir.name()));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(
+      *server_instances[server_instances.size() - 1], server_ports[0]));
   // we should now succesfully connect to this server
   connect_client_and_query_port(router_port, node_port);
   EXPECT_EQ(std::to_string(server_ports[0]), node_port);
@@ -644,6 +634,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   for (auto &server_port : server_ports) {
     auto &secondary_node = launch_standalone_server(
         server_port, get_data_dir().str(), temp_test_dir.name());
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
     server_instances.emplace_back(&secondary_node);
   }
 
@@ -651,7 +642,8 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section(router_port, server_ports, "next-available");
-  launch_router_static(conf_dir.name(), router_port, routing_section);
+  auto &router = launch_router_static(conf_dir.name(), routing_section);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -678,6 +670,8 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   // bring back 1st server
   server_instances.emplace_back(&launch_standalone_server(
       server_ports[0], get_data_dir().str(), temp_test_dir.name()));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(
+      *server_instances[server_instances.size() - 1], server_ports[0]));
   // we should NOT connect to this server (in next-available we NEVER go back)
   connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
   EXPECT_EQ("", node_port);
@@ -693,9 +687,8 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "round-robin-with-fallback", "read-only");
-  auto &router =
-      launch_router_static(conf_dir.name(), router_port, routing_section,
-                           /*expect_error=*/true);
+  auto &router = launch_router_static(conf_dir.name(), routing_section,
+                                      /*expect_error=*/true);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
@@ -713,9 +706,8 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "invalid", "read-only");
-  auto &router =
-      launch_router_static(conf_dir.name(), router_port, routing_section,
-                           /*expect_error=*/true);
+  auto &router = launch_router_static(conf_dir.name(), routing_section,
+                                      /*expect_error=*/true);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
@@ -731,9 +723,8 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section(router_port, {1, 2}, "");
-  auto &router =
-      launch_router_static(conf_dir.name(), router_port, routing_section,
-                           /*expect_error=*/true);
+  auto &router = launch_router_static(conf_dir.name(), routing_section,
+                                      /*expect_error=*/true);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
@@ -749,9 +740,8 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section_error(router_port, {1, 2}, "", "read-only");
-  auto &router =
-      launch_router_static(conf_dir.name(), router_port, routing_section,
-                           /*expect_error=*/true);
+  auto &router = launch_router_static(conf_dir.name(), routing_section,
+                                      /*expect_error=*/true);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
@@ -767,9 +757,8 @@ TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section = get_static_routing_section_error(
       router_port, {1, 2}, "first-available", "");
-  auto &router =
-      launch_router_static(conf_dir.name(), router_port, routing_section,
-                           /*expect_error=*/true);
+  auto &router = launch_router_static(conf_dir.name(), routing_section,
+                                      /*expect_error=*/true);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(

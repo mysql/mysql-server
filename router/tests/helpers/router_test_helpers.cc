@@ -52,6 +52,7 @@ typedef long ssize_t;
 #include "mysqlrouter/utils.h"
 
 using mysql_harness::Path;
+using namespace std::chrono_literals;
 
 Path get_cmake_source_dir() {
   Path result;
@@ -235,7 +236,7 @@ int close_socket(SOCKET sock) {
 #endif
 }  // namespace
 
-bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
+bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
                          const std::string &hostname) {
   struct addrinfo hints, *ainfo;
   memset(&hints, 0, sizeof hints);
@@ -245,7 +246,7 @@ bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
 
   // Valgrind needs way more time
   if (getenv("WITH_VALGRIND")) {
-    timeout_msec *= 10;
+    timeout *= 10;
   }
 
   int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
@@ -258,7 +259,7 @@ bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
   std::shared_ptr<void> exit_freeaddrinfo(nullptr,
                                           [&](void *) { freeaddrinfo(ainfo); });
 
-  const unsigned MSEC_STEP = 10;
+  const auto MSEC_STEP = 10ms;
   const auto started = std::chrono::steady_clock::now();
   do {
     auto sock_id =
@@ -272,14 +273,11 @@ bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
 
     status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
     if (status < 0) {
-      unsigned step = std::min(timeout_msec, MSEC_STEP);
+      const auto step = std::min(timeout, MSEC_STEP);
       std::this_thread::sleep_for(std::chrono::milliseconds(step));
-      timeout_msec -= step;
+      timeout -= step;
     }
-  } while (status < 0 &&
-           timeout_msec > std::chrono::duration_cast<std::chrono::milliseconds>(
-                              std::chrono::steady_clock::now() - started)
-                              .count());
+  } while (status < 0 && timeout > std::chrono::steady_clock::now() - started);
 
   return status >= 0;
 }

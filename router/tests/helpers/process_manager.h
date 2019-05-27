@@ -85,6 +85,33 @@ class ProcessManager {
       ProcessWrapper &process, int expected_exit_code = EXIT_SUCCESS,
       std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
 
+  /**
+   * ensures given port is ready for accepting connections, prints some debug
+   * data otherwise.
+   *
+   * @param process       process that should be listening on that port
+   * @param port          TCP port number to check
+   * @param timeout       maximum timeout to wait for the port
+   * @param hostname      name/IP address of the network host to check
+   */
+  void check_port_ready(ProcessWrapper &process, uint16_t port,
+                        std::chrono::milliseconds = kDefaultPortReadyTimeout,
+                        const std::string &hostname = "127.0.0.1");
+
+  /**
+   * ensures given port is NOT ready for accepting connections, prints some
+   * debug data otherwise.
+   *
+   * @param process       process that should be listening on that port
+   * @param port          TCP port number to check
+   * @param timeout       maximum timeout to wait for the port
+   * @param hostname      name/IP address of the network host to check
+   */
+  void check_port_not_ready(
+      ProcessWrapper &process, uint16_t port,
+      std::chrono::milliseconds = kDefaultPortReadyTimeout,
+      const std::string &hostname = "127.0.0.1");
+
   /** @brief Launches the MySQLRouter process.
    *
    * @param   params vector<string> containing command line parameters to pass
@@ -201,6 +228,10 @@ class ProcessManager {
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
                   const char *out_params[kMaxLaunchedProcessParams]) const;
+
+  void check_port(bool should_be_ready, ProcessWrapper &process, uint16_t port,
+                  std::chrono::milliseconds timeout,
+                  const std::string &hostname);
 
   static Path origin_dir_;
   static Path data_dir_;

@@ -342,8 +342,8 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   TempDirectory tmp_dir;
   TcpPortPool port_pool;
-  const unsigned router_port = port_pool.get_next_available();
-  const unsigned server_port = port_pool.get_next_available();
+  const auto router_port = port_pool.get_next_available();
+  const auto server_port = port_pool.get_next_available();
 
   // These are different level log entries that are expected to get logged after
   // the logger plugin has been initialized
@@ -376,8 +376,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   auto &router = launch_router({"-c", conf_file});
 
-  bool ready = wait_for_port_ready(router_port);
-  EXPECT_TRUE(ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // try to make a connection; this will fail but should generate a warning in
   // the logs
@@ -951,12 +950,11 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
   TempDirectory bootstrap_dir;
 
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port);
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   constexpr char name[] =
       "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery"
@@ -1006,13 +1004,11 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
 
   TempDirectory bootstrap_dir;
 
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << "Timed out waiting for mock server port ready" << std::endl
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
   auto &router = launch_router({
@@ -1043,13 +1039,11 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   TempDirectory bootstrap_dir;
   TempDirectory bootstrap_conf;
 
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << "Timed out waiting for mock server port ready" << std::endl
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
   std::string logger_section = "[logger]\nlevel = DEBUG\n";
@@ -1089,13 +1083,11 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   TempDirectory bootstrap_dir;
   TempDirectory bootstrap_conf;
 
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << "Timed out waiting for mock server port ready" << std::endl
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // create config with logging_folder set to that directory
   std::map<std::string, std::string> params = {{"logging_folder", ""}};
@@ -1143,13 +1135,11 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
   TempDirectory bootstrap_dir;
   TempDirectory bootstrap_conf;
 
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << "Timed out waiting for mock server port ready" << std::endl
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
   std::string logger_section = "[logger]\nlevel = DEBUG\n";
@@ -1310,8 +1300,7 @@ TEST_F(MetadataCacheLoggingTest,
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
-  bool router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting
@@ -1341,14 +1330,12 @@ TEST_F(MetadataCacheLoggingTest,
   // launch second metadata server
   auto &server = launch_mysql_server_mock(json_primary_node_,
                                           cluster_nodes_ports[1], false);
-  bool server_ready = wait_for_port_ready(cluster_nodes_ports[1]);
-  EXPECT_TRUE(server_ready) << server.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[1]));
 
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
-  bool router_ready = wait_for_port_ready(router_port);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache WARNING [7ff0bb001700] Failed connecting
@@ -1386,8 +1373,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
-  bool router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   std::this_thread::sleep_for(500ms);
 
@@ -1427,8 +1413,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
-  bool router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   std::this_thread::sleep_for(500ms);
 
@@ -1470,8 +1455,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
-  bool router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   std::this_thread::sleep_for(500ms);
 
@@ -1495,8 +1479,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   // start the router again and check that the new log file got created
   auto &router2 = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())});
-  router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router2.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router2, router_port, 10000ms));
   std::this_thread::sleep_for(500ms);
   EXPECT_TRUE(log_file.exists());
 }
@@ -1511,8 +1494,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
-  bool router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -1561,8 +1543,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
   auto &router = ProcessManager::launch_router(
       {"-c",
        init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)});
-  bool router_ready = wait_for_port_ready(router_port, 10000);
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   std::this_thread::sleep_for(200ms);
   const auto pid = static_cast<pid_t>(router.get_pid());
