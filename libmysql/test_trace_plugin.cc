@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -332,10 +332,10 @@ int plugin_deinit() {
   ==========================
 */
 
-#define OK_PACKET(PKT) (*((byte *)PKT) == 0x00)
-#define ERR_PACKET(PKT) (*((byte *)PKT) == 0xFF)
-#define EOF_PACKET(PKT) (*((byte *)PKT) == 0xFE)
-#define FILE_REQUEST(PKT) (*((byte *)PKT) == 0xFB)
+#define OK_PACKET(PKT) (*((const byte *)PKT) == 0x00)
+#define ERR_PACKET(PKT) (*((const byte *)PKT) == 0xFF)
+#define EOF_PACKET(PKT) (*((const byte *)PKT) == 0xFE)
+#define FILE_REQUEST(PKT) (*((const byte *)PKT) == 0xFB)
 
 void *trace_start(struct st_mysql_client_plugin_TRACE *, MYSQL *conn,
                   enum protocol_stage stage) {
