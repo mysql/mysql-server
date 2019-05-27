@@ -123,6 +123,6 @@
   Version published is now 800171. The next number to use is 80018.
 */
 
-static const uint PFS_DD_VERSION = 800171;
+static const uint PFS_DD_VERSION = 80018;
 
 #endif /* PFS_DD_VERSION_H */
