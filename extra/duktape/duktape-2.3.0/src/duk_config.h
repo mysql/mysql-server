@@ -715,7 +715,7 @@
 #define DUK_USE_BYTEORDER 3
 #endif
 #else  /* DUK_F_OLD_SOLARIS */
-#include <ast/endian.h>
+// #include <ast/endian.h>
 #endif  /* DUK_F_OLD_SOLARIS */
 
 #include <sys/param.h>
