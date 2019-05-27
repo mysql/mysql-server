@@ -20,7 +20,7 @@ extern "C" {
 #define DUK_CONSOLE_STDERR_ONLY    (1U << 3)
 
 /* Initialize the console system */
-extern void duk_console_init(duk_context *ctx, duk_uint_t flags);
+DUK_EXTERNAL_DECL void duk_console_init(duk_context *ctx, duk_uint_t flags);
 
 #if defined(__cplusplus)
 }

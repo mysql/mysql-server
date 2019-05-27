@@ -65,7 +65,7 @@
 
 /* DLL build detection */
 /* not configured for DLL build */
-#undef DUK_F_DLL_BUILD
+#define DUK_F_DLL_BUILD
 
 /* Apple OSX, iOS */
 #if defined(__APPLE__)
