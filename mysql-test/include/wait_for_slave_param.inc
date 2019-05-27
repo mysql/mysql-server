@@ -68,6 +68,9 @@
 # This file sets $slave_param_statement to the SQL statement used to
 # get the slave status: either SHOW SLAVE STATUS or SHOW SLAVE STATUS
 # FOR CHANNEL  '<channel>'.
+#
+# Variable $_show_slave_status_value is set to the value of SHOW SLAVE STATUS's
+# column identified by $slave_param .
 
 
 --let $include_filename= wait_for_slave_param.inc [$slave_param]
