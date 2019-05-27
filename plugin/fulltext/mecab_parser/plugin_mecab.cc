@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015,  Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019,  Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,11 +136,12 @@ mecab_parser_plugin_init(void*)
 		delete mecab_tagger;
 		mecab_tagger = NULL;
 
+		sql_print_error("Mecab: Unsupported dictionary charset %s",
+				mecab_dict->charset);
+
 		delete mecab_model;
 		mecab_model = NULL;
 
-		sql_print_error("Mecab: Unsupported dictionary charset %s",
-				mecab_dict->charset);
 		return(1);
 	} else {
 		sql_print_information("Mecab: Loaded dictionary charset is %s",
