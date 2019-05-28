@@ -27,10 +27,9 @@
 
 #include "Restore.hpp"
 #include "ndb_nodegroup_map.h"
-#include "sql/ha_ndbcluster_tables.h"
+#include "restore_tables.h"
 #include <NdbThread.h>
 #include <NdbCondition.h>
-#include "../../../../sql/ha_ndbcluster_tables.h"
 
 class BackupConsumer {
 public:

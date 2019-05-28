@@ -27,7 +27,6 @@
 #include <stdio.h>
 
 #include "mf_wcomp.h"
-#include "sql/ha_ndbcluster_tables.h"
 #include "sql/mysqld.h"                // system_charset_info
 #include "sql/ndb_share.h"
 #include "sql/ndb_sleep.h"
@@ -156,7 +155,7 @@ Ndb_rep_tab_row::Ndb_rep_tab_row()
 {
   memset(conflict_fn_spec, 0, sizeof(conflict_fn_spec));
 }
-const char* Ndb_rep_tab_reader::ndb_rep_db= NDB_REP_DB;
+const char* Ndb_rep_tab_reader::ndb_rep_db= "mysql";
 const char* Ndb_rep_tab_reader::ndb_replication_table = "ndb_replication";
 const char* Ndb_rep_tab_reader::nrt_db= "db";
 const char* Ndb_rep_tab_reader::nrt_table_name= "table_name";

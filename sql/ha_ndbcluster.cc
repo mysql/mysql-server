@@ -47,10 +47,10 @@
 #include "sql/ha_ndbcluster_cond.h"
 #include "sql/ha_ndbcluster_connection.h"
 #include "sql/ha_ndbcluster_push.h"
-#include "sql/ha_ndbcluster_tables.h"
 #include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
 #include "sql/ndb_anyvalue.h"
+#include "sql/ndb_apply_status_table.h"
 #include "sql/ndb_binlog_client.h"
 #include "sql/ndb_binlog_extra_row_info.h"
 #include "sql/ndb_bitmap.h"
@@ -580,8 +580,7 @@ static int check_slave_state(THD* thd)
          Load highest replicated epoch from a local
          MySQLD from the cluster.
       */
-      DBUG_PRINT("info", ("Loading applied epoch information from %s",
-                          NDB_APPLY_TABLE));
+      DBUG_PRINT("info", ("Loading applied epoch information"));
       NdbError ndb_error;
       Uint64 highestAppliedEpoch = 0;
       do
@@ -589,8 +588,9 @@ static int check_slave_state(THD* thd)
         Ndb* ndb= check_ndb_in_thd(thd);
         NDBDICT* dict= ndb->getDictionary();
         NdbTransaction* trans= NULL;
-        ndb->setDatabaseName(NDB_REP_DB);
-        Ndb_table_guard ndbtab_g(dict, NDB_APPLY_TABLE);
+        ndb->setDatabaseName(Ndb_apply_status_table::DB_NAME.c_str());
+        Ndb_table_guard ndbtab_g(dict,
+                                 Ndb_apply_status_table::TABLE_NAME.c_str());
 
         const NDBTAB* ndbtab= ndbtab_g.get_table();
         if (unlikely(ndbtab == NULL))
@@ -659,10 +659,12 @@ static int check_slave_state(THD* thd)
 
       if (ndb_error.code != 0)
       {
-        ndb_log_warning("NDB Slave: Could not determine maximum replicated "
-                        "epoch from %s.%s at Slave start, error %u %s",
-                        NDB_REP_DB, NDB_APPLY_TABLE,
-                        ndb_error.code, ndb_error.message);
+        ndb_log_warning(
+            "NDB Slave: Could not determine maximum replicated "
+            "epoch from '%s.%s' at Slave start, error %u %s",
+            Ndb_apply_status_table::DB_NAME.c_str(),
+            Ndb_apply_status_table::TABLE_NAME.c_str(), ndb_error.code,
+            ndb_error.message);
       }
 
       /*
@@ -8265,8 +8267,8 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
   NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *ndbtab;
   NdbTransaction *trans= thd_ndb->trans;
-  ndb->setDatabaseName(NDB_REP_DB);
-  Ndb_table_guard ndbtab_g(dict, NDB_APPLY_TABLE);
+  ndb->setDatabaseName(Ndb_apply_status_table::DB_NAME.c_str());
+  Ndb_table_guard ndbtab_g(dict, Ndb_apply_status_table::TABLE_NAME.c_str());
   if (!(ndbtab= ndbtab_g.get_table()))
   {
     return -1;
@@ -13393,7 +13395,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
 
 #ifndef BUG27543602
   // Temporary workaround for Bug 27543602
-  if (strcmp(NDB_REP_DB, db) == 0 &&
+  if (strcmp("mysql", db) == 0 &&
       (strcmp("ndb_index_stat_head", name) == 0 ||
        strcmp("ndb_index_stat_sample", name) == 0))
   {

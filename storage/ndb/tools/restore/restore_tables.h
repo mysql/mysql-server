@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,5 @@
 */
 
 #define NDB_REP_DB      "mysql"
-#define NDB_REP_TABLE   "ndb_binlog_index"
 #define NDB_APPLY_TABLE "ndb_apply_status"
 #define NDB_SCHEMA_TABLE "ndb_schema"

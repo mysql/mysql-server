@@ -28,7 +28,9 @@
 #include <sstream>
 
 #include "sql/ndb_thd_ndb.h"
-#include "sql/ha_ndbcluster_tables.h"
+
+const std::string Ndb_apply_status_table::DB_NAME = "mysql";
+const std::string Ndb_apply_status_table::TABLE_NAME = "ndb_apply_status";
 
 static const char* COL_SERVER_ID = "server_id";
 static const char* COL_EPOCH = "epoch";
@@ -37,7 +39,7 @@ static const char* COL_START_POS = "start_pos";
 static const char* COL_END_POS = "end_pos";
 
 Ndb_apply_status_table::Ndb_apply_status_table(Thd_ndb* thd_ndb)
-    : Ndb_util_table(thd_ndb, NDB_REP_DB, NDB_APPLY_TABLE, false) {}
+    : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, false) {}
 
 Ndb_apply_status_table::~Ndb_apply_status_table() {}
 
@@ -198,4 +200,14 @@ std::string Ndb_apply_status_table::define_table_dd() const
         "PRIMARY KEY USING HASH (server_id)\n"
         ") ENGINE=ndbcluster CHARACTER SET latin1";
   return ss.str();
+}
+
+bool Ndb_apply_status_table::is_apply_status_table(const char* db,
+                                                   const char* table_name) {
+  if (db == Ndb_apply_status_table::DB_NAME &&
+      table_name == Ndb_apply_status_table::TABLE_NAME) {
+    // This is the NDB table used for apply status information
+    return true;
+  }
+  return false;
 }

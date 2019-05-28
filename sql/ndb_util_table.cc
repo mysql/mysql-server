@@ -49,8 +49,8 @@ class Db_name_guard {
   }
 };
 
-Ndb_util_table::Ndb_util_table(Thd_ndb* thd_ndb, const char* db_name,
-                               const char* table_name, bool hidden)
+Ndb_util_table::Ndb_util_table(Thd_ndb* thd_ndb, const std::string &db_name,
+                               const std::string &table_name, bool hidden)
     : m_thd_ndb(thd_ndb),
       m_table_guard(thd_ndb->ndb->getDictionary()),
       m_db_name(db_name),

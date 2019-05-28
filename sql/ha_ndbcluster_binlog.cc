@@ -96,7 +96,6 @@ bool ndb_log_empty_epochs(void);
 
 void ndb_index_stat_restart();
 
-#include "sql/ha_ndbcluster_tables.h"
 #include "sql/ndb_anyvalue.h"
 #include "sql/ndb_binlog_extra_row_info.h"
 #include "sql/ndb_binlog_thread.h"
@@ -729,8 +728,9 @@ static void ndbcluster_reset_slave(THD *thd)
   {
     Ndb_local_connection mysqld(thd);
     const bool ignore_no_such_table = true;
-    if (mysqld.delete_rows("mysql", "ndb_apply_status", ignore_no_such_table,
-                           "1=1")) {
+    if (mysqld.delete_rows(Ndb_apply_status_table::DB_NAME,
+                           Ndb_apply_status_table::TABLE_NAME,
+                           ignore_no_such_table, "1=1")) {
       // Failed to delete rows from table
     }
   }
@@ -800,7 +800,7 @@ migrate_table_with_old_extra_metadata(THD *thd, Ndb *ndb,
 {
 #ifndef BUG27543602
   // Temporary workaround for Bug 27543602
-  if (strcmp(NDB_REP_DB, schema_name) == 0 &&
+  if (strcmp("mysql", schema_name) == 0 &&
       (strcmp("ndb_index_stat_head", table_name) == 0 ||
        strcmp("ndb_index_stat_sample", table_name) == 0))
   {
@@ -6019,7 +6019,8 @@ struct ndb_binlog_index_row {
 */
 class Ndb_binlog_index_table_util
 {
-
+  static constexpr const char* const DB_NAME = "mysql";
+  static constexpr const char* const TABLE_NAME = "ndb_binlog_index";
   /*
     Open the ndb_binlog_index table for writing
   */
@@ -6028,10 +6029,10 @@ class Ndb_binlog_index_table_util
                           TABLE **ndb_binlog_index)
   {
     const char *save_proc_info=
-      thd_proc_info(thd, "Opening " NDB_REP_DB "." NDB_REP_TABLE);
+        thd_proc_info(thd, "Opening 'mysql.ndb_binlog_index'");
 
-    TABLE_LIST tables(NDB_REP_DB,    // db
-                      NDB_REP_TABLE, // name, alias
+    TABLE_LIST tables(DB_NAME,       // db
+                      TABLE_NAME, // name, alias
                       TL_WRITE);     // for write
 
     /* Only allow real table to be opened */
@@ -6368,7 +6369,7 @@ public:
     const bool ignore_no_such_table = true;
     std::string where;
     where.append("File='").append(filename).append("'");
-    if (mysqld.delete_rows("mysql", "ndb_binlog_index", ignore_no_such_table,
+    if (mysqld.delete_rows(DB_NAME, TABLE_NAME, ignore_no_such_table,
                            where)) {
       // Failed
       return true;
@@ -6557,18 +6558,13 @@ Ndb_binlog_client::read_replication_info(Ndb *ndb,
   /* Override for ndb_apply_status when logging */
   if (opt_ndb_log_apply_status)
   {
-    if (strcmp(db, NDB_REP_DB) == 0 &&
-        strcmp(table_name, NDB_APPLY_TABLE) == 0)
+    if (Ndb_apply_status_table::is_apply_status_table(db, table_name))
     {
-      /*
-        Ensure that we get all columns from ndb_apply_status updates
-        by forcing FULL event type
-        Also, ensure that ndb_apply_status events are always logged as
-        WRITES.
-      */
-      DBUG_PRINT("info", ("ndb_apply_status defaulting to FULL, USE_WRITE"));
-      ndb_log_info("ndb-log-apply-status forcing %s.%s to FULL USE_WRITE",
-                   NDB_REP_DB, NDB_APPLY_TABLE);
+      // Ensure to get all columns from ndb_apply_status updates and that events
+      // are always logged as WRITES.
+      ndb_log_info(
+          "ndb-log-apply-status forcing 'mysql.ndb_apply_status' to FULL "
+          "USE_WRITE");
       *binlog_flags = NBT_FULL;
       *conflict_fn = NULL;
       *num_args = 0;
@@ -7044,8 +7040,8 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
   // Check if this is the event operation on mysql.ndb_apply_status
   // as it need special processing
   const bool do_ndb_apply_status_share =
-      (strcmp(share->db, NDB_REP_DB) == 0 &&
-       strcmp(share->table_name, NDB_APPLY_TABLE) == 0);
+      Ndb_apply_status_table::is_apply_status_table(share->db,
+                                                    share->table_name);
 
   std::string event_name =
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
@@ -8726,8 +8722,7 @@ restart_cluster_failure:
   }
   thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP); 
 
-  if (!(s_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection,
-                                      NDB_REP_DB)) ||
+  if (!(s_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection)) ||
       s_ndb->setNdbObjectName("schema change monitoring") ||
       s_ndb->init())
   {
@@ -8738,7 +8733,7 @@ restart_cluster_failure:
               s_ndb->getReference(), s_ndb->getNdbObjectName());
 
   // empty database
-  if (!(i_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection, "")) ||
+  if (!(i_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection)) ||
       i_ndb->setNdbObjectName("data change monitoring") ||
       i_ndb->init())
   {

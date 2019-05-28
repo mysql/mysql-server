@@ -54,8 +54,8 @@ class Ndb_util_table {
   void push_warning(const char* fmt, ...) const
       MY_ATTRIBUTE((format(printf, 2, 3)));
 
-  Ndb_util_table(class Thd_ndb *, const char *db_name, const char *table_name,
-                 bool hidden);
+  Ndb_util_table(class Thd_ndb*, const std::string& db_name,
+                 const std::string& table_name, bool hidden);
   ~Ndb_util_table();
 
   bool check_column_exist(const char* name) const;

@@ -29,6 +29,9 @@
 
 #include "sql/ndb_thd_ndb.h"
 
+const std::string Ndb_schema_result_table::DB_NAME = "mysql";
+const std::string Ndb_schema_result_table::TABLE_NAME = "ndb_schema_result";
+
 const char* Ndb_schema_result_table::COL_NODEID = "nodeid";
 const char* Ndb_schema_result_table::COL_SCHEMA_OP_ID = "schema_op_id";
 const char* Ndb_schema_result_table::COL_PARTICIPANT_NODEID = "participant_nodeid";
@@ -36,7 +39,7 @@ const char* Ndb_schema_result_table::COL_RESULT = "result";
 const char* Ndb_schema_result_table::COL_MESSAGE = "message";
 
 Ndb_schema_result_table::Ndb_schema_result_table(Thd_ndb* thd_ndb)
-    : Ndb_util_table(thd_ndb, "mysql", "ndb_schema_result", true) {}
+    : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, true) {}
 
 Ndb_schema_result_table::~Ndb_schema_result_table() {}
 

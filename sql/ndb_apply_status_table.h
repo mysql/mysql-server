@@ -40,6 +40,9 @@ class Ndb_apply_status_table : public Ndb_util_table {
   bool drop_events_in_NDB() const override;
 
  public:
+  static const std::string DB_NAME;
+  static const std::string TABLE_NAME;
+
   Ndb_apply_status_table(class Thd_ndb *);
   virtual ~Ndb_apply_status_table();
 
@@ -48,6 +51,15 @@ class Ndb_apply_status_table : public Ndb_util_table {
   bool need_upgrade() const override;
 
   std::string define_table_dd() const override;
+
+  /**
+   * @brief Check if given name is the apply status table, special
+            handling for the table is required in a few places.
+     @param db database name
+     @param table_name table name
+     @return true if table is the apply status table
+   */
+  static bool is_apply_status_table(const char* db, const char* table_name);
 };
 
 #endif

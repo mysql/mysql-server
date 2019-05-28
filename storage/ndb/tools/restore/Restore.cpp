@@ -36,8 +36,7 @@
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
-#include "sql/ha_ndbcluster_tables.h"
-#include "../../../../sql/ha_ndbcluster_tables.h"
+#include "restore_tables.h"
 #include <NdbThread.h>
 #include "../src/kernel/vm/Emulator.hpp"
 

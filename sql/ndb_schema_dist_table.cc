@@ -28,7 +28,9 @@
 #include <sstream>
 
 #include "sql/ndb_thd_ndb.h"
-#include "sql/ha_ndbcluster_tables.h"
+
+const std::string Ndb_schema_dist_table::DB_NAME = "mysql";
+const std::string Ndb_schema_dist_table::TABLE_NAME = "ndb_schema";
 
 const char* Ndb_schema_dist_table::COL_DB = "db";
 const char* Ndb_schema_dist_table::COL_NAME = "name";
@@ -42,7 +44,7 @@ static const char* COL_TYPE = "type";
 static const char* COL_SCHEMA_OP_ID = "schema_op_id";
 
 Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb* thd_ndb)
-    : Ndb_util_table(thd_ndb, NDB_REP_DB, NDB_SCHEMA_TABLE, true) {}
+    : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, true) {}
 
 Ndb_schema_dist_table::~Ndb_schema_dist_table() {}
 

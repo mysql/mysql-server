@@ -25,7 +25,7 @@
 // Implements
 #include "sql/ndb_binlog_client.h"
 
-#include "sql/ha_ndbcluster_tables.h"
+#include "sql/ndb_apply_status_table.h"
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_dist_priv_util.h"
 #include "sql/ndb_log.h"
@@ -106,8 +106,8 @@ bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE* share) {
   }
 
   // Check for mysql.ndb_apply_status
-  if (strcmp(share->db, NDB_REP_DB) == 0 &&
-      strcmp(share->table_name, NDB_APPLY_TABLE) == 0) {
+  if (Ndb_apply_status_table::is_apply_status_table(share->db,
+                                                    share->table_name)) {
     DBUG_PRINT("exit", ("always need event op for %s", share->table_name));
     DBUG_RETURN(true);
   }

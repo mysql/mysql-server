@@ -29,7 +29,6 @@
 
 #include "my_dbug.h"
 #include "ndbapi/ndb_cluster_connection.hpp"
-#include "sql/ha_ndbcluster_tables.h"
 #include "sql/ndb_anyvalue.h"
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_require.h"
@@ -41,25 +40,13 @@
 #include "sql/query_options.h"          // OPTION_BIN_LOG
 #include "sql/sql_thd_internal_api.h"
 
-
-static const std::string NDB_SCHEMA_TABLE_DB = NDB_REP_DB;
-static const std::string NDB_SCHEMA_TABLE_NAME = NDB_SCHEMA_TABLE;
-static const std::string NDB_SCHEMA_RESULT_TABLE_NAME = "ndb_schema_result";
-
-#ifdef _WIN32
-#define DIR_SEP "\\"
-#else
-#define DIR_SEP "/"
-#endif
-
 // Temporarily use a fixed string on the form "./mysql/ndb_schema" as key
 // for retrieving the NDB_SHARE for mysql.ndb_schema. This will subsequently
 // be removed when a NDB_SHARE can be acquired using db+table_name and the
-// key is formatted behind the curtains in NDB_SHARE
-static const char* NDB_SCHEMA_TABLE_KEY =
-    "." DIR_SEP NDB_REP_DB DIR_SEP NDB_SCHEMA_TABLE;
-
-#undef DIR_SEP
+// key is formatted behind the curtains in NDB_SHARE without using
+// build_table_filename() etc.
+static constexpr const char* NDB_SCHEMA_TABLE_KEY =
+    IF_WIN(".\\mysql\\ndb_schema", "./mysql/ndb_schema");
 
 bool Ndb_schema_dist::is_ready(void* requestor) {
   DBUG_TRACE;
@@ -87,8 +74,8 @@ bool Ndb_schema_dist::is_ready(void* requestor) {
 bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
                                                   const char* table_name)
 {
-  if (db == NDB_SCHEMA_TABLE_DB &&
-      table_name == NDB_SCHEMA_TABLE_NAME)
+  if (db == Ndb_schema_dist_table::DB_NAME &&
+      table_name == Ndb_schema_dist_table::TABLE_NAME)
   {
     // This is the NDB table used for schema distribution
     return true;
@@ -97,8 +84,9 @@ bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
 }
 
 bool Ndb_schema_dist_client::is_schema_dist_result_table(
-    const char *db, const char *table_name) {
-  if (db == NDB_SCHEMA_TABLE_DB && table_name == NDB_SCHEMA_RESULT_TABLE_NAME) {
+    const char* db, const char* table_name) {
+  if (db == Ndb_schema_result_table::DB_NAME &&
+      table_name == Ndb_schema_result_table::TABLE_NAME) {
     // This is the NDB table used for schema distribution results
     return true;
   }

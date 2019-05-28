@@ -40,6 +40,9 @@ class Ndb_schema_dist_table : public Ndb_util_table {
   bool drop_events_in_NDB() const override;
 
  public:
+  static const std::string DB_NAME;
+  static const std::string TABLE_NAME;
+
   static const char* COL_DB;
   static const char* COL_NAME;
   static const char* COL_QUERY;
