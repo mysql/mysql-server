@@ -351,6 +351,26 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
         thd->lex->set_var_list.push_back(user_var);
       }
     }
+
+    // Consider the following table:
+    //
+    //   CREATE TABLE t1 (x DOUBLE, y DOUBLE, g POINT SRID 4326 NOT NULL);
+    //
+    // If the user wants to load a file which only contains two values (x and y
+    // coordinates), it is possible to do it by executing the following
+    // statement:
+    //
+    //  LOAD DATA INFILE 'data' (@x, @y)
+    //    SET x = @x, y = @y, g = ST_SRID(POINT(@x, @y));
+    //
+    // However, the columns that are specified in the SET clause are only marked
+    // in the write set, and not in fields_set_during_insert. The latter is the
+    // bitmap used during check_that_all_fields_are_given_values(), so we need
+    // to copy the bits from the write set over to said bitmap. If not, the
+    // server will return an error saying that column 'g' doesn't have a default
+    // value.
+    bitmap_union(table->fields_set_during_insert, table->write_set);
+
     if (check_that_all_fields_are_given_values(thd, table, table_list))
       return true;
     /* Fix the expressions in SET clause */
