@@ -466,12 +466,12 @@ using std::max;
 using std::min;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC = 1024;
+static bool net_send_error_packet(THD *, uint, const char *, const char *);
 static bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
                                   ulong, const CHARSET_INFO *);
 static bool write_eof_packet(THD *, NET *, uint, uint);
-
-ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
-                       ulong packet_left_len, ulong *header_len, bool *err);
+static ulong get_ps_param_len(enum enum_field_types, uchar *, ulong, ulong *,
+                              bool *);
 
 /**
   Ensures that the packet buffer has enough capacity to hold a string of the
@@ -491,7 +491,16 @@ static bool ensure_packet_capacity(size_t length, String *packet) {
          packet->mem_realloc(packet_length + 9 + length);
 }
 
-bool Protocol_classic::net_store_data(const uchar *from, size_t length) {
+/**
+  Store length and data in a network packet buffer.
+
+  @param from    the data to store
+  @param length  the length of the data
+  @param[in,out] packet  the buffer
+  @return true if there is not enough memory, false on success
+*/
+static inline bool net_store_data(const uchar *from, size_t length,
+                                  String *packet) {
   if (ensure_packet_capacity(length, packet)) return true;
   size_t packet_length = packet->length();
   uchar *to = net_store_length((uchar *)packet->ptr() + packet_length, length);
@@ -536,9 +545,9 @@ static bool net_store_zero_padded_data(const char *data, size_t data_length,
   because column, table, database names fit into this limit.
 */
 
-bool Protocol_classic::net_store_data(const uchar *from, size_t length,
-                                      const CHARSET_INFO *from_cs,
-                                      const CHARSET_INFO *to_cs) {
+bool Protocol_classic::net_store_data_with_conversion(
+    const uchar *from, size_t length, const CHARSET_INFO *from_cs,
+    const CHARSET_INFO *to_cs) {
   uint dummy_errors;
   /* Calculate maxumum possible result length */
   size_t conv_length = to_cs->mbmaxlen * length / from_cs->mbminlen;
@@ -557,7 +566,7 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
     return (convert.copy(pointer_cast<const char *>(from), length, from_cs,
                          to_cs, &dummy_errors) ||
             net_store_data(pointer_cast<const uchar *>(convert.ptr()),
-                           convert.length()));
+                           convert.length(), packet));
   }
 
   size_t packet_length = packet->length();
@@ -848,9 +857,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
     @retval true An error occurred and the messages wasn't sent properly
 */
 
-bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
-                 ulonglong affected_rows, ulonglong id, const char *message,
-                 bool eof_identifier) {
+static bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
+                        ulonglong affected_rows, ulonglong id,
+                        const char *message, bool eof_identifier) {
   Protocol *protocol = thd->get_protocol();
   NET *net = thd->get_protocol_classic()->get_net();
   uchar buff[MYSQL_ERRMSG_SIZE + 10];
@@ -1041,7 +1050,8 @@ static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
     @retval true An error occurred and the message wasn't sent properly
 */
 
-bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count) {
+static bool net_send_eof(THD *thd, uint server_status,
+                         uint statement_warn_count) {
   NET *net = thd->get_protocol_classic()->get_net();
   bool error = false;
   DBUG_TRACE;
@@ -1163,8 +1173,8 @@ static bool write_eof_packet(THD *thd, NET *net, uint server_status,
   See also @ref page_protocol_basic_err_packet
 */
 
-bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
-                           const char *sqlstate) {
+static bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
+                                  const char *sqlstate) {
   return net_send_error_packet(thd->get_protocol_classic()->get_net(),
                                sql_errno, err, sqlstate,
                                thd->is_bootstrap_system_thread(),
@@ -1260,22 +1270,6 @@ static uchar *net_store_length_fast(uchar *packet, size_t length) {
 uchar *net_store_data(uchar *to, const uchar *from, size_t length) {
   to = net_store_length_fast(to, length);
   if (length > 0) memcpy(to, from, length);
-  return to + length;
-}
-
-uchar *net_store_data(uchar *to, int32 from) {
-  char buff[20];
-  uint length = (uint)(int10_to_str(from, buff, 10) - buff);
-  to = net_store_length_fast(to, length);
-  memcpy(to, buff, length);
-  return to + length;
-}
-
-uchar *net_store_data(uchar *to, longlong from) {
-  char buff[22];
-  uint length = (uint)(longlong10_to_str(from, buff, 10) - buff);
-  to = net_store_length_fast(to, length);
-  memcpy(to, buff, length);
   return to + length;
 }
 
@@ -3234,11 +3228,11 @@ bool Protocol_classic::store_string_aux(const char *from, size_t length,
   if (tocs && !my_charset_same(fromcs, tocs) && fromcs != &my_charset_bin &&
       tocs != &my_charset_bin) {
     /* Store with conversion */
-    return net_store_data(pointer_cast<const uchar *>(from), length, fromcs,
-                          tocs);
+    return net_store_data_with_conversion(pointer_cast<const uchar *>(from),
+                                          length, fromcs, tocs);
   }
   /* Store without conversion */
-  return net_store_data(pointer_cast<const uchar *>(from), length);
+  return net_store_data(pointer_cast<const uchar *>(from), length, packet);
 }
 
 int Protocol_classic::shutdown(bool) {
@@ -3275,7 +3269,7 @@ bool Protocol_text::store_tiny(longlong from, uint32 zerofill) {
   const size_t int_length = end - buff;
   if (zerofill != 0)
     return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length);
+  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
 }
 
 bool Protocol_text::store_short(longlong from, uint32 zerofill) {
@@ -3291,7 +3285,7 @@ bool Protocol_text::store_short(longlong from, uint32 zerofill) {
   const size_t int_length = end - buff;
   if (zerofill != 0)
     return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length);
+  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
 }
 
 bool Protocol_text::store_long(longlong from, uint32 zerofill) {
@@ -3308,7 +3302,7 @@ bool Protocol_text::store_long(longlong from, uint32 zerofill) {
   const size_t int_length = end - buff;
   if (zerofill != 0)
     return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length);
+  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
 }
 
 bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
@@ -3324,7 +3318,7 @@ bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
   const size_t int_length = end - buff;
   if (zerofill != 0)
     return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length);
+  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
 }
 
 bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
@@ -3337,7 +3331,8 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
   (void)my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
-  return net_store_data((uchar *)str.ptr(), str.length());
+  return net_store_data(pointer_cast<const uchar *>(str.ptr()), str.length(),
+                        packet);
 }
 
 bool Protocol_text::store(float from, uint32 decimals, uint32 zerofill,
@@ -3352,7 +3347,8 @@ bool Protocol_text::store(float from, uint32 decimals, uint32 zerofill,
   if (zerofill != 0)
     return net_store_zero_padded_data(buffer->ptr(), buffer->length(), zerofill,
                                       packet);
-  return net_store_data((uchar *)buffer->ptr(), buffer->length());
+  return net_store_data(pointer_cast<const uchar *>(buffer->ptr()),
+                        buffer->length(), packet);
 }
 
 bool Protocol_text::store(double from, uint32 decimals, uint32 zerofill,
@@ -3367,7 +3363,8 @@ bool Protocol_text::store(double from, uint32 decimals, uint32 zerofill,
   if (zerofill != 0)
     return net_store_zero_padded_data(buffer->ptr(), buffer->length(), zerofill,
                                       packet);
-  return net_store_data((uchar *)buffer->ptr(), buffer->length());
+  return net_store_data(pointer_cast<const uchar *>(buffer->ptr()),
+                        buffer->length(), packet);
 }
 
 /**
@@ -3385,7 +3382,7 @@ bool Protocol_text::store(MYSQL_TIME *tm, uint decimals) {
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
   size_t length = my_datetime_to_str(*tm, buff, decimals);
-  return net_store_data((uchar *)buff, length);
+  return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
 }
 
 bool Protocol_text::store_date(MYSQL_TIME *tm) {
@@ -3397,7 +3394,7 @@ bool Protocol_text::store_date(MYSQL_TIME *tm) {
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
   size_t length = my_date_to_str(*tm, buff);
-  return net_store_data((uchar *)buff, length);
+  return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
 }
 
 bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals) {
@@ -3409,7 +3406,7 @@ bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals) {
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
   size_t length = my_time_to_str(*tm, buff, decimals);
-  return net_store_data((uchar *)buff, length);
+  return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
 }
 
 /**
@@ -3848,8 +3845,9 @@ static ulong get_param_length(uchar *packet, ulong packet_left_len,
    @param[out] header_len      the size of the header(bytes to be skiped)
    @param[out] err             boolean to store if an error occurred
 */
-ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
-                       ulong packet_left_len, ulong *header_len, bool *err) {
+static ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
+                              ulong packet_left_len, ulong *header_len,
+                              bool *err) {
   DBUG_TRACE;
   *header_len = 0;
 
