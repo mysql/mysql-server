@@ -132,10 +132,10 @@ using std::min;
 
 static void free_user_var(user_var_entry *entry) { entry->destroy(); }
 
-bool check_reserved_words(LEX_STRING *name) {
-  if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
-      !my_strcasecmp(system_charset_info, name->str, "LOCAL") ||
-      !my_strcasecmp(system_charset_info, name->str, "SESSION"))
+bool check_reserved_words(const char *name) {
+  if (!my_strcasecmp(system_charset_info, name, "GLOBAL") ||
+      !my_strcasecmp(system_charset_info, name, "LOCAL") ||
+      !my_strcasecmp(system_charset_info, name, "SESSION"))
     return true;
   return false;
 }

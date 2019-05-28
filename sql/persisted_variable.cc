@@ -688,8 +688,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     sys_var *sysvar = NULL;
     string var_name = iter->key;
 
-    LEX_STRING base_name = {const_cast<char *>(var_name.c_str()),
-                            var_name.length()};
+    LEX_CSTRING base_name = {var_name.c_str(), var_name.length()};
 
     sysvar = intern_find_sys_var(var_name.c_str(), var_name.length());
     if (sysvar == NULL) {
@@ -742,7 +741,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
         goto err;
     }
 
-    var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, &base_name, res);
+    var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, base_name, res);
     tmp_var_list.push_back(var);
 
     if (sql_set_variables(thd, &tmp_var_list, false)) {

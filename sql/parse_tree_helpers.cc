@@ -114,7 +114,7 @@ bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp) {
   if (tmp->var == NULL)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), tmp->base_name.str);
   else
-    tmp->base_name = null_lex_str;
+    tmp->base_name = NULL_CSTR;
 
   return thd->is_error();
 }
@@ -160,7 +160,7 @@ bool set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   }
 
   set_var *var = new (thd->mem_root)
-      set_var(var_type, var_with_base->var, &var_with_base->base_name, val);
+      set_var(var_type, var_with_base->var, var_with_base->base_name, val);
   if (var == nullptr) return true;
 
   return lex->var_list.push_back(var);
@@ -194,7 +194,7 @@ LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
   @return error status (true if error, false otherwise).
 */
 
-bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
+bool set_trigger_new_row(Parse_context *pc, LEX_CSTRING trigger_field_name,
                          Item *expr_item, LEX_CSTRING expr_query) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;

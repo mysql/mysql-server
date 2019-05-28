@@ -547,7 +547,7 @@ class PTI_variable_aux_3d : public Parse_tree_item {
     }
 
     /* disallow "SELECT @@global.global.variable" */
-    if (ident1.str && ident2.str && check_reserved_words(&ident1)) {
+    if (ident1.str && ident2.str && check_reserved_words(ident1.str)) {
       error(pc, ident1_pos);
       return true;
     }

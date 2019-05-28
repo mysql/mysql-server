@@ -7392,17 +7392,17 @@ uint calculate_key_len(TABLE *table, uint key, key_part_map keypart_map) {
     pointer		pointer to TYPELIB structure
 */
 static bool exts_handlerton(THD *, plugin_ref plugin, void *arg) {
-  List<char> *found_exts = (List<char> *)arg;
+  List<const char> *found_exts = static_cast<List<const char> *>(arg);
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->file_extensions) {
-    List_iterator_fast<char> it(*found_exts);
+    List_iterator_fast<const char> it(*found_exts);
     const char **ext, *old_ext;
 
     for (ext = hton->file_extensions; *ext; ext++) {
       while ((old_ext = it++)) {
         if (!strcmp(old_ext, *ext)) break;
       }
-      if (!old_ext) found_exts->push_back(const_cast<char *>(*ext));
+      if (!old_ext) found_exts->push_back(*ext);
 
       it.rewind();
     }
@@ -7415,7 +7415,7 @@ TYPELIB *ha_known_exts() {
   known_extensions->name = "known_exts";
   known_extensions->type_lengths = NULL;
 
-  List<char> found_exts;
+  List<const char> found_exts;
   const char **ext, *old_ext;
 
   plugin_foreach(NULL, exts_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -7428,7 +7428,7 @@ TYPELIB *ha_known_exts() {
   known_extensions->count = found_exts.elements;
   known_extensions->type_names = ext;
 
-  List_iterator_fast<char> it(found_exts);
+  List_iterator_fast<const char> it(found_exts);
   while ((old_ext = it++)) *ext++ = old_ext;
   *ext = NULL;
   return known_extensions;

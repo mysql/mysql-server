@@ -511,14 +511,14 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
     geout.set_components_no_overlapped(true);
   if (geout.get_ptr() == NULL) return true;
   if (res) {
-    const char *resptr = geout.get_cptr() - GEOM_HEADER_SIZE;
+    char *resptr = geout.get_cptr() - GEOM_HEADER_SIZE;
     size_t len = geout.get_nbytes();
 
     /*
       The resptr buffer is now owned by resbuf_mgr and used by res, resptr
       will be released properly by resbuf_mgr.
      */
-    resbuf_mgr->add_buffer(const_cast<char *>(resptr));
+    resbuf_mgr->add_buffer(resptr);
     /*
       Pass resptr as const pointer so that the memory space won't be reused
       by res object. Reuse is forbidden because the memory comes from BG
@@ -527,8 +527,7 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
     res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
 
     // Prefix the GEOMETRY header.
-    write_geometry_header(const_cast<char *>(resptr), geout.get_srid(),
-                          geout.get_geotype());
+    write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
 
     /*
       Give up ownership because the buffer may have to live longer than

@@ -1304,7 +1304,7 @@ bool set_and_validate_user_attributes(
    @retval 1 ERROR; In this case the error is sent to the client.
 */
 
-bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
+bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
                      const char *current_password,
                      bool retain_current_password) {
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];

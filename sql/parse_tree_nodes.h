@@ -972,11 +972,10 @@ class PT_internal_variable_name : public Parse_tree_node {
 class PT_internal_variable_name_1d : public PT_internal_variable_name {
   typedef PT_internal_variable_name super;
 
-  LEX_STRING ident;
+  LEX_CSTRING ident;
 
  public:
-  PT_internal_variable_name_1d(const LEX_STRING &ident_arg)
-      : ident(ident_arg) {}
+  PT_internal_variable_name_1d(LEX_CSTRING ident_arg) : ident(ident_arg) {}
 
   bool contextualize(Parse_context *pc) override;
 };
@@ -991,12 +990,12 @@ class PT_internal_variable_name_2d : public PT_internal_variable_name {
   const POS pos;
 
  private:
-  LEX_STRING ident1;
-  LEX_STRING ident2;
+  LEX_CSTRING ident1;
+  LEX_CSTRING ident2;
 
  public:
-  PT_internal_variable_name_2d(const POS &pos, const LEX_STRING &ident1_arg,
-                               const LEX_STRING &ident2_arg)
+  PT_internal_variable_name_2d(const POS &pos, LEX_CSTRING ident1_arg,
+                               LEX_CSTRING ident2_arg)
       : pos(pos), ident1(ident1_arg), ident2(ident2_arg) {}
 
   bool contextualize(Parse_context *pc) override;
@@ -1021,7 +1020,7 @@ class PT_internal_variable_name_default : public PT_internal_variable_name {
       return true;
     }
     value.var = tmp;
-    value.base_name.str = const_cast<char *>("default");
+    value.base_name.str = "default";
     value.base_name.length = 7;
     return false;
   }
@@ -1343,7 +1342,7 @@ class PT_transaction_characteristic : public Parse_tree_node {
     Item *item = new (pc->mem_root) Item_int(value);
     if (item == NULL) return true;
     set_var *var = new (thd->mem_root)
-        set_var(lex->option_type, find_sys_var(thd, name), &null_lex_str, item);
+        set_var(lex->option_type, find_sys_var(thd, name), NULL_CSTR, item);
     if (var == NULL) return true;
     lex->var_list.push_back(var);
     return false;

@@ -541,9 +541,8 @@ static bool fill_tablespace_from_dd(THD *thd, TABLE_SHARE *share,
                                     const dd::Table *tab_obj) {
   DBUG_TRACE;
 
-  return dd::get_tablespace_name<dd::Table>(
-      thd, tab_obj, const_cast<const char **>(&share->tablespace),
-      &share->mem_root);
+  return dd::get_tablespace_name<dd::Table>(thd, tab_obj, &share->tablespace,
+                                            &share->mem_root);
 }
 
 /**

@@ -969,8 +969,8 @@ char *my_admin_bind_addr_str;
 uint mysqld_admin_port;
 bool listen_admin_interface_in_separate_thread;
 static const char *default_collation_name;
-char *default_storage_engine;
-char *default_tmp_storage_engine;
+const char *default_storage_engine;
+const char *default_tmp_storage_engine;
 ulonglong temptable_max_ram;
 bool temptable_use_mmap;
 static char compiled_default_collation_name[] = MYSQL_DEFAULT_COLLATION_NAME;
@@ -1282,7 +1282,7 @@ char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
 Time_zone *default_tz;
-char *mysql_data_home = const_cast<char *>(".");
+const char *mysql_data_home = ".";
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
@@ -4314,7 +4314,7 @@ int init_common_variables() {
 
     From MySQL 5.5 onwards, the default storage engine is InnoDB.
   */
-  default_storage_engine = const_cast<char *>("InnoDB");
+  default_storage_engine = "InnoDB";
   default_tmp_storage_engine = default_storage_engine;
 
   /*

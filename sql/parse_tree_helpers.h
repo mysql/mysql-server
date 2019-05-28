@@ -226,7 +226,7 @@ bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp);
 bool set_system_variable(THD *thd, struct sys_var_with_base *tmp,
                          enum enum_var_type var_type, Item *val);
 LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr);
-bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
+bool set_trigger_new_row(Parse_context *pc, LEX_CSTRING trigger_field_name,
                          Item *expr_item, LEX_CSTRING expr_query);
 void sp_create_assignment_lex(THD *thd, const char *option_ptr);
 bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr);

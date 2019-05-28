@@ -3791,7 +3791,7 @@ class Item_func_version final : public Item_static_string_func {
 
 Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
                      LEX_STRING component);
-extern bool check_reserved_words(LEX_STRING *name);
+extern bool check_reserved_words(const char *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);

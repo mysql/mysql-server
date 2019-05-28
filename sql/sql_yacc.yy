@@ -14795,11 +14795,11 @@ option_value_no_option_type:
 internal_variable_name:
           lvalue_ident
           {
-            $$= NEW_PTN PT_internal_variable_name_1d($1);
+            $$= NEW_PTN PT_internal_variable_name_1d(to_lex_cstring($1));
           }
         | lvalue_ident '.' ident
           {
-            $$= NEW_PTN PT_internal_variable_name_2d(@$, $1, $3);
+            $$= NEW_PTN PT_internal_variable_name_2d(@$, to_lex_cstring($1), to_lex_cstring($3));
           }
         | DEFAULT_SYM '.' ident
           {

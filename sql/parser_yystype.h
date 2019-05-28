@@ -71,7 +71,7 @@ enum class enum_ha_read_modes;
 */
 struct sys_var_with_base {
   sys_var *var;
-  LEX_STRING base_name;
+  LEX_CSTRING base_name;
 };
 
 enum enum_drop_mode {

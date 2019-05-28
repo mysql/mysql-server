@@ -580,7 +580,7 @@ class sp_instr_set : public sp_lex_instr {
 */
 class sp_instr_set_trigger_field : public sp_lex_instr {
  public:
-  sp_instr_set_trigger_field(uint ip, LEX *lex, LEX_STRING trigger_field_name,
+  sp_instr_set_trigger_field(uint ip, LEX *lex, LEX_CSTRING trigger_field_name,
                              Item_trigger_field *trigger_field,
                              Item *value_item, LEX_CSTRING value_query)
       : sp_lex_instr(ip, lex->get_sp_current_parsing_ctx(), lex, true),
@@ -613,7 +613,7 @@ class sp_instr_set_trigger_field : public sp_lex_instr {
 
  private:
   /// Trigger field name ("field_name" of the "NEW.field_name").
-  LEX_STRING m_trigger_field_name;
+  LEX_CSTRING m_trigger_field_name;
 
   /// Item corresponding to the NEW/OLD trigger field.
   Item_trigger_field *m_trigger_field;

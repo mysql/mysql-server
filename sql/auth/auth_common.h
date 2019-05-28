@@ -675,7 +675,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 void log_user(THD *thd, String *str, LEX_USER *user, bool comma);
 bool check_change_password(THD *thd, const char *host, const char *user,
                            bool retain_current_password);
-bool change_password(THD *thd, LEX_USER *user, char *password,
+bool change_password(THD *thd, LEX_USER *user, const char *password,
                      const char *current_password,
                      bool retain_current_password);
 bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,

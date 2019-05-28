@@ -870,8 +870,8 @@ bool keyring_access_test() {
 *****************************************************************************/
 
 set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
-                 const LEX_STRING *base_name_arg, Item *value_arg)
-    : var(var_arg), type(type_arg), base(*base_name_arg) {
+                 LEX_CSTRING base_name_arg, Item *value_arg)
+    : var(var_arg), type(type_arg), base(base_name_arg) {
   /*
     If the set value is a field, change it to a string to allow things like
     SET table_type=MYISAM;
@@ -1225,8 +1225,8 @@ void set_var_user::print(const THD *thd, String *str) {
   Functions to handle SET PASSWORD
 *****************************************************************************/
 
-set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
-                                   char *current_password_arg,
+set_var_password::set_var_password(LEX_USER *user_arg, const char *password_arg,
+                                   const char *current_password_arg,
                                    bool retain_current)
     : user(user_arg),
       password(password_arg),

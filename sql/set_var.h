@@ -397,11 +397,11 @@ class set_var : public set_var_base {
     LEX_STRING string_value;    ///< for Sys_var_charptr and others
     const void *ptr;            ///< for Sys_var_struct
   } save_result;
-  LEX_STRING
+  LEX_CSTRING
   base; /**< for structured variables, like keycache_name.variable_name */
 
-  set_var(enum_var_type type_arg, sys_var *var_arg,
-          const LEX_STRING *base_name_arg, Item *value_arg);
+  set_var(enum_var_type type_arg, sys_var *var_arg, LEX_CSTRING base_name_arg,
+          Item *value_arg);
 
   int resolve(THD *thd);
   int check(THD *thd);
@@ -443,13 +443,13 @@ class set_var_user : public set_var_base {
 
 class set_var_password : public set_var_base {
   LEX_USER *user;
-  char *password;
-  char *current_password;
+  const char *password;
+  const char *current_password;
   bool retain_current_password;
 
  public:
-  set_var_password(LEX_USER *user_arg, char *password_arg,
-                   char *current_password_arg, bool retain_current);
+  set_var_password(LEX_USER *user_arg, const char *password_arg,
+                   const char *current_password_arg, bool retain_current);
 
   int resolve(THD *) { return 0; }
   int check(THD *thd);

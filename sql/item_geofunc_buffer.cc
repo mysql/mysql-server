@@ -198,8 +198,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   tmp_value.set_charset(&my_charset_bin);
   // The tmp_value is supposed to always stores a {uint32,double} pair,
   // and it uses a char tmp_buffer[16] array data member.
-  uchar *result_buf =
-      const_cast<uchar *>(pointer_cast<const uchar *>(tmp_value.ptr()));
+  uchar *result_buf = pointer_cast<uchar *>(tmp_value.ptr());
 
   // Although the result of this item node is never persisted, we still have to
   // use portable endianess access otherwise unaligned access will crash

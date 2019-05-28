@@ -853,7 +853,7 @@ struct TABLE_SHARE {
   ha_storage_media default_storage_media{HA_SM_DEFAULT};
 
   /* Name of the tablespace used for this table */
-  char *tablespace{nullptr};
+  const char *tablespace{nullptr};
 
   /**
     Partition meta data. Allocated from TABLE_SHARE::mem_root,

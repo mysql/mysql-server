@@ -221,7 +221,7 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
 
-  if (check_reserved_words(&ident1)) {
+  if (check_reserved_words(ident1.str)) {
     error(pc, pos);
     return true;
   }
@@ -245,8 +245,8 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc) {
     value.var = trg_new_row_fake_var;
     value.base_name = ident2;
   } else {
-    const LEX_STRING *domain;
-    const LEX_STRING *variable;
+    LEX_CSTRING *domain;
+    LEX_CSTRING *variable;
     bool is_key_cache_variable = false;
     sys_var *tmp;
     if (ident2.str && is_key_cache_variable_suffix(ident2.str)) {
@@ -280,7 +280,7 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc) {
     if (is_key_cache_variable)
       value.base_name = *variable;
     else
-      value.base_name = null_lex_str;
+      value.base_name = NULL_CSTR;
   }
   return false;
 }
@@ -402,9 +402,8 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   // Current password is specified through the REPLACE clause hence set the flag
   if (current_password != nullptr) user->uses_replace_clause = true;
 
-  var = new (thd->mem_root) set_var_password(
-      user, const_cast<char *>(password), const_cast<char *>(current_password),
-      retain_current_password);
+  var = new (thd->mem_root) set_var_password(user, password, current_password,
+                                             retain_current_password);
 
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of memory
@@ -439,8 +438,7 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
   if (!user) return true;
 
   set_var_password *var = new (thd->mem_root) set_var_password(
-      user, const_cast<char *>(password), const_cast<char *>(current_password),
-      retain_current_password);
+      user, password, current_password, retain_current_password);
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of Memory
   }

@@ -743,7 +743,7 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
 
     // Reset the buffer and assign the column's default value.
     memset(buf, 0, bufsize);
-    if (prepare_default_value(thd, buf, table, field, col_obj)) return true;
+    if (prepare_default_value(thd, buf, &table, field, col_obj)) return true;
 
     /**
       Storing default value specified for column in

@@ -1075,7 +1075,7 @@ class Sys_var_keycache : public Sys_var_ulonglong {
                           "future release",
                           var->base.str, name.str);
 
-    LEX_CSTRING base_name = to_lex_cstring(var->base);
+    LEX_CSTRING base_name = var->base;
     /* If no basename, assume it's for the key cache named 'default' */
     if (!base_name.length) base_name = default_key_cache_base;
 
@@ -1452,7 +1452,7 @@ class Sys_var_plugin : public sys_var {
   Sys_var_plugin(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
       size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, int plugin_type_arg,
-      char **def_val, PolyLock *lock = 0,
+      const char **def_val, PolyLock *lock = 0,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = 0,
       on_update_function on_update_func = 0, const char *substitute = 0,
