@@ -593,12 +593,7 @@ class Fil_shard {
 
   /** Destructor */
   ~Fil_shard() {
-#ifndef UNIV_HOTBACKUP
     mutex_destroy(&m_mutex);
-#else
-    mutex_free(&m_mutex);
-#endif /* !UNIV_HOTBACKUP */
-
     ut_a(UT_LIST_GET_LEN(m_LRU) == 0);
     ut_a(UT_LIST_GET_LEN(m_unflushed_spaces) == 0);
   }
