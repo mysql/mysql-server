@@ -583,9 +583,6 @@ Nodeid = 1
 Analyse node group map
 Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
 Restore: Failed to restore table: `test/def/t2_c` ... Exiting 
-
-NDBT_ProgramExit: 1 - Failed
-
 CREATE TABLE t11_c (
 c1 int primary key, c2 char(10), c3 varchar(10)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
@@ -752,13 +749,7 @@ count(1)
 drop table t1;
 Backup Id = the_backup_id
 Backup file node ID not specified, please provide --nodeid
-
-NDBT_ProgramExit: 2 - Wrong arguments
-
 Nodeid = 2
 Backup ID not specified, please provide --backupid
-
-NDBT_ProgramExit: 2 - Wrong arguments
-
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
