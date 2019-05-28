@@ -13492,6 +13492,9 @@ ER_KEYRING_AWS_FAILED_TO_DECRYPT_KEY
 ER_KEYRING_AWS_FAILED_TO_ROTATE_CMK
   eng "Could not rotate the CMK. AWS KMS returned this error: %s"
 
+ER_KEYRING_AWS_INCORRECT_PROXY
+  eng "Incorrect environment variable %s, invalid port: %s"
+
 ER_GRP_RPL_GTID_ALREADY_USED
   eng "The requested GTID '%s:%lld' was already used, the transaction will rollback."
 

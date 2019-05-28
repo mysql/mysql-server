@@ -31,7 +31,7 @@
 %{?with_mecab: %global mecab 1}
 
 # Pass path to the AWS SDK install
-%{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
+%{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=ON -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
 
 # Pass path to the libcurl "lib" directory
