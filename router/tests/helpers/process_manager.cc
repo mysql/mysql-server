@@ -245,17 +245,23 @@ void ProcessManager::shutdown_all() {
 
 void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
-    try {
-      EXPECT_EQ(std::get<1>(proc), std::get<0>(proc).wait_for_exit())
-          << std::get<0>(proc).get_command_line() << "\n"
-          << std::get<0>(proc).get_full_output() << "\n"
-          << std::get<0>(proc).get_full_logfile() << "\n";
-    } catch (const std::exception &e) {
-      FAIL() << std::get<0>(proc).get_command_line() << "\n"
-             << e.what() << "\n"
-             << "output: " << std::get<0>(proc).get_full_output() << "\n"
-             << "log: " << std::get<0>(proc).get_full_logfile() << "\n";
-    }
+    check_exit_code(std::get<0>(proc), std::get<1>(proc));
+  }
+}
+
+void ProcessManager::check_exit_code(ProcessWrapper &process,
+                                     int expected_exit_code,
+                                     std::chrono::milliseconds timeout) {
+  try {
+    ASSERT_EQ(expected_exit_code, process.wait_for_exit(timeout))
+        << process.get_command_line() << "\n"
+        << "output: " << process.get_full_output() << "\n"
+        << "log: " << process.get_full_logfile() << "\n";
+  } catch (const std::exception &e) {
+    FAIL() << process.get_command_line() << "\n"
+           << e.what() << "\n"
+           << "output: " << process.get_full_output() << "\n"
+           << "log: " << process.get_full_logfile() << "\n";
   }
 }
 

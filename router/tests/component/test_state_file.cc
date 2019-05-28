@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 using mysqlrouter::MySQLSession;
 using ::testing::PrintToString;
+using namespace std::chrono_literals;
 
 Path g_origin_path;
 
@@ -798,7 +799,7 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
                                routing_section, state_file, EXIT_FAILURE);
 
   // the router should close with non-0 return value
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 
   // proper log should get logged
@@ -1060,7 +1061,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
                                routing_section, state_file, EXIT_FAILURE);
 
   // the router should close with non-0 return value
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 
   // proper error should get logged
@@ -1119,10 +1120,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  // wait_for_exit() throws at timeout.
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(1000),
-                            /*expected_exitcode*/ 0))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS, 1000ms);
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
@@ -1188,10 +1186,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  // wait_for_exit() throws at timeout.
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(1000),
-                            /*expected_exitcode*/ 0))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS, 1000ms);
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported

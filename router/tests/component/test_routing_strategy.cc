@@ -142,7 +142,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
                                  {"set", passwd_filename, kRestApiUsername},
                                  EXIT_SUCCESS, true);
       cmd.register_response("Please enter password", kRestApiPassword + "\n");
-      EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
+      check_exit_code(cmd, EXIT_SUCCESS);
     }
 
     return "[rest_api]\n"
@@ -697,7 +697,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
       launch_router_static(conf_dir.name(), router_port, routing_section,
                            /*expect_error=*/true);
 
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
                            "[routing:test_default] is invalid; "
@@ -717,7 +717,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
       launch_router_static(conf_dir.name(), router_port, routing_section,
                            /*expect_error=*/true);
 
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
       "option routing_strategy in [routing:test_default] is invalid; valid are "
       "first-available, next-available, and round-robin (was 'invalid')"))
@@ -735,7 +735,7 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
       launch_router_static(conf_dir.name(), router_port, routing_section,
                            /*expect_error=*/true);
 
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
                            "[routing:test_default] is required"))
@@ -753,7 +753,7 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
       launch_router_static(conf_dir.name(), router_port, routing_section,
                            /*expect_error=*/true);
 
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
                            "[routing:test_default] needs a value"))
@@ -771,7 +771,7 @@ TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
       launch_router_static(conf_dir.name(), router_port, routing_section,
                            /*expect_error=*/true);
 
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option mode in "
                            "[routing:test_default] needs a value"))

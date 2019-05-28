@@ -49,10 +49,12 @@
 #include <unistd.h>
 #endif
 
+using namespace std::chrono_literals;
+
 namespace mysql_harness {
 
 // performance tweaks
-constexpr unsigned kWaitPidCheckInterval = 10;
+constexpr auto kWaitPidCheckInterval = std::chrono::milliseconds(10);
 constexpr auto kTerminateWaitInterval = std::chrono::seconds(10);
 
 ProcessLauncher::~ProcessLauncher() {
@@ -172,12 +174,12 @@ void ProcessLauncher::start() {
 
 uint64_t ProcessLauncher::get_pid() const { return (uint64_t)pi.hProcess; }
 
-int ProcessLauncher::wait(unsigned int timeout_ms) {
+int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
   DWORD dwExit = 0;
   BOOL get_ret{FALSE};
   if (get_ret = GetExitCodeProcess(pi.hProcess, &dwExit)) {
     if (dwExit == STILL_ACTIVE) {
-      auto wait_ret = WaitForSingleObject(pi.hProcess, timeout_ms);
+      auto wait_ret = WaitForSingleObject(pi.hProcess, timeout.count());
       switch (wait_ret) {
         case WAIT_OBJECT_0:
           get_ret = GetExitCodeProcess(pi.hProcess, &dwExit);
@@ -185,7 +187,8 @@ int ProcessLauncher::wait(unsigned int timeout_ms) {
         case WAIT_TIMEOUT:
           throw std::system_error(
               std::make_error_code(std::errc::timed_out),
-              std::string("Timed out waiting " + std::to_string(timeout_ms) +
+              std::string("Timed out waiting " +
+                          std::to_string(timeout.count()) +
                           " ms for the process '" + cmd_line + "' to exit"));
         case WAIT_FAILED:
           throw std::system_error(GetLastError(), std::system_category());
@@ -242,12 +245,13 @@ int ProcessLauncher::close() {
   return 0;
 }
 
-int ProcessLauncher::read(char *buf, size_t count, unsigned timeout_ms) {
+int ProcessLauncher::read(char *buf, size_t count,
+                          std::chrono::milliseconds timeout) {
   DWORD dwBytesRead;
   DWORD dwBytesAvail;
 
   // at least 1ms
-  auto std_interval_ms = std::max(timeout_ms / 10U, 1U);
+  auto std_interval = std::max(timeout / 10, 1ms);
 
   do {
     // check if there is data in the pipe before issuing a blocking read
@@ -265,21 +269,19 @@ int ProcessLauncher::read(char *buf, size_t count, unsigned timeout_ms) {
     // we got data, let's read it
     if (dwBytesAvail != 0) break;
 
-    if (timeout_ms == 0) {
+    if (timeout.count() == 0) {
       // no data and time left to wait
       //
 
       return 0;
     }
 
-    auto interval_ms = std::min(timeout_ms, std_interval_ms);
+    auto interval = std::min(timeout, std_interval);
 
     // just wait the whole timeout and try again
-    auto sleep_time = std::chrono::milliseconds(interval_ms);
+    std::this_thread::sleep_for(interval);
 
-    std::this_thread::sleep_for(sleep_time);
-
-    timeout_ms -= interval_ms;
+    timeout -= interval;
   } while (true);
 
   BOOL bSuccess = ReadFile(child_out_rd, buf, count, &dwBytesRead, NULL);
@@ -426,10 +428,7 @@ int ProcessLauncher::close() {
     } else {
       try {
         // wait for it shutdown before using the big hammer
-        result = wait(static_cast<unsigned int>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                kTerminateWaitInterval)
-                .count()));
+        result = wait(kTerminateWaitInterval);
       } catch (const std::system_error &e) {
         if (e.code() != std::errc::no_such_process) {
           std::error_code ec2 = send_shutdown_event(ShutdownEvent::KILL);
@@ -457,19 +456,21 @@ void ProcessLauncher::end_of_write() {
   fd_in[1] = -1;
 }
 
-int ProcessLauncher::read(char *buf, size_t count, unsigned timeout_ms) {
+int ProcessLauncher::read(char *buf, size_t count,
+                          std::chrono::milliseconds timeout) {
   int n;
   fd_set set;
-  struct timeval timeout;
-  memset(&timeout, 0x0, sizeof(timeout));
-  timeout.tv_sec = static_cast<decltype(timeout.tv_sec)>(timeout_ms / 1000);
-  timeout.tv_usec =
-      static_cast<decltype(timeout.tv_usec)>((timeout_ms % 1000) * 1000);
+  struct timeval timeout_tv;
+  memset(&timeout_tv, 0x0, sizeof(timeout_tv));
+  timeout_tv.tv_sec =
+      static_cast<decltype(timeout_tv.tv_sec)>(timeout.count() / 1000);
+  timeout_tv.tv_usec = static_cast<decltype(timeout_tv.tv_usec)>(
+      (timeout.count() % 1000) * 1000);
 
   FD_ZERO(&set);
   FD_SET(fd_out[0], &set);
 
-  int res = select(fd_out[0] + 1, &set, NULL, NULL, &timeout);
+  int res = select(fd_out[0] + 1, &set, NULL, NULL, &timeout_tv);
   if (res < 0) report_error(nullptr, "select()");
   if (res == 0) return 0;
 
@@ -520,8 +521,9 @@ uint64_t ProcessLauncher::get_pid() const {
   return (uint64_t)childpid;
 }
 
-int ProcessLauncher::wait(const unsigned int timeout_ms) {
-  unsigned int wait_time = timeout_ms;
+int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
+  using namespace std::chrono_literals;
+  auto wait_time = timeout;
   do {
     int status;
 
@@ -529,15 +531,15 @@ int ProcessLauncher::wait(const unsigned int timeout_ms) {
 
     if (ret == 0) {
       auto sleep_for = std::min(wait_time, kWaitPidCheckInterval);
-      if (sleep_for > 0) {
+      if (sleep_for.count() > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
         wait_time -= sleep_for;
       } else {
-        throw std::system_error(
-            std::make_error_code(std::errc::timed_out),
-            std::string("Timed out waiting " + std::to_string(timeout_ms) +
-                        " ms for the process " + std::to_string(childpid) +
-                        " to exit"));
+        throw std::system_error(std::make_error_code(std::errc::timed_out),
+                                std::string("Timed out waiting ") +
+                                    std::to_string(timeout.count()) +
+                                    " ms for the process " +
+                                    std::to_string(childpid) + " to exit");
       }
     } else if (ret == -1) {
       throw std::system_error(
@@ -550,7 +552,7 @@ int ProcessLauncher::wait(const unsigned int timeout_ms) {
         std::string msg;
         std::array<char, 1024> b;
         int n;
-        while ((n = read(b.data(), b.size(), 100)) > 0) {
+        while ((n = read(b.data(), b.size(), 100ms)) > 0) {
           msg.append(b.data(), n);
         }
         throw std::runtime_error(std::string("Process '" + cmd_line +

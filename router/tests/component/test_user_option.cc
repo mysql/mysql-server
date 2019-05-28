@@ -35,7 +35,7 @@ TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
   auto &router = launch_router(
       {"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"}, EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
       "Error: One can only use the -u/--user switch if running as root"))
       << router.get_full_output();
@@ -52,12 +52,12 @@ TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
   auto &router = launch_router(
       {"--user=mysqlrouter", "--bootstrap=127.0.0.1:5000"}, EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
       "Error: One can only use the -u/--user switch if running as root"))
       << router.get_full_output();
 
-  EXPECT_EQ(router.exit_code(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 #else
@@ -68,7 +68,7 @@ TEST_F(RouterUserOptionTest, UserOptionOnWindows) {
 
   ASSERT_TRUE(router.expect_output("Error: unknown option '--user'."))
       << router.get_full_output();
-  ASSERT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 #endif
 

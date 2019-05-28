@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include <unistd.h>
 #endif
 #include <stdint.h>
+#include <chrono>
 #include <stdexcept>
 #include <string>
 
@@ -150,11 +151,11 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * expires.
    * @param buf already allocated buffer where the read data will be stored.
    * @param count the maximum amount of bytes to read.
-   * @param timeout_ms timeout (in milliseconds) for the read to complete
+   * @param timeout timeout (in milliseconds) for the read to complete
    * @return the real number of bytes read.
    * Returns an shcore::Exception in case of error when reading.
    */
-  int read(char *buf, size_t count, unsigned timeout_ms);
+  int read(char *buf, size_t count, std::chrono::milliseconds timeout);
 
   /**
    * Writes several butes into stdin of child process.
@@ -178,7 +179,7 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * If the child process is already dead, wait() just returns.
    * Returns the exit code of the process.
    */
-  int wait(unsigned int timeout_ms = 1000);
+  int wait(std::chrono::milliseconds timeout = std::chrono::milliseconds(1000));
 
   /**
    * Returns the file descriptor write handle (to write child's stdin).

@@ -97,8 +97,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
@@ -135,8 +134,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))
@@ -176,8 +174,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))
@@ -228,8 +225,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))
@@ -276,8 +272,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))

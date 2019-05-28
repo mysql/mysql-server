@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -95,8 +95,8 @@ bool KeyringInfo::read_master_key() noexcept {
     process_launcher.start();
     while (std::chrono::steady_clock::now() < timeout) {
       char output[1024] = {0};
-      int bytes_read = process_launcher.read(output, sizeof(output) - 1,
-                                             rw_timeout_.count());
+      int bytes_read =
+          process_launcher.read(output, sizeof(output) - 1, rw_timeout_);
       if (bytes_read > 0) {
         master_key_ += output;
       } else {
@@ -106,8 +106,7 @@ bool KeyringInfo::read_master_key() noexcept {
     }
 
     auto wait_for_exit = std::chrono::duration_cast<std::chrono::milliseconds>(
-                             timeout - std::chrono::steady_clock::now())
-                             .count();
+        timeout - std::chrono::steady_clock::now());
 
     int exit_code = 0;
     if ((exit_code = process_launcher.wait(wait_for_exit))) {
@@ -148,7 +147,7 @@ bool KeyringInfo::write_master_key() const noexcept {
     process_launcher.write(master_key_.c_str(), master_key_.size());
     process_launcher.end_of_write();
     int exit_code = 0;
-    if ((exit_code = process_launcher.wait(rw_timeout_.count()))) {
+    if ((exit_code = process_launcher.wait(rw_timeout_))) {
       if (verbose_) {
         log_error("Cannot execute master key writer '%s'",
                   get_master_key_writer().c_str());

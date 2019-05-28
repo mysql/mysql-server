@@ -292,7 +292,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
                     metadata_cache_section, routing_section, EXIT_FAILURE,
                     /*wait_for_md_refresh_started=*/false);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
   EXPECT_TRUE(router.expect_output(
       "Configuration error: option ttl in [metadata_cache:test] needs value "

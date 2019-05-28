@@ -40,7 +40,7 @@ TEST_F(RouterConfigTest, RoutingDirAsMainConfigDirectory) {
   // launch the router giving directory instead of config_name
   auto &router = launch_router({"-c", config_dir.name()}, EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
       "Expected configuration file, got directory name: " + config_dir.name()))
@@ -70,7 +70,7 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
   auto &router = launch_router({"-c", conf_file, "-a", extra_conf_dir.name()},
                                EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(
       router.expect_output("Expected configuration file, got directory name: " +
@@ -86,7 +86,7 @@ TEST_F(RouterConfigTest,
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_THAT(
       router.get_full_output(),
@@ -101,7 +101,7 @@ TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_THAT(router.get_full_output(),
               StartsWith("Error: Configuration error: Section 'section1:key1' "
@@ -116,7 +116,7 @@ TEST_F(RouterConfigTest,
 
   // run the router and wait for it to exit
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_THAT(router.get_full_output(),
               StartsWith("Error: Configuration error: Option 'dynamic_state' "
@@ -153,7 +153,7 @@ TEST_F(RouterConfigTest, IsErrorReturnedWhenServiceDoesNotExist) {
 
     // run the router and wait for it to exit
     auto &router = launch_router({"-c", conf_file, "--service"}, EXIT_FAILURE);
-    EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+    check_exit_code(router, EXIT_FAILURE);
 
     EXPECT_THAT(router.get_full_output(),
                 StartsWith("ERROR: Could not find service 'MySQLRouter'!\n"

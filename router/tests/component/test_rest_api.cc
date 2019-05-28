@@ -48,6 +48,8 @@
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 
+using namespace std::chrono_literals;
+
 class RestOpenApiTest
     : public RestApiComponentTest,
       public ::testing::WithParamInterface<RestApiTestParams> {};
@@ -348,8 +350,9 @@ TEST_F(RestOpenApiTest, invalid_realm) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find("Configuration error: unknown authentication "
@@ -371,8 +374,8 @@ TEST_F(RestOpenApiTest, rest_api_no_http_server) {
       create_config_file(conf_dir_.name(), config_sections)};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(
@@ -396,8 +399,8 @@ TEST_F(RestOpenApiTest, duplicated_rest_api_section) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(
@@ -420,8 +423,8 @@ TEST_F(RestOpenApiTest, rest_api_section_key) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find(" Configuration error: [rest_api] section does "

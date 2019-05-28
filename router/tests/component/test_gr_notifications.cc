@@ -683,8 +683,8 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
                                routing_section, state_file, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  const auto wait_for_process_exit_timeout{10000ms};
+  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string log_content = router.get_full_logfile();
   EXPECT_NE(log_content.find(test_params.expected_error_message),
