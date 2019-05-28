@@ -52,6 +52,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql/auth/acl_change_notification.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"
@@ -535,14 +536,43 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
   the changing query to other destinations.
 
 */
+Acl_change_notification::Acl_change_notification(
+    THD *thd, enum_sql_command op, const List<LEX_USER> *users,
+    const List<LEX_CSTRING> *dynamic_privs)
+    : operation(op),
+      db(thd->db().str, thd->db().length),
+      query(thd->query().str, thd->query().length) {
+  if (users) {
+    /* Copy data out of List<LEX_USER> */
+    user_list.reserve(users->size());
+    for (const LEX_USER &lex_user : *users) {
+      user_list.emplace_back(lex_user);
+    }
+  }
+  if (dynamic_privs) {
+    /* Copy data from dynamic_privs to dynamic_privilege_list */
+    dynamic_privilege_list.reserve(dynamic_privs->elements);
+    for (const LEX_CSTRING &priv : *dynamic_privs) {
+      dynamic_privilege_list.emplace_back(priv.str, priv.length);
+    }
+  }
+}
 
-void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
+void acl_notify_htons(
+    THD *thd, enum_sql_command operation MY_ATTRIBUTE((unused)),
+    const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
+    const List<LEX_CSTRING> *dynamic_privs MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("db: %s", thd->db().str));
-  DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
-
-  ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY, query, query_length,
-                      thd->db().str, "");
+  DBUG_PRINT("enter", ("db: %s query: '%s'", thd->db().str, thd->query().str));
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /*
+    The Acl_change_notification is used only by the ndbcluster SE.
+    So, instantiate it and send a notification only if the Server is
+    built with ndbcluster SE.
+  */
+  Acl_change_notification notice(thd, operation, users, dynamic_privs);
+  ha_acl_notify(thd, &notice);
+#endif
 }
 
 /**

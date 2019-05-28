@@ -213,7 +213,9 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             Rewrite_params *rewrite_params = NULL,
                             bool extra_error = false,
                             bool log_to_binlog = true);
-void acl_notify_htons(THD *thd, const char *query, size_t query_length);
+void acl_notify_htons(THD *thd, enum_sql_command operation,
+                      const List<LEX_USER> *users,
+                      const List<LEX_CSTRING> *dynamic_privs = nullptr);
 
 /* sql_authorization */
 bool is_privileged_user_for_credential_change(THD *thd);

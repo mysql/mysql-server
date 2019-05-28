@@ -1443,7 +1443,9 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
 
   /* Notify storage engines */
   if (!(result || commit_result)) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    List<LEX_USER> user_list;
+    user_list.push_back(lex_user);
+    acl_notify_htons(thd, SQLCOM_SET_PASSWORD, &user_list);
   }
 
   return result || commit_result;
@@ -2097,7 +2099,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       }
     }
     /* Notify storage engines */
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_CREATE_USER, &list);
   }
 
   return result;
@@ -2242,7 +2244,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
 
   /* Notify storage engines */
   if (!result) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_DROP_USER, &list);
   }
 
   thd->variables.sql_mode = old_sql_mode;
@@ -2421,7 +2423,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
 
   /* Notify storage engines */
   if (!result) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_RENAME_USER, &list);
   }
 
   return result;
@@ -2663,7 +2665,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       }
     }
     /* Notify storage engines */
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_ALTER_USER, &list);
   }
 
   return result;

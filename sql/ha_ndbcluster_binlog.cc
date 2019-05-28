@@ -31,6 +31,7 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"
+#include "sql/auth/acl_change_notification.h"
 #include "sql/binlog.h"
 #include "sql/dd/types/abstract_table.h" // dd::enum_table_type
 #include "sql/dd/types/tablespace.h" // dd::Tablespace
@@ -65,7 +66,7 @@
 #include "sql/rpl_injector.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_table.h"  // build_table_filename,
+#include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_thd_internal_api.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
@@ -630,48 +631,6 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
       }
     } break;
 
-    case LOGCOM_ACL_NOTIFY: {
-      DBUG_PRINT("info", ("Privilege tables have been modified"));
-
-      /* FIXME: WL#12505 ACL callback logic goes here. */
-      DBUG_VOID_RETURN;
-
-      Ndb_schema_dist_client schema_dist_client(thd);
-
-      if (!schema_dist_client.prepare(db, ""))
-      {
-        // Could not prepare the schema distribution client
-        // NOTE! As there is no way return error, this may have to be
-        // revisited, the prepare should be done
-        // much earlier where it can return an error for the query
-        DBUG_VOID_RETURN;
-      }
-
-      /*
-        NOTE! Grant statements with db set to NULL is very rare but
-        may be provoked by for example dropping the currently selected
-        database. Since Ndb_schema_dist_client::log_schema_op() does not allow
-        db to be NULL(can't create a key for the ndb_schema_object nor
-        write NULL to ndb_schema), the situation is salvaged by setting db
-        to the constant string "mysql" which should work in most cases.
-
-        Interestingly enough this "hack" has the effect that grant statements
-        are written to the remote binlog in same format as if db would have
-        been NULL.
-      */
-      if (!db) {
-        db = "mysql";
-      }
-
-      const bool result =
-          schema_dist_client.acl_notify(query, query_length, db);
-      if (!result) {
-        // NOTE! There is currently no way to report an error from this
-        // function, just log an error and proceed
-        ndb_log_error("Failed to distribute '%s'", query);
-      }
-    } break;
-
     case LOGCOM_CREATE_TABLE:
     case LOGCOM_ALTER_TABLE:
     case LOGCOM_RENAME_TABLE:
@@ -685,6 +644,47 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
   DBUG_VOID_RETURN;
 }
 
+static void
+ndbcluster_acl_notify(THD *thd, const Acl_change_notification * notice)
+{
+  DBUG_ENTER("ndbcluster_acl_notify");
+
+  Ndb_schema_dist_client schema_dist_client(thd);
+
+  const char * db = notice->db;
+  if (!schema_dist_client.prepare(db, ""))
+  {
+    // Could not prepare the schema distribution client
+    // NOTE! As there is no way return error, this may have to be
+    // revisited, the prepare should be done
+    // much earlier where it can return an error for the query
+    DBUG_VOID_RETURN;
+  }
+
+  /*
+    NOTE! Grant statements with db set to NULL is very rare but
+    may be provoked by for example dropping the currently selected
+    database. Since Ndb_schema_dist_client::log_schema_op() does not allow
+    db to be NULL(can't create a key for the ndb_schema_object nor
+    write NULL to ndb_schema), the situation is salvaged by setting db
+    to the constant string "mysql" which should work in most cases.
+
+    Interestingly enough this "hack" has the effect that grant statements
+    are written to the remote binlog in same format as if db would have
+    been NULL.
+  */
+  if (!db) {
+    db = "mysql";
+  }
+
+  const bool result =
+      schema_dist_client.acl_notify(notice->query.str, notice->query.length, db);
+  if (!result) {
+    // NOTE! There is currently no way to report an error from this
+    // function, just log an error and proceed
+    ndb_log_error("Failed to distribute '%s'", notice->query.str);
+  }
+}
 
 /*
   End use of the NDB Cluster binlog
@@ -773,6 +773,7 @@ void ndbcluster_binlog_init(handlerton* h)
 {
   h->binlog_func=      ndbcluster_binlog_func;
   h->binlog_log_query= ndbcluster_binlog_log_query;
+  h->acl_notify=       ndbcluster_acl_notify;
 }
 
 

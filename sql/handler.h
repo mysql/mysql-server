@@ -691,7 +691,6 @@ enum enum_binlog_command {
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
   LOGCOM_DROP_DB,
-  LOGCOM_ACL_NOTIFY
 };
 
 enum class enum_sampling_method { SYSTEM };
@@ -1485,6 +1484,9 @@ typedef void (*binlog_log_query_t)(handlerton *hton, THD *thd,
                                    enum_binlog_command binlog_command,
                                    const char *query, uint query_length,
                                    const char *db, const char *table_name);
+
+typedef void (*acl_notify_t)(THD *thd,
+                             const class Acl_change_notification *notice);
 
 typedef int (*discover_t)(handlerton *hton, THD *thd, const char *db,
                           const char *name, uchar **frmblob, size_t *frmlen);
@@ -2353,6 +2355,7 @@ struct handlerton {
 
   binlog_func_t binlog_func;
   binlog_log_query_t binlog_log_query;
+  acl_notify_t acl_notify;
   discover_t discover;
   find_files_t find_files;
   table_exists_in_engine_t table_exists_in_engine;
@@ -6802,6 +6805,7 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command, const char *query,
                          size_t query_length, const char *db,
                          const char *table_name);
+void ha_acl_notify(THD *thd, class Acl_change_notification *);
 void ha_binlog_wait(THD *thd);
 
 /* It is required by basic binlog features on both MySQL server and libmysqld */

@@ -2864,7 +2864,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   if (!result) {
     my_ok(thd);
     /* Notify storage engines */
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, revoke_grant ? SQLCOM_REVOKE : SQLCOM_GRANT,
+                     &user_list);
   }
 
   thd->lex->restore_backup_query_tables_list(&backup);
@@ -3043,7 +3044,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   /* Notify storage engines */
   if (write_to_binlog && !result) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, revoke_grant ? SQLCOM_REVOKE : SQLCOM_GRANT,
+                     &user_list);
   }
 
   return result;
@@ -3165,7 +3167,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
   if (!errors) {
     my_ok(thd);
     /* Notify storage engines */
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_REVOKE, users);
   }
 
   return false;
@@ -3299,7 +3301,7 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
   if (!errors) {
     my_ok(thd);
     /* Notify storage engines */
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_GRANT, users);
   }
 
   return errors;
@@ -3319,6 +3321,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   TABLE *dynpriv_table;
   std::set<LEX_USER *> existing_users;
   bool partial_revokes = false;
+  const List<LEX_CSTRING> *granted_dynamic_privs = &dynamic_privilege;
   DBUG_TRACE;
   DBUG_ASSERT(initialized);
 
@@ -3463,6 +3466,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
             privileges_to_check->push_back(new_str);
             return false;
           });
+          granted_dynamic_privs = privileges_to_check;
         } else
           privileges_to_check =
               &const_cast<List<LEX_CSTRING> &>(dynamic_privilege);
@@ -3576,7 +3580,8 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   if (!error) {
     my_ok(thd);
     /* Notify storage engines */
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, revoke_grant ? SQLCOM_REVOKE : SQLCOM_GRANT, &list,
+                     granted_dynamic_privs);
   }
 
   return error;
@@ -5068,7 +5073,7 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
 
   /* Notify storage engines */
   if (!result) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_REVOKE_ALL, &list);
   }
 
   return result;
@@ -6327,7 +6332,7 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
 
   /* Notify storage engines */
   if (!ret) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    acl_notify_htons(thd, SQLCOM_ALTER_USER, users);
   }
 
   return ret;

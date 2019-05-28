@@ -5761,6 +5761,18 @@ int ha_binlog_end(THD *thd) {
   return 0;
 }
 
+static bool acl_notify_handlerton(THD *thd, plugin_ref plugin, void *data) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->acl_notify)
+    hton->acl_notify(thd,
+                     static_cast<const class Acl_change_notification *>(data));
+  return false;
+}
+
+void ha_acl_notify(THD *thd, class Acl_change_notification *data) {
+  plugin_foreach(thd, acl_notify_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, data);
+}
+
 /**
   Calculate cost of 'index only' scan for given index and number of records
 
