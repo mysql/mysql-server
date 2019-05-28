@@ -2803,6 +2803,14 @@ ha_ndbcluster::has_fk_dependency(THD* thd,
 	if (col == column)
 	  DBUG_RETURN(true);
       }
+      for (unsigned j = 0; j < fk.getChildColumnCount(); j++)
+      {
+       const NdbDictionary::Column* col =
+         m_table->getColumn(fk.getChildColumnNo(j));
+       DBUG_PRINT("col", ("[%u] %s", i, col->getName()));
+       if (col == column)
+         DBUG_RETURN(true);
+      }
     }
   }
   DBUG_RETURN(false);

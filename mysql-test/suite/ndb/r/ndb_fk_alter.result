@@ -264,6 +264,10 @@ ALTER TABLE t1 RENAME COLUMN col3 TO col3_new;
 ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
 ALTER TABLE t1 ALGORITHM=inplace, RENAME COLUMN col3 TO col3_new;
 ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
+ALTER TABLE t2 RENAME COLUMN col3 TO col3_new;
+ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
+ALTER TABLE t2 ALGORITHM=inplace, RENAME COLUMN col3 TO col3_new;
+ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
