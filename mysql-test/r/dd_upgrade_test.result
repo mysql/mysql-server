@@ -847,4 +847,17 @@ t_set	CREATE TABLE `t_set` (
 # Remove copied files
 # Restart the server with default options.
 # restart
+#
+# Bug#29823053: VERY SMALL TABLE_OPEN_CACHE CAUSES SEGMENTATION FAULT WHEN UPGRADING TO 8.0.16
+#
+# Copy zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Set different paths for --datadir
+# Stop DB server which was created by MTR default
+# Start the DB server to do upgrade. Without the bugfix, the server will fail.
+# Stop the server
+# Remove copied files
+# Restart the server with default options.
+# restart
 # end of test

@@ -374,6 +374,10 @@ class Dictionary_client {
     m_registry_uncommitted.get(
         static_cast<const typename T::Cache_partition *>(object), &element);
     DBUG_ASSERT(element == nullptr);
+
+    // We must require a top level non-default releaser to ensure a
+    // predictable life span of the objects.
+    DBUG_ASSERT(m_current_releaser != &m_default_releaser);
 #endif
 
     m_uncached_objects.push_back(object);

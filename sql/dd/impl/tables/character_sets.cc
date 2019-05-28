@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,6 +96,7 @@ Character_sets::Character_sets() {
 
 bool Character_sets::populate(THD *thd) const {
   // Obtain a list of the previously stored charsets.
+  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   std::vector<const Charset *> prev_cset;
   if (thd->dd_client()->fetch_global_components(&prev_cset)) return true;
 
@@ -145,7 +146,6 @@ bool Character_sets::populate(THD *thd) const {
 
   // The remaining ids in the prev_cset_ids set were not updated, and must
   // therefore be deleted from the DD since they are not supported anymore.
-  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   for (std::set<Object_id>::const_iterator del_it = prev_cset_ids.begin();
        del_it != prev_cset_ids.end(); ++del_it) {
     const Charset *del_cset = NULL;
