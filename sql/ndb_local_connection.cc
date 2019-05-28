@@ -29,8 +29,15 @@
 #include "sql/sql_class.h"
 #include "sql/sql_prepare.h"
 
+class Ndb_local_connection::Impl {
+public:
+  Impl(THD * thd_arg) : connection(thd_arg) {}
+  Ed_connection connection;
+};
+
 Ndb_local_connection::Ndb_local_connection(THD* thd_arg):
-  m_thd(thd_arg)
+  m_thd(thd_arg),
+  impl(std::make_unique<Impl>(thd_arg))
 {
   assert(thd_arg);
 
@@ -41,6 +48,7 @@ Ndb_local_connection::Ndb_local_connection(THD* thd_arg):
   m_push_warnings = (thd_arg->get_command() != COM_DAEMON);
 }
 
+Ndb_local_connection::~Ndb_local_connection() = default;
 
 static inline bool
 should_ignore_error(const uint* ignore_error_list, uint error)
@@ -73,13 +81,13 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
                                     const Suppressor* suppressor)
 {
   DBUG_ENTER("Ndb_local_connection::execute_query");
-  Ed_connection con(m_thd);
-  if (con.execute_direct(sql_text))
+
+  if (impl->connection.execute_direct(sql_text))
   {
-    /* Error occurred while executing the query */
-    const uint last_errno = con.get_last_errno();
+    /* Error occured while executing the query */
+    const uint last_errno = impl->connection.get_last_errno();
     assert(last_errno); // last_errno must have been set
-    const char* last_errmsg = con.get_last_error();
+    const char* last_errmsg = impl->connection.get_last_error();
 
     DBUG_PRINT("error", ("Query '%s' failed, error: '%d: %s'",
                          sql_text.str,
@@ -103,7 +111,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
       this error
     */
      if (suppressor &&
-         suppressor->should_ignore_error(con))
+         suppressor->should_ignore_error(impl->connection))
     {
       /* Error suppressed -> return sucess */
       m_thd->clear_error();
@@ -125,9 +133,6 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
 
     DBUG_RETURN(true);
   }
-
-  // Query returned ok, thd should have no error
-  assert(!m_thd->is_error());
 
   DBUG_RETURN(false); // Success
 }
@@ -231,6 +236,19 @@ bool Ndb_local_connection::create_util_table(const std::string &table_def_sql) {
   DBUG_RETURN(execute_query_iso(sql_text, ignore_mysql_errors, nullptr));
 }
 
+bool  Ndb_local_connection::run_acl_statement(const std::string & acl_sql) {
+  DBUG_ENTER("Ndb_local_connection::run_acl_statement");
+  uint ignore_mysql_errors[2] =
+  {
+    ER_NO_SUCH_TABLE ,
+    ER_NONEXISTING_TABLE_GRANT
+  };
+
+  ndb_log_verbose(30, "run_acl_statement: %s", acl_sql.c_str());
+  MYSQL_LEX_STRING sql_text = { const_cast<char *>(acl_sql.c_str()),
+                                acl_sql.length() };
+  DBUG_RETURN(execute_query_iso(sql_text, ignore_mysql_errors, nullptr));
+}
 
 bool Ndb_local_connection::create_database(const std::string& database_name) {
   DBUG_ENTER("Ndb_local_connection::create_database");
@@ -278,5 +296,11 @@ Ndb_local_connection::raw_run_query(const char* query, size_t query_length,
   DBUG_RETURN(execute_query_iso(sql_text,
                                 (const uint*)suppress_errors,
                                 NULL));
+}
+
+Ed_result_set *
+Ndb_local_connection::get_results()
+{
+  return impl->connection.get_result_sets();
 }
 

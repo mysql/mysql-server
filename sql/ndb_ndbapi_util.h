@@ -57,6 +57,32 @@ void ndb_pack_varchar(const NdbDictionary::Table* ndbtab, unsigned column_index,
                       char (&buf)[512], const char* str, size_t str_length);
 
 /**
+ * @brief ndb_pack_varchar, pack the given string using "MySQL Server varchar
+ *        format" into a buffer suitable for the given column of the NDB table
+ * @param column         NDB Column
+ * @param offset         position of this column's data in buffer
+ * @param str            string to pack
+ * @param str_length     length of string to pack
+ * @param buf            pointer to data buffer of any size
+ */
+void ndb_pack_varchar(const NdbDictionary::Column* column, size_t offset,
+                      const char* str, size_t str_length, char *buf);
+
+/**
+ * @brief ndb_unpack_varchar, retrieve a pointer and string length from
+ *        a data buffer. Assumes that the caller has already verified that
+ *        the stored value is non-null.
+ * @param column         NDB Column
+ * @param offset         position of this column's data in buffer
+ * @param str            string destination (out)
+ * @param str_length     string length destination (out)
+ * @param buf            pointer to filled data buffer
+ */
+void ndb_unpack_varchar(const NdbDictionary::Column* column, size_t offset,
+                        const char ** str, size_t * str_length, const char *buf);
+
+
+/**
    @brief ndb_get_extra_metadata_version, returns the version of the
           extra metadata attached to the table in NDB.
    @param ndbtab

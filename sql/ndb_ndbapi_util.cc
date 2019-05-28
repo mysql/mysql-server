@@ -56,6 +56,50 @@ void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,
   }
 }
 
+void
+ndb_pack_varchar(const NdbDictionary::Column* col, size_t offset,
+                 const char* str, size_t str_length, char *buf)
+{
+  buf += offset;
+  switch (col->getArrayType())
+  {
+    case NdbDictionary::Column::ArrayTypeFixed:
+      memcpy(buf, str, str_length);
+      break;
+    case NdbDictionary::Column::ArrayTypeShortVar:
+      *(uchar*)buf= (uchar)str_length;
+      memcpy(buf + 1, str, str_length);
+      break;
+    case NdbDictionary::Column::ArrayTypeMediumVar:
+      int2store(buf, (uint16)str_length);
+      memcpy(buf + 2, str, str_length);
+      break;
+  }
+}
+
+void
+ndb_unpack_varchar(const NdbDictionary::Column* col, size_t offset,
+                   const char ** str, size_t * str_length, const char *buf)
+{
+  buf += offset;
+
+  switch (col->getArrayType()) {
+    case NdbDictionary::Column::ArrayTypeFixed:
+      *str_length = col->getLength();
+      *str = buf;
+      break;
+    case NdbDictionary::Column::ArrayTypeShortVar: {
+      const unsigned char len1byte = static_cast<unsigned char>(buf[0]);
+      *str_length = len1byte;
+      *str = buf + 1;
+    } break;
+    case NdbDictionary::Column::ArrayTypeMediumVar: {
+      const unsigned short len2byte = uint2korr(buf);
+      *str_length = len2byte;
+      *str = buf + 2;
+    } break;
+  }
+}
 
 Uint32
 ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab)

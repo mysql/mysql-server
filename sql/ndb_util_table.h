@@ -43,8 +43,8 @@ class Ndb_util_table {
   const std::string m_db_name;
   const std::string m_table_name;
   const bool m_hidden;
+  const bool m_create_events;
 
-  const NdbDictionary::Column* get_column(const char* name) const;
   bool check_column_type(const NdbDictionary::Column*,
                          NdbDictionary::Column::Type type,
                          const char* type_name) const;
@@ -52,11 +52,13 @@ class Ndb_util_table {
   void push_ndb_error_warning(const NdbError& ndb_err) const;
 
  protected:
+  const NdbDictionary::Column* get_column(const char* name) const;
   void push_warning(const char* fmt, ...) const
       MY_ATTRIBUTE((format(printf, 2, 3)));
 
-  Ndb_util_table(Thd_ndb*, std::string  db_name,
-                 std::string  table_name, bool hidden);
+  Ndb_util_table(class Thd_ndb*, std::string db_name,
+                 std::string table_name, bool hidden,
+                 bool create_events = true);
   ~Ndb_util_table();
 
   bool check_column_exist(const char* name) const;
@@ -90,6 +92,12 @@ class Ndb_util_table {
   bool create_table_in_NDB(const NdbDictionary::Table &new_table) const;
   bool drop_table_in_NDB(const NdbDictionary::Table &old_table) const;
 
+  virtual bool define_indexes(const NdbDictionary::Table &table,
+                              unsigned int mysql_version) const;
+  bool create_index(const NdbDictionary::Table &,
+                    const NdbDictionary::Index &) const;
+  bool create_primary_ordered_index(const NdbDictionary::Table &) const;
+
   /**
      @brief Drop the events related to this table from NDB
      @return true if events was dropped successfully
@@ -103,6 +111,13 @@ class Ndb_util_table {
   bool drop_event_in_NDB(const char* event_name) const;
 
  public:
+  /** 
+    @brief Create or upgrade the table in NDB, and in the local Data Dictionary,
+           and setup NDB binlog events if enabled
+    @return true on success
+   */
+  bool create_or_upgrade(class THD *, bool upgrade_allowed);
+
   /**
     @brief Check if table exists in NDB
     @return true if table exists
@@ -178,30 +193,6 @@ class Ndb_util_table {
      @return the value stored in the varbinary column
    */
   static std::string unpack_varbinary(NdbRecAttr* ndbRecAttr);
-};
-
-
-class Util_table_creator {
-  class THD *const m_thd;
-  Thd_ndb *const m_thd_ndb;
-  Ndb_util_table &m_util_table;
-  std::string m_name;
-
-  const char *db_name() const { return m_util_table.db_name(); }
-  const char *table_name() const { return m_util_table.table_name(); }
-
-  bool create_or_upgrade_in_NDB(bool upgrade_allowed, bool& reinstall) const;
-
-  bool install_in_DD(bool reinstall);
-
-  bool setup_table_for_binlog() const;
-
- public:
-  Util_table_creator(class THD *, Thd_ndb *, Ndb_util_table &);
-  Util_table_creator() = delete;
-  Util_table_creator(const Util_table_creator &) = delete;
-
-  bool create_or_upgrade(bool upgrade_allowed);
 };
 
 #endif

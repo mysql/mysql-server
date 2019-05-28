@@ -25,6 +25,7 @@
 #ifndef NDB_LOCAL_CONNECTION_H
 #define NDB_LOCAL_CONNECTION_H
 
+#include <memory>
 #include <string>
 
 #include "my_inttypes.h"
@@ -48,6 +49,7 @@ class THD;
 class Ndb_local_connection {
 public:
   Ndb_local_connection(THD* thd);
+  ~Ndb_local_connection();
 
   bool truncate_table(const char* db, const char* table,
                       bool ignore_no_such_table);
@@ -63,19 +65,30 @@ public:
 
   bool execute_database_ddl(const std::string& ddl_query);
 
+  bool run_acl_statement(const std::string &acl_sql);
+
   /* Don't use this function for new implementation, backward compat. only */
   bool raw_run_query(const char* query, size_t query_length,
                      const int* suppress_errors);
+
+protected:
+  bool execute_query_iso(MYSQL_LEX_STRING sql_text,
+                         const uint* ignore_mysql_errors,
+                         const class Suppressor* suppressor = NULL);
+
+  class Ed_result_set * get_results();
 
 private:
   bool execute_query(MYSQL_LEX_STRING sql_text,
                      const uint* ignore_mysql_errors,
                      const class Suppressor* suppressor = NULL);
-  bool execute_query_iso(MYSQL_LEX_STRING sql_text,
-                         const uint* ignore_mysql_errors,
-                         const class Suppressor* suppressor = NULL);
-private:
+
+protected:
   THD* m_thd;
+
+private:
+  class Impl;
+  std::unique_ptr<class Impl> impl;
   bool m_push_warnings;
 };
 

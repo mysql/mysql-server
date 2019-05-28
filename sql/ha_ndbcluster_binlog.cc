@@ -2232,9 +2232,12 @@ public:
      return false;
    }
 
+   /* Give additional 'binlog_setup rights' to this Thd_ndb */
+   Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
+   thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
+
    Ndb_schema_dist_table schema_dist_table(thd_ndb);
-   Util_table_creator schema_table_creator(m_thd, thd_ndb, schema_dist_table);
-   if (!schema_table_creator.create_or_upgrade(
+   if (!schema_dist_table.create_or_upgrade(m_thd,
            opt_ndb_schema_dist_upgrade_allowed))
      return false;
 
@@ -2252,15 +2255,13 @@ public:
    }
 
    Ndb_schema_result_table schema_result_table(thd_ndb);
-   Util_table_creator schema_result_table_creator(m_thd, thd_ndb,
-                                                  schema_result_table);
-   if (!schema_result_table_creator.create_or_upgrade(
+   if (!schema_result_table.create_or_upgrade(m_thd,
            opt_ndb_schema_dist_upgrade_allowed))
      return false;
 
    Ndb_apply_status_table apply_status_table(thd_ndb);
-   Util_table_creator apply_table_creator(m_thd, thd_ndb, apply_status_table);
-   if (!apply_table_creator.create_or_upgrade(true)) return false;
+   if (!apply_status_table.create_or_upgrade(m_thd, true))
+     return false;
 
    if (!synchronize_data_dictionary()) {
      ndb_log_verbose(9, "Failed to synchronize DD with NDB");

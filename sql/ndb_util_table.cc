@@ -36,6 +36,7 @@
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_local_connection.h"
 #include "sql/ndb_log.h"
+#include "sql/ndb_ndbapi_util.h"
 #include "sql/ndb_tdc.h"
 #include "sql/ndb_thd_ndb.h"
 #include "sql/sql_class.h"      // THD
@@ -60,15 +61,46 @@ class Db_name_guard {
   }
 };
 
+class Util_table_creator {
+  THD *const m_thd;
+  Thd_ndb *const m_thd_ndb;
+  Ndb_util_table &m_util_table;
+  std::string m_name;
+
+  const char *db_name() const { return m_util_table.db_name(); }
+  const char *table_name() const { return m_util_table.table_name(); }
+
+  bool create_or_upgrade_in_NDB(bool upgrade_allowed, bool& reinstall) const;
+
+  bool install_in_DD(bool reinstall);
+
+  bool setup_table_for_binlog() const;
+
+ public:
+  Util_table_creator(THD *, Thd_ndb *, Ndb_util_table &);
+  Util_table_creator() = delete;
+  Util_table_creator(const Util_table_creator &) = delete;
+
+  bool create_or_upgrade(bool upgrade_allowed, bool create_events);
+};
+
+
 Ndb_util_table::Ndb_util_table(Thd_ndb* thd_ndb, std::string db_name,
-                               std::string table_name, bool hidden)
+                               std::string table_name, bool hidden,
+                               bool events)
     : m_thd_ndb(thd_ndb),
       m_table_guard(thd_ndb->ndb->getDictionary()),
       m_db_name(std::move(db_name)),
       m_table_name(std::move(table_name)),
-      m_hidden(hidden) {}
+      m_hidden(hidden),
+      m_create_events(events) {}
 
 Ndb_util_table::~Ndb_util_table() {}
+
+bool Ndb_util_table::create_or_upgrade(THD *thd, bool upgrade_flag) {
+  Util_table_creator creator(thd, m_thd_ndb, *this);
+  return creator.create_or_upgrade(upgrade_flag, m_create_events);
+}
 
 void Ndb_util_table::push_warning(const char* fmt, ...) const {
   // Assemble the message
@@ -230,6 +262,38 @@ bool Ndb_util_table::define_table_add_column(
   return true;
 }
 
+bool Ndb_util_table::define_indexes(const NdbDictionary::Table &,
+                                    unsigned int) const {
+  // Base class implementation. Override in derived classes to define indexes.
+  return true;
+}
+
+bool Ndb_util_table::create_index(const NdbDictionary::Table & table,
+                                  const NdbDictionary::Index & idx) const {
+  Db_name_guard db_guard(m_thd_ndb->ndb, m_db_name.c_str());
+
+  NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
+  if (dict->createIndex(idx, table) != 0) {
+    push_ndb_error_warning(dict->getNdbError());
+    push_warning("Failed to create index '%s'", idx.getName());
+    return false;
+  }
+  return true;
+}
+
+bool Ndb_util_table::create_primary_ordered_index(
+    const NdbDictionary::Table & table) const {
+  NdbDictionary::Index index("PRIMARY");
+
+  index.setType(NdbDictionary::Index::OrderedIndex);
+  index.setLogging(false);
+
+  for(int i = 0 ; i < table.getNoOfPrimaryKeys() ; i++) {
+    index.addColumnName(table.getPrimaryKey(i));
+  }
+  return create_index(table, index);
+}
+
 bool Ndb_util_table::create_table_in_NDB(
     const NdbDictionary::Table &new_table) const {
   // Set correct database name on the Ndb object
@@ -237,7 +301,7 @@ bool Ndb_util_table::create_table_in_NDB(
 
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
   if (dict->createTable(new_table) != 0) {
-    push_ndb_error_warning(dict->getNdbError());;
+    push_ndb_error_warning(dict->getNdbError());
     push_warning("Failed to create table '%s'", new_table.getName());
     return false;
   }
@@ -298,6 +362,9 @@ bool Ndb_util_table::create() const {
   if (!create_table_in_NDB(new_table))
     return false;
 
+  if(! define_indexes(new_table, mysql_version))
+    return false;
+
   return true;
 }
 
@@ -334,27 +401,12 @@ Ndb_util_table::unpack_varbinary(NdbRecAttr* ndbRecAttr) {
   DBUG_ASSERT(ndbRecAttr->getType() == NdbDictionary::Column::Varbinary ||
               ndbRecAttr->getType() == NdbDictionary::Column::Longvarbinary);
 
-  // Retrieve the complete packed value from the NdbRecAttr
-  char *packed_value = ndbRecAttr->aRef();
-  // Calculate the length bytes from column length
-  const uint length_bytes =
-      HA_VARCHAR_PACKLENGTH(ndbRecAttr->getColumn()->getLength());
+  const char *value_start;
+  size_t value_length;
+  ndb_unpack_varchar(ndbRecAttr->getColumn(), 0, &value_start, &value_length,
+                      ndbRecAttr->aRef());
 
-  // Read length of the varbinary which is stored in the value
-  const uint varbinary_length =
-      length_bytes == 1 ?
-          static_cast<uint>(packed_value[0]) : uint2korr(packed_value);
-  // the varbinary length and length bytes should add up
-  // to the total length of the data stored in ndbRecAttr
-  // or else the value is corrupted
-  DBUG_ASSERT(varbinary_length + length_bytes ==
-              ndbRecAttr->get_size_in_bytes());
-  DBUG_PRINT("info", ("varbinary length: %u", varbinary_length));
-
-  // Extract the actual row data and return
-  const char *varbinary_start =
-      reinterpret_cast<const char *>(packed_value + length_bytes);
-  DBUG_RETURN(std::string(varbinary_start, varbinary_length));
+  DBUG_RETURN(std::string(value_start, value_length));
 }
 
 //
@@ -515,7 +567,8 @@ bool Util_table_creator::setup_table_for_binlog() const {
   return true;
 }
 
-bool Util_table_creator::create_or_upgrade(bool upgrade_allowed) {
+bool Util_table_creator::create_or_upgrade(bool upgrade_allowed,
+                                           bool create_events) {
   bool reinstall = false;
   if (!create_or_upgrade_in_NDB(upgrade_allowed, reinstall)) {
     return false;
@@ -525,11 +578,10 @@ bool Util_table_creator::create_or_upgrade(bool upgrade_allowed) {
     return false;
   }
 
-  /* Give additional 'binlog_setup rights' to this Thd_ndb */
-  Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
-  thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
-  if (!setup_table_for_binlog()) {
-    return false;
+  if(create_events) {
+    if (!setup_table_for_binlog()) {
+      return false;
+    }
   }
   return true;
 }
