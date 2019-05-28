@@ -90,10 +90,10 @@ perl mysql-test-run.pl --debug-server --timer --force  --comment=innodb-page-siz
 # Additional combinations run on default suites in weekly
 #
 ## Running default suites other than rpl and binlog with binlog-format mixed
-perl mysql-test-run.pl --comment=all-binlogformat-mix --vardir=var-binlogformat-mix --force --timer --debug-server  --suite=main,perfschema,sys_vars,federated,gis,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,innodb,innodb_fts,innodb_gis,innodb_zip,innodb_undo,json,x --mysqld=--binlog_format=mixed
+perl mysql-test-run.pl --comment=all-binlogformat-mix --vardir=var-binlogformat-mix --force --timer --debug-server  --suite=auth_sec,clone,collations,connection_control,encryption,federated,funcs_1,funcs_2,gcol,sysschema,gis,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,test_service_sql_api,test_services,x --mysqld=--binlog_format=mixed
 
 ## Running default suites other than rpl and binlog with skip-log-bin and skip-log-slave-updates
-perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force --timer --debug-server  --suite=main,sys_vars,federated,gis,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x --mysqld=--skip-log-bin --mysqld=--skip-log-slave-updates
+perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force --timer --debug-server  --suite=auth_sec,clone,collations,connection_control,encryption,federated,funcs_1,funcs_2,gcol,sysschema,gis,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,test_service_sql_api,test_services,x --mysqld=--skip-log-bin --mysqld=--skip-log-slave-updates
 ######END OF SECTION (DEFAULT SUITES (EXTENDED-WEEKLY))######################
 
 
@@ -128,16 +128,16 @@ perl mysql-test-run.pl --vardir=var-innodb-zip-log1_level1_8k --force --big-test
 # Do not add/run innodb_undo suite with 32 explicit undos, test would fail
 
 # Run innodb suites with explicit undo tablespaces >0  and pagesize=4k
-perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_4k --vardir=var-innodb-undo-32-4k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --initialize=--innodb-page-size=4k --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_4k --testcase-timeout=60 --debug-server --vardir=var-innodb-undo-32-4k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --initialize=--innodb-page-size=4k --no-skip
 
 # Run innodb suites with explicit undo tablespaces >0  and pagesize=default
-perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_16k --vardir=var-innodb-undo-32-16k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_16k --testcase-timeout=60 --debug-server --vardir=var-innodb-undo-32-16k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --no-skip
 
 # Run innodb suites with explicit undo tablespaces >0  and pagesize=64k
-perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_64k --vardir=var-innodb-undo-32-64k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --initialize=--innodb-page-size=64k --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_64k --testcase-timeout=60 --debug-server --vardir=var-innodb-undo-32-64k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --initialize=--innodb-page-size=64k --no-skip
 
 # Run innodb suite with --innodb_sync_debug=1
-perl mysql-test-run.pl --timer  --force  --comment=innodb_sync_debug --vardir=var-innodb-sync-debug  --suite=innodb --mysqld=--innodb_sync_debug=1 --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_sync_debug --testcase-timeout=60 --debug-server --vardir=var-innodb-sync-debug  --suite=innodb --mysqld=--innodb_sync_debug=1 --no-skip
 
 ######################END OF SECTION 6 (INNODB(EXTENDED-WEEKLY))#######
 #

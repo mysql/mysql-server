@@ -49,6 +49,9 @@
 # Asserts the expected count of `SET @@SESSION.sql_require_primary_key` for a
 # given sql_expression
 #
+
+--source include/have_log_bin.inc
+
 --write_file $MYSQL_TMP_DIR/assert_count_flag_occurences.inc END_OF_PROCEDURE
   if ($target_sql_expression == '')
   {
