@@ -868,6 +868,7 @@ if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--replace_regex /\x00/#/
 --sorted_result
 SELECT * FROM test.v1;
 --enable_ps_protocol
