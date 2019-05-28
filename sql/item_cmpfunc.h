@@ -1148,6 +1148,7 @@ class Item_func_coalesce : public Item_func_numhybrid {
   void set_numeric_type() override {}
   enum Item_result result_type() const override { return hybrid_type; }
   const char *func_name() const override { return "coalesce"; }
+  enum Functype functype() const override { return COALESCE_FUNC; }
 };
 
 class Item_func_ifnull final : public Item_func_coalesce {
