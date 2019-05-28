@@ -83,3 +83,17 @@ test/fk_address_city	city_id	city_id	1
 DROP TABLE address;
 DROP TABLE city;
 DROP TABLE country;
+#
+# Bug #29686796 RENAMING A MEM TABLE WITH FK WHILE FOREIGN_KEY_CHECKS
+# IS SET 0 RESULTS IN CRASH
+#
+CREATE TABLE t1(f1 INT,f2 INT)ENGINE=MEMORY;
+set foreign_key_checks=0;
+CREATE TABLE t2
+(id INT KEY,
+t1_id INT,
+INDEX par_ind (t1_id,id),
+FOREIGN KEY(t1_id) REFERENCES t1(id) ON DELETE CASCADE) ENGINE=INNODB;
+RENAME TABLE t1 to t5,t2 to t1;
+DROP TABLE t1, t5;
+SET foreign_key_checks=1;
