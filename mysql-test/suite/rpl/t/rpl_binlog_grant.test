@@ -38,4 +38,45 @@ show grants for x@y;
 drop user x@y;
 drop database d1;
 
+#
+# Bug#23623115: PROXY GRANTS ARE NOT PROPERLY LOGGED IN BINLOG
+#
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
+
+CREATE USER foo@localhost IDENTIFIED WITH 'mysql_native_password';
+CREATE USER bar@localhost IDENTIFIED WITH 'mysql_native_password';
+
+--let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+--let $query= GRANT PROXY ON foo@localhost TO bar@localhost IDENTIFIED BY '123';
+--let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
+--eval $query
+--let $row_number = 1
+--let $gtid_mode=`select @@global.gtid_mode`
+if ($gtid_mode == 'ON')
+{
+  --let $row_number = 2
+}
+--let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $row_number)
+--let $assert_cond= `SELECT "$logged_query" LIKE "%GRANT PROXY%"`
+--let $assert_text= Assert that the query logged is indeed the GRANT PROXY one
+--source include/assert.inc
+
+SHOW GRANTS FOR bar@localhost;
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+
+SHOW GRANTS FOR bar@localhost;
+
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
+
+DROP USER foo@localhost;
+DROP USER bar@localhost;
+
+--source include/sync_slave_sql_with_master.inc
+
 --source include/rpl_end.inc

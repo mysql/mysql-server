@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1161,6 +1161,58 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
 }
 
 
+/*
+  Advance the pointer by length of multi-byte character.
+
+    @param    ptr   pointer to multibyte character.
+
+    @return   NULL or pointer after advancing pointer by the
+              length of multi-byte character pointed to.
+*/
+
+static inline const char *advance_mbchar_ptr(const char *ptr)
+{
+  uint clen= my_mbcharlen(system_charset_info, (uchar) *ptr);
+
+  return (clen != 0) ? ptr + clen : NULL;
+}
+
+
+/*
+  Skip whitespace characters from the beginning of the multi-byte string.
+
+  @param    ptr     pointer to the multi-byte string.
+
+  @return   a pointer to the first non-whitespace character or NULL if the
+            string consists from whitespace characters only.
+*/
+
+static inline const char *skip_whitespace(const char *ptr)
+{
+  while (ptr != NULL && *ptr && my_isspace(system_charset_info, *ptr))
+    ptr= advance_mbchar_ptr(ptr);
+
+  return ptr;
+}
+
+
+/*
+  Get pointer to end of token.
+
+  @param    ptr  pointer to start of token
+
+  @return   NULL or pointer to end of token.
+*/
+
+static inline const char *get_token_end_ptr(const char *ptr)
+{
+  while (ptr != NULL && *ptr && !my_isspace(system_charset_info, *ptr))
+    ptr= advance_mbchar_ptr(ptr);
+
+  return ptr;
+}
+
+
 /**
   Extract a token from a string.
 
@@ -1216,22 +1268,21 @@ static char *debug_sync_token(char **token_p, uint *token_length_p, char *ptr)
   DBUG_ASSERT(token_length_p);
   DBUG_ASSERT(ptr);
 
-  /* Skip leading space */
-  while (my_isspace(system_charset_info, *ptr))
-    ptr+= my_mbcharlen(system_charset_info, (uchar) *ptr);
 
-  if (!*ptr)
-  {
-    ptr= NULL;
-    goto end;
-  }
+  /* Skip leading space */
+  ptr= const_cast<char*>(skip_whitespace(ptr));
+
+  if (ptr == NULL || !*ptr)
+    return NULL;
 
   /* Get token start. */
   *token_p= ptr;
 
   /* Find token end. */
-  while (*ptr && !my_isspace(system_charset_info, *ptr))
-    ptr+= my_mbcharlen(system_charset_info, (uchar) *ptr);
+  ptr= const_cast<char*>(get_token_end_ptr(ptr));
+
+  if (ptr == NULL)
+    return NULL;
 
   /* Get token length. */
   *token_length_p= ptr - *token_p;
@@ -1239,21 +1290,19 @@ static char *debug_sync_token(char **token_p, uint *token_length_p, char *ptr)
   /* If necessary, terminate token. */
   if (*ptr)
   {
-    /* Get terminator character length. */
-    uint mbspacelen= my_mbcharlen(system_charset_info, (uchar) *ptr);
+     char* tmp= ptr;
 
-    /* Terminate token. */
-    *ptr= '\0';
+    /* Advance by terminator character length. */
+    ptr= const_cast<char*>(advance_mbchar_ptr(ptr));
+    if (ptr != NULL)
+    {
+      /* Terminate token. */
+      *tmp= '\0';
 
-    /* Skip the terminator. */
-    ptr+= mbspacelen;
-
-    /* Skip trailing space */
-    while (my_isspace(system_charset_info, *ptr))
-      ptr+= my_mbcharlen(system_charset_info, (uchar) *ptr);
+      /* Skip trailing space */
+      ptr= const_cast<char*>(skip_whitespace(ptr));
+    }
   }
-
- end:
   return ptr;
 }
 

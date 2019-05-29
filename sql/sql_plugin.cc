@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -326,7 +326,8 @@ static void report_error(int where_to, uint error, ...)
  */
 bool check_valid_path(const char *path, size_t len)
 {
-  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
+  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP,
+                            strlen(FN_DIRSEP));
   return  prefix < len;
 }
 
@@ -689,7 +690,7 @@ static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int ty
 {
   uint i;
   DBUG_ENTER("plugin_find_internal");
-  if (! initialized)
+  if (!initialized || !name->str)
     DBUG_RETURN(0);
 
   mysql_mutex_assert_owner(&LOCK_plugin);
