@@ -2045,3 +2045,70 @@ t2#P#p0#SP#s0.ibd
 # List files from sp3_dir/test
 t2#P#p1#SP#s3.ibd
 DROP table t1,t2;
+#
+Bug#28687608 exchange partition with different row_format
+#
+SET @orig_default_row_format = @@global.innodb_default_row_format;
+SET GLOBAL innodb_default_row_format=COMPACT;
+CREATE TABLE t1 (
+col1 INT UNSIGNED,
+col2 DATETIME
+)
+ENGINE=INNODB
+PARTITION BY RANGE COLUMNS(col2)
+(
+PARTITION p0 VALUES LESS THAN ('1960-01-01'),
+PARTITION p1 VALUES LESS THAN ('1980-01-01')
+);
+INSERT INTO t1 VALUES ('1','1958-02-17 06:25:34');
+INSERT INTO t1 VALUES ('2','1962-11-23 11:06:06');
+SET GLOBAL innodb_default_row_format=DYNAMIC;
+ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN ('2000-01-01'));
+INSERT INTO t1 VALUES ('3','1999-10-13 05:28:46'), ('4', '1996-09-26 20:00:00');
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
+NAME	ROW_FORMAT
+test/t1#P#p0	Compact
+test/t1#P#p1	Compact
+test/t1#P#p2	Dynamic
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 REMOVE PARTITIONING;
+exchange compact partition with dynamic;
+ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
+ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
+ALTER TABLE t1 EXCHANGE PARTITION p2 WITH TABLE t2;
+DROP TABLE t1,t2;
+SET GLOBAL innodb_default_row_format=COMPACT;
+CREATE TABLE t1 (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH(a)
+(PARTITION p0 VALUES LESS THAN (100)
+(SUBPARTITION sp0,
+SUBPARTITION sp1),
+PARTITION p1 VALUES LESS THAN  (200)
+(SUBPARTITION sp2,
+SUBPARTITION sp3));
+SET GLOBAL innodb_default_row_format=DYNAMIC;
+ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (300)
+(SUBPARTITION sp4,
+SUBPARTITION sp5));
+INSERT INTO t1(b,a) VALUES('first',40),('second',91),('third',140),
+('forth',191);
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
+NAME	ROW_FORMAT
+test/t1#P#p0#SP#sp0	Compact
+test/t1#P#p0#SP#sp1	Compact
+test/t1#P#p1#SP#sp2	Compact
+test/t1#P#p1#SP#sp3	Compact
+test/t1#P#p2#SP#sp4	Dynamic
+test/t1#P#p2#SP#sp5	Dynamic
+CREATE TABLE t2 like t1;
+ALTER TABLE t2 REMOVE PARTITIONING;
+ALTER TABLE t1 EXCHANGE PARTITION sp2 WITH TABLE t2;
+ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
+ALTER TABLE t1 EXCHANGE PARTITION sp4 WITH TABLE t2;
+DROP TABLE t1,t2;
+SET @@global.innodb_default_row_format=@orig_default_row_format;

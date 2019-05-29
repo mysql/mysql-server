@@ -177,3 +177,66 @@ source include/show_binlog_events.inc;
 
 --echo End of 5.1 tests
 --source include/restore_default_binlog_format.inc
+
+--echo #
+--echo # BUG#29375764: SIMPLE ALTER CAUSE UNNECESSARY INNODB INDEX REBUILDS,
+--echo #               5.7.23 OR LATER 5.7 RLSES
+--echo #
+
+############################################################################
+# In 5.7.22:
+# CREATE DATABASE my_db;
+# CREATE TABLE my_db.t1(i INT PRIMARY KEY, v VARCHAR(9), KEY (v));
+#
+# DATADIR NAME: data_50722
+# zip -r data_50722.zip data_50722
+############################################################################
+
+--echo # Copy the zipped 5.7.22 data directory and unzip it.
+--copy_file $MYSQLTEST_VARDIR/std_data/data_50722.zip $MYSQL_TMP_DIR/data_50722.zip
+--file_exists $MYSQL_TMP_DIR/data_50722.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_50722.zip -d $MYSQL_TMP_DIR
+
+let $DATADIR_50722 = $MYSQL_TMP_DIR/data_50722;
+let $MYSQLD_LOG = $MYSQL_TMP_DIR/data_50722/my_err.log;
+
+# SHUTDOWN
+--source include/shutdown_mysqld.inc
+
+--echo # Restart the server with the 5.7.22 data directory.
+--exec echo "restart: --datadir=$DATADIR_50722 --log-error=$MYSQLD_LOG --innodb_undo_tablespaces=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # UPGRADE
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+SET DEBUG="+d, assert_index_def_has_no_pack_flag";
+--echo # Without the patch, an assert is triggered, indicating that index definitions
+--echo # have changed that would result in a index rebuild.
+ALTER TABLE my_db.t1 COMMENT "No index rebuild necessary";
+
+--echo # CLEANUP
+DROP TABLE my_db.t1;
+DROP DATABASE my_db;
+
+# SHUTDOWN
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files and directories.
+--remove_file $MYSQL_TMP_DIR/data_50722.zip
+--remove_files_wildcard $DATADIR_50722/sys *
+--remove_files_wildcard $DATADIR_50722/mysql *
+--remove_files_wildcard $DATADIR_50722/performance_schema *
+--remove_files_wildcard $DATADIR_50722/test *
+--remove_files_wildcard $DATADIR_50722 *
+--rmdir $DATADIR_50722/sys
+--rmdir $DATADIR_50722/mysql
+--rmdir $DATADIR_50722/performance_schema
+--rmdir $DATADIR_50722/test
+--rmdir $DATADIR_50722
+
+--echo # Restart server with default options.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

@@ -62,3 +62,19 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 
 End of wl#8326 tests!
 
+#
+# Bug#29287785: PASSWORD IS NOT UPDATED WITHOUT ERRORS WHEN
+#               SQL MODE IS PAD_CHAR_TO_FULL_LENGTH
+#
+CREATE USER 'user1'@'localhost';
+SET sql_mode= 'PAD_CHAR_TO_FULL_LENGTH';
+SET PASSWORD FOR 'user1'@'localhost'= PASSWORD('abc');
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SELECT authentication_string FROM mysql.user WHERE user= 'user1';
+authentication_string
+*0D3CED9BEC10A777AEC23CCC353A8C08A633045E
+DROP USER 'user1'@'localhost';
+SET sql_mode= DEFAULT;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.

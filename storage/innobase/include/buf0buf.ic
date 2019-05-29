@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -191,12 +191,12 @@ buf_page_peek_if_too_old(
 
 		/* It is possible that the below comparison returns an
 		unexpected result. 2^32 milliseconds pass in about 50 days,
-		so if the difference between ut_time_ms() and access_time
-		is e.g. 50 days + 15 ms, then the below will behave as if
-		it is 15 ms. This is known and fixing it would require to
+		so if the difference between ut_time_monotonic_ms() and
+		access_time is e.g. 50 days + 15 ms, then the below will behave
+		as if it is 15 ms. This is known and fixing it would require to
 		increase buf_page_t::access_time from 32 to 64 bits. */
 		if (access_time > 0
-		    && ((ib_uint32_t) (ut_time_ms() - access_time))
+		    && ((ib_uint32_t) (ut_time_monotonic_ms() - access_time))
 		    >= buf_LRU_old_threshold_ms) {
 			return(TRUE);
 		}
@@ -612,7 +612,8 @@ buf_page_set_old(
 
 /*********************************************************************//**
 Determine the time of first access of a block in the buffer pool.
-@return ut_time_ms() at the time of first access, 0 if not accessed */
+@return ut_time_monotonic_ms() at the time of first access, 0 if not accessed
+*/
 UNIV_INLINE
 unsigned
 buf_page_is_accessed(
@@ -642,7 +643,7 @@ buf_page_set_accessed(
 
 	if (bpage->access_time == 0) {
 		/* Make this the time of the first access. */
-		bpage->access_time = static_cast<uint>(ut_time_ms());
+		bpage->access_time = static_cast<uint>(ut_time_monotonic_ms());
 	}
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -251,7 +251,7 @@ trx_purge_sys_create(
 	here only because the query threads code requires it. It is otherwise
 	quite unnecessary. We should get rid of it eventually. */
 	purge_sys->trx->id = 0;
-	purge_sys->trx->start_time = ut_time();
+	purge_sys->trx->start_time = ut_time_monotonic();
 	purge_sys->trx->state = TRX_STATE_ACTIVE;
 	purge_sys->trx->op_info = "purge trx";
 

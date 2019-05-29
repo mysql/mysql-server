@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1186,7 +1186,7 @@ buf_page_set_old(
 	ibool		old);	/*!< in: old */
 /*********************************************************************//**
 Determine the time of first access of a block in the buffer pool.
-@return ut_time_ms() at the time of first access, 0 if not accessed */
+@return ut_time_monotonic_ms() at the time of first access, 0 if not accessed */
 UNIV_INLINE
 unsigned
 buf_page_is_accessed(
@@ -2118,7 +2118,7 @@ struct buf_pool_t{
 					operations */
 	ulint		n_pend_unzip;	/*!< number of pending decompressions */
 
-	time_t		last_printout_time;
+	ib_time_monotonic_t		last_printout_time;
 					/*!< when buf_print_io was last time
 					called */
 	buf_buddy_stat_t buddy_stat[BUF_BUDDY_SIZES_MAX + 1];

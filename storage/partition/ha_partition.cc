@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5895,6 +5895,15 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
                                                      nb_reserved_values);
   }
   DBUG_VOID_RETURN;
+}
+
+/** Get partition row type
+@param[in] Id of partition for which row type to be retrieved
+@return Partition row type */
+enum row_type ha_partition::get_partition_row_type(
+        uint part_id)
+{
+	return m_file[part_id]->get_row_type();
 }
 
 void ha_partition::release_auto_increment_all_parts()

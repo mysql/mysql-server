@@ -47,7 +47,7 @@ SELECT "Rewrite me conn 2";
 SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
 
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
-
+--source include/disconnect_connections.inc
 
 --echo #
 --echo # Now make sure that everything works as long we do as we're supposed
@@ -66,7 +66,7 @@ SELECT 'Rewrite me';
 SHOW STATUS LIKE 'Rewriter_%';
 
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
-
+--source include/disconnect_connections.inc
 
 --echo #
 --echo # Now check that we don't fail even if @@autocommit is 0. In this case
@@ -102,7 +102,7 @@ SELECT 'Rewrite me';
 SHOW STATUS LIKE 'Rewriter_%';
 
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
-
+--source include/disconnect_connections.inc
 
 --echo #
 --echo # Now let's make sure that everything works fine if we run with

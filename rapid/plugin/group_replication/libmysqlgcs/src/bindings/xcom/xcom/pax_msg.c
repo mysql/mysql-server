@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,9 +99,15 @@ pax_msg *clone_pax_msg_no_app(pax_msg *msg)
 
 pax_msg *clone_pax_msg(pax_msg *msg)
 {
-	pax_msg * p = clone_pax_msg_no_app(msg);
-	copy_app_data(&p->a, msg->a);
-	return p;
+  pax_msg * p = clone_pax_msg_no_app(msg);
+  /*
+    Need to increase the refcnt so that the msg is deleted
+    in safe_app_data_copy if there is a failure.
+  */
+  p->refcnt = 1;
+  safe_app_data_copy(&p, msg->a);
+  if (p) p->refcnt = 0;
+  return p;
 }
 
 

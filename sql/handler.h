@@ -3574,6 +3574,11 @@ public:
   */
   virtual void use_hidden_primary_key();
 
+/**
+  A helper function to mark a transaction as noop_read_write if it is started.
+*/
+  void mark_trx_noop_dml();
+
 protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulonglong SSV::*offset) const;
