@@ -7112,6 +7112,9 @@ ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
 
 ER_MISSING_KEY
   eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
+
+WARN_NAMED_PIPE_ACCESS_EVERYONE
+  eng "Setting named_pipe_full_access_group='%s' is insecure. Consider using a Windows group with fewer members."
 #
 #  End of 5.6 error messages.
 #

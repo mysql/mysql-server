@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3554,6 +3554,7 @@ fts_add_doc_by_id(
 				btr_pcur_store_position(doc_pcur, &mtr);
 				mtr_commit(&mtr);
 
+				DEBUG_SYNC_C("fts_instrument_sync_cache_wait");
 				rw_lock_x_lock(&table->fts->cache->lock);
 
 				if (table->fts->cache->stopword_info.status
@@ -3575,6 +3576,13 @@ fts_add_doc_by_id(
 				}
 
 				rw_lock_x_unlock(&table->fts->cache->lock);
+
+				DBUG_EXECUTE_IF(
+                                        "fts_instrument_sync_cache_wait",
+					srv_fatal_semaphore_wait_threshold = 25;
+					fts_max_cache_size = 100;
+					fts_sync(cache->sync, true, true, false);
+                                );
 
 				DBUG_EXECUTE_IF(
 					"fts_instrument_sync",
@@ -3969,13 +3977,16 @@ fts_sync_add_deleted_cache(
 @param[in,out]	trx		transaction
 @param[in]	index_cache	index cache
 @param[in]	unlock_cache	whether unlock cache when write node
+@param[in]      sync_start_time Holds the timestamp of start of sync
+                                for deducing the length of sync time
 @return DB_SUCCESS if all went well else error code */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 fts_sync_write_words(
 	trx_t*			trx,
 	fts_index_cache_t*	index_cache,
-	bool			unlock_cache)
+	bool			unlock_cache,
+	ib_time_t               sync_start_time)
 {
 	fts_table_t	fts_table;
 	ulint		n_nodes = 0;
@@ -3984,6 +3995,13 @@ fts_sync_write_words(
 	dberr_t		error = DB_SUCCESS;
 	ibool		print_error = FALSE;
 	dict_table_t*	table = index_cache->index->table;
+	/* We use this to deduce threshold value of time
+	that we can let sync to go on holding cache lock */
+        const float cutoff = 0.98;
+        ulint           lock_threshold =
+                        (srv_fatal_semaphore_wait_threshold % SRV_SEMAPHORE_WAIT_EXTENSION)
+                        * cutoff;
+	bool            timeout_extended = false;
 #ifdef FTS_DOC_STATS_DEBUG
 	ulint		n_new_words = 0;
 #endif /* FTS_DOC_STATS_DEBUG */
@@ -4044,6 +4062,30 @@ fts_sync_write_words(
 
 			/*FIXME: we need to handle the error properly. */
 			if (error == DB_SUCCESS) {
+				DBUG_EXECUTE_IF("fts_instrument_sync_write",
+                                               os_thread_sleep(10000000););
+
+				if (!unlock_cache) {
+                                        ulint cache_lock_time = ut_time() - sync_start_time;
+                                        if (cache_lock_time > lock_threshold) {
+                                                if (!timeout_extended) {
+                                                        os_atomic_increment_ulint(
+                                                        &srv_fatal_semaphore_wait_threshold,
+                                                        SRV_SEMAPHORE_WAIT_EXTENSION);
+                                                        timeout_extended = true;
+                                                        lock_threshold +=
+                                                        SRV_SEMAPHORE_WAIT_EXTENSION;
+                                                } else {
+                                                        unlock_cache = true;
+                                                        os_atomic_decrement_ulint(
+                                                        &srv_fatal_semaphore_wait_threshold,
+                                                        SRV_SEMAPHORE_WAIT_EXTENSION);
+                                                        timeout_extended = false;
+
+                                                }
+                                        }
+                                }
+
 				if (unlock_cache) {
 					rw_lock_x_unlock(
 						&table->fts->cache->lock);
@@ -4053,6 +4095,9 @@ fts_sync_write_words(
 					trx,
 					&index_cache->ins_graph[selected],
 					&fts_table, &word->text, fts_node);
+
+				DBUG_EXECUTE_IF("fts_instrument_sync_write",
+                                                os_thread_sleep(15000000););
 
 				DEBUG_SYNC_C("fts_write_node");
 				DBUG_EXECUTE_IF("fts_write_node_crash",
@@ -4379,7 +4424,8 @@ fts_sync_index(
 
 	ut_ad(rbt_validate(index_cache->words));
 
-	error = fts_sync_write_words(sync->trx, index_cache, sync->unlock_cache);
+	error = fts_sync_write_words(sync->trx, index_cache, sync->unlock_cache,
+				    sync->start_time);
 
 #ifdef FTS_DOC_STATS_DEBUG
 	/* FTS_RESOLVE: the word counter info in auxiliary table "DOC_ID"
@@ -4619,7 +4665,7 @@ begin_sync:
 		ut_ad(sync->unlock_cache);
 		sync->unlock_cache = false;
 	}
-
+	DEBUG_SYNC_C("fts_instrument_sync");
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		fts_index_cache_t*	index_cache;
 
