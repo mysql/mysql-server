@@ -28,5 +28,6 @@ SELECT @c2p1;
 --enable_warnings
 
 UNINSTALL PLUGIN rewrite_example;
+--source include/disconnect_connections.inc
 
 SELECT 'UPPERCASE';

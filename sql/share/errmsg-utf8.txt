@@ -7067,6 +7067,9 @@ ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
 
 ER_MISSING_KEY
   eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
+
+WARN_NAMED_PIPE_ACCESS_EVERYONE
+  eng "Setting named_pipe_full_access_group='%s' is insecure. Consider using a Windows group with fewer members."
 #
 #  End of 5.6 error messages.
 #
@@ -7773,6 +7776,12 @@ ER_XA_REPLICATION_FILTERS
 
 ER_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
+
+ER_GROUPING_ON_TIMESTAMP_IN_DST
+  eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
+
+ER_CANT_START_SERVER_NAMED_PIPE
+  eng "Can't start server : Named Pipe \"%s\" already in use."
 
 #
 #  End of 5.7 error messages.

@@ -39,6 +39,7 @@ UNINSTALL PLUGIN rewrite_example;
 Warnings:
 Note	1105	Query 'UNINSTALL PLUGIN rewrite_example' rewritten to 'uninstall plugin rewrite_example' by a query rewrite plugin
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 SELECT 'UPPERCASE';
 UPPERCASE
 UPPERCASE

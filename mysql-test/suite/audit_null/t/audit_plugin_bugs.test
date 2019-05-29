@@ -95,6 +95,44 @@ SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
 
+--echo
+--echo #
+--echo # Bug#27638290 - Set @@null_audit_event_record_def = 
+--echo #                'mysql_audit_authentication_flush'; crashed
+--echo #
+--echo # New connection, unbound thread
+connect (con1,localhost,root,,);
+
+--echo # Expect NULL
+SELECT @@null_audit_event_record_def;
+--echo
+--echo # Invalid data
+SET @@null_audit_event_record_def = 'ABSOLUTE_NONSENSE';
+SELECT 1;
+--echo # Expect NULL
+--replace_regex /;command_id="[0-9]+"/;command_id="<expected_command_id>"/
+SELECT @@null_audit_event_record;
+SELECT @@null_audit_event_record_def;
+
+--echo
+--echo # Invalid data again
+SET @@null_audit_event_record_def = 'MYSQL_AUDIT_AUTHENTICATION_FLUSH;JUNK';
+SELECT 1;
+--echo # Expect NULL
+--replace_regex /;command_id="[0-9]+"/;command_id="<expected_command_id>"/
+SELECT @@null_audit_event_record;
+SELECT @@null_audit_event_record_def;
+--echo
+
+--echo  # Valid data
+SET @@null_audit_event_record_def = 'MYSQL_AUDIT_GENERAL_RESULT;MYSQL_AUDIT_COMMAND_END';
+SELECT 1;
+--replace_regex /;command_id="[0-9]+"/;command_id="<expected_command_id>"/
+SELECT @@null_audit_event_record;
+--disconnect con1
+connection default;
+
+--echo
 --echo End of 5.7 tests
 
 --echo # cleanup

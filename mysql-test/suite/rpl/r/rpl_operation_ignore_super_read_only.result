@@ -8,9 +8,6 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-SET @saved_value_super= @@GLOBAL.super_read_only;
-SET @saved_value= @@GLOBAL.read_only;
-SET @saved_autocommit= @@GLOBAL.autocommit;
 SET GLOBAL super_read_only= 1;
 SET AUTOCOMMIT= ON;
 SHOW VARIABLES like '%autocommit%';
@@ -56,12 +53,20 @@ RESET MASTER;
 # Test Case8: SET GLOBAL GTID_PURGED command
 ####################################################################
 SET GLOBAL gtid_purged= 'MASTER_UUID:1';
+####################################################################
+# Test Case9: Server Restart
+####################################################################
+include/rpl_restart_server.inc [server_number=2]
+include/assert.inc [Read_Master_Log_Pos before and after restart are same.]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
 "Clean up"
-SET AUTOCOMMIT= @saved_autocommit;
-SET GLOBAL super_read_only= @saved_value_super;
-SET GLOBAL read_only= @saved_value;
+SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
+SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
+SET GLOBAL read_only= SAVED_READ_ONLY;
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -74,9 +79,6 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-SET @saved_value_super= @@GLOBAL.super_read_only;
-SET @saved_value= @@GLOBAL.read_only;
-SET @saved_autocommit= @@GLOBAL.autocommit;
 SET GLOBAL super_read_only= 1;
 SET AUTOCOMMIT= OFF;
 SHOW VARIABLES like '%autocommit%';
@@ -122,12 +124,20 @@ RESET MASTER;
 # Test Case8: SET GLOBAL GTID_PURGED command
 ####################################################################
 SET GLOBAL gtid_purged= 'MASTER_UUID:1';
+####################################################################
+# Test Case9: Server Restart
+####################################################################
+include/rpl_restart_server.inc [server_number=2]
+include/assert.inc [Read_Master_Log_Pos before and after restart are same.]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
 "Clean up"
-SET AUTOCOMMIT= @saved_autocommit;
-SET GLOBAL super_read_only= @saved_value_super;
-SET GLOBAL read_only= @saved_value;
+SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
+SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
+SET GLOBAL read_only= SAVED_READ_ONLY;
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

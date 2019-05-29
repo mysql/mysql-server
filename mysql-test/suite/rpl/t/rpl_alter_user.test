@@ -32,7 +32,7 @@ SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES
 
 --connection master
 SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
-CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password AS 'auth_string1';
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password BY 'auth_string1';
 # Save master position
 --let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';

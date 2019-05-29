@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1623,6 +1623,14 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
 	    goto err;
 	  }
 	}
+	/*
+          If we convert INSERT operation internally to an UPDATE.
+          An INSERT operation may update table->vfield for BLOB fields,
+          So here we recalculate data for generated columns.
+	*/
+        if (table->vfield) {
+          update_generated_write_fields(table->write_set, table);
+        }
 	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
 	if ((error=(table->file->ha_index_read_idx_map(table->record[1],key_nr,
                                                        (uchar*) key, HA_WHOLE_KEY,
@@ -1808,6 +1816,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           we just should not expose this fact to users by invoking
           ON UPDATE triggers.
 	*/
+
 	if (last_uniq_key(table,key_nr) &&
 	    !table->file->referenced_by_foreign_key() &&
             (!table->triggers || !table->triggers->has_delete_triggers()))

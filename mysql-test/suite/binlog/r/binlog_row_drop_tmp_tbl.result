@@ -88,3 +88,30 @@ DROP TEMPORARY TABLE IF EXISTS t;
 Got one of the listed errors
 XA ROLLBACK 'idle_when_drop_temp';
 RESET MASTER;
+#
+# BUG#28642318: POINT IN TIME RECOVERY USING MYSQLBINLOG BROKEN
+#               WITH TEMPORARY TABLE -> ERRORS
+# Test case for DELETE query.
+RESET MASTER;
+# Set up.
+SET @save_binlog_format= @@session.binlog_format;
+SET @@session.binlog_format=STATEMENT;
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+SET @@session.binlog_format=STATEMENT;
+CREATE TEMPORARY TABLE t1 (b BLOB) ENGINE=INNODB;
+DELETE d1, d2 FROM t1 AS d1, t1 AS d2 WHERE d1.a<>d2.a;
+DROP TABLE t1;
+# DELETE query fails with table re-open error without patch.
+# Clean up.
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+RESET MASTER;
+# Test case for DROP query.
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+CREATE TEMPORARY TABLE t1 (b BLOB) ENGINE=INNODB;
+DROP TABLE t1;
+DROP TABLE t1;
+# DROP table query fails with unknown table error without patch.
+# Clean up
+SET @@session.binlog_format= @save_binlog_format;
+RESET MASTER;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -52,7 +52,7 @@ number between 0 and 2^64-1 inclusive. The formula and the constants
 being used are:
 X[n+1] = (a * X[n] + c) mod m
 where:
-X[0] = ut_time_us(NULL)
+X[0] = ut_time_monotonic_us()
 a = 1103515245 (3^5 * 5 * 7 * 129749)
 c = 12345 (3 * 5 * 823)
 m = 18446744073709551616 (2^64)
@@ -69,7 +69,7 @@ page_cur_lcg_prng(void)
 	static ibool		initialized = FALSE;
 
 	if (!initialized) {
-		lcg_current = (ib_uint64_t) ut_time_us(NULL);
+		lcg_current = (ib_uint64_t) ut_time_monotonic_us();
 		initialized = TRUE;
 	}
 

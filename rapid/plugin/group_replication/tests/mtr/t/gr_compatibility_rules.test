@@ -44,7 +44,8 @@ call mtr.add_suppression("Member version is incompatible with the group");
 SET session sql_log_bin=1;
 
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error_minor';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
 SET GLOBAL group_replication_group_name= "6db14550-03bb-11e5-b939-0800200c9a66";
 
 # The start will fail as the node is declared incompatible with the group

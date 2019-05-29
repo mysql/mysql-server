@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -220,6 +220,19 @@ int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor* fd);
 int	xcom_client_terminate_and_exit(connection_descriptor* fd);
 int	xcom_client_set_cache_limit(connection_descriptor *fd, uint64_t cache_limit);
+
+/**
+  Copies app data @c source into @c target and checks if the copy
+  succeeded. Sets *target to NULL if the copy fails.
+
+  @param[in, out] target The pax_msg to which the app_data will be copied.
+  @param source The app data that will be copied.
+  @retval TRUE if the copy was successful.
+  @retval FALSE if the copy failed, in which case *target is set to NULL;
+          a failed copy means that there was an error allocating memory for
+          the copy.
+*/
+bool_t safe_app_data_copy(pax_msg **target, app_data_ptr source);
 
 static inline char *strerr_msg(char *buf, size_t len, int nr)
 {

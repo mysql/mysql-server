@@ -1387,11 +1387,141 @@ SELECT * FROM t;
 i
 1
 301
-351
+601
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `i` int(11) NOT NULL AUTO_INCREMENT,
   KEY `i` (`i`)
-) ENGINE=InnoDB AUTO_INCREMENT=401 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=651 DEFAULT CHARSET=latin1
+DROP TABLE t;
+#
+# Bug#15851528 DUPLICATE KEY ERROR ON AUTO-INC PK WITH MIXED AUTO_INCREMENT_INCREMENT CLIENTS
+#
+# This test shows that the next record to be inserted is not affected
+# by a change in auto_increment_increment.
+# In addition, current value of auto_increment_increment by the client
+# that uses the existing autoinc value with be used to set next autoinc
+# value, which will be used by next client reguardless of its own session
+# setting for auto_increment_increment.
+#
+# Client 1: Insert a record with auto_increment_increment=2
+CREATE TABLE t(
+a SERIAL PRIMARY KEY,
+b VARCHAR(200)) ENGINE=InnoDB;
+SET SESSION auto_increment_increment=2;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S1');
+SELECT a,b FROM t;
+a	b
+1	S1
+# Client 2: Insert records with auto_increment_increment 2,1
+SET SESSION auto_increment_increment=2;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S2');
+SELECT a,b FROM t;
+a	b
+1	S1
+3	S2
+SET SESSION auto_increment_increment=1;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S2');
+SELECT a,b FROM t;
+a	b
+1	S1
+3	S2
+5	S2
+# Client 1: Insert a record with auto_increment_increment=1
+SET SESSION auto_increment_increment=1;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S1');
+SELECT a,b FROM t;
+a	b
+1	S1
+3	S2
+5	S2
+6	S1
+DROP TABLE t;
+# Autoincrement behaviour with mixed insert.
+CREATE TABLE t(
+a TINYINT AUTO_INCREMENT PRIMARY KEY,
+b VARCHAR(200)) ENGINE=InnoDB;
+SET SESSION auto_increment_increment=100;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S0'),('S1');
+SELECT a,b FROM t;
+a	b
+1	S0
+101	S1
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1
+INSERT INTO t(a,b) VALUES(28,'S2');
+SELECT a,b FROM t;
+a	b
+1	S0
+28	S2
+101	S1
+SET SESSION auto_increment_increment=1;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S3');
+SELECT a,b FROM t;
+a	b
+1	S0
+28	S2
+101	S1
+127	S3
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S4');
+ERROR 23000: Duplicate entry '127' for key 'PRIMARY'
 DROP TABLE t;

@@ -30,6 +30,54 @@ SELECT @@null_audit_event_order_check_consume_ignore_count;
 SET @@GLOBAL.null_audit_event_order_check= NULL;
 SET @@GLOBAL.null_audit_abort_message= NULL;
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
+
+#
+# Bug#27638290 - Set @@null_audit_event_record_def = 
+#                'mysql_audit_authentication_flush'; crashed
+#
+# New connection, unbound thread
+# Expect NULL
+SELECT @@null_audit_event_record_def;
+@@null_audit_event_record_def
+NULL
+
+# Invalid data
+SET @@null_audit_event_record_def = 'ABSOLUTE_NONSENSE';
+SELECT 1;
+1
+1
+# Expect NULL
+SELECT @@null_audit_event_record;
+@@null_audit_event_record
+NULL
+SELECT @@null_audit_event_record_def;
+@@null_audit_event_record_def
+ABSOLUTE_NONSENSE
+
+# Invalid data again
+SET @@null_audit_event_record_def = 'MYSQL_AUDIT_AUTHENTICATION_FLUSH;JUNK';
+SELECT 1;
+1
+1
+# Expect NULL
+SELECT @@null_audit_event_record;
+@@null_audit_event_record
+NULL
+SELECT @@null_audit_event_record_def;
+@@null_audit_event_record_def
+MYSQL_AUDIT_AUTHENTICATION_FLUSH;JUNK
+
+# Valid data
+SET @@null_audit_event_record_def = 'MYSQL_AUDIT_GENERAL_RESULT;MYSQL_AUDIT_COMMAND_END';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_record;
+@@null_audit_event_record
+MYSQL_AUDIT_GENERAL_RESULT;;
+MYSQL_AUDIT_GENERAL_STATUS;;
+MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_id>";
+
 End of 5.7 tests
 # cleanup
 UNINSTALL PLUGIN null_audit;

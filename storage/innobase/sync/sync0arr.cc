@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -116,8 +116,8 @@ struct sync_cell_t {
 					has not been signalled in the
 					period between the reset and
 					wait call. */
-	time_t		reservation_time;/*!< time when the thread reserved
-					the wait cell */
+	/*!< time when the thread reserved the wait cell */
+	ib_time_monotonic_t reservation_time;
 };
 
 /* NOTE: It is allowed for a thread to wait for an event allocated for
@@ -381,7 +381,7 @@ sync_array_reserve_cell(
 
 	cell->thread_id = os_thread_get_curr_id();
 
-	cell->reservation_time = ut_time();
+	cell->reservation_time = ut_time_monotonic();
 
 	/* Make sure the event is reset and also store the value of
 	signal_count at which the event was reset. */
@@ -496,10 +496,10 @@ sync_array_cell_print(
 
 	fprintf(file,
 		"--Thread %lu has waited at %s line %lu"
-		" for %.2f seconds the semaphore:\n",
+		" for " UINT64PF "  seconds the semaphore:\n",
 		(ulong) os_thread_pf(cell->thread_id),
 		innobase_basename(cell->file), (ulong) cell->line,
-		difftime(time(NULL), cell->reservation_time));
+		(uint64_t)(ut_time_monotonic() - cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
 		WaitMutex*	mutex = cell->latch.mutex;
@@ -1118,7 +1118,9 @@ sync_array_print_long_waits_low(
 			continue;
 		}
 
-		double	diff = difftime(time(NULL), cell->reservation_time);
+		int64_t time_diff = ut_time_monotonic() -
+					cell->reservation_time;
+		uint64_t diff = time_diff > 0 ? (uint64_t)time_diff : 0;
 
 		if (diff > SYNC_ARRAY_TIMEOUT) {
 			ib::warn() << "A long semaphore wait:";
