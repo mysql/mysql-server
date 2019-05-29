@@ -497,15 +497,21 @@ install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
-# multiarch support
-if %multilib_capable ; then
-    mv %{buildroot}%{_bindir}/mysql_config %{buildroot}%{_bindir}/mysql_config-%{__isa_bits}
-    install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}%{_bindir}/mysql_config
-fi
-
+# Router files
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+
+# Back to top level
+popd
+
+# multiarch support
+echo "%{_bindir}/mysql_config" > devel.list
+if %multilib_capable ; then
+    mv %{buildroot}%{_bindir}/mysql_config %{buildroot}%{_bindir}/mysql_config-%{__isa_bits}
+    install -p -m 0755 $MBD/release/packaging/rpm-common/mysql_config.sh %{buildroot}%{_bindir}/mysql_config
+    echo "%{_bindir}/mysql_config-%{__isa_bits}" >> devel.list
+fi
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -739,12 +745,10 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
-%files devel
+%files -f devel.list devel
 %doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
-%attr(755, root, root) %{_bindir}/mysql_config*
-%exclude %{_bindir}/mysql_config_editor
 %{_includedir}/mysql
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
