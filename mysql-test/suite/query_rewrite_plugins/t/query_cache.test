@@ -93,6 +93,7 @@ SELECT * FROM test.t1;
 DELETE FROM query_rewrite.rewrite_rules;
 
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+--source include/disconnect_connections.inc
 
 SELECT * FROM test.t1;
 SELECT * FROM test.t1;

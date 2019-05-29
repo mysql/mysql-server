@@ -16,6 +16,8 @@
 # 11) Execute 'FLUSH BINARY LOGS' command (with GTID_MODE=ON will assert)
 # 12) Execute 'SET GLOBAL gtid_purged='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1''
 # command
+# 13) Restart Slave and verify that slave_master_info table is updated during
+#     shutdown.
 # 14) Check that replication works fine
 # 15) Restore GLOBAL super_read_only to 0
 #
@@ -27,7 +29,8 @@
 #               MANY RPL CMDS.
 # Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING --SUPER-READ-ONLY
 #               OPTION
-#
+# Bug#27675107: SUPER_READ_ONLY WITH MASTER_INFO_REPOSITORY=TABLE BREAKS
+#               REPLICATION ON RESTART
 
 if (!$autocommit_opt)
 {
@@ -40,9 +43,9 @@ INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
-SET @saved_value_super= @@GLOBAL.super_read_only;
-SET @saved_value= @@GLOBAL.read_only;
-SET @saved_autocommit= @@GLOBAL.autocommit;
+--let $saved_value_super= `SELECT @@GLOBAL.super_read_only`
+--let $saved_value= `SELECT @@GLOBAL.read_only`
+--let $saved_autocommit= `SELECT @@GLOBAL.autocommit`
 SET GLOBAL super_read_only= 1;
 --eval SET AUTOCOMMIT= $autocommit_opt
 SHOW VARIABLES like '%autocommit%';
@@ -114,18 +117,40 @@ RESET MASTER;
 --replace_result $master_uuid MASTER_UUID
 --eval SET GLOBAL gtid_purged= '$master_uuid:1'
 
+--echo ####################################################################
+--echo # Test Case9: Server Restart
+--echo ####################################################################
+
+# Restart Slave and verify that slave_master_info table is updated during shutdown.
+--let $io_pos_before_restart = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
+--let $rpl_server_number = 2
+--source include/rpl_restart_server.inc
+--let $io_pos_after_restart = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
+
+# Assert that IO thread Read_Master_Log_Pos before and after restart are same.
+--let $assert_text= Read_Master_Log_Pos before and after restart are same.
+--let $assert_cond= $io_pos_before_restart = $io_pos_after_restart
+--source include/assert.inc
+
+# Restart slave threads
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
 
 --echo "Clean up"
 # Reset slave to clean state
-SET AUTOCOMMIT= @saved_autocommit;
-SET GLOBAL super_read_only= @saved_value_super;
-SET GLOBAL read_only= @saved_value;
+--replace_result $saved_autocommit SAVED_AUTOCOMMIT
+--eval SET AUTOCOMMIT= $saved_autocommit
+--replace_result $saved_value_super SAVED_SUPER_READ_ONLY
+--eval SET GLOBAL super_read_only= $saved_value_super
+--replace_result $saved_value SAVED_READ_ONLY
+--eval SET GLOBAL read_only= $saved_value
 
 # Start fresh slave
 --source include/stop_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root';
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

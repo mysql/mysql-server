@@ -266,7 +266,7 @@ SELECT USER();
 USER()
 u4@localhost
 
-CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string'
+CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD EXPIRE INTERVAL 90 DAY;
 SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user4';

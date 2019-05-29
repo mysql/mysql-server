@@ -445,10 +445,6 @@ SET(SQL_GUNIT_LIB_SOURCE
   thr_malloc.cc
   )
 
-IF(WIN32)
-  LIST(APPEND SQL_GUNIT_LIB_SOURCE named_pipe.cc)
-ENDIF()
-
 ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 

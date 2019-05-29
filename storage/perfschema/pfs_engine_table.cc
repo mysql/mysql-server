@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -838,6 +838,31 @@ void initialize_performance_schema_acl(bool bootstrap)
   }
 }
 
+static bool allow_drop_table_privilege() {
+  /*
+    The same DROP_ACL privilege is used for different statements,
+    in particular:
+    - TRUNCATE TABLE
+    - DROP TABLE
+    - ALTER TABLE
+    Here, we want to prevent DROP / ALTER  while allowing TRUNCATE.
+    Note that we must also allow GRANT to transfer the truncate privilege.
+  */
+  THD *thd= current_thd;
+  if (thd == NULL) {
+    return false;
+  }
+
+  DBUG_ASSERT(thd->lex != NULL);
+  if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
+      (thd->lex->sql_command != SQLCOM_GRANT)) {
+    return false;
+  }
+
+  return true;
+}
+
+
 PFS_readonly_acl pfs_readonly_acl;
 
 ACL_internal_access_result
@@ -861,7 +886,10 @@ PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
 {
   ACL_internal_access_result res= PFS_readonly_acl::check(want_access, save_priv);
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
-    res= ACL_INTERNAL_ACCESS_GRANTED;
+  {
+    if (want_access == SELECT_ACL)
+      res= ACL_INTERNAL_ACCESS_GRANTED;
+  }
   return res;
 }
 
@@ -889,7 +917,15 @@ PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
 {
   ACL_internal_access_result res= PFS_truncatable_acl::check(want_access, save_priv);
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
-    res= ACL_INTERNAL_ACCESS_GRANTED;
+  {
+    if (want_access == DROP_ACL)
+    {
+      if (allow_drop_table_privilege())
+        res= ACL_INTERNAL_ACCESS_GRANTED;
+    }
+    else if (want_access == SELECT_ACL)
+      res= ACL_INTERNAL_ACCESS_GRANTED;
+  }
   return res;
 }
 

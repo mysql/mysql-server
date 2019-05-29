@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ class Cmp_splocal_locations :
 public:
   bool operator()(const Item_splocal *a, const Item_splocal *b)
   {
-    DBUG_ASSERT(a->pos_in_query != b->pos_in_query);
+    DBUG_ASSERT(a == b || a->pos_in_query != b->pos_in_query);
     return a->pos_in_query < b->pos_in_query;
   }
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -772,7 +772,7 @@ static st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
 {
   uint i;
   DBUG_ENTER("plugin_find_internal");
-  if (! initialized)
+  if (!initialized || !name.str)
     DBUG_RETURN(NULL);
 
   mysql_mutex_assert_owner(&LOCK_plugin);
@@ -4448,8 +4448,5 @@ bool Sql_cmd_uninstall_plugin::execute(THD *thd)
   bool st= mysql_uninstall_plugin(thd, &m_comment);
   if (!st)
     my_ok(thd);
-#ifndef EMBEDDED_LIBRARY
-  mysql_audit_release(thd);
-#endif
   return st;
 }

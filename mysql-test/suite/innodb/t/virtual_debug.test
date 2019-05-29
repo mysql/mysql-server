@@ -403,6 +403,90 @@ CHECK TABLE t1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#28834208 ROW_LOG_TABLE_APPLY_UPDATE*INPLACE_ALTER_TABLE
+--echo #
 
+CREATE TABLE t1 (
+   pkey INT(11) PRIMARY KEY,
+   a VARCHAR(100),
+   v VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(a,2,2)) VIRTUAL,
+   c varchar(100),
+  UNIQUE KEY k (v)
+);
+INSERT INTO t1 ( pkey,a,c) VALUES (149,'bata','test');
+SELECT pkey,a,v FROM t1;
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+--send OPTIMIZE TABLE t1
+connect (con1,localhost,root,,);
+--echo # Connect to con1
+--connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET a='tata' WHERE pkey=149;
+SET DEBUG_SYNC ='now signal S2';
+SELECT pkey,a,v FROM t1;
+disconnect con1;
+--connection default
+--echo # Connect to Default
+reap;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+   pkey INT(11) PRIMARY KEY,
+   a VARCHAR(100),
+   v VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(a,2,2)) VIRTUAL,
+   c varchar(100),
+   v1 VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(c,2,2)) VIRTUAL,
+   KEY k (v),
+   KEY v (v1)
+);
+INSERT INTO t1 (pkey, a, c) VALUES (149, 'bata', 'test');
+INSERT INTO t1 (pkey, a, c) VALUES (150, 'bata', 'test');
+INSERT INTO t1 (pkey, a, c) VALUES (160, 'bata', 'test');
+SELECT pkey, a, v, c, v1 FROM t1;
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+--send OPTIMIZE TABLE t1
+connect (con1,localhost,root,,);
+--echo # Connect to con1
+--connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET c = 'best' WHERE pkey = 149;
+UPDATE t1 SET a = 'tata' WHERE pkey = 150;
+UPDATE t1 SET a = 'tata', c = 'best' WHERE pkey = 160;
+SET DEBUG_SYNC ='now signal S2';
+SELECT pkey, a, v, c, v1 FROM t1;
+disconnect con1;
+--connection default
+--echo # Connect to Default
+reap;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+   j SERIAL PRIMARY KEY,
+   a VARCHAR(36),
+   isa BOOLEAN,
+   ab VARCHAR(36) AS (IF(`isa`,`a`,NULL )),
+   KEY k(ab)
+);
+INSERT INTO t1 (a, isa) VALUES ('test', 1);
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+--send OPTIMIZE TABLE t1
+connect (con1,localhost,root,,);
+--echo # Connect to con1
+--connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET isa=0 ;
+SET DEBUG_SYNC ='now signal S2';
+SELECT j,a,isa,ab FROM t1;
+disconnect con1;
+--echo # Connect to Default
+--connection default
+reap;
+SELECT j,a,isa,ab FROM t1;
+UPDATE t1 SET isa = 1 WHERE a = 'test' AND isa = 0;
+SELECT j,a,isa,ab FROM t1;
+DROP TABLE t1;
 
 --source include/wait_until_count_sessions.inc

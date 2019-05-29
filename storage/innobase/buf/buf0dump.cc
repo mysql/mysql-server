@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -415,28 +415,30 @@ buf_dump(
 			"Buffer pool(s) dump completed at %s", now);
 }
 
-/*****************************************************************//**
-Artificially delay the buffer pool loading if necessary. The idea of
-this function is to prevent hogging the server with IO and slowing down
-too much normal client queries. */
+/** Artificially delay the buffer pool loading if necessary. The idea of this
+function is to prevent hogging the server with IO and slowing down too much
+normal client queries.
+@param[in,out]	last_check_time		milliseconds since epoch of the last
+                                        time we did check if throttling is
+                                        needed, we do the check every
+                                        srv_io_capacity IO ops.
+@param[in]	last_activity_count	activity count
+@param[in]	n_io			number of IO ops done since buffer
+                                        pool load has started */
 UNIV_INLINE
 void
 buf_load_throttle_if_needed(
 /*========================*/
-	ulint*	last_check_time,	/*!< in/out: milliseconds since epoch
-					of the last time we did check if
-					throttling is needed, we do the check
-					every srv_io_capacity IO ops. */
-	ulint*	last_activity_count,
-	ulint	n_io)			/*!< in: number of IO ops done since
-					buffer pool load has started */
+	ib_time_monotonic_ms_t*	last_check_time,
+	ulint*			last_activity_count,
+	ulint 			n_io)
 {
 	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
 		return;
 	}
 
 	if (*last_check_time == 0 || *last_activity_count == 0) {
-		*last_check_time = ut_time_ms();
+		*last_check_time = ut_time_monotonic_ms();
 		*last_activity_count = srv_get_activity_count();
 		return;
 	}
@@ -451,7 +453,7 @@ buf_load_throttle_if_needed(
 
 	/* There has been other activity, throttle. */
 
-	ulint	now = ut_time_ms();
+	ib_time_monotonic_ms_t	now = ut_time_monotonic_ms();
 	ulint	elapsed_time = now - *last_check_time;
 
 	/* Notice that elapsed_time is not the time for the last
@@ -471,13 +473,13 @@ buf_load_throttle_if_needed(
 	The deficiency is that we could have slept at 3., but for this we
 	would have to update last_check_time before the
 	"cur_activity_count == *last_activity_count" check and calling
-	ut_time_ms() that often may turn out to be too expensive. */
+	ut_time_monotonic_ms() that often may turn out to be too expensive. */
 
 	if (elapsed_time < 1000 /* 1 sec (1000 milli secs) */) {
 		os_thread_sleep((1000 - elapsed_time) * 1000 /* micro secs */);
 	}
 
-	*last_check_time = ut_time_ms();
+	*last_check_time = ut_time_monotonic_ms();
 	*last_activity_count = srv_get_activity_count();
 }
 
@@ -632,7 +634,7 @@ buf_load()
 		std::sort(dump, dump + dump_n);
 	}
 
-	ulint		last_check_time = 0;
+	ib_time_monotonic_ms_t		last_check_time = 0;
 	ulint		last_activity_cnt = 0;
 
 	/* Avoid calling the expensive fil_space_acquire_silent() for each

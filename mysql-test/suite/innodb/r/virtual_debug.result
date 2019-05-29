@@ -309,3 +309,103 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+#
+# Bug#28834208 ROW_LOG_TABLE_APPLY_UPDATE*INPLACE_ALTER_TABLE
+#
+CREATE TABLE t1 (
+pkey INT(11) PRIMARY KEY,
+a VARCHAR(100),
+v VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(a,2,2)) VIRTUAL,
+c varchar(100),
+UNIQUE KEY k (v)
+);
+INSERT INTO t1 ( pkey,a,c) VALUES (149,'bata','test');
+SELECT pkey,a,v FROM t1;
+pkey	a	v
+149	bata	at
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+OPTIMIZE TABLE t1;
+# Connect to con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET a='tata' WHERE pkey=149;
+SET DEBUG_SYNC ='now signal S2';
+SELECT pkey,a,v FROM t1;
+pkey	a	v
+149	tata	at
+# Connect to Default
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT * FROM t1;
+pkey	a	v	c
+149	tata	at	test
+DROP TABLE t1;
+CREATE TABLE t1 (
+pkey INT(11) PRIMARY KEY,
+a VARCHAR(100),
+v VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(a,2,2)) VIRTUAL,
+c varchar(100),
+v1 VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(c,2,2)) VIRTUAL,
+KEY k (v),
+KEY v (v1)
+);
+INSERT INTO t1 (pkey, a, c) VALUES (149, 'bata', 'test');
+INSERT INTO t1 (pkey, a, c) VALUES (150, 'bata', 'test');
+INSERT INTO t1 (pkey, a, c) VALUES (160, 'bata', 'test');
+SELECT pkey, a, v, c, v1 FROM t1;
+pkey	a	v	c	v1
+149	bata	at	test	es
+150	bata	at	test	es
+160	bata	at	test	es
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+OPTIMIZE TABLE t1;
+# Connect to con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET c = 'best' WHERE pkey = 149;
+UPDATE t1 SET a = 'tata' WHERE pkey = 150;
+UPDATE t1 SET a = 'tata', c = 'best' WHERE pkey = 160;
+SET DEBUG_SYNC ='now signal S2';
+SELECT pkey, a, v, c, v1 FROM t1;
+pkey	a	v	c	v1
+149	bata	at	best	es
+150	tata	at	test	es
+160	tata	at	best	es
+# Connect to Default
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT * FROM t1;
+pkey	a	v	c	v1
+149	bata	at	best	es
+150	tata	at	test	es
+160	tata	at	best	es
+DROP TABLE t1;
+CREATE TABLE t1(
+j SERIAL PRIMARY KEY,
+a VARCHAR(36),
+isa BOOLEAN,
+ab VARCHAR(36) AS (IF(`isa`,`a`,NULL )),
+KEY k(ab)
+);
+INSERT INTO t1 (a, isa) VALUES ('test', 1);
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+OPTIMIZE TABLE t1;
+# Connect to con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET isa=0 ;
+SET DEBUG_SYNC ='now signal S2';
+SELECT j,a,isa,ab FROM t1;
+j	a	isa	ab
+1	test	0	NULL
+# Connect to Default
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT j,a,isa,ab FROM t1;
+j	a	isa	ab
+1	test	0	NULL
+UPDATE t1 SET isa = 1 WHERE a = 'test' AND isa = 0;
+SELECT j,a,isa,ab FROM t1;
+j	a	isa	ab
+1	test	1	test
+DROP TABLE t1;
