@@ -75,20 +75,34 @@ CREATE TABLE dt_2 (
 
 # UNDO_TUP_FREE
 let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
-# Retry query until it succeeds.
+let $max_retries = 10;
+# Retry query until it succeeds or tried max_retries.
 while($mysql_errno)
 {
-  --error 0,ER_LOCK_WAIT_TIMEOUT
+  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
   DELETE FROM dt_1 WHERE member_id = 2;
+  dec $max_retries;
+  if (!$max_retries)
+  {
+    --die Deleting many tuples in one trans fails after 10 retries. Exiting..
+  }
+  --sleep 1
 }
 
 # UNDO_TUP_UPDATE
 let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
-# Retry query until it succeeds.
+let $max_retries = 10;
+# Retry query until it succeeds or tried max_retries.
 while($mysql_errno)
 {
-  --error 0,ER_LOCK_WAIT_TIMEOUT
+  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
   UPDATE dt_1 SET member_id = 6 WHERE member_id = 5;
+  dec $max_retries;
+  if (!$max_retries)
+  {
+    --die Updating many tuples in one trans fails after 10 retries. Exiting..
+  }
+  --sleep 1
 }
 # UNDO_TUP_DROP
 DROP TABLE dt_2;
@@ -133,10 +147,18 @@ INSERT INTO dt_1 VALUES (1),(2),(3),(4);
 
 # Ensure we can remove data from the table (can cause temporary timeout errors)
 let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+let $max_retries = 10;
+# Retry query until it succeeds or tried max_retries.
 while($mysql_errno)
 {
-  --error 0,ER_LOCK_WAIT_TIMEOUT
+  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
   DELETE FROM dt_1 WHERE member_id = 1;
+  dec $max_retries;
+  if (!$max_retries)
+  {
+    --die Deleting many tuples in one trans fails after 10 retries. Exiting..
+  }
+  --sleep 1
 }
 --exec $NDB_SELECT_COUNT -d test dt_1;
 
