@@ -45,12 +45,14 @@
 
 enum ErrorCodes {
   ERR_OK = 0,
+  ERR_CRITICAL = 10,
   ERR_NDB_FAILED = 101,
   ERR_SERVERS_FAILED = 102,
   ERR_MAX_TIME_ELAPSED = 103,
   ERR_COMMAND_FAILED = 104,
   ERR_FAILED_TO_START = 105,
   ERR_NDB_AND_SERVERS_FAILED = 106,
+  ERR_CORRUPT_TESTCASE = 107,
   ERR_TEST_FAILED = NDBT_FAILED << 8,
   ERR_TEST_SKIPPED = NDBT_SKIPPED << 8
 };
@@ -59,6 +61,11 @@ enum AtrtExitCodes {
   TESTSUITE_SUCCESS = 0,
   TESTSUITE_FAILURES = 1,
   ATRT_FAILURE = 2
+};
+
+enum class ClusterStatus {
+  Ok,
+  Error
 };
 
 struct atrt_host {
@@ -176,12 +183,20 @@ bool wait_for_processes_to_stop(atrt_config& config,
                                 int wait_between_retries_s = 5);
 bool wait_for_process_to_stop(atrt_config& config, atrt_process& proc,
                               int retries = 5, int wait_between_retries_s = 5);
+bool shutdown_processes(atrt_config &config, int types);
+const char* get_test_status(int result);
+bool check_cluster_status(atrt_config &config, int types);
+bool start_clusters(atrt_config &config);
+bool setup_hosts_filesystem(atrt_config &config);
+int atrt_exit(int return_code);
+const char* get_process_type_name(int types);
 
 int check_ndb_or_servers_failures(atrt_config& config);
 bool is_client_running(atrt_config&);
 bool gather_result(atrt_config&, int* result);
 
-int read_test_case(FILE*, atrt_testcase&, int& line);
+int read_test_case(FILE*, int& line, atrt_testcase&);
+bool read_test_cases(FILE*, std::vector<atrt_testcase>*);
 bool setup_test_case(atrt_config&, const atrt_testcase&);
 
 bool setup_hosts(atrt_config&);
