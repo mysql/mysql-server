@@ -507,10 +507,7 @@ rm -r $(readlink var) var
 %endif
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
-/bin/chmod 0755 "$datadir"
-/bin/touch /var/log/mysql/mysqld.log
-/bin/chown mysql:mysql /var/log/mysql/mysqld.log >/dev/null 2>&1 || :
+[ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %service_add_post mysql.service
 /usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysql.conf >/dev/null 2>&1 || :

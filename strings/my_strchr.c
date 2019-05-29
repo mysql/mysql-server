@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,57 +17,29 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#define NEQ(A, B) ((A) != (B))
-#define EQU(A, B) ((A) == (B))
-
-/**
-  Macro for the body of the string scanning.
-
-  @param CS  The character set of the string
-  @param STR Pointer to beginning of string
-  @param END Pointer to one-after-end of string
-  @param ACC Pointer to beginning of accept (or reject) string
-  @param LEN Length of accept (or reject) string
-  @param CMP is a function-like for doing the comparison of two characters.
- */
-
-#define SCAN_STRING(CS, STR, END, ACC, LEN, CMP)                        \
-  do {                                                                  \
-    uint mbl;                                                           \
-    const char *ptr_str, *ptr_acc;                                      \
-    const char *acc_end= (ACC) + (LEN);                                 \
-    for (ptr_str= (STR) ; ptr_str < (END) ; ptr_str+= mbl)              \
-    {                                                                   \
-      mbl= my_mbcharlen((CS), *(uchar*)ptr_str);                        \
-      if (mbl < 2)                                                      \
-      {                                                                 \
-        DBUG_ASSERT(mbl == 1);                                          \
-        for (ptr_acc= (ACC) ; ptr_acc < acc_end ; ++ptr_acc)            \
-          if (CMP(*ptr_acc, *ptr_str))                                  \
-            goto end;                                                   \
-      }                                                                 \
-    }                                                                   \
-end:                                                                    \
-    return (size_t) (ptr_str - (STR));                                  \
-  } while (0)
-
 
 /*
-  my_strchr(cs, str, end, c) returns a pointer to the first place in
-  str where c (1-byte character) occurs, or NULL if c does not occur
-  in str. This function is multi-byte safe.
-  TODO: should be moved to CHARSET_INFO if it's going to be called
-  frequently.
+  Return pointer to first occurrence of character in a multi-byte string
+  or NULL if the character doesn't appear in the multi-byte string or
+  invalid character in charset of multi-byte string is found.
+
+  @param   cs    Pointer to charset info.
+  @param   str   Pointer to start of multi-byte string.
+  @param   end   Pointer to end of multi-byte string.
+  @param   c     Character to find first occurrence of.
+
+  @return  Pointer to first occurence of c in str or NULL.
 */
 
 char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
                 pchar c)
 {
-  uint mbl;
   while (str < end)
   {
-    mbl= my_mbcharlen(cs, *(uchar *)str);
-    if (mbl < 2)
+    uint mbl= my_mbcharlen(cs, *(uchar *)str);
+    if (mbl == 0)
+      return NULL;
+    if (mbl == 1)
     {
       if (*str == c)
         return((char *)str);
@@ -79,14 +51,28 @@ char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
   return(0);
 }
 
+
 /**
   Calculate the length of the initial segment of 'str' which consists
   entirely of characters not in 'reject'.
+
+  @param  cs              Pointer to charset info.
+  @param  str             Pointer to multi-byte string.
+  @param  str_end         Pointer to end of multi-byte string.
+  @param  reject          Pointer to start of single-byte reject string.
+  @param  reject_length   Length of single-byte reject string.
+
+  @return Length of segment of multi-byte string that doesn't contain
+          any character of the single-byte reject string or zero if an
+          invalid encoding of a character of the multi-byte string is
+          found.
 
   @note The reject string points to single-byte characters so it is
   only possible to find the first occurrence of a single-byte
   character.  Multi-byte characters in 'str' are treated as not
   matching any character in the reject string.
+  This method returns zero if an invalid encoding of any character
+  in the string 'str' using charset 'cs' is found.
 
   @todo should be moved to CHARSET_INFO if it's going to be called
   frequently.
@@ -98,7 +84,28 @@ char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
 */
 
 size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
-                  const char *str_end, const char *reject)
+                  const char *str_end, const char *reject,
+                  int reject_length)
 {
-  SCAN_STRING(cs, str, str_end, reject, strlen(reject), EQU);
+  const char *ptr_str, *ptr_reject;
+  const char *reject_end= reject + reject_length;
+  uint mbl= 0;
+
+  for (ptr_str= str; ptr_str < str_end; ptr_str+= mbl)
+  {
+    mbl= my_mbcharlen(cs, *((uchar *) ptr_str));
+
+    if (mbl == 0)
+      return 0;
+
+    if (mbl == 1)
+    {
+      for (ptr_reject= reject; ptr_reject < reject_end; ++ptr_reject)
+      {
+        if (*ptr_reject == *ptr_str)
+          return (size_t) (ptr_str - str);
+      }
+    }
+  }
+  return (size_t) (ptr_str - str);
 }
