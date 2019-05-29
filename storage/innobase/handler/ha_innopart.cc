@@ -119,15 +119,23 @@ void Ha_innopart_share::partition_name_casedn_str(char *s) {
 @param[in]	from	Name in system charset
 @param[in]	sep	Separator
 @param[in]	len	Max length of to buffer
-@return	length of written string. */
+@return	On success, length of written string.
+@return	On failure, when there is not enough space in buffer 'to', return
+        FN_REFLEN. */
 size_t Ha_innopart_share::append_sep_and_name(char *to, const char *from,
                                               const char *sep, size_t len) {
   size_t ret;
   size_t sep_len = strlen(sep);
-  ut_ad(len > sep_len + strlen(from));
+  const size_t from_len = strlen(from);
   ut_ad(to != NULL);
   ut_ad(from != NULL);
   ut_ad(from[0] != '\0');
+
+  if (len <= sep_len + from_len) {
+    /* Not sufficient buffer space */
+    return (FN_REFLEN);
+  }
+
   memcpy(to, sep, sep_len);
 
   ret = tablename_to_filename(from, to + sep_len, len - sep_len);
