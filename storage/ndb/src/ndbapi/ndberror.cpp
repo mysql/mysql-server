@@ -433,9 +433,9 @@ ErrorBundle ErrorCodes[] = {
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
   { 829,  DMEC, AE, "Corrupt data received for insert/update" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
+  { 851,  DMEC, AE, "Fixed-size column offset exceeded max."
+    "Use VARCHAR or COLUMN_FORMAT DYNAMIC for memory-stored columns"},
   { 850,  DMEC, AE, "Too long or too short default value"},
-  { 851,  DMEC, AE, "Maximum offset for fixed-size columns exceeded.  "
-    "For memory storagetype use varchar or COLUMN_FORMAT DYNAMIC instead"},
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },
