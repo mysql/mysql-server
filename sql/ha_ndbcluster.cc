@@ -37,6 +37,8 @@
 
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/dynamic_privilege.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_thread.h"
 #include "sql/abstract_query_plan.h"
@@ -14190,6 +14192,19 @@ int ndbcluster_init(void* handlerton_ptr)
   }
 
   memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
+
+  // Register a dynamic privilege called NDB_STORED_USER
+  SERVICE_TYPE(registry) *registry = mysql_plugin_registry_acquire();
+  {
+    my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
+        "dynamic_privilege_register.mysql_server", registry);
+    if ((! service.is_valid()) ||
+        service->register_privilege(STRING_WITH_LEN("NDB_STORED_USER")))
+    {
+      ndbcluster_init_abort("Failed to register dynamic privilege");
+    }
+  }
+  mysql_plugin_registry_release(registry);
 
   ndbcluster_inited= 1;
 

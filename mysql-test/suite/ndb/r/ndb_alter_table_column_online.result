@@ -858,9 +858,9 @@ extra2 Varchar(40;utf8mb4_0900_ai_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
 extra1 Varchar(40;utf8mb4_0900_ai_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
-e(e) - OrderedIndex
 e$unique(e) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
+e(e) - OrderedIndex
 -- t1/PRIMARY --
 Version: Any
 Base table: t1

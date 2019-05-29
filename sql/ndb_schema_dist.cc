@@ -26,6 +26,7 @@
 #include "sql/ndb_schema_dist.h"
 
 #include <atomic>
+#include <mutex>
 
 #include "my_dbug.h"
 #include "ndbapi/ndb_cluster_connection.hpp"
@@ -93,8 +94,21 @@ bool Ndb_schema_dist_client::is_schema_dist_result_table(
   return false;
 }
 
+/*
+  Actual schema change operations that effect the local Data Dictionary are
+  performed with the Global Schema Lock held, but ACL operations are not.
+  Use acl_change_mutex to serialize all ACL changes on this server.
+*/
+static std::mutex acl_change_mutex;
+
+void Ndb_schema_dist_client::acquire_acl_lock()
+{
+  acl_change_mutex.lock();
+  m_holding_acl_mutex = true;
+}
+
 Ndb_schema_dist_client::Ndb_schema_dist_client(THD* thd)
-    : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)) {}
+    : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)), m_holding_acl_mutex(false) {}
 
 bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
 {
@@ -164,6 +178,27 @@ bool Ndb_schema_dist_client::prepare_rename(const char* db, const char* tabname,
   DBUG_RETURN(true);
 }
 
+bool Ndb_schema_dist_client::prepare_acl_change(uint node_id) {
+  /* Acquire the ACL change mutex. It will be released by the destructor.
+  */
+  acquire_acl_lock();
+
+  /*
+    There is no table name required to log an ACL operation, but the table
+    name is a part of the primary key in ndb_schema. Fabricate a name
+    that is unique to this MySQL server, so that ACL changes originating
+    from different servers use different rows in ndb_schema.
+  */
+  std::string server_key = "acl_dist_from_" + std::to_string(node_id);
+
+  /*
+    Always use "mysql" as the db part of the primary key.
+    If the current database is set to something other than "mysql", the
+    database will be transmitted as part of GRANT and REVOKE statements.
+  */
+  return prepare("mysql", server_key.c_str());
+}
+
 bool Ndb_schema_dist_client::check_identifier_limits(
     std::string& invalid_identifier) {
   DBUG_ENTER("Ndb_schema_dist_client::check_identifier_limits");
@@ -226,6 +261,11 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client()
     // function, it could be moved to "end of statement"(if there
     // was such a place..).
     update_slave_api_stats(m_thd_ndb->ndb);
+  }
+
+  if(m_holding_acl_mutex)
+  {
+    acl_change_mutex.unlock();
   }
 }
 
@@ -513,11 +553,35 @@ bool Ndb_schema_dist_client::drop_db(const char* db) {
                             SOT_DROP_DB));
 }
 
-bool Ndb_schema_dist_client::acl_notify(const char* query, uint query_length,
-                                        const char* db) {
+/* STATEMENT-style ACL change distribution */
+bool Ndb_schema_dist_client::acl_notify(const char *database,
+                                        const char* query, uint query_length,
+                                        bool participant_refresh) {
   DBUG_ENTER("Ndb_schema_dist_client::acl_notify");
-  DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
-                            unique_version(), SOT_GRANT));
+  DBUG_ASSERT(m_holding_acl_mutex);
+  auto key = m_prepared_keys.keys()[0];
+  std::string new_query("use ");
+  if(database != nullptr && strcmp(database, "mysql")) {
+    new_query.append(database).append(";").append(query, query_length);
+    query = new_query.c_str();
+    query_length = new_query.size();
+  }
+  SCHEMA_OP_TYPE type =
+    participant_refresh ? SOT_ACL_STATEMENT : SOT_ACL_STATEMENT_REFRESH;
+  DBUG_RETURN(log_schema_op(query, query_length,
+                            key.first.c_str(), key.second.c_str(),
+                            unique_id(), unique_version(), type));
+}
+
+/* SNAPSHOT-style ACL change distribution */
+bool Ndb_schema_dist_client::acl_notify(std::string user_list) {
+  DBUG_ENTER("Ndb_schema_dist_client::acl_notify");
+  DBUG_ASSERT(m_holding_acl_mutex);
+  auto key = m_prepared_keys.keys()[0];
+
+  DBUG_RETURN(log_schema_op(user_list.c_str(), user_list.length(),
+                            key.first.c_str(), key.second.c_str(),
+                            unique_id(), unique_version(), SOT_ACL_SNAPSHOT));
 }
 
 bool Ndb_schema_dist_client::tablespace_changed(const char* tablespace_name,
@@ -640,6 +704,12 @@ Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type)
     return "ALTER_LOGFILE_GROUP";
   case SOT_DROP_LOGFILE_GROUP:
     return "DROP_LOGFILE_GROUP";
+  case SOT_ACL_SNAPSHOT:
+    return "ACL_SNAPSHOT";
+  case SOT_ACL_STATEMENT:
+    return "ACL_STATEMENT";
+  case SOT_ACL_STATEMENT_REFRESH:
+    return "ACL_STATEMENT_REFRESH";
   default:
     break;
   }

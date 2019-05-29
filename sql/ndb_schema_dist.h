@@ -63,7 +63,10 @@ enum SCHEMA_OP_TYPE
   SOT_DROP_TABLESPACE= 22,
   SOT_CREATE_LOGFILE_GROUP= 23,
   SOT_ALTER_LOGFILE_GROUP= 24,
-  SOT_DROP_LOGFILE_GROUP= 25
+  SOT_DROP_LOGFILE_GROUP= 25,
+  SOT_ACL_SNAPSHOT= 26,
+  SOT_ACL_STATEMENT= 27,
+  SOT_ACL_STATEMENT_REFRESH= 28,
 };
 
 namespace Ndb_schema_dist {
@@ -133,6 +136,7 @@ class Ndb_schema_dist_client {
     void add_key(const char* db, const char* tabname);
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
+  bool m_holding_acl_mutex;
 
   // List of schema operation results, populated when schema operation has
   // completed sucessfully.
@@ -179,6 +183,11 @@ class Ndb_schema_dist_client {
      @return The anyvalue to use for schema change
    */
   uint32 calculate_anyvalue(bool force_nologging) const;
+
+  /**
+     @brief Acquire the ACL change mutex
+   */
+  void acquire_acl_lock();
 
  public:
   Ndb_schema_dist_client() = delete;
@@ -227,6 +236,14 @@ class Ndb_schema_dist_client {
   */
   bool prepare_rename(const char *db, const char *tabname, const char *new_db,
                       const char *new_tabname);
+
+  /**
+    @brief Prepare client for an ACL change notification
+           (e.g. CREATE USER, GRANT, REVOKE, etc.).
+    @param node_id Unique number identifying this mysql server
+    @return true if prepare succeed
+  */
+  bool prepare_acl_change(uint node_id);
 
   /**
     @brief Check that the prepared identifiers is supported by the schema
@@ -292,7 +309,10 @@ class Ndb_schema_dist_client {
                 unsigned int id, unsigned int version);
   bool drop_db(const char *db);
 
-  bool acl_notify(const char *query, uint query_length, const char *db);
+  bool acl_notify(const char *db, const char *query, uint query_length,
+                  bool participants_must_refresh);
+  bool acl_notify(std::string user_list);
+
   bool tablespace_changed(const char *tablespace_name, int id, int version);
   bool logfilegroup_changed(const char *logfilegroup_name, int id, int version);
 

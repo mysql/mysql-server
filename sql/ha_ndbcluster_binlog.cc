@@ -59,6 +59,7 @@
 #include "sql/ndb_schema_dist_table.h"
 #include "sql/ndb_schema_result_table.h"
 #include "sql/ndb_sleep.h"
+#include "sql/ndb_stored_grants.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
 #include "sql/ndb_thd.h"
@@ -242,25 +243,6 @@ extern bool opt_log_slave_updates;
 static bool g_ndb_log_slave_updates;
 
 static bool g_injector_v1_warning_emitted = false;
-
-static void run_query(THD *thd, char *buf, char *end,
-                      const int *no_print_error)
-{
-  /*
-    NOTE! Don't use this function for new implementation, backward
-    compat. only
-  */
-
-  Ndb_local_connection mysqld(thd);
-
-  /*
-    Run the query, suppress some errors from being printed
-    to log and ignore any error returned
-  */
-  (void)mysqld.raw_run_query(buf, (end - buf),
-                             no_print_error);
-}
-
 
 bool
 Ndb_binlog_client::create_event_data(NDB_SHARE *share,
@@ -647,42 +629,68 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
 static void
 ndbcluster_acl_notify(THD *thd, const Acl_change_notification * notice)
 {
-  DBUG_ENTER("ndbcluster_acl_notify");
+  DBUG_TRACE;
+  const std::string &query = notice->get_query();
 
-  Ndb_schema_dist_client schema_dist_client(thd);
-
-  const char * db = notice->db;
-  if (!schema_dist_client.prepare(db, ""))
+  if(! check_ndb_in_thd(thd))
   {
-    // Could not prepare the schema distribution client
-    // NOTE! As there is no way return error, this may have to be
-    // revisited, the prepare should be done
-    // much earlier where it can return an error for the query
-    DBUG_VOID_RETURN;
+    ndb_log_error("Privilege distribution failed to seize thd_ndb");
+    return;
   }
 
-  /*
-    NOTE! Grant statements with db set to NULL is very rare but
-    may be provoked by for example dropping the currently selected
-    database. Since Ndb_schema_dist_client::log_schema_op() does not allow
-    db to be NULL(can't create a key for the ndb_schema_object nor
-    write NULL to ndb_schema), the situation is salvaged by setting db
-    to the constant string "mysql" which should work in most cases.
-
-    Interestingly enough this "hack" has the effect that grant statements
-    are written to the remote binlog in same format as if db would have
-    been NULL.
+  /* If this is the binlog thread, the ACL change has arrived via
+     schema distribution and requires no further action.
   */
-  if (!db) {
-    db = "mysql";
+  if(get_thd_ndb(thd)->check_option(Thd_ndb::NO_LOG_SCHEMA_OP))
+  {
+    return;
   }
 
-  const bool result =
-      schema_dist_client.acl_notify(notice->query.str, notice->query.length, db);
-  if (!result) {
-    // NOTE! There is currently no way to report an error from this
-    // function, just log an error and proceed
-    ndb_log_error("Failed to distribute '%s'", notice->query.str);
+  {
+    ndb_log_verbose(9, "ACL considering: %s", query.c_str());
+    std::string user_list;
+    bool dist_use_db = false;  // Prepend "use [db];" to statement
+    bool dist_refresh = false; // All participants must refresh their caches
+    Ndb_stored_grants::Strategy strategy =
+      Ndb_stored_grants::handle_local_acl_change(thd, notice, &user_list,
+                                                 &dist_use_db, &dist_refresh);
+
+    Ndb_schema_dist_client schema_dist_client(thd);
+
+    if(strategy == Ndb_stored_grants::Strategy::ERROR)
+    {
+      ndb_log_error("Not distributing ACL change after error.");
+      return;
+    }
+
+    if(strategy == Ndb_stored_grants::Strategy::NONE)
+    {
+      ndb_log_verbose(9, "ACL change distribution: NONE");
+      return;
+    }
+
+    const unsigned int & node_id = g_ndb_cluster_connection->node_id();
+    if (! schema_dist_client.prepare_acl_change(node_id))
+    {
+      ndb_log_error("Failed to distribute '%s' (Failed prepare)",
+                    query.c_str());
+      return;
+    }
+
+    if(strategy == Ndb_stored_grants::Strategy::SNAPSHOT)
+    {
+      ndb_log_verbose(9, "ACL change distribution: SNAPSHOT");
+      if(! schema_dist_client.acl_notify(user_list))
+        ndb_log_error("Failed to distribute '%s' (SNAPSHOT)", query.c_str());
+      return;
+    }
+
+    DBUG_ASSERT(strategy == Ndb_stored_grants::Strategy::STATEMENT);
+    ndb_log_verbose(9, "ACL change distribution: STATEMENT");
+    if (!schema_dist_client.acl_notify(
+            dist_use_db ? notice->get_db().c_str() : nullptr, query.c_str(),
+            query.length(), dist_refresh))
+      ndb_log_error("Failed to distribute '%s' (STATEMENT)", query.c_str());
   }
 }
 
@@ -2270,6 +2278,11 @@ public:
 
    // Check that references for ndb_apply_status has been created
    DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
+
+   if(! Ndb_stored_grants::initialize(m_thd, thd_ndb)) {
+     ndb_log_warning("stored grants: failed to initialize");
+     return false;
+   }
 
    Mutex_guard injector_mutex_g(injector_data_mutex);
    ndb_binlog_tables_inited = true;
@@ -4866,26 +4879,63 @@ class Ndb_schema_event_handler {
   handle_grant_op(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_grant_op");
+    Ndb_local_connection sql_runner(m_thd);
 
     assert(!is_post_epoch()); // Always directly
 
-    if (schema->node_id == own_nodeid())
+    // Participant never takes GSL
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+
+   if (schema->node_id == own_nodeid())
       DBUG_VOID_RETURN;
 
-    write_schema_op_to_binlog(m_thd, schema);
+    /* SOT_GRANT was sent by a pre-8.0 mysqld. Just ignore it. */
+    if(schema->type == SOT_GRANT)
+    {
+      ndb_log_verbose(9, "Got SOT_GRANT event, disregarding.");
+      DBUG_VOID_RETURN;
+    }
 
-    ndb_log_verbose(9, "Got dist_priv event: %s, flushing privileges",
-                    Ndb_schema_dist_client::type_name(
-                        static_cast<SCHEMA_OP_TYPE>(schema->type)));
+    /* For SOT_ACL_SNAPSHOT, update the snapshots for the users listed.
+    */
+    if(schema->type == SOT_ACL_SNAPSHOT)
+    {
+      if(! Ndb_stored_grants::update_users_from_snapshot(m_thd, schema->query))
+      {
+        ndb_log_error("Failed to apply ACL snapshot for users: %s",
+                      schema->query);
+      }
+      DBUG_VOID_RETURN;
+    }
 
-    // Participant never takes GSL
-    assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    DBUG_ASSERT(schema->type == SOT_ACL_STATEMENT ||
+                schema->type == SOT_ACL_STATEMENT_REFRESH);
 
-    const int no_print_error[1]= {0};
-    char *cmd= const_cast<char *>("flush privileges");
-    run_query(m_thd, cmd,
-              cmd + strlen(cmd),
-              no_print_error);
+    LEX_CSTRING thd_db_save= m_thd->db();
+
+    std::string use_db(schema->db);
+    std::string query(schema->query);
+
+    if(! query.compare(0, 4, "use "))
+    {
+      size_t delimiter = query.find_first_of(';');
+      use_db = query.substr(4, delimiter-4);
+      query = query.substr(delimiter+1);
+    }
+
+    /* Execute ACL query */
+    LEX_CSTRING set_db = {use_db.c_str() , use_db.length()};
+    m_thd->reset_db(set_db);
+    ndb_log_verbose(40, "Using database: %s", use_db.c_str());
+    sql_runner.run_acl_statement(query);
+
+    /* Reset database */
+    m_thd->reset_db(thd_db_save);
+
+    if(schema->type == SOT_ACL_STATEMENT_REFRESH)
+    {
+      Ndb_stored_grants::maintain_cache(m_thd);
+    }
 
     DBUG_VOID_RETURN;
   }
@@ -5386,6 +5436,9 @@ class Ndb_schema_event_handler {
       case SOT_RENAME_USER:
       case SOT_GRANT:
       case SOT_REVOKE:
+      case SOT_ACL_SNAPSHOT:
+      case SOT_ACL_STATEMENT:
+      case SOT_ACL_STATEMENT_REFRESH:
         handle_grant_op(schema);
         break;
 
@@ -8696,6 +8749,11 @@ restart_cluster_failure:
     thd_ndb->set_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
   }
 
+  /* Apply privilege statements stored in snapshot */
+  if(! Ndb_stored_grants::apply_stored_grants(thd)) {
+    ndb_log_error("stored grants: failed to apply stored grants.");
+  }
+
   schema_dist_data.init(g_ndb_cluster_connection);
 
   {
@@ -9441,6 +9499,8 @@ restart_cluster_failure:
   mysql_mutex_lock(&injector_data_mutex);
   ndb_binlog_tables_inited= false;
   mysql_mutex_unlock(&injector_data_mutex);
+
+  Ndb_stored_grants::shutdown(thd_ndb);
 
   thd->reset_db(NULL_CSTR); // as not to try to free memory
   remove_all_event_operations(s_ndb, i_ndb);
