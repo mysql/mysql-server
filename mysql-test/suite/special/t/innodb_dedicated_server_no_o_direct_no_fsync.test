@@ -68,60 +68,23 @@ EOF
 # Perl module ends
 --source $MYSQLTEST_VARDIR/tmpfile.txt
 
---let $mem_size1M = 1048576
-if ($total_mem < $mem_size1M) {
-   --let $calculated_buffer_pool_size = 131072
-   --let $calculated_log_file_size = 49152
-}
-
---let $mem_size4M = 4194304
---let $mem1 = 0.5
-if ($total_mem <= $mem_size4M) {
-   --expr $calculated_buffer_pool_size = $total_mem * $mem1
-   --let $calculated_log_file_size = 131072;
-}
-
---let $mem_size8M = 8388608
---let $mem2 = 0.75
-if ($total_mem <= $mem_size8M) {
-   --expr $calculated_buffer_pool_size = $total_mem * $mem2
-   --let $calculated_log_file_size = 524288;
-}
-
---let $mem_size16M = 16777216
-if ($total_mem <= $mem_size16M) {
-   --expr $calculated_buffer_pool_size = $total_mem * $mem2
-   --let $calculated_log_file_size = 1048576;
-}
-
-if ($total_mem > $mem_size16M) {
-   --expr $calculated_buffer_pool_size = $total_mem * $mem2
-   --let $calculated_log_file_size = 2097152;
-}
-
-
-if ($calculated_buffer_pool_size < $mem_size1M) {
-   --let $calculated_log_file_size = 49152;
-   --let $calculated_log_files_in_group = 2;
-}
-
---let $mem_size1KB = 1024
-if ($calculated_buffer_pool_size <= $mem_size8M) {
-   --let $calculated_log_file_size = 524288
-   --let $calculated_log_files_in_group = `SELECT ROUND($calculated_buffer_pool_size/$mem_size1M,2)`
-}
-
+--let $mem_size1G = 1048576
+--let $mem_size4G = 4194304
+--let $mem_size8G = 8388608
 --let $mem_size128G = 137438953472
---let $mem = 0.75
-if ($calculated_buffer_pool_size <= $mem_size128G) {
-    --let $calculated_log_file_size = 1048576
-    --let $calculated_log_files_in_group = `SELECT ROUND($calculated_buffer_pool_size/$mem_size1M,2)`
-    --let $calculated_log_files_in_group = `SELECT ROUND($calculated_log_files_in_group * $mem,2)`
-}
+--let $zero_point_seven_five = 0.75
+--let $zero_point_five = 0.5
 
-if ($calculated_buffer_pool_size > $mem_size128G) {
-   --let $calculated_log_file_size = 2097152
-   --let $calculated_log_files_in_group = 64
+# Set buffer pool size.
+# Note: As MTR doesn't have 'else', following sequence of 'if' is important
+if ($total_mem > $mem_size4G) {
+   --expr $calculated_buffer_pool_size = $total_mem * $zero_point_seven_five
+}
+if ($total_mem <= $mem_size4G) {
+   --expr $calculated_buffer_pool_size = $total_mem * $zero_point_five
+}
+if ($total_mem < $mem_size1G) {
+   --let $calculated_buffer_pool_size = 131072
 }
 
 --disable_query_log
@@ -142,20 +105,31 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\D+.*  No argument was provided to
 --echo #########################################
 
 --disable_query_log
-select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+SELECT VARIABLE_VALUE AS INNODB_DEDICATED_SERVER
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_dedicated_server';
 
-select VARIABLE_VALUE/(1024*1024) as BUFFER_POOL_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_buffer_pool_size';
+SELECT VARIABLE_VALUE/(1024*1024) AS BUFFER_POOL_SIZE_IN_MB
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 
-select VARIABLE_VALUE/(1024*1024) as LOG_FILE_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_log_file_size';
+SELECT VARIABLE_VALUE/(1024*1024) AS LOG_FILE_SIZE_IN_MB
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_log_file_size';
+
+SELECT VARIABLE_VALUE AS LOG_FILES_IN_GROUP
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_log_files_in_group';
+--enable_query_log
 
 --echo
---echo ##########################################
---echo # RESTART 1                              #
---echo #  innodb_dedicated_server = ON          #
---echo #  innodb_buffer_pool_size = autoscaled  #
---echo #  innodb_log_file_size    = autoscaled  #
---echo #  innodb_log_files_in_group = autoscaled#
---echo ##########################################
+--echo ###########################################
+--echo # RESTART 1                               #
+--echo #  innodb_dedicated_server   = ON         #
+--echo #  innodb_buffer_pool_size   = autoscaled #
+--echo #  innodb_log_file_size      = autoscaled #
+--echo #  innodb_log_files_in_group = autoscaled #
+--echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON;
 let $explicit_default_counter=100000;
 --source include/restart_mysqld.inc
@@ -173,12 +147,34 @@ let $explicit_default_counter=100000;
 ###############################################################################
 --disable_query_log
 set @innodb_chunk_instance_product = @@global.innodb_buffer_pool_chunk_size/1024 * @@global.innodb_buffer_pool_instances;
-let $expected_innodb_buffer_pool_size = `select ceil($calculated_buffer_pool_size/@innodb_chunk_instance_product) * @innodb_chunk_instance_product`;
+let $expected_innodb_buffer_pool_size = `select ROUND(ceil($calculated_buffer_pool_size/@innodb_chunk_instance_product) * @innodb_chunk_instance_product)`;
+
+# Set log_file_size and log_files_in_group now after buffer_pool_size has been decided.
+# Note: As MTR doesn't have 'else', following sequence of 'if' is important
+if ($expected_innodb_buffer_pool_size > $mem_size128G) {
+   --let $calculated_log_file_size = 2097152
+   --let $calculated_log_files_in_group = 64
+}
+if ($expected_innodb_buffer_pool_size <= $mem_size128G) {
+    --let $calculated_log_file_size = 1048576
+    --let $calculated_log_files_in_group = `SELECT ROUND($expected_innodb_buffer_pool_size*$zero_point_seven_five/$mem_size1G)`
+}
+if ($expected_innodb_buffer_pool_size <= $mem_size8G) {
+   --let $calculated_log_file_size = 524288
+   --let $calculated_log_files_in_group = `SELECT ROUND($expected_innodb_buffer_pool_size/$mem_size1G)`
+}
+if ($expected_innodb_buffer_pool_size < $mem_size1G) {
+   --let $calculated_log_file_size = 49152;
+   --let $calculated_log_files_in_group = 2;
+}
 let $expected_innodb_log_file_size = `select $calculated_log_file_size`;
+let $expected_innodb_log_files_in_group = `select $calculated_log_files_in_group`;
 --enable_query_log
 
 --disable_query_log
-select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+SELECT VARIABLE_VALUE AS INNODB_DEDICATED_SERVER
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_dedicated_server';
 
 let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size/1024,2)`;
 --disable_result_log
@@ -194,21 +190,33 @@ eval select $expected_innodb_log_file_size = $actual_innodb_log_file_size into @
 --echo 1 expected
 select @final_log_file_size_result;
 
+let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
+--disable_result_log
+eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
+--enable_result_log
+--echo 1 expected
+select @final_log_files_in_group_result;
+--enable_query_log
+
 --echo
---echo ##########################################
---echo # RESTART 2                              #
---echo #  innodb_dedicated_server = ON          #
---echo #  innodb_buffer_pool_size = explicit    #
---echo #  innodb_log_file_size    = autoscaled  #
---echo #  innodb_log_files_in_group = autoscaled#
---echo ##########################################
+--echo ###########################################
+--echo # RESTART 2                               #
+--echo #  innodb_dedicated_server   = ON         #
+--echo #  innodb_buffer_pool_size   = explicit   #
+--echo #  innodb_log_file_size      = autoscaled #
+--echo #  innodb_log_files_in_group = autoscaled #
+--echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M;
 --source include/restart_mysqld.inc
 
 --disable_query_log
-select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+SELECT VARIABLE_VALUE AS INNODB_DEDICATED_SERVER
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_dedicated_server';
 
-select VARIABLE_VALUE/(1024*1024) as BUFFER_POOL_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_buffer_pool_size';
+SELECT VARIABLE_VALUE/(1024*1024) AS BUFFER_POOL_SIZE_IN_MB
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 
 let $actual_innodb_log_file_size = `select  ROUND(@@global.innodb_log_file_size/1024,2)`;
 --disable_result_log
@@ -216,6 +224,14 @@ eval select $expected_innodb_log_file_size = $actual_innodb_log_file_size into @
 --enable_result_log
 --echo 1 expected
 select @final_log_file_size_result;
+
+let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
+--disable_result_log
+eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
+--enable_result_log
+--echo 1 expected
+select @final_log_files_in_group_result;
+--enable_query_log
 
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
@@ -225,19 +241,21 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --source include/search_pattern.inc
 
 --echo
---echo ##########################################
---echo # RESTART 3                              #
---echo #  innodb_dedicated_server = ON          #
---echo #  innodb_buffer_pool_size = autoscaled  #
---echo #  innodb_log_file_size    = explicit    #
---echo #  innodb_log_files_in_group = autoscaled#
---echo ##########################################
+--echo ###########################################
+--echo # RESTART 3                               #
+--echo #  innodb_dedicated_server   = ON         #
+--echo #  innodb_buffer_pool_size   = autoscaled #
+--echo #  innodb_log_file_size      = explicit   #
+--echo #  innodb_log_files_in_group = autoscaled #
+--echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M;
 let $explicit_default_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log
-select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+SELECT VARIABLE_VALUE AS INNODB_DEDICATED_SERVER
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_dedicated_server';
 
 let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size/1024,2)`;
 --disable_result_log
@@ -246,9 +264,16 @@ eval select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size 
 --echo 1 expected
 select @final_pool_size_result;
 
-select VARIABLE_VALUE/(1024*1024) as LOG_FILE_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_log_file_size';
+SELECT VARIABLE_VALUE/(1024*1024) AS LOG_FILE_SIZE_IN_MB
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_log_file_size';
 
-select VARIABLE_VALUE as LOG_FILES_IN_GROUP from performance_schema.global_variables where VARIABLE_NAME='innodb_log_files_in_group';
+let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
+--disable_result_log
+eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
+--enable_result_log
+--echo 1 expected
+select @final_log_files_in_group_result;
 
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
@@ -257,24 +282,38 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --source include/search_pattern.inc
 
 --echo
---echo ##########################################
---echo # RESTART 4                              #
---echo #  innodb_dedicated_server = ON          #
---echo #  innodb_buffer_pool_size = explicit    #
---echo #  innodb_log_file_size    = explicit    #
---echo #  innodb_log_files_in_group = autoscaled#
---echo ##########################################
+--echo ###########################################
+--echo # RESTART 4                               #
+--echo #  innodb_dedicated_server   = ON         #
+--echo #  innodb_buffer_pool_size   = explicit   #
+--echo #  innodb_log_file_size      = explicit   #
+--echo #  innodb_log_files_in_group = autoscaled #
+--echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M;
 let $explicit_default_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log
 select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
-select VARIABLE_VALUE/(1024*1024) as BUFFER_POOL_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_buffer_pool_size';
-select VARIABLE_VALUE/(1024*1024) as LOG_FILE_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_log_file_size';
+--disable_query_log
+SELECT VARIABLE_VALUE AS INNODB_DEDICATED_SERVER
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_dedicated_server';
 
-select VARIABLE_VALUE as LOG_FILES_IN_GROUP from performance_schema.global_variables where VARIABLE_NAME='innodb_log_files_in_group';
+SELECT VARIABLE_VALUE/(1024*1024) AS BUFFER_POOL_SIZE_IN_MB
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 
+SELECT VARIABLE_VALUE/(1024*1024) AS LOG_FILE_SIZE_IN_MB
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_log_file_size';
+
+let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
+--disable_result_log
+eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
+--enable_result_log
+--echo 1 expected
+select @final_log_files_in_group_result;
 
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
@@ -283,7 +322,6 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --source include/search_pattern.inc
 let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
 --source include/search_pattern.inc
-
 
 --enable_query_log
 --remove_file $MYSQLTEST_VARDIR/tmpfile.txt
