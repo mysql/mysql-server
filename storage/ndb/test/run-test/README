@@ -44,9 +44,12 @@ atrt supports fully distributed test and utilizes ndb_cpcd.
     exit
   end if
 
-  run all tests
+  for each test case do
+    run test case
+    compute overall return code
+    write result to report file
+  done processing tests
 
-  stop cluster
 
 /**
  * End of pseudo code for main atrt algorithm
@@ -57,35 +60,34 @@ atrt supports fully distributed test and utilizes ndb_cpcd.
 /**
   * Pseudo code for atrt test run algorithm
   */
+  while test_runs < total_test_run_attemps do
+    if test_forces_restart or previous_retry_failed
+      stop all processes
+      deploy all configurations
+      start all processes
+    end if
 
-  for each test case do
-    while test_runs < total_test_run_attemps do
-      if test_forces_restart
-        stop all processes
-      if cluster is stopped then
-        deploy all configurations
-        start all processes
-      end if
+    if cluster status not ok
+      attempt new retry
+    end if
+    run test and wait for test to finish
+    gather all log results
 
-      if cluster ok then
-        set cluster as started
-        run test and wait for test to finish
-      else
-        set test result as critical failure
-      end if
+  done while retries
 
-      gather all log results
+  rename result
 
-      stop_cluster = (test status != ok)
-                   || cluster_configuration_changed
-      if (stop_cluster)
-        stop all processes
-        set cluster as stopped
-      end if
-
-    done while retries
-
-  done processing tests
+  stop_cluster = (test status != ok) || cluster_configuration_changed
+  if (stop_cluster)
+  if (test failed or cluster configuration changed)
+    if (stop_all_processes fails)
+      set test result as critical failure
+    end if
+    if (start_all_processes fails)
+      set test result as critical failure
+    end if
+  end if
+  check cluster status
 
 /**
   * End of pseudo code for atrt test run algorithm

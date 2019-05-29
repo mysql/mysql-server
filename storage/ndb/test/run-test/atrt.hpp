@@ -63,9 +63,10 @@ enum AtrtExitCodes {
   ATRT_FAILURE = 2
 };
 
-enum class ClusterStatus {
-  Ok,
-  Error
+struct TestResult {
+  int testruns;
+  time_t elapsed;
+  int result;
 };
 
 struct atrt_host {
@@ -141,6 +142,7 @@ struct atrt_config {
 };
 
 struct atrt_testcase {
+  int test_no;
   bool m_report;
   bool m_run_all;
   time_t m_max_time;
@@ -190,6 +192,9 @@ bool start_clusters(atrt_config &config);
 bool setup_hosts_filesystem(atrt_config &config);
 int atrt_exit(int return_code);
 const char* get_process_type_name(int types);
+TestResult run_test_case(const atrt_testcase& testcase);
+void update_atrt_result_code(const TestResult& test_result,
+                             AtrtExitCodes* return_code);
 
 int check_ndb_or_servers_failures(atrt_config& config);
 bool is_client_running(atrt_config&);
