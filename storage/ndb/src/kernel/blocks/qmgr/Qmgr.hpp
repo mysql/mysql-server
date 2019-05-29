@@ -447,7 +447,6 @@ private:
   void sendHeartbeat(Signal* signal);
   void checkHeartbeat(Signal* signal);
   void setHbDelay(UintR aHbDelay);
-  UintR getHbDelay();
   void setHbApiDelay(UintR aHbApiDelay);
   void setArbitTimeout(UintR aArbitTimeout);
   void setCCDelay(UintR aCCDelay);
