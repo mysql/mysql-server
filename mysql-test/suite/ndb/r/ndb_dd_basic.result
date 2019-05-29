@@ -216,11 +216,11 @@ col3 varchar(8176),
 col4 int)
 tablespace ts1 storage disk
 charset = latin1 engine=ndbcluster;
-ERROR HY000: Got error 851 'Maximum offset for fixed-size columns exceeded.  For memory storagetype use varchar or COLUMN_FORMAT' from NDBCLUSTER
+ERROR HY000: Got error 851 'Fixed-size column offset exceeded max.Use VARCHAR or COLUMN_FORMAT DYNAMIC for memory-stored columns' from NDBCLUSTER
 show warnings;
 Level	Code	Message
-Warning	1296	Got error 851 'Maximum offset for fixed-size columns exceeded.  For memory storagetype use varchar or COLUMN_FORMAT' from NDB
-Error	1296	Got error 851 'Maximum offset for fixed-size columns exceeded.  For memory storagetype use varchar or COLUMN_FORMAT' from NDBCLUSTER
+Warning	1296	Got error 851 'Fixed-size column offset exceeded max.Use VARCHAR or COLUMN_FORMAT DYNAMIC for memory-stored columns' from NDB
+Error	1296	Got error 851 'Fixed-size column offset exceeded max.Use VARCHAR or COLUMN_FORMAT DYNAMIC for memory-stored columns' from NDBCLUSTER
 CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
