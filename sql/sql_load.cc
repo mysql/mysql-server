@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1574,16 +1574,27 @@ int READ_INFO::read_field()
 	}
       }
 #ifdef USE_MB
-      if (my_mbcharlen(read_charset, chr) > 1 &&
-          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+      uint ml= my_mbcharlen(read_charset, chr);
+      if (ml == 0)
+      {
+        error= 1;
+        return 1;
+      }
+
+      if (ml > 1 &&
+          to + ml <= end_of_buff)
       {
         uchar* p= to;
-        int ml, i;
         *to++ = chr;
 
         ml= my_mbcharlen(read_charset, chr);
+        if (ml == 0)
+        {
+          error= 1;
+          return 1;
+        }
 
-        for (i= 1; i < ml; i++) 
+        for (uint i= 1; i < ml; i++)
         {
           chr= GET;
           if (chr == my_b_EOF)
@@ -1601,7 +1612,7 @@ int READ_INFO::read_field()
                         (const char *)p,
                         (const char *)to))
           continue;
-        for (i= 0; i < ml; i++)
+        for (uint i= 0; i < ml; i++)
           PUSH(*--to);
         chr= GET;
       }
@@ -1848,11 +1859,19 @@ int READ_INFO::read_value(int delim, String *val)
   for (chr= GET; my_tospace(chr) != delim && chr != my_b_EOF;)
   {
 #ifdef USE_MB
-    if (my_mbcharlen(read_charset, chr) > 1)
+    uint ml= my_mbcharlen(read_charset, chr);
+    if (ml == 0)
+    {
+      chr= my_b_EOF;
+      val->length(0);
+      return chr;
+    }
+
+    if (ml > 1)
     {
       DBUG_PRINT("read_xml",("multi byte"));
-      int i, ml= my_mbcharlen(read_charset, chr);
-      for (i= 1; i < ml; i++) 
+
+      for (uint i= 1; i < ml; i++)
       {
         val->append(chr);
         /*
