@@ -151,8 +151,8 @@ static void request_log_reopen() {
 
 namespace {
 #ifdef USE_POSIX_SIGNALS
-const std::array<int, 5> g_fatal_signals{SIGSEGV, SIGABRT, SIGBUS, SIGILL,
-                                         SIGFPE};
+const std::array<int, 6> g_fatal_signals{SIGSEGV, SIGABRT, SIGBUS,
+                                         SIGILL,  SIGFPE,  SIGTRAP};
 #endif
 }  // namespace
 
