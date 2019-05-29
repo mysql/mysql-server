@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,10 +227,10 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs,const char *s, const char *t)
     if ((l=my_ismbchar(cs, s, s + cs->mbmaxlen)))
     {
       while (l--)
-        if (*s++ != *t++) 
+        if (*s++ != *t++)
           return 1;
     }
-    else if (my_mbcharlen(cs, *t) > 1)
+    else if (my_mbcharlen(cs, *t) != 1)
       return 1;
     else if (map[(uchar) *s++] != map[(uchar) *t++])
       return 1;

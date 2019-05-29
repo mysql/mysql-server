@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -523,8 +523,8 @@ int federated_done(void *p)
   @brief Append identifiers to the string.
 
   @param[in,out] string	The target string.
-  @param[in] name 		Identifier name
-  @param[in] length 	Length of identifier name in bytes
+  @param[in] name       Identifier name
+  @param[in] length     Length of identifier name in bytes
   @param[in] quote_char Quote char to use for quoting identifier.
 
   @return Operation Status
@@ -538,32 +538,36 @@ int federated_done(void *p)
 static bool append_ident(String *string, const char *name, size_t length,
                          const char quote_char)
 {
-  bool result;
-  uint clen;
-  const char *name_end;
+  bool result= true;
   DBUG_ENTER("append_ident");
 
   if (quote_char)
   {
-    string->reserve((uint) length * 2 + 2);
+    string->reserve(length * 2 + 2);
+
     if ((result= string->append(&quote_char, 1, system_charset_info)))
       goto err;
 
-    for (name_end= name+length; name < name_end; name+= clen)
+    uint clen= 0;
+
+    for (const char *name_end= name + length; name < name_end; name+= clen)
     {
-      uchar c= *(uchar *) name;
+      char c= *name;
+
       if (!(clen= my_mbcharlen(system_charset_info, c)))
-        clen= 1;
-      if (clen == 1 && c == (uchar) quote_char &&
+        goto err;
+
+      if (clen == 1 && c == quote_char &&
           (result= string->append(&quote_char, 1, system_charset_info)))
         goto err;
+
       if ((result= string->append(name, clen, string->charset())))
         goto err;
     }
     result= string->append(&quote_char, 1, system_charset_info);
   }
   else
-    result= string->append(name, (uint) length, system_charset_info);
+    result= string->append(name, length, system_charset_info);
 
 err:
   DBUG_RETURN(result);
