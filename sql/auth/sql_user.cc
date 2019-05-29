@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -622,24 +622,12 @@ bool set_and_validate_user_attributes(THD *thd,
      Str->uses_authentication_string_clause)
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-    /*
-      Validate hash string in following cases:
-        1. IDENTIFIED BY PASSWORD.
-        2. IDENTIFIED WITH .. AS 'auth_str' for ALTER USER statement
-           and its a replication slave thread
-    */
-    if (Str->uses_identified_by_password_clause ||
-        (Str->uses_authentication_string_clause &&
-        thd->lex->sql_command == SQLCOM_ALTER_USER &&
-        thd->slave_thread))
+    if (auth->validate_authentication_string((char*)Str->auth.str,
+                                             Str->auth.length))
     {
-      if (auth->validate_authentication_string((char*)Str->auth.str,
-                                               Str->auth.length))
-      {
-        my_error(ER_PASSWORD_FORMAT, MYF(0));
-        plugin_unlock(0, plugin);
-        return(1);
-      }
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      plugin_unlock(0, plugin);
+      return(1);
     }
   }
   plugin_unlock(0, plugin);
@@ -685,6 +673,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   size_t new_password_len= strlen(new_password);
   size_t escaped_hash_str_len= 0;
   bool result= true, rollback_whole_statement= false;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
   int ret;
 
   DBUG_ENTER("change_password");
@@ -790,7 +779,10 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
 
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
   ret= replace_user_table(thd, table, combo, 0, false, false, what_to_set);
+  thd->variables.sql_mode= old_sql_mode;
+
   if (ret)
   {
     mysql_mutex_unlock(&acl_cache->lock);

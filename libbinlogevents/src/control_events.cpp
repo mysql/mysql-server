@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -335,17 +335,21 @@ Format_description_event(const char* buf, unsigned int event_len,
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
-  const uint8_t *ubuf = reinterpret_cast<const uint8_t*>(buf);
-  post_header_len.insert(post_header_len.begin(),
-                         ubuf + ST_COMMON_HEADER_LEN_OFFSET + 1,
-                         (ubuf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
-                          number_of_event_types));
-
   calc_server_version_split();
-  if ((ver_calc= get_product_version()) >= checksum_version_product)
-  {
+  ver_calc = get_product_version();
+  if (ver_calc >= checksum_version_product) {
     /* the last bytes are the checksum alg desc and value (or value's room) */
     number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
+  }
+
+  const uint8_t *ubuf = reinterpret_cast<const uint8_t*>(buf) +
+                        ST_COMMON_HEADER_LEN_OFFSET + 1;
+  post_header_len.insert(post_header_len.begin(),
+                         ubuf, (ubuf + number_of_event_types));
+
+  ubuf += number_of_event_types;
+  if (ver_calc >= checksum_version_product)
+  {
     /*
       FD from the checksum-home version server (ver_calc ==
       checksum_version_product) must have
@@ -353,8 +357,7 @@ Format_description_event(const char* buf, unsigned int event_len,
     */
     BAPI_ASSERT(ver_calc != checksum_version_product ||
                 number_of_event_types == LOG_EVENT_TYPES);
-    footer()->checksum_alg= (enum_binlog_checksum_alg)
-                                  post_header_len[number_of_event_types];
+    footer()->checksum_alg= static_cast<enum_binlog_checksum_alg> (*ubuf);
   }
   else
   {
@@ -866,7 +869,8 @@ View_change_event::View_change_event(char* raw_view_id)
 : Binary_log_event(VIEW_CHANGE_EVENT),
   view_id(), seq_number(0), certification_info()
 {
-  memcpy(view_id, raw_view_id, strlen(raw_view_id));
+  strncpy(view_id, raw_view_id, sizeof(view_id)-1);
+  view_id[sizeof(view_id)-1]= 0;
 }
 
 View_change_event::

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -146,10 +146,12 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
   @param table      Non partitioned table.
   @param part_table Partitioned table.
   @param part_elem  Partition element to use for partition specific compare.
+  @param part_id    Id of the specific partition.
 */
 static bool compare_table_with_partition(THD *thd, TABLE *table,
                                          TABLE *part_table,
-                                         partition_element *part_elem)
+                                         partition_element *part_elem,
+                                         uint part_id)
 {
   HA_CREATE_INFO table_create_info, part_create_info;
   Alter_info part_alter_info;
@@ -181,7 +183,11 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
 
   /* Check compatible row_types and set create_info accordingly. */
   {
-    enum row_type part_row_type= part_table->file->get_row_type();
+    enum row_type part_row_type;
+    Partition_handler *part_handler;
+    part_handler = part_table->file->get_partition_handler();
+    part_row_type = part_handler->get_partition_row_type(part_id);
+
     enum row_type table_row_type= table->file->get_row_type();
     if (part_row_type != table_row_type)
     {
@@ -566,7 +572,8 @@ bool Sql_cmd_alter_table_exchange_partition::
     DBUG_RETURN(TRUE);
   }
 
-  if (compare_table_with_partition(thd, swap_table, part_table, part_elem))
+  if (compare_table_with_partition(thd, swap_table, part_table, part_elem,
+                                   swap_part_id))
     DBUG_RETURN(TRUE);
 
   /* Table and partition has same structure/options */

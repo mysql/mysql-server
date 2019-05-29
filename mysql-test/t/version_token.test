@@ -22,9 +22,12 @@ SELECT version_tokens_show();
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
 UNINSTALL PLUGIN version_tokens;
+--source include/disconnect_connections.inc
+
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
 UNINSTALL PLUGIN version_tokens;
+--source include/disconnect_connections.inc
 
 --echo # Should not crash when unloading the so through removing the UDF
 drop function version_tokens_show;
@@ -284,6 +287,8 @@ connection default;
 
 -- echo
 UNINSTALL PLUGIN version_tokens;
+--source include/disconnect_connections.inc
+
 --disable_result_log
 --disable_query_log 
 let $mysql_errno = 0;

@@ -26,6 +26,7 @@ SELECT * FROM test.t2;
 DROP PROCEDURE query_rewrite.flush_rewrite_rules;
 DROP FUNCTION load_rewrite_rules;
 UNINSTALL PLUGIN rewriter;
+--source include/disconnect_connections.inc
 
 --echo # Check that the table is still present and didn't get dropped.
 SELECT pattern, replacement FROM query_rewrite.rewrite_rules;

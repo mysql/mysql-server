@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1637,6 +1637,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint i,j;
   bool use_extended_sk;   // Supported extending of secondary keys with PK parts
   bool use_hash;
+  bool use_packed_keys;   // Supports packed keys.
   char *keynames, *names, *comment_pos, *gcol_screen_pos;
   char *orig_comment_pos, *orig_gcol_screen_pos;
   uchar forminfo[288];
@@ -1780,6 +1781,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->key_info= keyinfo;
   key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
 
+  use_packed_keys=
+    ha_check_storage_engine_flag(share->db_type(),
+                                 HTON_SUPPORTS_PACKED_KEYS);
+
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
     keyinfo->table= 0;                           // Updated in open_frm
@@ -1800,6 +1805,23 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       keyinfo->algorithm= HA_KEY_ALG_UNDEF;
       strpos+=4;
     }
+
+    /*
+      Beginning in 5.7.23, HA_PACK_KEY and HA_BINARY_PACK_KEY are no longer set
+      if the SE does not support it. If the index was created prior to 5.7.23
+      these bits may be set in the flags option, and when being added to
+      key_info->flags, the ALTER algorithm analysis will be broken because the
+      intermediate table is created without these flags, and hence, the
+      analysis will incorrectly conclude that all indexes have changed.
+
+      To workaround this issue, we remove the flags below, depending on the SE
+      capabilities, when preparing the table share. Thus, if we ALTER the table
+      at a later stage, indexes not being touched by the ALTER statement will
+      have the same flags both in the source table and the intermediate table,
+      and hence, the algorithm analysis will come to the right conclusion.
+    */
+    if (!use_packed_keys)
+      keyinfo->flags &= ~(HA_PACK_KEY | HA_BINARY_PACK_KEY);
 
     keyinfo->key_part= key_part;
     keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);

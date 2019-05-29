@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -218,7 +218,7 @@ struct Slot {
 	bool			is_reserved;
 
 	/** time when reserved */
-	time_t			reservation_time;
+	ib_time_monotonic_t	reservation_time;
 
 	/** buffer used in i/o */
 	byte*			buf;
@@ -760,7 +760,7 @@ ulint	os_n_pending_writes = 0;
 /** Number of pending read operations */
 ulint	os_n_pending_reads = 0;
 
-time_t	os_last_printout;
+ib_time_monotonic_t	os_last_printout;
 bool	os_has_said_disk_full	= false;
 
 /** Default Zip compression level */
@@ -6594,7 +6594,7 @@ AIO::start(
 		os_aio_segment_wait_events[i] = os_event_create(0);
 	}
 
-	os_last_printout = ut_time();
+	os_last_printout = ut_time_monotonic();
 
 	return(true);
 }
@@ -6970,7 +6970,7 @@ AIO::reserve_slot(
 	}
 
 	slot->is_reserved = true;
-	slot->reservation_time = ut_time();
+	slot->reservation_time = ut_time_monotonic();
 	slot->m1       = m1;
 	slot->m2       = m2;
 	slot->file     = file;
@@ -7880,9 +7880,10 @@ private:
 	@param[in]	slot		The slot to check */
 	void select_if_older(Slot* slot)
 	{
-		ulint	age;
+		int64_t time_diff = ut_time_monotonic() -
+					slot->reservation_time;
 
-		age = (ulint) difftime(ut_time(), slot->reservation_time);
+		const uint64_t age = time_diff > 0 ? (uint64_t) time_diff : 0;
 
 		if ((age >= 2 && age > m_oldest)
 		    || (age >= 2
@@ -8261,9 +8262,9 @@ AIO::print_all(FILE* file)
 void
 os_aio_print(FILE*	file)
 {
-	time_t		current_time;
-	double		time_elapsed;
-	double		avg_bytes_read;
+	ib_time_monotonic_t 		current_time;
+	double	 			time_elapsed;
+	double				avg_bytes_read;
 
 	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
 		fprintf(file, "I/O thread %lu state: %s (%s)",
@@ -8285,8 +8286,8 @@ os_aio_print(FILE*	file)
 	AIO::print_all(file);
 
 	putc('\n', file);
-	current_time = ut_time();
-	time_elapsed = 0.001 + difftime(current_time, os_last_printout);
+	current_time = ut_time_monotonic();
+	time_elapsed = 0.001 + (current_time - os_last_printout);
 
 	fprintf(file,
 		"Pending flushes (fsync) log: " ULINTPF "; "
@@ -8350,7 +8351,7 @@ os_aio_refresh_stats()
 
 	os_bytes_read_since_printout = 0;
 
-	os_last_printout = ut_time();
+	os_last_printout = ut_time_monotonic();
 }
 
 /** Checks that all slots in the system have been freed, that is, there are

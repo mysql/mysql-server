@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -321,7 +321,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     mysql_mutex_lock(&g_record_buffer_mutex);
 
     /* Only one THD is capable of adding events into the buffer. */
-    if (buffer == g_record_buffer)
+    if (buffer && (buffer == g_record_buffer))
     {
       new_buffer= add_event(buffer, event_name, data, data_length);
       g_record_buffer= new_buffer;

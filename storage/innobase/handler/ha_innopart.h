@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -413,6 +413,12 @@ public:
 		ulonglong	nb_desired_values,
 		ulonglong*	first_value,
 		ulonglong*	nb_reserved_values);
+
+
+	/** Get partition row type
+	@param[in] Id of partition for which row type to be retrieved
+	@return Partition row type */
+	enum row_type get_partition_row_type(uint part_id);
 
 	int
 	cmp_ref(

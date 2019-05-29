@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -123,7 +123,8 @@ struct fts_sync_t {
 	doc_id_t	max_doc_id;	/*!< The doc id at which the cache was
 					noted as being full, we use this to
 					set the upper_limit field */
-	ib_time_t	start_time;	/*!< SYNC start time */
+	ib_time_monotonic_t	start_time;
+	/*!< SYNC start time */
 	bool		in_progress;	/*!< flag whether sync is in progress.*/
 	bool		unlock_cache;	/*!< flag whether unlock cache when
 					write fts node */

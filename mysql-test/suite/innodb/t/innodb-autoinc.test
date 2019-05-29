@@ -702,3 +702,66 @@ INSERT INTO t VALUES (NULL);
 SELECT * FROM t;
 SHOW CREATE TABLE t;
 DROP TABLE t;
+
+
+--echo #
+--echo # Bug#15851528 DUPLICATE KEY ERROR ON AUTO-INC PK WITH MIXED AUTO_INCREMENT_INCREMENT CLIENTS
+--echo #
+--echo # This test shows that the next record to be inserted is not affected
+--echo # by a change in auto_increment_increment.
+--echo # In addition, current value of auto_increment_increment by the client
+--echo # that uses the existing autoinc value with be used to set next autoinc
+--echo # value, which will be used by next client reguardless of its own session
+--echo # setting for auto_increment_increment.
+--echo #
+
+--connection default
+--echo # Client 1: Insert a record with auto_increment_increment=2
+CREATE TABLE t(
+  a SERIAL PRIMARY KEY,
+  b VARCHAR(200)) ENGINE=InnoDB;
+SET SESSION auto_increment_increment=2;
+SHOW CREATE TABLE t;
+INSERT INTO t(b) VALUES('S1');
+SELECT a,b FROM t;
+--connect(con1,localhost,root,,)
+
+--connection con1
+--echo # Client 2: Insert records with auto_increment_increment 2,1
+SET SESSION auto_increment_increment=2;
+SHOW CREATE TABLE t;
+INSERT INTO t(b) VALUES('S2');
+SELECT a,b FROM t;
+SET SESSION auto_increment_increment=1;
+SHOW CREATE TABLE t;
+INSERT INTO t(b) VALUES('S2');
+SELECT a,b FROM t;
+disconnect con1;
+
+--connection default
+--echo # Client 1: Insert a record with auto_increment_increment=1
+SET SESSION auto_increment_increment=1;
+SHOW CREATE TABLE t;
+INSERT INTO t(b) VALUES('S1');
+SELECT a,b FROM t;
+DROP TABLE t;
+
+--echo # Autoincrement behaviour with mixed insert.
+CREATE TABLE t(
+  a TINYINT AUTO_INCREMENT PRIMARY KEY,
+  b VARCHAR(200)) ENGINE=InnoDB;
+SET SESSION auto_increment_increment=100;
+SHOW CREATE TABLE t;
+INSERT INTO t(b) VALUES('S0'),('S1');
+SELECT a,b FROM t;
+SHOW CREATE TABLE t;
+INSERT INTO t(a,b) VALUES(28,'S2');
+SELECT a,b FROM t;
+SET SESSION auto_increment_increment=1;
+SHOW CREATE TABLE t;
+INSERT INTO t(b) VALUES('S3');
+SELECT a,b FROM t;
+SHOW CREATE TABLE t;
+--error ER_DUP_ENTRY
+INSERT INTO t(b) VALUES('S4');
+DROP TABLE t;
