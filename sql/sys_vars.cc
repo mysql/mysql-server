@@ -6618,8 +6618,12 @@ static bool check_set_default_table_encryption_access(
   }
 
   // Should own one of SUPER or both (SYSTEM_VARIABLES_ADMIN and
-  // TABLE_ENCRYPTION_ADMIN)
-  if (thd->slave_thread || thd->security_context()->check_access(SUPER_ACL) ||
+  // TABLE_ENCRYPTION_ADMIN), unless this is the session option and
+  // the value is unchanged.
+  longlong previous_val = thd->variables.default_table_encryption;
+  longlong val = (longlong)var->save_result.ulonglong_value;
+  if ((!var->is_global_persist() && val == previous_val) ||
+      thd->security_context()->check_access(SUPER_ACL) ||
       (thd->security_context()
            ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
            .first &&
