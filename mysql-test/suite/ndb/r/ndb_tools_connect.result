@@ -18,9 +18,6 @@ Unable to connect with connect string: nodeid=0,no_such_host:1186
 Unable to connect with connect string: nodeid=0,no_such_host:1186
 Unable to connect with connect string: nodeid=0,no_such_host:1186
 Unable to connect to management server.
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_desc
 Unable to connect with connect string: nodeid=0,no_such_host:1186
 Unable to connect with connect string: nodeid=0,no_such_host:1186

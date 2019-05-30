@@ -27,11 +27,6 @@
 
 #include "consumer.hpp"
 
-namespace NdbRestoreStatus
-{
-  enum {Ok = 0, Failed = 1, WrongArgs = 2};
-}
-
 bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
 
 struct restore_callback_t {

@@ -89,7 +89,7 @@ TARGET_LINK_LIBRARIES(ndb_drop_table ndbclient_static ndbNDBT)
 MYSQL_ADD_EXECUTABLE(ndb_delete_all
   delete_all.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_delete_all ndbclient_static ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_delete_all ndbclient_static)
 
 MYSQL_ADD_EXECUTABLE(ndb_desc
   desc.cpp

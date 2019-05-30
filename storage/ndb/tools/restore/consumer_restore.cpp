@@ -26,6 +26,7 @@
 #include <kernel/ndb_limits.h>
 #include <NdbSleep.h>
 #include <NdbTick.h>
+#include <NdbToolsProgramExitCodes.hpp>
 #include <Properties.hpp>
 #include <NdbTypesUtil.hpp>
 #include <ndb_rand.h>
@@ -3752,10 +3753,10 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
   return false;
 }
 
-void BackupRestore::exitHandler() 
+void BackupRestore::exitHandler()
 {
   release();
-  exit(NdbRestoreStatus::Failed);
+  exit(NdbToolsProgramExitCode::FAILED);
 }
 
 
