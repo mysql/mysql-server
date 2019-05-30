@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,8 +49,33 @@ SET(NDBCLIENT_LIBS
   ndbgeneral
   ndbconf)
 
+SET(LIBS_TO_MERGE
+  mysys dbug strings mysys_ssl
+  ndbapi
+  ndbtransport
+  ndbtrace
+  ndbsignaldata
+  ndbmgmapi
+  ndbmgmcommon
+  ndblogger
+  ndbportlib
+  ndbgeneral
+  ndbconf)
+
+IF(WITH_ZLIB STREQUAL "bundled")
+  LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
+ENDIF()
+IF(NOT WITH_SSL STREQUAL "system")
+  LIST(APPEND LIBS_TO_MERGE ${SSL_LIBRARIES})
+ENDIF()
+
+
+MESSAGE(STATUS "LIBS_TO_MERGE ${LIBS_TO_MERGE}")
+MESSAGE(STATUS "NDBCLIENT_LIBS ${NDBCLIENT_LIBS}")
+
 MERGE_CONVENIENCE_LIBRARIES(
-  ndbclient_static ${NDBCLIENT_LIBS} COMPONENT Development)
+  ndbclient_static ${LIBS_TO_MERGE} COMPONENT Development)
+TARGET_LINK_LIBRARIES(ndbclient_static ${SSL_LIBRARIES})
 
 SET(KNOWN_CONVENIENCE_LIBRARIES
   ${KNOWN_CONVENIENCE_LIBRARIES} ndbclient_static CACHE INTERNAL "" FORCE)
@@ -75,7 +100,7 @@ TARGET_LINK_LIBRARIES(ndbclient_static_link_test ndbclient_static)
 #
 # Build shared ndbclient library
 #
-SET(NDBCLIENT_SO_LIBS ${NDBCLIENT_LIBS} ${NDBJTIE_LIB})
+SET(NDBCLIENT_SO_LIBS ${LIBS_TO_MERGE} ${NDBJTIE_LIB})
 
 # Extract version from storage/ndb/VERSION
 INCLUDE(ndb_get_config_value)
@@ -168,7 +193,7 @@ SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
   SOVERSION ${NDB_SHARED_LIB_VERSION})
 MYSQL_INSTALL_TARGETS(ndbclient_so
   DESTINATION "${INSTALL_LIBDIR}"
-  COMPONENT Developement)
+  COMPONENT Development)
 # Build test program to check linking against ndclient_so
 ADD_EXECUTABLE(ndbclient_shared_link_test ndbclient_link_test.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_shared_link_test ndbclient_so)

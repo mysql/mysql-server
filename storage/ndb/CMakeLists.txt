@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,7 +64,23 @@ ENDIF()
 # if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX)
   INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning "unused-but-set-variable" "strict-aliasing")
+
+  FOREACH(warning
+      "class-memaccess"
+      )
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+
+  FOREACH(warning
+      "strict-aliasing"
+      "unused-but-set-variable"
+      )
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})

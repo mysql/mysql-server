@@ -492,8 +492,5 @@ ENDIF(MERGE_UNITTESTS)
     ENDIF()
   ENDFOREACH()
 
-## Most executables depend on libeay32.dll (through mysys_ssl).
-COPY_OPENSSL_DLLS(copy_openssl_gunit)
-
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,6 +31,12 @@ SET(PROTOBUF_MSVC_DISABLED_WARNINGS "/wd4018 /wd4005 /wd4244 /wd4267 /wd4065")
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Turn off some warning flags when compiling protobuf
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-deprecated-declarations"
+  HAVE_NO_DEPRECATED_DECLARATIONS)
+IF(HAVE_NO_DEPRECATED_DECLARATIONS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
 IF(HAVE_NO_SIGN_COMPARE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
