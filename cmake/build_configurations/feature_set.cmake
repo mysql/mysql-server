@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,5 +44,9 @@ IF(FEATURE_SET AND NOT WITHOUT_SERVER)
   ENDFOREACH()
 ENDIF()
 
-SET(WITH_SSL bundled CACHE STRING "")
-SET(WITH_ZLIB bundled CACHE STRING "")
+IF(NOT WITH_SSL)
+  SET(WITH_SSL bundled CACHE STRING "")
+ENDIF()
+IF(NOT WITH_ZLIB)
+  SET(WITH_ZLIB bundled CACHE STRING "")
+ENDIF()
