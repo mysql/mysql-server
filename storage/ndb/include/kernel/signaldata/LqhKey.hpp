@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -183,6 +183,11 @@ private:
    */
   static UintR getDisableFkConstraints(const UintR & requestInfo);
   static void setDisableFkConstraints(UintR & requestInfo, UintR val);
+
+  /**
+   * Get mask of currently undefined bits
+   */
+  static UintR getLongClearBits(const UintR& requestInfo);
 };
 
 /**
@@ -256,6 +261,17 @@ private:
 #define RI_NORMAL_DIRTY      (25)
 #define RI_DEFERRED_CONSTAINTS (26)
 #define RI_DISABLE_FK        (0)
+
+/* Currently unused */
+#define RI_CLEAR_SHIFT1      (1)
+#define RI_CLEAR_SHIFT2      (2)
+#define RI_CLEAR_SHIFT3      (3)
+#define RI_CLEAR_SHIFT4      (4)
+#define RI_CLEAR_SHIFT5      (5)
+#define RI_CLEAR_SHIFT6      (6)
+#define RI_CLEAR_SHIFT7      (7)
+#define RI_CLEAR_SHIFT8      (8)
+#define RI_CLEAR_SHIFT9      (9)
 
 /**
  * Scan Info
@@ -675,6 +691,24 @@ inline
 UintR
 LqhKeyReq::getDisableFkConstraints(const UintR & requestInfo){
   return (requestInfo >> RI_DISABLE_FK) & 1;
+}
+
+inline
+UintR
+LqhKeyReq::getLongClearBits(const UintR& requestInfo)
+{
+  const Uint32 mask =
+    (1 << RI_CLEAR_SHIFT1) |
+    (1 << RI_CLEAR_SHIFT2) |
+    (1 << RI_CLEAR_SHIFT3) |
+    (1 << RI_CLEAR_SHIFT4) |
+    (1 << RI_CLEAR_SHIFT5) |
+    (1 << RI_CLEAR_SHIFT6) |
+    (1 << RI_CLEAR_SHIFT7) |
+    (1 << RI_CLEAR_SHIFT8) |
+    (1 << RI_CLEAR_SHIFT9);
+
+  return (requestInfo & mask);
 }
 
 inline
