@@ -3738,7 +3738,7 @@ double Item_sum_udf_float::val_real() {
   DBUG_TRACE;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
-  return udf.val(&null_value);
+  return udf.val_real(&null_value);
 }
 
 String *Item_sum_udf_float::val_str(String *str) {

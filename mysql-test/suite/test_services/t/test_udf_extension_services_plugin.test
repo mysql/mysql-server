@@ -1,0 +1,23 @@
+################################################################################
+#                                                                              #
+# WL#12370 Extend the UDF API to handle properly character sets of the         #
+#          arguments and the return value                                      #
+#                                                                              #
+# This test file verifies the read and change in the character set of          #
+# arguments and return values of udfs. It verifies the functionality via       #
+# a test plugin.                                                               #
+#                                                                              #
+################################################################################
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--replace_result $TESTUDFEXTENSIONSERVICES TESTUDFEXTENSIONSERVICES
+eval INSTALL PLUGIN test_udf_extension_services SONAME '$TESTUDFEXTENSIONSERVICES';
+
+--source ../include/test_udf_extension_services.inc
+
+UNINSTALL PLUGIN test_udf_extension_services;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

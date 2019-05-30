@@ -58,6 +58,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/server_component/mysql_admin_session_imp.h"
 #include "sql/udf_registration_imp.h"
 #include "system_variable_source_imp.h"
+#include "udf_metadata_imp.h"
 
 // Must come after sql/log.h.
 #include "mysql/components/services/log_builtins.h"
@@ -245,6 +246,11 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
 mysql_udf_registration_imp::udf_register_aggregate,
     mysql_udf_registration_imp::udf_unregister END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_udf_metadata)
+mysql_udf_metadata_imp::argument_get, mysql_udf_metadata_imp::result_get,
+    mysql_udf_metadata_imp::argument_set,
+    mysql_udf_metadata_imp::result_set END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
 mysql_component_sys_variable_imp::register_variable,
     mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION();
@@ -351,6 +357,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog),
     PROVIDES_SERVICE(mysql_server, udf_registration),
     PROVIDES_SERVICE(mysql_server, udf_registration_aggregate),
+    PROVIDES_SERVICE(mysql_server, mysql_udf_metadata),
     PROVIDES_SERVICE(mysql_server, component_sys_variable_register),
     PROVIDES_SERVICE(mysql_server, component_sys_variable_unregister),
     PROVIDES_SERVICE(mysql_server, mysql_cond_v1),

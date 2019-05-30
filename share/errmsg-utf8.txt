@@ -9182,6 +9182,17 @@ ER_CLIENT_KEYRING_UDF_KEY_TYPE_TOO_LONG
 ER_JSON_SCHEMA_VALIDATION_ERROR_WITH_DETAILED_REPORT
   eng "%s."
 
+ER_DA_UDF_INVALID_CHARSET_SPECIFIED
+  eng "Invalid character set '%s' was specified. It must be either character set name or collation name as supported by server."
+
+ER_DA_UDF_INVALID_CHARSET
+  eng "Invalid character set '%s' was specified. It must be a character set name as supported by server."
+
+ER_DA_UDF_INVALID_COLLATION
+  eng "Invalid collation '%s' was specified. It must be a collation name as supported by server."
+
+ER_DA_UDF_INVALID_EXTENSION_ARGUMENT_TYPE
+  eng "Invalid extension argument type '%s' was specified. Refer the MySQL manual for the valid UDF extension arguments type."
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

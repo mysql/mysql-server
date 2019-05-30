@@ -1769,6 +1769,7 @@ static void server_component_init() {
   mysql_audit_api_service_init();
   mysql_current_thread_reader_imp_init();
   mysql_keyring_iterator_service_init();
+  mysql_comp_udf_extension_init();
 }
 
 /**

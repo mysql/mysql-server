@@ -107,7 +107,7 @@ select LENGTH(@x);
 select keyring_key_type_fetch('Rob_DSA_4096');
 select keyring_key_length_fetch('Rob_DSA_4096');
 select keyring_key_remove('Rob_DSA_4096');
-
+select CHARSET(keyring_key_type_fetch('Rob_DSA_4096'));
 UNINSTALL PLUGIN keyring_file;
 --echo # Test cases for keyring_udf loaded and keyring_file plugin not loaded
 --source include/keyring_udf_keyring_plugin_not_loaded.inc

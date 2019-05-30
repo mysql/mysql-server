@@ -27,6 +27,8 @@
 #include <boost/optional/optional.hpp>
 #include <new>
 
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/udf_metadata.h>
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
@@ -36,7 +38,13 @@
 #define MAX_KEYRING_UDF_KEY_LENGTH 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH
 size_t KEYRING_UDF_KEY_TYPE_LENGTH = 128;
-
+namespace {
+SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(mysql_udf_metadata) *udf_metadata_service = nullptr;
+const char *utf8mb4 = "utf8mb4";
+char *charset = const_cast<char *>(utf8mb4);
+const char *type = "charset";
+}  // namespace
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
 #else
@@ -48,12 +56,23 @@ static bool is_keyring_udf_initialized = false;
 static int keyring_udf_init(void *) {
   DBUG_TRACE;
   is_keyring_udf_initialized = true;
+  reg_srv = mysql_plugin_registry_acquire();
+  my_h_service h_udf_metadata_service;
+  if (reg_srv->acquire("mysql_udf_metadata", &h_udf_metadata_service)) return 1;
+  udf_metadata_service = reinterpret_cast<SERVICE_TYPE(mysql_udf_metadata) *>(
+      h_udf_metadata_service);
+
   return 0;
 }
 
 static int keyring_udf_deinit(void *) {
   DBUG_TRACE;
   is_keyring_udf_initialized = false;
+  using udf_metadata_t = SERVICE_TYPE_NO_CONST(mysql_udf_metadata);
+  if (udf_metadata_service)
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<udf_metadata_t *>(udf_metadata_service)));
+  mysql_plugin_registry_release(reg_srv);
   return 0;
 }
 
@@ -211,6 +230,11 @@ static bool keyring_udf_func_init(
       memset(initid->ptr, 0, size_of_memory_to_allocate);
   }
 
+  for (uint index = 0; index < expected_arg_count; index++) {
+    udf_metadata_service->argument_set(args, type, index,
+                                       static_cast<void *>(charset));
+  }
+
   return false;
 }
 
@@ -363,9 +387,11 @@ char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
 PLUGIN_EXPORT
 bool keyring_key_type_fetch_init(UDF_INIT *initid, UDF_ARGS *args,
                                  char *message) {
-  return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
-                               KEYRING_UDF_KEY_TYPE_LENGTH,
-                               KEYRING_UDF_KEY_TYPE_LENGTH);
+  return (keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
+                                KEYRING_UDF_KEY_TYPE_LENGTH,
+                                KEYRING_UDF_KEY_TYPE_LENGTH) ||
+          udf_metadata_service->result_set(initid, type,
+                                           static_cast<void *>(charset)));
 }
 
 PLUGIN_EXPORT

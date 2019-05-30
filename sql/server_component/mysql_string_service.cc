@@ -144,9 +144,10 @@ DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
 }
 
 /**
-  alocates a string object and converts the character buffer to string
-  of specified charset_name.
-  call destroy() api to free the allocated string.
+  Allocates a string object and converts the character buffer to string
+  and just sets the specified charset_name in the string object. It does
+  not performs the conversion of buffer into the specified character set.
+  Caller must free the allocated string by calling destroy() api.
 
   @param [out] out_string Pointer to string object handle to set new string
     to.

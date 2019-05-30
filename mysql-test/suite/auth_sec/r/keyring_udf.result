@@ -595,6 +595,9 @@ keyring_key_length_fetch('Rob_DSA_4096')
 select keyring_key_remove('Rob_DSA_4096');
 keyring_key_remove('Rob_DSA_4096')
 1
+select CHARSET(keyring_key_type_fetch('Rob_DSA_4096'));
+CHARSET(keyring_key_type_fetch('Rob_DSA_4096'))
+utf8mb4
 UNINSTALL PLUGIN keyring_file;
 # Test cases for keyring_udf loaded and keyring_file plugin not loaded
 #The keyring plugin was uninstalled, the keyring_udf functions should fail with

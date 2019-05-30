@@ -38,6 +38,7 @@ class Item_result_field;
 class String;
 class THD;
 class my_decimal;
+struct CHARSET_INFO;
 
 struct udf_func {
   LEX_STRING name;
@@ -53,6 +54,29 @@ struct udf_func {
   ulong usage_count;
 };
 
+/*
+  A structure of extension attributes for a UDF argument.
+  The extension pointer of UDF_ARGS may point to the object of this
+  structure. There are udf_extension component services to set and get
+  the extension attributes of argument.
+*/
+struct Udf_args_extension {
+  Udf_args_extension() : charset_info(nullptr) {}
+  const CHARSET_INFO **charset_info;
+};
+
+/*
+  A structure of extension attributes for return value of UDF.
+  The extension pointer of UDF_INIT may point to the object of this
+  structure. There are udf_extension component services to set and get
+  the extension attributes of return value.
+*/
+struct Udf_return_value_extension {
+  Udf_return_value_extension(const CHARSET_INFO *charset_info = nullptr)
+      : charset_info(charset_info) {}
+  const CHARSET_INFO *charset_info;
+};
+
 class udf_handler {
  protected:
   udf_func *u_d;
@@ -63,17 +87,16 @@ class udf_handler {
   uchar error, is_null;
   bool initialized;
   Item **args;
-
+  Udf_args_extension m_args_extension; /**< A struct that holds the extension
+                                          arguments for each UDF argument */
+  Udf_return_value_extension
+      m_return_value_extension; /**< A struct that holds the extension arguments
+                                   for return value */
  public:
   table_map used_tables_cache;
   bool not_original;
-  udf_handler(udf_func *udf_arg)
-      : u_d(udf_arg),
-        buffers(0),
-        error(0),
-        is_null(0),
-        initialized(false),
-        not_original(false) {}
+
+  udf_handler(udf_func *udf_arg);
   ~udf_handler();
   udf_handler(const udf_handler &) = default;
   udf_handler(udf_handler &&) = default;
@@ -84,56 +107,22 @@ class udf_handler {
   Item_result result_type() const {
     return (Item_result)(u_d ? (u_d->returns) : STRING_RESULT);
   }
-  bool get_arguments();
   bool fix_fields(THD *thd, Item_result_field *item, uint arg_count,
                   Item **args);
   void cleanup();
-  double val(bool *null_value) {
-    is_null = 0;
-    if (get_arguments()) {
-      *null_value = true;
-      return 0.0;
-    }
-    Udf_func_double func = (Udf_func_double)u_d->func;
-    double tmp = func(&initid, &f_args, &is_null, &error);
-    if (is_null || error) {
-      *null_value = true;
-      return 0.0;
-    }
-    *null_value = false;
-    return tmp;
-  }
-  longlong val_int(bool *null_value) {
-    is_null = 0;
-    if (get_arguments()) {
-      *null_value = true;
-      return 0LL;
-    }
-    Udf_func_longlong func = (Udf_func_longlong)u_d->func;
-    longlong tmp = func(&initid, &f_args, &is_null, &error);
-    if (is_null || error) {
-      *null_value = true;
-      return 0LL;
-    }
-    *null_value = false;
-    return tmp;
-  }
-  my_decimal *val_decimal(bool *null_value, my_decimal *dec_buf);
-  void clear() {
-    is_null = 0;
-    Udf_func_clear func = u_d->func_clear;
-    func(&initid, &is_null, &error);
-  }
-  void add(bool *null_value) {
-    if (get_arguments()) {
-      *null_value = true;
-      return;
-    }
-    Udf_func_add func = u_d->func_add;
-    func(&initid, &f_args, &is_null, &error);
-    *null_value = (bool)(is_null || error);
-  }
+  double val_real(bool *null_value);
+  longlong val_int(bool *null_value);
   String *val_str(String *str, String *save_str);
+  my_decimal *val_decimal(bool *null_value, my_decimal *dec_buf);
+  void clear();
+  void add(bool *null_value);
+
+ private:
+  bool get_arguments();
+  String *result_string(const char *res, size_t res_length, String *str,
+                        String *save_str);
+  void get_string(uint index);
+  bool get_and_convert_string(uint index);
 };
 
 void udf_init_globals();

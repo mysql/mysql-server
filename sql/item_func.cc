@@ -3882,6 +3882,21 @@ longlong Item_func_bit_count::val_int() {
 ** Functions to handle dynamic loadable functions
 ****************************************************************************/
 
+udf_handler::udf_handler(udf_func *udf_arg)
+    : u_d(udf_arg),
+      buffers(nullptr),
+      error(0),
+      is_null(0),
+      initialized(false),
+      m_args_extension(),
+      m_return_value_extension(&my_charset_bin),
+      not_original(false) {}
+
+udf_handler::~udf_handler() {
+  /* Everything should be properly cleaned up by this moment. */
+  DBUG_ASSERT(not_original || !(initialized || buffers));
+}
+
 void udf_handler::cleanup() {
   if (!not_original) {
     if (initialized) {
@@ -3895,8 +3910,24 @@ void udf_handler::cleanup() {
     }
     if (buffers)  // Because of bug in ecc
       delete[] buffers;
-    buffers = 0;
+    buffers = nullptr;
   }
+}
+
+void udf_handler::clear() {
+  is_null = 0;
+  Udf_func_clear func = u_d->func_clear;
+  func(&initid, &is_null, &error);
+}
+
+void udf_handler::add(bool *null_value) {
+  if (get_arguments()) {
+    *null_value = 1;
+    return;
+  }
+  Udf_func_add func = u_d->func_add;
+  func(&initid, &f_args, &is_null, &error);
+  *null_value = (bool)(is_null || error);
 }
 
 bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
@@ -3916,6 +3947,24 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   u_d = tmp_udf;
   args = arguments;
 
+  /*
+    RAII wrapper to free the memory allocated in case of any failure while
+    initializing the UDF
+  */
+  class cleanup_guard {
+   public:
+    cleanup_guard(udf_func *udf_func) : m_udf_func(udf_func) {
+      DBUG_ASSERT(udf_func);
+    }
+    ~cleanup_guard() {
+      if (m_udf_func) free_udf(m_udf_func);
+    }
+    void defer() { m_udf_func = nullptr; }
+
+   private:
+    udf_func *m_udf_func;
+  } udf_fun_guard(u_d);
+
   /* Fix all arguments */
   func->maybe_null = false;
   used_tables_cache = 0;
@@ -3923,10 +3972,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   if ((f_args.arg_count = arg_count)) {
     if (!(f_args.arg_type =
               (Item_result *)(*THR_MALLOC)
-                  ->Alloc(f_args.arg_count * sizeof(Item_result))))
-
-    {
-      free_udf(u_d);
+                  ->Alloc(f_args.arg_count * sizeof(Item_result)))) {
       return true;
     }
     uint i;
@@ -3934,13 +3980,11 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     for (i = 0, arg = arguments, arg_end = arguments + arg_count;
          arg != arg_end; arg++, i++) {
       if (!(*arg)->fixed && (*arg)->fix_fields(thd, arg)) {
-        free_udf(u_d);
         return true;
       }
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item = *arg;
       if (item->check_cols(1)) {
-        free_udf(u_d);
         return true;
       }
       /*
@@ -3962,7 +4006,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
       f_args.arg_type[i] = item->result_type();
     }
     // TODO: why all following memory is not allocated with 1 call of sql_alloc?
-    if (!(buffers = new String[arg_count]) ||
+    if (!(buffers = new (std::nothrow) String[arg_count]) ||
         !(f_args.args =
               (char **)(*THR_MALLOC)->Alloc(arg_count * sizeof(char *))) ||
         !(f_args.lengths =
@@ -3974,25 +4018,28 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
         !(f_args.attributes =
               (char **)(*THR_MALLOC)->Alloc(arg_count * sizeof(char *))) ||
         !(f_args.attribute_lengths =
-              (ulong *)(*THR_MALLOC)->Alloc(arg_count * sizeof(long)))) {
-      free_udf(u_d);
+              (ulong *)(*THR_MALLOC)->Alloc(arg_count * sizeof(long))) ||
+        !(m_args_extension.charset_info =
+              (const CHARSET_INFO **)(*THR_MALLOC)
+                  ->Alloc(f_args.arg_count * sizeof(CHARSET_INFO *)))) {
       return true;
     }
   }
-  if (func->resolve_type(thd)) {
-    free_udf(u_d);
-    return true;
-  }
+
+  if (func->resolve_type(thd)) return true;
+
   initid.max_length = func->max_length;
   initid.maybe_null = func->maybe_null;
   initid.const_item = used_tables_cache == 0;
   initid.decimals = func->decimals;
   initid.ptr = 0;
+  initid.extension = &m_return_value_extension;
 
   if (u_d->func_init) {
     char init_msg_buff[MYSQL_ERRMSG_SIZE];
     *init_msg_buff = '\0';
     char *to = num_buffer;
+    f_args.extension = &m_args_extension;
     for (uint i = 0; i < arg_count; i++) {
       /*
        For a constant argument i, args->args[i] points to the argument value.
@@ -4004,15 +4051,13 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
       f_args.maybe_null[i] = arguments[i]->maybe_null;
       f_args.attributes[i] = const_cast<char *>(arguments[i]->item_name.ptr());
       f_args.attribute_lengths[i] = arguments[i]->item_name.length();
+      m_args_extension.charset_info[i] = arguments[i]->collation.collation;
 
       if (arguments[i]->may_evaluate_const(thd)) {
         switch (arguments[i]->result_type()) {
           case STRING_RESULT:
           case DECIMAL_RESULT: {
-            String *res = arguments[i]->val_str(&buffers[i]);
-            if (arguments[i]->null_value) continue;
-            f_args.args[i] = res->c_ptr_safe();
-            f_args.lengths[i] = res->length();
+            get_string(i);
             break;
           }
           case INT_RESULT:
@@ -4038,7 +4083,6 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     Udf_func_init init = u_d->func_init;
     if ((error = (uchar)init(&initid, &f_args, init_msg_buff))) {
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0), u_d->name.str, init_msg_buff);
-      free_udf(u_d);
       return true;
     }
     func->max_length = min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
@@ -4046,36 +4090,30 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     if (!initid.const_item && used_tables_cache == 0)
       used_tables_cache = RAND_TABLE_BIT;
     func->decimals = min<uint>(initid.decimals, DECIMAL_NOT_SPECIFIED);
-    func->set_data_type_string(func->max_length, &my_charset_bin);
+    func->set_data_type_string(func->max_length,
+                               m_return_value_extension.charset_info);
   }
   initialized = true;
-  if (error) {
-    my_error(ER_CANT_INITIALIZE_UDF, MYF(0), u_d->name.str,
-             ER_THD(thd, ER_UNKNOWN_ERROR));
-    free_udf(u_d);
-    return true;
-  }
+  /*
+    UDF initialization complete so leave the freeing up resources to
+    cleanup method.
+  */
+  udf_fun_guard.defer();
   return false;
 }
 
 bool udf_handler::get_arguments() {
   if (error) return true;  // Got an error earlier
   char *to = num_buffer;
-  uint str_count = 0;
   for (uint i = 0; i < f_args.arg_count; i++) {
     f_args.args[i] = 0;
     switch (f_args.arg_type[i]) {
       case STRING_RESULT:
-      case DECIMAL_RESULT: {
-        String *res = args[i]->val_str(&buffers[str_count++]);
-        if (!(args[i]->null_value)) {
-          f_args.args[i] = res->c_ptr_safe();
-          f_args.lengths[i] = res->length();
-        } else {
-          f_args.lengths[i] = 0;
-        }
+        if (get_and_convert_string(i)) return true;
         break;
-      }
+      case DECIMAL_RESULT:
+        get_string(i);
+        break;
       case INT_RESULT:
         *((longlong *)to) = args[i]->val_int();
         if (!args[i]->null_value) {
@@ -4098,6 +4136,37 @@ bool udf_handler::get_arguments() {
     }
   }
   return false;
+}
+
+double udf_handler::val_real(bool *null_value) {
+  is_null = 0;
+  if (get_arguments()) {
+    *null_value = 1;
+    return 0.0;
+  }
+  Udf_func_double func = (Udf_func_double)u_d->func;
+  double tmp = func(&initid, &f_args, &is_null, &error);
+  if (is_null || error) {
+    *null_value = 1;
+    return 0.0;
+  }
+  *null_value = 0;
+  return tmp;
+}
+longlong udf_handler::val_int(bool *null_value) {
+  is_null = 0;
+  if (get_arguments()) {
+    *null_value = 1;
+    return 0LL;
+  }
+  Udf_func_longlong func = (Udf_func_longlong)u_d->func;
+  longlong tmp = func(&initid, &f_args, &is_null, &error);
+  if (is_null || error) {
+    *null_value = 1;
+    return 0LL;
+  }
+  *null_value = 0;
+  return tmp;
 }
 
 /**
@@ -4127,14 +4196,10 @@ String *udf_handler::val_str(String *str, String *save_str) {
     DBUG_PRINT("info", ("Null or error"));
     return 0;
   }
-  if (res == str->ptr()) {
-    str->length(res_length);
-    DBUG_PRINT("exit", ("str: %*.s", (int)str->length(), str->ptr()));
-    return str;
-  }
-  save_str->set(res, res_length, str->charset());
-  DBUG_PRINT("exit", ("save_str: %s", save_str->ptr()));
-  return save_str;
+
+  String *res_str = result_string(res, res_length, str, save_str);
+  DBUG_PRINT("exit", ("res_str: %s", res_str->ptr()));
+  return res_str;
 }
 
 /*
@@ -4159,6 +4224,83 @@ my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf) {
   const char *end = res + res_length;
   str2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf, &end);
   return dec_buf;
+}
+
+/**
+  Process the result string returned by the udf() method. The charset
+  info might have changed therefore updates the same String. If user
+  used the input String as result string then return the same.
+
+  @param [in] res the result string returned by the udf() method.
+  @param [in] res_length  length of the string
+  @param [out] str The input result string passed to the udf() method
+  @param [out] save_str Keeps copy of the returned String
+
+  @returns
+    @retval A pointer to either the str or save_str that points
+            to final result String
+*/
+String *udf_handler::result_string(const char *res, size_t res_length,
+                                   String *str, String *save_str) {
+  const auto *charset = m_return_value_extension.charset_info;
+  String *res_str = nullptr;
+  if (res == str->ptr()) {
+    res_str = str;
+    res_str->length(res_length);
+    res_str->set_charset(charset);
+  } else {
+    res_str = save_str;
+    res_str->set(res, res_length, charset);
+  }
+  return res_str;
+}
+
+/**
+  Get the details of the input String arguments.
+
+  @param [in] index of the argument to be looked in the arguments array
+*/
+void udf_handler::get_string(uint index) {
+  String *res = args[index]->val_str(&buffers[index]);
+  if (!args[index]->null_value) {
+    f_args.args[index] = res->ptr();
+    f_args.lengths[index] = res->length();
+  } else {
+    f_args.lengths[index] = 0;
+  }
+}
+
+/**
+  Get the details of the input String argument.
+  If the charset of the input argument is not same as specified by the
+  user then convert the String.
+
+  @param [in] index of the argument to be looked in the arguments array
+
+  @returns
+    @retval false Able to fetch the argument details
+    @retval true  Otherwise
+*/
+bool udf_handler::get_and_convert_string(uint index) {
+  String *res = args[index]->val_str(&buffers[index]);
+
+  /* m_args_extension.charset_info[index] is a legitimate charset */
+  if (res && res->charset() != m_args_extension.charset_info[index]) {
+    String temp;
+    uint dummy;
+    if (temp.copy(res->ptr(), res->length(), res->charset(),
+                  m_args_extension.charset_info[index], &dummy)) {
+      return true;
+    }
+    *res = std::move(temp);
+  }
+  if (!args[index]->null_value) {
+    f_args.args[index] = res->c_ptr_safe();
+    f_args.lengths[index] = res->length();
+  } else {
+    f_args.lengths[index] = 0;
+  }
+  return false;
 }
 
 bool Item_udf_func::itemize(Parse_context *pc, Item **res) {
@@ -4190,7 +4332,7 @@ double Item_func_udf_float::val_real() {
   DBUG_TRACE;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
-  return udf.val(&null_value);
+  return udf.val_real(&null_value);
 }
 
 String *Item_func_udf_float::val_str(String *str) {
@@ -4271,13 +4413,7 @@ String *Item_func_udf_str::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   String *res = udf.val_str(str, &str_value);
   null_value = !res;
-  if (res) res->set_charset(collation.collation);
   return res;
-}
-
-udf_handler::~udf_handler() {
-  /* Everything should be properly cleaned up by this moment. */
-  DBUG_ASSERT(not_original || !(initialized || buffers));
 }
 
 bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res) {

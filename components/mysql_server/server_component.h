@@ -67,6 +67,7 @@ void host_application_signal_imp_init();
 
 void page_track_service_init();
 void mysql_current_thread_reader_imp_init();
+void mysql_comp_udf_extension_init();
 
 /* implementation of the built-in components */
 

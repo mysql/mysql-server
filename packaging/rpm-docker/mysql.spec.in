@@ -273,6 +273,7 @@ for p in \
          component_test_sys_var_service.so \
          component_test_sys_var_service_str.so \
          component_test_udf_registration.so \
+         component_test_udf_services.so \
          component_udf_reg_3_func.so \
          component_udf_reg_avg_func.so \
          component_udf_reg_int_func.so \
@@ -467,6 +468,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Aug 14 2019 Rahul Sisondia <rahul.sisondia@oracle.com> - 8.0.19-1
+- Added component_test_udf_services test component
+
 * Fri Jun 28 2019 Ivan Svaljek <ivan.svaljek@oracle.com> - 8.0.18-1
 - Add keyring_hashicorp.so plugin
 - Add component_mysqlbackup component

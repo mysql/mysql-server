@@ -37,6 +37,7 @@
 #include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <components/mysql_server/udf_metadata_imp.h>
 #include <keyring_iterator_service_imp.h>
 #include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/clone_protocol_service.h>
@@ -342,6 +343,26 @@ DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::get,
                     size_t key_id_size MY_ATTRIBUTE((unused)),
                     char *user_id MY_ATTRIBUTE((unused)),
                     size_t user_id_size MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::argument_get,
+                   (UDF_ARGS *, const char *, unsigned int, void **)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::argument_set,
+                   (UDF_ARGS *, const char *, unsigned int, void *)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_set,
+                   (UDF_INIT *, const char *, void *)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_get,
+                   (UDF_INIT *, const char *, void **)) {
   return true;
 }
 

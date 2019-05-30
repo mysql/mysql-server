@@ -24,21 +24,27 @@
 #include <mysql_com.h>
 #include <mysql_version.h>
 #include <stddef.h>
-
 #include "my_compiler.h"
 #include "my_inttypes.h"
 
 static int test_udf_registration_init(MYSQL_PLUGIN p);
 static int test_udf_registration_deinit(MYSQL_PLUGIN p);
 
+static int test_udf_extension_init(MYSQL_PLUGIN p);
+static int test_udf_extension_deinit(MYSQL_PLUGIN p);
 /**
   @file test_udf_services.cc
 
-  This is a test suite plugin to verify that plugins can co-exist with UDFs.
-  The file defines one DAEMON plugin @ref test_udf_services_plugin and one
-  UDF function: @ref test_udf_services_udf.
-  The test then checks if the plugin can be unloaded and loaded while the
-  UDF is defined.
+  This is a test suite plugin to verify :
+  (1) Plugins can co-exist with UDFs
+      The file defines one DAEMON plugin @ref test_udf_services_plugin and one
+      UDF function: @ref test_udf_services_udf.
+      The test then checks if the plugin can be unloaded and loaded while the
+      UDF is defined.
+  (2) UDF extension attributes
+      The file defines one DAEMON plugin @ref test_udf_extension_services and
+      a few UDF functions to test the UDF extension arguments. UDF functions
+      tests for character set and collation extension arguments right now.
 
   No user-facing functionality in this plugin. Just test material !
 */
@@ -47,6 +53,9 @@ static struct st_mysql_daemon test_udf_services_plugin = {
     MYSQL_DAEMON_INTERFACE_VERSION};
 
 static struct st_mysql_daemon test_udf_registration_plugin = {
+    MYSQL_DAEMON_INTERFACE_VERSION};
+
+static struct st_mysql_daemon test_udf_extension_services_plugin = {
     MYSQL_DAEMON_INTERFACE_VERSION};
 
 mysql_declare_plugin(test_udf_services){
@@ -80,6 +89,22 @@ mysql_declare_plugin(test_udf_services){
         NULL,                         /* system variables     */
         NULL,                         /* config options       */
         0,                            /* flags                */
+    },
+    {
+        MYSQL_DAEMON_PLUGIN,
+        &test_udf_extension_services_plugin,
+        "test_udf_extension_services",
+        "Oracle Corp",
+        "MySQL mtr test framework",
+        PLUGIN_LICENSE_GPL,
+        test_udf_extension_init,   /* Plugin Init          */
+        NULL,                      /* Plugin Check uninstall */
+        test_udf_extension_deinit, /* Plugin Deinit        */
+        0x0100,                    /* Plugin version: 1.0  */
+        NULL,                      /* status variables     */
+        NULL,                      /* system variables     */
+        NULL,                      /* config options       */
+        0,                         /* flags                */
     } mysql_declare_plugin_end;
 
 #ifdef WIN32
@@ -191,5 +216,183 @@ end:
           const_cast<udf_registration_t *>(udf)));
     mysql_plugin_registry_release(reg);
   }
+  return ret ? 1 : 0;
+}
+
+#include "services_required.h"
+#include "udf_extension_test_functions.h"
+
+/**
+  Plugin init function that registers a UDF.
+  A newly created UDF must be registered here.
+
+  @returns
+    @retval false UDF registered successfully.
+    @retval true  Otherwise.
+*/
+static int test_udf_extension_init(MYSQL_PLUGIN /*p */) {
+  bool ret = true;
+  if (Registry_service::acquire() || Udf_registration::acquire()) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set and get the charset extension argument of
+    return value. It also demonstrate how to perforn the charset
+    conversion on return value.
+
+    This UDF takes two STRING arguments. It returns the value of first
+    argument. But before returning the value, it converts the return
+    value into the character set of the second argument.
+  */
+  if (Udf_registration::add("test_result_charset", STRING_RESULT,
+                            (Udf_func_any)test_result_charset,
+                            test_result_charset_init,
+                            test_result_charset_deinit)) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set the expected charset of a UDF argument.
+    Users sets the charset of a UDF argument at the init() time, server
+    detects that and provided the converted value at the UDF() time.
+
+    This UDF takes two STRING arguments. It sets the charset of first UDF
+    argument as charset of second argument.
+  */
+  if (Udf_registration::add("test_args_charset", STRING_RESULT,
+                            (Udf_func_any)test_args_charset,
+                            test_args_charset_init, test_args_charset_deinit)) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set and get the collation extension argument of
+    return value. It also demonstrate how to perforn the charset
+    conversion on return value.
+
+    This UDF takes two STRING arguments. It returns the value of first
+    argument. But before returning the value, it converts the return
+    value into the character set of the second argument. It determines
+    the charset of first argument from the collation name as it was set
+    during init() time.
+  */
+  if (Udf_registration::add("test_result_collation", STRING_RESULT,
+                            (Udf_func_any)test_result_collation,
+                            test_result_collation_init,
+                            test_result_collation_deinit)) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set the expected collation of a UDF argument.
+    Users sets the collation of a UDF argument at the init() time, server
+    detects that and provided the converted value at the UDF() time.
+
+    This UDF takes two STRING arguments. It sets the collation of first UDF
+    argument as collation of second argument.
+  */
+  if (Udf_registration::add("test_args_collation", STRING_RESULT,
+                            (Udf_func_any)test_args_collation,
+                            test_args_collation_init,
+                            test_args_collation_deinit)) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set and get the charset extension argument of
+    return value. It also demonstrate how to perforn the charset conversion
+    on return value.
+
+    This UDF takes two STRING arguments. It returns the value of first
+    argument. But before returning the value, it converts the return
+    value into the character set as it was specified by the user in the second
+    argument.
+  */
+  if (Udf_registration::add("test_result_charset_with_value", STRING_RESULT,
+                            (Udf_func_any)test_result_charset_with_value,
+                            test_result_charset_with_value_init,
+                            test_result_charset_with_value_deinit)) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set the expected charset of a UDF argument.
+    Users sets the charset of a UDF argument at the init() time, server
+    detects that and provided the converted value at the UDF() time.
+
+    This UDF takes two STRING arguments. It sets the charset of first UDF
+    argument as charset provided by the user in the second argument.
+  */
+  if (Udf_registration::add("test_args_charset_with_value", STRING_RESULT,
+                            (Udf_func_any)test_args_charset_with_value,
+                            test_args_charset_with_value_init,
+                            test_args_charset_with_value_deinit)) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set and get the collation extension argument of
+    return value. It also demonstrate how to perforn the charset
+    conversion on return value.
+
+    This UDF takes two STRING arguments. It returns the value of first
+    argument. But before returning the value, it converts the return
+    value into the character set of the second argument. It determines
+    the charset of first argument from the collation name as provided
+    by the user in the second argument.
+  */
+  if (Udf_registration::add("test_result_collation_with_value", STRING_RESULT,
+                            (Udf_func_any)test_result_collation_with_value,
+                            test_result_collation_with_value_init,
+                            test_result_collation_with_value_deinit)) {
+    goto end;
+  }
+  /*
+    Demonstrates how to set the expected collation of a UDF argument.
+    Users sets the collation of a UDF argument at the init() time, server
+    detects that and provided the converted value at the UDF() time.
+
+    This UDF takes two STRING arguments. It sets the collation of first UDF
+    argument as collation provided by the user in the second argument.
+  */
+  if (Udf_registration::add("test_args_collation_with_value", STRING_RESULT,
+                            (Udf_func_any)test_args_collation_with_value,
+                            test_args_collation_with_value_init,
+                            test_args_collation_with_value_deinit)) {
+    goto end;
+  }
+  ret = false;  // Successfully initialized the plugin
+end:
+  if (ret) {
+    Udf_registration::release();
+    Registry_service::release();
+  }
+  return ret ? 1 : 0;
+}
+
+/**
+  Plugin deinit function that unregisters a UDF
+
+  @returns
+    @retval false UDF unregistered successfully.
+    @retval true  Otherwise.
+*/
+static int test_udf_extension_deinit(MYSQL_PLUGIN /* p */) {
+  bool ret = true;
+  int was_present;
+  if (Registry_service::acquire() || Udf_registration::acquire()) {
+    goto end;
+  }
+  if (Udf_registration::remove("test_result_charset", &was_present) ||
+      Udf_registration::remove("test_args_charset", &was_present) ||
+      Udf_registration::remove("test_result_collation", &was_present) ||
+      Udf_registration::remove("test_args_collation", &was_present) ||
+      Udf_registration::remove("test_result_charset_with_value",
+                               &was_present) ||
+      Udf_registration::remove("test_args_charset_with_value", &was_present) ||
+      Udf_registration::remove("test_result_collation_with_value",
+                               &was_present) ||
+      Udf_registration::remove("test_args_collation_with_value",
+                               &was_present)) {
+    goto end;
+  }
+  ret = false;
+end:
+  Udf_registration::release();
+  Registry_service::release();
   return ret ? 1 : 0;
 }

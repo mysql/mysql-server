@@ -77,6 +77,7 @@
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_*
 #include "thr_lock.h"
+#include "udf_registration_imp.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -773,8 +774,6 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
 
   return error;
 }
-
-#include "sql/udf_registration_imp.h"
 
 bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc) {
   mysql_rwlock_wrlock(&THR_LOCK_udf);

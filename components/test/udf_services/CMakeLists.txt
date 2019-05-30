@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,21 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-MYSQL_ADD_PLUGIN(test_udf_services
-
-# Plugin service files
-test_udf_services.cc
-
-# Files that test UDF extesnions
-udf_extension_test_functions.cc
-udf_extension_test_functions.h
-
-# UDF extension handler source files
-test_udf_extension.cc
-test_udf_extension.h
-
-# Service handlers source files
-services_required.cc
-services_required.h
-
-TEST_ONLY MODULE_ONLY)
+MYSQL_ADD_COMPONENT(test_udf_services
+  test_udf_extension.cc
+  test_udf_extension.h
+  test_udf_services.cc
+  udf_extension_test_functions.cc
+  udf_extension_test_functions.h
+  MODULE_ONLY
+  TEST_ONLY)

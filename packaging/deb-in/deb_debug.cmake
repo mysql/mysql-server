@@ -171,6 +171,7 @@ usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
 usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
+usr/lib/mysql/plugin/debug/component_test_udf_services.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")
