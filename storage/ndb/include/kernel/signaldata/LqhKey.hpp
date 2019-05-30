@@ -193,6 +193,11 @@ private:
   static void setDisableFkConstraints(UintR & requestInfo, UintR val);
 
   /**
+   * Get mask of currently undefined bits
+   */
+  static UintR getLongClearBits(const UintR& requestInfo);
+  
+  /**
    * Trigger flag ensuring that requests based on fully replicated triggers
    * doesn't trigger a new trigger itself.
    */
@@ -208,9 +213,18 @@ private:
   enum RequestInfo {
     RI_KEYLEN_SHIFT      =  0, RI_KEYLEN_MASK      = 1023, /* legacy for short LQHKEYREQ */
     RI_DISABLE_FK        =  0,
-    RI_NO_TRIGGERS       = 1,
-    RI_UTIL_SHIFT        = 2,
-    RI_NOWAIT_SHIFT      = 3,
+    RI_NO_TRIGGERS       =  1,
+    RI_UTIL_SHIFT        =  2,
+    RI_NOWAIT_SHIFT      =  3,
+
+    /* Currently unused */
+    RI_CLEAR_SHIFT4      =  4,
+    RI_CLEAR_SHIFT5      =  5,
+    RI_CLEAR_SHIFT6      =  6,
+    RI_CLEAR_SHIFT7      =  7,
+    RI_CLEAR_SHIFT8      =  8,
+    RI_CLEAR_SHIFT9      =  9,
+
     RI_LAST_REPL_SHIFT   = 10, RI_LAST_REPL_MASK   =    3,
     RI_LOCK_TYPE_SHIFT   = 12, RI_LOCK_TYPE_MASK   =    7, /* legacy before ROWID_VERSION */
     RI_GCI_SHIFT         = 12,
@@ -698,6 +712,21 @@ inline
 UintR
 LqhKeyReq::getDisableFkConstraints(const UintR & requestInfo){
   return (requestInfo >> RI_DISABLE_FK) & 1;
+}
+
+inline
+UintR
+LqhKeyReq::getLongClearBits(const UintR& requestInfo)
+{
+  const Uint32 mask =
+    (1 << RI_CLEAR_SHIFT4) |
+    (1 << RI_CLEAR_SHIFT5) |
+    (1 << RI_CLEAR_SHIFT6) |
+    (1 << RI_CLEAR_SHIFT7) |
+    (1 << RI_CLEAR_SHIFT8) |
+    (1 << RI_CLEAR_SHIFT9);
+
+  return (requestInfo & mask);
 }
 
 inline

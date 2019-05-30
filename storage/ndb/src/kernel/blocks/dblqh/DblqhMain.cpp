@@ -1016,8 +1016,12 @@ void Dblqh::execNDB_STTOR(Signal* signal)
   switch (cstartPhase) {
   case ZSTART_PHASE1:
     jam();
+    /* Which bits in request info should 'pass through' replicas */
     preComputedRequestInfoMask = 0;
-    LqhKeyReq::setKeyLen(preComputedRequestInfoMask, LqhKeyReq::RI_KEYLEN_MASK);
+    // Dont setDisableFkconstraints - handled on primary
+    LqhKeyReq::setNoTriggersFlag(preComputedRequestInfoMask, 1);
+    LqhKeyReq::setUtilFlag(preComputedRequestInfoMask, 1);
+    // Dont setNoWaitFlag - handled on primary
     LqhKeyReq::setLastReplicaNo(preComputedRequestInfoMask, LqhKeyReq::RI_LAST_REPL_MASK);
     // Dont LqhKeyReq::setApplicationAddressFlag
     LqhKeyReq::setDirtyFlag(preComputedRequestInfoMask, 1);
@@ -5603,10 +5607,33 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
   if (LqhKeyReq::getNoWaitFlag(Treqinfo))
   {
-    ndbassert(!regTcPtr->dirtyOp);
-    ndbrequire((op == ZREAD) || (op == ZREAD_EX)); // For now
-    regTcPtr->m_flags |= TcConnectionrec::OP_NOWAIT;
+    /* Check sender version before processing - older versions sent junk */
+    if (likely(isLongReq &&
+               senderVersion >= NDBD_NOWAIT_KEYREQ))
+    {
+      ndbassert(!regTcPtr->dirtyOp);
+      ndbrequire((op == ZREAD) || (op == ZREAD_EX)); // For now
+      regTcPtr->m_flags |= TcConnectionrec::OP_NOWAIT;
+    }
   }
+#ifdef VM_TRACE
+  if (unlikely(isLongReq &&
+               LqhKeyReq::getLongClearBits(Treqinfo) != 0))
+  {
+    jam();
+    /* Bits set which should not be - definite error on same version */
+    const Uint32 ownVersion = getNodeInfo(getOwnNodeId()).m_version;
+    if (senderVersion == ownVersion)
+    {
+      jam();
+      ndbout_c("Received bad long request info %x from same version node %x %x",
+               Treqinfo,
+               senderVersion,
+               ownVersion);
+      ndbrequire(false);
+    }
+  }
+#endif
 
   if (regTcPtr->dirtyOp)
   {
@@ -16349,8 +16376,6 @@ void Dblqh::copyTupkeyConfLab(Signal* signal,
     closeCopyLab(signal, tcConnectptr.p);
     return;
   }
-
-  LqhKeyReq::setKeyLen(tcConP->reqinfo, len);
 
 /*---------------------------------------------------------------------------*/
 // To avoid using up to many operation records in ACC we will increase the
@@ -27323,7 +27348,6 @@ void Dblqh::initReqinfoExecSr(Signal* signal,
 {
   UintR Treqinfo = 0;
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  LqhKeyReq::setKeyLen(Treqinfo, regTcPtr->primKeyLen);
 /* ------------------------------------------------------------------------- */
 /* NUMBER OF BACKUPS AND STANDBYS ARE ZERO AND NEED NOT BE SET.              */
 /* REPLICA TYPE IS CLEARED BY SEND_LQHKEYREQ.                                */

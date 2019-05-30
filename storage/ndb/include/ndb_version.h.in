@@ -1207,4 +1207,6 @@ ndbd_frag_tckeyreq(Uint32 x)
   return x >= NDBD_FRAG_TCKEYREQ;
 }
 
+#define NDBD_NOWAIT_KEYREQ NDB_MAKE_VERSION(8,0,18)
+
 #endif
