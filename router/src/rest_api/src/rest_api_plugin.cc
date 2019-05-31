@@ -219,25 +219,39 @@ void RestApi::handle_paths(HttpRequest &req) {
   send_rfc7807_not_found_error(req);
 }
 
+static std::shared_ptr<RestApi> rest_api;
+
 static void start(mysql_harness::PluginFuncEnv *env) {
-  auto &http_srv = HttpServerComponent::get_instance();
-  auto &rest_api_srv = RestApiComponent::get_instance();
-  auto rest_api =
-      std::make_shared<RestApi>(std::string("/api/") + kRestAPIVersion,
-                                std::string("^/api/") + kRestAPIVersion);
+  try {
+    auto &http_srv = HttpServerComponent::get_instance();
+    auto &rest_api_srv = RestApiComponent::get_instance();
 
-  rest_api->add_path("/swagger.json$", std::make_unique<RestApiSpecHandler>(
-                                           rest_api, require_realm_api));
+    rest_api =
+        std::make_shared<RestApi>(std::string("/api/") + kRestAPIVersion,
+                                  std::string("^/api/") + kRestAPIVersion);
 
-  rest_api_srv.init(rest_api);
+    rest_api->add_path("/swagger.json$", std::make_unique<RestApiSpecHandler>(
+                                             rest_api, require_realm_api));
 
-  http_srv.add_route(rest_api->uri_prefix_regex(),
-                     std::make_unique<RestApiHttpRequestHandler>(rest_api));
+    rest_api_srv.init(rest_api);
 
-  wait_for_stop(env, 0);
+    http_srv.add_route(rest_api->uri_prefix_regex(),
+                       std::make_unique<RestApiHttpRequestHandler>(rest_api));
 
-  http_srv.remove_route(rest_api->uri_prefix_regex());
-  rest_api->remove_path("/swagger.json$");
+    wait_for_stop(env, 0);
+
+    http_srv.remove_route(rest_api->uri_prefix_regex());
+    rest_api->remove_path("/swagger.json$");
+  } catch (const std::runtime_error &exc) {
+    set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
+  } catch (...) {
+    set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
+  }
+}
+
+static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
+  // destroy the rest_api after all rest_api users are stopped.
+  rest_api.reset();
 }
 
 #if defined(_MSC_VER) && defined(rest_api_EXPORTS)
@@ -262,7 +276,7 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
     0,
     nullptr,  // conflicts
     init,     // init
-    nullptr,  // deinit
+    deinit,   // deinit
     start,    // start
     nullptr,  // stop
 };

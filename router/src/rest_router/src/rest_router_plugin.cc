@@ -241,17 +241,16 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  rest_api_srv.add_path(
-      RestRouterStatus::path_regex,
-      std::make_unique<RestRouterStatus>(require_realm_router));
+  std::array<RestApiComponentPath, 1> paths{{
+      {rest_api_srv, RestRouterStatus::path_regex,
+       std::make_unique<RestRouterStatus>(require_realm_router)},
+  }};
 
   wait_for_stop(env, 0);
 
   // in case rest_api never initialized, ensure the rest_api_component doesn't
   // have a callback to use
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
-
-  rest_api_srv.remove_path(RestRouterStatus::path_regex);
 }
 
 #if defined(_MSC_VER) && defined(rest_router_EXPORTS)
