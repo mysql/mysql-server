@@ -67,7 +67,7 @@ class UniqueId {
  **/
 class TcpPortPool {
  public:
-  TcpPortPool(uint16_t start_from = 1, uint16_t range = 300)
+  TcpPortPool(uint16_t start_from = 100, uint16_t range = 200)
       : unique_id_(start_from, range) {}
 
   TcpPortPool(const TcpPortPool &) = delete;
