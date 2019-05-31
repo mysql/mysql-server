@@ -107,6 +107,7 @@ SET(TESTS
   test_net_ts_impl_socket.cc
   test_net_ts_internet.cc
   test_net_ts_io_context.cc
+  test_net_ts_io_context_socket.cc
   test_net_ts_socket.cc
   test_net_ts_timer.cc
 )
@@ -151,3 +152,15 @@ COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data "${TEST_FILES}")
 MYSQL_ADD_EXECUTABLE(net_ts_netifs net_ts_netifs.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(net_ts_netifs harness_net_ts)
 ADD_DEPENDENCIES(mysqlrouter_all net_ts_netifs)
+
+MYSQL_ADD_EXECUTABLE(net_ts_connect net_ts_connect.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_connect harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_connect)
+
+MYSQL_ADD_EXECUTABLE(net_ts_accept net_ts_accept.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_accept harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_accept)
+
+MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_forward harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_forward)
