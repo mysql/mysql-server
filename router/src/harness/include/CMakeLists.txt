@@ -28,6 +28,7 @@ TARGET_INCLUDE_DIRECTORIES(harness_net_ts
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 TARGET_SOURCES(harness_net_ts
   INTERFACE
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/buffer.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/executor.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/file.h

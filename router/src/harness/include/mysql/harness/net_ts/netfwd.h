@@ -30,14 +30,18 @@ class execution_context;
 
 template <class T, class Executor>
 class executor_binder;
+
 template <class Executor>
 class executor_work_guard;
 
 class system_executor;
+
 class executor;
 
 template <class Executor>
 class strand;
+
+class io_context;
 
 template <class Clock>
 struct wait_traits;
@@ -49,10 +53,59 @@ template <class Protocol>
 class basic_socket;
 
 template <class Protocol>
-class basic_socket_acceptor;
+class basic_datagram_socket;
 
 template <class Protocol>
 class basic_stream_socket;
+
+template <class Protocol>
+class basic_socket_acceptor;
+
+#if 0
+// not implemented yet
+template <class Protocol, class Clock = std::chrono::steady_clock,
+          class WaitTraits = wait_traits<Clock>>
+class basic_socket_streambuf;
+
+template <class Protocol, class Clock = std::chrono::steady_clock,
+          class WaitTraits = wait_traits<Clock>>
+class basic_socket_iostream;
+#endif
+
+namespace ip {
+class address;
+class address_v4;
+class address_v6;
+
+template <class Address>
+class basic_address_iterator;
+
+using address_v4_iterator = basic_address_iterator<address_v4>;
+using address_v6_iterator = basic_address_iterator<address_v6>;
+
+template <class Address>
+class basic_address_range;
+using address_v4_range = basic_address_range<address_v4>;
+using address_v6_range = basic_address_range<address_v6>;
+
+class network_v4;
+class network_v6;
+
+template <class InternetProtocol>
+class basic_endpoint;
+
+template <class InternetProtocol>
+class basic_resolver_entry;
+
+template <class InternetProtocol>
+class basic_resolver_results;
+
+template <class InternetProtocol>
+class basic_resolver;
+
+class tcp;
+class udp;
+}  // namespace ip
 
 }  // namespace net
 #endif
