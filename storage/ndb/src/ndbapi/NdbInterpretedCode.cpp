@@ -26,6 +26,7 @@
 #include "NdbInterpretedCode.hpp"
 #include "Interpreter.hpp"
 #include "NdbDictionaryImpl.hpp"
+#include "NdbRecord.hpp"
 
 /*
    ToDo: We should add placeholders to this, so that one can use a single
@@ -63,6 +64,14 @@ NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
     m_table_impl= & NdbTableImpl::getImpl(*table);
   m_error.code= 0;
 }
+
+NdbInterpretedCode::NdbInterpretedCode(const NdbRecord &record, Uint32 *buffer,
+                                       Uint32 buffer_word_size) :
+  NdbInterpretedCode(NULL, buffer, buffer_word_size)
+{
+  m_table_impl = record.table;
+}
+
 
 NdbInterpretedCode::~NdbInterpretedCode()
 {

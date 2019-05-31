@@ -99,6 +99,13 @@ public:
                      Uint32 *buffer= 0, 
                      Uint32 buffer_word_size= 0);
 
+  /* Constructor variant that obtains table from NdbRecord
+  */
+  NdbInterpretedCode(const NdbRecord &,
+                     Uint32 *buffer= 0,
+                     Uint32 buffer_word_size= 0);
+
+
   ~NdbInterpretedCode();
 
   /**
