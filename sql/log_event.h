@@ -83,6 +83,7 @@ class Basic_ostream;
 #include "sql/key.h"
 #include "sql/rpl_filter.h"  // rpl_filter
 #include "sql/table.h"
+#include "sql/table_column_iterator.h"  // Table_columns_view::iterator
 #include "sql/xa.h"
 #endif
 
@@ -497,6 +498,123 @@ struct Mts_db_names {
   const char *name[MAX_DBS_IN_EVENT_MTS];
   int num;
 };
+
+#ifdef MYSQL_SERVER
+/**
+  @class Replicated_columns_view
+
+  Since it's not mandatory that all fields in a TABLE object are replicated,
+  this class extends Table_columns_view container and adds logic to filter out
+  not needed columns.
+
+  One active use-case relates to hidden generated columns. These type of
+  columns are used to support functional indexes and are not meant to be
+  replicated nor included in the serialization/deserialization of binlog
+  events.  Moreover, since hidden generated columns are always placed at the
+  end of the field set, replication would break for cases where slaves have
+  extra columns, if they were not excluded from replication:
+
+       MASTER TABLE `t`                SLAVE TABLE `t`
+       +----+----+----+------+------+  +----+----+----+-----+------+------+
+       | C1 | C2 | C3 | HGC1 | HGC2 |  | C1 | C2 | C3 | EC1 | HGC1 | HGC2 |
+       +----+----+----+------+------+  +----+----+----+-----+------+------+
+
+  In the above example, the extra column `EC1` in the slave will be paired with
+  the hidden generated column `HGC1` of the master, if hidden generated columns
+  were to be replicated. With filtering enabled for hidden generated columns,
+  applier will observe the columns as follows:
+
+       MASTER TABLE `t`                SLAVE TABLE `t`
+       +----+----+----+                +----+----+----+-----+
+       | C1 | C2 | C3 |                | C1 | C2 | C3 | EC1 |
+       +----+----+----+                +----+----+----+-----+
+
+ */
+class Replicated_columns_view : public Table_columns_view<> {
+ public:
+  enum enum_replication_flow { OUTBOUND, INBOUND };
+
+  /**
+    Constructor which takes the replication flow direction, meaning, will this
+    object be used to process inbound or outbound replication.
+
+    @param direction the replication flow direction for the events being
+                     processed, to determine which fields to filter out.
+    @param thd instance of `THD` class to be used to determine if filtering is
+               to be enabled. It may be `nullptr`.
+   */
+  Replicated_columns_view(
+      Replicated_columns_view::enum_replication_flow direction,
+      THD const *thd = nullptr);
+  /**
+    Constructor which takes the TABLE object whose field set will be iterated.
+
+    @param table reference to the target TABLE object.
+    @param direction the replication flow direction for the events being
+                     processed, to determine which fields to filter out.
+    @param thd instance of `THD` class to be used to determine if filtering is
+               to be enabled. It may be `nullptr`.
+   */
+  Replicated_columns_view(
+      TABLE const *table,
+      Replicated_columns_view::enum_replication_flow direction,
+      THD const *thd = nullptr);
+  /**
+    Destructor for the class.
+   */
+  virtual ~Replicated_columns_view() = default;
+  /**
+    Setter to initialize the `THD` object instance to be used to determine if
+    filtering is enabled.
+
+    @param thd instance of `THD` class to be used to determine if filtering is
+               to be enabled. It may be `nullptr`.
+
+    @return this object reference (for chaining purposes).
+   */
+  Replicated_columns_view &set_thd(THD const *thd);
+  /**
+    Returns whether or not filtering should be enabled, given the current `THD`
+    instance in use. Currently, filtering is enabled for inbound replication if
+    the source of replication is a server with version higher than 8.0.17.
+
+    @return true if filtering should be enabled and false otherwise.
+   */
+  bool is_inbound_filtering_enabled();
+  /**
+    Returns whether or not the field of table `table` at `column_index` is to be
+    filtered from this container iteration, when processing inbound replication.
+
+    @param table reference to the target TABLE object.
+    @param column_index index for the column to be tested for filtering,
+   */
+  bool inbound_filtering(TABLE const *table, size_t column_index);
+  /**
+    Returns whether or not the field of table `table` at `column_index` is to be
+    filtered from this container iteration, when processing outbound
+    replication.
+
+    @param table reference to the target TABLE object.
+    @param column_index index for the column to be tested for filtering,
+   */
+  bool outbound_filtering(TABLE const *table, size_t column_index);
+
+  //--> Deleted constructors and methods to remove default move/copy semantics
+  Replicated_columns_view(const Replicated_columns_view &rhs) = delete;
+  Replicated_columns_view(Replicated_columns_view &&rhs) = delete;
+  Replicated_columns_view &operator=(const Replicated_columns_view &rhs) =
+      delete;
+  Replicated_columns_view &operator=(Replicated_columns_view &&rhs) = delete;
+  //<--
+
+ private:
+  /**
+    Instance of `THD` class to be used to determine if filtering is to be
+    enabled.
+   */
+  THD const *m_thd;
+};
+#endif
 
 /**
   @class Log_event
@@ -2374,6 +2492,13 @@ class Table_map_log_event : public binary_log::Table_map_event,
   StringBuffer<1024> m_metadata_buf;
 
   /**
+    Wrapper around `TABLE *m_table` that abstracts the table field set iteration
+    logic, since it is not mandatory that all table fields are to be
+    replicated. For details, @see Replicated_columns_view class documentation.
+   */
+  Replicated_columns_view m_fields;
+
+  /**
     Capture the optional metadata fields which should be logged into
     table_map_log_event and serialize them into m_metadata_buf.
   */
@@ -2653,6 +2778,13 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   TABLE *m_table; /* The table the rows belong to */
 #endif
   MY_BITMAP m_cols; /* Bitmap denoting columns available */
+  /**
+    Bitmap denoting columns available in the image as they appear in the table
+    setup. On some setups, the number and order of columns may differ from
+    master to slave so, a bitmap for local available columns is computed using
+    `Replicated_columns_view` utility class.
+  */
+  MY_BITMAP m_local_cols;
 #ifdef MYSQL_SERVER
   /**
      Hash table that will hold the entries for while using HASH_SCAN
@@ -2666,7 +2798,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   */
   uint m_rows_lookup_algorithm;
 #endif
-  /*
+  /**
     Bitmap for columns available in the after image, if present. These
     fields are only available for Update_rows events. Observe that the
     width of both the before image COLS vector and the after image
@@ -2674,6 +2806,13 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     master.
   */
   MY_BITMAP m_cols_ai;
+  /**
+    Bitmap denoting columns available in the after-image as they appear in the
+    table setup. On some setups, the number and order of columns may differ from
+    master to slave so, a bitmap for local available columns is computed using
+    `Replicated_columns_view` utility class.
+  */
+  MY_BITMAP m_local_cols_ai;
 
   /* Bit buffers in the same memory as the class */
   uint32 m_bitbuf[128 / (sizeof(uint32) * 8)];
@@ -2724,6 +2863,10 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     for doing an index scan with HASH_SCAN search algorithm.
   */
   uchar *m_distinct_key_spare_buf;
+  /**
+    Container to hold and manage the relevant TABLE fields
+   */
+  Replicated_columns_view m_fields;
 
   /**
     Unpack the current row image from the event into m_table->record[0].
@@ -3125,7 +3268,7 @@ class Update_rows_log_event : public Rows_log_event,
                         bool is_transactional,
                         const unsigned char *extra_row_ndb_info);
 
-  void init(MY_BITMAP const *cols, const MY_BITMAP &cols_to_subtract);
+  void init(MY_BITMAP const *cols);
 #endif
 
   ~Update_rows_log_event() override;
