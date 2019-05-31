@@ -564,6 +564,15 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
       << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
       << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
       << "router: " << router.get_full_logfile();
+
+  // we expect that the router will not be able to connect to both nodes on the
+  // x-port. that can take up to 2 * 10s as 10 seconds is a timeout we use for
+  // the x connect. If the port that we try to connect to is not used/blocked by
+  // anyone that should error out right away but that is not a case sometimes on
+  // Solaris so in the worst case we will wait 20 seconds here for the router to
+  // exit
+  ASSERT_FALSE(router.send_shutdown_event());
+  check_exit_code(router, EXIT_SUCCESS, 22000ms);
 }
 
 /**
