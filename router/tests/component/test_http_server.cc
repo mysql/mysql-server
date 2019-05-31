@@ -274,8 +274,7 @@ TEST_P(HttpServerPlainTest, ensure) {
     RestClient rest_client(io_ctx, http_hostname_, http_port);
 
     SCOPED_TRACE("// wait http port connectable");
-    ASSERT_TRUE(wait_for_port_ready(http_port))
-        << http_server.get_full_logfile();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port));
 
     SCOPED_TRACE("// requesting " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
@@ -982,9 +981,7 @@ TEST_P(HttpClientSecureTest, ensure) {
   RestClient rest_client(std::move(http_client));
 
   SCOPED_TRACE("// wait http port connectable");
-  ASSERT_TRUE(wait_for_port_ready(http_port_))
-      << http_server_.get_full_output() << "\n"
-      << http_server_.get_full_logfile();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server_, http_port_));
 
   SCOPED_TRACE("// GETing " + u.join());
   auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
@@ -1135,9 +1132,7 @@ TEST_P(HttpServerSecureTest, ensure) {
     RestClient rest_client(std::move(http_client));
 
     SCOPED_TRACE("// wait for port ready");
-    ASSERT_TRUE(wait_for_port_ready(http_port_))
-        << http_server.get_full_logfile() << "\n"
-        << ConfigBuilder::build_section("http_server", http_section);
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
     SCOPED_TRACE("// GETing " + u.join());
     auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
@@ -1483,8 +1478,7 @@ class HttpServerAuthTest
  */
 TEST_P(HttpServerAuthTest, ensure) {
   SCOPED_TRACE("// wait http port connectable");
-  ASSERT_TRUE(wait_for_port_ready(http_port_))
-      << http_server_.get_full_logfile();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server_, http_port_));
 
   std::string http_uri = GetParam().url;
   SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
@@ -1599,8 +1593,7 @@ TEST_P(HttpServerAuthFailTest, ensure) {
   pwf.close();
 
   if (GetParam().check_at_runtime) {
-    ASSERT_TRUE(wait_for_port_ready(http_port_))
-        << http_server.get_full_logfile();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
     std::string http_uri = "/";
     SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
                  std::to_string(http_port_) + " for " + http_uri);

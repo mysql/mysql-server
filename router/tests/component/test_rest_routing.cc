@@ -184,14 +184,13 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   auto &server_mock =
       launch_mysql_server_mock(json_stmts, mock_port_, EXIT_SUCCESS, false);
 
-  ASSERT_TRUE(wait_for_port_ready(mock_port_, 5000))
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, mock_port_, 5000ms));
   // wait for route being available if we expect it to be and plan to do some
   // connections to it (which are routes: "ro" and "Aaz")
   for (size_t i = 3; i < kRoutesQty; ++i) {
-    ASSERT_TRUE(wait_route_ready(std::chrono::milliseconds(5000),
-                                 route_names[i], http_port_, "127.0.0.1",
-                                 kRestApiUsername, kRestApiPassword))
+    ASSERT_TRUE(wait_route_ready(5000ms, route_names[i], http_port_,
+                                 "127.0.0.1", kRestApiUsername,
+                                 kRestApiPassword))
         << http_server.get_full_output() << "\n"
         << http_server.get_full_logfile();
   }
@@ -215,7 +214,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   // call wait_port_ready a few times on "123" to trigger blocked client
   // on that route (we set max_connect_errors to 2)
   for (size_t i = 0; i < 3; ++i) {
-    ASSERT_TRUE(wait_for_port_ready(routing_ports_[2], 500))
+    ASSERT_TRUE(wait_for_port_ready(routing_ports_[2], 500ms))
         << http_server.get_full_output() << "\n"
         << http_server.get_full_logfile();
   }
@@ -1107,8 +1106,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
     nodes.push_back(&launch_mysql_server_mock(
         json_metadata, node_classic_ports[i], EXIT_SUCCESS, false,
         i == 0 ? first_node_http_port : 0));
-    bool ready = wait_for_port_ready(node_classic_ports[i]);
-    ASSERT_TRUE(ready) << nodes[i]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(*nodes[i], node_classic_ports[i]));
   }
 
   ASSERT_TRUE(

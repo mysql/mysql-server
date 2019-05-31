@@ -66,9 +66,6 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
 
     // launch mock server and wait for it to start accepting connections
     auto &server_mock = launch_mysql_server_mock(json_stmts, server_port_);
-    EXPECT_TRUE(wait_for_port_ready(server_port_))
-        << "Timed out waiting for mock server port ready\n"
-        << server_mock.get_full_output();
     return server_mock;
   }
 
@@ -83,6 +80,7 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
  */
 TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
   auto &server_mock = run_server_mock();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   // launch the router in bootstrap mode
   auto &router = launch_router({
@@ -119,6 +117,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    */
   mysql_harness::mkdir(config_file_, 0700);
   auto &server_mock = run_server_mock();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   // launch the router in bootstrap mode
   auto &router = launch_router(
@@ -159,6 +158,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    */
   mysql_harness::mkdir(config_file_, 0700);
   auto &server_mock = run_server_mock();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   // launch the router in bootstrap mode
   auto &router = launch_router(
@@ -210,6 +210,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    */
   mysql_harness::mkdir(config_file_, 0700);
   auto &server_mock = run_server_mock();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   // launch the router in bootstrap mode
   auto &router = launch_router(
@@ -257,6 +258,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    */
   mysql_harness::mkdir(config_file_, 0700);
   auto &server_mock = run_server_mock();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   // launch the router in bootstrap mode
   auto &router = launch_router(

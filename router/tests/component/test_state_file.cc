@@ -234,8 +234,8 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i]))
-        << cluster_nodes[i]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
         << cluster_nodes[i]->get_full_output();
@@ -374,8 +374,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   auto &cluster_node(ProcessManager::launch_mysql_server_mock(
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port));
-  ASSERT_TRUE(wait_for_port_ready(cluster_node_port))
-      << cluster_node.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(cluster_node, cluster_node_port));
   ASSERT_TRUE(
       MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
       << cluster_node.get_full_output();
@@ -413,7 +412,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
   SCOPED_TRACE("// Launch ther router with the initial state file");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
                                routing_section, state_file);
-  ASSERT_TRUE(wait_for_port_ready(router_port)) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache has the "
@@ -467,8 +466,7 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   auto &cluster_node = ProcessManager::launch_mysql_server_mock(
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
-  ASSERT_TRUE(wait_for_port_ready(cluster_node_port))
-      << cluster_node.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(cluster_node, cluster_node_port));
   ASSERT_TRUE(
       MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
       << cluster_node.get_full_output();
@@ -572,8 +570,7 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
     const auto port_http = cluster_node_ports[i].second;
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, port_connect, EXIT_SUCCESS, false, port_http));
-    ASSERT_TRUE(wait_for_port_ready(port_connect))
-        << cluster_nodes[i]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_nodes[i], port_connect));
     ASSERT_TRUE(MockServerRestClient(port_http).wait_for_rest_endpoint_ready())
         << cluster_nodes[i]->get_full_output();
   }
@@ -1109,8 +1106,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   const auto metadata_server_port = port_pool_.get_next_available();
   auto &md_server = ProcessManager::launch_mysql_server_mock(
       trace_file, metadata_server_port, EXIT_SUCCESS, false);
-  ASSERT_TRUE(wait_for_port_ready(metadata_server_port))
-      << md_server.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(md_server, metadata_server_port));
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{
@@ -1176,8 +1172,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   const auto metadata_server_port = port_pool_.get_next_available();
   auto &md_server = ProcessManager::launch_mysql_server_mock(
       trace_file, metadata_server_port, EXIT_SUCCESS, false);
-  ASSERT_TRUE(wait_for_port_ready(metadata_server_port))
-      << md_server.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(md_server, metadata_server_port));
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +

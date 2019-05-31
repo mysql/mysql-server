@@ -78,8 +78,7 @@ class RestMockServerScriptTest : public RestMockServerTest {
 
     const std::string http_hostname{"127.0.0.1"};
 
-    EXPECT_TRUE(wait_for_port_ready(server_port_))
-        << server_mock_.get_full_output();
+    check_port_ready(server_mock_, server_port_);
   }
 
   const uint16_t server_port_;
@@ -281,8 +280,7 @@ TEST_F(RestMockServerRestServerMockTest, unknown_url_fails) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for HTTP server listening");
-  ASSERT_TRUE(wait_for_port_ready(http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock_, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.request_sync(HttpMethod::Get, http_uri);
@@ -917,8 +915,8 @@ static std::string sanitize_param_name(const std::string &name) {
 TEST_P(RestMockServerConnectThrowsTest, js_test_stmts_is_string) {
   SCOPED_TRACE("// start mock-server with http-port");
 
-  const unsigned server_port = port_pool_.get_next_available();
-  const unsigned http_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
   const std::string json_stmts =
       get_data_dir().join(std::get<0>(GetParam())).str();
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
@@ -927,8 +925,7 @@ TEST_P(RestMockServerConnectThrowsTest, js_test_stmts_is_string) {
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
 
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   mysqlrouter::MySQLSession client;
 
@@ -978,8 +975,7 @@ TEST_P(RestMockServerScriptsThrowsTest, scripts_throws) {
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
 
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   mysqlrouter::MySQLSession client;
 
@@ -1019,8 +1015,8 @@ INSTANTIATE_TEST_CASE_P(
 TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
   SCOPED_TRACE("// start mock-server with http-port");
 
-  const unsigned server_port = port_pool_.get_next_available();
-  const unsigned http_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join(GetParam()).str();
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
                                                EXIT_SUCCESS, false, http_port);
@@ -1028,8 +1024,7 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
 
-  EXPECT_TRUE(wait_for_port_ready(server_port))
-      << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   mysqlrouter::MySQLSession client;
 

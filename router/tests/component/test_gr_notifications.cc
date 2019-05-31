@@ -334,10 +334,10 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
-        << cluster_nodes[i]->get_full_output();
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_xports[i], 5000))
-        << cluster_nodes[i]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i], 5000ms));
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_nodes_xports[i], 5000ms));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
         << cluster_nodes[i]->get_full_output();
@@ -515,8 +515,8 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
-        << cluster_nodes[i]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i], 5000ms));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
         << cluster_nodes[i]->get_full_output();
@@ -603,8 +603,8 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
-        << cluster_nodes[i]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i], 5000ms));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
         << cluster_nodes[i]->get_full_output();

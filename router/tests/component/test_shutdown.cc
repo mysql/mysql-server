@@ -60,21 +60,18 @@ class ShutdownTest : public RouterComponentTest {
     }
   }
 
-  auto &launch_router(unsigned router_port, const std::string &temp_test_dir,
+  auto &launch_router(const std::string &temp_test_dir,
                       const std::string &other_sections) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
     // create tmp conf dir (note that it will be RAII-deleted before router
     // shuts down, but that's ok)
-    TempDirectory conf_dir("conf");
     const std::string conf_file =
-        create_config_file(conf_dir.name(), other_sections, &default_section);
+        create_config_file(temp_test_dir, other_sections, &default_section);
 
     // launch the router
     auto &router = ProcessManager::launch_router({"-c", conf_file});
-    bool ready = wait_for_port_ready(router_port);
-    EXPECT_TRUE(ready) << router.get_full_output() << router.get_full_logfile();
 
     return router;
   }
@@ -261,8 +258,8 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
 
   // wait for the whole cluster to be up
   for (size_t i = 0; i < cluster_nodes.size(); i++)
-    EXPECT_THAT(wait_for_port_ready(cluster_node_ports[i]), Eq(true))
-        << cluster_nodes[i]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_node_ports[i]));
 
   // write Router config
   std::string servers;
@@ -296,7 +293,8 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
       "\n";
 
   // launch the Router
-  auto &router = launch_router(router_port, temp_test_dir.name(), config);
+  auto &router = launch_router(temp_test_dir.name(), config);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // give the Router a chance to initialise metadata-cache module
   // there is currently no easy way to check that

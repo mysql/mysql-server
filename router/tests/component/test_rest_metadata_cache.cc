@@ -333,8 +333,8 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
       &default_section_)};
 
   // delay the wait until we really need it.
-  ASSERT_TRUE(wait_for_port_ready(metadata_server_port_, 5000))
-      << md_server.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(
+      check_port_ready(md_server, metadata_server_port_, 5000ms));
   auto &router_proc{launch_router({"-c", conf_file})};
 
   g_refresh_succeeded = 0;

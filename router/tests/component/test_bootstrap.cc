@@ -148,8 +148,7 @@ void CommonBootstrapTest::bootstrap_failover(
     auto &proc = std::get<0>(mock_server);
     unsigned int port = std::get<1>(mock_server);
 
-    bool ready = wait_for_port_ready(port);
-    EXPECT_TRUE(ready) << proc.get_full_output();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(proc, port));
   }
 
   std::vector<std::string> router_cmdline;
@@ -703,7 +702,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   // to avoid duplication of tracefiles, we run the same test twice, with the
   // only difference that 1st time we run --bootstrap before the --account-host,
   // and second time we run it after
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   auto test_it = [&](const std::vector<std::string> &cmdline) -> void {
     const std::string json_stmts =
@@ -714,8 +713,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
     // launch mock server and wait for it to start accepting connections
     auto &server_mock =
         launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
-    bool ready = wait_for_port_ready(server_port);
-    EXPECT_TRUE(ready) << server_mock.get_full_output();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
     // launch the router in bootstrap mode
     auto &router = launch_router(cmdline);
@@ -808,13 +806,12 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
   const std::string json_stmts =
       get_data_dir().join("bootstrap_account_host_pattern_too_long.js").str();
   TempDirectory bootstrap_directory;
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock =
       launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
-  bool ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
   auto &router = launch_router(
@@ -844,7 +841,7 @@ class RouterReportHostTest : public CommonBootstrapTest {};
  *        verify that --report-host works for the typical use case
  */
 TEST_F(RouterReportHostTest, typical_usage) {
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   auto test_it = [&](const std::vector<std::string> &cmdline) -> void {
     const std::string json_stmts =
@@ -853,8 +850,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // launch mock server and wait for it to start accepting connections
     auto &server_mock =
         launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
-    bool ready = wait_for_port_ready(server_port);
-    EXPECT_TRUE(ready) << server_mock.get_full_output();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
     // launch the router in bootstrap mode
     auto &router = launch_router(cmdline);
@@ -1063,14 +1059,13 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
  */
 TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
   TempDirectory bootstrap_directory;
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock =
       launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
-  bool ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
   auto &router = launch_router(
@@ -1106,15 +1101,14 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
  */
 TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
   TempDirectory bootstrap_directory;
-  const unsigned server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
 
   // launch mock server and wait for it to start accepting connections
   auto &server_mock =
       launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
-  bool ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
   auto &router =

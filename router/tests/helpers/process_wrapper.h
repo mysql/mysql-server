@@ -141,7 +141,7 @@ class ProcessWrapper {
    * milliseconds. If the timeout expired, it throws runtime_error. In case of
    * failure, it throws system_error.
    *
-   * @param timeout_ms maximum amount of time to wait for the process to
+   * @param timeout maximum amount of time to wait for the process to
    * finish
    * @throws std::runtime_error on timeout, std::system_error on failure
    * @returns exit code of the process
