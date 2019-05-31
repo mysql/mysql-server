@@ -108,6 +108,7 @@ SET(TESTS
   test_net_ts_internet.cc
   test_net_ts_io_context.cc
   test_net_ts_socket.cc
+  test_net_ts_timer.cc
 )
 
 FOREACH(TEST ${TESTS})

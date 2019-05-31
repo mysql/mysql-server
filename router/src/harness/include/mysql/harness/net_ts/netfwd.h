@@ -39,6 +39,12 @@ class executor;
 template <class Executor>
 class strand;
 
+template <class Clock>
+struct wait_traits;
+
+template <class Clock, class WaitTraits = wait_traits<Clock>>
+class basic_waitable_timer;
+
 template <class Protocol>
 class basic_socket;
 
