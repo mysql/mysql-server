@@ -18,7 +18,7 @@ Pattern "Could not open server upgrade info file \'.*\' for writing\. Please mak
 SHOW GRANTS FOR "mysql.session"@localhost;
 Grants for mysql.session@localhost
 GRANT SHUTDOWN, SUPER ON *.* TO `mysql.session`@`localhost`
-GRANT BACKUP_ADMIN,CLONE_ADMIN,PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT BACKUP_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
@@ -27,7 +27,7 @@ REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
 SHOW GRANTS FOR "mysql.session"@localhost;
 Grants for mysql.session@localhost
 GRANT SHUTDOWN, SUPER ON *.* TO `mysql.session`@`localhost`
-GRANT BACKUP_ADMIN,CLONE_ADMIN,PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT BACKUP_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 #

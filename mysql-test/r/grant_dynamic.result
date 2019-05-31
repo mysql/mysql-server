@@ -14,6 +14,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -52,6 +53,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -89,6 +91,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -139,6 +142,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -181,6 +185,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -218,6 +223,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -278,6 +284,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -329,6 +336,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -388,6 +396,7 @@ SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
@@ -884,6 +893,7 @@ GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 # restart
 DROP USER u1@localhost;

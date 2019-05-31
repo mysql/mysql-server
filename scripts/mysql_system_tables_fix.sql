@@ -1133,6 +1133,8 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'BA
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'CLONE_ADMIN', 'N');
 
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'CONNECTION_ADMIN', 'N');
+
 # mysql.session is granted the SUPER and other administrative privileges.
 # This user should not be modified inadvertently. Therefore, server grants
 # the SYSTEM_USER privilege to this user at the time of initialization or

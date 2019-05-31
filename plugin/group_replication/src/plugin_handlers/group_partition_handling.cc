@@ -27,6 +27,7 @@
 
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
@@ -155,6 +156,11 @@ void Group_partition_handling::kill_transactions_and_leave() {
   if (!already_locked) shared_stop_write_lock->release_write_lock();
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
+
+  if (!is_autorejoin_enabled() &&
+      get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
+    enable_server_offline_mode(PSESSION_INIT_THREAD);
+  }
 }
 
 bool Group_partition_handling::abort_partition_handler_if_running() {

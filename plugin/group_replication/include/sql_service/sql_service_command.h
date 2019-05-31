@@ -212,6 +212,19 @@ class Sql_service_commands {
   */
   long internal_execute_conditional_query(Sql_service_interface *sql_interface,
                                           void *variable_args = NULL);
+
+  /**
+    Internal method to set the offline mode.
+
+    @param sql_interface the server session interface for query execution
+    @param arg a generic argument to give the method info or get a result
+
+    @return error code during execution of the sql query.
+       @retval 0  - success
+       @retval >0 - failure
+  */
+  long internal_set_offline_mode(Sql_service_interface *sql_interface,
+                                 void *arg = NULL);
 };
 
 struct st_session_method {
@@ -549,6 +562,15 @@ class Sql_service_command_interface {
   */
   long execute_conditional_query(std::string &query, bool *result,
                                  std::string &error);
+
+  /**
+    Method to set the offline_mode variable "ON".
+
+    @return error code during execution of the sql query.
+       @retval 0  - success
+       @retval >0 - failure
+  */
+  long set_offline_mode();
 
  private:
   enum_plugin_con_isolation connection_thread_isolation;

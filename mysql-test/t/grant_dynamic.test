@@ -486,6 +486,7 @@ GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;

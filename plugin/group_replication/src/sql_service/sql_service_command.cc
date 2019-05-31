@@ -736,6 +736,30 @@ long Sql_service_commands::internal_execute_conditional_query(
   return 0;
 }
 
+long Sql_service_command_interface::set_offline_mode() {
+  DBUG_TRACE;
+  long error = 0;
+
+  if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
+    error = sql_service_commands.internal_set_offline_mode(m_server_interface);
+  } else {
+    m_plugin_session_thread->queue_new_method_for_application(
+        &Sql_service_commands::internal_set_offline_mode);
+    error = m_plugin_session_thread->wait_for_method_execution();
+  }
+
+  return error;
+}
+
+long Sql_service_commands::internal_set_offline_mode(
+    Sql_service_interface *sql_interface, void *) {
+  DBUG_TRACE;
+
+  long srv_err = sql_interface->execute_query("SET GLOBAL offline_mode= 1;");
+
+  return srv_err;
+}
+
 Session_plugin_thread::Session_plugin_thread(
     Sql_service_commands *command_interface)
     : command_interface(command_interface),

@@ -23,6 +23,7 @@
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
 Election_member_info::Election_member_info(const std::string uuid,
@@ -152,6 +153,10 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg,
   if (!already_locked) shared_plugin_stop_lock->release_write_lock();
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
+
+  if (get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
+    enable_server_offline_mode(PSESSION_INIT_THREAD);
+  }
 
   if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
       Gcs_operations::ALREADY_LEFT != leave_state) {

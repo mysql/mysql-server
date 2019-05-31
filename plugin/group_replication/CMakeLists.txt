@@ -63,6 +63,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/handlers/certification_handler.cc
   src/handlers/event_cataloger.cc
   src/plugin_handlers/group_partition_handling.cc
+  src/plugin_handlers/offline_mode_handler.cc
   src/plugin_handlers/persistent_variables_handler.cc
   src/plugin_handlers/primary_election_invocation_handler.cc
   src/plugin_handlers/primary_election_primary_process.cc

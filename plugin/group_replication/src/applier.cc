@@ -34,6 +34,7 @@
 #include "my_systime.h"
 #include "plugin/group_replication/include/applier.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
@@ -778,18 +779,8 @@ void Applier_module::kill_pending_transactions(
       enable_server_read_mode(PSESSION_USE_THREAD);
   }
 
-  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
-      Gcs_operations::ALREADY_LEFT != leave_state) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_notifier->wait_for_view_modification()) {
-      LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
-    }
-  }
-  gcs_module->remove_view_notifer(view_notifier);
-
   /*
-    Only execute abort if we were already inside a group. We may happen to come
+    Only execute if we were already inside a group. We may happen to come
     across an applier error during the startup of GR (i.e. during the execution
     of the START GROUP_REPLICATION command). We must not abort if the command
     fails. set_read_mode indicates that we were part of a group and as such our
@@ -805,6 +796,27 @@ void Applier_module::kill_pending_transactions(
     have arrived here due to an applier error, and not due to a member expel.
   */
   bool should_continue_autorejoin = is_autorejoin_enabled() && !applier_error;
+  if (set_read_mode &&
+      get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE &&
+      !should_continue_autorejoin) {
+    if (threaded_sql_session)
+      enable_server_offline_mode(PSESSION_INIT_THREAD);
+    else
+      enable_server_offline_mode(PSESSION_USE_THREAD);
+  }
+
+  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
+      Gcs_operations::ALREADY_LEFT != leave_state) {
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
+    if (view_notifier->wait_for_view_modification()) {
+      /* purecov: begin inspected */
+      LogPluginErr(WARNING_LEVEL,
+                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
+      /* purecov: end */
+    }
+  }
+  gcs_module->remove_view_notifer(view_notifier);
+
   if (set_read_mode &&
       get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER &&
       !should_continue_autorejoin) {

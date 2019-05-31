@@ -21,6 +21,7 @@
 
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 
 [[noreturn]] void *Remote_clone_handler::launch_thread(void *arg) {
   Remote_clone_handler *thd = static_cast<Remote_clone_handler *>(arg);
@@ -425,6 +426,10 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
     return 0;
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_NO_FALLBACK);
+
+    if (get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
+      enable_server_offline_mode(PSESSION_INIT_THREAD);
+    }
 
     Notification_context ctx;
     // If you can't leave at least force the Error state.

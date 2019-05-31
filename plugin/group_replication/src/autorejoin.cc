@@ -24,6 +24,7 @@
 
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 
@@ -220,13 +221,20 @@ void Autorejoin_thread::execute_rejoin_process() {
       if someone called Autorejoin_thread::abort(), because that implies an
       explicit stop and thus we probably don't want to abort right here.
     */
-    if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER &&
-        (error && !m_abort)) {
-      std::stringstream ss;
-      ss << "Could not rejoin the member to the group after " << m_attempts
-         << " attempts";
-      std::string msg = ss.str();
-      abort_plugin_process(msg.c_str());
+    if (error && !m_abort) {
+      switch (get_exit_state_action_var()) {
+        case EXIT_STATE_ACTION_ABORT_SERVER: {
+          std::stringstream ss;
+          ss << "Could not rejoin the member to the group after " << m_attempts
+             << " attempts";
+          std::string msg = ss.str();
+          abort_plugin_process(msg.c_str());
+          break;
+        }
+        case EXIT_STATE_ACTION_OFFLINE_MODE:
+          enable_server_offline_mode(PSESSION_INIT_THREAD);
+          break;
+      }
     }
   } else {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN, num_attempts,

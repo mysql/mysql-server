@@ -231,8 +231,9 @@ struct plugin_options_variables {
 
   char *communication_debug_options_var;
 
-  const char *exit_state_actions[3] = {"READ_ONLY", "ABORT_SERVER", (char *)0};
-  TYPELIB exit_state_actions_typelib_t = {2, "exit_state_actions_typelib_t",
+  const char *exit_state_actions[4] = {"READ_ONLY", "ABORT_SERVER",
+                                       "OFFLINE_MODE", (char *)0};
+  TYPELIB exit_state_actions_typelib_t = {3, "exit_state_actions_typelib_t",
                                           exit_state_actions, NULL};
   ulong exit_state_action_var;
 

@@ -30,6 +30,7 @@
 #include "my_systime.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_messages/recovery_message.h"
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
@@ -214,6 +215,10 @@ void Recovery_module::leave_group_on_recovery_failure() {
       break;
   }
   if (errcode) LogPluginErr(log_severity, errcode);
+
+  if (get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
+    enable_server_offline_mode(PSESSION_INIT_THREAD);
+  }
 
   if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
       Gcs_operations::ALREADY_LEFT != leave_state) {

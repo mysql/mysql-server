@@ -3936,9 +3936,9 @@ static MYSQL_SYSVAR_ENUM(exit_state_action,        /* name */
                          PLUGIN_VAR_OPCMDARG |
                              PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
                          "The action that is taken when the server "
-                         "leaves the group. "
-                         "Possible values are READ_ONLY or "
-                         "ABORT_SERVER.",                   /* values */
+                         "leaves the group unexpectedly. "
+                         "Possible values are READ_ONLY, "
+                         "ABORT_SERVER and OFFLINE_MODE.",  /* values */
                          NULL,                              /* check func. */
                          NULL,                              /* update func. */
                          EXIT_STATE_ACTION_READ_ONLY,       /* default */

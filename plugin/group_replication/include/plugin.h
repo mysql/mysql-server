@@ -71,9 +71,15 @@ enum enum_channel_observation_manager_position {
   END_CHANNEL_OBSERVATION_MANAGER_POS
 };
 
+/**
+  @enum enum_exit_state_action
+  @brief Action performed when the member leaves the group
+  unexpectedly.
+*/
 enum enum_exit_state_action {
   EXIT_STATE_ACTION_READ_ONLY = 0,
-  EXIT_STATE_ACTION_ABORT_SERVER
+  EXIT_STATE_ACTION_ABORT_SERVER,
+  EXIT_STATE_ACTION_OFFLINE_MODE
 };
 
 /**

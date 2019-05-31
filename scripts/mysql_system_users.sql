@@ -40,6 +40,7 @@ GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 
 -- Create an user that is definer for information_schema view

@@ -19634,6 +19634,9 @@ ER_LOG_CANNOT_WRITE_EXTENDED
 ER_KEYRING_AWS_INCORRECT_PROXY
   eng "Incorrect environment variable %s, invalid port: %s"
 
+ER_GRP_RPL_SERVER_SET_TO_OFFLINE_MODE_DUE_TO_ERRORS
+  eng "The server was automatically set into offline mode after an error was detected."
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.

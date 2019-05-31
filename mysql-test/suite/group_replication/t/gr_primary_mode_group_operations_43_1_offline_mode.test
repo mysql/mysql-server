@@ -1,0 +1,95 @@
+###############################################################################
+#
+# Any local failure in a configuration change that prevents its progress
+# shall make the server leave the group and follow
+# group_replication_exit_state_action as its configuration may have deviated
+# from the group.
+#
+# Test:
+#   0. This test requires three servers in single primary mode
+#   1. Start the servers, server 2 is configured with
+#      group_replication_exit_state_action = OFFLINE_MODE
+#   2. Stop the applier sql thread in server2
+#   3. Change to multi primary mode
+#   4. Server2 must leave the group.
+#   5. Server2 must change to ERROR state and enable offline_mode
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start the servers, server 2 is configured with
+--echo #    group_replication_exit_state_action = OFFLINE_MODE
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Error while executing a group configuration operation: This operation ended in error as it was not possible to wait for the execution of the plugin queued transactions");
+
+set session sql_log_bin=1;
+
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Stop the applier sql thread in server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 3. Change to multi primary mode
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 4. Server2 must leave the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 5. Server2 must change to ERROR state and enable offline_mode
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--source include/assert_and_disable_read_only.inc
+--source include/assert_and_disable_offline_mode.inc
+
+--echo
+--echo # 6. Cleanup
+
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication_end.inc
