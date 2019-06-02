@@ -12,9 +12,6 @@
 #
 ##############################################################################
 
-# gcol_ndb suite tests
-gcol_ndb.gcol_column_def_options_ndb : Bug#29858945 Fix gcol_column_def_options_ndb failure in MTR.
-
 # ndb_big suite tests
 ndb_big.smoke : BUG#29110705 Not ready for automated testing yet.
 

@@ -17505,9 +17505,9 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     if (alter_flags & Alter_inplace_info::ALTER_COLUMN_NAME)
     {
       Field *new_field= altered_table->field[i];
-      if (strcmp(field->field_name, new_field->field_name) != 0)
-      {
-        NDBCOL *ndbCol= new_tab.getColumn(new_field->field_index);
+      if (strcmp(field->field_name, new_field->field_name) != 0 &&
+          !field->is_virtual_gcol()) {
+        NDBCOL *ndbCol = new_tab.getColumn(new_field->field_index);
         ndbCol->setName(new_field->field_name);
       }
     }

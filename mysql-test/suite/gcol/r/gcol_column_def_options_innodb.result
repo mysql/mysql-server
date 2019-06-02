@@ -812,7 +812,7 @@ b INT AS (1 + DEFAULT(a)) STORED,
 c INT AS (1 + DEFAULT(a)) VIRTUAL);
 INSERT INTO t1 VALUES ();
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7, ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Got one of the listed errors
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7;
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
