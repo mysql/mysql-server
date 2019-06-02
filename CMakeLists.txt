@@ -465,7 +465,6 @@ INCLUDE(compile_flags)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(lz4)
-INCLUDE(re2)
 INCLUDE(icu)
 INCLUDE(libevent)
 INCLUDE(ssl)
@@ -1068,7 +1067,6 @@ SET(SYSTEM_LIBRARIES
   LIBEVENT
   LZ4
   PROTOBUF
-  RE2
   SSL
   ZLIB
   )
@@ -1121,8 +1119,6 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
-# Add re2 library
-MYSQL_CHECK_RE2()
 # Add icu library
 MYSQL_CHECK_ICU()
 # Add SASL library
@@ -1183,10 +1179,6 @@ IF(LINUX)
     return ret;
   }"
   HAVE_PTHREAD_SETNAME_NP)
-ENDIF()
-
-IF (BUILD_BUNDLED_RE2)
-  ADD_SUBDIRECTORY(extra/re2)
 ENDIF()
 
 #
