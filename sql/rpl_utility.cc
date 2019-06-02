@@ -483,17 +483,15 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
   /*
     We only check the initial columns for the tables.
   */
-  Replicated_columns_view fields{table, Replicated_columns_view::INBOUND, thd};
-  uint const cols_to_check = min<ulong>(fields.filtered_size(), size());
+  uint const cols_to_check = min<ulong>(table->s->fields, size());
   TABLE *tmp_table = nullptr;
 
-  for (auto it = fields.begin(); it.filtered_pos() < cols_to_check; ++it) {
-    Field *const field = *it;
-    size_t col = it.filtered_pos();
+  for (uint col = 0; col < cols_to_check; ++col) {
+    Field *const field = table->field[col];
     int order;
     if (can_convert_field_to(field, type(col), field_metadata(col),
                              is_array(col), rli, m_flags, &order)) {
-      DBUG_PRINT("debug", ("Checking column %lu -"
+      DBUG_PRINT("debug", ("Checking column %d -"
                            " field '%s' can be converted - order: %d",
                            col, field->field_name, order));
       DBUG_ASSERT(order >= -1 && order <= 1);
@@ -517,7 +515,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
 
       if (order == 0 && tmp_table != nullptr) tmp_table->field[col] = nullptr;
     } else {
-      DBUG_PRINT("debug", ("Checking column %lu -"
+      DBUG_PRINT("debug", ("Checking column %d -"
                            " field '%s' can not be converted",
                            col, field->field_name));
       DBUG_ASSERT(col < size() && col < table->s->fields);
@@ -1080,7 +1078,7 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
     @c record_compare, as it also skips null_flags if the read_set
     was not marked completely.
    */
-  if (bitmap_is_set_all(cols) && cols->n_bits == table->s->fields) {
+  if (bitmap_is_set_all(cols)) {
     crc = checksum_crc32(crc, table->null_flags, table->s->null_bytes);
     DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
   }
