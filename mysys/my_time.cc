@@ -1148,6 +1148,40 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, long *my_timezone,
 } /* my_system_gmt_sec */
 
 /**
+  Writes an unsigned integer to a string. The string is not zero-terminated.
+
+  @param number the number to write
+  @param min_digits the minimum number of digits to write (the number is
+                    zero-padded if it is shorter)
+  @param[in,out] to the destination string
+  @return pointer to the character just after the last digit
+*/
+static char *unsigned_to_string(unsigned long long number, int min_digits,
+                                char *to) {
+  int digits = min_digits;
+  while (number >= log_10_int[digits]) ++digits;
+  for (char *pos = to + digits - 1; pos >= to; --pos) {
+    *pos = '0' + number % 10;
+    number /= 10;
+  }
+  return to + digits;
+}
+
+/**
+  Writes an unsigned integer, which is less than 100, to a string. Always writes
+  two digits, zero-padded if necessary. The string is not zero-terminated.
+
+  @param number the number to write
+  @param[in,out] to the destination string
+  @return pointer to the character just after the last digit
+*/
+static char *write_two_digits(unsigned number, char *to) {
+  to[0] = '0' + number / 10;
+  to[1] = '0' + number % 10;
+  return to + 2;
+}
+
+/**
   Print the microsecond part with the specified precision.
 
   @param[out] to   The string pointer to print at
@@ -1158,17 +1192,24 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, long *my_timezone,
 */
 static int my_useconds_to_str(char *to, ulong useconds, uint dec) {
   assert(dec <= DATETIME_MAX_DECIMALS);
-  return std::sprintf(
-      to, ".%0*lu", static_cast<int>(dec),
-      useconds / static_cast<ulong>(log_10_int[DATETIME_MAX_DECIMALS - dec]));
+
+  // Write the decimal point and the terminating zero character.
+  to[0] = '.';
+  to[dec + 1] = '\0';
+
+  // Write the dec most significant digits of the microsecond value.
+  unsigned_to_string(useconds / log_10_int[DATETIME_MAX_DECIMALS - dec], dec,
+                     to + 1);
+
+  return dec + 1;
 }
 
 /**
-  Functions to convert time value to a string, using default format.
+  Converts a time value to a string with the format HH:MM:SS[.fraction].
 
-  This functions don't check that given MYSQL_TIME structure members are
-  in valid range. If they are not, return value won't reflect any
-  valid date either. Additionally, make_time doesn't take into
+  This function doesn't check that the given MYSQL_TIME structure members
+  are in the valid range. If they are not, the returned value won't reflect
+  any valid time either. Additionally, it doesn't take into
   account time->day member: it's assumed that days have been converted
   to hours already.
 
@@ -1180,21 +1221,29 @@ static int my_useconds_to_str(char *to, ulong useconds, uint dec) {
 */
 
 int my_time_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
-  uint extra_hours = 0;
-  int len = sprintf(to, "%s%02u:%02u:%02u", (my_time.neg ? "-" : ""),
-                    extra_hours + my_time.hour, my_time.minute, my_time.second);
-  if (dec) len += my_useconds_to_str(to + len, my_time.second_part, dec);
-  return len;
+  const char *const start = to;
+  if (my_time.neg) *to++ = '-';
+
+  // Hours should be zero-padded up to two digits. It might have more digits.
+  to = unsigned_to_string(my_time.hour, 2, to);
+
+  *to++ = ':';
+  to = write_two_digits(my_time.minute, to);
+  *to++ = ':';
+  to = write_two_digits(my_time.second, to);
+
+  const int length = to - start;
+  if (dec) return length + my_useconds_to_str(to, my_time.second_part, dec);
+  *to = '\0';
+  return length;
 }
 
 /**
-  Function to convert date value to a string, using default format.
+  Converts a date value to a string with the format 'YYYY-MM-DD'.
 
-  This functions don't check that given MYSQL_TIME structure members are
-  in valid range. If they are not, return value won't reflect any
-  valid date either. Additionally, make_time doesn't take into
-  account time->day member: it's assumed that days have been converted
-  to hours already.
+  This function doesn't check that the given MYSQL_TIME structure members are
+  in the valid range. If they are not, the returned value won't reflect any
+  valid date either.
 
   @param      my_time Source time value
   @param[out] to      Destination character array
@@ -1202,8 +1251,15 @@ int my_time_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
   @return number of characters written to 'to'
 */
 int my_date_to_str(const MYSQL_TIME &my_time, char *to) {
-  return sprintf(to, "%04u-%02u-%02u", my_time.year, my_time.month,
-                 my_time.day);
+  const char *const start = to;
+  to = write_two_digits(my_time.year / 100, to);
+  to = write_two_digits(my_time.year % 100, to);
+  *to++ = '-';
+  to = write_two_digits(my_time.month, to);
+  *to++ = '-';
+  to = write_two_digits(my_time.day, to);
+  *to = '\0';
+  return to - start;
 }
 
 /**
@@ -1216,49 +1272,24 @@ int my_date_to_str(const MYSQL_TIME &my_time, char *to) {
   @return The length of the result string.
 */
 static int TIME_to_datetime_str(const MYSQL_TIME &my_time, char *to) {
-  uint32 temp, temp2;
   /* Year */
-  temp = my_time.year / 100;
-  *to++ = static_cast<char>('0' + temp / 10);
-  *to++ = static_cast<char>('0' + temp % 10);
-  temp = my_time.year % 100;
-  *to++ = static_cast<char>('0' + temp / 10);
-  *to++ = static_cast<char>('0' + temp % 10);
+  to = write_two_digits(my_time.year / 100, to);
+  to = write_two_digits(my_time.year % 100, to);
   *to++ = '-';
   /* Month */
-  temp = my_time.month;
-  temp2 = temp / 10;
-  temp = temp - temp2 * 10;
-  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
-  *to++ = static_cast<char>('0' + static_cast<char>(temp));
+  to = write_two_digits(my_time.month, to);
   *to++ = '-';
   /* Day */
-  temp = my_time.day;
-  temp2 = temp / 10;
-  temp = temp - temp2 * 10;
-  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
-  *to++ = static_cast<char>('0' + static_cast<char>(temp));
+  to = write_two_digits(my_time.day, to);
   *to++ = ' ';
   /* Hour */
-  temp = my_time.hour;
-  temp2 = temp / 10;
-  temp = temp - temp2 * 10;
-  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
-  *to++ = static_cast<char>('0' + static_cast<char>(temp));
+  to = write_two_digits(my_time.hour, to);
   *to++ = ':';
   /* Minute */
-  temp = my_time.minute;
-  temp2 = temp / 10;
-  temp = temp - temp2 * 10;
-  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
-  *to++ = static_cast<char>('0' + static_cast<char>(temp));
+  to = write_two_digits(my_time.minute, to);
   *to++ = ':';
   /* Second */
-  temp = my_time.second;
-  temp2 = temp / 10;
-  temp = temp - temp2 * 10;
-  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
-  *to++ = static_cast<char>('0' + static_cast<char>(temp));
+  write_two_digits(my_time.second, to);
   return 19;
 }
 

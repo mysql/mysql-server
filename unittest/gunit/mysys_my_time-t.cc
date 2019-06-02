@@ -454,4 +454,55 @@ static void BM_my_micro_time(size_t num_iterations) {
 }
 BENCHMARK(BM_my_micro_time)
 
+static void BM_my_time_to_str(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  const MYSQL_TIME date = {
+      0, 0, 0, 123, 59, 59, 670000, false, MYSQL_TIMESTAMP_TIME};
+  char buffer[MAX_DATE_STRING_REP_LENGTH];
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    my_time_to_str(date, buffer, 6);
+  }
+
+  StopBenchmarkTiming();
+}
+BENCHMARK(BM_my_time_to_str)
+
+static void BM_my_date_to_str(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  const MYSQL_TIME date = {
+      2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
+  char buffer[MAX_DATE_STRING_REP_LENGTH];
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    my_date_to_str(date, buffer);
+  }
+
+  StopBenchmarkTiming();
+}
+BENCHMARK(BM_my_date_to_str)
+
+static void BM_my_datetime_to_str(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  const MYSQL_TIME date = {
+      2020, 2, 29, 23, 59, 59, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  char buffer[MAX_DATE_STRING_REP_LENGTH];
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    my_datetime_to_str(date, buffer, 6);
+  }
+
+  StopBenchmarkTiming();
+}
+BENCHMARK(BM_my_datetime_to_str)
+
 }  // namespace mysys_my_time
