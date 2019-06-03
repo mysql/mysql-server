@@ -51,7 +51,7 @@ void IntrusiveListIteratorTest::SetUp() {
 }
 
 void IntrusiveListIteratorTest::TearDown() {
-  NextPointerContainer<IntrusivePointee, &IntrusivePointee::next> container(
+  IntrusiveListContainer<IntrusivePointee, &IntrusivePointee::next> container(
       first);
   auto it = container.begin();
   while (it != container.end()) delete *(it++);
@@ -69,7 +69,7 @@ TEST_F(IntrusiveListIteratorTest, PreIncrement) {
 }
 
 // Testing that we can instantiate it without a definition of 'next'.
-using TestedIterator = NextPointerIterator<IntrusivePointee, GetNextInList>;
+using TestedIterator = NextFunctionIterator<IntrusivePointee, GetNextInList>;
 
 IntrusivePointee *GetNextInList(const IntrusivePointee *ip) { return ip->next; }
 

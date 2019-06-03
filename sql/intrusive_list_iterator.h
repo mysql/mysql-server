@@ -46,7 +46,7 @@
   ```
 */
 template <typename T, T *(*GetNextPointer)(const T *)>
-class NextPointerIterator {
+class NextFunctionIterator {
  public:
   using value_type = T *;
   /**
@@ -55,18 +55,18 @@ class NextPointerIterator {
     @param start The object that the iterator will start iterating
     from.
   */
-  explicit NextPointerIterator(T *start) : m_current(start) {}
+  explicit NextFunctionIterator(T *start) : m_current(start) {}
 
   /// Constructs a past-the-end iterator.
-  NextPointerIterator() : m_current(nullptr) {}
+  NextFunctionIterator() : m_current(nullptr) {}
 
-  NextPointerIterator &operator++() {
+  NextFunctionIterator &operator++() {
     DBUG_ASSERT(m_current != nullptr);
     m_current = GetNextPointer(m_current);
     return *this;
   }
 
-  NextPointerIterator operator++(int) {
+  NextFunctionIterator operator++(int) {
     auto pre_increment(*this);
     ++(*this);
     return pre_increment;
@@ -74,11 +74,11 @@ class NextPointerIterator {
 
   T *operator*() const { return m_current; }
 
-  bool operator==(const NextPointerIterator &other) const {
+  bool operator==(const NextFunctionIterator &other) const {
     return m_current == other.m_current;
   }
 
-  bool operator!=(const NextPointerIterator &other) const {
+  bool operator!=(const NextFunctionIterator &other) const {
     return !((*this) == other);
   }
 
@@ -104,11 +104,11 @@ T *GetMember(const T *t) {
 */
 template <typename T, T *T::*NextPointer>
 class IntrusiveListIterator
-    : public NextPointerIterator<T, GetMember<T, NextPointer>> {
+    : public NextFunctionIterator<T, GetMember<T, NextPointer>> {
  public:
   IntrusiveListIterator() = default;
   explicit IntrusiveListIterator(T *t)
-      : NextPointerIterator<T, GetMember<T, NextPointer>>(t) {}
+      : NextFunctionIterator<T, GetMember<T, NextPointer>>(t) {}
 };
 
 /**
@@ -130,16 +130,23 @@ class IteratorContainer {
   Type m_first;
 };
 
+template <typename T>
+using GetNextPointerFunction = T *(*)(const T *);
+
 /**
   Convenience alias for instantiating a container directly from the accessor
   function.
 */
-template <typename T, T *(*GetNextPointer)(const T *)>
-using NextFunctionContainer =
-    IteratorContainer<NextPointerIterator<T, GetNextPointer>>;
+template <typename T, GetNextPointerFunction<T> Fn>
+using NextFunctionContainer = IteratorContainer<NextFunctionIterator<T, Fn>>;
 
+/*
+  We inline the NextFunctionContainer definition below. We want to define this
+  alias as NextFunctionContainer<T, &GetMember<T, NextPointer>>, but VS2019
+  fails with C2996. It is likely a compiler bug.
+*/
 template <typename T, T *T::*NextPointer>
-using NextPointerContainer =
-    NextFunctionContainer<T, GetMember<T, NextPointer>>;
+using IntrusiveListContainer =
+    IteratorContainer<NextFunctionIterator<T, &GetMember<T, NextPointer>>>;
 
 #endif  // SQL_INTRUSIVE_LIST_ITERATOR_H_
