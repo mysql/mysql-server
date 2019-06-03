@@ -698,11 +698,11 @@ void Applier_module::inform_of_applier_stop(char *channel_name, bool aborted) {
   }
 }
 
-void Applier_module::leave_group_on_failure() {
+void Applier_module::leave_group_on_failure(int error_code) {
   Notification_context ctx;
   DBUG_TRACE;
 
-  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR);
+  LogPluginErr(ERROR_LEVEL, error_code);
 
   /* Notify member status update. */
   group_member_mgr->update_member_status(local_member_info->get_uuid(),

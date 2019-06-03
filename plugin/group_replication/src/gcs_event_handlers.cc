@@ -39,6 +39,7 @@
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "plugin/group_replication/include/plugin_messages/group_service_message.h"
 #include "plugin/group_replication/include/plugin_messages/group_validation_message.h"
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_prepared_message.h"
@@ -104,6 +105,14 @@ void Plugin_gcs_events_handler::on_message_received(
       handle_stats_message(message);
       break;
 
+    case Plugin_gcs_message::CT_MESSAGE_SERVICE_MESSAGE: {
+      Group_service_message *service_message = new Group_service_message(
+          message.get_message_data().get_payload(),
+          message.get_message_data().get_payload_length());
+
+      message_service_handler->add(service_message);
+    } break;
+
       /**
         From this point messages are sent to message listeners and may be
         skipped Messages above are directly processed and/or for performance we
@@ -138,6 +147,7 @@ void Plugin_gcs_events_handler::on_message_received(
           message.get_message_data().get_payload_length());
       pre_process_message(processed_message, message_origin);
       delete processed_message;
+      break;
     default:
       break; /* purecov: inspected */
   }

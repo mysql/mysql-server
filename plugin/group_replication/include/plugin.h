@@ -46,6 +46,7 @@
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/ps_information.h"
 #include "plugin/group_replication/include/recovery.h"
+#include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/services/registry.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
@@ -109,6 +110,7 @@ struct gr_modules {
     COMPATIBILITY_MANAGER,
     GCS_EVENTS_HANDLER,
     REMOTE_CLONE_HANDLER,
+    MESSAGE_SERVICE_HANDLER,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
@@ -142,6 +144,7 @@ extern Group_action_coordinator *group_action_coordinator;
 extern Primary_election_handler *primary_election_handler;
 extern Hold_transactions *hold_transactions;
 extern Autorejoin_thread *autorejoin_module;
+extern Message_service_handler *message_service_handler;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;

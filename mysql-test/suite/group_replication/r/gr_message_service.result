@@ -1,0 +1,53 @@
+include/have_replication_observers_example_plugin.inc
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Load plugin replication observers example on server1
+include/install_replication_observers_example.inc
+
+# 2. Load plugin replication observers example on server2
+[connection server2]
+include/install_replication_observers_example.inc
+
+# 3. Execute UDF that will transmit tag and message over GR send service
+SELECT group_replication_service_message_send("tag", "Server2 sent a message");
+group_replication_service_message_send("tag", "Server2 sent a message")
+The tag and message was sent to the group.
+
+# 4. On server 1 execute UDF that will transmit tag and message over GR
+#    send service
+[connection server1]
+SELECT group_replication_service_message_send("tag", "Server1 sent a message");
+group_replication_service_message_send("tag", "Server1 sent a message")
+The tag and message was sent to the group.
+
+# 5. To decrease failure rate on assert_grep we do a transaction with
+#    AFTER consistency to add some rounds on GCS communication and stop GR on
+#    server1, which will make it wait for the delivery of new view, and
+#    that will happen only after delivery of service message. This will
+#    give some time to server to receive and write it to error log.
+SET @@SESSION.group_replication_consistency= 'AFTER';
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+DROP TABLE test.t1;
+include/stop_group_replication.inc
+
+# 6. Assert server1 received both messages transmitted by GR message
+#    delivery
+include/assert_grep.inc [Server 1 received message from server 2.]
+include/assert_grep.inc [Server 1 received message from itself.]
+
+# 7. Assert server2 received both messages transmitted by GR message
+#    delivery
+[connection server2]
+include/assert_grep.inc [Server 2 received message from itself.]
+include/assert_grep.inc [Server 2 received message from server 1.]
+
+# 8. Cleanup
+include/uninstall_replication_observers_example.inc
+[connection server1]
+include/start_group_replication.inc
+include/uninstall_replication_observers_example.inc
+include/group_replication_end.inc

@@ -9134,6 +9134,9 @@ ER_SYSVAR_CHANGE_DURING_QUERY
 ER_GLOBSTAT_CHANGE_DURING_QUERY
   eng "A plugin was loaded or unloaded during a query, a global status variable was changed."
 
+ER_GRP_RPL_MESSAGE_SERVICE_INIT_FAILURE
+  eng "The START GROUP_REPLICATION command failed to start its message service."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
@@ -19636,6 +19639,9 @@ ER_KEYRING_AWS_INCORRECT_PROXY
 
 ER_GRP_RPL_SERVER_SET_TO_OFFLINE_MODE_DUE_TO_ERRORS
   eng "The server was automatically set into offline mode after an error was detected."
+
+ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR
+  eng "Message delivery error on message service of Group Replication. The server will now leave the group."
 
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.

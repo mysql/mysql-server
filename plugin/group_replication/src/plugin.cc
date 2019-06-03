@@ -38,6 +38,7 @@
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_variables.h"
+#include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
 
@@ -112,6 +113,8 @@ Hold_transactions *hold_transactions = NULL;
 Autorejoin_thread *autorejoin_module = NULL;
 /** The handler to invoke clone */
 Remote_clone_handler *remote_clone_handler = NULL;
+/** The thread that handles the message service process */
+Message_service_handler *message_service_handler = nullptr;
 
 Plugin_gcs_events_handler *events_handler = NULL;
 Plugin_gcs_view_modification_notifier *view_change_notifier = NULL;
@@ -619,6 +622,14 @@ int initialize_plugin_and_join(
 
   transaction_consistency_manager->register_transaction_observer();
   transaction_consistency_manager->plugin_started();
+
+  if (register_gr_message_service_send()) {
+    /* purecov: begin inspected */
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+    /* purecov: end */
+  }
+
   lv.group_replication_running = true;
   lv.plugin_is_stopping = false;
   log_primary_member_details();
@@ -991,6 +1002,8 @@ int plugin_group_replication_stop(char **error_message) {
     blocked_transaction_handler->unblock_waiting_transactions();
   }
 
+  unregister_gr_message_service_send();
+
   int error = leave_group_and_terminate_plugin_modules(gr_modules::all_modules,
                                                        error_message);
 
@@ -1145,6 +1158,17 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
   }
 
   /*
+    The Service message handler.
+  */
+  if (modules_to_init[gr_modules::MESSAGE_SERVICE_HANDLER]) {
+    message_service_handler = new Message_service_handler();
+    if (message_service_handler->initialize()) {
+      return GROUP_REPLICATION_SERVICE_MESSAGE_INIT_FAILURE; /* purecov:
+                                                                inspected */
+    }
+  }
+
+  /*
     The GCS events handler module.
   */
   if (modules_to_init[gr_modules::GCS_EVENTS_HANDLER]) {
@@ -1250,6 +1274,17 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
   */
   if (modules_to_terminate[gr_modules::AUTO_INCREMENT_HANDLER])
     reset_auto_increment_handler_values();
+
+  /*
+    The service message handler.
+  */
+  if (modules_to_terminate[gr_modules::MESSAGE_SERVICE_HANDLER]) {
+    if (message_service_handler) {
+      message_service_handler->terminate();
+      delete message_service_handler;
+      message_service_handler = nullptr;
+    }
+  }
 
   /*
     The applier is only shutdown after the communication layer to avoid
@@ -1375,6 +1410,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::GROUP_ACTION_COORDINATOR, true);
   modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
+  modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
   /*
     The first step is to issue a GCS leave() operation. This is done because
     the join() operation will assume that the GCS layer is not initiated and

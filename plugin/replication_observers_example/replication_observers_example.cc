@@ -26,7 +26,6 @@
   - Transaction progress
   - Server state
  */
-#define LOG_COMPONENT_TAG "replication_observers_example"
 
 #include <assert.h>
 #include <mysql/components/my_service.h>
@@ -36,6 +35,7 @@
 #include <mysql/service_rpl_transaction_ctx.h>
 #include <mysqld_error.h>
 #include <sys/types.h>
+#include "plugin/replication_observers_example/gr_message_service_example.h"
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -1060,6 +1060,13 @@ static int replication_observers_example_plugin_init(MYSQL_PLUGIN plugin_info) {
     return 1;
   }
 
+  if (gr_service_message_example_init()) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure on init gr service message example");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    return 1;
+  }
+
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "replication_observers_example_plugin: init finished");
 
@@ -1099,6 +1106,13 @@ static int replication_observers_example_plugin_deinit(void *p) {
   if (unregister_trans_observer(&trans_observer, p)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Failure in unregistering the transactions state observers");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    return 1;
+  }
+
+  if (gr_service_message_example_deinit()) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure on deinit gr service message example");
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }

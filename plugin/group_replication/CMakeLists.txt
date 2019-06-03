@@ -75,6 +75,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_handlers/remote_clone_handler.cc
   src/plugin_messages/group_action_message.cc
   src/plugin_messages/group_validation_message.cc
+  src/plugin_messages/group_service_message.cc
   src/plugin_messages/recovery_message.cc
   src/plugin_messages/single_primary_message.cc
   src/plugin_messages/sync_before_execution_message.cc
@@ -91,6 +92,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_service_interface.cc
   src/sql_service/sql_command_test.cc
   src/sql_service/sql_service_command.cc
+  src/services/message_service/message_service.cc
   src/services/notification/notification.cc
   src/services/registry.cc
   src/udf/udf_multi_primary.cc

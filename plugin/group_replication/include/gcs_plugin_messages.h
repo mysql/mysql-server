@@ -161,8 +161,12 @@ class Plugin_gcs_message {
     // This cargo type is used to inform about prepared transactions.
     CT_TRANSACTION_PREPARED_MESSAGE = 12,
 
+    // This cargo type is used for messages that are for
+    // senders/consumers outside the GR plugin.
+    CT_MESSAGE_SERVICE_MESSAGE = 13,
+
     // No valid type codes can appear after this one.
-    CT_MAX = 13
+    CT_MAX = 14
   };
 
  private:

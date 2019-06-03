@@ -3219,6 +3219,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
             my_free(error_message);
           }
           goto error;
+        case 9:  // GROUP_REPLICATION_SERVICE_MESSAGE_INIT_FAILURE
+          my_error(ER_GRP_RPL_MESSAGE_SERVICE_INIT_FAILURE, MYF(0));
+          goto error;
       }
       my_ok(thd);
       res = 0;

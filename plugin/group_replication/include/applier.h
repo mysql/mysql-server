@@ -718,6 +718,12 @@ class Applier_module : public Applier_module_interface {
   virtual bool queue_and_wait_on_queue_checkpoint(
       std::shared_ptr<Continuation> checkpoint_condition);
 
+  /**
+    Prints an error to the log and tries to leave the group
+  */
+  void leave_group_on_failure(
+      int error_code = ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR);
+
  private:
   // Applier packet handlers
 
@@ -849,11 +855,6 @@ class Applier_module : public Applier_module_interface {
     such tasks as queuing to a relay log.
   */
   void set_applier_thread_context();
-
-  /**
-    Prints an error to the log and tries to leave the group
-  */
-  void leave_group_on_failure();
 
   /**
     This method calculates the intersection of the given sets passed as a list
