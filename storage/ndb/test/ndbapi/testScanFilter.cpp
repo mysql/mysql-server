@@ -48,17 +48,21 @@ while (0);
   PRINT_ERROR(error.code,error.message); \
   exit(-1); }
 
-#define TEST_NAME "TestScanFilter" 
 #define TABLE_NAME "TABLE_SCAN"
 
-const char *COL_NAME[] = {"id", "i", "j", "k", "l", "m", "n"}; 
-const char COL_LEN = 7;
+const char *COL_NAME[] = {"id", "i", "j", "k", "l", "m", "n", "one"};
+const int COL_TST = 6;           //Number of test columns, 'i'..'n'
+const int COL_CNT = (COL_TST+2); //Number of test columns + "id" and "one"
+const int COL_ONE = 7;
+
 /*
-* Not to change TUPLE_NUM, because the column in TABLE_NAME is fixed,
-* there are six columns, 'i', 'j', 'k', 'l', 'm', 'n', and each on is equal to 1 or 1,
+* Not to change TUPLE_NUM, because the column in TABLE_NAME is fixed.
+* There are six test-columns, 'i', 'j', 'k', 'l', 'm', 'n', and each on is equal to 0 or 1.
+* In addition we have the column 'one', which is always equal to 1.
+* The 'one' column in never retrieved, only used for column to column compare.
 * Since each tuple should be unique in this case, then TUPLE_NUM = 2 power 6 = 64 
 */
-const int TUPLE_NUM = 1 << (COL_LEN - 1);
+const int TUPLE_NUM = 1 << (COL_TST);
 
 /*
 * the recursive level of random scan filter, can 
@@ -67,7 +71,11 @@ const int TUPLE_NUM = 1 << (COL_LEN - 1);
 */
 const int RECURSIVE_LEVEL = 10;
 
-const int MAX_STR_LEN = (RECURSIVE_LEVEL * (COL_LEN+1) * 4);
+/*
+ * 'COL_TST+2' -> For each 'LEVEL' we have test condition consisting
+ * of <op> + <subset of 'i' - 'n'> + 'x'
+ */
+const int MAX_STR_LEN = (RECURSIVE_LEVEL * (COL_TST+2) * 4);
 
 /*
 * Each time stands for one test, it will produce a random 
@@ -92,6 +100,7 @@ NDBT_Attribute MYTAB1Attribs[] = {
   NDBT_Attribute("l", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("m", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("n", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("one", NdbDictionary::Column::Unsigned),
 };
 static
 const
@@ -194,14 +203,14 @@ int runPopulate(NDBT_Context* ctx, NDBT_Step* step)
     }
 
 /* the tuples' data in TABLE_NAME
-+----+---+---+---+---+---+---+
-| id | i | j | k | l | m | n |
-+----+---+---+---+---+---+---+
-|  0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|  1 | 0 | 0 | 0 | 0 | 0 | 1 |
-|  2 | 0 | 0 | 0 | 0 | 1 | 0 |
-|  3 | 0 | 0 | 0 | 0 | 1 | 1 |
-|  4 | 0 | 0 | 0 | 1 | 0 | 0 |
++----+---+---+---+---+---+---+-----+
+| id | i | j | k | l | m | n | one |
++----+---+---+---+---+---+---+-----+
+|  0 | 0 | 0 | 0 | 0 | 0 | 0 |  1  |
+|  1 | 0 | 0 | 0 | 0 | 0 | 1 |  1  |
+|  2 | 0 | 0 | 0 | 0 | 1 | 0 |  1  |
+|  3 | 0 | 0 | 0 | 0 | 1 | 1 |  .  |
+|  4 | 0 | 0 | 0 | 1 | 0 | 0 |  .  |
 |  5 | 0 | 0 | 0 | 1 | 0 | 1 |
 |  6 | 0 | 0 | 0 | 1 | 1 | 0 |
 |  7 | 0 | 0 | 0 | 1 | 1 | 1 |
@@ -264,11 +273,15 @@ int runPopulate(NDBT_Context* ctx, NDBT_Step* step)
 +----+---+---+---+---+---+---+
 */
     myNdbOperation->insertTuple();
+    // Set id column
     myNdbOperation->equal(COL_NAME[0], num);
-    for(int col = 1; col < COL_LEN; col++)
+    // setValue for the 'i' - 'n' test column, starting at column 1
+    for(int col = 0; col < COL_TST; col++)
     {
-      myNdbOperation->setValue(COL_NAME[col], (num>>(COL_LEN-1-col))&1);
+      myNdbOperation->setValue(COL_NAME[1+col], (num>>(COL_TST-1-col))&1);
     }
+    // setValue() for the fixed value 'one' column
+    myNdbOperation->setValue(COL_NAME[COL_ONE], 1);
   }
 
   int check = myTrans->execute(NdbTransaction::Commit);
@@ -623,13 +636,13 @@ typedef struct _stack_element
 * stack_op, store info for AND,OR,NAND,NOR
 * stack_col, store value of column(i,j,k,l,m,n) and temporary result for an operation
 */
-stack_element stack_op[RECURSIVE_LEVEL * COL_LEN];
-bool stack_col[RECURSIVE_LEVEL * COL_LEN * 2];
+stack_element stack_op[RECURSIVE_LEVEL * 2];
+bool stack_col[RECURSIVE_LEVEL * COL_TST * 2];
 
 /*
 * check whether the given tuple is chosen by judgement condition 
 * tuple_no, the NO of tuple in TABLE_NAME, range from 0 to TUPLE_NUM
-* str: a random string of scan opearation and condition
+* str: a random string of scan operation and condition
 * len: length of str
 */
 bool check_one_tuple(int tuple_no, char *str, int len)
@@ -641,12 +654,14 @@ bool check_one_tuple(int tuple_no, char *str, int len)
     char letter = *(str + i);
     if(check_op(letter))    //push
     {
+      DBUG_ASSERT(pop_op < RECURSIVE_LEVEL*2);
       stack_op[pop_op].type = letter;
       stack_op[pop_op].num = 0;
       pop_op++;
     }
     if(check_col(letter))   //push
     {
+      DBUG_ASSERT(pop_col < RECURSIVE_LEVEL*COL_TST*2);
       stack_col[pop_col] = check_col_equal_one(tuple_no, get_column_id(letter));  
       pop_col++;
       stack_op[pop_op-1].num += 1;
@@ -677,7 +692,7 @@ bool check_one_tuple(int tuple_no, char *str, int len)
 
 /*
 * get lists of tuples which match the scan condiction through calculating
-* str: a random string of scan opearation and condition
+* str: a random string of scan operation and condition
 */
 void check_all_tuples(char *str, bool *res)
 {    
@@ -722,8 +737,14 @@ NdbScanFilter * call_ndbapi(char *str, NdbTransaction *transaction,
     }
     if(check_col(*p))
     {
-       if(scanfilter->eq(col[*p-'i'+1]->getColumnNo(), (Uint32)1)) 
-          ERR_EXIT(transaction, "filter eq() failed"); 
+      if(scanfilter->eq(col[*p-'i'+1]->getColumnNo(), (Uint32)1))
+        ERR_EXIT(transaction, "filter eq() failed");
+    }
+    if(check_col(*p))
+    {
+      if(scanfilter->cmp(NdbScanFilter::COND_EQ, col[*p-'i'+1]->getColumnNo(),
+			 col[COL_ONE]->getColumnNo()))
+        ERR_EXIT(transaction, "filter cmp() failed");
     }
     if(check_end(*p))
     {
@@ -741,25 +762,25 @@ NdbScanFilter * call_ndbapi(char *str, NdbTransaction *transaction,
 
 /*
 * get the tuples through ndbapi, and save the tuples NO.
-* str: a random string of scan opearation and condition
+* str: a random string of scan operation and condition
 */
 void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
 {
-	const NdbDictionary::Dictionary *dict  = ndb->getDictionary();
-	if (!dict) 
+  const NdbDictionary::Dictionary *dict  = ndb->getDictionary();
+  if (!dict)
     ERR_EXIT(ndb, "Can't get dict");
 
-	const NdbDictionary::Table *table = dict->getTable(TABLE_NAME);
-	if (!table) 
+  const NdbDictionary::Table *table = dict->getTable(TABLE_NAME);
+  if (!table)
     ERR_EXIT(dict, "Can't get table" TABLE_NAME);
 	
-	const NdbDictionary::Column *col[COL_LEN];
+  const NdbDictionary::Column *col[COL_CNT];
 
-  for(int ii = 0; ii < COL_LEN; ii++)
+  for(int ii = 0; ii < COL_CNT; ii++)
   {
     char tmp[128];
     col[ii] = table->getColumn(COL_NAME[ii]);
-	  if(!col[ii]) 
+    if(!col[ii])
     {
       BaseString::snprintf(tmp, 128, "Can't get column %s", COL_NAME[ii]);
       ERR_EXIT(dict, tmp);
@@ -781,12 +802,12 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
   if (scan->readTuples(NdbOperation::LM_Exclusive)) 
     ERR_EXIT(scan, "Can't set up read");
   
-  NdbRecAttr *rec[COL_LEN];
-  for(int ii = 0; ii < COL_LEN; ii++)
+  NdbRecAttr *rec[COL_CNT];
+  for(int ii = 0; ii < COL_CNT; ii++)
   {
     char tmp[128];
     rec[ii] = scan->getValue(COL_NAME[ii]);
-	  if(!rec[ii]) 
+    if(!rec[ii])
     {
       BaseString::snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[ii]);
       ERR_EXIT(scan, tmp);
@@ -801,16 +822,14 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
   int i,j,k,l,m,n;
   while (scan->nextResult(true) == 0) 
   {
-    do 
-    {
-      i = rec[1]->u_32_value();
-      j = rec[2]->u_32_value();
-      k = rec[3]->u_32_value();
-      l = rec[4]->u_32_value();
-      m = rec[5]->u_32_value();
-      n = rec[6]->u_32_value();
-      res[32*i+16*j+8*k+4*l+2*m+n] = true;
-    } while (scan->nextResult(false) == 0);
+    i = rec[1]->u_32_value();
+    j = rec[2]->u_32_value();
+    k = rec[3]->u_32_value();
+    l = rec[4]->u_32_value();
+    m = rec[5]->u_32_value();
+    n = rec[6]->u_32_value();
+    res[32*i+16*j+8*k+4*l+2*m+n] = true;
+    DBUG_ASSERT(rec[COL_ONE]->u_32_value() == 1);
   }
 	  
   delete filter;
@@ -819,7 +838,7 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
 
 /*
 * compare the result between calculation and NDBAPI
-* str: a random string of scan opearation and condition
+* str: a random string of scan operation and condition
 * return: true stands for ndbapi ok, false stands for ndbapi failed
 */
 template class Vector<bool>;
@@ -1009,6 +1028,9 @@ int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
   { ndbout << "Bad rc from isnotnull" << endl; return NDBT_FAILED; }
 
   if (brokenSf.cmp(NdbScanFilter::COND_EQ, 0, NULL, 0) != -1)
+  { ndbout << "Bad rc from cmp" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.cmp(NdbScanFilter::COND_EQ, 0, 0) != -1)
   { ndbout << "Bad rc from cmp" << endl; return NDBT_FAILED; }
 
   if (brokenSf.end() != -1)
@@ -1492,8 +1514,6 @@ int verifyBitScanFilter(Ndb* pNdb)
           }
         }
 
-
-
         NdbScanFilter sf(scanOp);
         
         if (sf.begin(NdbScanFilter::AND) != 0)
@@ -1650,7 +1670,7 @@ int runTestScanFilterBit(NDBT_Context* ctx, NDBT_Step* step)
 
 
 NDBT_TESTSUITE(testScanFilter);
-TESTCASE(TEST_NAME, 
+TESTCASE("TestScanFilter",
 	 "Scan table TABLE_NAME for the records which accord with \
    conditions of logical scan operations: AND/OR/NAND/NOR")
 {

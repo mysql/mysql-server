@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,9 @@ public:
   
   int cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, 
 		     const void * value, Uint32 len);
+
+  int cond_col_col(Interpreter::BinaryCondition,
+                   Uint32 attrId1, Uint32 attrId2);
 
   /* This method propagates an error code from NdbInterpretedCode
    * back to the NdbScanFilter object
@@ -435,9 +438,15 @@ NdbScanFilter::isfalse(){
 #define action(x, y, z)
 
 /* One argument branch definition method signature */
-typedef int (NdbInterpretedCode:: * Branch1)(Uint32, Uint32 label);
-/* Two argument branch definition method signature */
-typedef int (NdbInterpretedCode:: * StrBranch2)(const void*, Uint32, Uint32,  Uint32);
+typedef int (NdbInterpretedCode:: * Branch1)(Uint32 a1, Uint32 label);
+
+/* Two argument branch definition method signature,
+ * Compare the column with eiter a string value, or another column.
+ */
+typedef int (NdbInterpretedCode:: * StrBranch2)(const void *val, Uint32 len,
+                                                Uint32 a1, Uint32 label);
+typedef int (NdbInterpretedCode:: * Branch2Col)(Uint32 a1, Uint32 a2, Uint32 label);
+
 
 /* Table of unary branch methods for each group type */
 struct tab2 {
@@ -526,7 +535,7 @@ struct tab3 {
   StrBranch2 m_branches[5];
 };
 
-/* Table of branch methds to use for each combination of
+/* Table of branch methods to use for each combination of
  * logical group type (AND, OR, NAND, NOR) and comparison
  * type.
  * Generally, AND short circuits by branching to the failure
@@ -648,9 +657,9 @@ static const tab3 table3[] = {
 const int tab3_sz = sizeof(table3)/sizeof(table3[0]);
 
 int
-NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op, 
-				  Uint32 AttrId, 
-				  const void * value, Uint32 len){
+NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
+                                  Uint32 AttrId,
+                                  const void * value, Uint32 len) {
   if (m_error.code != 0) return -1;
 
   if(op < 0 || op >= tab3_sz){
@@ -688,24 +697,154 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
   }
   
   const NdbDictionary::Table * table = m_code->getTable();
-
-  if (table == NULL)
-  {
+  if (table == nullptr) {
     /* NdbInterpretedCode instruction requires that table is set */
     m_error.code=4538;
     return -1;
   }
 
-  const NdbDictionary::Column * col = 
-    table->getColumn(AttrId);
-  
-  if(col == 0){
+  const NdbDictionary::Column * col = table->getColumn(AttrId);
+  if (col == nullptr ) {
     /* Column is NULL */
     m_error.code= 4261;
     return -1;
   }
   
   if ((m_code->* branch)(value, len, AttrId, m_current.m_ownLabel) == -1)
+    return propagateErrorFromCode();
+
+  return 0;
+}
+
+
+/* NdbInterpretedCode two-columns branch method to use for
+ * given logical group type
+ */
+struct tab4 {
+  Branch2Col m_branches[5];
+};
+
+/* Table of branch methods to use for each combination of
+ * logical group type (AND, OR, NAND, NOR) and comparison
+ * type.
+ * Generally, AND short circuits by branching to the failure
+ * label when the condition fails, and OR short circuits by
+ * branching to the success label when the condition passes.
+ * NAND and NOR invert these by inverting the 'sense' of the
+ * branch
+ */
+static const tab4 table4[] = {
+  /**
+   * EQ (AND, OR, NAND, NOR)
+   */
+  { { nullptr,
+      &NdbInterpretedCode::branch_col_ne,
+      &NdbInterpretedCode::branch_col_eq,
+      &NdbInterpretedCode::branch_col_ne,
+      &NdbInterpretedCode::branch_col_eq } }
+
+  /**
+   * NEQ
+   */
+  ,{ { nullptr,
+       &NdbInterpretedCode::branch_col_eq,
+       &NdbInterpretedCode::branch_col_ne,
+       &NdbInterpretedCode::branch_col_eq,
+       &NdbInterpretedCode::branch_col_ne } }
+
+  /**
+   * LT
+   */
+  ,{ { nullptr,
+       &NdbInterpretedCode::branch_col_le,
+       &NdbInterpretedCode::branch_col_gt,
+       &NdbInterpretedCode::branch_col_le,
+       &NdbInterpretedCode::branch_col_gt } }
+
+  /**
+   * LE
+   */
+  ,{ { nullptr,
+       &NdbInterpretedCode::branch_col_lt,
+       &NdbInterpretedCode::branch_col_ge,
+       &NdbInterpretedCode::branch_col_lt,
+       &NdbInterpretedCode::branch_col_ge } }
+
+  /**
+   * GT
+   */
+  ,{ { nullptr,
+       &NdbInterpretedCode::branch_col_ge,
+       &NdbInterpretedCode::branch_col_lt,
+       &NdbInterpretedCode::branch_col_ge,
+       &NdbInterpretedCode::branch_col_lt } }
+
+  /**
+   * GE
+   */
+  ,{ { nullptr,
+       &NdbInterpretedCode::branch_col_gt,
+       &NdbInterpretedCode::branch_col_le,
+       &NdbInterpretedCode::branch_col_gt,
+       &NdbInterpretedCode::branch_col_le } }
+};
+
+const int tab4_sz = sizeof(table4)/sizeof(table4[0]);
+
+int
+NdbScanFilterImpl::cond_col_col(Interpreter::BinaryCondition op,
+                                Uint32 attrId1,  Uint32 attrId2) {
+  if (m_error.code != 0) return -1;
+
+  if (op < 0 || op >= tab4_sz) {
+    /* Condition is out of bounds */
+    m_error.code= 4262;
+    return -1;
+  }
+
+  if (m_current.m_group < NdbScanFilter::AND ||
+      m_current.m_group > NdbScanFilter::NOR) {
+    /* Operator is not defined in NdbScanFilter::Group */
+    m_error.code= 4260;
+    return -1;
+  }
+
+  Branch2Col branch;
+  if (m_negative == 1) {  //change NdbOperation to its negative
+    if (m_current.m_group == NdbScanFilter::AND)
+      branch = table4[op].m_branches[NdbScanFilter::OR];
+    else if (m_current.m_group == NdbScanFilter::OR)
+      branch = table4[op].m_branches[NdbScanFilter::AND];
+    else {
+      /**
+       * This is not possible, as NAND/NOR is converted to negative OR/AND in
+       * begin().
+       * But silence the compiler warning about uninitialised variable `branch`
+       */
+      assert(false);
+      m_error.code= 4260;
+      return -1;
+    }
+  } else {
+    branch = table4[op].m_branches[(Uint32)(m_current.m_group)];
+  }
+
+  const NdbDictionary::Table * table = m_code->getTable();
+  if (table == nullptr) {
+    /* NdbInterpretedCode instruction requires that table is set */
+    m_error.code=4538;
+    return -1;
+  }
+
+  const NdbDictionary::Column * col1 =  table->getColumn(attrId1);
+  const NdbDictionary::Column * col2 =  table->getColumn(attrId2);
+  if (col1 == nullptr || col2 == nullptr) {
+    /* Column is NULL */
+    m_error.code= 4261;
+    return -1;
+  }
+
+  if ((m_code->* branch)(attrId1, attrId2, m_current.m_ownLabel) == -1)
     return propagateErrorFromCode();
 
   return 0;
@@ -742,6 +881,29 @@ NdbScanFilter::cmp(BinaryCondition cond, int ColId,
     return m_impl.cond_col_const(Interpreter::AND_NE_ZERO, ColId, val, len);
   }
   return -1;
+}
+
+int
+NdbScanFilter::cmp(BinaryCondition cond, int ColId1, int ColId2)
+{
+  switch(cond){
+  case COND_LE:
+    return m_impl.cond_col_col(Interpreter::LE, ColId1, ColId2);
+  case COND_LT:
+    return m_impl.cond_col_col(Interpreter::LT, ColId1, ColId2);
+  case COND_GE:
+    return m_impl.cond_col_col(Interpreter::GE, ColId1, ColId2);
+  case COND_GT:
+    return m_impl.cond_col_col(Interpreter::GT, ColId1, ColId2);
+  case COND_EQ:
+    return m_impl.cond_col_col(Interpreter::EQ, ColId1, ColId2);
+  case COND_NE:
+    return m_impl.cond_col_col(Interpreter::NE, ColId1, ColId2);
+  default:
+    /* Condition is out of bounds */
+    m_impl.m_error.code= 4262;
+    return -1;
+  }
 }
 
 static void
