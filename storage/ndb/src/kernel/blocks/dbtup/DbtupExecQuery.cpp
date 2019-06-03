@@ -3883,7 +3883,6 @@ int Dbtup::interpreterNextLab(Signal* signal,
             argLen = AttributeDescriptor::getSizeInBytes(Tattr2Desc1);
             if (unlikely(type2Id == NDB_TYPE_BIT))
             {
-              const Uint32 Tattr2Desc2 = tableDescriptor[Tattr2DescrIndex+1].tabDescr;
               /* Size in bytes for bit fields can be incorrect due to
                * rounding down
                */
