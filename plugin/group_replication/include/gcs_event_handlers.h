@@ -254,11 +254,6 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   bool is_group_running_a_primary_election() const;
 
   /**
-    This method submits a request to leave the group
-  */
-  void leave_group_on_error() const;
-
-  /**
     This method checks if member was expelled from the group due
     to network failures.
 

@@ -24,6 +24,7 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/group_replication_message_service.h>
 #include <mysql/components/services/registry.h>
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
 
 DEFINE_BOOL_METHOD(send, (const char *tag, const unsigned char *data,
@@ -178,8 +179,14 @@ void Message_service_handler::dispatcher() {
 
     if (notify_message_service_recv(service_message)) {
       m_aborted = true;
-      applier_module->leave_group_on_failure(
-          ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR);
+      const char *exit_state_action_abort_log_message =
+          "Message delivery error on message service of Group Replication.";
+      leave_group_on_failure::mask leave_actions;
+      leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+      leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+      leave_group_on_failure::leave(
+          leave_actions, ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR,
+          PSESSION_USE_THREAD, nullptr, exit_state_action_abort_log_message);
     }
 
     delete service_message;

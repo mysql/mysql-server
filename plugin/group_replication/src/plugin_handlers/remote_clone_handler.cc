@@ -20,8 +20,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 
 [[noreturn]] void *Remote_clone_handler::launch_thread(void *arg) {
   Remote_clone_handler *thd = static_cast<Remote_clone_handler *>(arg);
@@ -425,71 +425,14 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
     recovery_module->start_recovery(this->m_group_name, this->m_view_id);
     return 0;
   } else {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_NO_FALLBACK);
-
-    if (get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
-      enable_server_offline_mode(PSESSION_INIT_THREAD);
-    }
-
-    Notification_context ctx;
-    // If you can't leave at least force the Error state.
-    group_member_mgr->update_member_status(
-        local_member_info->get_uuid(), Group_member_info::MEMBER_ERROR, ctx);
-
-    /*
-      unblock threads waiting for the member to become ONLINE
-    */
-    terminate_wait_on_start_process();
-
-    /* Single state update. Notify right away. */
-    notify_and_reset_ctx(ctx);
-
-    Plugin_gcs_view_modification_notifier view_change_notifier;
-    view_change_notifier.start_view_modification();
-    Gcs_operations::enum_leave_state leave_state =
-        gcs_module->leave(&view_change_notifier);
-
-    Replication_thread_api::rpl_channel_stop_all(
-        CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, m_stop_wait_timeout);
-
-    longlong errcode = 0;
-    enum loglevel log_severity = WARNING_LEVEL;
-    /* purecov: begin inspected */
-    switch (leave_state) {
-      case Gcs_operations::ERROR_WHEN_LEAVING:
-        errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
-        log_severity = ERROR_LEVEL;
-        break;
-      case Gcs_operations::ALREADY_LEAVING:
-        errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
-        break;
-      case Gcs_operations::ALREADY_LEFT:
-        errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT;
-        break;
-      case Gcs_operations::NOW_LEAVING:
-        break;
-    }
-    /* purecov: end */
-
-    if (errcode) LogPluginErr(log_severity, errcode);
-
-    if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
-        Gcs_operations::ALREADY_LEFT != leave_state) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-      if (view_change_notifier.wait_for_view_modification()) {
-        /* purecov: begin inspected */
-        LogPluginErr(WARNING_LEVEL,
-                     ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
-        /* purecov: end */
-      }
-    }
-    gcs_module->remove_view_notifer(&view_change_notifier);
-
-    if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
-      abort_plugin_process(
-          "Fatal error while Group Replication was using clone for "
-          "provisioning.");
-    }
+    const char *exit_state_action_abort_log_message =
+        "Fatal error while Group Replication was using Clone for provisioning.";
+    leave_group_on_failure::mask leave_actions;
+    leave_actions.set(leave_group_on_failure::SKIP_SET_READ_ONLY, true);
+    leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+    leave_group_on_failure::leave(
+        leave_actions, ER_GRP_RPL_RECOVERY_STRAT_NO_FALLBACK,
+        PSESSION_INIT_THREAD, nullptr, exit_state_action_abort_log_message);
     return 1;
   }
 }

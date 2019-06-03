@@ -14029,7 +14029,7 @@ ER_GRP_RPL_PREV_REC_SESSION_RUNNING
 ER_GRP_RPL_FATAL_REC_PROCESS
   eng "Fatal error during the recovery process of Group Replication. The server will leave the group."
 
-ER_GRP_RPL_WHILE_STOPPING_REP_CHANNEL
+OBSOLETE_ER_GRP_RPL_WHILE_STOPPING_REP_CHANNEL
   eng "Error stopping all replication channels while server was leaving the group. %s"
 
 ER_GRP_RPL_UNABLE_TO_EVALUATE_APPLIER_STATUS
@@ -14368,7 +14368,7 @@ ER_GRP_RPL_PIPELINE_FLUSH_FAIL
 ER_GRP_RPL_PIPELINE_REINIT_FAILED_READ
   eng "Failed to reinit group replication pipeline cache for read."
 
-ER_GRP_RPL_STOP_REP_CHANNEL
+OBSOLETE_ER_GRP_RPL_STOP_REP_CHANNEL
   eng "Error stopping all replication channels while server was leaving the group. Got error: %d. Please check the error log for more details."
 
 ER_GRP_RPL_GCS_GR_ERROR_MSG

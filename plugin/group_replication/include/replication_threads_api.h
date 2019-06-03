@@ -305,15 +305,12 @@ class Replication_thread_api {
 
     @param threads_to_stop      The types of threads to be stopped
     @param timeout              The max time in which the thread should stop
-    @param ecode                The error message code
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  static int rpl_channel_stop_all(
-      int threads_to_stop, long timeout,
-      int ecode = ER_GRP_RPL_ERROR_STOPPING_CHANNELS);
+  static int rpl_channel_stop_all(int threads_to_stop, long timeout);
 
   /**
     Method to get the credentials configured for a channel

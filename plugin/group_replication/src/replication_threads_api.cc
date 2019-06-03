@@ -328,17 +328,19 @@ bool Replication_thread_api::is_partial_transaction_on_relay_log() {
 }
 
 int Replication_thread_api::rpl_channel_stop_all(int threads_to_stop,
-                                                 long timeout, int ecode) {
+                                                 long timeout) {
   std::string error_message;
   int error = channel_stop_all(threads_to_stop, timeout, &error_message);
   if (error) {
     if (!error_message.empty()) {
-      LogPluginErr(ERROR_LEVEL, ecode, error_message.c_str());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_STOPPING_CHANNELS,
+                   error_message.c_str());
     } else {
       std::stringstream err_msg_ss;
       err_msg_ss << "Got error: " << error
                  << "Please check the error log for more details.";
-      LogPluginErr(ERROR_LEVEL, ecode, err_msg_ss.str().c_str());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_STOPPING_CHANNELS,
+                   err_msg_ss.str().c_str());
     }
   }
   return error;

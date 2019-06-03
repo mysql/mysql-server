@@ -232,7 +232,7 @@ end:
     group_events_observation_manager->after_primary_election(
         primary_uuid, true, election_mode, error); /* purecov: inspected */
     kill_transactions_and_leave_on_election_error(
-        err_msg, stop_wait_timeout); /* purecov: inspected */
+        err_msg); /* purecov: inspected */
   }
 
   stage_handler->end_stage();

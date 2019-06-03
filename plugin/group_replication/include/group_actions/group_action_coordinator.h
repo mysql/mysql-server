@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -233,13 +233,6 @@ class Group_action_coordinator : public Group_event_observer {
    @return true if yes, false otherwise
   */
   bool thread_killed();
-
-  /**
-    Internal method that contains the logic for leaving and killing transactions
-
-    @param error_msg error to log in case an action error is not present
-  */
-  void kill_transactions_and_leave();
 
   /** The list of members known for the current action */
   std::list<std::string> known_members_addresses;

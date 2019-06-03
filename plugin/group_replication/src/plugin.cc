@@ -258,6 +258,18 @@ int get_flow_control_release_percent_var() {
   return ov.flow_control_release_percent_var;
 }
 
+ulong get_components_stop_timeout_var() {
+  return ov.components_stop_timeout_var;
+}
+
+void set_error_state_due_to_error_during_autorejoin() {
+  lv.error_state_due_to_error_during_autorejoin = true;
+}
+
+bool get_error_state_due_to_error_during_autorejoin() {
+  return lv.error_state_due_to_error_during_autorejoin;
+}
+
 bool is_autorejoin_enabled() { return ov.autorejoin_tries_var > 0U; }
 
 uint get_number_of_autorejoin_tries() { return ov.autorejoin_tries_var; }
@@ -469,6 +481,9 @@ int plugin_group_replication_start(char **) {
   }
 
   DBUG_ASSERT(transactions_latch->empty());
+
+  // Reset previous ERROR state causes.
+  lv.error_state_due_to_error_during_autorejoin = false;
 
   // Reset the coordinator in case there was a previous stop.
   group_action_coordinator->reset_coordinator_process();
@@ -1512,6 +1527,7 @@ bool attempt_rejoin() {
       }
     } else {
       ret = false;
+      lv.error_state_due_to_error_during_autorejoin = false;
     }
   }
 

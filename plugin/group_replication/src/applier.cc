@@ -33,8 +33,8 @@
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
@@ -505,7 +505,23 @@ end:
       ->unregister_channel_observer(applier_channel_observer);
 
   // only try to leave if the applier managed to start
-  if (applier_error && applier_thd_state.is_running()) leave_group_on_failure();
+  if (applier_error && applier_thd_state.is_running()) {
+    const char *exit_state_action_abort_log_message =
+        "Fatal error during execution on the Applier module of Group "
+        "Replication.";
+    leave_group_on_failure::mask leave_actions;
+    /*
+      Only follow exit_state_action if we were already inside a group. We may
+      happen to come across an applier error during the startup of GR (i.e.
+      during the execution of the START GROUP_REPLICATION command). We must not
+      follow exit_state_action on that situation.
+    */
+    leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION,
+                      gcs_module->belongs_to_group());
+    leave_group_on_failure::leave(
+        leave_actions, ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR,
+        PSESSION_USE_THREAD, nullptr, exit_state_action_abort_log_message);
+  }
 
   // Even on error cases, send a stop signal to all handlers that could be
   // active
@@ -701,132 +717,6 @@ void Applier_module::inform_of_applier_stop(char *channel_name, bool aborted) {
 
     // also awake the applier in case it is suspended
     awake_applier_module();
-  }
-}
-
-void Applier_module::leave_group_on_failure(int error_code) {
-  Notification_context ctx;
-  DBUG_TRACE;
-
-  LogPluginErr(ERROR_LEVEL, error_code);
-
-  /* Notify member status update. */
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR, ctx);
-
-  /*
-    unblock threads waiting for the member to become ONLINE
-  */
-  terminate_wait_on_start_process();
-
-  /* Single state update. Notify right away. */
-  notify_and_reset_ctx(ctx);
-
-  bool set_read_mode = false;
-  Plugin_gcs_view_modification_notifier view_change_notifier;
-
-  view_change_notifier.start_view_modification();
-
-  Gcs_operations::enum_leave_state leave_state =
-      gcs_module->leave(&view_change_notifier);
-
-  Replication_thread_api::rpl_channel_stop_all(
-      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
-
-  longlong errcode = 0;
-  enum loglevel log_severity = WARNING_LEVEL;
-  switch (leave_state) {
-    case Gcs_operations::ERROR_WHEN_LEAVING:
-      errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
-      log_severity = ERROR_LEVEL;
-      break;
-    case Gcs_operations::ALREADY_LEAVING:
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
-      break;                                          /* purecov: inspected */
-    case Gcs_operations::ALREADY_LEFT:
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
-      break;                                          /* purecov: inspected */
-    case Gcs_operations::NOW_LEAVING:
-      set_read_mode = true;
-      errcode = ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS;
-      log_severity = ERROR_LEVEL;
-      break;
-  }
-  LogPluginErr(log_severity, errcode);
-
-  kill_pending_transactions(set_read_mode, false, leave_state,
-                            &view_change_notifier);
-}
-
-void Applier_module::kill_pending_transactions(
-    bool set_read_mode, bool threaded_sql_session,
-    Gcs_operations::enum_leave_state leave_state,
-    Plugin_gcs_view_modification_notifier *view_notifier) {
-  DBUG_TRACE;
-
-  // Stop any more transactions from waiting
-  bool already_locked = shared_stop_write_lock->try_grab_write_lock();
-
-  // kill pending transactions
-  blocked_transaction_handler->unblock_waiting_transactions();
-
-  DBUG_EXECUTE_IF(
-      "group_replication_applier_thread_wait_kill_pending_transaction", {
-        const char act[] = "now wait_for signal.gr_applier_early_failure";
-        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-      });
-
-  if (!already_locked) shared_stop_write_lock->release_write_lock();
-
-  if (set_read_mode) {
-    if (threaded_sql_session)
-      enable_server_read_mode(PSESSION_INIT_THREAD);
-    else
-      enable_server_read_mode(PSESSION_USE_THREAD);
-  }
-
-  /*
-    Only execute if we were already inside a group. We may happen to come
-    across an applier error during the startup of GR (i.e. during the execution
-    of the START GROUP_REPLICATION command). We must not abort if the command
-    fails. set_read_mode indicates that we were part of a group and as such our
-    START GROUP_REPLICATION command already executed in the past.
-
-    Also, we will only consider group_replication_exit_state_action if the
-    auto-rejoin process is not enabled. If it is enabled, GR will first attempt
-    to auto-rejoin.
-
-    Also, we should only consider group_replication_exit_state_action if we are
-    not supposed to continue the auto-rejoin process. In this case, we shouldn't
-    continue the auto-rejoin process if it isn't enabled or if it is but we
-    have arrived here due to an applier error, and not due to a member expel.
-  */
-  bool should_continue_autorejoin = is_autorejoin_enabled() && !applier_error;
-  if (set_read_mode &&
-      get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE &&
-      !should_continue_autorejoin) {
-    if (threaded_sql_session)
-      enable_server_offline_mode(PSESSION_INIT_THREAD);
-    else
-      enable_server_offline_mode(PSESSION_USE_THREAD);
-  }
-
-  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
-      Gcs_operations::ALREADY_LEFT != leave_state) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_notifier->wait_for_view_modification()) {
-      /* purecov: begin inspected */
-      LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
-      /* purecov: end */
-    }
-  }
-  gcs_module->remove_view_notifer(view_notifier);
-
-  if (set_read_mode &&
-      get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER &&
-      !should_continue_autorejoin) {
-    abort_plugin_process("Fatal error during execution of Group Replication");
   }
 }
 

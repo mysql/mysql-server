@@ -47,6 +47,9 @@ call mtr.add_suppression("Unable to confirm whether the server has left the grou
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
 SET sql_log_bin = 1;
 
 --source include/gr_autorejoin_monitoring.inc
@@ -133,10 +136,6 @@ while ($tries <= 3)
 
   --inc $tries
 }
-
-# Make sure that the auto-rejoin process has stopped
---let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = FALSE
---source include/wait_condition_or_abort.inc
 
 --echo
 --echo ####

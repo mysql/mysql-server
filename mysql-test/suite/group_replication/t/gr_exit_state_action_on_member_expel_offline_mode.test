@@ -34,6 +34,7 @@ SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 # Supress log errors since they are expected.
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not.*");

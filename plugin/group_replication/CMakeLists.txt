@@ -39,6 +39,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/group_actions/multi_primary_migration_action.cc
   src/group_actions/primary_election_action.cc
   src/group_actions/communication_protocol_action.cc
+  src/leave_group_on_failure.cc
   src/member_info.cc
   src/observer_server_actions.cc
   src/observer_server_channels.cc

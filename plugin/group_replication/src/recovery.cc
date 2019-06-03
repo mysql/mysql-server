@@ -28,9 +28,9 @@
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_messages/recovery_message.h"
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
@@ -170,70 +170,16 @@ int Recovery_module::stop_recovery(bool wait_for_termination) {
  take an active part in it, so it must leave.
 */
 void Recovery_module::leave_group_on_recovery_failure() {
-  Notification_context ctx;
-  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FATAL_REC_PROCESS);
   // tell the update process that we are already stopping
   recovery_aborted = true;
 
-  // If you can't leave at least force the Error state.
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR, ctx);
-
-  /*
-    unblock threads waiting for the member to become ONLINE
-  */
-  terminate_wait_on_start_process();
-
-  /* Single state update. Notify right away. */
-  notify_and_reset_ctx(ctx);
-
-  Plugin_gcs_view_modification_notifier view_change_notifier;
-  view_change_notifier.start_view_modification();
-  Gcs_operations::enum_leave_state leave_state =
-      gcs_module->leave(&view_change_notifier);
-
-  Replication_thread_api::rpl_channel_stop_all(
-      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
-
-  longlong errcode = 0;
-  enum loglevel log_severity = WARNING_LEVEL;
-  switch (leave_state) {
-    case Gcs_operations::ERROR_WHEN_LEAVING:
-      /* purecov: begin inspected */
-      errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
-      log_severity = ERROR_LEVEL;
-      break;
-      /* purecov: end */
-    case Gcs_operations::ALREADY_LEAVING:
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
-      break;
-    case Gcs_operations::ALREADY_LEFT:
-      /* purecov: begin inspected */
-      errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT;
-      break;
-      /* purecov: end */
-    case Gcs_operations::NOW_LEAVING:
-      break;
-  }
-  if (errcode) LogPluginErr(log_severity, errcode);
-
-  if (get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
-    enable_server_offline_mode(PSESSION_INIT_THREAD);
-  }
-
-  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
-      Gcs_operations::ALREADY_LEFT != leave_state) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier.wait_for_view_modification()) {
-      LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
-    }
-  }
-  gcs_module->remove_view_notifer(&view_change_notifier);
-
-  if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
-    abort_plugin_process("Fatal error during execution of Group Replication");
-  }
+  const char *exit_state_action_abort_log_message =
+      "Fatal error in the recovery module of Group Replication.";
+  leave_group_on_failure::mask leave_actions;
+  leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+  leave_group_on_failure::leave(leave_actions, ER_GRP_RPL_FATAL_REC_PROCESS,
+                                PSESSION_USE_THREAD, nullptr,
+                                exit_state_action_abort_log_message);
 }
 
 /*

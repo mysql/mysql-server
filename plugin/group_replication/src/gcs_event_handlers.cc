@@ -33,6 +33,7 @@
 #include "my_dbug.h"
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/gcs_event_handlers.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
@@ -754,46 +755,17 @@ bool Plugin_gcs_events_handler::was_member_expelled_from_group(
 
   if (view.get_error_code() == Gcs_view::MEMBER_EXPELLED) {
     result = true;
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_EXPELLED);
-    /*
-      Delete all members from group info except the local one.
-
-      Regarding the notifications, these are not triggered here, but
-      rather at the end of the handle function that calls this one:
-      on_view_changed.
-     */
-    std::vector<Group_member_info *> to_update;
-    group_member_mgr->update(&to_update);
-    group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                           Group_member_info::MEMBER_ERROR,
-                                           m_notification_ctx);
-
-    /*
-      unblock threads waiting for the member to become ONLINE
-    */
-    terminate_wait_on_start_process();
-
-    group_member_mgr->update_member_role(
-        local_member_info->get_uuid(), Group_member_info::MEMBER_ROLE_SECONDARY,
-        m_notification_ctx);
-
-    bool aborted = false;
-    applier_module->add_suspension_packet();
-    int error =
-        applier_module->wait_for_applier_complete_suspension(&aborted, false);
-    /*
-      We do not need to kill ongoing transactions when the applier
-      is already stopping.
-    */
-    if (!error)
-      applier_module->kill_pending_transactions(
-          true, true, Gcs_operations::ALREADY_LEFT, nullptr);
-
-    // If we have the auto-rejoin process enabled, now is the time to run it!
-    if (is_autorejoin_enabled()) {
-      autorejoin_module->start_autorejoin(get_number_of_autorejoin_tries(),
-                                          get_rejoin_timeout());
-    }
+    const char *exit_state_action_abort_log_message =
+        "Member was expelled from the group due to network failures.";
+    leave_group_on_failure::mask leave_actions;
+    leave_actions.set(leave_group_on_failure::ALREADY_LEFT_GROUP, true);
+    leave_actions.set(leave_group_on_failure::CLEAN_GROUP_MEMBERSHIP, true);
+    leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+    leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+    leave_actions.set(leave_group_on_failure::HANDLE_AUTO_REJOIN, true);
+    leave_group_on_failure::leave(leave_actions, ER_GRP_RPL_MEMBER_EXPELLED,
+                                  PSESSION_INIT_THREAD, &m_notification_ctx,
+                                  exit_state_action_abort_log_message);
   }
 
   return result;
@@ -901,22 +873,17 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       Set the read mode if not set during start (auto-start)
     */
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR);
-
       /*
         The notification will be triggered in the top level handle function
         that calls this one. In this case, the on_view_changed handle.
       */
-      group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                             Group_member_info::MEMBER_ERROR,
-                                             m_notification_ctx);
-      this->leave_group_on_error();
+      leave_group_on_failure::mask leave_actions;
+      leave_actions.set(leave_group_on_failure::SKIP_SET_READ_ONLY, true);
+      leave_actions.set(leave_group_on_failure::SKIP_LEAVE_VIEW_WAIT, true);
+      leave_group_on_failure::leave(
+          leave_actions, ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR,
+          PSESSION_DEDICATED_THREAD, &m_notification_ctx, "");
       set_plugin_is_setting_read_mode(false);
-
-      /*
-        unblock threads waiting for the member to become ONLINE
-      */
-      terminate_wait_on_start_process();
 
       return;
     } else {
@@ -1020,15 +987,10 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
         The notification will be triggered in the top level handle function
         that calls this one. In this case, the on_view_changed handle.
       */
-      group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                             Group_member_info::MEMBER_ERROR,
-                                             m_notification_ctx);
-      this->leave_group_on_error();
-
-      /*
-        unblock threads waiting for the member to become ONLINE
-      */
-      terminate_wait_on_start_process();
+      leave_group_on_failure::mask leave_actions;
+      leave_actions.set(leave_group_on_failure::SKIP_LEAVE_VIEW_WAIT, true);
+      leave_group_on_failure::leave(leave_actions, 0, PSESSION_DEDICATED_THREAD,
+                                    &m_notification_ctx, "");
       return;
     }
   }
@@ -1268,7 +1230,8 @@ sending:
     that when all members do receive the view on which this member joins
     all do see the correct RECOVERY state.
   */
-  if (autorejoin_module->is_autorejoin_ongoing()) {
+  if (autorejoin_module->is_autorejoin_ongoing() &&
+      !get_error_state_due_to_error_during_autorejoin()) {
     group_member_mgr->update_member_status(
         local_member_info->get_uuid(), Group_member_info::MEMBER_IN_RECOVERY,
         m_notification_ctx);
@@ -1682,37 +1645,6 @@ bool Plugin_gcs_events_handler::is_group_running_a_primary_election() const {
   delete all_members;
 
   return is_election_running;
-}
-
-void Plugin_gcs_events_handler::leave_group_on_error() const {
-  Gcs_operations::enum_leave_state state = gcs_module->leave(nullptr);
-
-  Replication_thread_api::rpl_channel_stop_all(
-      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
-
-  longlong errcode = 0;
-  longlong log_severity = WARNING_LEVEL;
-  switch (state) {
-    case Gcs_operations::ERROR_WHEN_LEAVING:
-      /* purecov: begin inspected */
-      errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
-      log_severity = ERROR_LEVEL;
-      break;
-      /* purecov: end */
-    case Gcs_operations::ALREADY_LEAVING:
-      /* purecov: begin inspected */
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
-      break;
-      /* purecov: end */
-    case Gcs_operations::ALREADY_LEFT:
-      /* purecov: begin inspected */
-      errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT;
-      break;
-      /* purecov: end */
-    case Gcs_operations::NOW_LEAVING:
-      return;
-  }
-  LogPluginErr(log_severity, errcode); /* purecov: inspected */
 }
 
 void Plugin_gcs_events_handler::disable_read_mode_for_compatible_members(
