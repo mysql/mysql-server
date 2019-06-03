@@ -614,7 +614,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
-ALTER TABLE t1 ADD CONSTRAINT t1_chk_1 CHECK (f1 < 10), DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -2013,3 +2012,29 @@ UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2019-04-23' WHERE 
 UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2049-04-23' WHERE id = 5;
 DROP TABLE tst;
 SET binlog_format=@binlog_format_saved;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29652464 - ORDER OF ADD AND DROP CHECK CONSTRAINT IN TABLE ALTER
+--echo #                STATEMENT IS INCORRECT.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CONSTRAINT ck1 CHECK (f1 > 0), f2 INT);
+SHOW CREATE TABLE t1;
+--echo # Without fix, following statement succeeds. With fix, error is
+--echo # reported(as expected) for drop operation on non-existing check
+--echo # constraint ck2.
+--error ER_CHECK_CONSTRAINT_NOT_FOUND
+ALTER TABLE t1 ADD CONSTRAINT ck2 CHECK (f2 > 0), DROP CHECK ck2;
+--echo # Existing check constraint ck1 is dropped and new constraint is
+--echo # created with the same name.
+ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK (f2 > 0), DROP CHECK ck1;
+SHOW CREATE TABLE t1;
+--echo # ck1 is auto-dropped on dropping column f2. New constraint with
+--echo # same name ck1 is added.
+ALTER TABLE t1 DROP COLUMN f2, ADD CONSTRAINT ck1 CHECK (f1 > 0);
+SHOW CREATE TABLE t1;
+--echo # ck1 is auto-dropped on dropping column f1. New column f1 and check
+--echo # constraint on f1 are added.
+ALTER TABLE t1 DROP COLUMN f1, ADD COLUMN f1 BIGINT, ADD CONSTRAINT CHECK (f1!= 0);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

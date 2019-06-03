@@ -71,18 +71,6 @@ class Sql_check_constraint_spec {
   */
   bool expr_refers_column(const char *column_name);
 
-  /**
-    Method to check if constraint expression refers to only "column_name"
-    column of the table.
-
-    @param[in]  column_name   Column name.
-
-    @retval     true       If expression refers to only "column_name".
-    @retval     false      If expression refers to more than one column
-                           or if expression does not refers to "column_name".
-  */
-  bool expr_refers_to_only_column(const char *column_name);
-
  public:
   /// Name of the check constraint.
   LEX_STRING name{nullptr, 0};
@@ -235,4 +223,18 @@ using Sql_table_check_constraint_list =
   @retval  false  Otherwise.
 */
 bool is_slave_with_master_without_check_constraints_support(THD *thd);
+
+/**
+  Check if constraint expression refers to only "column_name" column of the
+  table.
+
+  @param[in]  check_expr    Check constraint expression.
+  @param[in]  column_name   Column name.
+
+  @retval     true       If expression refers to only "column_name".
+  @retval     false      If expression refers to more than one column
+                         or if expression does not refers to "column_name".
+*/
+bool check_constraint_expr_refers_to_only_column(Item *check_expr,
+                                                 const char *column_name);
 #endif  // SQL_CHECK_CONSTRAINT_INCLUDED

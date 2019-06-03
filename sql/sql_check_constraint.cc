@@ -46,7 +46,8 @@ bool Sql_check_constraint_spec::pre_validate() {
     column.
   */
   if (column_name.length != 0) {
-    if (!expr_refers_to_only_column(column_name.str)) {
+    if (!check_constraint_expr_refers_to_only_column(check_expr,
+                                                     column_name.str)) {
       my_error(ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN, MYF(0),
                name.str);
       return true;
@@ -92,8 +93,19 @@ bool Sql_check_constraint_spec::expr_refers_column(const char *column_name) {
   return false;
 }
 
-bool Sql_check_constraint_spec::expr_refers_to_only_column(
-    const char *column_name) {
+Sql_table_check_constraint::~Sql_table_check_constraint() {
+  if (m_val_gen != nullptr) delete m_val_gen;
+}
+
+bool is_slave_with_master_without_check_constraints_support(THD *thd) {
+  return ((thd->system_thread &
+           (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) &&
+          (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
+           thd->variables.original_server_version < 80016));
+}
+
+bool check_constraint_expr_refers_to_only_column(Item *check_expr,
+                                                 const char *column_name) {
   List<Item_field> fields;
   check_expr->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                    (uchar *)&fields);
@@ -110,15 +122,4 @@ bool Sql_check_constraint_spec::expr_refers_to_only_column(
       return false;
   }
   return true;
-}
-
-Sql_table_check_constraint::~Sql_table_check_constraint() {
-  if (m_val_gen != nullptr) delete m_val_gen;
-}
-
-bool is_slave_with_master_without_check_constraints_support(THD *thd) {
-  return ((thd->system_thread &
-           (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) &&
-          (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
-           thd->variables.original_server_version < 80016));
 }
