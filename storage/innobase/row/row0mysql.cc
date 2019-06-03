@@ -4353,6 +4353,17 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
       if (dict_locked) {
         mutex_enter(&dict_sys->mutex);
       }
+
+      if (is_rename) {
+        /* Ensure that old renamed table names are not in this list. */
+        for (auto it = fk_tables.begin(); it != fk_tables.end();) {
+          if (strcmp(*it, old_name) == 0) {
+            it = fk_tables.erase(it);
+          } else {
+            ++it;
+          }
+        }
+      }
     }
 
     if (err != DB_SUCCESS) {
