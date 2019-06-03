@@ -147,6 +147,7 @@ static bool log_test_general_init() {
   srv_n_read_io_threads = 1;
   srv_n_write_io_threads = 1;
 
+  os_event_global_init();
   sync_check_init(srv_max_n_threads);
   recv_sys_var_init();
   os_thread_open();
@@ -534,6 +535,8 @@ static void log_test_general_close() {
   os_thread_close();
 
   sync_check_close();
+
+  os_event_global_destroy();
 
   srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
