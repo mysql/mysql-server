@@ -4699,7 +4699,8 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     {
       dst_ptr = shrink_dyn_part(dst, dst_ptr, tabPtrP, tabDesc,
                                 order, mm_dynvar, mm_dynfix, MM);
-      ndbassert((char*)dst_ptr <= ((char*)ptr) + 14140); // NDB_MAX_TUPLE_SIZE + header
+      ndbassert((Uint32*)dst_ptr <=
+                 ((Uint32*)ptr) + MAX_EXPANDED_TUPLE_SIZE_IN_WORDS);
       order += mm_dynfix + mm_dynvar;
     }
     

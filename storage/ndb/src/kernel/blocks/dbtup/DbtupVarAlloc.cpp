@@ -41,14 +41,14 @@ void Dbtup::init_list_sizes(void)
   c_max_list_size[2]= 4079;
 
   c_min_list_size[3]= 4080;
-  c_max_list_size[3]= 7499;
+  c_max_list_size[3]= 7783;
 
   /* The last free list must guarantee space for biggest possible column
    * size.
    * Assume varsize may take up the whole row (a slight exaggeration).
    */
-  static_assert(MAX_TUPLE_SIZE_IN_WORDS <= 7500, "");
-  c_min_list_size[4]= 7500;
+  static_assert(MAX_EXPANDED_TUPLE_SIZE_IN_WORDS <= 7784, "");
+  c_min_list_size[4]= 7784;
   c_max_list_size[4]= 8159;
 
   static_assert(MAX_FREE_LIST == 5, "");
@@ -561,7 +561,7 @@ Uint32 Dbtup::calculate_free_list_impl(Uint32 free_space_size) const
 
 Uint32 Dbtup::calculate_free_list_for_alloc(Uint32 alloc_size) const
 {
-  ndbassert(alloc_size <= MAX_TUPLE_SIZE_IN_WORDS);
+  ndbassert(alloc_size <= MAX_EXPANDED_TUPLE_SIZE_IN_WORDS);
   for (Uint32 i = 0; i < MAX_FREE_LIST; i++)
   {
     jam();

@@ -49,6 +49,7 @@
 #include <EventLogger.hpp>
 #include "../backup/BackupFormat.hpp"
 #include <portlib/ndb_prefetch.h>
+#include "util/ndb_math.h"
 
 #define JAM_FILE_ID 414
 
@@ -1599,6 +1600,33 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 
     STATIC_CONST( SZ32 = 1 );
   };
+
+  static constexpr Uint32 MAX_EXPANDED_TUPLE_SIZE_IN_WORDS =
+    Tuple_header::HeaderSize +
+
+    /* Fixpart without null bits (see below) */
+    1 /* checksum */ +
+    1 /* GCI */ +
+    Var_part_ref::SZ32 +
+    Disk_part_ref::SZ32 +
+
+    /* Varpart without dynamic column bits (see below) */
+    1 /* Length word, only in expanded tuple */ +
+    ndb_ceil_div(MAX_ATTRIBUTES_IN_TABLE + 1 /* dynamic part */, 2) +
+    1 /* Dynamic bit length (8bit) plus padding */ +
+
+    /* Diskpart */
+    0 +
+
+    /* Null bits and dynamic columns bits.  Dynamic columns do not have null
+       bits so total number of bits will not be more than
+       MAX_ATTRIBUTES_IN_TABLE.  But since bits are splitted on two parts an
+       extra word for padding may be needed.
+     */
+    ndb_ceil_div(MAX_ATTRIBUTES_IN_TABLE, 32) + 1 +
+
+    /* Tuple data for all parts */
+    MAX_TUPLE_SIZE_IN_WORDS;
 
   enum When
   {
