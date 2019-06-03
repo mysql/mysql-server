@@ -400,8 +400,7 @@ void Event_queue::recalculate_activation_times(THD *thd) {
   Disable_gtid_state_update_guard disabler(thd);
   std::vector<std::unique_ptr<Event_queue_element>> events_to_drop;
   for (size_t i = queue.size(); i > 0; i--) {
-    std::unique_ptr<Event_queue_element> element =
-        std::unique_ptr<Event_queue_element>(queue[i - 1]);
+    Event_queue_element *element = queue[i - 1];
     if (element->m_status != Event_parse_data::DISABLED) break;
     /*
       This won't cause queue re-order, because we remove
@@ -411,7 +410,10 @@ void Event_queue::recalculate_activation_times(THD *thd) {
     /*
       Dropping the event from Data Dictionary.
     */
-    if (element->m_dropped) events_to_drop.push_back(std::move(element));
+    if (element->m_dropped)
+      events_to_drop.push_back(std::unique_ptr<Event_queue_element>(element));
+    else
+      delete element;
   }
   UNLOCK_QUEUE_DATA();
 
