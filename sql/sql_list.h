@@ -445,9 +445,11 @@ class List : public base_list {
   inline bool push_back(T *a, MEM_ROOT *mem_root) {
     return base_list::push_back(const_cast<void *>((const void *)a), mem_root);
   }
-  inline bool push_front(T *a) { return base_list::push_front((void *)a); }
+  inline bool push_front(T *a) {
+    return base_list::push_front(const_cast<void *>((const void *)a));
+  }
   inline bool push_front(T *a, MEM_ROOT *mem_root) {
-    return base_list::push_front((void *)a, mem_root);
+    return base_list::push_front(const_cast<void *>((const void *)a), mem_root);
   }
   inline T *head() { return static_cast<T *>(base_list::head()); }
   inline const T *head() const {
