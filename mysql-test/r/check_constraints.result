@@ -901,7 +901,6 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
-ALTER TABLE t1 ADD CONSTRAINT t1_chk_1 CHECK (f1 < 10), DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1251,7 +1250,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` float DEFAULT NULL,
-  CONSTRAINT `t1_chk_2` CHECK ((`C1` > 10.1))
+  CONSTRAINT `t1_chk_1` CHECK ((`C1` > 10.1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (f1 INT CHECK (f1 = default(f1)));
@@ -1280,7 +1279,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c2` varchar(20) DEFAULT NULL,
-  CONSTRAINT `t1_chk_2` CHECK ((`c2` > _utf8mb4'B'))
+  CONSTRAINT `t1_chk_1` CHECK ((`c2` > _utf8mb4'B'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t (a INT, b INT, CHECK(a != b));
@@ -2732,3 +2731,49 @@ ERROR HY000: Check constraint 'chk_dat' is violated.
 UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2049-04-23' WHERE id = 5;
 DROP TABLE tst;
 SET binlog_format=@binlog_format_saved;
+#-----------------------------------------------------------------------
+# Bug#29652464 - ORDER OF ADD AND DROP CHECK CONSTRAINT IN TABLE ALTER
+#                STATEMENT IS INCORRECT.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CONSTRAINT ck1 CHECK (f1 > 0), f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `ck1` CHECK ((`f1` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Without fix, following statement succeeds. With fix, error is
+# reported(as expected) for drop operation on non-existing check
+# constraint ck2.
+ALTER TABLE t1 ADD CONSTRAINT ck2 CHECK (f2 > 0), DROP CHECK ck2;
+ERROR HY000: Check constraint 'ck2' is not found in the table.
+# Existing check constraint ck1 is dropped and new constraint is
+# created with the same name.
+ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK (f2 > 0), DROP CHECK ck1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `ck1` CHECK ((`f2` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# ck1 is auto-dropped on dropping column f2. New constraint with
+# same name ck1 is added.
+ALTER TABLE t1 DROP COLUMN f2, ADD CONSTRAINT ck1 CHECK (f1 > 0);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `ck1` CHECK ((`f1` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# ck1 is auto-dropped on dropping column f1. New column f1 and check
+# constraint on f1 are added.
+ALTER TABLE t1 DROP COLUMN f1, ADD COLUMN f1 BIGINT, ADD CONSTRAINT CHECK (f1!= 0);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint(20) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` <> 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

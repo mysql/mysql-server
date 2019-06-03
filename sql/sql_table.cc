@@ -18036,22 +18036,79 @@ static bool prepare_check_constraints_for_alter(
     DBUG_RETURN(false);
   }
 
+  auto find_cc_name = [](std::vector<const char *> &names, const char *s) {
+    auto name = find_if(names.begin(), names.end(), [s](const char *cc_name) {
+      return !my_strcasecmp(system_charset_info, s, cc_name);
+    });
+    return (name != names.end()) ? *name : nullptr;
+  };
+
   /*
     List of check constraint names. Used after acquiring MDL locks on final list
     of check constraints to verify if check constraint names conflict with
     existing check constraint names.
   */
   std::vector<const char *> new_cc_names;
-  auto erase_cc_name = [](std::vector<const char *> &names, const char *s) {
-    auto name = find_if(names.begin(), names.end(), [s](const char *cc_name) {
-      return !my_strcasecmp(system_charset_info, s, cc_name);
-    });
-    if (name != names.end()) names.erase(name);
-  };
+
+  /*
+     Handle check constraint specifications marked for drop.
+
+     Prepare list of check constraint names (Pointer to the constraint name in
+     Alter_drop instances) marked for drop. List is used to skip constraints
+     while preparing specification list from existing check constraints and
+     while adding new check constraints with the same name.
+  */
+  std::vector<const char *> dropped_cc_names;
+  for (const Alter_drop *cc_drop : alter_info->drop_list) {
+    if (cc_drop->type != Alter_drop::CHECK_CONSTRAINT) {
+      new_drop_list.push_back(cc_drop);
+      continue;
+    }
+
+    bool cc_found = false;
+    if (table->table_check_constraint_list != nullptr) {
+      for (Sql_table_check_constraint *table_cc :
+           *table->table_check_constraint_list) {
+        if (!my_strcasecmp(system_charset_info, table_cc->name().str,
+                           cc_drop->name)) {
+          dropped_cc_names.push_back(cc_drop->name);
+          cc_found = true;
+          break;
+        }
+      }
+    }
+
+    if (!cc_found) {
+      my_error(ER_CHECK_CONSTRAINT_NOT_FOUND, MYF(0), cc_drop->name);
+      DBUG_RETURN(true);
+    }
+  }
+
+  /*
+    Auto-drop check constraint: If check constraint refers to only one column
+                                and that column is marked for drop then drop
+                                check constraint too.
+    Check constraints marked for auto-drop are added to list of check constraint
+    (dropped_cc_names) to be dropped.
+  */
+  if (table->table_check_constraint_list != nullptr) {
+    for (const Alter_drop *drop : new_drop_list) {
+      if (drop->type == Alter_drop::COLUMN) {
+        for (Sql_table_check_constraint *table_cc :
+             *table->table_check_constraint_list) {
+          if (check_constraint_expr_refers_to_only_column(
+                  table_cc->value_generator()->expr_item, drop->name))
+            dropped_cc_names.push_back(table_cc->name().str);
+        }
+      }
+    }
+  }
 
   /*
     Prepare check constraint specification for the existing check constraints on
     the table.
+
+    * Skip check constraint specification marked for drop.
 
     * Get max sequence number for generated names. This is required when
       handling new check constraints added to the table.
@@ -18065,6 +18122,19 @@ static bool prepare_check_constraints_for_alter(
   */
   if (table->table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table->table_check_constraint_list) {
+      /*
+        Push MDL_request for the existing check constraint name.
+        Note: Notice that this also handles case of dropped constraints.
+      */
+      if (push_check_constraint_mdl_request_to_list(thd, alter_tbl_ctx->db,
+                                                    table_cc->name().str,
+                                                    cc_mdl_request_list))
+        DBUG_RETURN(true);
+
+      // Skip if constraint is marked for drop.
+      if (find_cc_name(dropped_cc_names, table_cc->name().str) != nullptr)
+        continue;
+
       Sql_check_constraint_spec *cc_spec =
           new (thd->mem_root) Sql_check_constraint_spec;
       if (cc_spec == nullptr) DBUG_RETURN(true);  // OOM
@@ -18113,12 +18183,6 @@ static bool prepare_check_constraints_for_alter(
       // Push check constraint to new list.
       new_check_cons_list.push_back(cc_spec);
 
-      // Push MDL_request for the existing check constraint name.
-      if (push_check_constraint_mdl_request_to_list(thd, alter_tbl_ctx->db,
-                                                    table_cc->name().str,
-                                                    cc_mdl_request_list))
-        DBUG_RETURN(true);
-
       /*
         If db is changed then push MDL_request on check constraint with new db
         name or if table name is changed then push MDL_request on generated
@@ -18166,53 +18230,16 @@ static bool prepare_check_constraints_for_alter(
             thd, alter_tbl_ctx->new_db, cc_spec->name.str, cc_mdl_request_list))
       DBUG_RETURN(true);
 
-    new_cc_names.push_back(cc_spec->name.str);
-  }
-
-  // Remove specifications of check constraints marked for drop.
-  for (auto *cc_drop : alter_info->drop_list) {
-    if (cc_drop->type != Alter_drop::CHECK_CONSTRAINT) {
-      new_drop_list.push_back(cc_drop);
-      continue;
-    }
-
-    bool cc_found = false;
-    size_t cc_pos = 0;
-    for (auto &cc_spec : new_check_cons_list) {
-      if (!my_strcasecmp(system_charset_info, cc_spec->name.str,
-                         cc_drop->name)) {
-        cc_found = true;
-        // Remove check constraint from the check constraints list.
-        new_check_cons_list.erase(cc_pos);
-        // Remove check constraint names from new_cc_names.
-        erase_cc_name(new_cc_names, cc_spec->name.str);
-        break;
-      }
-      cc_pos++;
-    }
-    if (!cc_found) {
-      my_error(ER_CHECK_CONSTRAINT_NOT_FOUND, MYF(0), cc_drop->name);
-      DBUG_RETURN(true);
-    }
-  }
-
-  /*
-    If check constraint refers to only one column and that column is marked for
-    drop then drop check constraint too.
-  */
-  for (auto *cc_drop : alter_info->drop_list) {
-    if (cc_drop->type == Alter_drop::COLUMN) {
-      for (auto it = new_check_cons_list.begin();
-           it < new_check_cons_list.end();) {
-        if ((*it)->expr_refers_to_only_column(cc_drop->name)) {
-          // Remove check constraint from the check constraints list.
-          new_check_cons_list.erase(it);
-          // Remove check constraint names from new_cc_names.
-          erase_cc_name(new_cc_names, (*it)->name.str);
-        } else
-          it++;
-      }
-    }
+    /*
+      We need to check if conflicting constraint name exists for all newly added
+      constraints. However, we don't need (and it is inconvenient) to do this
+      if constraint with the same name was dropped by the same ALTER TABLE,
+      unless old and new constraints belong to different databases (i.e. this
+      ALTER TABLE also moves table between databases).
+    */
+    if (alter_tbl_ctx->is_database_changed() ||
+        find_cc_name(dropped_cc_names, cc_spec->name.str) == nullptr)
+      new_cc_names.push_back(cc_spec->name.str);
   }
 
   // Update check constraint state (i.e. enforced or not enforced).
