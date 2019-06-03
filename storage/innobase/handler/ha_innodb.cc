@@ -4051,9 +4051,10 @@ innobase_change_buffering_inited_ok:
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
 # endif /* UNIV_DEBUG */
-	os_event_global_init();
 
 #endif /* HAVE_PSI_INTERFACE */
+
+	os_event_global_init();
 
 	/* Set buffer pool size to default for fast startup when mysqld is
 	run with --help --verbose options. */
