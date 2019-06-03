@@ -50,10 +50,6 @@ constexpr char Pbkdf2McfType::kTypeSha512[];
 std::vector<uint8_t> Pbkdf2::salt() {
   std::vector<uint8_t> out(16);
 
-  if (out.size() > std::numeric_limits<int>::max()) {
-    throw std::out_of_range("out.size() too large");
-  }
-
   if (0 == RAND_bytes(out.data(), static_cast<int>(out.size()))) {
     throw std::runtime_error("getting random bytes failed");
   }
