@@ -253,6 +253,7 @@ private:
 	enabled for the cond_attr object. */
 	static bool cond_attr_has_monotonic_clock;
 #endif /* !_WIN32 */
+	static bool global_initialized;
 
 public:
 	event_iter_t		event_iter;	/*!< For O(1) removal from
@@ -491,6 +492,7 @@ os_event::wait_time_low(
 /** Constructor */
 os_event::os_event(const char* name) UNIV_NOTHROW
 {
+	ut_a(global_initialized);
 	init();
 
 	m_set = false;
@@ -619,6 +621,7 @@ os_event_destroy(
 pthread_condattr_t os_event::cond_attr;
 bool os_event::cond_attr_has_monotonic_clock (false);
 #endif /* !_WIN32 */
+bool os_event::global_initialized (false);
 
 
 void os_event_global_init(void) {
@@ -643,9 +646,11 @@ void os_event_global_init(void) {
 
 #endif /* UNIV_LINUX */
 #endif /* !_WIN32 */
+	os_event::global_initialized = true;
 }
 
 void os_event_global_destroy(void) {
+	ut_a(os_event::global_initialized);
 #ifndef _WIN32
 	os_event::cond_attr_has_monotonic_clock = false;
 #ifdef UNIV_DEBUG
@@ -654,4 +659,5 @@ void os_event_global_destroy(void) {
 		pthread_condattr_destroy(&os_event::cond_attr);
 	ut_ad(ret == 0);
 #endif /* !_WIN32 */
+	os_event::global_initialized = false;
 }
