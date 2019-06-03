@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #include "sql/handler.h"
 #include "storage/innobase/include/mem0mem.h"
+#include "storage/innobase/include/os0event.h"
 #include "storage/innobase/include/srv0conc.h"
 #include "storage/innobase/include/srv0srv.h"
 #include "storage/innobase/include/univ.i"
@@ -40,9 +41,13 @@ class mem0mem : public ::testing::Test {
  protected:
   static void SetUpTestCase() {
     srv_max_n_threads = srv_sync_array_size + 1;
+    os_event_global_init();
     sync_check_init(srv_max_n_threads);
   }
-  static void TearDownTestCase() { sync_check_close(); }
+  static void TearDownTestCase() {
+    sync_check_close();
+    os_event_global_destroy();
+  }
 };
 
 /* test mem_heap_is_top() */
