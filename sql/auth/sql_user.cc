@@ -1343,101 +1343,108 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     return ret != 1;
 
-  if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
+  { /* Critical section */
 
-  table = tables[ACL_TABLES::TABLE_USER].table;
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
 
-  ACL_USER *acl_user =
-      find_acl_user(lex_user->host.str, lex_user->user.str, true);
-  if (acl_user == nullptr) {
-    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
+    table = tables[ACL_TABLES::TABLE_USER].table;
 
-  DBUG_ASSERT(acl_user->plugin.length != 0);
-  is_role = acl_user->is_role;
+    ACL_USER *acl_user =
+        find_acl_user(lex_user->host.str, lex_user->user.str, true);
+    if (acl_user == nullptr) {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
 
-  if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) return true;
+    DBUG_ASSERT(acl_user->plugin.length != 0);
+    is_role = acl_user->is_role;
 
-  combo->user.str = lex_user->user.str;
-  combo->host.str = lex_user->host.str;
-  combo->user.length = lex_user->user.length;
-  combo->host.length = lex_user->host.length;
-  combo->plugin.str = acl_user->plugin.str;
-  combo->plugin.length = acl_user->plugin.length;
+    if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) return true;
 
-  lex_string_strmake(thd->mem_root, &combo->user, combo->user.str,
-                     strlen(combo->user.str));
-  lex_string_strmake(thd->mem_root, &combo->host, combo->host.str,
-                     strlen(combo->host.str));
-  lex_string_strmake(thd->mem_root, &combo->plugin, combo->plugin.str,
-                     strlen(combo->plugin.str));
-  optimize_plugin_compare_by_pointer(&combo->plugin);
-  combo->auth.str = new_password;
-  combo->auth.length = new_password_len;
-  combo->current_auth.str = current_password;
-  combo->current_auth.length =
-      (current_password) ? strlen(current_password) : 0;
-  combo->uses_identified_by_clause = true;
-  combo->uses_identified_with_clause = false;
-  combo->uses_authentication_string_clause = false;
-  combo->uses_replace_clause = (current_password) ? true : false;
-  combo->retain_current_password = retain_current_password;
-  combo->discard_old_password = false;
+    combo->user.str = lex_user->user.str;
+    combo->host.str = lex_user->host.str;
+    combo->user.length = lex_user->user.length;
+    combo->host.length = lex_user->host.length;
+    combo->plugin.str = acl_user->plugin.str;
+    combo->plugin.length = acl_user->plugin.length;
 
-  /* set default values */
-  thd->lex->ssl_type = SSL_TYPE_NOT_SPECIFIED;
-  memset(&(thd->lex->mqh), 0, sizeof(thd->lex->mqh));
-  thd->lex->alter_password.cleanup();
+    lex_string_strmake(thd->mem_root, &combo->user, combo->user.str,
+                       strlen(combo->user.str));
+    lex_string_strmake(thd->mem_root, &combo->host, combo->host.str,
+                       strlen(combo->host.str));
+    lex_string_strmake(thd->mem_root, &combo->plugin, combo->plugin.str,
+                       strlen(combo->plugin.str));
+    optimize_plugin_compare_by_pointer(&combo->plugin);
+    combo->auth.str = new_password;
+    combo->auth.length = new_password_len;
+    combo->current_auth.str = current_password;
+    combo->current_auth.length =
+        (current_password) ? strlen(current_password) : 0;
+    combo->uses_identified_by_clause = true;
+    combo->uses_identified_with_clause = false;
+    combo->uses_authentication_string_clause = false;
+    combo->uses_replace_clause = (current_password) ? true : false;
+    combo->retain_current_password = retain_current_password;
+    combo->discard_old_password = false;
 
-  bool is_privileged_user = is_privileged_user_for_credential_change(thd);
+    /* set default values */
+    thd->lex->ssl_type = SSL_TYPE_NOT_SPECIFIED;
+    memset(&(thd->lex->mqh), 0, sizeof(thd->lex->mqh));
+    thd->lex->alter_password.cleanup();
 
-  if (set_and_validate_user_attributes(
-          thd, combo, what_to_set, is_privileged_user, false,
-          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], nullptr,
-          "SET PASSWORD")) {
+    bool is_privileged_user = is_privileged_user_for_credential_change(thd);
+
+    if (set_and_validate_user_attributes(
+            thd, combo, what_to_set, is_privileged_user, false,
+            &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], nullptr,
+            "SET PASSWORD")) {
+      authentication_plugin.assign(combo->plugin.str);
+      result = 1;
+      goto end;
+    }
+
+    // We must not have user with plain text password at this point
+    thd->lex->contains_plaintext_password = false;
     authentication_plugin.assign(combo->plugin.str);
-    result = 1;
-    goto end;
+    thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+    ret = replace_user_table(thd, table, combo, 0, false, false, what_to_set);
+    thd->variables.sql_mode = old_sql_mode;
+
+    if (ret) {
+      result = 1;
+      goto end;
+    }
+    if (!update_sctx_cache(thd->security_context(), acl_user, false) &&
+        thd->security_context()->password_expired()) {
+      /* the current user is not the same as the user we operate on */
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      result = 1;
+      goto end;
+    }
+
+    result = 0;
+    users.insert(combo);
+
+  end:
+
+    User_params user_params(&users);
+    commit_result = log_and_commit_acl_ddl(thd, transactional_tables, &users,
+                                           &user_params, false, !result);
+
+    mysql_audit_notify(
+        thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+        thd->is_error() || result, lex_user->user.str, lex_user->host.str,
+        authentication_plugin.c_str(), is_role, NULL, NULL);
+  } /* Critical section */
+
+  /* Notify storage engines */
+  if (!(result || commit_result)) {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
   }
-
-  // We must not have user with plain text password at this point
-  thd->lex->contains_plaintext_password = false;
-  authentication_plugin.assign(combo->plugin.str);
-
-  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
-  ret = replace_user_table(thd, table, combo, 0, false, false, what_to_set);
-  thd->variables.sql_mode = old_sql_mode;
-
-  if (ret) {
-    result = 1;
-    goto end;
-  }
-  if (!update_sctx_cache(thd->security_context(), acl_user, false) &&
-      thd->security_context()->password_expired()) {
-    /* the current user is not the same as the user we operate on */
-    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
-    result = 1;
-    goto end;
-  }
-
-  result = 0;
-  users.insert(combo);
-
-end:
-
-  User_params user_params(&users);
-  commit_result = log_and_commit_acl_ddl(thd, transactional_tables, &users,
-                                         &user_params, false, !result);
-
-  mysql_audit_notify(
-      thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
-      thd->is_error() || result, lex_user->user.str, lex_user->host.str,
-      authentication_plugin.c_str(), is_role, NULL, NULL);
 
   return result || commit_result;
 }
