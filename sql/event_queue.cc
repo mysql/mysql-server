@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <atomic>
+#include <memory>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -397,12 +398,11 @@ void Event_queue::recalculate_activation_times(THD *thd) {
   */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   Disable_gtid_state_update_guard disabler(thd);
+  std::vector<std::unique_ptr<Event_queue_element>> events_to_drop;
   for (size_t i = queue.size(); i > 0; i--) {
-    Event_queue_element *element = queue[i - 1];
+    std::unique_ptr<Event_queue_element> element =
+        std::unique_ptr<Event_queue_element>(queue[i - 1]);
     if (element->m_status != Event_parse_data::DISABLED) break;
-    if (lock_object_name(thd, MDL_key::EVENT, element->m_schema_name.str,
-                         element->m_event_name.str))
-      break;
     /*
       This won't cause queue re-order, because we remove
       always the last element.
@@ -411,40 +411,48 @@ void Event_queue::recalculate_activation_times(THD *thd) {
     /*
       Dropping the event from Data Dictionary.
     */
-    if (element->m_dropped) {
-      bool ret;
-      bool event_exists;
-      if (!(ret = Event_db_repository::drop_event(thd, element->m_schema_name,
-                                                  element->m_event_name, false,
-                                                  &event_exists))) {
-        String sp_sql;
-        if ((ret =
-                 construct_drop_event_sql(thd, &sp_sql, element->m_schema_name,
+    if (element->m_dropped)
+      events_to_drop.push_back(std::move(element));
+    else
+      delete element;
+  }
+  UNLOCK_QUEUE_DATA();
+
+  for (const auto &element : events_to_drop) {
+    bool ret;
+    bool event_exists;
+
+    if (lock_object_name(thd, MDL_key::EVENT, element->m_schema_name.str,
+                         element->m_event_name.str)) {
+      continue;
+    }
+    if (!(ret = Event_db_repository::drop_event(thd, element->m_schema_name,
+                                                element->m_event_name, false,
+                                                &event_exists))) {
+      String sp_sql;
+      if ((ret = construct_drop_event_sql(thd, &sp_sql, element->m_schema_name,
                                           element->m_event_name))) {
-          LogErr(WARNING_LEVEL, ER_FAILED_TO_CONSTRUCT_DROP_EVENT_QUERY);
-        } else {
-          // Write drop event to bin log.
-          thd->add_to_binlog_accessed_dbs(element->m_schema_name.str);
-          if ((ret = write_bin_log(thd, true, sp_sql.c_ptr_safe(),
-                                   sp_sql.length(), event_exists))) {
-            LogErr(WARNING_LEVEL, ER_FAILED_TO_BINLOG_DROP_EVENT,
-                   element->m_schema_name.str, element->m_event_name.str);
-          }
+        LogErr(WARNING_LEVEL, ER_FAILED_TO_CONSTRUCT_DROP_EVENT_QUERY);
+      } else {
+        // Write drop event to bin log.
+        thd->add_to_binlog_accessed_dbs(element->m_schema_name.str);
+        if ((ret = write_bin_log(thd, true, sp_sql.c_ptr_safe(),
+                                 sp_sql.length(), event_exists))) {
+          LogErr(WARNING_LEVEL, ER_FAILED_TO_BINLOG_DROP_EVENT,
+                 element->m_schema_name.str, element->m_event_name.str);
         }
       }
-
-      if (!ret)
-        ret = trans_commit_stmt(thd) || trans_commit(thd);
-      else {
-        trans_rollback_stmt(thd);
-        trans_rollback(thd);
-      }
     }
-    delete element;
+
+    if (!ret)
+      ret = trans_commit_stmt(thd) || trans_commit(thd);
+    else {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+    }
   }
   // Release locks taken before drop_event()
   thd->mdl_context.release_transactional_locks();
-  UNLOCK_QUEUE_DATA();
 
   /*
     XXX: The events are dropped only from memory and not from disk
