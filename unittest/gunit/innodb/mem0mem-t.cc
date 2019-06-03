@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "univ.i"
 
 #include "mem0mem.h"
+#include "os0event.h"
 #include "srv0conc.h"
 #include "srv0srv.h"
 
@@ -37,6 +38,7 @@ protected:
 	SetUpTestCase()
 	{
 		srv_max_n_threads = srv_sync_array_size + 1;
+		os_event_global_init();
 		sync_check_init();
 	}
 	static
@@ -44,6 +46,7 @@ protected:
 	TearDownTestCase()
 	{
 		sync_check_close();
+		os_event_global_destroy();
 	}
 };
 
