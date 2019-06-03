@@ -1483,7 +1483,7 @@ ndb_serialize_cond(const Item *item, void *arg)
 
 
 ha_ndbcluster_cond::ha_ndbcluster_cond()
-  : m_ndb_cond(), m_unpushed_cond(nullptr)
+  : m_ndb_cond(), m_scan_filter_code(nullptr), m_unpushed_cond(nullptr)
 {
 }
 
@@ -1502,6 +1502,7 @@ ha_ndbcluster_cond::cond_clear()
 {
   DBUG_ENTER("cond_clear");
   m_ndb_cond.destroy_elements();
+  m_scan_filter_code.reset();
   m_unpushed_cond = nullptr;
   DBUG_VOID_RETURN;
 }
@@ -1838,6 +1839,32 @@ ha_ndbcluster_cond::cond_push(const Item *cond,
 
   // Save the serialized representation of the code
   m_ndb_cond = code;
+
+  if (pushed_cond != nullptr &&
+      !(pushed_cond->used_tables() & ~table->pos_in_table_list->map()))
+  {
+    /**
+     * pushed_cond had no dependencies outside of this 'table'.
+     * Code for pushed condition can be generated now, and reused
+     * for all later API requests to 'table'
+     */
+    NdbInterpretedCode code(ndb_table);
+    NdbScanFilter filter(&code);
+    const int ret= generate_scan_filter_from_cond(filter);
+    if (unlikely(ret != 0))
+    {
+      // Failed to 'generate' the pushed code.
+      pushed_cond = nullptr;
+      m_ndb_cond.destroy_elements();
+      remainder = item;
+    }
+    else
+    {
+      // Success, save the generated code.
+      DBUG_ASSERT(code.getWordsUsed() > 0);
+      m_scan_filter_code.copy(code);
+    }
+  }
   DBUG_RETURN(remainder);
 }
 
@@ -2491,6 +2518,25 @@ ha_ndbcluster::generate_scan_filter(NdbInterpretedCode *code,
     DBUG_VOID_RETURN;
   }
 
+  if (m_cond.get_interpreter_code().getWordsUsed() > 0)
+  {
+    /**
+     * We had already generated the NdbInterpreterCode for the scan_filter.
+     * Just use what we had.
+     */
+    if (options != nullptr)
+    {
+      options->interpretedCode= &m_cond.get_interpreter_code();
+      options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
+    }
+    else
+    {
+      code->copy(m_cond.get_interpreter_code());
+    }
+    DBUG_VOID_RETURN;
+  }
+
+  // Generate the scan_filter from previously 'serialized' condition code
   NdbScanFilter filter(code);
   const int ret= m_cond.generate_scan_filter_from_cond(filter);
   if (unlikely(ret != 0))
@@ -2524,6 +2570,10 @@ int ha_ndbcluster::generate_scan_filter_with_key(NdbInterpretedCode *code,
   // Generate a scanFilter from a prepared pushed conditions
   if (pushed_cond != nullptr)
   {
+    /**
+     * Note, that in this case we can not use the pre-generated scan_filter,
+     * as it does not contain the code for the additional 'key'.
+     */
     const int ret = m_cond.generate_scan_filter_from_cond(filter);
     if (unlikely(ret != 0))
     {

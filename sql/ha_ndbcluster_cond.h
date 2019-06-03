@@ -58,6 +58,12 @@ public:
                                     const key_range *start_key,
                                     const key_range *end_key);
 
+  // Get a possibly pre-generated Interpreter code for the pushed condition
+  const NdbInterpretedCode& get_interpreter_code()
+  {
+    return m_scan_filter_code;
+  }
+
   void set_condition(const Item *cond);
   bool check_condition() const
   {
@@ -80,7 +86,11 @@ private:
 
   bool eval_condition() const;
 
-  List<const Ndb_item> m_ndb_cond;   //The serialized pushed condition
+  // The serialized pushed condition
+  List<const Ndb_item> m_ndb_cond;
+
+  // A pre-generated scan_filter
+  NdbInterpretedCode m_scan_filter_code;
 
   /**
    * Stores condition which can't be pushed to NDB, need to be evaluated by
