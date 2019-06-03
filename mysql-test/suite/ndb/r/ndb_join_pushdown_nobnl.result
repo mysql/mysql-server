@@ -2307,7 +2307,7 @@ explain select count(*) from tx as x1
 left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	256	100.00	NULL
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.x1.c	2	100.00	Using where; Using pushed condition (`test`.`x2`.`d` = `test`.`x1`.`d`)
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.x1.c	2	100.00	Using pushed condition (`test`.`x2`.`d` = `test`.`x1`.`d`)
 Warnings:
 Note	1003	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`tx` `x1` left join `test`.`tx` `x2` on(((`test`.`x2`.`d` = `test`.`x1`.`d`) and (`test`.`x2`.`a` = `test`.`x1`.`c`))) where true
@@ -4910,7 +4910,7 @@ explain select straight_join * from t1 as x1
 right join t1 as x2 on x2.b = x1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
-1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	13	100.00	Using where; Using pushed condition (`test`.`x1`.`a` = `test`.`x2`.`b`)
+1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	13	100.00	Using pushed condition (`test`.`x1`.`a` = `test`.`x2`.`b`)
 Warnings:
 Note	1003	Can't push table 'x1' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x2` left join `test`.`t1` `x1` on((`test`.`x1`.`a` = `test`.`x2`.`b`)) where true

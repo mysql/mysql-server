@@ -1842,7 +1842,11 @@ cond_push_boolean_term(Item *term,
         List<Ndb_item> code =
           cond_push_boolean_term(cond_arg, table, ndb_table,
 				 other_tbls_ok, pushed_cond, remainder);
-        remainder_cond = term;
+        if (remainder != nullptr)
+        {
+          item_func->arguments()[0] = remainder;
+          remainder_cond = term;
+        }
         DBUG_RETURN(code);
       }
     }
