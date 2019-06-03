@@ -812,4 +812,42 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 let $restart_parameters =;
 --source include/start_mysqld.inc
 
+
+--echo #
+--echo # Bug#29823053: VERY SMALL TABLE_OPEN_CACHE CAUSES SEGMENTATION FAULT WHEN UPGRADING TO 8.0.16
+--echo #
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_4.log;
+
+--echo # Copy zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57022.zip $MYSQL_TMP_DIR/data_57022.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_57022.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data_57022.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+let $MYSQLD_DATADIR3 = $MYSQL_TMP_DIR/data_57022;
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Start the DB server to do upgrade. Without the bugfix, the server will fail.
+--exec echo "restart: --table_open_cache=1 --datadir=$MYSQLD_DATADIR3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 3000
+--source include/wait_until_connected_again.inc
+
+--echo # Stop the server
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_57022.zip
+--force-rmdir $MYSQLD_DATADIR3
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc
+
 --echo # end of test
