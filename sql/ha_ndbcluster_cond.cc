@@ -177,133 +177,65 @@ public:
     }
   }
 
-  uint32 pack_length()
+  Field *get_field() const
   {
-    switch(type) {
-    case(NDB_VALUE):
-      if(qualification.value_type == Item::STRING_ITEM && value.item->type() == Item::STRING_ITEM)
-        // const_cast is safe for Item_string.
-        return const_cast<Item*>(value.item)->val_str(nullptr)->length();
-      break;
-    case(NDB_FIELD):
-      return value.field_value->field->pack_length();
-    default:
-      break;
-    }
-
-    return 0;
+    DBUG_ASSERT(type == NDB_FIELD);
+    return value.field_value->field;
   }
 
-  Field * get_field() { return value.field_value->field; }
+  int get_field_no() const
+  {
+    return value.field_value->column_no;
+  }
 
-  int get_field_no() { return value.field_value->column_no; }
-
-  int argument_count()
+  int argument_count() const
   {
     DBUG_ASSERT(type == NDB_FUNCTION);
     return value.arg_count;
   }
 
-  const char* get_val()
+  uint32 pack_length() const
   {
-    switch(type) {
-    case(NDB_VALUE):
-      if(qualification.value_type == Item::STRING_ITEM && value.item->type() == Item::STRING_ITEM)
-        // const_cast is safe for Item_string.
-        return const_cast<Item*>(value.item)->val_str(nullptr)->ptr();
-      break;
-    case(NDB_FIELD):
-      return (char*) value.field_value->field->ptr;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-
-    return NULL;
+    return get_field()->pack_length();
   }
 
-  const CHARSET_INFO *get_field_charset()
+  const uchar* get_val() const
   {
-    Field *field= get_field();
+    return get_field()->ptr;
+  }
+
+  const CHARSET_INFO *get_field_charset() const
+  {
+    const Field *field= get_field();
     if (field)
       return field->charset();
 
     return NULL;
   }
 
-  String *get_field_val_str(String *str)
-  {
-    Field *field= get_field();
-    if (field)
-    {
-      my_bitmap_map *old_map=
-        dbug_tmp_use_all_columns(field->table, field->table->read_set);
-      String *s = field->val_str(str);
-      dbug_tmp_restore_column_map(field->table->read_set, old_map);
-      return s;
-    }
-    return NULL;
-  }
-
-  const Item *get_item()
+  const Item *get_item() const
   {
     DBUG_ASSERT(this->type == NDB_VALUE);
     return value.item;
   }
 
-  bool is_const_func()
+  int save_in_field(const Ndb_item *field_item) const
   {
-    DBUG_ASSERT(this->type == NDB_VALUE);
-    const Item *item= value.item;
-
-    if (item->type() == Item::FUNC_ITEM)
-    {
-      const Item_func *func_item= static_cast<const Item_func*>(item);
-      if (func_item->const_item())
-        return true;
-    }
-    return false;
-  }
-
-  bool is_cached()
-  {
-    DBUG_ASSERT(this->type == NDB_VALUE);
-    const Item *item= value.item;
-
-    return (item->type() == Item::CACHE_ITEM);
-  }
-
-  uint32 save_in_field(Ndb_item *field_item, bool allow_truncate=false)
-  {
-    uint32 length= 0;
     DBUG_ENTER("save_in_field");
     Field *field = field_item->value.field_value->field;
     const Item *item= value.item;
-    if (item && field)
-    {
-      length= item->max_length;
-      my_bitmap_map *old_map=
-        dbug_tmp_use_all_columns(field->table, field->table->write_set);
-      const type_conversion_status status = const_cast<Item*>(item)->save_in_field(field, false);
-      dbug_tmp_restore_column_map(field->table->write_set, old_map);
+    if (unlikely(item == nullptr || field == nullptr))
+      DBUG_RETURN(-1);
 
-      if (unlikely(status != TYPE_OK))
-      {
-        if (!allow_truncate)
-          DBUG_RETURN(0);
+    my_bitmap_map *old_map=
+      dbug_tmp_use_all_columns(field->table, field->table->write_set);
+    const type_conversion_status status = const_cast<Item*>(item)->save_in_field(field, false);
+    dbug_tmp_restore_column_map(field->table->write_set, old_map);
 
-        switch (status)
-        {
-          case TYPE_NOTE_TRUNCATED:
-          case TYPE_WARN_TRUNCATED:
-          case TYPE_NOTE_TIME_TRUNCATED:
-            break; // -> OK
-          default:
-            DBUG_RETURN(0);
-        }
-      }
-    }
-    DBUG_RETURN(length);
+    if (unlikely(status != TYPE_OK))
+      DBUG_RETURN(-1);
+	
+    DBUG_RETURN(0);  //OK
   }
 
   static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun)
@@ -729,7 +661,7 @@ public:
   TABLE* const table;
   const NdbDictionary::Table* const ndb_table;
   bool supported;
-  List<Ndb_item> items;
+  List<const Ndb_item> items;
   Ndb_expect_stack expect_stack;
   uint skip;
   Ndb_rewrite_context *rewrite_stack;
@@ -899,7 +831,7 @@ ndb_serialize_cond(const Item *item, void *arg)
     }
     else  //not in a 'rewrite_context'
     {
-      Ndb_item *ndb_item = nullptr;
+      const Ndb_item *ndb_item = nullptr;
       // Check for end of AND/OR expression
       if (!item)
       {
@@ -1712,7 +1644,7 @@ create_or_conditions(Item_cond *cond,
   @return a List of Ndb_item objects representing the serialized
           form of the 'pushed_cond'.
  */
-static List<Ndb_item>
+static List<const Ndb_item>
 cond_push_boolean_term(Item *term,
 		       TABLE *table, const NDBTAB *ndb_table,
                        bool other_tbls_ok,
@@ -1720,14 +1652,14 @@ cond_push_boolean_term(Item *term,
 
 {
   DBUG_ENTER("ha_ndbcluster::cond_push_boolean_term");
-  static const List<Ndb_item> empty_list;
+  static const List<const Ndb_item> empty_list;
 
   if (term->type() == Item::COND_ITEM)
   {
     // Build lists of the boolean terms either 'pushed', or being a 'remainder'
     List<Item> pushed_list;
     List<Item> remainder_list;
-    List<Ndb_item> code;
+    List<const Ndb_item> code;
 
     Item_cond *cond = (Item_cond *) term;
     if (cond->functype() == Item_func::COND_AND_FUNC)
@@ -1739,7 +1671,7 @@ cond_push_boolean_term(Item *term,
       while ((boolean_term = li++))
       {
         Item *pushed = nullptr, *remainder = nullptr;
-        List<Ndb_item> code_stub =
+        List<const Ndb_item> code_stub =
           cond_push_boolean_term(boolean_term, table, ndb_table,
 				 other_tbls_ok, pushed, remainder);
 
@@ -1781,7 +1713,7 @@ cond_push_boolean_term(Item *term,
       while ((boolean_term = li++))
       {
         Item *pushed = nullptr, *remainder = nullptr;
-        List<Ndb_item> code_stub =
+        List<const Ndb_item> code_stub =
           cond_push_boolean_term(boolean_term, table, ndb_table,
 				 other_tbls_ok, pushed, remainder);
 
@@ -1839,7 +1771,7 @@ cond_push_boolean_term(Item *term,
         DBUG_ASSERT(item_func->argument_count() == 1);
         Item *cond_arg = item_func->arguments()[0];
         Item *remainder = nullptr;
-        List<Ndb_item> code =
+        List<const Ndb_item> code =
           cond_push_boolean_term(cond_arg, table, ndb_table,
 				 other_tbls_ok, pushed_cond, remainder);
         if (remainder != nullptr)
@@ -1901,7 +1833,7 @@ ha_ndbcluster_cond::cond_push(const Item *cond,
   // Build lists of the boolean terms either 'pushed', or being a 'remainder'
   Item *item= const_cast<Item*>(cond);
   Item *remainder = nullptr;
-  List<Ndb_item> code =
+  List<const Ndb_item> code =
     cond_push_boolean_term(item, table, ndb_table, other_tbls_ok, pushed_cond, remainder);
 
   // Save the serialized representation of the code
@@ -1911,17 +1843,17 @@ ha_ndbcluster_cond::cond_push(const Item *cond,
 
 
 int
-ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
+ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<const Ndb_item> &cond,
                                                 NdbScanFilter *filter,
                                                 bool negated) const
 {
   DBUG_ENTER("build_scan_filter_predicate");  
-  Ndb_item *ndb_item = *cond.ref();
+  const Ndb_item *ndb_item = *cond.ref();
   switch (ndb_item->type) {
   case NDB_FUNCTION:
   {
-    Ndb_item *b, *field, *value= nullptr;
-    Ndb_item *a = cond++;
+    const Ndb_item *b, *field, *value= nullptr;
+    const Ndb_item *a = cond++;
     if (a == nullptr)
       break;
 
@@ -2057,7 +1989,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
     case NDB_EQ_FUNC:
     {
       // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == 0))
+      if (unlikely(value->save_in_field(field) == -1))
         DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating EQ filter"));
       if (filter->cmp(NdbScanFilter::COND_EQ, 
@@ -2070,7 +2002,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
     case NDB_NE_FUNC:
     {
       // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == 0))
+      if (unlikely(value->save_in_field(field) == -1))
         DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating NE filter"));
       if (filter->cmp(NdbScanFilter::COND_NE, 
@@ -2083,7 +2015,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
     case NDB_LT_FUNC:
     {
       // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == 0))
+      if (unlikely(value->save_in_field(field) == -1))
         DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating LT filter"));
       if (filter->cmp(NdbScanFilter::COND_LT,
@@ -2096,7 +2028,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
     case NDB_LE_FUNC:
     {
       // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == 0))
+      if (unlikely(value->save_in_field(field) == -1))
         DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating LE filter"));
       if (filter->cmp(NdbScanFilter::COND_LE,
@@ -2109,7 +2041,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
     case NDB_GE_FUNC:
     {
       // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == 0))
+      if (unlikely(value->save_in_field(field) == -1))
         DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating GE filter"));
       if (filter->cmp(NdbScanFilter::COND_GE,
@@ -2122,7 +2054,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
     case NDB_GT_FUNC:
     {
       // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == 0))
+      if (unlikely(value->save_in_field(field) == -1))
         DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating GT filter"));
       if (filter->cmp(NdbScanFilter::COND_GT,
@@ -2130,69 +2062,41 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
                       field->get_val(),
                       field->pack_length()) == -1)
         DBUG_RETURN(1);
-      }
       break;
+    }
     case NDB_LIKE_FUNC:
     {
-      const bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      // Save value in right format for the field type, allow string truncation
-      const uint32 val_len= value->save_in_field(field, true);
-      if (unlikely(val_len == 0))
-        DBUG_RETURN(1);
+      DBUG_ASSERT(field == a && value == b);
       char buff[MAX_FIELD_WIDTH];
-      String str(buff,sizeof(buff),field->get_field_charset());
-      if (val_len > field->get_field()->field_length)
-        str.set(value->get_val(), val_len, field->get_field_charset());
-      else
-        field->get_field_val_str(&str);
-      uint32 len=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.length():
-        value->pack_length();
-      const char *val=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.ptr()
-        : value->get_val();
-      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
+      String str(buff, sizeof(buff), field->get_field_charset());
+      Item *value_item = const_cast<Item*>(value->get_item());
+      const String *pattern = value_item->val_str(&str);
+      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%lu)",
                           field->get_field_no(),
-                          val,
-                          len));
-      if (filter->cmp(NdbScanFilter::COND_LIKE, 
+                          pattern->ptr(),
+                          pattern->length()));
+      if (filter->cmp(NdbScanFilter::COND_LIKE,
                       field->get_field_no(),
-                      val,
-                      len) == -1)
+                      pattern->ptr(),
+                      pattern->length()) == -1)
         DBUG_RETURN(1);
       break;
     }
     case NDB_NOTLIKE_FUNC:
     {
-      const bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      // Save value in right format for the field type, allow string truncation
-      const uint32 val_len= value->save_in_field(field, true);
-      if (unlikely(val_len == 0))
-        DBUG_RETURN(1);
+      DBUG_ASSERT(field == a && value == b);
       char buff[MAX_FIELD_WIDTH];
-      String str(buff,sizeof(buff),field->get_field_charset());
-      if (val_len > field->get_field()->field_length)
-        str.set(value->get_val(), val_len, field->get_field_charset());
-      else
-        field->get_field_val_str(&str);
-      uint32 len=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.length():
-        value->pack_length();
-      const char *val=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.ptr()
-        : value->get_val();
-      DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
+      String str(buff, sizeof(buff), field->get_field_charset());
+      Item *value_item = const_cast<Item*>(value->get_item());
+      const String *pattern = value_item->val_str(&str);
+      DBUG_PRINT("info", ("Generating NOTLIKE filter: like(%d,%s,%lu)",
                           field->get_field_no(),
-                          (value->pack_length() > len)?value->get_val():val,
-                          (value->pack_length() > len)?value->pack_length():len));
-      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE, 
+                          pattern->ptr(),
+                          pattern->length()));
+      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE,
                       field->get_field_no(),
-                      (value->pack_length() > len)?value->get_val():val,
-                      (value->pack_length() > len)?value->pack_length():len) == -1)
+                      pattern->ptr(),
+                      pattern->length()) == -1)
         DBUG_RETURN(1);
       break;
     }
@@ -2225,7 +2129,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
 
 
 int
-ha_ndbcluster_cond::build_scan_filter_group(List_iterator<Ndb_item> &cond,
+ha_ndbcluster_cond::build_scan_filter_group(List_iterator<const Ndb_item> &cond,
                                             NdbScanFilter *filter,
                                             const bool negated) const
 {
@@ -2234,7 +2138,7 @@ ha_ndbcluster_cond::build_scan_filter_group(List_iterator<Ndb_item> &cond,
 
   do
   {
-    Ndb_item *ndb_item = cond++;
+    const Ndb_item *ndb_item = cond++;
     if (ndb_item == nullptr)
       DBUG_RETURN(1);
     switch (ndb_item->type) {
@@ -2336,7 +2240,7 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
   DBUG_ENTER("generate_scan_filter_from_cond");
 
   // Determine if we need to wrap an AND group around condition(s)
-  Ndb_item *ndb_item = m_ndb_cond.head();
+  const Ndb_item *ndb_item = m_ndb_cond.head();
   if (ndb_item->type == NDB_FUNCTION)
   {
     switch (ndb_item->qualification.function_type) {
@@ -2354,7 +2258,7 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
   if (need_group && filter.begin() == -1)
     DBUG_RETURN(1);
 
-  List_iterator<Ndb_item> cond(m_ndb_cond);
+  List_iterator<const Ndb_item> cond(m_ndb_cond);
   if (build_scan_filter_group(cond, &filter, false))
   {
     DBUG_PRINT("info", ("build_scan_filter_group failed"));

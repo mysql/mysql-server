@@ -71,16 +71,16 @@ public:
   }
 
 private:
-  int build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
+  int build_scan_filter_predicate(List_iterator<const Ndb_item> &cond,
                                   NdbScanFilter* filter,
                                   bool negated) const;
-  int build_scan_filter_group(List_iterator<Ndb_item> &cond,
+  int build_scan_filter_group(List_iterator<const Ndb_item> &cond,
                               NdbScanFilter* filter,
                               bool negated) const;
 
   bool eval_condition() const;
 
-  List<Ndb_item> m_ndb_cond;   //The serialized pushed condition
+  List<const Ndb_item> m_ndb_cond;   //The serialized pushed condition
 
   /**
    * Stores condition which can't be pushed to NDB, need to be evaluated by
