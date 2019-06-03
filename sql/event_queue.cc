@@ -411,10 +411,7 @@ void Event_queue::recalculate_activation_times(THD *thd) {
     /*
       Dropping the event from Data Dictionary.
     */
-    if (element->m_dropped)
-      events_to_drop.push_back(std::move(element));
-    else
-      delete element;
+    if (element->m_dropped) events_to_drop.push_back(std::move(element));
   }
   UNLOCK_QUEUE_DATA();
 
