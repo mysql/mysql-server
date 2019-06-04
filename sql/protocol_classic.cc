@@ -3373,7 +3373,7 @@ bool Protocol_text::store(double from, uint32 decimals, uint32 zerofill,
   we support 0-6 decimals for time.
 */
 
-bool Protocol_text::store(MYSQL_TIME *tm, uint decimals) {
+bool Protocol_text::store_datetime(const MYSQL_TIME &tm, uint decimals) {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == 0 ||
@@ -3381,11 +3381,11 @@ bool Protocol_text::store(MYSQL_TIME *tm, uint decimals) {
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_datetime_to_str(*tm, buff, decimals);
+  size_t length = my_datetime_to_str(tm, buff, decimals);
   return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
 }
 
-bool Protocol_text::store_date(MYSQL_TIME *tm) {
+bool Protocol_text::store_date(const MYSQL_TIME &tm) {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == 0 ||
@@ -3393,11 +3393,11 @@ bool Protocol_text::store_date(MYSQL_TIME *tm) {
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_date_to_str(*tm, buff);
+  size_t length = my_date_to_str(tm, buff);
   return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
 }
 
-bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals) {
+bool Protocol_text::store_time(const MYSQL_TIME &tm, uint decimals) {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == 0 ||
@@ -3405,7 +3405,7 @@ bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals) {
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_time_to_str(*tm, buff, decimals);
+  size_t length = my_time_to_str(tm, buff, decimals);
   return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
 }
 
@@ -3683,82 +3683,115 @@ bool Protocol_binary::store(double from, uint32 decimals, uint32 zerofill,
   return 0;
 }
 
-bool Protocol_binary::store(MYSQL_TIME *tm, uint precision) {
-  if (send_metadata) return Protocol_text::store(tm, precision);
+bool Protocol_binary::store_datetime(const MYSQL_TIME &tm, uint precision) {
+  if (send_metadata) return Protocol_text::store_datetime(tm, precision);
 
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_DATE ||
               is_temporal_type_with_date_and_time(field_types[field_pos]));
 #endif
-  char buff[12], *pos;
-  size_t length;
   field_pos++;
-  pos = buff + 1;
 
-  int2store(pos, tm->year);
-  pos[2] = (uchar)tm->month;
-  pos[3] = (uchar)tm->day;
-  pos[4] = (uchar)tm->hour;
-  pos[5] = (uchar)tm->minute;
-  pos[6] = (uchar)tm->second;
-  int4store(pos + 7, tm->second_part);
-  if (tm->second_part)
+  size_t length;
+  if (tm.second_part)
     length = 11;
-  else if (tm->hour || tm->minute || tm->second)
+  else if (tm.hour || tm.minute || tm.second)
     length = 7;
-  else if (tm->year || tm->month || tm->day)
+  else if (tm.year || tm.month || tm.day)
     length = 4;
   else
     length = 0;
-  buff[0] = (char)length;  // Length is stored first
-  return packet->append(buff, length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+
+  char *pos = packet->prep_append(length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+
+  *pos++ = char(length);
+
+  const char *const end = pos + length;
+  if (pos == end) return false;  // Only zero parts.
+
+  int2store(pos, tm.year);
+  pos += 2;
+  *pos++ = char(tm.month);
+  *pos++ = char(tm.day);
+
+  if (pos == end) return false;  // Only date parts.
+
+  *pos++ = char(tm.hour);
+  *pos++ = char(tm.minute);
+  *pos++ = char(tm.second);
+
+  if (pos == end) return false;  // No microseconds.
+
+  int4store(pos, tm.second_part);
+  DBUG_ASSERT(pos + 4 == end);
+  return false;
 }
 
-bool Protocol_binary::store_date(MYSQL_TIME *tm) {
+bool Protocol_binary::store_date(const MYSQL_TIME &tm) {
   if (send_metadata) return Protocol_text::store_date(tm);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_DATE);
 #endif
-  tm->hour = tm->minute = tm->second = 0;
-  tm->second_part = 0;
-  return Protocol_binary::store(tm, 0);
+  field_pos++;
+
+  if (tm.year == 0 && tm.month == 0 && tm.day == 0) {
+    // Nothing to send, except a single byte to indicate length = 0.
+    return packet->append(char{0});
+  }
+
+  char *pos = packet->prep_append(5, PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+  pos[0] = char{4};  // length
+  int2store(pos + 1, tm.year);
+  pos[3] = char(tm.month);
+  pos[4] = char(tm.day);
+  return false;
 }
 
-bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision) {
+bool Protocol_binary::store_time(const MYSQL_TIME &tm, uint precision) {
   if (send_metadata) return Protocol_text::store_time(tm, precision);
-  char buff[13], *pos;
-  size_t length;
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_TIME);
 #endif
   field_pos++;
-  pos = buff + 1;
-  pos[0] = tm->neg ? 1 : 0;
-  if (tm->hour >= 24) {
-    // Move hours to days if we have 24 hours or more.
-    uint days = tm->hour / 24;
-    tm->hour -= days * 24;
-    tm->day += days;
-  }
-  int4store(pos + 1, tm->day);
-  pos[5] = (uchar)tm->hour;
-  pos[6] = (uchar)tm->minute;
-  pos[7] = (uchar)tm->second;
-  int4store(pos + 8, tm->second_part);
-  if (tm->second_part)
+
+  size_t length;
+  if (tm.second_part)
     length = 12;
-  else if (tm->hour || tm->minute || tm->second || tm->day)
+  else if (tm.hour || tm.minute || tm.second || tm.day)
     length = 8;
   else
     length = 0;
-  buff[0] = (char)length;  // Length is stored first
-  return packet->append(buff, length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+
+  char *pos = packet->prep_append(length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return false;
+  *pos++ = char(length);
+
+  const char *const end = pos + length;
+  if (pos == end) return false;  // zero date
+
+  // Move hours to days if we have 24 hours or more.
+  const unsigned days = tm.day + tm.hour / 24;
+  const unsigned hours = tm.hour % 24;
+
+  *pos++ = tm.neg ? 1 : 0;
+  int4store(pos, days);
+  pos += 4;
+  *pos++ = char(hours);
+  *pos++ = char(tm.minute);
+  *pos++ = char(tm.second);
+
+  if (pos == end) return false;  // no second part
+
+  int4store(pos, tm.second_part);
+  DBUG_ASSERT(pos + 4 == end);
+  return false;
 }
 
 /**

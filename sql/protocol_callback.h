@@ -205,7 +205,7 @@ class Protocol_callback final : public Protocol {
       false  success
       true   failure
   */
-  bool store(MYSQL_TIME *time, uint precision) override;
+  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
 
   /**
     Sends DATE value
@@ -216,7 +216,7 @@ class Protocol_callback final : public Protocol {
       false  success
       true   failure
   */
-  bool store_date(MYSQL_TIME *time) override;
+  bool store_date(const MYSQL_TIME &time) override;
 
   /**
     Sends TIME value
@@ -228,7 +228,7 @@ class Protocol_callback final : public Protocol {
       false  success
       true   failure
   */
-  bool store_time(MYSQL_TIME *time, uint precision) override;
+  bool store_time(const MYSQL_TIME &time, uint precision) override;
 
   /**
     Sends Field

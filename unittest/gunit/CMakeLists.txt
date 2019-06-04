@@ -415,6 +415,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  protocol_classic
   regexp_engine
   regexp_facade
   security_context

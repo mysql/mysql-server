@@ -140,9 +140,9 @@ class Protocol {
                      String *buffer) = 0;
   virtual bool store(double from, uint32 decimals, uint32 zerofill,
                      String *buffer) = 0;
-  virtual bool store(MYSQL_TIME *time, uint precision) = 0;
-  virtual bool store_date(MYSQL_TIME *time) = 0;
-  virtual bool store_time(MYSQL_TIME *time, uint precision) = 0;
+  virtual bool store_datetime(const MYSQL_TIME &time, uint precision) = 0;
+  virtual bool store_date(const MYSQL_TIME &time) = 0;
+  virtual bool store_time(const MYSQL_TIME &time, uint precision) = 0;
   virtual bool store_field(const Field *field) = 0;
   // Convenience wrappers
   bool store(int from) { return store_long(longlong{from}, 0); }

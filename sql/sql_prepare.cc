@@ -248,9 +248,9 @@ class Protocol_local final : public Protocol {
   bool store_longlong(longlong from, bool unsigned_flag, uint32) override;
   bool store_decimal(const my_decimal *, uint, uint) override;
   bool store(const char *from, size_t length, const CHARSET_INFO *cs) override;
-  bool store(MYSQL_TIME *time, uint precision) override;
-  bool store_date(MYSQL_TIME *time) override;
-  bool store_time(MYSQL_TIME *time, uint precision) override;
+  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
+  bool store_date(const MYSQL_TIME &time) override;
+  bool store_time(const MYSQL_TIME &time, uint precision) override;
   bool store(float value, uint32 decimals, uint32 zerofill,
              String *buffer) override;
   bool store(double value, uint32 decimals, uint32 zerofill,
@@ -3487,22 +3487,20 @@ bool Protocol_local::store(const char *str, size_t length,
 
 /* Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store(MYSQL_TIME *time,
-                           uint precision MY_ATTRIBUTE((unused))) {
-  return store_column(time, sizeof(MYSQL_TIME));
+bool Protocol_local::store_datetime(const MYSQL_TIME &time, uint) {
+  return store_column(&time, sizeof(MYSQL_TIME));
 }
 
 /** Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store_date(MYSQL_TIME *time) {
-  return store_column(time, sizeof(MYSQL_TIME));
+bool Protocol_local::store_date(const MYSQL_TIME &time) {
+  return store_column(&time, sizeof(MYSQL_TIME));
 }
 
 /** Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store_time(MYSQL_TIME *time,
-                                uint precision MY_ATTRIBUTE((unused))) {
-  return store_column(time, sizeof(MYSQL_TIME));
+bool Protocol_local::store_time(const MYSQL_TIME &time, uint) {
+  return store_column(&time, sizeof(MYSQL_TIME));
 }
 
 /* Store a floating point number, as is. */

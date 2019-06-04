@@ -80,14 +80,14 @@ class Mock_protocol : public Protocol {
  public:
   Mock_protocol(THD *) {}
 
-  bool store_time(MYSQL_TIME *time, uint precision) override {
-    t = *time;
+  bool store_time(const MYSQL_TIME &time, uint precision) override {
+    t = time;
     p = precision;
     return false;
   }
 
-  void verify_time(MYSQL_TIME *time, uint precision) {
-    compareMysqlTime(*time, t);
+  void verify_time(const MYSQL_TIME &time, uint precision) {
+    compareMysqlTime(time, t);
     EXPECT_EQ(precision, p);
   }
 
@@ -137,8 +137,8 @@ class Mock_protocol : public Protocol {
   }
   bool store(float, uint32, uint32, String *) override { return false; }
   bool store(double, uint32, uint32, String *) override { return false; }
-  bool store(MYSQL_TIME *, uint) override { return false; }
-  bool store_date(MYSQL_TIME *) override { return false; }
+  bool store_datetime(const MYSQL_TIME &, uint) override { return false; }
+  bool store_date(const MYSQL_TIME &) override { return false; }
   bool store_field(const Field *) override { return false; }
   enum enum_protocol_type type() const override { return PROTOCOL_LOCAL; }
   enum enum_vio_type connection_type() const override { return NO_VIO_TYPE; }
@@ -228,8 +228,7 @@ TEST_F(FieldTest, FieldTimef) {
   Mock_protocol protocol(thd());
   EXPECT_EQ(protocol.connection_type(), NO_VIO_TYPE);
   EXPECT_FALSE(field->send_to_protocol(&protocol));
-  // The verification below fails because send_binary move hours to days
-  // protocol.verify_time(&bigTime, 0);  // Why 0?
+  protocol.verify_time(bigTime, 4);
 
   // Function inherited from Field_temporal
   EXPECT_TRUE(field->is_temporal());

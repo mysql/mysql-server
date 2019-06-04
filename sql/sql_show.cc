@@ -4164,7 +4164,7 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
   if (!trigger->is_created_timestamp_null()) {
     MYSQL_TIME timestamp;
     my_tz_SYSTEM->gmt_sec_to_TIME(&timestamp, trigger->get_created_timestamp());
-    rc = p->store(&timestamp, 2);
+    rc = p->store_datetime(timestamp, 2);
   } else
     rc = p->store_null();
 

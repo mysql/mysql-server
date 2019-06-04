@@ -4947,7 +4947,7 @@ bool Field_temporal_with_date::send_to_protocol(Protocol *protocol) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   }
-  return protocol->store(&ltime, dec);
+  return protocol->store_datetime(ltime, dec);
 }
 
 type_conversion_status Field_temporal_with_date::store_internal_adjust_frac(
@@ -5442,7 +5442,7 @@ bool Field_time_common::send_to_protocol(Protocol *protocol) const {
     DBUG_ASSERT(0);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
   }
-  return protocol->store_time(&ltime, dec);
+  return protocol->store_time(ltime, dec);
 }
 
 my_time_flags_t Field_time_common::date_flags(const THD *thd) const {
@@ -5771,7 +5771,7 @@ bool Field_newdate::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
   MYSQL_TIME ltime;
   get_date(&ltime, 0);
-  return protocol->store_date(&ltime);
+  return protocol->store_date(ltime);
 }
 
 longlong Field_newdate::val_int() const {

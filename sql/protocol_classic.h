@@ -221,9 +221,9 @@ class Protocol_text : public Protocol_classic {
              String *buffer) override;
   bool store(double from, uint32 decimals, uint32 zerofill,
              String *buffer) override;
-  bool store(MYSQL_TIME *time, uint precision) override;
-  bool store_date(MYSQL_TIME *time) override;
-  bool store_time(MYSQL_TIME *time, uint precision) override;
+  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
+  bool store_date(const MYSQL_TIME &time) override;
+  bool store_time(const MYSQL_TIME &time, uint precision) override;
   void start_row() override;
   bool send_parameters(List<Item_param> *parameters, bool) override;
 
@@ -249,9 +249,9 @@ class Protocol_binary final : public Protocol_text {
   bool store_longlong(longlong from, bool unsigned_flag,
                       uint32 zerofill) override;
   bool store_decimal(const my_decimal *, uint, uint) override;
-  bool store(MYSQL_TIME *time, uint precision) override;
-  bool store_date(MYSQL_TIME *time) override;
-  bool store_time(MYSQL_TIME *time, uint precision) override;
+  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
+  bool store_date(const MYSQL_TIME &time) override;
+  bool store_time(const MYSQL_TIME &time, uint precision) override;
   bool store(float nr, uint32 decimals, uint32 zerofill,
              String *buffer) override;
   bool store(double from, uint32 decimals, uint32 zerofill,

@@ -144,20 +144,20 @@ bool Protocol_callback::store(double from, uint32 decimals, uint32, String *) {
   return false;
 }
 
-bool Protocol_callback::store(MYSQL_TIME *time, uint precision) {
+bool Protocol_callback::store_datetime(const MYSQL_TIME &time, uint precision) {
   if (callbacks.get_datetime)
-    return callbacks.get_datetime(callbacks_ctx, time, precision);
+    return callbacks.get_datetime(callbacks_ctx, &time, precision);
   return false;
 }
 
-bool Protocol_callback::store_date(MYSQL_TIME *time) {
-  if (callbacks.get_datetime) return callbacks.get_date(callbacks_ctx, time);
+bool Protocol_callback::store_date(const MYSQL_TIME &time) {
+  if (callbacks.get_datetime) return callbacks.get_date(callbacks_ctx, &time);
   return false;
 }
 
-bool Protocol_callback::store_time(MYSQL_TIME *time, uint precision) {
+bool Protocol_callback::store_time(const MYSQL_TIME &time, uint precision) {
   if (callbacks.get_time)
-    return callbacks.get_time(callbacks_ctx, time, precision);
+    return callbacks.get_time(callbacks_ctx, &time, precision);
   return false;
 }
 
