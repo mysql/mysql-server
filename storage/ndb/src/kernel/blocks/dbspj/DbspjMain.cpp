@@ -1749,6 +1749,29 @@ Dbspj::buildExecPlan(Ptr<Request> requestPtr)
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
   list.first(treeRootPtr);
 
+  /**
+   * Brute force solution to ensure that all rows in
+   * batch are sorted if requested:
+   *
+   * In a scan-scan (MULTI_SCAN) request the result is effectively
+   * generated as a cross product between the scans. If the child-scans
+   * batches need another NEXTREQ to retrieve remaining rows, the parent
+   * scans result rows will effectively be repeated together with the new
+   * rows from the child scans.
+   * By restricting the parent scan to a batch size of one row, the
+   * parent rows will still be sorted, even if multiple child batches
+   * has to be fetched.
+   */
+  if (treeRootPtr.p->m_bits & TreeNode::T_SORTED_ORDER &&
+      requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
+  {
+    jam();
+    ndbassert(treeRootPtr.p->m_bits & TreeNode::T_SCAN_PARALLEL);
+    ScanFragData& data = treeRootPtr.p->m_scanFrag_data;
+    ScanFragReq* const dst = reinterpret_cast<ScanFragReq*>(data.m_scanFragReq);
+    dst->batch_size_rows = 1;
+  }
+
   setupAncestors(requestPtr, treeRootPtr, RNIL);
 
   if (requestPtr.p->isScan())
@@ -6667,10 +6690,16 @@ Dbspj::parseScanFrag(Build_context& ctx,
 
     if ((treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE) == 0 &&
         ((treeBits & Node::SF_PARALLEL) ||
-         ((paramBits & Params::SFP_PARALLEL))))
+         (paramBits & Params::SFP_PARALLEL)))
     {
       jam();
       treeNodePtr.p->m_bits |= TreeNode::T_SCAN_PARALLEL;
+    }
+
+    if (paramBits & Params::SFP_SORTED_ORDER)
+    {
+      jam();
+      treeNodePtr.p->m_bits |= TreeNode::T_SORTED_ORDER;
     }
 
     return 0;
