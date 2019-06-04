@@ -103,6 +103,16 @@ x$schema_flattened_keys	VIEW
 # Check that the file exits after unzip
 # Stop / start DB server which was created by MTR default
 # restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+#
+# Bug##29865428: UPGRADE OF HELP TABLES FAILED ON 8.0.16
+#
+# A server restart with --upgrade=force would fail without the patch when
+# also submitting --autocommit=0 and --completion_type=chain, because when
+# the SRS table updates end with a commit, a new transaction is started, so
+# when the statements in fill_help_tables.sql are executed, and sql_log_bin
+# is being set, this fails since it's not allowed within the scope of an
+# active transaction.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --autocommit=0 --completion_type=chain --upgrade=force
 # Stop the server and do cleanup.
 # Remove copied files
 # Restart the server with default options.
