@@ -549,3 +549,51 @@ CREATE TABLE t2(c INT) ENGINE=InnoDB TABLESPACE=ts2;
 DROP TABLE t2;
 DROP TABLESPACE ts2;
 DROP USER user1@localhost;
+#
+# Test case for:
+# Bug#29756808 assertion failure: trx0trx.*trx_state_eq(((trx)), trx_state_not_started).*
+# Bug#29368581 server crash assertion failure: buf0buf.cc after executing check table
+# Bug#29601004 assertion failure: buf0buf.cc.*:found while doing check table extended
+# Bug#29600913 assertion failure: fsp0fsp.cc:.*((space->flags & ((~(~0u << 1))<< (((((((0 + 1.*
+#
+#
+# Check that the kill query request is ignored when acquiring
+# locks on tables in tablespace, when ALTER TABLESPACE changes
+# encryption type.
+#
+# Create table t1 in tablespace and hold read lock on it.
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (f1 int) tablespace=ts;
+LOCK TABLE t1 read;
+# In another thread, wait when ALTER TABLESPACE request for lock
+# upgrade.
+SET DEBUG_SYNC= 'upgrade_lock_for_tables_in_tablespace_kill_point SIGNAL cond2 WAIT_FOR cond3';
+ALTER TABLESPACE ts ENCRYPTION='Y';
+# Wait for ALTER to reach above condition and set KILL QUERY request.
+SET DEBUG_SYNC= 'now WAIT_FOR cond2';
+KILL QUERY @id;
+SET DEBUG_SYNC= 'now SIGNAL cond3';
+UNLOCK TABLES;
+# Verify that ALTER TABLESPACE does not fail with the fix.
+# Verify that server restarts after the fix.
+SET DEBUG_SYNC= "RESET";
+# restart
+DROP TABLE t1;
+DROP TABLESPACE ts;
+#
+# Check that the lock_wait_timeout is ignored when acquiring
+# locks on tables in tablespace, when ALTER TABLESPACE changes
+# encryption type.
+#
+# Create table t1 in tablespace and hold read lock on it.
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (f1 INT) TABLESPACE=ts;
+LOCK TABLE t1 READ, performance_schema.threads READ;
+set @@session.lock_wait_timeout=1;
+ALTER TABLESPACE ts ENCRYPTION='Y';
+UNLOCK TABLES;
+# Verify that ALTER TABLESPACE does not fail with the fix.
+# Verify that server restarts after the fix.
+# restart
+DROP TABLE t1;
+DROP TABLESPACE ts;
