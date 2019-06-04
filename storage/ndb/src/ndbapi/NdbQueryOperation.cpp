@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3134,6 +3134,15 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
      * Ordering can then only be guarented by restricting
      * parent batch to contain single rows.
      * (Child scans will have 'normal' batch size).
+     *
+     * Note that this solved the problem only for the 'v1'
+     * version of SPJ requests, and parameter. The v2 protocol
+     * introduced 'batch_size_rows' as part of the parameter,
+     * which took precedence over the batch size set in ScanTabReq.
+     * This resulted in giving not-sorted results even though
+     * sort order was requested. This is now fixed by setting a
+     * 'SFP_SORTED_ORDER' flag in the ScanFragParameter
+     * instead of hacking the batch size on the client side.
      */
     if (root.getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
         getQueryDef().getQueryType() == NdbQueryDef::MultiScanQuery)
@@ -4687,6 +4696,13 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     {
       requestInfo |= QN_ScanFragParameters::SFP_PRUNE_PARAMS;
     }
+    if (getOrdering() != NdbQueryOptions::ScanOrdering_unordered)
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_SORTED_ORDER;
+      // Only supported for root yet.
+      DBUG_ASSERT(this == &getRoot());
+    }
+
     param->requestInfo = requestInfo;
     param->resultData = getIdOfReceiver();
     param->batch_size_rows = batchRows;
@@ -4698,7 +4714,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     break;
   }
   // Check deprecated QueryNode types last:
-  case QueryNodeParameters::QN_SCAN_INDEX_v1:
+  case QueryNodeParameters::QN_SCAN_INDEX_v1: //Deprecated
   {
     QN_ScanIndexParameters_v1* param = 
       reinterpret_cast<QN_ScanIndexParameters_v1*>(attrInfo.addr(startPos)); 
@@ -4730,7 +4746,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     QueryNodeParameters::setOpLen(param->len, paramType, length);
     break;
   }
-  case QueryNodeParameters::QN_SCAN_FRAG_v1:
+  case QueryNodeParameters::QN_SCAN_FRAG_v1: //Deprecated
   {
     assert(paramType == QueryNodeParameters::QN_SCAN_FRAG_v1);
     QN_ScanFragParameters_v1* param =
