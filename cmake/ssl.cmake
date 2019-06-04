@@ -1,5 +1,5 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -24,26 +24,53 @@
 # The default value for WITH_SSL is "bundled"
 # set in cmake/build_configurations/feature_set.cmake
 #
-# For custom build/install of openssl, see the accompanying README and
-# INSTALL* files. When building with gcc, you must build the shared libraries
-# (in addition to the static ones):
-#   ./config --prefix=</path/to/custom/openssl> --shared; make; make install
-# On some platforms (mac) you need to choose 32/64 bit architecture.
-# Build/Install of openssl on windows is slightly different: you need to run
-# perl and nmake. You might also need to
-#   'set path=</path/to/custom/openssl>\bin;%PATH%
-# in order to find the .dll files at runtime.
+# WITH_SSL="system" means: use the SSL library that comes with the operating
+# system. This typically means you have to do 'yum install openssl-devel'
+# or something similar.
+#
+# For Windows or macOS, WITH_SSL="system" is handled a bit differently:
+# We assume you have installed
+#     https://slproweb.com/products/Win32OpenSSL.html
+#     We look for "C:/OpenSSL-Win64/"
+#     The .dll files must be in your PATH.
+# or
+#     http://brewformulas.org/Openssl
+#     We look for "/usr/local/opt/openssl"
+#     We look for the static libraries, rather than the .dylib ones.
+# When the package has been located, we treat it as if cmake had been
+# invoked with  -DWITH_SSL=</path/to/custom/openssl>
 
-SET(WITH_SSL_DOC "bundled (use yassl)")
-SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, yes (prefer os library if present, otherwise use bundled)")
-SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, system (use os library)")
-SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, </path/to/custom/installation>")
 
+SET(WITH_SSL_DOC "\nsystem (use the OS openssl library)")
+SET(WITH_SSL_DOC
+  "${WITH_SSL_DOC}, \nyes (synonym for system)")
+SET(WITH_SSL_DOC
+  "${WITH_SSL_DOC}, \n</path/to/custom/openssl/installation>")
+SET(WITH_SSL_DOC
+  "${WITH_SSL_DOC}, \nbundled (use yassl)")
+
+STRING(REPLACE "\n" "| " WITH_SSL_DOC_STRING "${WITH_SSL_DOC}")
 MACRO (CHANGE_SSL_SETTINGS string)
-  SET(WITH_SSL ${string} CACHE STRING ${WITH_SSL_DOC} FORCE)
+  SET(WITH_SSL ${string} CACHE STRING ${WITH_SSL_DOC_STRING} FORCE)
+ENDMACRO()
+
+MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
+  MESSAGE(STATUS "\n${string}"
+    "\nMake sure you have specified a supported SSL version. "
+    "\nValid options are : ${WITH_SSL_DOC}\n"
+    )
+  IF(UNIX)
+    MESSAGE(FATAL_ERROR
+      "Please install the appropriate openssl developer package.\n")
+  ENDIF()
+  IF(WIN32)
+    MESSAGE(FATAL_ERROR
+      "Please see https://wiki.openssl.org/index.php/Binaries\n")
+  ENDIF()
+  IF(APPLE)
+    MESSAGE(FATAL_ERROR
+      "Please see http://brewformulas.org/Openssl\n")
+  ENDIF()
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_SSL)
@@ -72,21 +99,38 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
   ENDFOREACH()
 ENDMACRO()
 
+MACRO(RESET_SSL_VARIABLES)
+  UNSET(WITH_SSL_PATH)
+  UNSET(WITH_SSL_PATH CACHE)
+  UNSET(OPENSSL_ROOT_DIR)
+  UNSET(OPENSSL_ROOT_DIR CACHE)
+  UNSET(OPENSSL_INCLUDE_DIR)
+  UNSET(OPENSSL_INCLUDE_DIR CACHE)
+  UNSET(OPENSSL_APPLINK_C)
+  UNSET(OPENSSL_APPLINK_C CACHE)
+  UNSET(OPENSSL_LIBRARY)
+  UNSET(OPENSSL_LIBRARY CACHE)
+  UNSET(CRYPTO_LIBRARY)
+  UNSET(CRYPTO_LIBRARY CACHE)
+  UNSET(HAVE_SHA512_DIGEST_LENGTH)
+  UNSET(HAVE_SHA512_DIGEST_LENGTH CACHE)
+ENDMACRO()
+
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
 # WITH_SSL=[yes|bundled|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
-   IF(WIN32)
-     CHANGE_SSL_SETTINGS("bundled")
-   ENDIF()
+    CHANGE_SSL_SETTINGS("bundled")
   ENDIF()
 
   # See if WITH_SSL is of the form </path/to/custom/installation>
   FILE(GLOB WITH_SSL_HEADER ${WITH_SSL}/include/openssl/ssl.h)
   IF (WITH_SSL_HEADER)
+    FILE(TO_CMAKE_PATH "${WITH_SSL}" WITH_SSL)
     SET(WITH_SSL_PATH ${WITH_SSL} CACHE PATH "path to custom SSL installation")
+    SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
 
   IF(WITH_SSL STREQUAL "bundled")
@@ -117,9 +161,23 @@ MACRO (MYSQL_CHECK_SSL)
       UNSET(CRYPTO_LIBRARY CACHE)
     ENDIF()
   ELSEIF(WITH_SSL STREQUAL "system" OR
-         WITH_SSL STREQUAL "yes" OR
-         WITH_SSL_PATH
-         )
+      WITH_SSL STREQUAL "yes" OR
+      WITH_SSL_PATH
+      )
+    # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
+    # Note: we cannot use FIND_PACKAGE(OpenSSL), as older cmake versions
+    # have buggy implementations.
+    IF((APPLE OR WIN32) AND NOT WITH_SSL_PATH AND WITH_SSL STREQUAL "system")
+      IF(APPLE)
+        SET(WITH_SSL_PATH "/usr/local/opt/openssl")
+      ELSE()
+        SET(WITH_SSL_PATH "C:/OpenSSL-Win64/")
+        # OpenSSL-1.1 requires backport of the patch for
+        # Bug #28179051: ADD SUPPORT FOR OPENSSL 1.1 ON WINDOWS
+        # SET(WITH_SSL_PATH "C:/OpenSSL-1.1-Win64/")
+      ENDIF()
+    ENDIF()
+
     # First search in WITH_SSL_PATH.
     FIND_PATH(OPENSSL_ROOT_DIR
       NAMES include/openssl/ssl.h
@@ -151,28 +209,41 @@ MACRO (MYSQL_CHECK_SSL)
       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
       MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
     ENDIF()
+
     FIND_LIBRARY(OPENSSL_LIBRARY
-                 NAMES ssl ssleay32 ssleay32MD
+                 NAMES ssl libssl ssleay32 ssleay32MD
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
     FIND_LIBRARY(CRYPTO_LIBRARY
-                 NAMES crypto libeay32
+                 NAMES crypto libcrypto libeay32
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
     IF (WITH_SSL_PATH)
       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
     ENDIF()
 
-    # Verify version number. Version information looks like:
-    #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
-    # Encoded as MNNFFPPS: major minor fix patch status
-    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
-      OPENSSL_VERSION_NUMBER
-      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
-    )
-    STRING(REGEX REPLACE
-      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
-      OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-    )
-
+    IF(OPENSSL_INCLUDE_DIR)
+      # Verify version number. Version information looks like:
+      #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+      # Encoded as MNNFFPPS: major minor fix patch status
+      FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+        OPENSSL_VERSION_NUMBER
+        REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+        )
+      STRING(REGEX REPLACE
+        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+        OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+        )
+      STRING(REGEX REPLACE
+        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
+        OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+        )
+      STRING(REGEX REPLACE
+        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
+        OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
+        )
+    ENDIF()
+    IF("${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}" VERSION_GREATER "1.1.0")
+       ADD_DEFINITIONS(-DHAVE_TLSv13)
+    ENDIF()
     IF(OPENSSL_INCLUDE_DIR AND
        OPENSSL_LIBRARY   AND
        CRYPTO_LIBRARY      AND
@@ -193,13 +264,13 @@ MACRO (MYSQL_CHECK_SSL)
     IF (WITH_SSL_PATH)
       GET_FILENAME_COMPONENT(CRYPTO_EXT "${CRYPTO_LIBRARY}" EXT)
       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
-      IF (CRYPTO_EXT STREQUAL ".a")
+      IF (CRYPTO_EXT STREQUAL ".a" OR CRYPTO_EXT STREQUAL ".lib")
         SET(MY_CRYPTO_LIBRARY imported_crypto)
         ADD_LIBRARY(imported_crypto STATIC IMPORTED)
         SET_TARGET_PROPERTIES(imported_crypto
           PROPERTIES IMPORTED_LOCATION "${CRYPTO_LIBRARY}")
       ENDIF()
-      IF (OPENSSL_EXT STREQUAL ".a")
+      IF (OPENSSL_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
         SET(MY_OPENSSL_LIBRARY imported_openssl)
         ADD_LIBRARY(imported_openssl STATIC IMPORTED)
         SET_TARGET_PROPERTIES(imported_openssl
@@ -211,10 +282,12 @@ MACRO (MYSQL_CHECK_SSL)
     MESSAGE(STATUS "OPENSSL_LIBRARY = ${OPENSSL_LIBRARY}")
     MESSAGE(STATUS "CRYPTO_LIBRARY = ${CRYPTO_LIBRARY}")
     MESSAGE(STATUS "OPENSSL_MAJOR_VERSION = ${OPENSSL_MAJOR_VERSION}")
+    MESSAGE(STATUS "OPENSSL_MINOR_VERSION = ${OPENSSL_MINOR_VERSION}")
+    MESSAGE(STATUS "OPENSSL_FIX_VERSION = ${OPENSSL_FIX_VERSION}")
 
     INCLUDE(CheckSymbolExists)
     SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h" 
+    CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h"
                         HAVE_SHA512_DIGEST_LENGTH)
     IF(OPENSSL_FOUND AND HAVE_SHA512_DIGEST_LENGTH)
       SET(SSL_SOURCES "")
@@ -226,61 +299,20 @@ MACRO (MYSQL_CHECK_SSL)
         SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBDL})
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
+      IF(WIN32 AND WITH_SSL STREQUAL "system")
+        MESSAGE(STATUS "Please do\nPATH=${WITH_SSL_PATH}:$PATH")
+      ENDIF()
       SET(SSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
       SET(SSL_DEFINES "-DHAVE_OPENSSL")
     ELSE()
-
-      UNSET(WITH_SSL_PATH)
-      UNSET(WITH_SSL_PATH CACHE)
-      UNSET(OPENSSL_ROOT_DIR)
-      UNSET(OPENSSL_ROOT_DIR CACHE)
-      UNSET(OPENSSL_INCLUDE_DIR)
-      UNSET(OPENSSL_INCLUDE_DIR CACHE)
-      UNSET(OPENSSL_APPLINK_C)
-      UNSET(OPENSSL_APPLINK_C CACHE)
-      UNSET(OPENSSL_LIBRARY)
-      UNSET(OPENSSL_LIBRARY CACHE)
-      UNSET(CRYPTO_LIBRARY)
-      UNSET(CRYPTO_LIBRARY CACHE)
-
-      MESSAGE(SEND_ERROR
-        "Cannot find appropriate system libraries for SSL. "
-        "Make sure you've specified a supported SSL version. "
-        "Consult the documentation for WITH_SSL alternatives")
+      RESET_SSL_VARIABLES()
+      FATAL_SSL_NOT_FOUND_ERROR(
+        "Cannot find appropriate system libraries for WITH_SSL=${WITH_SSL}.")
     ENDIF()
   ELSE()
-    MESSAGE(SEND_ERROR
-      "Wrong option or path for WITH_SSL. "
-      "Valid options are : ${WITH_SSL_DOC}")
-  ENDIF()
-ENDMACRO()
-
-
-# Many executables will depend on libeay32.dll and ssleay32.dll at runtime.
-# In order to ensure we find the right version(s), we copy them into
-# the same directory as the executables.
-# NOTE: Using dlls will likely crash in malloc/free,
-#       see INSTALL.W32 which comes with the openssl sources.
-# So we should be linking static versions of the libraries.
-MACRO (COPY_OPENSSL_DLLS target_name)
-  IF (WIN32 AND WITH_SSL_PATH)
-    GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
-    GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
-    FILE(GLOB HAVE_CRYPTO_DLL "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll")
-    FILE(GLOB HAVE_OPENSSL_DLL "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll")
-    MESSAGE(STATUS "HAVE_CRYPTO_DLL ${HAVE_CRYPTO_DLL}")
-    MESSAGE(STATUS "HAVE_OPENSSL_DLL ${HAVE_OPENSSL_DLL}")
-    IF(HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
-      ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
-          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}.dll"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
-          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}.dll"
-        )
-      ADD_CUSTOM_TARGET(${target_name} ALL)
-    ENDIF()
+    RESET_SSL_VARIABLES()
+    FATAL_SSL_NOT_FOUND_ERROR(
+      "Wrong option or path for WITH_SSL=${WITH_SSL}.")
   ENDIF()
 ENDMACRO()

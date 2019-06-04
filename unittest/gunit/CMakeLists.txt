@@ -389,6 +389,3 @@ ENDIF(MERGE_UNITTESTS)
       ADD_TEST(${test} ${test}-t)
     ENDIF()
   ENDFOREACH()
-
-## Most executables depend on libeay32.dll (through mysys_ssl).
-COPY_OPENSSL_DLLS(copy_openssl_gunit)
