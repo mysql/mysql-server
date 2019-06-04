@@ -4898,6 +4898,43 @@ set optimizer_switch=@save_optimizer_switch;
 --error 0,1193
 set global debug=@save_debug;
 
+####################################
+--echo #
+--echo # Bug#29860378
+--echo #   RESULTS NOT SORTED AS SPECIFIED WHEN QUERY IS A 'PUSHED JOIN'
+--echo #
+
+# Force a small batch size in order to reproduce bug without needing
+# a large test table.
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+explain
+select straight_join t1.* from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  order by t1.a,t1.b;
+
+select straight_join t1.* from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  order by t1.a,t1.b;
+
+explain
+select straight_join t1.a,t1.b,count(*) from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  group by t1.a,t1.b;
+
+--sorted_result
+select straight_join t1.a,t1.b,count(*) from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  group by t1.a,t1.b;
+
+--error 0,1193
+set global debug=@save_debug;
+
 
 ##################################################
 # Bug##26926666

@@ -1007,6 +1007,13 @@ public:
        */
       T_EXPECT_TRANSID_AI = 0x80000,
 
+      /**
+       * Results from this TreeNode need to be produced in sorted
+       * order, as defined by the index being used.
+       * (Also require that T_SCAN_PARALLEL is set)
+       */
+      T_SORTED_ORDER = 0x100000,
+
       // End marker...
       T_END = 0
     };
