@@ -184,6 +184,24 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
 --source include/restart_mysqld.inc
 
+--echo #
+--echo # Bug##29865428: UPGRADE OF HELP TABLES FAILED ON 8.0.16
+--echo #
+--echo # A server restart with --upgrade=force would fail without the patch when
+--echo # also submitting --autocommit=0 and --completion_type=chain, because when
+--echo # the SRS table updates end with a commit, a new transaction is started, so
+--echo # when the statements in fill_help_tables.sql are executed, and sql_log_bin
+--echo # is being set, this fails since it's not allowed within the scope of an
+--echo # active transaction.
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_4.log
+
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --autocommit=0 --completion_type=chain --upgrade=force
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
 --echo # Stop the server and do cleanup.
 --source include/shutdown_mysqld.inc
 --echo # Remove copied files
