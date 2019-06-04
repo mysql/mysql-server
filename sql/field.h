@@ -1123,7 +1123,7 @@ class Field {
     return field_metadata;
   }
   virtual uint row_pack_length() const { return 0; }
-  virtual int save_field_metadata(uchar *first_byte) {
+  int save_field_metadata(uchar *first_byte) {
     return do_save_field_metadata(first_byte);
   }
 
@@ -1416,7 +1416,7 @@ class Field {
   virtual Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
                                uchar *new_null_ptr, uint new_null_bit) const;
 
-  Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr) {
+  Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr) const {
     return new_key_field(root, new_table, new_ptr, m_null_ptr, null_bit);
   }
 
@@ -1575,7 +1575,7 @@ class Field {
     @returns maximum size of a row when stored in the filesort buffer.
    */
 
-  virtual uint max_packed_col_length() { return pack_length(); }
+  virtual uint max_packed_col_length() const { return pack_length(); }
 
   uint offset(uchar *record) const { return (uint)(ptr - record); }
 
@@ -1640,14 +1640,6 @@ class Field {
                    int cut_increment, const char *view_db,
                    const char *view_name);
 
-  inline bool check_overflow(int op_result) {
-    return (op_result == E_DEC_OVERFLOW);
-  }
-
-  inline bool check_truncated(int op_result) {
-    return (op_result == E_DEC_TRUNCATED);
-  }
-
   bool warn_if_overflow(int op_result);
   virtual void init(TABLE *table_arg);
 
@@ -1687,7 +1679,7 @@ class Field {
   }
 #ifndef DBUG_OFF
   /* Print field value into debug trace, in NULL-aware way. */
-  void dbug_print() {
+  void dbug_print() const {
     if (is_real_null())
       fprintf(DBUG_FILE, "NULL");
     else {
@@ -1765,14 +1757,15 @@ class Field {
 
   */
 
-  bool is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info);
+  bool is_part_of_actual_key(THD *thd, uint cur_index,
+                             KEY *cur_index_info) const;
 
   /**
     Get covering prefix keys.
 
     @retval covering prefix keys.
   */
-  Key_map get_covering_prefix_keys();
+  Key_map get_covering_prefix_keys() const;
 
   friend class Copy_field;
   friend class Item_avg_field;
@@ -1807,7 +1800,7 @@ class Field {
       true   if field is virtual an either one of BLOB types or typed array
       false  otherwise
   */
-  bool handle_old_value() {
+  bool handle_old_value() const {
     return (((flags & BLOB_FLAG) != 0 || is_array()) && is_virtual_gcol());
   }
 
@@ -3658,7 +3651,7 @@ class Field_string : public Field_longstr {
                              uint16 mflags,
                              int *order_var) const final override;
   uint row_pack_length() const final override { return field_length; }
-  uint max_packed_col_length() final override;
+  uint max_packed_col_length() const final override;
   enum_field_types real_type() const final override {
     return MYSQL_TYPE_STRING;
   }
@@ -4004,7 +3997,7 @@ class Field_blob : public Field_longstr {
               bool low_byte_first) const final override;
   const uchar *unpack(uchar *, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
-  uint max_packed_col_length() final override;
+  uint max_packed_col_length() const final override;
   void mem_free() final override {
     // Free all allocated space
     value.mem_free();

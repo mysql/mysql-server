@@ -2930,12 +2930,11 @@ type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
                                                        int err,
                                                        my_decimal *value) {
   type_conversion_status stat = TYPE_OK;
-  if (err != 0) {
-    if (field->check_overflow(err)) {
-      field->set_value_on_overflow(value, value->sign());
-      stat = TYPE_WARN_OUT_OF_RANGE;
-    } else if (field->check_truncated(err))
-      stat = TYPE_NOTE_TRUNCATED;
+  if (err == E_DEC_OVERFLOW) {
+    field->set_value_on_overflow(value, value->sign());
+    stat = TYPE_WARN_OUT_OF_RANGE;
+  } else if (err == E_DEC_TRUNCATED) {
+    stat = TYPE_NOTE_TRUNCATED;
   }
   uint cond_count = field->table->in_use->get_stmt_da()->cond_count();
   type_conversion_status store_stat = field->store_value(value);
@@ -6595,7 +6594,7 @@ int Field_string::do_save_field_metadata(uchar *metadata_ptr) const {
   return 2;
 }
 
-uint Field_string::max_packed_col_length() {
+uint Field_string::max_packed_col_length() const {
   const uint max_length = pack_length();
   return (max_length > 255 ? 2 : 1) + max_length;
 }
@@ -7514,7 +7513,7 @@ const uchar *Field_blob::unpack(uchar *, const uchar *from, uint param_data,
   return from + master_packlength + length;
 }
 
-uint Field_blob::max_packed_col_length() {
+uint Field_blob::max_packed_col_length() const {
   // We do not use addon fields for blobs.
   DBUG_ASSERT(false);
   const uint max_length = pack_length();
@@ -9889,7 +9888,7 @@ bool Field_temporal::set_datetime_warning(
 }
 
 bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
-                                  KEY *cur_index_info) {
+                                  KEY *cur_index_info) const {
   return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) &&
                  !(cur_index_info->flags & HA_NOSAME)
              ? part_of_key.is_set(cur_index)
@@ -10197,7 +10196,7 @@ void Field_typed_array::sql_type(String &str) const {
   show_sql_type(real_type(), true, pack.second.first, &str, charset());
 }
 
-Key_map Field::get_covering_prefix_keys() {
+Key_map Field::get_covering_prefix_keys() const {
   if (table == nullptr) {
     // This function might be called when creating functional indexes. In those
     // cases, we do not have a table object available. Assert that the function
