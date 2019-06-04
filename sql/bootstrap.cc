@@ -383,6 +383,12 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   thd->variables.collation_connection =
       get_charset_by_name(MYSQL_DEFAULT_COLLATION_NAME, MYF(0));
 
+  // Set session transaction completion type to server default to
+  // avoid problems due to transactions being active when they are
+  // not supposed to.
+  thd->variables.completion_type =
+      intern_find_sys_var("completion_type", 0)->get_default();
+
   /*
     Set default value for explicit_defaults_for_timestamp variable. Bootstrap
     thread creates dictionary tables. The creation of dictionary tables should
