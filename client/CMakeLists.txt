@@ -45,9 +45,17 @@ SET(MYSQLTEST_SRC
   mysqltest/expected_errors.cc
   mysqltest/expected_warnings.cc
   mysqltest/logfile.cc
+  mysqltest/regular_expressions.cc
   mysqltest/secondary_engine.cc
   mysqltest/utils.cc
-)
+  )
+
+# Enable inlining, to avoid stack overflow for some long regular expressions.
+IF(SOLARIS_SPARC AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  ADD_COMPILE_FLAGS(mysqltest/regular_expressions.cc
+    COMPILE_FLAGS "-xO3"
+    )
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
 SET_TARGET_PROPERTIES(mysqltest PROPERTIES ENABLE_EXPORTS TRUE)
