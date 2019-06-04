@@ -3223,8 +3223,8 @@ void Dblqh::removeTable(Uint32 tableId)
  *
  * The max record size is used to ensure that the LCP scan have
  * buffer space to receive at least 16 rows with maximum size.
- * This is checked before executing the next SCAN_FRAGREQ, so changing
- * the max record size immediately after receiving SCAN_FRAGCONF
+ * This is checked before executing the next SCAN_NEXTREQ or SCAN_FRAGREQ,
+ * so changing the max record size immediately after receiving SCAN_FRAGCONF
  * is a working solution. This means that at most we have to wait
  * for a scan of 16 rows, so normally the wait here should be very
  * small and practically unnoticeable for all practical purposes.

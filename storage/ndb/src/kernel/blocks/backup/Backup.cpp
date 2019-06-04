@@ -7154,7 +7154,6 @@ Backup::parseTableDescription(Signal* signal,
   if (lcp)
   {
     jam();
-    c_lqh->handleLCPSurfacing(signal);
     Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     tabPtr.p->maxRecordSize = 1 + tup->get_max_lcp_record_size(tmpTab.TableId);
   }
@@ -9226,7 +9225,7 @@ Backup::OperationRecord::publishBufferData()
 }
 
 void 
-Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
+Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len, Uint32 len)
 {
   const Uint32 done = Uint32(opNoDone-opNoConf);
   
@@ -9234,7 +9233,6 @@ Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
   ndbrequire(opLen == total_len);
   opNoConf = opNoDone;
   
-  const Uint32 len = publishBufferData();
   noOfBytes += (len << 2);
   m_bytes_total += (len << 2);
   m_records_total += noOfOps;
@@ -9351,7 +9349,7 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
-  if (c_lqh->handleLCPSurfacing(signal))
+  if (ptr.p->is_lcp() && c_lqh->handleLCPSurfacing(signal))
   {
     jam();
     TablePtr tabPtr;
@@ -9360,7 +9358,7 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
     op.maxRecordSize = tabPtr.p->maxRecordSize =
       1 + tup->get_max_lcp_record_size(tabPtr.p->tableId);
   }
-  op.scanConf(conf.completedOps, conf.total_len);
+  Uint32 buffer_data_len = op.publishBufferData();
   if (ptr.p->is_lcp() && ptr.p->m_num_lcp_files > 1)
   {
     jam();
@@ -9370,10 +9368,12 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
       c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
       OperationRecord & loop_op = loopFilePtr.p->operation;
       // The extra lcp files only use operation for the data buffer.
-      loop_op.publishBufferData();
+      buffer_data_len += loop_op.publishBufferData();
+      // Always update maxRecordSize, op.maxRecordSize may have changed.
+      loop_op.maxRecordSize = op.maxRecordSize;
     }
   }
-
+  op.scanConf(conf.completedOps, conf.total_len, buffer_data_len);
 
   {
     const bool senderIsThreadLocal =
