@@ -5058,8 +5058,9 @@ static bool initialize_storage_engine(const char *se_name, const char *se_kind,
       Need to unlock as global_system_variables.table_plugin
       was acquired during plugin_register_builtin_and_init_core_se()
     */
-    plugin_unlock(0, *dest_plugin);
+    plugin_ref old_dest_plugin = *dest_plugin;
     *dest_plugin = plugin;
+    plugin_unlock(0, old_dest_plugin);
   }
   return false;
 }
