@@ -19,6 +19,9 @@
 /internal/plugin/keyring_okv/okv_client_sdk/** !filter
 /plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/windeps/** !filter
 
+# RQG combination files have the .cc extension, but they are not C++ files.
+/internal/rqg_grammars/**/*.cc !filter
+
 # Generated from lex/yacc.
 /storage/innobase/fts/fts0blex.cc !filter
 /storage/innobase/fts/fts0pars.cc !filter
