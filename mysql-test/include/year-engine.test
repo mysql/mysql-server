@@ -8,7 +8,7 @@
 #   $engine_type -- Storage engine to be tested
 #
 
-let $wl6219_default_storage_engine=`select @@global.default_storage_engine`;
+let $year_default_storage_engine=`select @@global.default_storage_engine`;
 eval SET global default_storage_engine=$engine_type;
 eval SET session default_storage_engine=$engine_type;
 
@@ -143,7 +143,7 @@ DROP TABLE t1;
 
 } # if ($engine_type != "MERGE")
 
-eval SET @@global.default_storage_engine = $wl6219_default_storage_engine;
-eval SET @@session.default_storage_engine = $wl6219_default_storage_engine;
+eval SET @@global.default_storage_engine = $year_default_storage_engine;
+eval SET @@session.default_storage_engine = $year_default_storage_engine;
 
 --echo # 

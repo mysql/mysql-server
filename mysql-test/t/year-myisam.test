@@ -12,4 +12,4 @@
 #
 
 let $engine_type= MyISAM;
---source include/wl6219-engine.test
+--source include/year-engine.test
