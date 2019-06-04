@@ -1625,16 +1625,16 @@ static bool check_charset_not_null(sys_var *self, THD *thd, set_var *var) {
 namespace {
 struct Get_name {
   explicit Get_name(const CHARSET_INFO *ci) : m_ci(ci) {}
-  uchar *get_name() {
-    return const_cast<uchar *>(pointer_cast<const uchar *>(m_ci->name));
+  const uchar *get_name() const {
+    return pointer_cast<const uchar *>(m_ci->name);
   }
   const CHARSET_INFO *m_ci;
 };
 
 struct Get_csname {
   explicit Get_csname(const CHARSET_INFO *ci) : m_ci(ci) {}
-  uchar *get_name() {
-    return const_cast<uchar *>(pointer_cast<const uchar *>(m_ci->csname));
+  const uchar *get_name() const {
+    return pointer_cast<const uchar *>(m_ci->csname);
   }
   const CHARSET_INFO *m_ci;
 };
@@ -5766,8 +5766,8 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var) {
 namespace {
 struct Get_locale_name {
   explicit Get_locale_name(const MY_LOCALE *ml) : m_ml(ml) {}
-  uchar *get_name() {
-    return const_cast<uchar *>(pointer_cast<const uchar *>(m_ml->name));
+  const uchar *get_name() const {
+    return pointer_cast<const uchar *>(m_ml->name);
   }
   const MY_LOCALE *m_ml;
 };

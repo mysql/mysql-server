@@ -1459,7 +1459,7 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
         if (item->is_null()) return true;
 
         bool got_warning;
-        char *not_used;
+        const char *not_used;
         uint not_used2;
         ulonglong tmp_value =
             find_set(typelib, str->ptr(), str->length(), str->charset(),

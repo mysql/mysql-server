@@ -5151,7 +5151,7 @@ int run_before_dml_hook(THD *thd) {
   @return true if a table is temporary table, else false
 */
 
-static inline bool is_temporary_table_being_opened(TABLE_LIST *table) {
+static inline bool is_temporary_table_being_opened(const TABLE_LIST *table) {
   return table->open_type == OT_TEMPORARY_ONLY ||
          (table->open_type == OT_TEMPORARY_OR_BASE &&
           is_temporary_table(table));

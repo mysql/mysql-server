@@ -4158,7 +4158,7 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field) {
   }
 
   if (sql_field->constant_default != NULL) {
-    char *not_used;
+    const char *not_used;
     uint not_used2;
     bool not_found = false;
     String str;

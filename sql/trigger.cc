@@ -563,37 +563,28 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
     can be determined while parsing the trigger definition.
   */
   if (is_upgrade) {
-    const LEX_STRING *trigger_name_ptr = NULL;
-    const LEX_STRING *trigger_body_ptr = NULL;
-    const LEX_STRING *trigger_body_utf8_ptr = NULL;
-
-    trigger_name_ptr = &lex.spname->m_name;
-    trigger_body_ptr = &lex.sphead->m_body;
-    trigger_body_utf8_ptr = &lex.sphead->m_body_utf8;
-
     // Make a copy of trigger name and set it.
-    LEX_STRING s, def, def_utf8;
-    if (lex_string_strmake(m_mem_root, &s, trigger_name_ptr->str,
-                           trigger_name_ptr->length)) {
+    LEX_CSTRING trigger_name;
+    if (lex_string_strmake(m_mem_root, &trigger_name, lex.spname->m_name.str,
+                           lex.spname->m_name.length)) {
       fatal_error = true;
       goto cleanup;
     }
 
-    if (lex_string_strmake(m_mem_root, &def, trigger_body_ptr->str,
-                           trigger_body_ptr->length)) {
+    LEX_CSTRING trigger_def;
+    if (lex_string_strmake(m_mem_root, &trigger_def, lex.sphead->m_body.str,
+                           lex.sphead->m_body.length)) {
       fatal_error = true;
       goto cleanup;
     }
 
-    if (lex_string_strmake(m_mem_root, &def_utf8, trigger_body_utf8_ptr->str,
-                           trigger_body_utf8_ptr->length)) {
+    LEX_CSTRING trigger_def_utf8;
+    if (lex_string_strmake(m_mem_root, &trigger_def_utf8,
+                           lex.sphead->m_body_utf8.str,
+                           lex.sphead->m_body_utf8.length)) {
       fatal_error = true;
       goto cleanup;
     }
-
-    const LEX_CSTRING trigger_name = {s.str, s.length};
-    const LEX_CSTRING trigger_def = {def.str, def.length};
-    const LEX_CSTRING trigger_def_utf8 = {def_utf8.str, def_utf8.length};
 
     set_trigger_name(trigger_name);
     set_trigger_def(trigger_def);

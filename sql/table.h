@@ -2217,7 +2217,7 @@ struct ST_SCHEMA_TABLE {
   /* Handle fileds for old SHOW */
   int (*old_format)(THD *thd, ST_SCHEMA_TABLE *schema_table);
   int (*process_table)(THD *thd, TABLE_LIST *tables, TABLE *table, bool res,
-                       LEX_STRING *db_name, LEX_STRING *table_name);
+                       LEX_CSTRING db_name, LEX_CSTRING table_name);
   int idx_field1, idx_field2;
   bool hidden;
   uint i_s_requested_object;  // Not used
@@ -3839,7 +3839,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table,
   Check if a TABLE_LIST instance represents a pre-opened temporary table.
 */
 
-inline bool is_temporary_table(TABLE_LIST *tl) {
+inline bool is_temporary_table(const TABLE_LIST *tl) {
   if (tl->is_view() || tl->schema_table) return false;
 
   if (!tl->table) return false;

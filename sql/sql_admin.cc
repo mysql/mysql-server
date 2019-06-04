@@ -1995,9 +1995,8 @@ bool Sql_cmd_set_role::execute(THD *thd) {
 
 bool Sql_cmd_grant_roles::execute(THD *thd) {
   DBUG_TRACE;
-  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(roles)));
-  while (LEX_USER *role = it++) {
-    if (!has_grant_role_privilege(thd, role->user, role->host)) {
+  for (const LEX_USER &role : *roles) {
+    if (!has_grant_role_privilege(thd, role.user, role.host)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "WITH ADMIN, ROLE_ADMIN, SUPER");
       return true;
@@ -2008,9 +2007,8 @@ bool Sql_cmd_grant_roles::execute(THD *thd) {
 
 bool Sql_cmd_revoke_roles::execute(THD *thd) {
   DBUG_TRACE;
-  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(roles)));
-  while (LEX_USER *role = it++) {
-    if (!has_grant_role_privilege(thd, role->user, role->host)) {
+  for (const LEX_USER &role : *roles) {
+    if (!has_grant_role_privilege(thd, role.user, role.host)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "WITH ADMIN, ROLE_ADMIN, SUPER");
       return true;
@@ -2058,12 +2056,8 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
   List_of_auth_id_refs authid_list;
   if (using_users != 0 && using_users->elements > 0) {
     /* We have a USING clause */
-    LEX_USER *user;
-    List<LEX_USER> *tmp_using_users = const_cast<List<LEX_USER> *>(using_users);
-    List_iterator<LEX_USER> it(*tmp_using_users);
-    while ((user = it++)) {
-      Auth_id_ref authid = std::make_pair(user->user, user->host);
-      authid_list.push_back(authid);
+    for (const LEX_USER &user : *using_users) {
+      authid_list.emplace_back(user.user, user.host);
     }
   }
 

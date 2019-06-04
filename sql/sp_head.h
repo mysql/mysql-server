@@ -478,8 +478,8 @@ class sp_head {
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
-  LEX_STRING m_body;
-  LEX_STRING m_body_utf8;
+  LEX_CSTRING m_body;
+  LEX_CSTRING m_body_utf8;
   LEX_STRING m_defstr;
   LEX_STRING m_definer_user;
   LEX_STRING m_definer_host;

@@ -372,13 +372,10 @@ bool Grant_validator::validate_dynamic_privileges() {
   /* Dynamic privileges are allowed only for global grants */
   if (m_db && m_db != any_db && m_dynamic_privilege.elements > 0) {
     String privs;
-    List_iterator<LEX_CSTRING> it(
-        const_cast<List<LEX_CSTRING> &>(m_dynamic_privilege));
-    LEX_CSTRING *priv;
     bool comma = false;
-    while ((priv = it++)) {
+    for (const LEX_CSTRING &priv : m_dynamic_privilege) {
       if (comma) privs.append(",");
-      privs.append(priv->str, priv->length);
+      privs.append(priv.str, priv.length);
       comma = true;
     }
     my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), privs.c_ptr());
@@ -3127,9 +3124,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
         ACL_USER *acl_role;
         if ((acl_role = find_acl_user(role->host.str, role->user.str, true)) ==
             NULL) {
-          my_error(ER_UNKNOWN_AUTHID, MYF(0),
-                   const_cast<char *>(role->user.str),
-                   const_cast<char *>(role->host.str));
+          my_error(ER_UNKNOWN_AUTHID, MYF(0), role->user.str, role->host.str);
           errors = true;
           break;
         } else {
@@ -3149,9 +3144,8 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
           errors = modify_role_edges_in_table(thd, table, from_user, to_user,
                                               false, true);
           if (errors) {
-            my_error(ER_FAILED_REVOKE_ROLE, MYF(0),
-                     const_cast<char *>(role->user.str),
-                     const_cast<char *>(role->host.str));
+            my_error(ER_FAILED_REVOKE_ROLE, MYF(0), role->user.str,
+                     role->host.str);
             break;
           }
           revoke_role(thd, acl_role, acl_user);
@@ -3266,9 +3260,7 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
           break;
         } else if ((acl_role = find_acl_user(role->host.str, role->user.str,
                                              true)) == NULL) {
-          my_error(ER_UNKNOWN_AUTHID, MYF(0),
-                   const_cast<char *>(role->user.str),
-                   const_cast<char *>(role->host.str));
+          my_error(ER_UNKNOWN_AUTHID, MYF(0), role->user.str, role->host.str);
           errors = true;
           break;
         } else {
@@ -6513,7 +6505,7 @@ Auth_id_ref create_authid_from(const ACL_USER *user) {
   else
     username.length = 0;
   host.str = user->host.get_host();
-  host.length = const_cast<ACL_USER *>(user)->host.get_host_len();
+  host.length = user->host.get_host_len();
   id = std::make_pair(username, host);
   return id;
 }
@@ -7019,15 +7011,14 @@ bool assert_valid_privilege_id(const List<LEX_USER> *priv_list) {
     rule of dynamic privileges LEX_USER::user is used to carry the name of
     the dynamic privilege.
   */
-  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(priv_list)));
-  while (LEX_USER *priv = it++) {
+  for (const LEX_USER &priv : *priv_list) {
     Dynamic_privilege_register::iterator it =
         get_dynamic_privilege_register()->find(
-            std::string(priv->user.str, priv->user.length));
+            std::string(priv.user.str, priv.user.length));
     if (it == get_dynamic_privilege_register()->end()) {
       String error;
       error.append("No such privilege identifier: ");
-      error.append(priv->user.str, priv->user.length);
+      error.append(priv.user.str, priv.user.length);
       my_error(ER_UNKNOWN_ERROR, MYF(0), error.c_ptr_quick());
       return false;
     }

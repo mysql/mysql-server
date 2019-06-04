@@ -559,18 +559,13 @@ void Diagnostics_area::mark_preexisting_sql_conditions() {
 void Diagnostics_area::copy_new_sql_conditions(THD *thd,
                                                const Diagnostics_area *src_da) {
   Sql_condition_iterator it(src_da->m_conditions_list);
-  List_iterator_fast<const Sql_condition> preexisting_it(
-      const_cast<List<const Sql_condition> &>(
-          src_da->m_preexisting_sql_conditions));
   const Sql_condition *cond;
-  const Sql_condition *preexisting_cond;
 
   while ((cond = it++)) {
-    bool is_new = true;
-    preexisting_it.rewind();
-    while (is_new && (preexisting_cond = preexisting_it++)) {
-      if (preexisting_cond == cond) is_new = false;
-    }
+    const bool is_new = std::none_of(
+        src_da->m_preexisting_sql_conditions.begin(),
+        src_da->m_preexisting_sql_conditions.end(),
+        [&](const Sql_condition &preexisting) { return cond == &preexisting; });
 
     // Do not use ::push_warning() to avoid invocation of THD-internal-handlers
     if (is_new) Diagnostics_area::push_warning(thd, cond);

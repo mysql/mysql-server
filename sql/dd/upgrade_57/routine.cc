@@ -407,7 +407,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
       goto err;
 
     // Set actual routine body.
-    sp->m_body.str = const_cast<char *>(body);
+    sp->m_body.str = body;
     sp->m_body.length = strlen(body);
   }
 

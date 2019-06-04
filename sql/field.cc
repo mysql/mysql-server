@@ -8422,7 +8422,7 @@ type_conversion_status Field_set::store(const char *from, size_t length,
   bool got_warning = 0;
   int err = 0;
   type_conversion_status ret = TYPE_OK;
-  char *not_used;
+  const char *not_used;
   uint not_used2;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff, sizeof(buff), &my_charset_bin);

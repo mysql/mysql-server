@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ struct MEM_ROOT;
 struct TYPELIB;
 
 ulonglong find_set(const TYPELIB *lib, const char *x, size_t length,
-                   const CHARSET_INFO *cs, char **err_pos, uint *err_len,
+                   const CHARSET_INFO *cs, const char **err_pos, uint *err_len,
                    bool *set_warning);
 uint find_type(const TYPELIB *lib, const char *find, size_t length,
                bool part_match);

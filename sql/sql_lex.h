@@ -3088,7 +3088,7 @@ struct LEX : public Query_tables_list {
   LEX_STRING name;
   char *help_arg;
   char *to_log; /* For PURGE MASTER LOGS TO */
-  char *x509_subject, *x509_issuer, *ssl_cipher;
+  const char *x509_subject, *x509_issuer, *ssl_cipher;
   // Widcard from SHOW ... LIKE <wildcard> statements.
   String *wild;
   Query_result *result;

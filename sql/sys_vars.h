@@ -1374,7 +1374,7 @@ class Sys_var_set : public Sys_var_typelib {
       if (!(res = var->value->val_str(&str)))
         return true;
       else {
-        char *error;
+        const char *error;
         uint error_len;
         bool not_used;
 
@@ -1936,7 +1936,8 @@ class Sys_var_struct : public sys_var {
   void saved_value_to_string(THD *, set_var *var, char *def_val) {
     const Struct_type *ptr =
         static_cast<const Struct_type *>(var->save_result.ptr);
-    if (ptr) strcpy(def_val, (char *)Name_getter(ptr).get_name());
+    if (ptr)
+      strcpy(def_val, pointer_cast<const char *>(Name_getter(ptr).get_name()));
   }
   bool check_update_type(Item_result type) {
     return type != INT_RESULT && type != STRING_RESULT;

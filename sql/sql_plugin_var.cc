@@ -761,7 +761,6 @@ err:
 }
 
 int check_func_set(THD *, SYS_VAR *var, void *save, st_mysql_value *value) {
-  char buff[STRING_BUFFER_USUAL_SIZE], *error = 0;
   const char *str;
   TYPELIB *typelib;
   ulonglong result;
@@ -775,6 +774,8 @@ int check_func_set(THD *, SYS_VAR *var, void *save, st_mysql_value *value) {
     typelib = ((sysvar_set_t *)var)->typelib;
 
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    const char *error = nullptr;
     length = sizeof(buff);
     if (!(str = value->val_str(value, buff, &length))) goto err;
     result =

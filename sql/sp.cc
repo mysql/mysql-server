@@ -667,8 +667,7 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
   }
 
   // Validate body definition to avoid invalid UTF8 characters.
-  if (is_invalid_string(to_lex_cstring(sp->m_body_utf8), system_charset_info))
-    return true;
+  if (is_invalid_string(sp->m_body_utf8, system_charset_info)) return true;
 
   // Validate routine comment.
   if (sp->m_chistics->comment.length) {

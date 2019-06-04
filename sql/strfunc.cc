@@ -55,7 +55,7 @@
 static const char field_separator = ',';
 
 ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
-                   const CHARSET_INFO *cs, char **err_pos, uint *err_len,
+                   const CHARSET_INFO *cs, const char **err_pos, uint *err_len,
                    bool *set_warning) {
   const CHARSET_INFO *strip = cs ? cs : &my_charset_latin1;
   const char *end = str + strip->cset->lengthsp(strip, str, length);
@@ -85,7 +85,7 @@ ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
                      : find_type(lib, start, var_len, false);
       if (!find && *err_len == 0)  // report the first error with length > 0
       {
-        *err_pos = const_cast<char *>(start);
+        *err_pos = start;
         *err_len = var_len;
         *set_warning = 1;
       } else if (find)  // avoid 1ULL << 4294967295

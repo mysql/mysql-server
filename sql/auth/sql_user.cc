@@ -191,7 +191,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   Protocol *protocol = thd->get_protocol();
   USER_RESOURCES tmp_user_resource;
   enum SSL_type ssl_type;
-  char *ssl_cipher, *x509_issuer, *x509_subject;
+  const char *ssl_cipher, *x509_issuer, *x509_subject;
   static const int COMMAND_BUFFER_LENGTH = 2048;
   char buff[COMMAND_BUFFER_LENGTH];
   Item_string *field = NULL;
@@ -251,9 +251,9 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   x509_subject = lex->x509_subject;
 
   lex->ssl_type = acl_user->ssl_type;
-  lex->ssl_cipher = const_cast<char *>(acl_user->ssl_cipher);
-  lex->x509_issuer = const_cast<char *>(acl_user->x509_issuer);
-  lex->x509_subject = const_cast<char *>(acl_user->x509_subject);
+  lex->ssl_cipher = acl_user->ssl_cipher;
+  lex->x509_issuer = acl_user->x509_issuer;
+  lex->x509_subject = acl_user->x509_subject;
 
   alter_info = lex->alter_password;
 
@@ -829,7 +829,7 @@ bool set_and_validate_user_attributes(
   char outbuf[MAX_FIELD_WIDTH] = {0};
   unsigned int buflen = MAX_FIELD_WIDTH, inbuflen;
   const char *inbuf;
-  char *password = NULL;
+  const char *password = nullptr;
   enum_sql_command command = thd->lex->sql_command;
   bool current_password_empty = false;
   bool new_password_empty = false;
@@ -1164,10 +1164,9 @@ bool set_and_validate_user_attributes(
     }
     if (history_check_done) *history_check_done = true;
     if (buflen) {
-      password = (char *)thd->alloc(buflen);
-      memcpy(password, outbuf, buflen);
+      password = strmake_root(thd->mem_root, outbuf, buflen);
     } else
-      password = const_cast<char *>("");
+      password = "";
     /* erase in memory copy of plain text password */
     if (Str->auth.length > 0)
       memset(const_cast<char *>(Str->auth.str), 0, Str->auth.length);

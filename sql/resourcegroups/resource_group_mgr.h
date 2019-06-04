@@ -296,13 +296,12 @@ class Resource_group_mgr {
     Release the shared MDL lock held on a resource group.
 
     @param thd        THD context.
-    @param ticket     Pointert to lock ticket object.
+    @param ticket     Pointer to lock ticket object.
   */
 
-  void release_shared_mdl_for_resource_group(THD *thd,
-                                             const MDL_ticket *ticket) {
+  void release_shared_mdl_for_resource_group(THD *thd, MDL_ticket *ticket) {
     DBUG_ASSERT(ticket != nullptr);
-    thd->mdl_context.release_lock(const_cast<MDL_ticket *>(ticket));
+    thd->mdl_context.release_lock(ticket);
   }
 
   /**

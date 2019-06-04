@@ -2775,17 +2775,15 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   lex->sql_command = old_lex->sql_command;
 
   if (!result) {
-    LEX_STRING orig_db_name, orig_table_name;
+    const LEX_CSTRING orig_db_name{lsel->table_list.first->db,
+                                   lsel->table_list.first->db_length};
 
-    orig_db_name.str = const_cast<char *>(lsel->table_list.first->db);
-    orig_db_name.length = lsel->table_list.first->db_length;
-
-    orig_table_name.str =
-        const_cast<char *>(lsel->table_list.first->table_name);
-    orig_table_name.length = lsel->table_list.first->table_name_length;
+    const LEX_CSTRING orig_table_name{
+        lsel->table_list.first->table_name,
+        lsel->table_list.first->table_name_length};
 
     result = schema_table->process_table(thd, table_list, table, result,
-                                         &orig_db_name, &orig_table_name);
+                                         orig_db_name, orig_table_name);
   }
 
 end:
@@ -2820,8 +2818,8 @@ end:
 
 static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
                                                TABLE *table, bool res,
-                                               LEX_STRING *db_name,
-                                               LEX_STRING *table_name) {
+                                               LEX_CSTRING db_name,
+                                               LEX_CSTRING table_name) {
   DBUG_TRACE;
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_FIELDS);
@@ -2916,10 +2914,10 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
 
     // PRIVILEGES
     uint col_access;
-    check_access(thd, SELECT_ACL, db_name->str, &tables->grant.privilege, 0, 0,
-                 tables->schema_table != nullptr);
-    col_access = get_column_grant(thd, &tables->grant, db_name->str,
-                                  table_name->str, field->field_name) &
+    check_access(thd, SELECT_ACL, db_name.str, &tables->grant.privilege,
+                 nullptr, false, tables->schema_table != nullptr);
+    col_access = get_column_grant(thd, &tables->grant, db_name.str,
+                                  table_name.str, field->field_name) &
                  COL_ACLS;
     if (!tables->schema_table && !col_access) continue;
     char *end = tmp;
@@ -3040,9 +3038,8 @@ static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *) {
 #define TMP_TABLE_KEYS_EXPRESSION 15
 
 static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
-                                            TABLE *table, bool res,
-                                            LEX_STRING *,
-                                            LEX_STRING *table_name) {
+                                            TABLE *table, bool res, LEX_CSTRING,
+                                            LEX_CSTRING table_name) {
   DBUG_TRACE;
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_KEYS);
@@ -3063,8 +3060,8 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       restore_record(table, s->default_values);
 
       // TABLE_NAME
-      table->field[TMP_TABLE_KEYS_TABLE_NAME]->store(table_name->str,
-                                                     table_name->length, cs);
+      table->field[TMP_TABLE_KEYS_TABLE_NAME]->store(table_name.str,
+                                                     table_name.length, cs);
 
       // NON_UNIQUE
       table->field[TMP_TABLE_KEYS_IS_NON_UNIQUE]->store(

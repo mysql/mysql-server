@@ -1154,9 +1154,10 @@ size_t convert_to_printable(char *to, size_t to_len, const char *from,
 
   @return   number of bytes in the output string
 */
-size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len) {
+size_t bin_to_hex_str(char *to, size_t to_len, const char *from,
+                      size_t from_len) {
   char *out;
-  char *in;
+  const char *in;
   size_t i;
 
   if (to_len < ((from_len * 2) + 1)) return 0;
