@@ -5,7 +5,7 @@ my $MYSQL = $ENV{'MYSQL'};
 my $MYSQLADMIN = $ENV{'MYSQLADMIN'};
 my $MASTER_MYPORT = $ENV{'MASTER_MYPORT'};
 my $MYSQLTEST_VARDIR = $ENV{'MYSQLTEST_VARDIR'};
-my $LOG_FILE = $ENV{'WL6301_LOG_FILE'};
+my $LOG_FILE = $ENV{'BIND_ADDRESS_LOG_FILE'};
 
 my @ipv4_addresses = split (/\n/, `ifconfig | grep 'inet addr' | sed 's/^.*inet addr://' | sed 's/ .*\$//'`);
 my @ipv6_addresses = split (/\n/, `ifconfig | grep 'inet6 addr.*Scope:Global' | sed 's/^.*inet6 addr: //' | sed 's/ .*\$//' | sed 's|/.*\$||'`);
