@@ -17282,11 +17282,20 @@ ha_ndbcluster::supported_inplace_column_change(THD* thd,
     DBUG_RETURN(HA_ALTER_INPLACE_INSTANT);
   }
 
-  // Check if we are changing to/from virtual field
-  if(old_field->is_virtual_gcol() !=
-     new_field->is_virtual_gcol())
-  {
-    DBUG_RETURN(inplace_unsupported(ha_alter_info, "Unsupported change to virtual column"));
+  // When either the new or the old field is a generated column,
+  // the following conversions cannot be done inplace
+  //  - non generated column to a generated column (both stored and virtual)
+  //    and vice versa
+  //  - generated stored column to a virtual column and vice versa
+  // Changing a column generation expression is also not supported inplace
+  // but check_inplace_alter_supported() handles that later by looking into
+  // HA_ALTER_FLAGS
+  if ((old_field->is_gcol() != new_field->is_gcol()) ||
+      (old_field->gcol_info && (old_field->gcol_info->get_field_stored() !=
+                                new_field->gcol_info->get_field_stored()))) {
+    DBUG_RETURN(inplace_unsupported(
+        ha_alter_info,
+        "Unsupported change involving generated stored/virtual column"));
   }
 
   bool is_index_on_column=
