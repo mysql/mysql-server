@@ -2098,7 +2098,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<const Ndb_item> &c
       String str(buff, sizeof(buff), field->get_field_charset());
       Item *value_item = const_cast<Item*>(value->get_item());
       const String *pattern = value_item->val_str(&str);
-      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%lu)",
+      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%zu)",
                           field->get_field_no(),
                           pattern->ptr(),
                           pattern->length()));
@@ -2116,7 +2116,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<const Ndb_item> &c
       String str(buff, sizeof(buff), field->get_field_charset());
       Item *value_item = const_cast<Item*>(value->get_item());
       const String *pattern = value_item->val_str(&str);
-      DBUG_PRINT("info", ("Generating NOTLIKE filter: like(%d,%s,%lu)",
+      DBUG_PRINT("info", ("Generating NOTLIKE filter: like(%d,%s,%zu)",
                           field->get_field_no(),
                           pattern->ptr(),
                           pattern->length()));
