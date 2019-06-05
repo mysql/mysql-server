@@ -261,6 +261,13 @@ int Group_partition_handling::terminate_partition_handler_thread() {
 int Group_partition_handling::partition_thread_handler() {
   DBUG_TRACE;
 
+  THD *ph_thd = new THD;
+  my_thread_init();
+  ph_thd->set_new_thread_id();
+  ph_thd->thread_stack = reinterpret_cast<const char *>(&ph_thd);
+  ph_thd->store_globals();
+  global_thd_manager_add_thd(ph_thd);
+
   mysql_mutex_lock(&run_lock);
   group_partition_thd_state.set_running();
   mysql_cond_broadcast(&run_cond);
@@ -301,9 +308,15 @@ int Group_partition_handling::partition_thread_handler() {
   }
 
   mysql_mutex_lock(&run_lock);
+  ph_thd->release_resources();
+  global_thd_manager_remove_thd(ph_thd);
   group_partition_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
+
+  delete ph_thd;
+  my_thread_end();
+  my_thread_exit(nullptr);
 
   return 0;
 }

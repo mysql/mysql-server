@@ -323,8 +323,8 @@ end:
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
-  my_thread_end();
   delete thd;
+  my_thread_end();
 
   return error;
 }
