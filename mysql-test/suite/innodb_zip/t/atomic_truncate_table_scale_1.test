@@ -18,16 +18,16 @@
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
---source suite/innodb_zip/include/innodb_wl6501_scale.inc
+--source suite/innodb_zip/include/atomic_truncate_table_scale.inc
 
 # Single-Tablespace/Compressed
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compressed;
 let $wl6501_kbs = 16;
---source suite/innodb_zip/include/innodb_wl6501_scale.inc
+--source suite/innodb_zip/include/atomic_truncate_table_scale.inc
 
 # System-Tablespace/Non-Compressed
 let $wl6501_file_per_table = 0;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
---source suite/innodb_zip/include/innodb_wl6501_scale.inc
+--source suite/innodb_zip/include/atomic_truncate_table_scale.inc
