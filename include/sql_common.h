@@ -173,8 +173,11 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const unsigned char *arg, size_t arg_length,
                      my_bool skip_check, MYSQL_STMT *stmt);
 unsigned long cli_safe_read(MYSQL *mysql, my_bool *is_data_packet);
+unsigned long cli_safe_read_reallen(MYSQL *mysql, my_bool *is_data_packet, unsigned long *reallen);
 unsigned long cli_safe_read_with_ok(MYSQL *mysql, my_bool parse_ok,
                                     my_bool *is_data_packet);
+unsigned long cli_safe_read_reallen_with_ok(MYSQL *mysql, my_bool parse_ok,
+                                    my_bool *is_data_packet, unsigned long *reallen);
 void net_clear_error(NET *net);
 void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net);
 void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,

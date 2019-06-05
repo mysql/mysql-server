@@ -136,6 +136,7 @@ my_bool net_write_command(NET *net,unsigned char command,
      const unsigned char *packet, size_t len);
 my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
+unsigned long my_net_read_packet_reallen(NET *net, unsigned long *reallen);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;

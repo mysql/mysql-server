@@ -5316,6 +5316,12 @@ static Sys_var_ulonglong Sys_relay_log_space_limit(
        READ_ONLY GLOBAL_VAR(relay_log_space_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
+static Sys_var_ulonglong Sys_read_binlog_speed_limit(
+       "read_binlog_speed_limit", "Maximum speed(KB/s) to read binlog from"
+       " master (0 = no limit)",
+       GLOBAL_VAR(opt_read_binlog_speed_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+
 static Sys_var_uint Sys_sync_relaylog_period(
        "sync_relay_log", "Synchronously flush relay log to disk after "
        "every #th event. Use 0 to disable synchronous flushing",

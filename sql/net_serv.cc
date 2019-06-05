@@ -888,10 +888,18 @@ error:
 ulong
 my_net_read(NET *net)
 {
+    ulong reallen = 0;
+    return my_net_read_packet_reallen(net, &reallen);
+}
+
+ulong
+my_net_read_packet_reallen(NET *net, ulong* reallen)
+{
   size_t len, complen;
 
   MYSQL_NET_READ_START();
 
+  *reallen = 0;
 #ifdef HAVE_COMPRESS
   if (!net->compress)
   {
@@ -914,7 +922,10 @@ my_net_read(NET *net)
     }
     net->read_pos = net->buff + net->where_b;
     if (len != packet_error)
-      net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
+    {
+        net->read_pos[len] = 0;		/* Safeguard for mysql_use_result */
+        *reallen = len;
+    }
     MYSQL_NET_READ_DONE(0, len);
     return static_cast<ulong>(len);
 #ifdef HAVE_COMPRESS
@@ -1020,6 +1031,7 @@ my_net_read(NET *net)
         return packet_error;
       }
       buf_length+= complen;
+      *reallen+= packet_len;
     }
 
     net->read_pos=      net->buff+ first_packet_offset + NET_HEADER_SIZE;

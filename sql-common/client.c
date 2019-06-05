@@ -1049,6 +1049,14 @@ ulong
 cli_safe_read_with_ok(MYSQL *mysql, my_bool parse_ok,
                       my_bool *is_data_packet)
 {
+  ulong reallen = 0;
+  return cli_safe_read_reallen_with_ok(mysql, parse_ok, is_data_packet, &reallen);
+}
+ulong
+cli_safe_read_reallen_with_ok(MYSQL *mysql, my_bool parse_ok,
+                              my_bool *is_data_packet, 
+                              ulong *reallen)
+{
   NET *net= &mysql->net;
   ulong len=0;
 
@@ -1058,7 +1066,8 @@ cli_safe_read_with_ok(MYSQL *mysql, my_bool parse_ok,
     *is_data_packet= FALSE;
 
   if (net->vio != 0)
-    len=my_net_read(net);
+    len=my_net_read_packet_reallen(net, reallen);
+
 
   if (len == packet_error || len == 0)
   {
@@ -1193,6 +1202,11 @@ ulong cli_safe_read(MYSQL *mysql, my_bool *is_data_packet)
 {
   return cli_safe_read_with_ok(mysql, 0, is_data_packet);
 }
+ulong cli_safe_read_reallen(MYSQL *mysql, my_bool *is_data_packet, ulong *reallen)
+{
+  return cli_safe_read_reallen_with_ok(mysql, 0, is_data_packet, reallen);
+}
+
 
 
 void free_rows(MYSQL_DATA *cur)

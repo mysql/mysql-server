@@ -501,6 +501,7 @@ my_bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *packet, size_t len);
 my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
+unsigned long my_net_read_packet_reallen(NET *net, unsigned long *reallen);
 
 #ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);

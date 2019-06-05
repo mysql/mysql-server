@@ -919,6 +919,9 @@ The following options may be given as the first argument:
  optimization of a query, index range scan will not be
  considered for this query. A value of 0 means range
  optimizer does not have any cap on memory. 
+ --read-binlog-speed-limit=# 
+ Maximum speed(KB/s) to read binlog from master (0 = no
+ limit)
  --read-buffer-size=# 
  Each thread that does a sequential scan allocates a
  buffer of this size for each table it scans. If you do
@@ -1540,6 +1543,7 @@ query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
 range-optimizer-max-mem-size 8388608
+read-binlog-speed-limit 0
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144
