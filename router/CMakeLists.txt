@@ -97,7 +97,6 @@ MESSAGE(STATUS "MySQL Router SSL_LIBRARIES:    ${SSL_LIBRARIES}")
 
 # Required tools, libraries, etc..
 INCLUDE(cmake/testing.cmake)  # does not enable testing
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/install_layout.cmake)
 INCLUDE(cmake/configure.cmake)
 INCLUDE(cmake/packaging.cmake)
 INCLUDE(cmake/Plugin.cmake)

@@ -409,6 +409,13 @@ OPTION(INSTALL_STATIC_LIBRARIES "Install static libraries" ON)
 #cmake on 64bit windows/mac/solaris doesn't set CMAKE_SYSTEM_PROCESSOR correctly
 SET(MYSQL_MACHINE_TYPE ${CMAKE_SYSTEM_PROCESSOR})
 
+SET(KNOWN_64BIT_ARCHITECTURES
+  aarch64
+  ppc64
+  ppc64le
+  s390x
+  x86_64
+)
 
 # Include the platform-specific file. To allow exceptions, this code
 # looks for files in order of how specific they are. If there is, for

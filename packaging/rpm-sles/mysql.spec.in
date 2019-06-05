@@ -601,8 +601,6 @@ mkdir debug
            -DWITH_MEB=1 \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -649,8 +647,6 @@ mkdir release
            -DWITH_MEB=1 \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \

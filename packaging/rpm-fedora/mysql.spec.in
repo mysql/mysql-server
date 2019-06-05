@@ -413,8 +413,6 @@ mkdir debug
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
            -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
@@ -454,8 +452,6 @@ mkdir release
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
