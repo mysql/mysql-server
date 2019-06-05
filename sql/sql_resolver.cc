@@ -3413,7 +3413,9 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     if (!cond_value) {
       (*subq)->sj_selection = Item_exists_subselect::SJ_ALWAYS_FALSE;
       // Unlink this subquery's query expression
-      (*subq)->unit->exclude_level();
+      Item::Cleanup_after_removal_context ctx(this);
+      (*subq)->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+                    pointer_cast<uchar *>(&ctx));
     }
 
     if ((*subq)->sj_selection == Item_exists_subselect::SJ_SELECTED)

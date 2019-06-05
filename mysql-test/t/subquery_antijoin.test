@@ -437,3 +437,15 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29759277 ASSERTION FAILED: !"NO DERIVED TABLE FOUND!"
+--echo #
+
+CREATE TABLE t1 (c1 INT, c2 INT);
+EXPLAIN FORMAT=JSON
+SELECT c1 FROM t1
+ WHERE NOT EXISTS (SELECT /*+ NO_MERGE() */ c2
+                   FROM (SELECT c1 FROM t1) AS dt
+                   WHERE FALSE);
+DROP TABLE t1;

@@ -1028,3 +1028,42 @@ field1	field2	field3
 1065483706	Z	2015-12-02 10:01:50
 -171723561	Z	2010-09-04 08:25:26
 DROP TABLE t1;
+#
+# Bug#29759277 ASSERTION FAILED: !"NO DERIVED TABLE FOUND!"
+#
+CREATE TABLE t1 (c1 INT, c2 INT);
+EXPLAIN FORMAT=JSON
+SELECT c1 FROM t1
+WHERE NOT EXISTS (SELECT /*+ NO_MERGE() */ c2
+FROM (SELECT c1 FROM t1) AS dt
+WHERE FALSE);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.35"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.35",
+        "data_read_per_join": "16"
+      },
+      "used_columns": [
+        "c1",
+        "c2"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#2`) */ `test`.`t1`.`c1` AS `c1` from `test`.`t1` where true
+DROP TABLE t1;
