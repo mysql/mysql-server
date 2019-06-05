@@ -1,0 +1,186 @@
+SET GLOBAL log_bin_compress=on;
+SET GLOBAL log_bin_compress_min_len=10;
+set binlog_format=statement;
+CREATE TABLE t1 (pk INT PRIMARY KEY, f1 INT, f2 INT, f3 TINYINT, f4 MEDIUMINT, f5 BIGINT, f6 INT, f7 INT, f8 char(1));
+CREATE TABLE t2 (pk INT PRIMARY KEY, f1 INT, f2 INT, f3 INT, f4 INT, f5 MEDIUMINT, f6 INT, f7 INT, f8 char(1));
+INSERT INTO t1 VALUES (10, 1, 2, 3, 4, 5, 6, 7, "");
+INSERT INTO t1 VALUES (11, 1, 2, 3, 4, 5, 6, 7, NULL);
+INSERT INTO t1 VALUES (12, 1, 2, 3, NULL, 5, 6, 7, "A");
+INSERT INTO t1 VALUES (13, 1, 2, 3, 0, 5, 6, 7, "A");
+INSERT INTO t2 SELECT * FROM t1;
+UPDATE t2 SET f4=5 WHERE f4>0 or f4 is NULL;
+DELETE FROM t1;
+DELETE FROM t2;
+FLUSH BINARY LOGS;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Start: binlog v #, server v # created # at startup
+ROLLBACK/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
+# [empty]
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+use `test`/*!*/;
+SET TIMESTAMP=#/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+CREATE TABLE t1 (pk INT PRIMARY KEY, f1 INT, f2 INT, f3 TINYINT, f4 MEDIUMINT, f5 BIGINT, f6 INT, f7 INT, f8 char(1))
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+CREATE TABLE t2 (pk INT PRIMARY KEY, f1 INT, f2 INT, f3 INT, f4 INT, f5 MEDIUMINT, f6 INT, f7 INT, f8 char(1))
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+INSERT INTO t1 VALUES (10, 1, 2, 3, 4, 5, 6, 7, "")
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+INSERT INTO t1 VALUES (11, 1, 2, 3, 4, 5, 6, 7, NULL)
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+INSERT INTO t1 VALUES (12, 1, 2, 3, NULL, 5, 6, 7, "A")
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+INSERT INTO t1 VALUES (13, 1, 2, 3, 0, 5, 6, 7, "A")
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+INSERT INTO t2 SELECT * FROM t1
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+UPDATE t2 SET f4=5 WHERE f4>0 or f4 is NULL
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+DELETE FROM t1
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query_compressed	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+DELETE FROM t2
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
+DELIMITER ;
+# End of log file
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+DROP TABLE t1,t2;
+SET GLOBAL log_bin_compress=off;
+SET GLOBAL log_bin_compress_min_len=256;

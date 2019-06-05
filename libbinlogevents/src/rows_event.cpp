@@ -289,7 +289,9 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
 
   columns_after_image= columns_before_image;
   if ((event_type == UPDATE_ROWS_EVENT) ||
-      (event_type == UPDATE_ROWS_EVENT_V1))
+      (event_type == UPDATE_ROWS_COMPRESSED_EVENT) ||
+      (event_type == UPDATE_ROWS_EVENT_V1) ||
+      (event_type == UPDATE_ROWS_COMPRESSED_EVENT_V1))
   {
     columns_after_image.reserve((m_width + 7) / 8);
     columns_after_image.clear();

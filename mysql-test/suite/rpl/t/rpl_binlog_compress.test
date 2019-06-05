@@ -1,0 +1,61 @@
+#
+# Test of compressed binlog with replication
+#
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+set @old_log_bin_compress=@@log_bin_compress;
+set @old_log_bin_compress_min_len=@@log_bin_compress_min_len;
+set @old_binlog_format=@@binlog_format;
+set @old_binlog_row_image=@@binlog_row_image;
+
+set global log_bin_compress=on;
+set global log_bin_compress_min_len=10;
+
+drop table if exists t1;
+CREATE TABLE t1 (pr_id int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY, pr_page int(11) NOT NULL, pr_type varbinary(60) NOT NULL, test int, UNIQUE KEY pr_pagetype (pr_page,pr_type)) ENGINE=myisam AUTO_INCREMENT=136;
+
+set binlog_format=statement;
+insert into t1 (pr_page, pr_type, test) values(1,"one",0),(2,"two",0);
+replace into t1 (pr_page, pr_type,test) values(1,"one",2);
+update t1 set test=test+1 where pr_page > 1;
+delete from t1 where test=1;
+
+select * from t1;
+sync_slave_with_master;
+connection slave;
+select * from t1;
+connection master;
+
+
+set binlog_format=row;
+insert into t1 (pr_page, pr_type, test) values(3,"three",0),(4,"four",4),(5, "five", 0);
+replace into t1 (pr_page, pr_type,test) values(3,"one",2);
+update t1 set test=test+1 where pr_page > 3;
+delete from t1 where test=1;
+
+select * from t1;
+sync_slave_with_master;
+connection slave;
+select * from t1;
+connection master;
+
+
+set binlog_row_image=minimal;
+insert into t1 (pr_page, pr_type, test) values(6,"six",0),(7,"seven",7),(8, "eight", 0);
+replace into t1 (pr_page, pr_type,test) values(6,"six",2);
+update t1 set test=test+1 where pr_page > 6;
+delete from t1 where test=1;
+
+select * from t1;
+sync_slave_with_master;
+connection slave;
+select * from t1;
+connection master;
+drop table t1;
+
+set global log_bin_compress=@old_log_bin_compress;
+set global log_bin_compress_min_len=@old_log_bin_compress_min_len;
+set binlog_format=@old_binlog_format;
+set binlog_row_image=@old_binlog_row_image;
+--source include/rpl_end.inc

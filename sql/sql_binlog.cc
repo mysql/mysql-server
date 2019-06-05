@@ -68,9 +68,15 @@ static int check_event_type(int type, Relay_log_info *rli)
   case binary_log::WRITE_ROWS_EVENT:
   case binary_log::UPDATE_ROWS_EVENT:
   case binary_log::DELETE_ROWS_EVENT:
+  case binary_log::WRITE_ROWS_COMPRESSED_EVENT:
+  case binary_log::UPDATE_ROWS_COMPRESSED_EVENT:
+  case binary_log::DELETE_ROWS_COMPRESSED_EVENT:
   case binary_log::WRITE_ROWS_EVENT_V1:
   case binary_log::UPDATE_ROWS_EVENT_V1:
   case binary_log::DELETE_ROWS_EVENT_V1:
+  case binary_log::WRITE_ROWS_COMPRESSED_EVENT_V1:
+  case binary_log::UPDATE_ROWS_COMPRESSED_EVENT_V1:
+  case binary_log::DELETE_ROWS_COMPRESSED_EVENT_V1:
   case binary_log::PRE_GA_WRITE_ROWS_EVENT:
   case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
   case binary_log::PRE_GA_DELETE_ROWS_EVENT:

@@ -326,6 +326,15 @@ enum Log_event_type
 
   /* Prepared XA transaction terminal event similar to Xid */
   XA_PREPARE_LOG_EVENT= 38,
+
+  /* Compressed binlog event.  */
+  QUERY_COMPRESSED_EVENT = 50,
+  WRITE_ROWS_COMPRESSED_EVENT_V1 = 51,
+  UPDATE_ROWS_COMPRESSED_EVENT_V1 = 52,
+  DELETE_ROWS_COMPRESSED_EVENT_V1 = 53,
+  WRITE_ROWS_COMPRESSED_EVENT = 54,
+  UPDATE_ROWS_COMPRESSED_EVENT = 55,
+  DELETE_ROWS_COMPRESSED_EVENT = 56,
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers

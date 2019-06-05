@@ -5233,7 +5233,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       */
       DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
                       if ((ev->get_type_code() == binary_log::XID_EVENT) ||
-                          ((ev->get_type_code() == binary_log::QUERY_EVENT) &&
+                          (((ev->get_type_code() == binary_log::QUERY_EVENT) ||
+                          (ev->get_type_code() == binary_log::QUERY_COMPRESSED_EVENT)) &&
                            strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
                       {
                         DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
@@ -5926,7 +5927,8 @@ ignore_log_space_limit=%d",
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_query_log_event",
-        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::QUERY_EVENT)
+        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::QUERY_EVENT ||
+            event_buf[EVENT_TYPE_OFFSET] == binary_log::QUERY_COMPRESSED_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
@@ -5942,7 +5944,8 @@ ignore_log_space_limit=%d",
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
-        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
+        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT ||
+            event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_COMPRESSED_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_unknown_event",
@@ -8072,6 +8075,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
   ulong s_id;
   int lock_count= 0;
+  bool compressed_event = FALSE;
   /*
     FD_q must have been prepared for the first R_a event
     inside get_master_version_and_clock()
@@ -8536,6 +8540,42 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
+  case binary_log::QUERY_COMPRESSED_EVENT:
+  {
+    inc_pos = event_len;
+    if (query_event_uncompress(mi->get_mi_description_event(), checksum_alg, buf, (char **)&buf, &event_len))
+    {
+      char errbuf[1024];
+      char llbuf[22];
+      sprintf(errbuf, "master log_pos: %s", llstr(mi->get_master_log_pos(), llbuf));
+      mi->report(ERROR_LEVEL, ER_BINLOG_UNCOMPRESS_ERROR,
+                 ER(ER_BINLOG_UNCOMPRESS_ERROR), errbuf);
+      goto err;
+     }
+     compressed_event = true;
+  }
+  break; 
+  case binary_log::WRITE_ROWS_COMPRESSED_EVENT_V1:
+  case binary_log::UPDATE_ROWS_COMPRESSED_EVENT_V1:
+  case binary_log::DELETE_ROWS_COMPRESSED_EVENT_V1:
+  case binary_log::WRITE_ROWS_COMPRESSED_EVENT:
+  case binary_log::UPDATE_ROWS_COMPRESSED_EVENT:
+  case binary_log::DELETE_ROWS_COMPRESSED_EVENT:
+  {
+    inc_pos = event_len;
+    if (Row_log_event_uncompress(mi->get_mi_description_event(), checksum_alg, buf, (char **)&buf, &event_len))
+    {
+      char errbuf[1024];
+      char llbuf[22];
+      sprintf(errbuf, "master log_pos: %s", llstr(mi->get_master_log_pos(), llbuf));
+      mi->report(ERROR_LEVEL, ER_BINLOG_UNCOMPRESS_ERROR,
+                 ER(ER_BINLOG_UNCOMPRESS_ERROR), errbuf);
+      goto err;
+     }
+     compressed_event = true;
+  }
+  break;
+
   case binary_log::ANONYMOUS_GTID_LOG_EVENT:
     /*
       This cannot normally happen, because the master has a check that
@@ -8728,6 +8768,8 @@ end:
   if (lock_count >= 2)
     mysql_mutex_unlock(log_lock);
   DBUG_PRINT("info", ("error: %d", error));
+  if (compressed_event)
+    my_free((void *)buf);
   DBUG_RETURN(error);
 }
 

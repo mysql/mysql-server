@@ -304,6 +304,8 @@ LEX_STRING opt_init_connect, opt_init_slave;
 /* Global variables */
 
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
+bool opt_bin_log_compress;
+uint opt_bin_log_compress_min_len;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;

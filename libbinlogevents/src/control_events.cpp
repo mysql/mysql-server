@@ -165,6 +165,19 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
     */
     post_header_len.insert(post_header_len.begin(), server_event_header_length,
                             server_event_header_length + number_of_event_types);
+    /*
+      Each time add a new type event, if the event are not continuous, 
+      you must set the event head len explicit
+    */
+    for (int i = PREVIOUS_GTIDS_LOG_EVENT; i < QUERY_COMPRESSED_EVENT; i++)
+      post_header_len[i] = 0;
+    post_header_len[QUERY_COMPRESSED_EVENT - 1] = QUERY_HEADER_LEN;
+    post_header_len[WRITE_ROWS_COMPRESSED_EVENT_V1 - 1] = ROWS_HEADER_LEN_V1;
+    post_header_len[UPDATE_ROWS_COMPRESSED_EVENT_V1 - 1] = ROWS_HEADER_LEN_V1;
+    post_header_len[DELETE_ROWS_COMPRESSED_EVENT_V1 - 1] = ROWS_HEADER_LEN_V1;
+    post_header_len[WRITE_ROWS_COMPRESSED_EVENT - 1] = ROWS_HEADER_LEN_V2;
+    post_header_len[UPDATE_ROWS_COMPRESSED_EVENT - 1] = ROWS_HEADER_LEN_V2;
+    post_header_len[DELETE_ROWS_COMPRESSED_EVENT - 1] = ROWS_HEADER_LEN_V2;
     // Sanity-check that all post header lengths are initialized.
 #ifndef DBUG_OFF
     for (int i= 0; i < number_of_event_types; i++)

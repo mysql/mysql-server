@@ -3,6 +3,10 @@ Variable_name	log_bin
 Value	ON
 Variable_name	log_bin_basename
 Value	MYSQLTEST_VARDIR/mysqld.1/data/other
+Variable_name	log_bin_compress
+Value	OFF
+Variable_name	log_bin_compress_min_len
+Value	256
 Variable_name	log_bin_index
 Value	MYSQLTEST_VARDIR/tmp/something.index
 Variable_name	log_bin_trust_function_creators

@@ -321,6 +321,12 @@ struct sql_ex_info
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
+#define LOG_EVENT_IS_ROW_V2(type) \
+    ((type >= binary_log::WRITE_ROWS_EVENT && \
+    type <= binary_log::DELETE_ROWS_EVENT) || \
+    (type >= binary_log::WRITE_ROWS_COMPRESSED_EVENT &&  \
+    type <= binary_log::DELETE_ROWS_COMPRESSED_EVENT))
+
 /**
    Maximum value of binlog logical timestamp.
 */
@@ -1107,6 +1113,7 @@ private:
   {
     DBUG_ASSERT(ends_group() ||
                 get_type_code() == binary_log::QUERY_EVENT ||
+                get_type_code() == binary_log::QUERY_COMPRESSED_EVENT ||
                 get_type_code() == binary_log::EXEC_LOAD_EVENT ||
                 get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
     common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
@@ -1540,6 +1547,28 @@ public:        /* !!! Public in this patch to allow old usage */
   }
 };
 
+class Query_compressed_log_event : public Query_log_event
+{
+protected:
+  Log_event_header::Byte* query_buf;
+public:
+  Query_compressed_log_event(const char* buf, uint event_len,
+        const Format_description_log_event *description_event,
+        Log_event_type event_type);
+    ~Query_compressed_log_event()
+  {
+    if (query_buf)
+      my_free(query_buf);
+  }
+  Log_event_type get_type_code() { return binary_log::QUERY_COMPRESSED_EVENT; }
+#ifdef MYSQL_SERVER
+  Query_compressed_log_event(THD* thd_arg, const char* query_arg, 
+                             ulong query_length,
+                             bool using_trans, bool direct, 
+                             bool suppress_use, int error);
+  virtual bool write(IO_CACHE* file);
+#endif
+};
 
 /**
   @class Load_log_event
@@ -3029,6 +3058,7 @@ public:
 #ifdef MYSQL_SERVER
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
+  virtual bool write_compressed(IO_CACHE *file);
   virtual const char *get_db() { return m_table->s->db.str; }
 #endif
 
@@ -3049,6 +3079,7 @@ protected:
 #endif
   Rows_log_event(const char *row_data, uint event_len,
 		 const Format_description_event *description_event);
+  void uncompress_buf();
 
 #ifdef MYSQL_CLIENT
   void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
@@ -3448,6 +3479,25 @@ private:
 #endif
 };
 
+class Write_rows_compressed_log_event : public Write_rows_log_event
+{
+public:
+#if defined(MYSQL_SERVER)
+  Write_rows_compressed_log_event(THD*, TABLE*, const Table_id& table_id,
+                                  bool is_transactional,
+                                  const uchar* extra_row_info);
+  virtual bool write(IO_CACHE* file);
+#endif
+#ifdef HAVE_REPLICATION
+  Write_rows_compressed_log_event(const char *buf, uint event_len,
+        const Format_description_log_event *description_event);
+#endif
+private:
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+};
+
 
 /**
   @class Update_rows_log_event
@@ -3548,6 +3598,25 @@ protected:
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 };
 
+class Update_rows_compressed_log_event : public Update_rows_log_event
+{
+public:
+#if defined(MYSQL_SERVER)
+  Update_rows_compressed_log_event(THD*, TABLE*, const Table_id& table_id,
+        bool is_transactional,
+        const uchar* extra_row_info);
+  virtual bool write(IO_CACHE* file);
+#endif
+#ifdef HAVE_REPLICATION
+  Update_rows_compressed_log_event(const char *buf, uint event_len,
+        const Format_description_log_event *description_event);
+#endif
+private:
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+};
+
 /**
   @class Delete_rows_log_event
 
@@ -3639,6 +3708,26 @@ protected:
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
   virtual int do_exec_row(const Relay_log_info *const);
+#endif
+};
+
+class Delete_rows_compressed_log_event : public Delete_rows_log_event
+{
+public:
+#if defined(MYSQL_SERVER)
+  Delete_rows_compressed_log_event(THD*, TABLE*, const Table_id& table_id,
+        bool is_transactional,
+        const uchar* extra_row_info);
+  virtual bool write(IO_CACHE* file);
+#endif
+#ifdef HAVE_REPLICATION
+  Delete_rows_compressed_log_event(const char *buf, uint event_len,
+        const Format_description_log_event *description_event);
+#endif
+private:
+  virtual Log_event_type get_type_code() { return binary_log::DELETE_ROWS_COMPRESSED_EVENT; }
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 };
 
@@ -4493,6 +4582,21 @@ size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
 size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
                                           const char* identifier,
                                           size_t length);
+
+int binlog_buf_compress(const char *src, char *dst, size_t len, 
+    size_t *comlen);
+int binlog_buf_uncompress(const char *src, char *dst, size_t len, 
+    size_t *newlen);
+size_t binlog_get_compress_len(size_t len);
+size_t binlog_get_uncompress_len(const char *buf);
+
+int query_event_uncompress(const Format_description_log_event *description_event,
+    bool contain_checksum, const char *src, char **dst, ulong *newlen);
+
+int Row_log_event_uncompress(const Format_description_log_event *description_event, 
+    bool contain_checksum,
+    const char *src, char **dst, ulong *newlen);
+
 
 /**
   @} (end of group Replication)

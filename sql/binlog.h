@@ -1062,4 +1062,10 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
 end:
   DBUG_RETURN(error);
 }
+
+inline bool binlog_should_compress(ulong len)
+{
+  return opt_bin_log_compress && len >= opt_bin_log_compress_min_len;
+}
+
 #endif /* BINLOG_H_INCLUDED */

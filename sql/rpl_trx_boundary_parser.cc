@@ -126,6 +126,7 @@ Transaction_boundary_parser::get_event_boundary_type(
       ROLLBACK and the rest.
     */
     case binary_log::QUERY_EVENT:
+    case binary_log::QUERY_COMPRESSED_EVENT:
     {
       char *query= NULL;
       size_t qlen= 0;
@@ -200,9 +201,15 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::WRITE_ROWS_EVENT:
     case binary_log::UPDATE_ROWS_EVENT:
     case binary_log::DELETE_ROWS_EVENT:
+    case binary_log::WRITE_ROWS_COMPRESSED_EVENT:
+    case binary_log::UPDATE_ROWS_COMPRESSED_EVENT:
+    case binary_log::DELETE_ROWS_COMPRESSED_EVENT:
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
+    case binary_log::WRITE_ROWS_COMPRESSED_EVENT_V1:
+    case binary_log::UPDATE_ROWS_COMPRESSED_EVENT_V1:
+    case binary_log::DELETE_ROWS_COMPRESSED_EVENT_V1:
     case binary_log::PRE_GA_WRITE_ROWS_EVENT:
     case binary_log::PRE_GA_DELETE_ROWS_EVENT:
     case binary_log::PRE_GA_UPDATE_ROWS_EVENT:

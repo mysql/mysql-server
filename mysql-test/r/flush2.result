@@ -4,6 +4,8 @@ show variables like 'log_bin%';
 Variable_name	Value
 log_bin	OFF
 log_bin_basename	
+log_bin_compress	OFF
+log_bin_compress_min_len	256
 log_bin_index	
 log_bin_trust_function_creators	ON
 log_bin_use_v1_row_events	OFF
@@ -22,6 +24,8 @@ show variables like 'log_bin%';
 Variable_name	Value
 log_bin	OFF
 log_bin_basename	
+log_bin_compress	OFF
+log_bin_compress_min_len	256
 log_bin_index	
 log_bin_trust_function_creators	ON
 log_bin_use_v1_row_events	OFF

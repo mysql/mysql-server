@@ -7774,6 +7774,8 @@ ER_XA_REPLICATION_FILTERS
 ER_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
 
+ER_BINLOG_UNCOMPRESS_ERROR
+  eng "Uncompress the compressed binlog failed"
 #
 #  End of 5.7 error messages.
 #
