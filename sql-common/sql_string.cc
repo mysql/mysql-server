@@ -712,10 +712,9 @@ bool String::replace(size_t offset, size_t arg_length, const char *to,
 }
 
 // added by Holyfoot for "geometry" needs
-int String::reserve(size_t space_needed, size_t grow_by) {
+bool String::reserve(size_t space_needed, size_t grow_by) {
   if (m_alloced_length < m_length + space_needed) {
-    if (mem_realloc(m_alloced_length + max(space_needed, grow_by) - 1))
-      return true;
+    return mem_realloc(m_alloced_length + max(space_needed, grow_by) - 1);
   }
   return false;
 }

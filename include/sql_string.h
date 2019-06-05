@@ -549,10 +549,10 @@ class String {
   size_t numchars() const;
   size_t charpos(size_t i, size_t offset = 0) const;
 
-  int reserve(size_t space_needed) {
+  bool reserve(size_t space_needed) {
     return mem_realloc(m_length + space_needed);
   }
-  int reserve(size_t space_needed, size_t grow_by);
+  bool reserve(size_t space_needed, size_t grow_by);
 
   /* Inline (general) functions used by the protocol functions */
 
