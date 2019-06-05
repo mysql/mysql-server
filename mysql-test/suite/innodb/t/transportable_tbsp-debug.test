@@ -650,34 +650,34 @@ EOF
 
 
 let DBUG_CRASH_POINT = ib_import_OOM_1;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_2;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_4;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_5;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_6;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_7;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_8;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_9;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_10;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 let DBUG_CRASH_POINT = ib_import_OOM_15;
---source ../include/wl5522_oom.inc
+--source ../include/transportable_tbsp_oom.inc
 
 
 DROP TABLE test_wl5522.t1;
