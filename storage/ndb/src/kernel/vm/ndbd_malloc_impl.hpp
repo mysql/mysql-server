@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,6 @@ class Resource_limits
   void dec_resource_spare(Uint32 id, Uint32 cnt);
   void dec_spare(Uint32 cnt);
   Uint32 get_resource_in_use(Uint32 resource) const;
-  Uint32 get_spare() const;
   void inc_free_reserved(Uint32 cnt);
   void inc_in_use(Uint32 cnt);
   void inc_resource_in_use(Uint32 id, Uint32 cnt);
@@ -98,9 +97,14 @@ public:
   void init_resource_spare(Uint32 id, Uint32 pct);
 
   Uint32 get_allocated() const;
+  Uint32 get_reserved() const;
+  Uint32 get_shared() const;
+  Uint32 get_spare() const;
   Uint32 get_free_reserved() const;
   Uint32 get_free_shared() const;
   Uint32 get_in_use() const;
+  Uint32 get_reserved_in_use() const;
+  Uint32 get_shared_in_use() const;
   Uint32 get_max_page() const;
   Uint32 get_resource_free(Uint32 id) const;
   Uint32 get_resource_free_reserved(Uint32 id) const;
@@ -127,13 +131,22 @@ public:
   bool get_resource_limit(Uint32 id, Resource_limit& rl) const;
   bool get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const;
 
+  Uint32 get_allocated() const;
+  Uint32 get_reserved() const;
+  Uint32 get_shared() const;
+  Uint32 get_spare() const;
+  Uint32 get_in_use() const;
+  Uint32 get_reserved_in_use() const;
+  Uint32 get_shared_in_use() const;
+
   bool init(Uint32 *watchCounter, Uint32 pages, bool allow_alloc_less_than_requested = true);
   void map(Uint32 * watchCounter, bool memlock = false, Uint32 resources[] = 0);
   void init_resource_spare(Uint32 id, Uint32 pct);
   void* get_memroot() const;
   
   void dump() const ;
-  
+  void dump_on_alloc_fail(bool on);
+
   enum AllocZone
   {
     NDB_ZONE_LE_19 = 0, // Only allocate with page_id < (1 << 19)
@@ -182,6 +195,7 @@ private:
   Uint32 m_buddy_lists[ZONE_COUNT][16];
   Resource_limits m_resource_limits;
   Alloc_page * m_base_page;
+  bool m_dump_on_alloc_fail;
   
   void release_impl(Uint32 zone, Uint32 start, Uint32 cnt);  
   void insert_free_list(Uint32 zone, Uint32 start, Uint32 cnt);
@@ -329,6 +343,23 @@ Uint32 Resource_limits::get_allocated() const
 }
 
 inline
+Uint32 Resource_limits::get_reserved() const
+{
+  Uint32 reserved = 0;
+  for (Uint32 id = 1; id <= MM_RG_COUNT; id++)
+  {
+    reserved += get_resource_reserved(id);
+  }
+  return reserved;
+}
+
+inline
+Uint32 Resource_limits::get_shared() const
+{
+  return get_allocated() - get_reserved();
+}
+
+inline
 Uint32 Resource_limits::get_free_reserved() const
 {
   return m_free_reserved;
@@ -345,6 +376,18 @@ inline
 Uint32 Resource_limits::get_in_use() const
 {
   return m_in_use;
+}
+
+inline
+Uint32 Resource_limits::get_reserved_in_use() const
+{
+  return get_reserved() - get_free_reserved();
+}
+
+inline
+Uint32 Resource_limits::get_shared_in_use() const
+{
+  return get_shared() - get_free_shared();
 }
 
 inline

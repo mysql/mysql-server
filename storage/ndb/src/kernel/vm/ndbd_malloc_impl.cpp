@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -338,8 +338,9 @@ Ndbd_mem_manager::ndb_log2(Uint32 input)
 }
 
 Ndbd_mem_manager::Ndbd_mem_manager()
+: m_base_page(NULL),
+  m_dump_on_alloc_fail(false)
 {
-  m_base_page = 0;
   memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
 
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
@@ -406,6 +407,48 @@ Ndbd_mem_manager::get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const
     return true;
   }
   return false;
+}
+
+Uint32
+Ndbd_mem_manager::get_allocated() const
+{
+  return m_resource_limits.get_allocated();
+}
+
+Uint32
+Ndbd_mem_manager::get_reserved() const
+{
+  return m_resource_limits.get_reserved();
+}
+
+Uint32
+Ndbd_mem_manager::get_shared() const
+{
+  return m_resource_limits.get_shared();
+}
+
+Uint32
+Ndbd_mem_manager::get_spare() const
+{
+  return m_resource_limits.get_spare();
+}
+
+Uint32
+Ndbd_mem_manager::get_in_use() const
+{
+  return m_resource_limits.get_in_use();
+}
+
+Uint32
+Ndbd_mem_manager::get_reserved_in_use() const
+{
+  return m_resource_limits.get_reserved_in_use();
+}
+
+Uint32
+Ndbd_mem_manager::get_shared_in_use() const
+{
+  return m_resource_limits.get_shared_in_use();
 }
 
 int
@@ -821,7 +864,18 @@ Ndbd_mem_manager::alloc(AllocZone zone,
     if (*pages)
       return;
     if (z == 0)
+    {
+      if (unlikely(m_dump_on_alloc_fail))
+      {
+        printf("%s: Page allocation failed: zone=%u pages=%u (at least %u)\n",
+               __func__,
+               zone,
+               save,
+               min);
+        dump();
+      }
       return;
+    }
     * pages = save;
   }
 }
@@ -988,6 +1042,12 @@ Ndbd_mem_manager::dump() const
     m_resource_limits.dump();
   }
   mt_mem_manager_unlock();
+}
+
+void
+Ndbd_mem_manager::dump_on_alloc_fail(bool on)
+{
+  m_dump_on_alloc_fail = on;
 }
 
 void
