@@ -128,6 +128,7 @@ int Delayed_initialization_thread::initialization_thread_handler() {
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
+  global_thd_manager_add_thd(thd);
 
   mysql_mutex_lock(&run_lock);
   delayed_thd_state.set_running();
@@ -159,11 +160,14 @@ int Delayed_initialization_thread::initialization_thread_handler() {
   }
 
   mysql_mutex_lock(&run_lock);
+  thd->release_resources();
+  global_thd_manager_remove_thd(thd);
   delayed_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
   delete thd;
+  my_thread_end();
 
   return error;
 }

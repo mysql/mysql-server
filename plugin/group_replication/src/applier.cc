@@ -191,18 +191,18 @@ void Applier_module::set_applier_thread_context() {
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
-
-  thd->get_protocol_classic()->init_net(0);
-  thd->slave_thread = true;
-  // TODO: See of the creation of a new type is desirable.
+  /*
+    We only set the thread type so the applier thread shows up
+    in the process list.
+  */
   thd->system_thread = SYSTEM_THREAD_SLAVE_IO;
+  // Make the thread have a better description on process list
+  thd->set_query(STRING_WITH_LEN("Group replication applier module"));
+
+  // Needed to start replication threads
   thd->security_context()->skip_grants();
 
   global_thd_manager_add_thd(thd);
-
-  thd->init_query_mem_roots();
-  set_slave_thread_options(thd);
-  thd->set_query(STRING_WITH_LEN("Group replication applier module"));
 
   DBUG_EXECUTE_IF("group_replication_applier_thread_init_wait", {
     const char act[] = "now wait_for signal.gr_applier_init_signal";
@@ -213,7 +213,6 @@ void Applier_module::set_applier_thread_context() {
 }
 
 void Applier_module::clean_applier_thread_context() {
-  applier_thd->get_protocol_classic()->end_net();
   applier_thd->release_resources();
   THD_CHECK_SENTRY(applier_thd);
   global_thd_manager_remove_thd(applier_thd);

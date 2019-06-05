@@ -474,19 +474,17 @@ void Recovery_module::set_recovery_thread_context() {
   my_thread_init();
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
-  mysql_thread_set_psi_id(thd->thread_id());
   thd->store_globals();
 
   global_thd_manager_add_thd(thd);
+  // Needed to start replication threads
   thd->security_context()->skip_grants();
 
-  thd->slave_thread = 1;
   recovery_thd = thd;
 }
 
 void Recovery_module::clean_recovery_thread_context() {
   recovery_thd->release_resources();
-  THD_CHECK_SENTRY(recovery_thd);
   global_thd_manager_remove_thd(recovery_thd);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -325,8 +325,8 @@ end:
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
-  my_thread_end();
   delete thd;
+  my_thread_end();
 
   DBUG_RETURN(error);
 }
