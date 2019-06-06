@@ -199,6 +199,14 @@ class Protocol_classic : public Protocol {
   virtual void set_read_timeout(ulong read_timeout);
   /* Set write timeout */
   virtual void set_write_timeout(ulong write_timeout);
+
+  /**
+   * Sets the character set expected by the client. This function is for unit
+   * tests. It should usually be set by calling start_result_metadata().
+   */
+  void set_result_character_set(const CHARSET_INFO *charset) {
+    result_cs = charset;
+  }
 };
 
 /** Class used for the old (MySQL 4.0 protocol). */
@@ -213,7 +221,7 @@ class Protocol_text : public Protocol_classic {
   bool store_long(longlong from, uint32 zerofill) override;
   bool store_longlong(longlong from, bool unsigned_flag,
                       uint32 zerofill) override;
-  bool store_decimal(const my_decimal *, uint, uint) override;
+  bool store_decimal(const my_decimal *, uint, uint) final;
   bool store(const char *from, size_t length, const CHARSET_INFO *cs) override {
     return store(from, length, cs, result_cs);
   }
@@ -248,7 +256,8 @@ class Protocol_binary final : public Protocol_text {
   bool store_long(longlong from, uint32 zerofill) override;
   bool store_longlong(longlong from, bool unsigned_flag,
                       uint32 zerofill) override;
-  bool store_decimal(const my_decimal *, uint, uint) override;
+  // Decimals are sent as text, also over the binary protocol.
+  using Protocol_text::store_decimal;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
   bool store_time(const MYSQL_TIME &time, uint precision) override;

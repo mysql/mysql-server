@@ -3637,20 +3637,6 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
   return 0;
 }
 
-bool Protocol_binary::store_decimal(const my_decimal *d, uint prec, uint dec) {
-  if (send_metadata) return Protocol_text::store_decimal(d, prec, dec);
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
-  // store() will increment the field_pos counter
-#endif
-  char buff[DECIMAL_MAX_STR_LENGTH + 1];
-  String str(buff, sizeof(buff), &my_charset_bin);
-  (void)my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
-  return store(str.ptr(), str.length(), str.charset(), result_cs);
-}
-
 bool Protocol_binary::store(float from, uint32 decimals, uint32 zerofill,
                             String *buffer) {
   if (send_metadata)

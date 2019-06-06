@@ -22,7 +22,10 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include "decimal.h"
+#include "m_ctype.h"
 #include "mysql_time.h"
+#include "sql/my_decimal.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"
@@ -31,14 +34,26 @@
 
 namespace protocol_classic_unittest {
 
+/**
+ * Initializes a Protocol_classic instance before a microbenchmark.
+ */
+static void SetupProtocolForBenchmark(Protocol_classic *protocol) {
+  // Simulate sending results to a client that expects UTF-8 strings.
+  protocol->set_result_character_set(&my_charset_utf8mb4_0900_ai_ci);
+
+  // Make sure there is room for a row in the packet buffer without further
+  // allocations.
+  protocol->get_output_packet()->reserve(1024);
+}
+
 static void BM_Protocol_binary_store_date(size_t num_iterations) {
   StopBenchmarkTiming();
 
   my_testing::Server_initializer initializer;
   initializer.SetUp();
   Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
-  packet->reserve(1024);
 
   const MYSQL_TIME date = {
       2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
@@ -61,8 +76,8 @@ static void BM_Protocol_binary_store_time(size_t num_iterations) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
   Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
-  packet->reserve(1024);
 
   const MYSQL_TIME time = {
       0, 0, 0, 123, 59, 59, 670000, false, MYSQL_TIMESTAMP_DATE};
@@ -85,8 +100,8 @@ static void BM_Protocol_binary_store_datetime(size_t num_iterations) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
   Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
-  packet->reserve(1024);
 
   const MYSQL_TIME datetime = {
       2020, 2, 29, 23, 59, 59, 670000, false, MYSQL_TIMESTAMP_DATE};
@@ -102,5 +117,32 @@ static void BM_Protocol_binary_store_datetime(size_t num_iterations) {
   initializer.TearDown();
 }
 BENCHMARK(BM_Protocol_binary_store_datetime)
+
+static void BM_Protocol_binary_store_decimal(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  SetupProtocolForBenchmark(protocol);
+  String *const packet = protocol->get_output_packet();
+
+  const char decimal_string[] =
+      "12345678901234567890123456789012345678901234567890123456789012345";
+  my_decimal decimal;
+  str2my_decimal(E_DEC_FATAL_ERROR, decimal_string, sizeof(decimal_string) - 1,
+                 &my_charset_utf8mb4_bin, &decimal);
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    packet->length(0);
+    protocol->store_decimal(&decimal, 0, 0);
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_Protocol_binary_store_decimal)
 
 }  // namespace protocol_classic_unittest
