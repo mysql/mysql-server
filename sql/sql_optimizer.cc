@@ -6736,9 +6736,12 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
         the string '{}' should compare equal to the JSON string "{}". If
         we use a string index to compare the two strings, we will be
         comparing '{}' and '"{}"', which don't compare equal.
+        The only exception is Item_json, which is a basic const item and is
+        used to contain value coerced to index's type.
       */
       if (value[0]->result_type() == STRING_RESULT &&
-          value[0]->data_type() == MYSQL_TYPE_JSON) {
+          value[0]->data_type() == MYSQL_TYPE_JSON &&
+          !value[0]->basic_const_item()) {
         warn_index_not_applicable(stat->join()->thd, field, possible_keys);
         return false;
       }

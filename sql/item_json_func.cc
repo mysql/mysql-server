@@ -3709,15 +3709,16 @@ void Item_func_array_cast::cleanup() {
   Coerce JSON data to the typed array's type and append it to the array (if
   the latter is given)
 
-  @param[in]   wr      JSON data to coerce
-  @param[out]  coerced Coerced value (optional)
+  @param[in]   wr       JSON data to coerce
+  @param[in]   no_error Whether to throw error
+  @param[out]  coerced  Coerced value (optional)
 
   @returns
     false Given JSON was successfully converted and appended to array (if
           provided)
     true  Otherwise
 */
-bool Field_typed_array::coerce_json_value(const Json_wrapper *wr,
+bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
                                           Json_wrapper *coerced) {
   Json_wrapper saved;
   THD *thd = table->in_use;
@@ -3736,7 +3737,7 @@ bool Field_typed_array::coerce_json_value(const Json_wrapper *wr,
   */
   enum_jtc_on on_error;
   enum_check_fields warn;
-  if (coerced) {
+  if (!no_error) {
     on_error = enum_jtc_on::JTO_ERROR;
     warn = CHECK_FIELD_ERROR_FOR_NULL;
   } else {

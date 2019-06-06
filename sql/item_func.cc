@@ -44,7 +44,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "item_json_func.h"  // get_json_wrapper
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
@@ -87,7 +86,9 @@
 #include "sql/debug_sync.h"      // DEBUG_SYNC
 #include "sql/derror.h"          // ER_THD
 #include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/item.h"            // Item_json
 #include "sql/item_cmpfunc.h"    // get_datetime_value
+#include "sql/item_json_func.h"  // get_json_wrapper
 #include "sql/item_strfunc.h"    // Item_func_concat_ws
 #include "sql/json_dom.h"        // Json_wrapper
 #include "sql/key.h"
@@ -121,7 +122,7 @@
 #include "sql/strfunc.h"        // find_type
 #include "sql/system_variables.h"
 #include "sql/val_int_compare.h"  // Integer_value
-#include "template_utils.h"
+#include "template_utils.h"       // pointer_cast
 #include "thr_mutex.h"
 
 class Protocol;
@@ -819,6 +820,9 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
   column in a predicate.
 
   @param expr      the expression that should be substituted
+  @param value     if given, value will be coerced to GC field's type and
+                   the result will substitute the original value. Used by
+                   multi-valued index.
   @param gc_fields list of indexed generated columns to check for
                    equivalence with the expression
   @param type      the acceptable type of the generated column that
@@ -827,8 +831,9 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
 
   @return true on error, false on success
 */
-static bool substitute_gc_expression(Item_func **expr, List<Field> *gc_fields,
-                                     Item_result type, Item_func *predicate) {
+static bool substitute_gc_expression(Item_func **expr, Item **value,
+                                     List<Field> *gc_fields, Item_result type,
+                                     Item_func *predicate) {
   List_iterator<Field> li(*gc_fields);
   Item_field *item_field = nullptr;
   while (Field *field = li++) {
@@ -865,6 +870,23 @@ static bool substitute_gc_expression(Item_func **expr, List<Field> *gc_fields,
   // A matching expression is found. Substitute the expression with
   // the matching generated column.
   THD *thd = item_field->field->table->in_use;
+  if (item_field->returns_array() && value) {
+    Json_wrapper wr, to_wr;
+    String str_val, buf;
+    Field_typed_array *afld = down_cast<Field_typed_array *>(item_field->field);
+
+    Functional_index_error_handler functional_index_error_handler(afld, thd);
+
+    // Don't substitute if value can't be coerced to field's type
+    if (get_json_atom_wrapper(value, 0, "MEMBER OF", &str_val, &buf, &wr,
+                              nullptr, true) ||
+        afld->coerce_json_value(&wr, true, &to_wr))
+      return false;
+    Item_json *jsn =
+        new (thd->mem_root) Item_json(std::move(to_wr), predicate->item_name);
+    if (!jsn || jsn->fix_fields(thd, nullptr)) return false;
+    thd->change_item_tree(value, jsn);
+  }
   thd->change_item_tree(pointer_cast<Item **>(expr), item_field);
 
   // Adjust the predicate.
@@ -879,22 +901,27 @@ static bool substitute_gc_expression(Item_func **expr, List<Field> *gc_fields,
   from the provided list. The function checks whether there's an index with
   matching expression and whether all scalars for lookup can be coerced to
   index's GC field without errors. If so, index's GC field substitutes the
-  given function. substitute_gc_expression() can't be used to these functions
+  given function, args are replaced for array of coerced values in order to
+  match GC's type. substitute_gc_expression() can't be used to these functions
   as it's tailored to handle regular single-valued indexes and doesn't ensure
   correct coercion of all values to lookup in multi-valued index.
 
   @param func     Function to replace
+  @param vals     Args to replace
   @param vals_wr  Json_wrapper containing array of values for index lookup
   @param gc_fields List of generated fields to look the function's substitute in
 */
 
-static void gc_subst_overlaps_contains(Item_func **func, Json_wrapper &vals_wr,
+static void gc_subst_overlaps_contains(Item_func **func, Item **vals,
+                                       Json_wrapper &vals_wr,
                                        List<Field> *gc_fields) {
   // Field to substitute function for. NULL when no matching index was found.
   Field *found = nullptr;
   DBUG_ASSERT(vals_wr.type() != enum_json_type::J_OBJECT &&
               vals_wr.type() != enum_json_type::J_ERROR);
   THD *thd = current_thd;
+  // Vector of coerced keys
+  Json_array_ptr coerced_keys = create_dom_ptr<Json_array>();
 
   // Find a field that matches the expression
   for (Field &fld : *gc_fields) {
@@ -917,13 +944,16 @@ static void gc_subst_overlaps_contains(Item_func **func, Json_wrapper &vals_wr,
       len = vals_wr.length();
     else
       len = 1;
+    coerced_keys->clear();
     for (uint i = 0; i < len; i++) {
       Json_wrapper elt = vals_wr[i];
-      if (afld->coerce_json_value(&elt, nullptr)) {
+      Json_wrapper res;
+      if (afld->coerce_json_value(&elt, true, &res)) {
         can_use_index = false;
         found = nullptr;
         break;
       }
+      coerced_keys->append_clone(res.to_dom(thd));
     }
     if (can_use_index) break;
   }
@@ -931,8 +961,13 @@ static void gc_subst_overlaps_contains(Item_func **func, Json_wrapper &vals_wr,
   TABLE *table = found->table;
   Item_field *subs_item = new Item_field(found);
   if (!subs_item) return;
+  Json_wrapper res(coerced_keys.release());
+  Item_json *array_arg =
+      new (thd->mem_root) Item_json(std::move(res), (*func)->item_name);
+  if (!array_arg || array_arg->fix_fields(thd, nullptr)) return;
   table->mark_column_used(found, MARK_COLUMNS_READ);
   table->in_use->change_item_tree(pointer_cast<Item **>(func), subs_item);
+  table->in_use->change_item_tree(vals, array_arg);
 }
 
 /**
@@ -983,7 +1018,8 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
         break;
       }
 
-      if (substitute_gc_expression(func, gc_fields, val->result_type(), this))
+      if (substitute_gc_expression(func, nullptr, gc_fields, val->result_type(),
+                                   this))
         return nullptr; /* purecov: inspected */
       break;
     }
@@ -1001,7 +1037,7 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       }
       Item **to_subst = args;
       if (substitute_gc_expression(pointer_cast<Item_func **>(to_subst),
-                                   gc_fields, type, this))
+                                   nullptr, gc_fields, type, this))
         return nullptr;
       break;
     }
@@ -1019,7 +1055,7 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
           args[1]->can_be_substituted_for_gc() &&     // 3
           args[1]->data_type() == MYSQL_TYPE_JSON) {  // 4
         Item **to_subst = args + 1;
-        if (substitute_gc_expression(pointer_cast<Item_func **>(to_subst),
+        if (substitute_gc_expression(pointer_cast<Item_func **>(to_subst), args,
                                      gc_fields, type, this))
           return nullptr;
       }
@@ -1034,7 +1070,7 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
         2) 1st arg's type is JSON
         3) value to lookup is a constant
         4) value to lookup is a proper JSON doc
-        5) value to lookup is an array
+        5) value to lookup is an array or scalar
       */
       if (args[0]->type() != Item::FUNC_ITEM ||       // 1
           args[0]->data_type() != MYSQL_TYPE_JSON ||  // 2
@@ -1044,8 +1080,8 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
           args[1]->null_value ||
           vals_wr.type() == enum_json_type::J_OBJECT)  // 5
         break;
-      gc_subst_overlaps_contains(pointer_cast<Item_func **>(args), vals_wr,
-                                 gc_fields);
+      gc_subst_overlaps_contains(pointer_cast<Item_func **>(args), args + 1,
+                                 vals_wr, gc_fields);
       break;
     }
     case JSON_OVERLAPS: {
@@ -1058,7 +1094,7 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
         Check whether JSON_OVERLAPS is applicable for optimization:
         1) One arg is a function and another is a const expr
         2) value to lookup is a proper JSON doc
-        3) value to lookup is an array
+        3) value to lookup is an array or scalar
       */
 
       if (args[0]->type() == Item::FUNC_ITEM && args[1]->const_item()) {  // 1
@@ -1074,8 +1110,8 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
           args[vals]->null_value ||
           vals_wr.type() == enum_json_type::J_OBJECT)  // 3
         break;
-      gc_subst_overlaps_contains(pointer_cast<Item_func **>(func), vals_wr,
-                                 gc_fields);
+      gc_subst_overlaps_contains(pointer_cast<Item_func **>(func), args + vals,
+                                 vals_wr, gc_fields);
       break;
     }
     default:

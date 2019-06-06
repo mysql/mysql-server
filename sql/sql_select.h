@@ -1070,6 +1070,30 @@ class store_key_hash_item : public store_key_item {
   enum store_key_result copy_inner();
 };
 
+/*
+  Class used for indexes over JSON expressions. The value to lookup is
+  obtained from val_json() method and then converted according to field's
+  result type and saved. This allows proper handling of temporal values.
+*/
+class store_key_json_item final : public store_key_item {
+  /// Whether the key is constant.
+  const bool m_const_key{false};
+  /// Whether the key was already copied.
+  bool m_inited{false};
+
+ public:
+  store_key_json_item(THD *thd, Field *to_field_arg, uchar *ptr,
+                      uchar *null_ptr_arg, uint length, Item *item_arg,
+                      bool const_key_arg)
+      : store_key_item(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg),
+        m_const_key(const_key_arg) {}
+
+  const char *name() const override { return m_const_key ? "const" : "func"; }
+
+ protected:
+  enum store_key_result copy_inner() override;
+};
+
 class store_key_const_item : public store_key_item {
   bool inited;
 

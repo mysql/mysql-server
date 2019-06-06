@@ -1130,6 +1130,170 @@ ON t1.pk = JSON_OVERLAPS( 'OJNRaUr' , JSON_ARRAY( 'Q' , 'qX' ) ) WHERE t2 .
 pk = 1;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#29752056: COLLECTION.FIND() FAILS FOR DATE TYPE WHEN IN IS USED
+--echo #
+CREATE TABLE t1 (doc JSON,_id VARBINARY(32)
+GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY
+KEY);
+
+ALTER TABLE t1 ADD INDEX dateArrayIndex
+((CAST(JSON_EXTRACT(doc,'$.dateField') AS DATE ARRAY)));
+ALTER TABLE t1 ADD INDEX datetimeArrayIndex
+((CAST(JSON_EXTRACT(doc,'$.datetimeField') AS DATETIME ARRAY)));
+ALTER TABLE t1 ADD INDEX timeArrayIndex
+((CAST(JSON_EXTRACT(doc,'$.timeField') AS TIME ARRAY)));
+
+INSERT INTO t1 (doc) VALUES
+('{"dateField":["2019-1-1","2019-2-1","2019-3-1"],
+  "datetimeField":["2019-12-29 23:59:59","2019-12-30 23:59:59",
+    "2019-12-31 23:59:59"],
+  "timeField":["10:10","11:10","12:10"],
+  "_id": "00005cd4075c0000000000000087"}'),
+('{"dateField":["2019-1-2","2019-2-2","2019-3-2"],
+  "datetimeField":["2018-12-29 23:59:59","2018-12-30 23:59:59",
+    "2018-12-31 23:59:59"],
+  "timeField":["10:11","11:11","12:11"],
+  "_id": "00005cd4075c0000000000000088"}'),
+('{"dateField":["2019-1-3","2019-2-3","2019-3-3"],
+  "datetimeField":["2017-12-29 23:59:59","2017-12-30 23:59:59",
+    "2017-12-31 23:59:59"],
+  "timeField":["10:12","11:12","12:12"],
+  "_id": "00005cd4075c0000000000000089"}');
+ANALYZE TABLE t1;
+--echo # DATE
+SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_QUOTE('2019-2-1'));
+
+SELECT doc->'$.dateField' FROM t1 IGNORE KEY(dateArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_QUOTE('2019-2-1'));
+
+--echo # Empty result as $.dateField is string and index isn't used
+SELECT doc->'$.dateField' FROM t1 IGNORE KEY(dateArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.dateField', CAST(CAST('2019-2-1' AS DATE) AS JSON));
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_QUOTE('2019-2-1'));
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_ARRAY('2019-2-1','2019-3-1'));
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_ARRAY('2019-2-1','2019-3-1'));
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+DATE'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+DATE'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+'asd2019' MEMBER OF (doc->'$.dateField');
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+'asd2019' MEMBER OF (doc->'$.dateField');
+
+--echo # DATETIME
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',JSON_QUOTE('2017-12-29 23:59:59'));
+
+SELECT doc->'$.datetimeField' FROM t1 IGNORE KEY(datetimeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.datetimeField',JSON_QUOTE('2017-12-29 23:59:59'));
+
+--echo # Empty result as $.datetimeField is string and index isn't used
+SELECT doc->'$.datetimeField' FROM t1 IGNORE KEY(datetimeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.datetimeField',
+ CAST(CAST('2017-12-29 23:59:59' AS DATETIME) AS JSON));
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',JSON_QUOTE('2017-12-29 23:59:59'));
+
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',
+  JSON_ARRAY('2017-12-29 23:59:59','2017-12-30 23:59:59'));
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',
+  JSON_ARRAY('2017-12-29 23:59:59','2017-12-30 23:59:59'));
+
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+TIMESTAMP'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+TIMESTAMP'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+--echo # TIME
+SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
+
+SELECT doc->'$.timeField' FROM t1 IGNORE KEY(timeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
+
+--echo # Empty result as $.timeField is string and index isn't used
+SELECT doc->'$.timeField' FROM t1 IGNORE KEY(timeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.timeField', CAST(CAST('11:11' AS TIME) AS JSON));
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
+
+SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_ARRAY('11:11','12:11'));
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_ARRAY('11:11','12:11'));
+
+SELECT doc->'$.timeField' FROM t1 WHERE
+'11:11' MEMBER OF (doc->'$.timeField');
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+'11:11' MEMBER OF (doc->'$.timeField');
+
+SELECT doc->'$.timeField' FROM t1 WHERE
+TIME'11:11' MEMBER OF (doc->'$.timeField');
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+TIME'11:11' MEMBER OF (doc->'$.timeField');
+
+DROP TABLE t1;
+
+CREATE TABLE t(i INT, j JSON);
+INSERT INTO t VALUES
+  (1,'"2019-1-1"'),(2,'"2019-01-01"'),(3,CAST(DATE'2019-1-1' AS JSON));
+--echo # Untyped comparison
+SELECT * FROM t WHERE j->'$' = '2019-1-1';
+SELECT * FROM t WHERE j->'$' = DATE'2019-01-01';
+SELECT * FROM t WHERE j->'$' = '2019-01-1';
+CREATE INDEX idx ON t((CAST(j->'$' AS DATE)));
+--echo # Typed comparison using index's type
+SELECT * FROM t WHERE j->'$' = '2019-1-1';
+SELECT * FROM t WHERE j->'$' = DATE'2019-01-01';
+SELECT * FROM t WHERE j->'$' = '2019-01-1';
+ALTER TABLE t DROP INDEX idx;
+DELETE FROM t;
+INSERT INTO t VALUES
+  (1,'"1:1"'),(2,'"01:1"'),(3,CAST(TIME'01:1' AS JSON));
+SELECT * FROM t WHERE j->'$' = '1:1';
+SELECT * FROM t WHERE j->'$' = TIME'1:1';
+SELECT * FROM t WHERE j->'$' = '1:01';
+CREATE INDEX idx ON t((CAST(j->'$' AS TIME)));
+--echo # Typed comparison using index's type
+SELECT * FROM t WHERE j->'$' = '1:1';
+SELECT * FROM t WHERE j->'$' = TIME'1:1';
+SELECT * FROM t WHERE j->'$' = '1:01';
+DROP TABLE t;
+
 # If the unique record filter is not properly closed by any of queries above,
 # then the TempTable plugin will have ref_count > 0 on restart. This should be
 # the at the very end of the test.

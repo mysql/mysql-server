@@ -8093,11 +8093,12 @@ bool Field_json::unpack_diff(const uchar **from) {
 }
 
 bool Field_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) const {
-  bool result = get_time(ltime);
-  if (!result && ltime->time_type == MYSQL_TIMESTAMP_TIME) {
-    MYSQL_TIME tmp = *ltime;
-    time_to_datetime(current_thd, &tmp, ltime);
-  }
+  ASSERT_COLUMN_MARKED_FOR_READ;
+
+  Json_wrapper wr;
+  bool result = val_json(&wr) || wr.coerce_date(ltime, field_name);
+  if (result)
+    set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
   return result;
 }
 
@@ -8107,7 +8108,7 @@ bool Field_json::get_time(MYSQL_TIME *ltime) const {
   Json_wrapper wr;
   bool result = val_json(&wr) || wr.coerce_time(ltime, field_name);
   if (result)
-    set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
+    set_zero_time(ltime, MYSQL_TIMESTAMP_TIME); /* purecov: inspected */
   return result;
 }
 
@@ -9976,7 +9977,7 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
       case enum_json_type::J_UINT: {
         // Handle scalars
         Json_wrapper coerced;
-        if (coerce_json_value(data, &coerced))
+        if (coerce_json_value(data, false, &coerced))
           return TYPE_ERR_BAD_VALUE; /* purecov: inspected */
         coerced.set_alias();
         m_array.append_alias(coerced.to_dom(table->in_use));
@@ -10016,7 +10017,8 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
             return TYPE_ERR_BAD_VALUE;
           }
 
-          if (coerce_json_value(&elt, &coerced)) return TYPE_ERR_BAD_VALUE;
+          if (coerce_json_value(&elt, false, &coerced))
+            return TYPE_ERR_BAD_VALUE;
           coerced.set_alias();
           m_array.append_alias(coerced.to_dom(table->in_use));
           if (type() == MYSQL_TYPE_VARCHAR)

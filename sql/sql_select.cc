@@ -62,6 +62,7 @@
 #include "sql/filesort.h"       // filesort_free_buffers
 #include "sql/handler.h"
 #include "sql/item_func.h"
+#include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/key.h"       // key_copy, key_cmp, key_cmp_if_same
@@ -2115,6 +2116,12 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 static store_key *get_store_key(THD *thd, Key_use *keyuse,
                                 table_map used_tables, KEY_PART_INFO *key_part,
                                 uchar *key_buff, uint maybe_null) {
+  if (key_part->field->is_array()) {
+    return new (thd->mem_root) store_key_json_item(
+        thd, key_part->field, key_buff + maybe_null, maybe_null ? key_buff : 0,
+        key_part->length, keyuse->val,
+        (!((~used_tables) & keyuse->used_tables)));
+  }
   if (!((~used_tables) & keyuse->used_tables))  // if const item
   {
     return new (thd->mem_root) store_key_const_item(
@@ -2145,6 +2152,41 @@ static store_key *get_store_key(THD *thd, Key_use *keyuse,
 enum store_key::store_key_result store_key_hash_item::copy_inner() {
   enum store_key_result res = store_key_item::copy_inner();
   if (res != STORE_KEY_FATAL) *hash = unique_hash(to_field, hash);
+  return res;
+}
+
+enum store_key::store_key_result store_key_json_item::copy_inner() {
+  TABLE *table = to_field->table;
+  // Temporarily mark all table's fields writable to avoid assert.
+  my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
+  if (!m_inited) {
+    Json_wrapper wr;
+    String str_val, buf;
+
+    Functional_index_error_handler functional_index_error_handler(
+        to_field, table->in_use);
+    // Get JSON value and store its value as the key. MEMBER OF is the only
+    // function that can use this function
+    if (get_json_atom_wrapper(&item, 0, "MEMBER OF", &str_val, &buf, &wr,
+                              nullptr, true) ||
+        save_json_to_field(table->in_use, to_field, enum_jtc_on::JTO_ERROR, &wr,
+                           CHECK_FIELD_WARN, true))
+      return STORE_KEY_FATAL;
+    // Copy constant key only once
+    if (m_const_key) m_inited = true;
+  }
+
+  store_key_result res;
+  /*
+   get_json_atom_wrapper() may call Item::val_xxx(). And if this is a subquery
+   we need to check for errors executing it and react accordingly
+  */
+  if (table->in_use->is_error())
+    res = STORE_KEY_FATAL;
+  else
+    res = STORE_KEY_OK;
+  dbug_tmp_restore_column_map(table->write_set, old_map);
+  null_key = to_field->is_null() || item->null_value;
   return res;
 }
 

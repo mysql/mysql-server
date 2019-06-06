@@ -415,6 +415,7 @@ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
 C_MODE_END
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_bin;
 
 extern CHARSET_INFO my_charset_latin1_bin;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
