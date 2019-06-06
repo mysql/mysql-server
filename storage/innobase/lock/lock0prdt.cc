@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -394,24 +394,11 @@ static lock_t *lock_prdt_add_to_queue(
 
   type_mode |= LOCK_REC;
 
-  /* Look for a waiting lock request on the same record or on a gap */
-
-  lock_t *lock;
-
-  for (lock = lock_rec_get_first_on_page(lock_hash_get(type_mode), block);
-       lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
-    if (lock_get_wait(lock) && lock_rec_get_nth_bit(lock, PRDT_HEAPNO) &&
-        lock->type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE)) {
-      break;
-    }
-  }
-
-  if (lock == NULL && !(type_mode & LOCK_WAIT)) {
+  if (!(type_mode & LOCK_WAIT)) {
     /* Look for a similar record lock on the same page:
-    if one is found and there are no waiting lock requests,
-    we can just set the bit */
+    if one is found we can just set the bit */
 
-    lock = lock_prdt_find_on_page(type_mode, block, prdt, trx);
+    lock_t *lock = lock_prdt_find_on_page(type_mode, block, prdt, trx);
 
     if (lock != NULL) {
       if (lock->type_mode & LOCK_PREDICATE) {

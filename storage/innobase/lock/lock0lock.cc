@@ -1710,11 +1710,10 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
 }
 
 /** Adds a record lock request in the record queue. The request is normally
- added as the last in the queue, but if there are no waiting lock requests
- on the record, and the request to be added is not a waiting request, we
- can reuse a suitable record lock object already existing on the same page,
- just setting the appropriate bit in its bitmap. This is a low-level function
- which does NOT check for deadlocks or lock compatibility!
+ added as the last in the queue, but if the request to be added is not a waiting
+ request, we can reuse a suitable record lock object already existing on the
+ same page, just setting the appropriate bit in its bitmap. This is a low-level
+ function which does NOT check for deadlocks or lock compatibility!
  @return lock where the bit was set */
 static void lock_rec_add_to_queue(
     ulint type_mode,          /*!< in: lock mode, wait, gap
@@ -1764,25 +1763,15 @@ static void lock_rec_add_to_queue(
   }
 
   if (!(type_mode & LOCK_WAIT)) {
-    lock_t *lock;
-    lock_t *first_lock;
-    hash_table_t *hash = lock_hash_get(type_mode);
+    hash_table_t *const hash = lock_hash_get(type_mode);
+    lock_t *const first_lock = lock_rec_get_first_on_page(hash, block);
 
-    /* Look for a waiting lock request on the same record or on a gap */
-
-    for (first_lock = lock = lock_rec_get_first_on_page(hash, block);
-         lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
-      if (lock_get_wait(lock) && lock_rec_get_nth_bit(lock, heap_no)) {
-        break;
-      }
-    }
-
-    if (lock == NULL && first_lock != NULL) {
+    if (first_lock != nullptr) {
       /* Look for a similar record lock on the same page:
-      if one is found and there are no waiting lock requests,
-      we can just set the bit */
+      if one is found we can just set the bit */
 
-      lock = lock_rec_find_similar_on_page(type_mode, heap_no, first_lock, trx);
+      lock_t *lock =
+          lock_rec_find_similar_on_page(type_mode, heap_no, first_lock, trx);
 
       if (lock != NULL) {
         lock_rec_set_nth_bit(lock, heap_no);
@@ -3024,12 +3013,6 @@ void lock_move_rec_list_end(
   ut_ad(comp == page_is_comp(buf_block_get_frame(new_block)));
 
   lock_mutex_enter();
-
-  /* Note: when we move locks from record to record, waiting locks
-  and possible granted gap type locks behind them are enqueued in
-  the original order, because new elements are inserted to a hash
-  table to the end of the hash chain, and lock_rec_add_to_queue
-  does not reuse locks if there are waiters in the queue. */
 
   for (lock = lock_rec_get_first_on_page(lock_sys->rec_hash, block); lock;
        lock = lock_rec_get_next_on_page(lock)) {
