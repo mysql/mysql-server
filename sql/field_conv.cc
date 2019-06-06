@@ -943,7 +943,21 @@ type_conversion_status field_conv(Field *to, Field *from) {
     return to->store(from->val_real());
   } else if (from_type == MYSQL_TYPE_JSON && to->is_temporal()) {
     MYSQL_TIME ltime;
-    if (from->get_time(&ltime)) return TYPE_ERR_BAD_VALUE;
+    bool res = true;
+    switch (to_type) {
+      case MYSQL_TYPE_TIME:
+        res = from->get_time(&ltime);
+        break;
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
+        res = from->get_date(&ltime, 0);
+        break;
+      default:
+        DBUG_ASSERT(0);
+    }
+    if (res) return TYPE_ERR_BAD_VALUE;
     return to->store_time(&ltime);
   } else if ((from->result_type() == STRING_RESULT &&
               (to->result_type() == STRING_RESULT ||

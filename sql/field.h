@@ -4473,7 +4473,14 @@ class Field_typed_array : public Field_json {
   }
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
                        uchar *, uint) const override {
-    return m_conv_field->new_key_field(root, new_table, new_ptr);
+    Field *res = m_conv_field->new_key_field(root, new_table, new_ptr);
+    if (res != nullptr) {
+      // Keep the field hidden to allow error handler to catch functional
+      // index's errors
+      res->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
+      res->part_of_key = part_of_key;
+    }
+    return res;
   }
   /**
     These methods are used by handler to prevent returning a row past the
@@ -4492,20 +4499,25 @@ class Field_typed_array : public Field_json {
   friend class Item_func_array_cast;
 
   /**
-    Convert arbitrary JSON value to the array's type using conversion field.
-    An error is thrown if conversion fails. The converted value is
-    guaranteed to match the field's type and can be indexed by SE without
-    any additional handling.
+    Convert arbitrary JSON value to the array's type using the conversion field.
+    If conversion fails and it's not a coercion test (no_error= false) then an
+    error is thrown. The converted value is guaranteed to match the field's
+    type and can be indexed by SE without any additional handling.
 
-    @param  wr       Source data
-    @param  coerced  The converted value, when it's null only error check if
-                     performed on the source
+    @param[in]   wr       Source data
+    @param[in]   no_error Whether an error should be thrown if value can't be
+                          coerced. Error should be thrown when inserting data
+                          into the index, and shouldn't be thrown when the range
+                          optimizer tests index applicability.
+    @param[out]  coerced  The converted value. Can be nullptr if no_error is
+                          true.
 
     @returns
       true   conversion failed
       false  conversion succeeded
   */
-  bool coerce_json_value(const Json_wrapper *wr, Json_wrapper *coerced);
+  bool coerce_json_value(const Json_wrapper *wr, bool no_error,
+                         Json_wrapper *coerced);
 
   /**
     Get name of the index defined over this field.

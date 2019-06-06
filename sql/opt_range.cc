@@ -6556,14 +6556,14 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
 
     // Get the SEL_ARG tree for the first non-null element..
     elt = wr[i++];
-    field->coerce_json_value(&elt, nullptr);
+    field->coerce_json_value(&elt, true, nullptr);
     SEL_TREE *tree = get_mm_parts(param, op, field, Item_func::EQ_FUNC,
                                   static_cast<Item_field *>(predicand));
     // .. and OR with others
     if (tree) {
       for (; i < len; i++) {
         elt = wr[i];
-        field->coerce_json_value(&elt, NULL);
+        field->coerce_json_value(&elt, true, nullptr);
         tree = tree_or(param, tree,
                        get_mm_parts(param, op, field, Item_func::EQ_FUNC,
                                     static_cast<Item_field *>(predicand)));
