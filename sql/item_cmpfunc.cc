@@ -5514,10 +5514,11 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
   return false;
 }
 
-bool Item_func_isnull::resolve_type(THD *) {
+bool Item_func_isnull::resolve_type(THD *thd) {
   max_length = 1;
   maybe_null = false;
-  update_used_tables();
+  // Possibly cache a const value, but not when analyzing CREATE VIEW stmt.
+  if (!thd->lex->is_view_context_analysis()) update_used_tables();
   return false;
 }
 
