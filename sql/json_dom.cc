@@ -2534,23 +2534,25 @@ static constexpr int num_json_types =
   is greater than b. If it is 0, it means it cannot be determined
   which value is the greater one just by looking at the types.
 */
+// clang-format off
 static constexpr int type_comparison[num_json_types][num_json_types] = {
-    /* NULL */ {0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-    /* DECIMAL */ {1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-    /* INT */ {1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-    /* UINT */ {1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-    /* DOUBLE */ {1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-    /* STRING */ {1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, 0, -1},
-    /* OBJECT */ {1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1},
-    /* ARRAY */ {1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1},
-    /* BOOLEAN */ {1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1},
-    /* DATE */ {1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1},
-    /* TIME */ {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1},
-    /* DATETIME */ {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, -1, -1},
-    /* TIMESTAMP */ {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, -1, -1},
-    /* OPAQUE */ {1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, -1},
-    /* ERROR */ {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+  /* NULL */      {0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+  /* DECIMAL */   {1,  0,  0,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+  /* INT */       {1,  0,  0,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+  /* UINT */      {1,  0,  0,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+  /* DOUBLE */    {1,  0,  0,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+  /* STRING */    {1,  1,  1,  1,  1,  0, -1, -1, -1, -1, -1, -1, -1,  0, -1},
+  /* OBJECT */    {1,  1,  1,  1,  1,  1,  0, -1, -1, -1, -1, -1, -1, -1, -1},
+  /* ARRAY */     {1,  1,  1,  1,  1,  1,  1,  0, -1, -1, -1, -1, -1, -1, -1},
+  /* BOOLEAN */   {1,  1,  1,  1,  1,  1,  1,  1,  0, -1, -1, -1, -1, -1, -1},
+  /* DATE */      {1,  1,  1,  1,  1,  1,  1,  1,  1,  0, -1, -1, -1, -1, -1},
+  /* TIME */      {1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0, -1, -1, -1, -1},
+  /* DATETIME */  {1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,  0, -1, -1},
+  /* TIMESTAMP */ {1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,  0, -1, -1},
+  /* OPAQUE */    {1,  1,  1,  1,  1,  0,  1,  1,  1,  1,  1,  1,  1,  0, -1},
+  /* ERROR */     {1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1},
 };
+// clang-format on
 
 int Json_wrapper::compare(const Json_wrapper &other,
                           const CHARSET_INFO *cs) const {
@@ -3004,31 +3006,62 @@ my_decimal *Json_wrapper::coerce_decimal(my_decimal *decimal_value,
 
 bool Json_wrapper::coerce_date(MYSQL_TIME *ltime, const char *msgnam,
                                enum_coercion_error cr_error) const {
-  bool result = coerce_time(ltime, msgnam, cr_error);
-
-  if (!result && ltime->time_type == MYSQL_TIMESTAMP_TIME) {
-    MYSQL_TIME tmp = *ltime;
-    time_to_datetime(current_thd, &tmp, ltime);
-  }
-
-  return result;
-}
-
-bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
-                               enum_coercion_error cr_error) const {
   switch (type()) {
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_DATE:
-    case enum_json_type::J_TIME:
     case enum_json_type::J_TIMESTAMP:
       set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME);
       get_datetime(ltime);
       return false;
+    case enum_json_type::J_STRING: {
+      MYSQL_TIME_STATUS status;
+      THD *thd = current_thd;
+      // @see Field_datetime::date_flags
+      my_time_flags_t date_flags = TIME_FUZZY_DATE;
+      if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+        date_flags |= TIME_NO_ZERO_DATE;
+      if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+        date_flags |= TIME_NO_ZERO_IN_DATE;
+      if (thd->variables.sql_mode & MODE_INVALID_DATES)
+        date_flags |= TIME_INVALID_DATES;
+      if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
+        date_flags |= TIME_FRAC_TRUNCATE;
+      if (!str_to_datetime(get_data(), get_data_length(), ltime, date_flags,
+                           &status) &&
+          !status.warnings)
+        break;
+      /* Fall through */
+    }
     default:
       handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
                             ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
       return true;
   }
+  return false;
+}
+
+bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
+                               enum_coercion_error cr_error) const {
+  switch (type()) {
+    case enum_json_type::J_TIME:
+      set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
+      get_datetime(ltime);
+      return false;
+    case enum_json_type::J_STRING: {
+      MYSQL_TIME_STATUS status;
+      set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
+      if (!str_to_time(get_data(), get_data_length(), ltime, &status,
+                       TIME_STRICT_COLON) &&
+          !status.warnings)
+        break;
+      /* Fall through */
+    }
+    default:
+      handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
+                            ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+      return true;
+  }
+  return false;
 }
 
 namespace {

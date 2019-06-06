@@ -6115,6 +6115,60 @@ class Item_type_holder final : public Item {
   }
 };
 
+/// A class that represents a constant JSON value.
+class Item_json final : public Item_basic_constant {
+  Json_wrapper m_value;
+
+ public:
+  Item_json(Json_wrapper &&value, const Item_name_string &name)
+      : m_value(std::move(value)) {
+    set_data_type_json();
+    item_name = name;
+  }
+  enum Type type() const override { return STRING_ITEM; }
+  void print(const THD *, String *str, enum_query_type) const override {
+    str->append("json'");
+    m_value.to_string(str, true, "");
+    str->append("'");
+  }
+  bool val_json(Json_wrapper *result) override {
+    *result = m_value;
+    return false;
+  }
+
+  /*
+    The functions below don't get called currently, because Item_json
+    is used in a more limited way than other subclasses of
+    Item_basic_constant. Most notably, there is no JSON literal syntax
+    which gets translated into Item_json objects by the parser.
+
+    Still, the functions need to be implemented in order to satisfy
+    the compiler. Annotate them so that they don't clutter the test
+    coverage results.
+  */
+
+  /* purecov: begin inspected */
+  Item_result result_type() const override { return STRING_RESULT; }
+  double val_real() override { return m_value.coerce_real(item_name.ptr()); }
+  longlong val_int() override { return m_value.coerce_int(item_name.ptr()); }
+  String *val_str(String *str) override {
+    str->length(0);
+    if (m_value.to_string(str, true, item_name.ptr())) return error_str();
+    return str;
+  }
+  my_decimal *val_decimal(my_decimal *buf) override {
+    return m_value.coerce_decimal(buf, item_name.ptr());
+  }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t) override {
+    return m_value.coerce_date(ltime, item_name.ptr());
+  }
+  bool get_time(MYSQL_TIME *ltime) override {
+    return m_value.coerce_time(ltime, item_name.ptr());
+  }
+  Item *clone_item() const override;
+  /* purecov: end */
+};
+
 extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a, Item_result b);
 extern bool resolve_const_item(THD *thd, Item **ref, Item *cmp_item);

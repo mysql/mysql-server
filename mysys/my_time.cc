@@ -655,12 +655,13 @@ err:
  @param      length  Length of str
  @param[out] l_time  Store result here
  @param[out] status  Conversion status, including warnings.
+ @param      flags   Optional flags to control conversion
 
  @retval false  Ok
  @retval true   Error
 */
 bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
-                 MYSQL_TIME_STATUS *status) {
+                 MYSQL_TIME_STATUS *status, my_time_flags_t flags) {
   ulong date[5];
   ulonglong value;
   const char *end = str + length;
@@ -669,6 +670,7 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
   bool found_hours;
   uint state;
   const char *start;
+  bool seen_colon = false;
 
   assert(status->warnings == 0 && status->fractional_digits == 0 &&
          status->nanoseconds == 0);
@@ -723,6 +725,7 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
     state = 2;
     found_hours = 1;
     str++; /* skip ':' */
+    seen_colon = true;
   } else {
     /* String given as one number; assume HHMMSS format */
     date[0] = 0;
@@ -742,6 +745,7 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
         !isdigit_char(str[1]))
       break;
     str++; /* Skip time_separator (':') */
+    seen_colon = true;
   }
 
   if (state != 4) { /* Not HH:MM:SS */
@@ -806,6 +810,12 @@ fractional:
   if (date[0] > UINT_MAX || date[1] > UINT_MAX || date[2] > UINT_MAX ||
       date[3] > UINT_MAX || date[4] > UINT_MAX)
     return 1;
+
+  if (!seen_colon && (flags & TIME_STRICT_COLON)) {
+    memset(l_time, 0, sizeof(*l_time));
+    status->warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return true;
+  }
 
   l_time->year = 0; /* For protocol::store_time */
   l_time->month = 0;

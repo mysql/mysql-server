@@ -4214,14 +4214,7 @@ longlong Item_copy_json::val_int() {
 bool Item_copy_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
   if (null_value) return true;
 
-  bool result = get_time(ltime);
-
-  if (!result && ltime->time_type == MYSQL_TIMESTAMP_TIME) {
-    MYSQL_TIME tmp = *ltime;
-    time_to_datetime(current_thd, &tmp, ltime);
-  }
-
-  return result;
+  return m_value->coerce_date(ltime, item_name.ptr());
 }
 
 bool Item_copy_json::get_time(MYSQL_TIME *ltime) {
@@ -5964,7 +5957,21 @@ type_conversion_status Item::save_in_field_inner(Field *field,
 
         if (field->is_temporal()) {
           MYSQL_TIME t;
-          if (get_time(&t)) {
+          bool res;
+          switch (field->type()) {
+            case MYSQL_TYPE_TIME:
+              res = get_time(&t);
+              break;
+            case MYSQL_TYPE_DATETIME:
+            case MYSQL_TYPE_TIMESTAMP:
+            case MYSQL_TYPE_DATE:
+            case MYSQL_TYPE_NEWDATE:
+              res = get_date(&t, 0);
+              break;
+            default:
+              DBUG_ASSERT(0);
+          }
+          if (res) {
             null_value = true;
             return set_field_to_null_with_conversions(field, no_conversions);
           }
@@ -6487,68 +6494,17 @@ void Item_bin_string::bin_string_init(const char *str, size_t str_length) {
   fixed = 1;
 }
 
-namespace {
-
-/// A class that represents a constant JSON value.
-class Item_json final : public Item_basic_constant {
-  Json_wrapper m_value;
-
- public:
-  Item_json(Json_wrapper &&value, const Item_name_string &name)
-      : m_value(std::move(value)) {
-    set_data_type_json();
-    item_name = name;
-  }
-  enum Type type() const override { return STRING_ITEM; }
-
-  /*
-    The functions below don't get called currently, because Item_json
-    is used in a more limited way than other subclasses of
-    Item_basic_constant. Most notably, there is no JSON literal syntax
-    which gets translated into Item_json objects by the parser.
-
-    Still, the functions need to be implemented in order to satisfy
-    the compiler. Annotate them so that they don't clutter the test
-    coverage results.
-  */
-
-  /* purecov: begin inspected */
-  Item_result result_type() const override { return STRING_RESULT; }
-  bool val_json(Json_wrapper *result) override {
-    *result = m_value;
-    return false;
-  }
-  double val_real() override { return m_value.coerce_real(item_name.ptr()); }
-  longlong val_int() override { return m_value.coerce_int(item_name.ptr()); }
-  String *val_str(String *str) override {
-    str->length(0);
-    if (m_value.to_string(str, true, item_name.ptr())) return error_str();
-    return str;
-  }
-  my_decimal *val_decimal(my_decimal *buf) override {
-    return m_value.coerce_decimal(buf, item_name.ptr());
-  }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t) override {
-    return m_value.coerce_date(ltime, item_name.ptr());
-  }
-  bool get_time(MYSQL_TIME *ltime) override {
-    return m_value.coerce_time(ltime, item_name.ptr());
-  }
-  Item *clone_item() const override {
-    Json_wrapper wr(m_value.clone_dom(current_thd));
-    return new Item_json(std::move(wr), item_name);
-  }
-  /* purecov: end */
-};
-
-}  // anonymous namespace
-
 /**
   Pack data in buffer for sending.
 */
 
 bool Item_null::send(Protocol *protocol, String *) {
   return protocol->store_null();
+}
+
+Item *Item_json::clone_item() const {
+  Json_wrapper wr(m_value.clone_dom(current_thd));
+  return new Item_json(std::move(wr), item_name);
 }
 
 /**
