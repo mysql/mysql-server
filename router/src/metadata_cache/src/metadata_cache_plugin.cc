@@ -38,17 +38,15 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "plugin_config.h"
-#include "tcp_address.h"
 
 using metadata_cache::LookupResult;
-using mysql_harness::TCPAddress;
-using std::string;
 IMPORT_LOG_FUNCTIONS()
 
 static const mysql_harness::AppInfo *g_app_info;
-static const string kSectionName = "metadata_cache";
+static const std::string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
 
 static void init(mysql_harness::PluginFuncEnv *env) {
@@ -119,8 +117,11 @@ class MetadataServersStateListener
     // need to convert from ManagedInstance to uri string
     std::vector<std::string> metadata_servers_str;
     for (auto &md_server : md_servers) {
-      metadata_servers_str.emplace_back(
-          "mysql://" + mysql_harness::TCPAddress(md_server).str());
+      mysqlrouter::URI uri;
+      uri.scheme = "mysql";
+      uri.host = md_server.host;
+      uri.port = md_server.port;
+      metadata_servers_str.emplace_back(uri.str());
     }
 
     dynamic_state_.set_metadata_servers(metadata_servers_str);
@@ -165,7 +166,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     }
 
     std::chrono::milliseconds ttl{config.ttl};
-    string metadata_cluster{config.metadata_cluster};
+    std::string metadata_cluster{config.metadata_cluster};
 
     // Initialize the defaults.
     metadata_cluster = metadata_cluster.empty()
