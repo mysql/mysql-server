@@ -33,15 +33,9 @@ if ($ENV{'MYSQL_TMP_DIR'})
 my $cmd = $test_bin;
 $cmd .= " $args" if $args;
 my $res = exec_print_on_error($cmd, $max_lines);
-if ($res)
+if (!$res)
 {
-  # Test program suceeded
-  print $F "exit;\n";
-  exit(0);
-}
-else
-{
-  print $F "die Test program failed!;\n";
+  # Test program failed
 }
 $F->close(); 
 
