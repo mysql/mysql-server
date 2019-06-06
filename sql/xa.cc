@@ -1312,10 +1312,10 @@ void XID_STATE::store_xid_info(Protocol *protocol,
         bin_to_hex_str(xid_buf + 2, sizeof(xid_buf) - 2, m_xid.data,
                        m_xid.gtrid_length + m_xid.bqual_length) +
         2;
-    protocol->store(xid_buf, xid_str_len, &my_charset_bin);
+    protocol->store_string(xid_buf, xid_str_len, &my_charset_bin);
   } else {
-    protocol->store(m_xid.data, m_xid.gtrid_length + m_xid.bqual_length,
-                    &my_charset_bin);
+    protocol->store_string(m_xid.data, m_xid.gtrid_length + m_xid.bqual_length,
+                           &my_charset_bin);
   }
 }
 

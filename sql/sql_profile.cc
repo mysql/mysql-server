@@ -461,11 +461,11 @@ bool PROFILING::show_profiles() {
 
     protocol->start_row();
     protocol->store((uint32)(prof->profiling_query_id));
-    protocol->store((double)(query_time_usecs / (1000.0 * 1000)),
-                    (uint32)TIME_FLOAT_DIGITS - 1, 0, &elapsed);
+    protocol->store_double(query_time_usecs / (1000.0 * 1000),
+                           TIME_FLOAT_DIGITS - 1, 0, &elapsed);
     if (prof->m_query_source.str != NULL)
-      protocol->store(prof->m_query_source.str, prof->m_query_source.length,
-                      system_charset_info);
+      protocol->store_string(prof->m_query_source.str,
+                             prof->m_query_source.length, system_charset_info);
     else
       protocol->store_null();
 

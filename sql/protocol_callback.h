@@ -166,8 +166,8 @@ class Protocol_callback final : public Protocol {
       false  success
       true   failure
   */
-  bool store(const char *from, size_t length,
-             const CHARSET_INFO *fromcs) override;
+  bool store_string(const char *from, size_t length,
+                    const CHARSET_INFO *fromcs) override;
 
   /**
     Sends FLOAT value
@@ -180,7 +180,8 @@ class Protocol_callback final : public Protocol {
       false  success
       true   failure
   */
-  bool store(float from, uint32 decimals, uint32, String *buffer) override;
+  bool store_float(float from, uint32 decimals, uint32,
+                   String *buffer) override;
 
   /**
     Sends DOUBLE value
@@ -193,7 +194,8 @@ class Protocol_callback final : public Protocol {
       false  success
       true   failure
   */
-  bool store(double from, uint32 decimals, uint32, String *buffer) override;
+  bool store_double(double from, uint32 decimals, uint32,
+                    String *buffer) override;
 
   /**
     Sends DATETIME value
@@ -407,7 +409,6 @@ class Protocol_callback final : public Protocol {
                        bool is_sql_prepare) override;
   bool flush() override;
 
-  using Protocol::store;
   using Protocol::store_long;
   using Protocol::store_short;
 

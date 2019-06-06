@@ -125,20 +125,22 @@ bool Protocol_callback::store_decimal(const my_decimal *d, uint, uint) {
   return false;
 }
 
-bool Protocol_callback::store(const char *from, size_t length,
-                              const CHARSET_INFO *fromcs) {
+bool Protocol_callback::store_string(const char *from, size_t length,
+                                     const CHARSET_INFO *fromcs) {
   if (callbacks.get_string)
     return callbacks.get_string(callbacks_ctx, from, length, fromcs);
   return false;
 }
 
-bool Protocol_callback::store(float from, uint32 decimals, uint32, String *) {
+bool Protocol_callback::store_float(float from, uint32 decimals, uint32,
+                                    String *) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;
 }
 
-bool Protocol_callback::store(double from, uint32 decimals, uint32, String *) {
+bool Protocol_callback::store_double(double from, uint32 decimals, uint32,
+                                     String *) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;

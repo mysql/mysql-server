@@ -771,12 +771,12 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
     if (++idx <= unit->offset_limit_cnt) continue;
     if (idx > unit->select_limit_cnt) break;
     protocol->start_row();
-    protocol->store(warning_level_names[err->severity()].str,
-                    warning_level_names[err->severity()].length,
-                    system_charset_info);
+    protocol->store_string(warning_level_names[err->severity()].str,
+                           warning_level_names[err->severity()].length,
+                           system_charset_info);
     protocol->store((uint32)err->mysql_errno());
-    protocol->store(err->message_text(), err->message_octet_length(),
-                    system_charset_info);
+    protocol->store_string(err->message_text(), err->message_octet_length(),
+                           system_charset_info);
     if (protocol->end_row()) rc = true;
   }
   thd->pop_diagnostics_area();

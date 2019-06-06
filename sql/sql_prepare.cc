@@ -247,14 +247,15 @@ class Protocol_local final : public Protocol {
   bool store_long(longlong from, uint32) override;
   bool store_longlong(longlong from, bool unsigned_flag, uint32) override;
   bool store_decimal(const my_decimal *, uint, uint) override;
-  bool store(const char *from, size_t length, const CHARSET_INFO *cs) override;
+  bool store_string(const char *from, size_t length,
+                    const CHARSET_INFO *cs) override;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
   bool store_time(const MYSQL_TIME &time, uint precision) override;
-  bool store(float value, uint32 decimals, uint32 zerofill,
-             String *buffer) override;
-  bool store(double value, uint32 decimals, uint32 zerofill,
-             String *buffer) override;
+  bool store_float(float value, uint32 decimals, uint32 zerofill,
+                   String *buffer) override;
+  bool store_double(double value, uint32 decimals, uint32 zerofill,
+                    String *buffer) override;
   bool store_field(const Field *field) override;
 
   enum enum_protocol_type type() const override { return PROTOCOL_LOCAL; }
@@ -3477,8 +3478,8 @@ bool Protocol_local::store_decimal(const my_decimal *value, uint prec,
 
 /** Convert to cs_results and store a string. */
 
-bool Protocol_local::store(const char *str, size_t length,
-                           const CHARSET_INFO *src_cs) {
+bool Protocol_local::store_string(const char *str, size_t length,
+                                  const CHARSET_INFO *src_cs) {
   const CHARSET_INFO *dst_cs;
 
   dst_cs = m_connection->m_thd->variables.character_set_results;
@@ -3505,13 +3506,13 @@ bool Protocol_local::store_time(const MYSQL_TIME &time, uint) {
 
 /* Store a floating point number, as is. */
 
-bool Protocol_local::store(float value, uint32, uint32, String *) {
+bool Protocol_local::store_float(float value, uint32, uint32, String *) {
   return store_column(&value, sizeof(float));
 }
 
 /* Store a double precision number, as is. */
 
-bool Protocol_local::store(double value, uint32, uint32, String *) {
+bool Protocol_local::store_double(double value, uint32, uint32, String *) {
   return store_column(&value, sizeof(double));
 }
 
@@ -3640,7 +3641,7 @@ bool Protocol_local::end_result_metadata() {
 
 bool Protocol_local::send_field_metadata(Send_field *field,
                                          const CHARSET_INFO *cs) {
-  store(field->col_name, strlen(field->col_name), cs);
+  store_string(field->col_name, strlen(field->col_name), cs);
   return false;
 }
 

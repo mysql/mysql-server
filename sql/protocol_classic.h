@@ -71,8 +71,6 @@ class Protocol_classic : public Protocol {
   ulong input_packet_length;
   uchar *input_raw_packet;
   const CHARSET_INFO *result_cs;
-  bool store_string_aux(const char *from, size_t length,
-                        const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
 
   bool send_ok(uint server_status, uint statement_warn_count,
                ulonglong affected_rows, ulonglong last_insert_id,
@@ -98,6 +96,8 @@ class Protocol_classic : public Protocol {
   }
   void init(THD *thd_arg);
   bool store_field(const Field *field) final override;
+  bool store_string(const char *from, size_t length,
+                    const CHARSET_INFO *cs) final;
   int read_packet() override;
   int get_command(COM_DATA *com_data, enum_server_command *cmd) override;
   /**
@@ -222,13 +222,10 @@ class Protocol_text : public Protocol_classic {
   bool store_longlong(longlong from, bool unsigned_flag,
                       uint32 zerofill) override;
   bool store_decimal(const my_decimal *, uint, uint) final;
-  bool store(const char *from, size_t length, const CHARSET_INFO *cs) override {
-    return store(from, length, cs, result_cs);
-  }
-  bool store(float nr, uint32 decimals, uint32 zerofill,
-             String *buffer) override;
-  bool store(double from, uint32 decimals, uint32 zerofill,
-             String *buffer) override;
+  bool store_float(float nr, uint32 decimals, uint32 zerofill,
+                   String *buffer) override;
+  bool store_double(double from, uint32 decimals, uint32 zerofill,
+                    String *buffer) override;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
   bool store_time(const MYSQL_TIME &time, uint precision) override;
@@ -236,10 +233,6 @@ class Protocol_text : public Protocol_classic {
   bool send_parameters(List<Item_param> *parameters, bool) override;
 
   enum enum_protocol_type type() const override { return PROTOCOL_TEXT; }
-
- protected:
-  bool store(const char *from, size_t length, const CHARSET_INFO *fromcs,
-             const CHARSET_INFO *tocs);
 };
 
 class Protocol_binary final : public Protocol_text {
@@ -261,13 +254,10 @@ class Protocol_binary final : public Protocol_text {
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
   bool store_time(const MYSQL_TIME &time, uint precision) override;
-  bool store(float nr, uint32 decimals, uint32 zerofill,
-             String *buffer) override;
-  bool store(double from, uint32 decimals, uint32 zerofill,
-             String *buffer) override;
-  bool store(const char *from, size_t length, const CHARSET_INFO *cs) override {
-    return store(from, length, cs, result_cs);
-  }
+  bool store_float(float nr, uint32 decimals, uint32 zerofill,
+                   String *buffer) override;
+  bool store_double(double from, uint32 decimals, uint32 zerofill,
+                    String *buffer) override;
 
   bool start_result_metadata(uint num_cols, uint flags,
                              const CHARSET_INFO *resultcs) override;
@@ -275,10 +265,6 @@ class Protocol_binary final : public Protocol_text {
                        bool is_sql_prepare) override;
 
   enum enum_protocol_type type() const override { return PROTOCOL_BINARY; }
-
- private:
-  bool store(const char *from, size_t length, const CHARSET_INFO *fromcs,
-             const CHARSET_INFO *tocs);
 };
 
 bool net_send_error(THD *thd, uint sql_errno, const char *err);

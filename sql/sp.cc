@@ -1315,17 +1315,17 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   protocol->start_row();
 
   // Routine Name
-  protocol->store(routine->name().c_str(), routine->name().length(),
-                  system_charset_info);
+  protocol->store_string(routine->name().c_str(), routine->name().length(),
+                         system_charset_info);
 
   // sql mode.
-  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
+  protocol->store_string(sql_mode.str, sql_mode.length, system_charset_info);
 
   // Routine definition.
   const CHARSET_INFO *cs_info =
       dd_get_mysql_charset(routine->client_collation_id());
   if (full_access)
-    protocol->store(defstr.c_ptr(), defstr.length(), cs_info);
+    protocol->store_string(defstr.c_ptr(), defstr.length(), cs_info);
   else
     protocol->store_null();
 

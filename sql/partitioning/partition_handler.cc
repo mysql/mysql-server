@@ -1394,10 +1394,10 @@ bool Partition_helper::print_admin_msg(THD *thd, uint len, const char *msg_type,
   DBUG_PRINT("info", ("print_admin_msg:  %s, %s, %s, %s", name, op_name,
                       msg_type, msgbuf));
   protocol->start_row();
-  protocol->store(name, length, system_charset_info);
+  protocol->store_string(name, length, system_charset_info);
   protocol->store(op_name, system_charset_info);
   protocol->store(msg_type, system_charset_info);
-  protocol->store(msgbuf, msg_length, system_charset_info);
+  protocol->store_string(msgbuf, msg_length, system_charset_info);
   if (protocol->end_row()) {
     LogErr(ERROR_LEVEL, ER_MY_NET_WRITE_FAILED_FALLING_BACK_ON_STDERR, msgbuf);
     goto err;

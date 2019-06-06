@@ -134,12 +134,12 @@ class Protocol {
   virtual bool store_longlong(longlong from, bool unsigned_flag,
                               uint32 zerofill) = 0;
   virtual bool store_decimal(const my_decimal *, uint, uint) = 0;
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs) = 0;
-  virtual bool store(float from, uint32 decimals, uint32 zerofill,
-                     String *buffer) = 0;
-  virtual bool store(double from, uint32 decimals, uint32 zerofill,
-                     String *buffer) = 0;
+  virtual bool store_string(const char *from, size_t length,
+                            const CHARSET_INFO *fromcs) = 0;
+  virtual bool store_float(float from, uint32 decimals, uint32 zerofill,
+                           String *buffer) = 0;
+  virtual bool store_double(double from, uint32 decimals, uint32 zerofill,
+                            String *buffer) = 0;
   virtual bool store_datetime(const MYSQL_TIME &time, uint precision) = 0;
   virtual bool store_date(const MYSQL_TIME &time) = 0;
   virtual bool store_time(const MYSQL_TIME &time, uint precision) = 0;
@@ -171,13 +171,13 @@ class Protocol {
       true    error
   */
   inline bool store(const char *from, const CHARSET_INFO *fromcs) {
-    return from ? store(from, strlen(from), fromcs) : store_null();
+    return from ? store_string(from, strlen(from), fromcs) : store_null();
   }
   inline bool store(String *str) {
-    return store(str->ptr(), str->length(), str->charset());
+    return store_string(str->ptr(), str->length(), str->charset());
   }
   inline bool store(const LEX_STRING &s, const CHARSET_INFO *cs) {
-    return store(s.str, s.length, cs);
+    return store_string(s.str, s.length, cs);
   }
 
   /**

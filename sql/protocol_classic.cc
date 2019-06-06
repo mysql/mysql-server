@@ -537,7 +537,7 @@ static bool net_store_zero_padded_data(const char *data, size_t data_length,
   net_store_data() - extended version with character set conversion.
 
   It is optimized for short strings whose length after
-  conversion is garanteed to be less than 251, which accupies
+  conversion is guaranteed to be less than 251, which occupies
   exactly one byte to store length. It allows not to use
   the "convert" member as a temporary buffer, conversion
   is done directly to the "packet" member.
@@ -3082,12 +3082,13 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
 
   send_metadata = true;
   if (has_client_capability(CLIENT_PROTOCOL_41)) {
-    if (store(STRING_WITH_LEN("def"), cs) ||
-        store(field->db_name, strlen(field->db_name), cs) ||
-        store(field->table_name, strlen(field->table_name), cs) ||
-        store(field->org_table_name, strlen(field->org_table_name), cs) ||
-        store(field->col_name, strlen(field->col_name), cs) ||
-        store(field->org_col_name, strlen(field->org_col_name), cs) ||
+    if (store_string(STRING_WITH_LEN("def"), cs) ||
+        store_string(field->db_name, strlen(field->db_name), cs) ||
+        store_string(field->table_name, strlen(field->table_name), cs) ||
+        store_string(field->org_table_name, strlen(field->org_table_name),
+                     cs) ||
+        store_string(field->col_name, strlen(field->col_name), cs) ||
+        store_string(field->org_col_name, strlen(field->org_col_name), cs) ||
         packet->mem_realloc(packet->length() + 12)) {
       send_metadata = false;
       return true;
@@ -3137,8 +3138,8 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
     pos[11] = 0;  // For the future
     pos += 12;
   } else {
-    if (store(field->table_name, strlen(field->table_name), cs) ||
-        store(field->col_name, strlen(field->col_name), cs) ||
+    if (store_string(field->table_name, strlen(field->table_name), cs) ||
+        store_string(field->col_name, strlen(field->col_name), cs) ||
         packet->mem_realloc(packet->length() + 10)) {
       send_metadata = false;
       return true;
@@ -3185,7 +3186,7 @@ bool store(Protocol *prot, I_List<i_string> *str_list) {
     tmp.append(',');
   }
   if ((len = tmp.length())) len--;  // Remove last ','
-  return prot->store(tmp.ptr(), len, tmp.charset());
+  return prot->store_string(tmp.ptr(), len, tmp.charset());
 }
 
 /****************************************************************************
@@ -3216,32 +3217,12 @@ bool Protocol_text::store_null() {
   return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 
-/**
-  Auxilary function to convert string to the given character set
-  and store in network buffer.
-*/
-
-bool Protocol_classic::store_string_aux(const char *from, size_t length,
-                                        const CHARSET_INFO *fromcs,
-                                        const CHARSET_INFO *tocs) {
-  /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
-  if (tocs && !my_charset_same(fromcs, tocs) && fromcs != &my_charset_bin &&
-      tocs != &my_charset_bin) {
-    /* Store with conversion */
-    return net_store_data_with_conversion(pointer_cast<const uchar *>(from),
-                                          length, fromcs, tocs);
-  }
-  /* Store without conversion */
-  return net_store_data(pointer_cast<const uchar *>(from), length, packet);
-}
-
 int Protocol_classic::shutdown(bool) {
   return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
 }
 
-bool Protocol_text::store(const char *from, size_t length,
-                          const CHARSET_INFO *fromcs,
-                          const CHARSET_INFO *tocs) {
+bool Protocol_classic::store_string(const char *from, size_t length,
+                                    const CHARSET_INFO *fromcs) {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == nullptr ||
@@ -3254,7 +3235,15 @@ bool Protocol_text::store(const char *from, size_t length,
                field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   if (!send_metadata) field_pos++;
 #endif
-  return store_string_aux(from, length, fromcs, tocs);
+  // result_cs is nullptr when client issues SET character_set_results=NULL
+  if (result_cs != nullptr && !my_charset_same(fromcs, result_cs) &&
+      fromcs != &my_charset_bin && result_cs != &my_charset_bin) {
+    // Store with conversion.
+    return net_store_data_with_conversion(pointer_cast<const uchar *>(from),
+                                          length, fromcs, result_cs);
+  }
+  // Store without conversion.
+  return net_store_data(pointer_cast<const uchar *>(from), length, packet);
 }
 
 bool Protocol_text::store_tiny(longlong from, uint32 zerofill) {
@@ -3335,8 +3324,8 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
                         packet);
 }
 
-bool Protocol_text::store(float from, uint32 decimals, uint32 zerofill,
-                          String *buffer) {
+bool Protocol_text::store_float(float from, uint32 decimals, uint32 zerofill,
+                                String *buffer) {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == 0 ||
@@ -3351,8 +3340,8 @@ bool Protocol_text::store(float from, uint32 decimals, uint32 zerofill,
                         buffer->length(), packet);
 }
 
-bool Protocol_text::store(double from, uint32 decimals, uint32 zerofill,
-                          String *buffer) {
+bool Protocol_text::store_double(double from, uint32 decimals, uint32 zerofill,
+                                 String *buffer) {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == 0 ||
@@ -3549,25 +3538,6 @@ void Protocol_binary::start_row() {
   field_pos = 0;
 }
 
-bool Protocol_binary::store(const char *from, size_t length,
-                            const CHARSET_INFO *fromcs,
-                            const CHARSET_INFO *tocs) {
-  if (send_metadata) return Protocol_text::store(from, length, fromcs, tocs);
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_BIT ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
-              field_types[field_pos] == MYSQL_TYPE_JSON ||
-              (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-               field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
-#endif
-  field_pos++;
-  return store_string_aux(from, length, fromcs, tocs);
-}
-
 bool Protocol_binary::store_null() {
   if (send_metadata) return Protocol_text::store_null();
   uint offset = (field_pos + 2) / 8 + 1, bit = (1 << ((field_pos + 2) & 7));
@@ -3637,10 +3607,10 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
   return 0;
 }
 
-bool Protocol_binary::store(float from, uint32 decimals, uint32 zerofill,
-                            String *buffer) {
+bool Protocol_binary::store_float(float from, uint32 decimals, uint32 zerofill,
+                                  String *buffer) {
   if (send_metadata)
-    return Protocol_text::store(from, decimals, zerofill, buffer);
+    return Protocol_text::store_float(from, decimals, zerofill, buffer);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == nullptr ||
@@ -3653,10 +3623,10 @@ bool Protocol_binary::store(float from, uint32 decimals, uint32 zerofill,
   return 0;
 }
 
-bool Protocol_binary::store(double from, uint32 decimals, uint32 zerofill,
-                            String *buffer) {
+bool Protocol_binary::store_double(double from, uint32 decimals,
+                                   uint32 zerofill, String *buffer) {
   if (send_metadata)
-    return Protocol_text::store(from, decimals, zerofill, buffer);
+    return Protocol_text::store_double(from, decimals, zerofill, buffer);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == nullptr ||

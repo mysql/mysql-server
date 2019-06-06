@@ -4278,8 +4278,8 @@ bool Field_float::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
   StringBuffer<FLOATING_POINT_BUFFER> buffer;
-  return protocol->store(static_cast<float>(Field_float::val_real()), dec,
-                         zerofill ? field_length : 0, &buffer);
+  return protocol->store_float(static_cast<float>(Field_float::val_real()), dec,
+                               zerofill ? field_length : 0, &buffer);
 }
 
 /**
@@ -4501,8 +4501,8 @@ String *Field_double::val_str(String *val_buffer,
 bool Field_double::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
   StringBuffer<FLOATING_POINT_BUFFER> buffer;
-  return protocol->store(Field_double::val_real(), dec,
-                         zerofill ? field_length : 0, &buffer);
+  return protocol->store_double(Field_double::val_real(), dec,
+                                zerofill ? field_length : 0, &buffer);
 }
 
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr) const {

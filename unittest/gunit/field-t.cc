@@ -132,11 +132,11 @@ class Mock_protocol : public Protocol {
   bool store_long(longlong, uint32) override { return false; }
   bool store_longlong(longlong, bool, uint32) override { return false; }
   bool store_decimal(const my_decimal *, uint, uint) override { return false; }
-  bool store(const char *, size_t, const CHARSET_INFO *) override {
+  bool store_string(const char *, size_t, const CHARSET_INFO *) override {
     return false;
   }
-  bool store(float, uint32, uint32, String *) override { return false; }
-  bool store(double, uint32, uint32, String *) override { return false; }
+  bool store_float(float, uint32, uint32, String *) override { return false; }
+  bool store_double(double, uint32, uint32, String *) override { return false; }
   bool store_datetime(const MYSQL_TIME &, uint) override { return false; }
   bool store_date(const MYSQL_TIME &) override { return false; }
   bool store_field(const Field *) override { return false; }

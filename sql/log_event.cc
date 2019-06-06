@@ -1090,7 +1090,7 @@ int Log_event::net_send(Protocol *protocol, const char *log_name,
   protocol->store(log_name, &my_charset_bin);
   protocol->store((ulonglong)pos);
   event_type = get_type_str();
-  protocol->store(event_type, strlen(event_type), &my_charset_bin);
+  protocol->store_string(event_type, strlen(event_type), &my_charset_bin);
   protocol->store((uint32)server_id);
   protocol->store((ulonglong)common_header->log_pos);
   if (pack_info(protocol)) return 1;
@@ -3286,7 +3286,7 @@ int Query_log_event::pack_info(Protocol *protocol) {
     }
   }
   // persist the buffer in protocol
-  protocol->store(str_buf.ptr(), str_buf.length(), &my_charset_bin);
+  protocol->store_string(str_buf.ptr(), str_buf.length(), &my_charset_bin);
   return 0;
 }
 
@@ -5200,7 +5200,7 @@ int Format_description_log_event::pack_info(Protocol *protocol) {
   pos = my_stpcpy(pos, server_version);
   pos = my_stpcpy(pos, ", Binlog ver: ");
   pos = int10_to_str(binlog_version, pos, 10);
-  protocol->store(buf, (uint)(pos - buf), &my_charset_bin);
+  protocol->store_string(buf, (uint)(pos - buf), &my_charset_bin);
   return 0;
 }
 
@@ -5379,7 +5379,7 @@ int Rotate_log_event::pack_info(Protocol *protocol) {
   tmp.append(new_log_ident, ident_len);
   tmp.append(STRING_WITH_LEN(";pos="));
   tmp.append(llstr(pos, buf));
-  protocol->store(tmp.ptr(), tmp.length(), &my_charset_bin);
+  protocol->store_string(tmp.ptr(), tmp.length(), &my_charset_bin);
   return 0;
 }
 #endif  // MYSQL_SERVER
@@ -5640,7 +5640,7 @@ int Intvar_log_event::pack_info(Protocol *protocol) {
   pos = strmake(buf, (get_var_type_string()).c_str(), sizeof(buf) - 23);
   *pos++ = '=';
   pos = longlong10_to_str(val, pos, -10);
-  protocol->store(buf, (uint)(pos - buf), &my_charset_bin);
+  protocol->store_string(buf, (uint)(pos - buf), &my_charset_bin);
   return 0;
 }
 #endif  // MYSQL_SERVER
@@ -5757,7 +5757,7 @@ int Rand_log_event::pack_info(Protocol *protocol) {
   pos = int10_to_str((long)seed1, pos, 10);
   pos = my_stpcpy(pos, ",rand_seed2=");
   pos = int10_to_str((long)seed2, pos, 10);
-  protocol->store(buf1, (uint)(pos - buf1), &my_charset_bin);
+  protocol->store_string(buf1, (uint)(pos - buf1), &my_charset_bin);
   return 0;
 }
 #endif  // MYSQL_SERVER
@@ -5859,7 +5859,7 @@ int Xid_log_event::pack_info(Protocol *protocol) {
   pos = my_stpcpy(buf, "COMMIT /* xid=");
   pos = longlong10_to_str(xid, pos, 10);
   pos = my_stpcpy(pos, " */");
-  protocol->store(buf, (uint)(pos - buf), &my_charset_bin);
+  protocol->store_string(buf, (uint)(pos - buf), &my_charset_bin);
   return 0;
 }
 #endif  // MYSQL_SERVER
@@ -6200,7 +6200,7 @@ int XA_prepare_log_event::pack_info(Protocol *protocol) {
                 my_xid.data);
   sprintf(query, (one_phase ? "XA COMMIT %s ONE PHASE" : "XA PREPARE %s"), buf);
 
-  protocol->store(query, strlen(query), &my_charset_bin);
+  protocol->store_string(query, strlen(query), &my_charset_bin);
   return 0;
 }
 
@@ -6384,7 +6384,7 @@ int User_var_log_event::pack_info(Protocol *protocol) {
   buf[0] = '@';
   memcpy(buf + 1, quoted_id, id_len);
   buf[1 + id_len] = '=';
-  protocol->store(buf, event_len, &my_charset_bin);
+  protocol->store_string(buf, event_len, &my_charset_bin);
   my_free(buf);
   return 0;
 }
@@ -6841,7 +6841,7 @@ int Append_block_log_event::pack_info(Protocol *protocol) {
   size_t length;
   length = snprintf(buf, sizeof(buf), ";file_id=%u;block_len=%u", file_id,
                     block_len);
-  protocol->store(buf, length, &my_charset_bin);
+  protocol->store_string(buf, length, &my_charset_bin);
   return 0;
 }
 
@@ -6977,7 +6977,7 @@ int Delete_file_log_event::pack_info(Protocol *protocol) {
   char buf[64];
   size_t length;
   length = snprintf(buf, sizeof(buf), ";file_id=%u", (uint)file_id);
-  protocol->store(buf, length, &my_charset_bin);
+  protocol->store_string(buf, length, &my_charset_bin);
   return 0;
 }
 
@@ -7170,7 +7170,7 @@ int Execute_load_query_log_event::pack_info(Protocol *protocol) {
   }
   pos = my_stpcpy(pos, " ;file_id=");
   pos = int10_to_str((long)file_id, pos, 10);
-  protocol->store(buf, pos - buf, &my_charset_bin);
+  protocol->store_string(buf, pos - buf, &my_charset_bin);
   my_free(buf);
   return 0;
 }
@@ -10013,7 +10013,7 @@ int Rows_log_event::pack_info(Protocol *protocol) {
   char const *const flagstr = get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
   size_t bytes =
       snprintf(buf, sizeof(buf), "table_id: %llu%s", m_table_id.id(), flagstr);
-  protocol->store(buf, bytes, &my_charset_bin);
+  protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
 #endif  // MYSQL_SERVER
@@ -10937,7 +10937,7 @@ int Table_map_log_event::pack_info(Protocol *protocol) {
   size_t bytes = snprintf(buf, sizeof(buf), "table_id: %llu (%s.%s)",
                           m_table_id.id(), m_dbnam.c_str(), m_tblnam.c_str());
   DBUG_ASSERT(bytes < 256);
-  protocol->store(buf, bytes, &my_charset_bin);
+  protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
 #endif  // MYSQL_SERVER
@@ -12092,7 +12092,7 @@ int Incident_log_event::pack_info(Protocol *protocol) {
   else
     bytes = snprintf(buf, sizeof(buf), "#%d (%s): %s", incident, description(),
                      message);
-  protocol->store(buf, bytes, &my_charset_bin);
+  protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
 #endif
@@ -12204,7 +12204,7 @@ int Ignorable_log_event::pack_info(Protocol *protocol) {
   char buf[256];
   size_t bytes;
   bytes = snprintf(buf, sizeof(buf), "# Unrecognized ignorable event");
-  protocol->store(buf, bytes, &my_charset_bin);
+  protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
 #endif
@@ -12238,7 +12238,7 @@ int Rows_query_log_event::pack_info(Protocol *protocol) {
   if (!(buf = (char *)my_malloc(key_memory_log_event, len, MYF(MY_WME))))
     return 1;
   bytes = snprintf(buf, len, "# %s", m_rows_query);
-  protocol->store(buf, bytes, &my_charset_bin);
+  protocol->store_string(buf, bytes, &my_charset_bin);
   my_free(buf);
   return 0;
 }
@@ -12419,7 +12419,7 @@ Gtid_log_event::Gtid_log_event(
 int Gtid_log_event::pack_info(Protocol *protocol) {
   char buffer[MAX_SET_STRING_LENGTH + 1];
   size_t len = to_string(buffer);
-  protocol->store(buffer, len, &my_charset_bin);
+  protocol->store_string(buffer, len, &my_charset_bin);
   return 0;
 }
 #endif  // MYSQL_SERVER
@@ -12853,7 +12853,7 @@ int Previous_gtids_log_event::pack_info(Protocol *protocol) {
   size_t length = 0;
   char *str = get_str(&length, &Gtid_set::default_string_format);
   if (str == nullptr) return 1;
-  protocol->store(str, length, &my_charset_bin);
+  protocol->store_string(str, length, &my_charset_bin);
   my_free(str);
   return 0;
 }
@@ -13011,7 +13011,7 @@ int Transaction_context_log_event::pack_info(Protocol *protocol) {
   DBUG_TRACE;
   char buf[256];
   size_t bytes = to_string(buf, 256);
-  protocol->store(buf, bytes, &my_charset_bin);
+  protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
 #endif
@@ -13225,7 +13225,7 @@ int View_change_log_event::pack_info(Protocol *protocol) {
   DBUG_TRACE;
   char buf[256];
   size_t bytes = to_string(buf, 256);
-  protocol->store(buf, bytes, &my_charset_bin);
+  protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
 #endif

@@ -561,8 +561,8 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   }
 
   if (table_list->is_view()) {
-    protocol->store(buffer.ptr(), buffer.length(),
-                    table_list->view_creation_ctx->get_client_cs());
+    protocol->store_string(buffer.ptr(), buffer.length(),
+                           table_list->view_creation_ctx->get_client_cs());
 
     protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
                     system_charset_info);
@@ -570,7 +570,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     protocol->store(table_list->view_creation_ctx->get_connection_cl()->name,
                     system_charset_info);
   } else
-    protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
+    protocol->store_string(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->end_row()) goto exit;
 
@@ -654,7 +654,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     return true;
 
   protocol->start_row();
-  protocol->store(orig_dbname, strlen(orig_dbname), system_charset_info);
+  protocol->store_string(orig_dbname, strlen(orig_dbname), system_charset_info);
   buffer.length(0);
   buffer.append(STRING_WITH_LEN("CREATE DATABASE "));
   if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
@@ -680,7 +680,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     buffer.append(STRING_WITH_LEN("'N'"));
   buffer.append(STRING_WITH_LEN(" */"));
 
-  protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
+  protocol->store_string(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->end_row()) return true;
   my_eof(thd);
@@ -4145,16 +4145,20 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
 
   p->start_row();
 
-  if (p->store(trigger->get_trigger_name().str,
-               trigger->get_trigger_name().length, system_charset_info) ||
+  if (p->store_string(trigger->get_trigger_name().str,
+                      trigger->get_trigger_name().length,
+                      system_charset_info) ||
       p->store(sql_mode_str, system_charset_info) ||
-      p->store(create_trg_str.c_ptr(), create_trg_str.length(), client_cs) ||
-      p->store(trigger->get_client_cs_name().str,
-               trigger->get_client_cs_name().length, system_charset_info) ||
-      p->store(trigger->get_connection_cl_name().str,
-               trigger->get_connection_cl_name().length, system_charset_info) ||
-      p->store(trigger->get_db_cl_name().str, trigger->get_db_cl_name().length,
-               system_charset_info))
+      p->store_string(create_trg_str.c_ptr(), create_trg_str.length(),
+                      client_cs) ||
+      p->store_string(trigger->get_client_cs_name().str,
+                      trigger->get_client_cs_name().length,
+                      system_charset_info) ||
+      p->store_string(trigger->get_connection_cl_name().str,
+                      trigger->get_connection_cl_name().length,
+                      system_charset_info) ||
+      p->store_string(trigger->get_db_cl_name().str,
+                      trigger->get_db_cl_name().length, system_charset_info))
     return true;
 
   bool rc;

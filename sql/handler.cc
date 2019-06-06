@@ -7439,9 +7439,9 @@ static bool stat_print(THD *thd, const char *type, size_t type_len,
                        size_t status_len) {
   Protocol *protocol = thd->get_protocol();
   protocol->start_row();
-  protocol->store(type, type_len, system_charset_info);
-  protocol->store(file, file_len, system_charset_info);
-  protocol->store(status, status_len, system_charset_info);
+  protocol->store_string(type, type_len, system_charset_info);
+  protocol->store_string(file, file_len, system_charset_info);
+  protocol->store_string(status, status_len, system_charset_info);
   if (protocol->end_row()) return true;
   return false;
 }

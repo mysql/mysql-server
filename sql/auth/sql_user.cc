@@ -338,7 +338,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
 
   /* send the result row to client */
   protocol->start_row();
-  protocol->store(sql_text.ptr(), sql_text.length(), sql_text.charset());
+  protocol->store_string(sql_text.ptr(), sql_text.length(), sql_text.charset());
   if (protocol->end_row()) {
     error = 1;
     goto err;

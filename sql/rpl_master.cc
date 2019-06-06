@@ -1315,7 +1315,7 @@ bool show_binlogs(THD *thd) {
     protocol->start_row();
     dir_len = dirname_length(fname);
     length -= dir_len;
-    protocol->store(fname + dir_len, length, &my_charset_bin);
+    protocol->store_string(fname + dir_len, length, &my_charset_bin);
 
     if (!(strncmp(fname + dir_len, cur.log_file_name + cur_dir_len, length))) {
       /* Encryption header size shall be accounted in the file_length */

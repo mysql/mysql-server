@@ -545,7 +545,7 @@ static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
     protocol->start_row();
     if (source_name) protocol->store(source_name);
     protocol->store(*pos);
-    protocol->store(cat, 1, &my_charset_latin1);
+    protocol->store_string(cat, 1, &my_charset_latin1);
     if (protocol->end_row()) return -1;
   }
 

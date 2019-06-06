@@ -798,21 +798,22 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
 
   protocol->start_row();
 
-  protocol->store(et->m_event_name.str, et->m_event_name.length,
-                  system_charset_info);
-  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
-  protocol->store(tz_name->ptr(), tz_name->length(), system_charset_info);
-  protocol->store(show_str.c_ptr(), show_str.length(),
-                  et->m_creation_ctx->get_client_cs());
-  protocol->store(et->m_creation_ctx->get_client_cs()->csname,
-                  strlen(et->m_creation_ctx->get_client_cs()->csname),
-                  system_charset_info);
-  protocol->store(et->m_creation_ctx->get_connection_cl()->name,
-                  strlen(et->m_creation_ctx->get_connection_cl()->name),
-                  system_charset_info);
-  protocol->store(et->m_creation_ctx->get_db_cl()->name,
-                  strlen(et->m_creation_ctx->get_db_cl()->name),
-                  system_charset_info);
+  protocol->store_string(et->m_event_name.str, et->m_event_name.length,
+                         system_charset_info);
+  protocol->store_string(sql_mode.str, sql_mode.length, system_charset_info);
+  protocol->store_string(tz_name->ptr(), tz_name->length(),
+                         system_charset_info);
+  protocol->store_string(show_str.c_ptr(), show_str.length(),
+                         et->m_creation_ctx->get_client_cs());
+  protocol->store_string(et->m_creation_ctx->get_client_cs()->csname,
+                         strlen(et->m_creation_ctx->get_client_cs()->csname),
+                         system_charset_info);
+  protocol->store_string(et->m_creation_ctx->get_connection_cl()->name,
+                         strlen(et->m_creation_ctx->get_connection_cl()->name),
+                         system_charset_info);
+  protocol->store_string(et->m_creation_ctx->get_db_cl()->name,
+                         strlen(et->m_creation_ctx->get_db_cl()->name),
+                         system_charset_info);
 
   if (protocol->end_row()) return true;
 

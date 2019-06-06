@@ -109,7 +109,7 @@ static int send_check_errmsg(THD *thd, TABLE_LIST *table,
   protocol->start_row();
   protocol->store(table->alias, system_charset_info);
   protocol->store(operator_name, system_charset_info);
-  protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+  protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
   protocol->store(errmsg, system_charset_info);
   thd->clear_error();
   if (protocol->end_row()) return -1;
@@ -328,9 +328,9 @@ static bool send_analyze_table_errors(THD *thd, const char *operator_name,
     protocol->start_row();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
-    protocol->store(warning_level_names[err->severity()].str,
-                    warning_level_names[err->severity()].length,
-                    system_charset_info);
+    protocol->store_string(warning_level_names[err->severity()].str,
+                           warning_level_names[err->severity()].length,
+                           system_charset_info);
     protocol->store(err->message_text(), system_charset_info);
     if (protocol->end_row()) return true;
   }
@@ -439,10 +439,12 @@ bool Sql_cmd_analyze_table::send_histogram_results(
 
     protocol->start_row();
     if (protocol->store(table_name, system_charset_info) ||
-        protocol->store(STRING_WITH_LEN("histogram"), system_charset_info) ||
-        protocol->store(message_type.c_str(), message_type.length(),
-                        system_charset_info) ||
-        protocol->store(message.c_str(), message.size(), system_charset_info) ||
+        protocol->store_string(STRING_WITH_LEN("histogram"),
+                               system_charset_info) ||
+        protocol->store_string(message_type.c_str(), message_type.length(),
+                               system_charset_info) ||
+        protocol->store_string(message.c_str(), message.size(),
+                               system_charset_info) ||
         protocol->end_row()) {
       return true; /* purecov: deadcode */
     }
@@ -816,10 +818,10 @@ static bool mysql_admin_table(
       protocol->start_row();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
       length = snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                         table_name);
-      protocol->store(buff, length, system_charset_info);
+      protocol->store_string(buff, length, system_charset_info);
       trans_commit_stmt(thd, ignore_grl_on_analyze);
       trans_commit(thd, ignore_grl_on_analyze);
       /* Make sure this table instance is not reused after the operation. */
@@ -869,9 +871,9 @@ static bool mysql_admin_table(
       protocol->start_row();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("warning"), system_charset_info);
-      protocol->store(STRING_WITH_LEN("Table is marked as crashed"),
-                      system_charset_info);
+      protocol->store_string(STRING_WITH_LEN("warning"), system_charset_info);
+      protocol->store_string(STRING_WITH_LEN("Table is marked as crashed"),
+                             system_charset_info);
       if (protocol->end_row()) goto err;
       /* purecov: end */
     }
@@ -1003,8 +1005,8 @@ static bool mysql_admin_table(
         size_t length =
             snprintf(buf, sizeof(buf), ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
                      operator_name);
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
       } break;
 
       case HA_ADMIN_NOT_BASE_TABLE: {
@@ -1018,44 +1020,45 @@ static bool mysql_admin_table(
         size_t length =
             snprintf(buf, sizeof(buf), ER_THD(thd, ER_BAD_TABLE_ERROR),
                      tbl_name.c_ptr());
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
       } break;
 
       case HA_ADMIN_OK:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("OK"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("OK"), system_charset_info);
         break;
 
       case HA_ADMIN_FAILED:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Operation failed"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Operation failed"),
+                               system_charset_info);
         break;
 
       case HA_ADMIN_REJECT:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Operation need committed state"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(
+            STRING_WITH_LEN("Operation need committed state"),
+            system_charset_info);
         open_for_modify = false;
         break;
 
       case HA_ADMIN_ALREADY_DONE:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Table is already up to date"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Table is already up to date"),
+                               system_charset_info);
         break;
 
       case HA_ADMIN_CORRUPT:
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Corrupt"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Corrupt"), system_charset_info);
         fatal_error = 1;
         break;
 
       case HA_ADMIN_INVALID:
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Invalid argument"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Invalid argument"),
+                               system_charset_info);
         break;
 
       case HA_ADMIN_TRY_ALTER: {
@@ -1083,16 +1086,18 @@ static bool mysql_admin_table(
         table->mdl_request.ticket = NULL;
 
         DEBUG_SYNC(thd, "ha_admin_try_alter");
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
         if (alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION) {
-          protocol->store(STRING_WITH_LEN("Table does not support optimize on "
-                                          "partitions. All partitions "
-                                          "will be rebuilt and analyzed."),
-                          system_charset_info);
+          protocol->store_string(
+              STRING_WITH_LEN("Table does not support optimize on "
+                              "partitions. All partitions "
+                              "will be rebuilt and analyzed."),
+              system_charset_info);
         } else {
-          protocol->store(STRING_WITH_LEN("Table does not support optimize, "
-                                          "doing recreate + analyze instead"),
-                          system_charset_info);
+          protocol->store_string(
+              STRING_WITH_LEN("Table does not support optimize, "
+                              "doing recreate + analyze instead"),
+              system_charset_info);
         }
         if (protocol->end_row()) goto err;
         DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
@@ -1167,7 +1172,8 @@ static bool mysql_admin_table(
                   .sqlstate(da->returned_sqlstate());
             } else {
               /* Hijack the row already in-progress. */
-              protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+              protocol->store_string(STRING_WITH_LEN("error"),
+                                     system_charset_info);
               protocol->store(da->message_text(), system_charset_info);
               if (protocol->end_row()) goto err;
               /* Start off another row for HA_ADMIN_FAILED */
@@ -1186,10 +1192,10 @@ static bool mysql_admin_table(
         goto send_result_message;
       }
       case HA_ADMIN_WRONG_CHECKSUM: {
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-        protocol->store(ER_THD(thd, ER_VIEW_CHECKSUM),
-                        strlen(ER_THD(thd, ER_VIEW_CHECKSUM)),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(ER_THD(thd, ER_VIEW_CHECKSUM),
+                               strlen(ER_THD(thd, ER_VIEW_CHECKSUM)),
+                               system_charset_info);
         break;
       }
 
@@ -1198,7 +1204,7 @@ static bool mysql_admin_table(
         char buf[MYSQL_ERRMSG_SIZE];
         size_t length;
 
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
         if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
           length =
               snprintf(buf, sizeof(buf), ER_THD(thd, ER_TABLE_NEEDS_UPGRADE),
@@ -1207,14 +1213,14 @@ static bool mysql_admin_table(
           length =
               snprintf(buf, sizeof(buf), ER_THD(thd, ER_TABLE_NEEDS_REBUILD),
                        table->table_name);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
         fatal_error = 1;
         break;
       }
 
       case HA_ADMIN_STATS_UPD_ERR:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(
             STRING_WITH_LEN("Unable to write table statistics to DD tables"),
             system_charset_info);
         break;
@@ -1230,13 +1236,13 @@ static bool mysql_admin_table(
         char buf[MYSQL_ERRMSG_SIZE];
         size_t length;
 
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
         length = snprintf(buf, sizeof(buf),
                           "Table upgrade required for "
                           "`%-.64s`.`%-.64s`. Please dump/reload table to "
                           "fix it!",
                           table->db, table->table_name);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
         fatal_error = 1;
         break;
       }
@@ -1247,8 +1253,8 @@ static bool mysql_admin_table(
         size_t length = snprintf(buf, sizeof(buf),
                                  "Unknown - internal error %d during operation",
                                  result_code);
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
         fatal_error = 1;
         break;
       }

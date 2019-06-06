@@ -1037,7 +1037,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       if (want_access & GRANT_ACL)
         db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
       protocol->start_row();
-      protocol->store(db.ptr(), db.length(), db.charset());
+      protocol->store_string(db.ptr(), db.length(), db.charset());
       protocol->end_row();
     }
   };
@@ -1084,7 +1084,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
         append_identifier(thd, &db, acl_user->host.get_host(),
                           acl_user->host.get_host_len());
         protocol->start_row();
-        protocol->store(db.ptr(), db.length(), db.charset());
+        protocol->store_string(db.ptr(), db.length(), db.charset());
         protocol->end_row();
       }
     }
@@ -1114,7 +1114,7 @@ void make_proxy_privilege_statement(THD *thd MY_ATTRIBUTE((unused)),
       String global;
       proxy->print_grant(&global);
       protocol->start_row();
-      protocol->store(global.ptr(), global.length(), global.charset());
+      protocol->store_string(global.ptr(), global.length(), global.charset());
       protocol->end_row();
     }
   }
@@ -1176,7 +1176,7 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
     if (want_access & GRANT_ACL)
       db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->start_row();
-    protocol->store(db.ptr(), db.length(), db.charset());
+    protocol->store_string(db.ptr(), db.length(), db.charset());
     protocol->end_row();
   }
 }
@@ -1229,7 +1229,7 @@ void make_with_admin_privilege_statement(
     global.append(" WITH ADMIN OPTION");
 
     protocol->start_row();
-    protocol->store(global.ptr(), global.length(), global.charset());
+    protocol->store_string(global.ptr(), global.length(), global.charset());
     protocol->end_row();
   }
 }
@@ -1266,7 +1266,7 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
                         role->host.get_host_len());
       if (grant_option) global.append(" WITH GRANT OPTION");
       protocol->start_row();
-      protocol->store(global.ptr(), global.length(), global.charset());
+      protocol->store_string(global.ptr(), global.length(), global.charset());
       protocol->end_row();
     }
     found = false;
@@ -1331,7 +1331,7 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
     append_identifier(thd, &global, role->host.get_host(),
                       role->host.get_host_len());
     protocol->start_row();
-    protocol->store(global.ptr(), global.length(), global.charset());
+    protocol->store_string(global.ptr(), global.length(), global.charset());
     protocol->end_row();
   }
 }
@@ -1406,7 +1406,7 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
     if (agg.table_access & GRANT_ACL)
       global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->start_row();
-    protocol->store(global.ptr(), global.length(), global.charset());
+    protocol->store_string(global.ptr(), global.length(), global.charset());
     protocol->end_row();
   }
 }
@@ -4702,7 +4702,7 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   make_global_privilege_statement(thd, access, acl_user, &output);
   Protocol *protocol = thd->get_protocol();
   protocol->start_row();
-  protocol->store(output.ptr(), output.length(), output.charset());
+  protocol->store_string(output.ptr(), output.length(), output.charset());
   protocol->end_row();
 
   make_dynamic_privilege_statement(thd, acl_user, protocol, dynamic_acl);

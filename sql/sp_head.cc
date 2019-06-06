@@ -3176,7 +3176,7 @@ bool sp_head::show_routine_code(THD *thd) {
 
     buffer.set("", 0, system_charset_info);
     i->print(thd, &buffer);
-    protocol->store(buffer.ptr(), buffer.length(), system_charset_info);
+    protocol->store_string(buffer.ptr(), buffer.length(), system_charset_info);
     if ((res = protocol->end_row())) break;
   }
 
