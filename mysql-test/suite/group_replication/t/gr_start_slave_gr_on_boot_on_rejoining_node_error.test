@@ -83,6 +83,12 @@ INSERT INTO test.t2 VALUES (1);
 --let $sync_slave_connection=server1
 --source include/sync_slave_sql_with_master.inc
 
+--let $rpl_channel_name=
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection=server1
+--source include/sync_slave_sql_with_master.inc
+
 # Wait for all servers to be in sync
 --source include/rpl_sync.inc
 
