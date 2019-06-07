@@ -1301,6 +1301,9 @@ class SELECT_LEX {
   /// @return true if this query block has a LIMIT clause
   bool has_limit() const { return select_limit != NULL; }
 
+  bool has_explicit_limit_or_order() const {
+    return explicit_limit || order_list.elements > 0;
+  }
   /// @return true if query block references full-text functions
   bool has_ft_funcs() const { return ftfunc_list->elements > 0; }
 

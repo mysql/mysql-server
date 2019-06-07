@@ -2517,7 +2517,13 @@ void SELECT_LEX_UNIT::print(const THD *thd, String *str,
       else if (union_distinct == sl)
         union_all = true;
     }
+    bool parentheses_are_needed =
+        sl->has_explicit_limit_or_order() &&
+        (is_union() || (fake_select_lex != nullptr &&
+                        fake_select_lex->has_explicit_limit_or_order()));
+    if (parentheses_are_needed) str->append('(');
     sl->print(thd, str, query_type);
+    if (parentheses_are_needed) str->append(')');
   }
   if (fake_select_lex) {
     if (fake_select_lex->order_list.elements) {
