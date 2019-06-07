@@ -6377,6 +6377,9 @@ public:
     return false;
   }
 };
+const char * const Ndb_binlog_index_table_util::DB_NAME;
+const char * const Ndb_binlog_index_table_util::TABLE_NAME;
+
 
 // Wrapper function allowing Ndb_binlog_index_table_util::remove_rows_for_file()
 // to be forward declared
