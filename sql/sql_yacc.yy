@@ -1380,7 +1380,7 @@ void warn_about_deprecated_binary(THD *thd)
         filter_string
         select_item
         opt_where_clause
-        opt_where_clause_expr
+        where_clause
         opt_having_clause
         opt_simple_limit
 
@@ -1839,7 +1839,8 @@ void warn_about_deprecated_binary(THD *thd)
 %type <create_table_tail> opt_create_table_options_etc
         opt_create_partitioning_etc opt_duplicate_as_qe
 
-%type <wild_or_where> opt_wild_or_where_for_show
+%type <wild_or_where> opt_wild_or_where
+
 // used by JSON_TABLE
 %type <jtc_list> columns_clause columns_list
 %type <jt_column> jt_column
@@ -11341,27 +11342,19 @@ opt_all:
         ;
 
 opt_where_clause:
-        opt_where_clause_expr
-          {
-            if ($1 != NULL)
-              $$= new PTI_context<CTX_WHERE>(@$, $1);
-            else
-              $$= NULL;
-          }
+          /* empty */   { $$ = nullptr; }
+        | where_clause
         ;
 
-opt_where_clause_expr: /* empty */  { $$= NULL; }
-        | WHERE expr
-          {
-            $$= $2;
-          }
+where_clause:
+          WHERE expr    { $$ = NEW_PTN PTI_where(@2, $2); }
         ;
 
 opt_having_clause:
           /* empty */ { $$= NULL; }
         | HAVING expr
           {
-            $$= new PTI_context<CTX_HAVING>(@$, $2);
+            $$= new PTI_having(@$, $2);
           }
         ;
 
@@ -12533,7 +12526,7 @@ show:
         ;
 
 show_param:
-           DATABASES opt_wild_or_where_for_show
+           DATABASES opt_wild_or_where
            {
              Lex->sql_command= SQLCOM_SHOW_DATABASES;
              if (Lex->set_wild($2.wild))
@@ -12542,13 +12535,13 @@ show_param:
                        @$, YYTHD, Lex->wild, $2.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | opt_show_cmd_type TABLES opt_db opt_wild_or_where_for_show
+         | opt_show_cmd_type TABLES opt_db opt_wild_or_where
            {
              auto *p= NEW_PTN PT_show_tables(@$, $1, $3, $4.wild, $4.where);
 
              MAKE_CMD(p);
            }
-         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where_for_show
+         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TRIGGERS;
@@ -12560,7 +12553,7 @@ show_param:
                                     @$, YYTHD, lex->wild, $4.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | EVENTS_SYM opt_db opt_wild_or_where_for_show
+         | EVENTS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_EVENTS;
@@ -12571,7 +12564,7 @@ show_param:
                                     @$, YYTHD, lex->wild, $3.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where_for_show
+         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
@@ -12585,6 +12578,13 @@ show_param:
         | OPEN_SYM TABLES opt_db opt_wild_or_where
           {
             LEX *lex= Lex;
+            if (lex->set_wild($4.wild)) {
+              MYSQL_YYABORT; // OOM
+            }
+            if ($4.where != nullptr) {
+              ITEMIZE($4.where, &$4.where);
+              Select->set_where_cond($4.where);
+            }
             lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
             lex->select_lex->db= $3;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
@@ -12612,7 +12612,7 @@ show_param:
           from_or_in
           table_ident
           opt_db
-          opt_wild_or_where_for_show
+          opt_wild_or_where
           {
             LEX *lex= Lex;
 
@@ -12663,7 +12663,7 @@ show_param:
           from_or_in            /* #3 */
           table_ident           /* #4 */
           opt_db                /* #5 */
-          opt_where_clause_expr /* #6 */
+          opt_where_clause      /* #6 */
           {
             LEX *lex= Lex;
 
@@ -12733,7 +12733,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
               YYABORT;
           }
-        | opt_var_type STATUS_SYM opt_wild_or_where_for_show
+        | opt_var_type STATUS_SYM opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_STATUS;
             THD *thd= YYTHD;
@@ -12760,7 +12760,7 @@ show_param:
             Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;
             Lex->verbose= $1;
           }
-        | opt_var_type VARIABLES opt_wild_or_where_for_show
+        | opt_var_type VARIABLES opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_VARIABLES;
             THD *thd= YYTHD;
@@ -12782,7 +12782,7 @@ show_param:
                 MYSQL_YYABORT;
             }
           }
-        | character_set opt_wild_or_where_for_show
+        | character_set opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_CHARSETS;
             if (Lex->set_wild($2.wild))
@@ -12791,7 +12791,7 @@ show_param:
                                   @$, YYTHD, Lex->wild, $2.where) == nullptr)
               MYSQL_YYABORT;
           }
-        | COLLATION_SYM opt_wild_or_where_for_show
+        | COLLATION_SYM opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_COLLATIONS;
             if (Lex->set_wild($2.wild))
@@ -12872,7 +12872,7 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where_for_show
+        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
@@ -12882,7 +12882,7 @@ show_param:
                                     @$, YYTHD, lex->wild, $3.where) == nullptr)
               MYSQL_YYABORT;
           }
-        | FUNCTION_SYM STATUS_SYM opt_wild_or_where_for_show
+        | FUNCTION_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
@@ -12972,26 +12972,9 @@ binlog_from:
         ;
 
 opt_wild_or_where:
-          /* empty */
-        | LIKE TEXT_STRING_sys
-          {
-            if (Lex->set_wild($2))
-              MYSQL_YYABORT; // OOM
-          }
-        | WHERE expr
-          {
-            ITEMIZE($2, &$2);
-
-            Select->set_where_cond($2);
-            if ($2)
-              $2->apply_is_true();
-          }
-        ;
-
-opt_wild_or_where_for_show:
-          /* empty */                   { $$= { NULL_STR, nullptr }; }
-        | LIKE TEXT_STRING_literal      { $$= { $2, nullptr}; }
-        | WHERE expr                    { $$= { NULL_STR, $2}; }
+          /* empty */                   { $$ = {}; }
+        | LIKE TEXT_STRING_literal      { $$ = { $2, {} }; }
+        | where_clause                  { $$ = { {}, $1 }; }
         ;
 
 /* A Oracle compatible synonym for show */

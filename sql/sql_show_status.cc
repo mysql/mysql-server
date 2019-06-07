@@ -240,7 +240,7 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
     if (func_like == NULL) return NULL;
 
     /* ... WHERE Variable_name LIKE <value> ... */
-    where_clause = new (thd->mem_root) PTI_context<CTX_WHERE>(pos, func_like);
+    where_clause = new (thd->mem_root) PTI_where(pos, func_like);
     if (where_clause == NULL) return NULL;
   } else {
     where_clause = where_cond;

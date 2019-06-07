@@ -268,14 +268,9 @@ bool Select_lex_builder::add_order_by(const LEX_CSTRING &field_name) {
 */
 PT_derived_table *Select_lex_builder::prepare_derived_table(
     const LEX_CSTRING &table_alias) {
-  Item *where_cond = nullptr;
-  if (m_where_clause != nullptr)
-    where_cond =
-        new (m_thd->mem_root) PTI_context<CTX_WHERE>(*m_pos, m_where_clause);
-
   PT_query_primary *query_specification =
       new (m_thd->mem_root) PT_query_specification(
-          options, m_select_item_list, m_table_reference_list, where_cond);
+          options, m_select_item_list, m_table_reference_list, m_where_clause);
 
   if (query_specification == nullptr) return nullptr;
 
@@ -305,14 +300,9 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
   added to this Select_lex_builder.
 */
 SELECT_LEX *Select_lex_builder::prepare_select_lex() {
-  Item *where_cond = nullptr;
-  if (m_where_clause != nullptr)
-    where_cond =
-        new (m_thd->mem_root) PTI_context<CTX_WHERE>(*m_pos, m_where_clause);
-
   PT_query_specification *query_specification2 =
       new (m_thd->mem_root) PT_query_specification(
-          options, m_select_item_list, m_table_reference_list, where_cond);
+          options, m_select_item_list, m_table_reference_list, m_where_clause);
   if (query_specification2 == nullptr) return nullptr;
 
   PT_query_expression_body_primary *query_expression_body_primary2 =

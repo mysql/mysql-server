@@ -828,4 +828,7 @@ class PTI_context : public Parse_tree_item {
   }
 };
 
+using PTI_where = PTI_context<CTX_WHERE>;
+using PTI_having = PTI_context<CTX_HAVING>;
+
 #endif /* PARSE_TREE_ITEMS_INCLUDED */
