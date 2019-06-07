@@ -1,18 +1,18 @@
 ################################################################################
 # This test evaluates that when the certification information is above the
-# max_allowed_packet value, the garbage collection invoked during view changes
+# slave_max_allowed_packet value, the garbage collection invoked during view changes
 # can alleviate this restriction.
 #
 # This test assumes an average size of 135 bytes per certification table entry.
 # Assuming this average, for a max packet size of 0.5MB, 3900 individual
 # transactions should be enough to break that limit.
 # In this test we use:
-#   max_allowed_packet = 1024*512  -     0.5 MB
-#   inserted transactions = 7800   -      ~1 MB
+#   slave_max_allowed_packet = 1024*256  -     0.125 MB
+#   inserted transactions    = 1950      -     ~0.16 MB
 #
 # Test:
 # 0. The test requires three servers: M1, M2 and M3.
-# 1. Reduce max_allowed_packet to 0.5 MB on M1 and M2.
+# 1. Reduce slave_max_allowed_packet to 0.125 MB on M1 and M2.
 # 2. Set DEBUG point to ensure the certification garbage collector is not
 #    executed on both M1 and M2. Bootstrap start a group on M1. Start GR on M2.
 # 3. Create table and events to insert data on both members.
@@ -30,20 +30,20 @@
 --source include/group_replication.inc
 
 --echo #
---echo # Reduce the max_allowed_packet value to just 1MB
+--echo # Reduce the slave_max_allowed_packet value to just  0.125 MB
 --echo #
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET @start_global_value_s1 = @@global.max_allowed_packet;
-SET @@global.max_allowed_packet = 1024*512;
+SET @start_global_value_s1 = @@global.slave_max_allowed_packet;
+SET @@global.slave_max_allowed_packet=1024*128;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @start_global_value_s2 = @@global.max_allowed_packet;
-SET @@global.max_allowed_packet = 1024*512;
+SET @start_global_value_s2 = @@global.slave_max_allowed_packet;
+SET @@global.slave_max_allowed_packet=1024*128;
 
 --echo #
 --echo # Initiate a 2 member group
@@ -86,7 +86,7 @@ CREATE EVENT IF NOT EXISTS test.event1
  BEGIN
   DECLARE v INTEGER;
   SET v=0;
-  WHILE v < 3900
+  WHILE v < 975
   DO
    INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
    SET v = v+1;
@@ -108,7 +108,7 @@ CREATE EVENT IF NOT EXISTS test.event2
  BEGIN
   DECLARE v INTEGER;
   SET v=0;
-  WHILE v < 3900
+  WHILE v < 975
   DO
    INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
    SET v = v+1;
@@ -135,26 +135,26 @@ SET SESSION sql_log_bin= 0;
 ALTER EVENT event2 ENABLE;
 SET SESSION sql_log_bin= 1;
 
---let $wait_timeout=300
---let $wait_condition= SELECT COUNT(*)= 7800 FROM test.mytable;
+--let $wait_timeout=1200
+--let $wait_condition= SELECT COUNT(*)= 1950 FROM test.mytable;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $wait_timeout=300
---let $wait_condition= SELECT COUNT(*)= 7800 FROM test.mytable;
+--let $wait_timeout=1200
+--let $wait_condition= SELECT COUNT(*)= 1950 FROM test.mytable;
 --source include/wait_condition.inc
 
 --echo #
 --echo # Start member 3
---echo # The certification info transmitted to member 3 should be below 1 MB
+--echo # The certification info transmitted to member 3 should be below 0.125 MB
 --echo #
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
---let $wait_timeout=300
+--let $wait_timeout=1200
 --source include/start_group_replication.inc
 
 --echo #
@@ -168,15 +168,15 @@ INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $assert_text= 'There are 7801 values in the table'
---let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 7801
+--let $assert_text= 'There are 1951 values in the table'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 1951
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $assert_text= 'There are 7801 values in the table'
---let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 7801
+--let $assert_text= 'There are 1951 values in the table'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 1951
 --source include/assert.inc
 
 --echo #
@@ -197,7 +197,7 @@ SET SESSION sql_log_bin= 1;
 
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.max_allowed_packet = @start_global_value_s1;
+SET @@global.slave_max_allowed_packet = @start_global_value_s1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -213,7 +213,7 @@ SET SESSION sql_log_bin= 1;
 
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.max_allowed_packet = @start_global_value_s2;
+SET @@global.slave_max_allowed_packet = @start_global_value_s2;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
