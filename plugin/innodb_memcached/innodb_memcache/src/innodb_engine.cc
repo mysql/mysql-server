@@ -86,7 +86,7 @@ static bool bk_thd_exited = true;
 /** The SDI buffer length for storing list of SDI keys. Example output
 looks like "1:2|2:2|3:4|..". So SDI list of key retrieval has this limit of
 characters from memcached plugin. This is sufficent for testing. */
-const uint32_t SDI_LIST_BUF_MAX_LEN = 10000;
+const uint32_t SDI_LIST_BUF_MAX_LEN MY_ATTRIBUTE((unused)) = 10000;
 
 /** Tells whether all connections need to release MDL locks */
 bool release_mdl_lock = false;
