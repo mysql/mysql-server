@@ -1,3 +1,6 @@
+# Remove this line after fixing bug#29888076.
+--source include/not_solaris.inc
+
 --echo ########################################################################
 --echo #
 --echo # Verify definitions of I_S system views.
@@ -228,10 +231,10 @@ CREATE TABLE I_S_published_schema(
 # Checksums with ids.
 INSERT INTO I_S_published_schema
   VALUES ('80017', 0,
-    '6274b075b2854df555452662e48346818106390c3de53e54ea59f9b69fad00e0');
+    '172ff4fb1366414e3fb16c0175eefe861a493dab30d59e299f6186f4abc8d13a');
 INSERT INTO I_S_published_schema
   VALUES ('80017', 1,
-    'f031b99efed24d140c204c4203e94f65bf1cd05beabf1e72610e7f5416103b83');
+    '23dbc025dda0dfba52a9e9f09061290347c868735a01258396a55525e894b69b');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
                      version, '.'),
