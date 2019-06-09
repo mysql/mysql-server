@@ -4802,6 +4802,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             to fix this if any refactoring happens here sometime.
           */
           thd->set_query((char*) query_arg, q_len_arg, thd->charset());
+          thd->reset_query_for_display();
         }
       }
       if (time_zone_len)
@@ -13693,6 +13694,7 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ASSERT(rli->info_thd == thd);
   /* Set query for writing Rows_query log event into binlog later.*/
   thd->set_query(m_rows_query, (uint32) strlen(m_rows_query));
+  thd->set_query_for_display(m_rows_query, strlen(m_rows_query));
 
   DBUG_ASSERT(rli->rows_query_ev == NULL);
 

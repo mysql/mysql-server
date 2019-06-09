@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14842,6 +14842,7 @@ option_value_no_option_type:
             lex->autocommit= TRUE;
             lex->is_set_password_sql= true;
             lex->is_change_password= TRUE;
+            lex->contains_plaintext_password= true;
 
             if (sp)
               sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;

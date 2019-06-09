@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -4028,6 +4028,13 @@ public:
     Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
+  void set_query_for_display(const char *query_arg, size_t query_length_arg) {
+    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
+#endif
+  }
+  void reset_query_for_display(void) { set_query_for_display(NULL, 0); }
   void set_query(char *query_arg, uint32 query_length_arg,
                  const CHARSET_INFO *cs_arg)
   {
@@ -4038,8 +4045,9 @@ public:
     set_query(CSET_STRING(query_arg, query_length_arg, charset()));
   }
   void set_query(const CSET_STRING &str); /* Mutex protected */
-  void reset_query()               /* Mutex protected */
-  { set_query(CSET_STRING()); }
+  void reset_query() {             /* Mutex protected */
+    set_query(CSET_STRING());
+    rewritten_query.free(); }
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         const CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
