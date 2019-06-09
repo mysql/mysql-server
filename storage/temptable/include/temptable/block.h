@@ -336,14 +336,16 @@ inline Chunk Block::allocate(size_t chunk_size) noexcept {
   DBUG_ASSERT(!is_empty());
   DBUG_ASSERT(can_accommodate(chunk_size));
 
-  Chunk chunk{Header::next_available_slot(), Header::first_pristine_offset()};
-
   const size_t chunk_size_aligned = Block::aligned_size(chunk_size);
-  Header::increment_number_of_used_chunks(Chunk::size_hint(chunk_size_aligned));
 
   /* Remove the "no access" flag we set on this memory during block
    * creation. Relax it to report read+depend_on_contents. */
-  MEM_UNDEFINED(chunk.offset(), Chunk::size_hint(chunk_size_aligned));
+  MEM_UNDEFINED(Header::next_available_slot(),
+                Chunk::size_hint(chunk_size_aligned));
+
+  Chunk chunk{Header::next_available_slot(), Header::first_pristine_offset()};
+  Header::increment_number_of_used_chunks(Chunk::size_hint(chunk_size_aligned));
+
   Block_PSI_track_logical_allocation(chunk_size_aligned);
   DBUG_PRINT("temptable_allocator",
              ("allocate from block: chunk_size=%zu, from_block=(%s); "
