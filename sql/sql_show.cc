@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2299,8 +2299,15 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str= inspect_thd->query().str;
-      size_t query_length= inspect_thd->query().length;
+      const char *query_str;
+      size_t query_length;
+      if ((query_length = inspect_thd->rewritten_query.length()) > 0) {
+        query_str = inspect_thd->rewritten_query.c_ptr();
+      } else {
+        query_length = inspect_thd->query().length;
+        query_str = inspect_thd->query().str;
+      }
+
 #ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
@@ -2504,8 +2511,17 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str= inspect_thd->query().str;
-      size_t query_length= inspect_thd->query().length;
+      const char *query_str;
+      size_t query_length;
+
+      if (inspect_thd->rewritten_query.length()) {
+        query_str = inspect_thd->rewritten_query.c_ptr_safe();
+        query_length = inspect_thd->rewritten_query.length();
+      } else {
+        query_str = inspect_thd->query().str;
+        query_length = inspect_thd->query().length;
+      }
+
 #ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
