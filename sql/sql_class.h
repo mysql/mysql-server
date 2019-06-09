@@ -3706,12 +3706,21 @@ class THD : public MDL_context_owner,
     Assign a new value to thd->m_query_string.
     Protected with the LOCK_thd_query mutex.
   */
+  void set_query_for_display(const char *query_arg, size_t query_length_arg) {
+    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
+#endif
+  }
   void set_query(const char *query_arg, size_t query_length_arg) {
     LEX_CSTRING tmp = {query_arg, query_length_arg};
     set_query(tmp);
   }
   void set_query(const LEX_CSTRING &query_arg);
-  void reset_query() { set_query(LEX_CSTRING()); }
+  void reset_query() {
+    set_query(LEX_CSTRING());
+    rewritten_query.mem_free();
+  }
 
   /**
     Assign a new value to thd->query_id.

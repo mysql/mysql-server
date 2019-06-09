@@ -199,6 +199,8 @@ void Applier_module::set_applier_thread_context() {
   thd->system_thread = SYSTEM_THREAD_SLAVE_IO;
   // Make the thread have a better description on process list
   thd->set_query(STRING_WITH_LEN("Group replication applier module"));
+  thd->set_query_for_display(
+      STRING_WITH_LEN("Group replication applier module"));
 
   // Needed to start replication threads
   thd->security_context()->skip_grants();

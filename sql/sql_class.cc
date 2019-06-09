@@ -2124,10 +2124,6 @@ void THD::set_query(const LEX_CSTRING &query_arg) {
   mysql_mutex_lock(&LOCK_thd_query);
   m_query_string = query_arg;
   mysql_mutex_unlock(&LOCK_thd_query);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_info)(query_arg.str, query_arg.length);
-#endif
 }
 
 /**

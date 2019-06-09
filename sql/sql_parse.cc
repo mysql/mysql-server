@@ -4581,6 +4581,7 @@ finish:
     }
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_TIMEOUT) {
       thd->killed = THD::NOT_KILLED;
+      thd->set_query_for_display(nullptr, 0);
     }
   }
 
@@ -5137,19 +5138,24 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
       password).
 
       If rewriting does not happen here, thd->rewritten_query is still empty
-      from being reset in alloc_query().
+      from being reset above.
     */
     mysql_rewrite_query(thd);
 
     if (thd->rewritten_query.length()) {
       lex->safe_to_cache_query = false;  // see comments below
 
-      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                               thd->rewritten_query.c_ptr_safe(),
-                               thd->rewritten_query.length());
-    } else {
+      thd->set_query_for_display(thd->rewritten_query.c_ptr_safe(),
+                                 thd->rewritten_query.length());
+    } else if (thd->slave_thread) {
+      /*
+        In the slave, we add the information to pfs.events_statements_history,
+        but not to pfs.threads, as that is what the test suite expects.
+      */
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
                                thd->query().length);
+    } else {
+      thd->set_query_for_display(thd->query().str, thd->query().length);
     }
 
     if (!(opt_general_log_raw || thd->slave_thread)) {
@@ -5243,8 +5249,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
       SQL injection, finding the source of the SQL injection is critical, so the
       design choice is to log the query text of broken queries (a).
     */
-    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
-                             thd->query().length);
+    thd->set_query_for_display(thd->query().str, thd->query().length);
 
     /* Instrument this broken statement as "statement/sql/error" */
     thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
@@ -5261,6 +5266,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
   thd->end_statement();
   thd->cleanup_after_query();
   DBUG_ASSERT(thd->change_list.is_empty());
+
+  DEBUG_SYNC(thd, "query_rewritten");
 }
 
 /**
