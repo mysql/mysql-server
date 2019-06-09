@@ -825,7 +825,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 
   DBUG_PRINT("info", ("query: '%.*s'", (int)m_query.length, m_query.str));
 
-  MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, m_query.str, m_query.length);
+  thd->set_query_for_display(m_query.str, m_query.length);
 
   const LEX_CSTRING query_backup = thd->query();
 

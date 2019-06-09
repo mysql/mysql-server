@@ -1887,6 +1887,7 @@ void Sql_cmd_clone::rewrite(THD *thd) {
 
   /* Set the query to be displayed in SHOW PROCESSLIST */
   thd->set_query(rlb->c_ptr_safe(), rlb->length());
+  thd->set_query_for_display(rlb->c_ptr_safe(), rlb->length());
 }
 
 bool Sql_cmd_create_role::execute(THD *thd) {

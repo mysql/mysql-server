@@ -682,6 +682,8 @@ bool start_slave_cmd(THD *thd) {
   LEX *lex = thd->lex;
   bool res = true; /* default, an error */
 
+  DEBUG_SYNC(thd, "begin_start_slave");
+
   channel_map.wrlock();
 
   if (!is_slave_configured()) {
