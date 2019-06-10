@@ -135,6 +135,33 @@ class Arg_comparator {
 
   bool set_cmp_func(Item_result_field *owner_arg, Item **a1, Item **a2,
                     bool set_null_arg);
+  /**
+     Comparison function are expected to operate on arguments having the
+     same data types. Since MySQL has very loosened up rules, it accepts
+     all kind of arguments which the standard SQL does not allow, and then it
+     converts the arguments internally to ones usable in the comparison.
+     This function transforms these internal conversions to explicit CASTs
+     so that the internally executed query becomes compatible with the standard
+     At the moment nodes are injected only for comparisons between:
+
+        1) temporal types and numeric data types: in which case the
+        comparison is normally done as DOUBLE, so the arguments which are not
+        floating point, will get converted to DOUBLE, and also for
+
+        2) comparisons between temporal types: in which case the
+        comparison happens as DATETIME if the arguments have different data
+        types, so in this case the temporal arguments that are not DATETIME
+        will get wrapped in a CAST to DATETIME.
+
+     WL#12108; This function will limit itself to comparison between regular
+     functions, aggregation functions and fields, all of which are constant
+     for execution (so this excludes stored procedures, stored functions, GC,
+     user defined functions, as well as literals).
+     For const arguments, see type conversions done in fold_condition.
+
+     @return false if successful, true otherwise
+  */
+  bool inject_cast_nodes();
 
   /**
      When comparing strings, compare at most max_length bytes.
@@ -544,6 +571,7 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     Item_bool_func::cleanup();
     cmp.cleanup();
   }
+  bool cast_incompatible_args(uchar *) override;
   friend class Arg_comparator;
 };
 
@@ -593,6 +621,7 @@ class Item_func_xor final : public Item_bool_func2 {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_not : public Item_bool_func {
@@ -1244,6 +1273,7 @@ class Item_func_nullif final : public Item_bool_func2 {
     inherit from Item_func instead of Item_bool_func2
   */
   bool is_bool_func() const override { return false; }
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 /* Functions to handle the optimized IN */
@@ -2028,6 +2058,7 @@ class Item_func_like final : public Item_bool_func2 {
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *) override;
   void cleanup() override;
+  bool cast_incompatible_args(uchar *) override { return false; }
   /**
     @retval true non default escape char specified
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
@@ -2237,6 +2268,14 @@ class Item_equal final : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "multiple equal"; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_EQUAL; }
+  virtual bool cast_incompatible_args(uchar *) override {
+    // Multiple equality nodes (Item_equal) should have been
+    // converted back to simple equalities (Item_func_eq) by
+    // substitute_for_best_equal_field before cast nodes are injected.
+    DBUG_ASSERT(false);
+    return false;
+  }
+
   /**
     Order field items in multiple equality according to a sorting criteria.
 

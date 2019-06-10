@@ -1782,7 +1782,8 @@ class Item : public Parse_tree_node {
     have to be updated in update_used_tables()
   */
   virtual table_map not_null_tables() const { return used_tables(); }
-  /*
+
+  /**
     Returns true if this is a simple constant item like an integer, not
     a constant expression. Used in the optimizer to propagate basic constants.
     It is assumed that val_xxx() does not modify the item's state for
@@ -2119,6 +2120,8 @@ class Item : public Parse_tree_node {
   }
   /// Is this an Item_field which references the given Field argument?
   virtual bool find_field_processor(uchar *) { return false; }
+  /// Wrap incompatible arguments in CAST nodes to the expected data types
+  virtual bool cast_incompatible_args(uchar *) { return false; }
   /**
     Mark underlying field in read or write map of a table.
 

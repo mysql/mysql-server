@@ -501,6 +501,9 @@ bool JOIN::optimize() {
         return true;
       }
       tab->join_cond()->update_used_tables();
+      if (tab->join_cond())
+        tab->join_cond()->walk(&Item::cast_incompatible_args,
+                               enum_walk::POSTFIX, nullptr);
     }
   }
 
@@ -527,6 +530,11 @@ bool JOIN::optimize() {
     DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
     return true;  // error == -1
   }
+
+  // Inject cast nodes into the WHERE conditions
+  if (where_cond)
+    where_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                     nullptr);
 
   error = -1; /* if goto err */
 
@@ -579,6 +587,20 @@ bool JOIN::optimize() {
       create_iterators_for_zero_rows();
       goto setup_subq_exit;
     }
+  }
+
+  // Inject cast nodes into the HAVING conditions
+  if (having_cond)
+    having_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                      nullptr);
+
+  // Traverse the expressions and inject cast nodes to compatible data types,
+  // if needed.
+  {
+    List_iterator<Item> select_expression_it(all_fields);
+    Item *item;
+    while ((item = select_expression_it++))
+      item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
   }
 
   if (rollup.state != ROLLUP::STATE_NONE) {

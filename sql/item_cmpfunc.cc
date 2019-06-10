@@ -59,6 +59,7 @@
 #include "sql/item_json_func.h"  // json_value, get_json_atom_wrapper
 #include "sql/item_subselect.h"  // Item_subselect
 #include "sql/item_sum.h"        // Item_sum_hybrid
+#include "sql/item_timefunc.h"   // Item_typecast_date
 #include "sql/json_dom.h"        // Json_scalar_holder
 #include "sql/key.h"
 #include "sql/mysqld.h"  // log_10
@@ -689,6 +690,10 @@ bool Item_func_like::resolve_type(THD *) {
   return false;
 }
 
+bool Item_bool_func2::cast_incompatible_args(uchar *) {
+  return cmp.inject_cast_nodes();
+}
+
 void Arg_comparator::cleanup() {
   if (comparators != NULL) {
     /*
@@ -1186,6 +1191,107 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
   const Item_result item_result =
       item_cmp_type((*a1)->result_type(), (*a2)->result_type());
   return set_cmp_func(owner_arg, a1, a2, item_result);
+}
+
+/**
+ * Wraps the item into a CAST node to DATETIME
+ * @param item - the item to be wrapped
+ * @returns true if error (OOM), false otherwise.
+ */
+inline bool wrap_in_cast_to_datetime(Item **item) {
+  THD *thd = current_thd;
+  Item *cast;
+  if (!(cast = new Item_typecast_datetime(*item))) return true;
+
+  cast->fix_fields(thd, item);
+  thd->change_item_tree(item, cast);
+
+  return false;
+}
+
+/**
+ * Wraps the item into a CAST node to DOUBLE
+ * @param item - the item to be wrapped
+ * @returns true if error (OOM), false otherwise.
+ */
+inline bool wrap_in_cast_to_double(Item **item) {
+  THD *thd = current_thd;
+  Item *cast;
+  if (!(cast = new Item_typecast_real(*item))) return true;
+
+  cast->fix_fields(thd, item);
+  thd->change_item_tree(item, cast);
+
+  return false;
+}
+
+/**
+ * Checks that the argument is an aggregation function, window function, a
+ * built-in non-constant function or a non-constant field.
+ * WL#12108: it excludes stored procedures and functions, user defined
+ * functions and also does not update the content of expressions
+ * inside Value_generator since Optimize is not called after the expression
+ * is unpacked.
+ * @param item to be checked
+ * @return  true for non-const field or functions, false otherwise
+ */
+inline bool is_non_const_field_or_function(const Item &item) {
+  return !item.const_for_execution() &&
+         (item.type() == Item::FIELD_ITEM || item.type() == Item::FUNC_ITEM ||
+          item.type() == Item::SUM_FUNC_ITEM);
+}
+
+bool Arg_comparator::inject_cast_nodes() {
+  // If the comparator is set to one that compares as floating point numbers.
+  if (func == &Arg_comparator::compare_real ||
+      func == &Arg_comparator::compare_real_fixed) {
+    Item *aa = (*a)->real_item();
+    Item *bb = (*b)->real_item();
+
+    // Check if one of the arguments is temporal and the other one is numeric
+    if (!((aa->is_temporal() && (bb->result_type() == INT_RESULT ||
+                                 bb->result_type() == REAL_RESULT ||
+                                 bb->result_type() == DECIMAL_RESULT)) ||
+          (bb->is_temporal() && (aa->result_type() == INT_RESULT ||
+                                 aa->result_type() == REAL_RESULT ||
+                                 aa->result_type() == DECIMAL_RESULT))))
+      return false;
+
+    // Check that both arguments are fields or functions
+    if (!is_non_const_field_or_function(*aa) ||
+        !is_non_const_field_or_function(*bb))
+      return false;
+
+    // If any of the arguments is not floating point number, wrap it in a CAST
+    if (aa->result_type() != REAL_RESULT && wrap_in_cast_to_double(a))
+      return true; /* purecov: inspected */
+    if (bb->result_type() != REAL_RESULT && wrap_in_cast_to_double(b))
+      return true; /* purecov: inspected */
+  } else if (func == &Arg_comparator::compare_datetime) {
+    Item *aa = (*a)->real_item();
+    Item *bb = (*b)->real_item();
+    // Check that both arguments are of temporal types, but not of type YEAR
+    if (!(aa->is_temporal() || aa->result_type() != STRING_RESULT) ||
+        !(bb->is_temporal() || bb->result_type() != STRING_RESULT) ||
+        aa->data_type() == MYSQL_TYPE_YEAR ||
+        bb->data_type() == MYSQL_TYPE_YEAR)
+      return false;
+
+    // Check that both arguments are fields or functions and that they have
+    // different data types
+    if (!is_non_const_field_or_function(*aa) ||
+        !is_non_const_field_or_function(*bb) ||
+        aa->data_type() == bb->data_type())
+      return false;
+
+    // If any of the arguments is not DATETIME, wrap it in a CAST
+    if (!aa->is_temporal_with_date_and_time() && wrap_in_cast_to_datetime(a))
+      return true; /* purecov: inspected */
+    if (!bb->is_temporal_with_date_and_time() && wrap_in_cast_to_datetime(b))
+      return true; /* purecov: inspected */
+  }
+
+  return false;
 }
 
 /*

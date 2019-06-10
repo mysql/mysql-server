@@ -966,6 +966,7 @@ class Item_typecast_real final : public Item_func {
     else
       set_data_type_float();
   }
+  Item_typecast_real(Item *a) : Item_func(a) { set_data_type_double(); }
   String *val_str(String *str) override;
   double val_real() override;
   longlong val_int() override;

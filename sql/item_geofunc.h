@@ -911,6 +911,7 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
     val_int();
     return null_value;
   }
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_spatial_rel : public Item_bool_func2 {
@@ -964,6 +965,7 @@ class Item_func_spatial_rel : public Item_bool_func2 {
   int geocol_equals_check(
       const typename BG_geometry_collection::Geometry_list *gv1,
       const typename BG_geometry_collection::Geometry_list *gv2);
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_spatial_relation : public Item_bool_func2 {
@@ -1007,6 +1009,7 @@ class Item_func_spatial_relation : public Item_bool_func2 {
   virtual bool eval(const dd::Spatial_reference_system *srs,
                     const gis::Geometry *g1, const gis::Geometry *g2,
                     bool *result, bool *null) = 0;
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_st_contains final : public Item_func_spatial_relation {
