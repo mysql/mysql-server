@@ -3030,8 +3030,8 @@ bool Json_wrapper::coerce_date(MYSQL_TIME *ltime, const char *msgnam,
                            &status) &&
           !status.warnings)
         break;
-      /* Fall through */
     }
+    /* Fall through */
     default:
       handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
                             ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
@@ -3054,8 +3054,8 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
                        TIME_STRICT_COLON) &&
           !status.warnings)
         break;
-      /* Fall through */
     }
+    /* Fall through */
     default:
       handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
                             ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
