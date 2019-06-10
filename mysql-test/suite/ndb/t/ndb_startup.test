@@ -1,5 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_debug.inc
+--source include/not_asan.inc
 
 
 let MYSQLD_DATADIR= `select @@datadir`;
