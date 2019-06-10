@@ -7360,8 +7360,11 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       if (last_gci >= min_gci)
       {
         jam();
+        // Found data with good gci
         break;
       }
+      // Ignore data with old gci
+      src = nullptr;
     }
 
     if (unlikely(src == nullptr))
