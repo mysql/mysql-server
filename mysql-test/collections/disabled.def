@@ -39,9 +39,6 @@ innodb.innodb_bug14676111                         : BUG#18200831 The test has ne
 innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
 innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten 
 
-# json suite tests
-json.json_ddl_ndb : BUG#26616564 PB2 failures.
-
 # group replication suite tests
 group_replication.gr_stop_gr_and_modify_wc_during_dml       : BUG#29620900 Disable the test until the bug is fixed
 
