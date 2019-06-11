@@ -4381,7 +4381,6 @@ public:
   void set_query(const LEX_CSTRING& query_arg);
   void reset_query() {
     set_query(LEX_CSTRING());
-    rewritten_query.mem_free();
   }
 
   /**
