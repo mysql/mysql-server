@@ -1,0 +1,131 @@
+--echo #
+--echo # Bug #23755664 DEADLOCK WITH 3 CONCURRENT DELETES BY UNIQUE KEY
+--echo #
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# There are various scenarious in which a transaction already holds "half"
+# of a record lock (for example, a lock on the record but not on the gap)
+# and wishes to "upgrade it" to a full lock (i.e. on both gap and record).
+# This is often a cause for a deadlock, if there is another transaction
+# which is already waiting for the lock being blocked by us:
+# 1. our granted lock for one half
+# 2. her waiting lock for the same half
+# 3. our waiting lock for the whole
+
+#
+# SCENARIO 1
+#
+# In this scenario, three different threads try to delete the same row,
+# identified by a secondary index key.
+# This kind of operation (besides LOCK_IX on a table) requires
+# an LOCK_REC_NOT_GAP|LOCK_REC|LOCK_X lock on a secondary index
+# 1. `deleter` is the first to get the required lock
+# 2. `holder` enqueues a waiting lock
+# 3. `waiter` enqueues right after `holder`
+# 4. `deleter` commits, releasing the lock, and granting it to `holder`
+# 5. `holder` now observes that the row was deleted, so it needs to
+#    "seal the gap", by obtaining a LOCK_X|LOCK_REC, but..
+# 6. this causes a deadlock between `holder` and `waiter`
+
+CREATE TABLE `t`(
+  `id` INT,
+  `a` INT DEFAULT NULL,
+  PRIMARY KEY(`id`),
+  UNIQUE KEY `u`(`a`)
+) ENGINE=InnoDB;
+
+INSERT INTO t (`id`,`a`) VALUES
+  (1,1),
+  (2,9999),
+  (3,10000);
+
+--connect(deleter,localhost,root,,)
+--connect(holder,localhost,root,,)
+--connect(waiter,localhost,root,,)
+
+
+--connection deleter
+  SET DEBUG_SYNC =
+    'lock_sec_rec_read_check_and_lock_has_locked
+      SIGNAL deleter_has_locked
+      WAIT_FOR waiter_has_locked';
+  --send DELETE FROM t WHERE a = 9999
+
+--connection holder
+  SET DEBUG_SYNC=
+    'now WAIT_FOR deleter_has_locked';
+  SET DEBUG_SYNC=
+    'lock_sec_rec_read_check_and_lock_has_locked SIGNAL holder_has_locked';
+  --send DELETE FROM t WHERE a = 9999
+
+--connection waiter
+  SET DEBUG_SYNC=
+    'now WAIT_FOR holder_has_locked';
+  SET DEBUG_SYNC=
+    'lock_sec_rec_read_check_and_lock_has_locked SIGNAL waiter_has_locked';
+  --send DELETE FROM t WHERE a = 9999
+
+--connection deleter
+  --reap
+
+--connection holder
+  --reap
+
+--connection waiter
+  --reap
+
+--connection default
+
+--disconnect deleter
+--disconnect holder
+--disconnect waiter
+
+
+DROP TABLE `t`;
+
+# SCENARIO 2
+#
+# Here, we form a situation in which con1 has LOCK_REC_NOT_GAP on rows 1 and 2
+# con2 waits for lock on row 1, and then con1 wants to upgrade the lock on row 1,
+# which might cause a deadlock, unless con1 properly notices that even though the
+# lock on row 1 can not be upgraded, a separate LOCK_GAP can be obtaied easily.
+
+CREATE TABLE `t`(
+  `id` INT NOT NULL PRIMARY KEY
+) ENGINE=InnoDB;
+
+INSERT INTO t (`id`) VALUES (1), (2);
+
+--connect(holder,localhost,root,,)
+--connect(waiter,localhost,root,,)
+
+
+
+--connection holder
+  BEGIN;
+  SELECT id FROM t WHERE id=1 FOR UPDATE;
+  SELECT id FROM t WHERE id=2 FOR UPDATE;
+
+--connection waiter
+  SET DEBUG_SYNC=
+    'lock_wait_will_wait SIGNAL waiter_will_wait';
+  --send SELECT id FROM t WHERE id = 1 FOR UPDATE
+
+--connection holder
+  SET DEBUG_SYNC=
+    'now WAIT_FOR waiter_will_wait';
+  SELECT * FROM t FOR UPDATE;
+  COMMIT;
+
+--connection waiter
+  --reap
+
+--connection default
+
+--disconnect holder
+--disconnect waiter
+
+
+DROP TABLE `t`;

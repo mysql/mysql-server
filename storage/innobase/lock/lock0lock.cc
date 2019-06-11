@@ -704,6 +704,22 @@ bool lock_has_to_wait(const lock_t *lock1, /*!< in: waiting lock */
 
 /*============== RECORD LOCK BASIC FUNCTIONS ============================*/
 
+/** Counts the set bits in a record lock bitmap, effectively computing number
+of records this lock represents.
+@param[in]  lock  record lock with at least one bit set
+@return number of bits set to one in the bitmap */
+static ulint lock_rec_count_set_bits(const lock_t *lock) {
+  ut_ad(lock->is_record_lock());
+
+  ulint res = 0;
+  for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
+    if (lock_rec_get_nth_bit(lock, i)) {
+      ++res;
+    }
+  }
+  return (res);
+}
+
 /** Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
  if none found.
  @return bit index == heap number of the record, or ULINT_UNDEFINED if
@@ -857,21 +873,16 @@ const lock_t *lock_rec_get_prev(
 
 /** Checks if a transaction has a GRANTED explicit lock on rec stronger or equal
  to precise_mode.
- @return lock or NULL */
+@param[in]    precise_mode  LOCK_S or LOCK_X possibly ORed to LOCK_GAP or
+                            LOCK_REC_NOT_GAP, for a supremum record we regard
+                            this always a gap type request
+@param[in]    block         buffer block containing the record
+@param[in]    heap_no       heap number of the record
+@param[in]    trx           transaction
+@return lock or NULL */
 UNIV_INLINE
-const lock_t *lock_rec_has_expl(
-    ulint precise_mode,       /*!< in: LOCK_S or LOCK_X
-                         possibly ORed to LOCK_GAP or
-                         LOCK_REC_NOT_GAP, for a
-                         supremum record we regard this
-                         always a gap type request */
-    const buf_block_t *block, /*!< in: buffer block containing
-                              the record */
-    ulint heap_no,            /*!< in: heap number of the record */
-    const trx_t *trx)         /*!< in: transaction */
-{
-  const lock_t *lock;
-
+const lock_t *lock_rec_has_expl(ulint precise_mode, const buf_block_t *block,
+                                ulint heap_no, const trx_t *trx) {
   ut_ad(lock_mutex_own());
   ut_ad((precise_mode & LOCK_MODE_MASK) == LOCK_S ||
         (precise_mode & LOCK_MODE_MASK) == LOCK_X);
@@ -880,23 +891,21 @@ const lock_t *lock_rec_has_expl(
   ut_ad(!(precise_mode & LOCK_INSERT_INTENTION));
   ut_ad(!(precise_mode & LOCK_PREDICATE));
   ut_ad(!(precise_mode & LOCK_PRDT_PAGE));
+  const RecID rec_id{block, heap_no};
+  const bool is_on_supremum = rec_id.is_supremum();
+  const bool is_rec_not_gap = 0 != (precise_mode & LOCK_REC_NOT_GAP);
+  const bool is_gap = 0 != (precise_mode & LOCK_GAP);
+  const auto mode = static_cast<lock_mode>(precise_mode & LOCK_MODE_MASK);
+  const auto p_implies_q = [](bool p, bool q) { return q || !p; };
 
-  for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
-       lock != NULL; lock = lock_rec_get_next_const(heap_no, lock)) {
-    if (lock->trx == trx && !lock_rec_get_insert_intention(lock) &&
-        lock_mode_stronger_or_eq(
-            lock_get_mode(lock),
-            static_cast<lock_mode>(precise_mode & LOCK_MODE_MASK)) &&
-        !lock_get_wait(lock) &&
-        (!lock_rec_get_rec_not_gap(lock) || (precise_mode & LOCK_REC_NOT_GAP) ||
-         heap_no == PAGE_HEAP_NO_SUPREMUM) &&
-        (!lock_rec_get_gap(lock) || (precise_mode & LOCK_GAP) ||
-         heap_no == PAGE_HEAP_NO_SUPREMUM)) {
-      return (lock);
-    }
-  }
-
-  return (NULL);
+  return (Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
+    return (!(lock->trx == trx && !lock->is_insert_intention() &&
+              lock_mode_stronger_or_eq(lock_get_mode(lock), mode) &&
+              !lock->is_waiting() &&
+              (is_on_supremum ||
+               (p_implies_q(lock->is_record_not_gap(), is_rec_not_gap) &&
+                p_implies_q(lock->is_gap(), is_gap)))));
+  }));
 }
 
 #ifdef UNIV_DEBUG
@@ -925,17 +934,12 @@ static const lock_t *lock_rec_other_has_expl_req(
     return (nullptr);
   }
 
-  auto lock = Lock_iter::for_each(rec_id, [=](const lock_t *lock) {
+  return (Lock_iter::for_each(rec_id, [=](const lock_t *lock) {
     /* Ignore transactions that are being rolled back. */
-    if (lock->trx != trx && !lock->is_gap() && (wait || !lock->is_waiting()) &&
-        lock_mode_stronger_or_eq(lock->mode(), mode)) {
-      return (false);
-    }
-
-    return (true);
-  });
-
-  return (lock);
+    return (!(lock->trx != trx && !lock->is_gap() &&
+              (wait || !lock->is_waiting()) &&
+              lock_mode_stronger_or_eq(lock->mode(), mode)));
+  }));
 }
 #endif /* UNIV_DEBUG */
 
@@ -961,15 +965,9 @@ static const lock_t *lock_rec_other_has_conflicting(
   RecID rec_id{block, heap_no};
   const bool is_supremum = rec_id.is_supremum();
 
-  auto lock = Lock_iter::for_each(rec_id, [=](const lock_t *lock) {
-    if (lock_rec_has_to_wait(trx, mode, lock, is_supremum)) {
-      return (false);
-    }
-
-    return (true);
-  });
-
-  return (lock);
+  return (Lock_iter::for_each(rec_id, [=](const lock_t *lock) {
+    return (!(lock_rec_has_to_wait(trx, mode, lock, is_supremum)));
+  }));
 }
 
 /** Checks if some transaction has an implicit x-lock on a record in a secondary
@@ -1622,18 +1620,6 @@ UNIV_INLINE bool lock_current_thread_handles_trx(const trx_t *trx) {
 }
 #endif
 
-/**
-Enqueue a lock wait for normal transaction. If it is a high priority transaction
-then jump the record lock wait queue and if the transaction at the head of the
-queue is itself waiting roll it back, also do a deadlock check and resolve.
-@param[in, out] wait_for	The lock that the joining transaction is
-                                waiting for
-@param[in] prdt			Predicate [optional]
-@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or
-        DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
-        there was a deadlock, but another transaction was chosen
-        as a victim, and we got the lock immediately: no need to
-        wait then */
 dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
   ut_ad(lock_mutex_own());
   ut_ad(m_trx == thr_get_trx(m_thr));
@@ -1659,7 +1645,7 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
   /* Attempt to jump over the low priority waiting locks. */
   if (high_priority && jump_queue(lock, wait_for)) {
     /* Lock is granted */
-    return (DB_SUCCESS);
+    return (DB_SUCCESS_LOCKED_REC);
   }
 
   ut_ad(lock_get_wait(lock));
@@ -1836,9 +1822,9 @@ lock_rec_req_status lock_rec_lock_fast(
       trx_mutex_enter(trx);
       rec_lock.create(trx, true);
       trx_mutex_exit(trx);
-    }
 
-    status = LOCK_REC_SUCCESS_CREATED;
+      status = LOCK_REC_SUCCESS_CREATED;
+    }
   } else {
     trx_mutex_enter(trx);
 
@@ -1864,6 +1850,59 @@ lock_rec_req_status lock_rec_lock_fast(
   return (status);
 }
 
+/** A helper function for lock_rec_lock_slow(), which grants a Next Key Lock
+(either LOCK_X or LOCK_S as specified by `mode`) on <`block`,`heap_no`> in the
+`index` to the `trx`, assuming that it already has a granted `held_lock`, which
+is at least as strong as mode|LOCK_REC_NOT_GAP. It does so by either reusing,
+or upgrading the `held_lock`, eventually resorting to acquiring a separate
+GAP Lock, which in combination with Record Lock satisfies the request.
+@param[in,out]  held_lock   a lock granted to `trx` which is at least as strong
+                            as mode|LOCK_REC_NOT_GAP. It may become modified if
+                            it is determined to be safe to upgrade Record Lock
+                            to Next Key Lock.
+@param[in]      mode	    requested lock mode: LOCK_X or LOCK_S
+@param[in]      block	    buffer block containing the record to be locked
+@param[in]      heap_no	    heap number of the record to be locked
+@param[in]      index	    index of record to be locked
+@param[in]      trx         the transaction requesting the Next Key Lock */
+static void lock_reuse_for_next_key_lock(lock_t *held_lock, ulint mode,
+                                         const buf_block_t *block,
+                                         ulint heap_no, dict_index_t *index,
+                                         trx_t *trx) {
+  ut_ad(mode == LOCK_S || mode == LOCK_X);
+  ut_ad(lock_mode_is_next_key_lock(mode));
+
+  if (!held_lock->is_record_not_gap()) {
+    ut_ad(held_lock->is_next_key_lock());
+    return;
+  }
+
+  /* We have a Record Lock granted, so we only need a GAP Lock. We assume
+  that GAP Locks do not conflict with anything. Therefore a GAP Lock
+  could be granted to us right now if we've requested: */
+  ut_ad(nullptr ==
+        lock_rec_other_has_conflicting(mode | LOCK_GAP, block, heap_no, trx));
+
+  /* However, instead of requesting it, we will first try to "upgrade" our
+  existing Record Lock to a Next Key Lock. We can do that only if the
+  bitmap has only one bit set, the one for heap_no, as otherwise we would
+  "upgrade" locks on several records at once, which while correct
+  (remember that locks on gaps do not have to wait for anything) would be
+  suboptimal, because it would prevent inserts into too many gaps. */
+  if (lock_rec_count_set_bits(held_lock) == 1) {
+    ut_ad(lock_rec_get_nth_bit(held_lock, heap_no));
+    const_cast<lock_t *>(held_lock)->type_mode &= ~LOCK_REC_NOT_GAP;
+    return;
+  }
+  /* We can not "upgrade" held_lock, so we need a separate GAP Lock */
+  mode |= LOCK_GAP;
+  /* It might be the case we already have one, so we first check that. */
+  if (lock_rec_has_expl(mode, block, heap_no, trx) != nullptr) {
+    return;
+  }
+
+  lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx);
+}
 /** This is the general, and slower, routine for locking a record. This is a
 low-level function which does NOT look at implicit locks! Checks lock
 compatibility within explicit locks. This function sets a normal next-key
@@ -1881,7 +1920,7 @@ lock, or in the case of a page supremum record, a gap type lock.
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
-static dberr_t lock_rec_lock_slow(ibool impl, select_mode sel_mode, ulint mode,
+static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
                                   const buf_block_t *block, ulint heap_no,
                                   dict_index_t *index, que_thr_t *thr) {
   ut_ad(lock_mutex_own());
@@ -1892,69 +1931,119 @@ static dberr_t lock_rec_lock_slow(ibool impl, select_mode sel_mode, ulint mode,
         lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
   ut_ad((LOCK_MODE_MASK & mode) == LOCK_S || (LOCK_MODE_MASK & mode) == LOCK_X);
   ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP ||
-        mode - (LOCK_MODE_MASK & mode) == 0 ||
+        mode - (LOCK_MODE_MASK & mode) == LOCK_ORDINARY ||
         mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
   ut_ad(index->is_clustered() || !dict_index_is_online_ddl(index));
 
   DBUG_EXECUTE_IF("innodb_report_deadlock", return (DB_DEADLOCK););
 
-  dberr_t err = DB_SUCCESS;
   trx_t *trx = thr_get_trx(thr);
 
   ut_ad(sel_mode == SELECT_ORDINARY ||
         (sel_mode != SELECT_ORDINARY && !trx_is_high_priority(trx)));
 
-  if (lock_rec_has_expl(mode, block, heap_no, trx)) {
-    /* The trx already has a strong enough lock on rec: do
-    nothing */
+  /* A very common type of lock in InnoDB is "Next Key Lock", which is almost
+  equivalent to two locks: Record Lock and GAP Lock separately.
+  Thus, in case we need to wait, we check if we already own a Record Lock,
+  and if we do, we only need the GAP Lock.
+  We could do that for the case where we don't need to wait as well, but doing
+  so doesn't seem to increase performance, yet it might cause increased variety
+  of `lock_mode`s in possession of this trx, and we store locks of different
+  modes in separate lock_t structs, so that might increase the length of queue,
+  and eat our preallocated supply of lock_t structs etc. Thus we do that only
+  when wait_for is non-null.
+  We don't do the opposite thing (of checking for GAP Lock, and only requesting
+  Record Lock), because if Next Key Lock has to wait, then it is because of a
+  conflict with someone who locked the record, as locks on gaps are compatible
+  with each other, so even if we have a GAP Lock, narrowing the requested mode
+  to Record Lock will not make the conflict go away.
 
-    err = DB_SUCCESS;
+  In current implementation locks on supremum are treated like GAP Locks,
+  in particular they never have to wait for anything (unless they are Insert
+  Intention locks, but we've ruled that out with asserts before getting here),
+  so there is no gain in using the above "lock splitting" heuristic for locks on
+  supremum, and reasoning becomes a bit simpler without this special case. */
 
-  } else {
-    const lock_t *wait_for =
-        lock_rec_other_has_conflicting(mode, block, heap_no, trx);
+  auto checked_mode =
+      (heap_no != PAGE_HEAP_NO_SUPREMUM && lock_mode_is_next_key_lock(mode))
+          ? mode | LOCK_REC_NOT_GAP
+          : mode;
 
-    if (wait_for != NULL) {
-      switch (sel_mode) {
-        case SELECT_SKIP_LOCKED:
-          err = DB_SKIP_LOCKED;
-          break;
-        case SELECT_NOWAIT:
-          err = DB_LOCK_NOWAIT;
-          break;
-        case SELECT_ORDINARY:
-          /* If another transaction has a non-gap
-          conflicting request in the queue, as this
-          transaction does not have a lock strong
-          enough already granted on the record, we
-          may have to wait. */
+  auto *held_lock = lock_rec_has_expl(checked_mode, block, heap_no, trx);
 
-          RecLock rec_lock(thr, index, block, heap_no, mode);
-
-          trx_mutex_enter(trx);
-
-          err = rec_lock.add_to_waitq(wait_for);
-
-          trx_mutex_exit(trx);
-
-          break;
-      }
-
-    } else if (!impl) {
-      /* Set the requested lock on the record */
-
-      lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx);
-
-      err = DB_SUCCESS_LOCKED_REC;
-    } else {
-      err = DB_SUCCESS;
+  if (held_lock != nullptr) {
+    if (checked_mode == mode) {
+      /* The trx already has a strong enough lock on rec: do nothing */
+      return (DB_SUCCESS);
     }
+
+    /* As check_mode != mode, the mode is Next Key Lock, which can not be
+    emulated by implicit lock (which are LOCK_REC_NOT_GAP only). */
+    ut_ad(!impl);
+
+    /* We are modifying a granted lock, which requires dropping `const`
+    as it is generally not a very safe thing to do.
+    We believe that this is safe in this particular case, because:
+    1. we make the lock stronger then it was, but only by granting a right
+    to the gap, which we know is not conflicting with anything, so this
+    is almost equivalent to requesting and granting a GAP Lock immediately
+    placing it in the same spot in the queue, and ..
+    2. Placing a granted lock not at the end, can introduce new waits-for
+    edges (in particular, adding a GAP Lock in front of Insert Intention),
+    but can not create a deadlock immediately, if our current transaction
+    is active (not waiting yet) - we already exploit this fact below,
+    where lock_rec_add_to_queue might use lock_rec_insert_cats to add the
+    lock to the front of queue.
+    3. The hypothetical problems caused by row_unlock_for_mysql() and
+    lock_rec_unlock() which (in theory) could be used to unlock
+    `held_lock`, or the currently requested lock, and fail to find the
+    lock with matching type_mode, are not a real issue, because these
+    functions can only be called for the most recently created lock, and
+    only if DB_SUCCESS_LOCKED_REC was returned, so it will not be called
+    for held_lock, because we return DB_SUCCESS, and this is the latest
+    call to create the lock for the trx, as we are the thread running the
+    transaction */
+    ut_ad(lock_current_thread_handles_trx(trx));
+    lock_reuse_for_next_key_lock(const_cast<lock_t *>(held_lock), mode, block,
+                                 heap_no, index, trx);
+    return (DB_SUCCESS);
   }
 
-  ut_ad(err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC ||
-        err == DB_LOCK_WAIT || err == DB_DEADLOCK || err == DB_SKIP_LOCKED ||
-        err == DB_LOCK_NOWAIT);
-  return (err);
+  const lock_t *wait_for =
+      lock_rec_other_has_conflicting(mode, block, heap_no, trx);
+
+  if (wait_for != nullptr) {
+    switch (sel_mode) {
+      case SELECT_SKIP_LOCKED:
+        return (DB_SKIP_LOCKED);
+      case SELECT_NOWAIT:
+        return (DB_LOCK_NOWAIT);
+      case SELECT_ORDINARY:
+        /* If another transaction has a non-gap conflicting request in the
+        queue, as this transaction does not have a lock strong enough already
+        granted on the record, we may have to wait. */
+
+        RecLock rec_lock(thr, index, block, heap_no, mode);
+
+        trx_mutex_enter(trx);
+
+        dberr_t err = rec_lock.add_to_waitq(wait_for);
+
+        trx_mutex_exit(trx);
+
+        ut_ad(err == DB_SUCCESS_LOCKED_REC || err == DB_LOCK_WAIT ||
+              err == DB_DEADLOCK);
+        return (err);
+    }
+  }
+  if (!impl) {
+    /* Set the requested lock on the record. */
+
+    lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx);
+
+    return (DB_SUCCESS_LOCKED_REC);
+  }
+  return (DB_SUCCESS);
 }
 
 /** Tries to lock the specified record in the mode requested. If not immediately
@@ -1989,7 +2078,9 @@ static dberr_t lock_rec_lock(bool impl, select_mode sel_mode, ulint mode,
         mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP ||
         mode - (LOCK_MODE_MASK & mode) == 0);
   ut_ad(index->is_clustered() || !dict_index_is_online_ddl(index));
-
+  /* Implicit locks are equivalent to LOCK_X|LOCK_REC_NOT_GAP, so we can omit
+  creation of explicit lock only if the requested mode was LOCK_REC_NOT_GAP */
+  ut_ad(!impl || ((mode & LOCK_REC_NOT_GAP) == LOCK_REC_NOT_GAP));
   /* We try a simplified and faster subroutine for the most
   common cases */
   switch (lock_rec_lock_fast(impl, mode, block, heap_no, index, thr)) {
@@ -6039,6 +6130,7 @@ dberr_t lock_sec_rec_read_check_and_lock(
   MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
   lock_mutex_exit();
+  DEBUG_SYNC_C("lock_sec_rec_read_check_and_lock_has_locked");
 
   ut_ad(lock_rec_queue_validate(false, block, rec, index, offsets));
   ut_ad(err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC ||

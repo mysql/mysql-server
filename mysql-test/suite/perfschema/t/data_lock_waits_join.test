@@ -7,10 +7,11 @@ CREATE TABLE t1(
   id INT PRIMARY KEY
 ) Engine=InnoDB;
 
-# Create a situation in which a transaction holds more than one lock.
+INSERT INTO t1 VALUES (1);
+# Create a situation in which a transaction holds more than one lock on same record.
 BEGIN;
-INSERT INTO t1 VALUES (1),(2);
-SELECT * FROM t1 FOR UPDATE;
+SELECT * FROM t1 WHERE id=1 FOR SHARE;
+SELECT * FROM t1 WHERE id=1 FOR UPDATE;
 
 # Now let another transaction be blocked by the first one
 --connect (C1, localhost, root,,)
