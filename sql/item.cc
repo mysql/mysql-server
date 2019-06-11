@@ -5967,7 +5967,7 @@ type_conversion_status Item::save_in_field_inner(Field *field,
 
         if (field->is_temporal()) {
           MYSQL_TIME t;
-          bool res = false;
+          bool res = true;
           switch (field->type()) {
             case MYSQL_TYPE_TIME:
               res = get_time(&t);
