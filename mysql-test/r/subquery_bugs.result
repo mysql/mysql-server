@@ -840,3 +840,26 @@ CREATE TABLE t1 (vc varchar(1) NOT NULL);
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE 5 IN (SELECT 1) IS UNKNOWN;
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug #29889223: SIG 6 AT TEMPTABLE::HANDLER::UPDATE_ROW | SRC/HANDLER.CC
+#
+set optimizer_switch='block_nested_loop=off,batched_key_access=off';
+CREATE TABLE t1 (
+field1 integer
+);
+INSERT INTO t1 VALUES (13);
+CREATE TABLE t2 (
+field2 integer
+);
+INSERT INTO t2 VALUES (18);
+CREATE TABLE t3 (
+field3 integer
+);
+INSERT INTO t3 VALUES (1);
+UPDATE t3 SET field3 = 9 WHERE field3 IN (
+SELECT 1
+FROM ( SELECT * FROM t2 ) AS alias1
+WHERE EXISTS ( SELECT * FROM t1 WHERE field1 <> alias1.field2 )
+);
+DROP TABLE t1, t2, t3;
+set optimizer_switch=default;

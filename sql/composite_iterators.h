@@ -632,7 +632,7 @@ class StreamingIterator final : public TableRowIterator {
                     Temp_table_param *temp_table_param, TABLE *table,
                     bool copy_fields_and_items);
 
-  bool Init() override { return m_subquery_iterator->Init(); }
+  bool Init() override;
 
   int Read() override;
 
@@ -650,6 +650,7 @@ class StreamingIterator final : public TableRowIterator {
   unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
   Temp_table_param *m_temp_table_param;
   const bool m_copy_fields_and_items;
+  ha_rows m_row_number;
 };
 
 /**

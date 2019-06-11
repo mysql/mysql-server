@@ -1005,6 +1005,27 @@ StreamingIterator::StreamingIterator(
       m_temp_table_param(temp_table_param),
       m_copy_fields_and_items(copy_fields_and_items) {
   DBUG_ASSERT(m_subquery_iterator != nullptr);
+
+  // If we have weedout in this query, it will expect to have row IDs that
+  // uniquely identify each row, so calling position() will fail (since we
+  // do not actually write these rows to anywhere). Use the row number as a
+  // fake ID; since the real handler on this temporary table is never called,
+  // it is safe to replace it with something of the same length.
+  //
+  // table->ref_is_set_without_position_call is set so that weedout won't
+  // try to call position(), but will just blindly trust the pointer we give it.
+  DBUG_ASSERT(table->file->ref_length >= sizeof(m_row_number));
+  table->ref_is_set_without_position_call = true;
+  if (table->file->ref == nullptr) {
+    table->file->ref =
+        pointer_cast<uchar *>(thd->mem_calloc(table->file->ref_length));
+  }
+}
+
+bool StreamingIterator::Init() {
+  memset(table()->file->ref, 0, table()->file->ref_length);
+  m_row_number = 0;
+  return m_subquery_iterator->Init();
 }
 
 int StreamingIterator::Read() {
@@ -1015,6 +1036,9 @@ int StreamingIterator::Read() {
   if (m_copy_fields_and_items) {
     if (copy_fields_and_funcs(m_temp_table_param, thd())) return 1;
   }
+
+  memcpy(table()->file->ref, &m_row_number, sizeof(m_row_number));
+  ++m_row_number;
 
   return 0;
 }
@@ -1178,7 +1202,7 @@ bool TemptableAggregateIterator::Init() {
          to UTC for this query". This is a temporary measure until we implement
          WL#13148 (Do all internal handling TIMESTAMP in UTC timezone), which
          will make such problem impossible.
-     */
+       */
       if (error == HA_ERR_FOUND_DUPP_KEY) {
         for (ORDER *group = table()->group; group; group = group->next) {
           if (group->field_in_tmp_table->type() == MYSQL_TYPE_TIMESTAMP) {
@@ -1284,7 +1308,7 @@ int WeedoutIterator::Read() {
     for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       TABLE *table = tab->qep_tab->table();
       if (!(table->is_nullable() && table->has_null_row()) &&
-          !table->const_table) {
+          !table->const_table && !table->ref_is_set_without_position_call) {
         table->file->position(table->record[0]);
       }
     }

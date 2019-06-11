@@ -1526,6 +1526,10 @@ struct TABLE {
   bool const_table{false};
   /// True if writes to this table should not write rows and just write keys.
   bool no_rows{false};
+  /// If true, table->file->ref will be current without calling position(),
+  /// and position should _not_ be called. This is used only by
+  /// StreamingIterator, when synthesizing fake refs.
+  bool ref_is_set_without_position_call{false};
 
   /**
      If set, the optimizer has found that row retrieval should access index
