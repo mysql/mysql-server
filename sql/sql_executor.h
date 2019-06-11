@@ -860,5 +860,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
 void ConvertItemsToCopy(List<Item> *items, Field **fields,
                         Temp_table_param *param, JOIN *join);
+std::string RefToString(const TABLE_REF &ref, const KEY *key,
+                        bool include_nulls);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

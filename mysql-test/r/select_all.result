@@ -1260,6 +1260,20 @@ dusted	9410
 encompasses	9410
 presentation	9410
 Kantian	9410
+analyze table t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	Table is already up to date
+EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
+EXPLAIN
+-> Sort: <temporary>.fld3, <temporary>.period, <temporary>.price
+    -> Stream results
+        -> Nested loop inner join  (cost=193.54 rows=21)
+            -> Filter: (t2.companynr = 37)  (cost=151.58 rows=120)
+                -> Table scan on t2  (cost=151.58 rows=1199)
+            -> Filter: ((t3.period >= 1001) and (t3.period <= 1002))  (cost=0.25 rows=0)
+                -> Single-row index lookup on t3 using PRIMARY (t2nr=t2.fld1), with index condition: (t2.fld1 = t3.t2nr)  (cost=0.25 rows=1)
+
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 fld3	period	price	price2
 admonishing	1002	28357832	8723648
@@ -5426,4 +5440,43 @@ HAVING avg(distinct 1) ORDER BY max(a)
 1
 DROP TABLE t1,t2;
 # End of test BUG#18766378
-set optimizer_switch=default
+#
+# WL#13002: RESULTSET DIFFERENT NUMBER OF ROWS
+#
+CREATE TABLE t1 (
+f1 INTEGER,
+f2 INTEGER,
+INDEX i1 (f2)
+);
+INSERT INTO t1 VALUES (NULL,1);
+INSERT INTO t1 VALUES (2,NULL);
+INSERT INTO t1 VALUES (3,1);
+INSERT INTO t1 VALUES (4,6);
+INSERT INTO t1 VALUES (NULL,5);
+INSERT INTO t1 VALUES (NULL,NULL);
+INSERT INTO t1 VALUES (13,1);
+INSERT INTO t1 VALUES (NULL,0);
+INSERT INTO t1 VALUES (5,2);
+INSERT INTO t1 VALUES (NULL,8);
+INSERT INTO t1 VALUES (NULL,7);
+INSERT INTO t1 VALUES (NULL,NULL);
+INSERT INTO t1 VALUES (NULL,NULL);
+INSERT INTO t1 VALUES (NULL,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT *
+FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
+WHERE alias2.f1 NOT BETWEEN 4 AND 12;
+EXPLAIN
+-> Nested loop inner join  (cost=6.81 rows=12)
+    -> Table scan on alias1  (cost=1.91 rows=14)
+    -> Filter: (alias2.f1 not between 4 and 12)  (cost=0.26 rows=1)
+        -> Index lookup on alias2 using i1 (f2=alias1.f1)  (cost=0.26 rows=1)
+
+SELECT *
+FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
+WHERE alias2.f1 NOT BETWEEN 4 AND 12;
+f1	f2	f1	f2
+DROP TABLE t1;
+set optimizer_switch=default;

@@ -260,8 +260,7 @@ static bool WriteRowToChunk(
 }
 
 // Request the row ID for all tables where it should be kept.
-static void RequestRowId(
-    const Prealloced_array<hash_join_buffer::Table, 4> &tables) {
+void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables) {
   for (const hash_join_buffer::Table &it : tables) {
     TABLE *table = it.qep_tab->table();
     if (it.rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID &&

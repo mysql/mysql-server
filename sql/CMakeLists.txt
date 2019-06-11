@@ -334,6 +334,7 @@ SET(SQL_SHARED_SOURCES
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc
+  bka_iterator.cc
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc 

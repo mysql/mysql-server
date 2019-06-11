@@ -71,6 +71,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/basic_row_iterators.h"
+#include "sql/bka_iterator.h"
 #include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -184,8 +185,6 @@ static bool having_is_true(Item *h) {
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
 static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
 
-namespace {
-
 string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
   string ret;
 
@@ -217,8 +216,6 @@ string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
   }
   return ret;
 }
-
-}  // namespace
 
 /**
   Execute select, executor entry point.
@@ -2435,6 +2432,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     unique_ptr_destroy_only<RowIterator> table_iterator =
         GetTableIterator(thd, qep_tab, qep_tabs, pending_conditions,
                          pending_invalidators, unhandled_duplicates);
+    MultiRangeRowIterator *mrr_iterator_ptr = nullptr;
 
     vector<Item *> predicates_below_join;
     vector<Item_func_eq *> hash_join_conditions;
@@ -2451,24 +2449,41 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     // replace the BNL with a hash join.
     const bool replace_with_hash_join =
         qep_tab->op != nullptr &&
-        qep_tab->op->type() == QEP_operation::OT_CACHE;
+        qep_tab->op->type() == QEP_operation::OT_CACHE &&
+        down_cast<JOIN_CACHE *>(qep_tab->op)->cache_type() !=
+            JOIN_CACHE::ALG_BKA;
 
-    if (replace_with_hash_join) {
+    // We can always do BKA. The setup is very similar to hash join.
+    const bool is_bka = qep_tab->op != nullptr &&
+                        qep_tab->op->type() == QEP_operation::OT_CACHE &&
+                        down_cast<JOIN_CACHE *>(qep_tab->op)->cache_type() ==
+                            JOIN_CACHE::ALG_BKA;
+
+    if (replace_with_hash_join || is_bka) {
       // Get the left tables of this join.
       for (plan_idx j = first_idx; j < i; ++j) {
         left_tables.push_back(&qep_tabs[j]);
       }
 
-      // All join conditions are now contained in "predicates_below_join". We
-      // will now take all the hash join conditions (equi-join conditions) and
-      // move them to a separate vector so we can attach them to the hash join
-      // iterator later. Also, "predicates_below_join" might contain conditions
-      // that should be applied after the join (for instance non equi-join
-      // conditions). Put them in a separate vector, and attach them as a filter
-      // after the hash join.
-      ExtractHashJoinConditions(qep_tab, left_tables, &predicates_below_join,
-                                &hash_join_conditions,
-                                &conditions_after_hash_join);
+      if (is_bka) {
+        table_iterator = NewIterator<MultiRangeRowIterator>(
+            thd, left_tables, qep_tab->cache_idx_cond, qep_tab->table(),
+            qep_tab->copy_current_rowid, &qep_tab->ref(),
+            qep_tab->position()->table->join_cache_flags);
+        mrr_iterator_ptr =
+            down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
+      } else {
+        // All join conditions are now contained in "predicates_below_join". We
+        // will now take all the hash join conditions (equi-join conditions) and
+        // move them to a separate vector so we can attach them to the hash join
+        // iterator later. Also, "predicates_below_join" might contain
+        // conditions that should be applied after the join (for instance non
+        // equi-join conditions). Put them in a separate vector, and attach them
+        // as a filter after the hash join.
+        ExtractHashJoinConditions(qep_tab, left_tables, &predicates_below_join,
+                                  &hash_join_conditions,
+                                  &conditions_after_hash_join);
+      }
     }
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
@@ -2524,8 +2539,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // tables).
       //
       // Note that if we are to attach a hash join iterator, we cannot add this
-      // optimization as it would limit the probe input to only one row before
-      // the join condition is even applied.
+      // optimization, as it would limit the probe input to only one row before
+      // the join condition is even applied. Same with BKA; we need to buffer
+      // the entire input, since we don't know if there's a match until the join
+      // has actually happened.
       //
       // TODO: Consider pushing this limit up the tree together with the filter.
       // Note that this would require some trickery to reset the filter for
@@ -2533,7 +2550,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // it.
       if (qep_tab->not_used_in_distinct && pending_conditions == nullptr &&
           i == static_cast<plan_idx>(qep_tab->join()->primary_tables - 1) &&
-          !add_limit_1 && !replace_with_hash_join) {
+          !add_limit_1 && !replace_with_hash_join && !is_bka) {
         table_iterator = NewIterator<LimitOffsetIterator>(
             thd, move(table_iterator), /*limit=*/1, /*offset=*/0,
             /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
@@ -2544,7 +2561,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // we find them.
       DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
 
-      if (replace_with_hash_join) {
+      if (is_bka) {
+        const TABLE *table = qep_tab->table();
+        const TABLE_REF *ref = &qep_tab->ref();
+        const float rec_per_key =
+            table->key_info[ref->key].records_per_key(ref->key_parts - 1);
+        iterator = NewIterator<BKAIterator>(
+            thd, move(iterator), left_tables, move(table_iterator),
+            thd->variables.join_buff_size,
+            table->file->stats.mrr_length_per_rec, rec_per_key,
+            mrr_iterator_ptr);
+      } else if (replace_with_hash_join) {
         const bool has_grouping =
             qep_tab->join()->implicit_grouping || qep_tab->join()->grouped;
 
@@ -2687,13 +2714,16 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // There are only two specific cases where we need to use the pre-iterator
+  // There are only three specific cases where we need to use the pre-iterator
   // executor:
   //
   //   1. We have a child query expression that needs to run in it.
-  //   2. We have join buffering (BNL with non equi-join condition/BKA).
+  //   2. We have BNL that we cannot rewrite to hash join (non equi-join
+  //      condition).
+  //   3. We have join buffering (BNL/BKA) that is not an inner join
+  //      (outer join, semijoin, or antijoin).
   //
-  // If either #1 or #2 is detected, revert to the pre-iterator executor.
+  // If either #1, #2 or #3 is detected, revert to the pre-iterator executor.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
     if (qep_tab->materialize_table == join_materialize_derived) {
@@ -2709,9 +2739,16 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     if (qep_tab->next_select == sub_select_op) {
       QEP_operation *op = qep_tab[1].op;
       if (op->type() != QEP_operation::OT_TMP_TABLE) {
-        // See if it's possible to replace the BNL with a hash join.
+        if (qep_tab[1].last_inner() != NO_PLAN_IDX ||
+            qep_tab[1].firstmatch_return != NO_PLAN_IDX) {
+          // Outer or semijoin. Not supported for BNL/BKA yet!
+          return nullptr;
+        }
+        // See if it's possible to replace the BNL with a hash join,
+        // or if it's BKA.
         const JOIN_CACHE *join_cache = down_cast<const JOIN_CACHE *>(op);
-        if (!join_cache->can_be_replaced_with_hash_join()) {
+        if (!join_cache->can_be_replaced_with_hash_join() &&
+            join_cache->cache_type() != JOIN_CACHE::ALG_BKA) {
           return nullptr;
         }
       } else {

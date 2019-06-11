@@ -1488,6 +1488,10 @@ select fld3,period from t2,t1 where companynr*10 = 37*10;
 # t3 will be the main table.
 #
 
+analyze table t2, t3;
+
+EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;  # Tests how to print out BKA iterators.
+
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 
 #
@@ -4413,4 +4417,50 @@ FROM  t1, t2
 GROUP BY a;
 
 DROP TABLE t1,t2;
-echo # End of test BUG#18766378
+--echo # End of test BUG#18766378
+
+--echo #
+--echo # WL#13002: RESULTSET DIFFERENT NUMBER OF ROWS
+--echo #
+
+#
+# Verify that BKA does proper NULL rejection. Normally, we insert NULL checks in WHERE
+# before the join, but occasionally, they can be optimized away as redundant due to
+# other conditions.
+#
+# Note that this test will also be run under non-BKA conditions, since
+# select.inc is run under many different optimizer switches. If so, naturally
+# the query plan won't show BKA, but the test should of course still pass.
+#
+
+CREATE TABLE t1 (
+  f1 INTEGER,
+  f2 INTEGER,
+  INDEX i1 (f2)
+);
+
+INSERT INTO t1 VALUES (NULL,1);
+INSERT INTO t1 VALUES (2,NULL);
+INSERT INTO t1 VALUES (3,1);
+INSERT INTO t1 VALUES (4,6);
+INSERT INTO t1 VALUES (NULL,5);
+INSERT INTO t1 VALUES (NULL,NULL);
+INSERT INTO t1 VALUES (13,1);
+INSERT INTO t1 VALUES (NULL,0);
+INSERT INTO t1 VALUES (5,2);
+INSERT INTO t1 VALUES (NULL,8);
+INSERT INTO t1 VALUES (NULL,7);
+INSERT INTO t1 VALUES (NULL,NULL);
+INSERT INTO t1 VALUES (NULL,NULL);
+INSERT INTO t1 VALUES (NULL,4);
+ANALYZE TABLE t1;
+
+let $query =
+  SELECT *
+    FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
+    WHERE alias2.f1 NOT BETWEEN 4 AND 12;
+
+eval EXPLAIN FORMAT=tree $query;  # Verify that we get BKA, and no NULL rejection in WHERE on alias1.
+eval $query;
+
+DROP TABLE t1;

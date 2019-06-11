@@ -32,6 +32,7 @@
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/field.h"
@@ -293,9 +294,9 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
 
 // Take the contents of this row and put it back in the tables' record buffers
 // (record[0]). The row ID and NULL flags will also be restored, if needed.
-void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row) {
-  const uchar *ptr = row.data();
-
+// Returns a pointer to where we ended reading.
+const uchar *LoadIntoTableBuffers(const TableCollection &tables,
+                                  const uchar *ptr) {
   for (const Table &tbl : tables.tables()) {
     TABLE *table = tbl.qep_tab->table();
 
@@ -322,8 +323,14 @@ void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row) {
       }
     }
   }
+  return ptr;
+}
 
-  DBUG_ASSERT(ptr == row.data() + row.size());
+// A convenience form of the above that also verifies the end pointer for us.
+void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row) {
+  const uchar *end MY_ATTRIBUTE((unused)) =
+      LoadIntoTableBuffers(tables, row.data());
+  DBUG_ASSERT(end == row.data() + row.size());
 }
 
 HashJoinRowBuffer::HashJoinRowBuffer(

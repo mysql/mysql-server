@@ -375,4 +375,10 @@ class HashJoinIterator final : public RowIterator {
   bool m_build_iterator_has_more_rows{true};
 };
 
+/// For each of the given tables, request that the row ID is filled in
+/// (the equivalent of calling file->position()) if needed.
+///
+/// @param tables The tables to request row IDs for.
+void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables);
+
 #endif  // SQL_HASH_JOIN_ITERATOR_H_

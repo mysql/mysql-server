@@ -249,12 +249,18 @@ class KeyHasher {
 /// @retval true if error, false otherwise
 bool StoreFromTableBuffers(const TableCollection &tables, String *buffer);
 
-/// Take the data in "row" and put it back to the tables' record buffers. The
-/// tables must be _exactly_ the same as when the BufferRow was created.
+/// Take the data in "ptr" and put it back to the tables' record buffers.
+/// The tables must be _exactly_ the same as when the row was created.
 /// That is, it must contain the same tables in the same order, and the read set
 /// of each table must be identical when storing and restoring the row.
 /// If that's not the case, you will end up with undefined and unpredictable
 /// behavior.
+///
+/// Returns a pointer to where we ended reading.
+const uchar *LoadIntoTableBuffers(const TableCollection &tables,
+                                  const uchar *ptr);
+
+// A convenience form of the above that also verifies the end pointer for us.
 void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row);
 
 enum class StoreRowResult { ROW_STORED, BUFFER_FULL, FATAL_ERROR };
