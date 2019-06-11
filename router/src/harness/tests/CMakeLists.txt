@@ -94,6 +94,7 @@ FOREACH(TEST ${TESTS})
 ENDFOREACH()
 
 SET(TESTS
+  test_stdx_bit.cc
   test_stdx_expected.cc
   test_stdx_string_view.cc
 )
