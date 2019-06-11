@@ -208,6 +208,43 @@ size_t Clone_Snapshot::compute_path_length(const char *data_dir,
 
 int Clone_Snapshot::handle_existing_file(bool replace,
                                          Clone_File_Meta *file_desc) {
+  /* For undo tablespace, check for duplicate file name. Currently it
+  is possible to create multiple undo tablespaces of same name under
+  different directory. This should not be recommended and in future
+  we aim to disallow specifying file name for tablespaces and generate
+  it internally based on space ID. Till that time, Clone needs to identify
+  and disallow undo tablespaces of same name as Clone creates all undo
+  tablespaces under innodb_undo_directory configuration in recipient. */
+  if (fsp_is_undo_tablespace(file_desc->m_space_id)) {
+    std::string clone_file(file_desc->m_file_name);
+    clone_file.append(CLONE_INNODB_REPLACED_FILE_EXTN);
+
+    for (auto undo_index : m_undo_file_indexes) {
+      auto undo_meta = m_data_file_vector[undo_index];
+      if (undo_meta == nullptr) {
+        continue;
+      }
+
+      /* undo_meta: already added undo file with or without #clone extension.
+      The #clone extension is present when recipient also has the same file.
+      file_desc: current undo file name without #clone extension.
+      clone_file: current undo file name with #clone extension.
+      Since the existing undo file may or may not have the #clone extension
+      we need to match both. */
+      if (0 == strcmp(undo_meta->m_file_name, file_desc->m_file_name) ||
+          0 == strcmp(undo_meta->m_file_name, clone_file.c_str())) {
+        std::ostringstream err_strm;
+        err_strm << "Found multiple undo files with same name: "
+                 << file_desc->m_file_name;
+        std::string err_str(err_strm.str());
+        my_error(ER_CLONE_SYS_CONFIG, MYF(0), err_str.c_str());
+        return (ER_CLONE_SYS_CONFIG);
+      }
+    }
+    m_undo_file_indexes.push_back(file_desc->m_file_index);
+    ut_ad(m_undo_file_indexes.size() <= FSP_MAX_UNDO_TABLESPACES);
+  }
+
   std::string file_name;
   file_name.assign(file_desc->m_file_name);
 
@@ -673,26 +710,31 @@ int Clone_Handle::apply_file_metadata(Clone_Task *task,
 
     /* Check and set punch hole for compressed page table. */
     if (file_type == OS_CLONE_DATA_FILE &&
-        (file_meta->m_compress_type != Compression::NONE ||
-         file_meta->m_file_size > file_meta->m_alloc_size)) {
+        file_meta->m_compress_type != Compression::NONE) {
       page_size_t page_size(file_meta->m_fsp_flags);
+
+      /* Disable punch hole if donor compression is not effective. */
+      if (page_size.is_compressed() ||
+          file_meta->m_fsblk_size * 2 > srv_page_size) {
+        file_meta->m_punch_hole = false;
+        return (0);
+      }
 
       os_file_stat_t stat_info;
       os_file_get_status(file_meta->m_file_name, &stat_info, false, false);
 
-      if (IORequest::is_punch_hole_supported() && !page_size.is_compressed() &&
-          stat_info.block_size < srv_page_size) {
-        file_meta->m_punch_hole = true;
-      }
-
-      /* If file block size is large, disable punch hole. */
-      if (stat_info.block_size >= srv_page_size) {
+      /* Check and disable punch hole if recipient cannot support it. */
+      if (!IORequest::is_punch_hole_supported() ||
+          stat_info.block_size * 2 > srv_page_size) {
         file_meta->m_punch_hole = false;
+      } else {
+        file_meta->m_punch_hole = true;
       }
 
       /* Currently the format for compressed and encrypted page is
       dependent on file system block size. */
-      if (file_meta->m_fsblk_size != stat_info.block_size) {
+      if (file_meta->m_encrypt_type != Encryption::NONE &&
+          file_meta->m_fsblk_size != stat_info.block_size) {
         auto donor_str = std::to_string(file_meta->m_fsblk_size);
         auto recipient_str = std::to_string(stat_info.block_size);
 

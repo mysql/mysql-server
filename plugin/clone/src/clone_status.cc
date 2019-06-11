@@ -321,17 +321,17 @@ Status_pfs::Status_pfs() : Table_pfs(S_NUM_ROWS) {
   table->m_table_name = "clone_status";
   table->m_table_name_length = strlen(table->m_table_name);
   table->m_table_definition =
-      "`ID` int(6),"
-      "`PID` int(6),"
+      "`ID` int,"
+      "`PID` int,"
       "`STATE` char(16),"
       "`BEGIN_TIME` timestamp(3),"
       "`END_TIME` timestamp(3),"
       "`SOURCE` varchar(512),"
       "`DESTINATION` varchar(512),"
-      "`ERROR_NO` int(6),"
+      "`ERROR_NO` int,"
       "`ERROR_MESSAGE` varchar(512),"
       "`BINLOG_FILE` varchar(512),"
-      "`BINLOG_POSITION` bigint(20),"
+      "`BINLOG_POSITION` bigint,"
       "`GTID_EXECUTED` varchar(4096)";
   table->get_row_count = cbk_status_row_count;
 
@@ -599,17 +599,17 @@ Progress_pfs::Progress_pfs() : Table_pfs(S_NUM_ROWS) {
   table->m_table_name = "clone_progress";
   table->m_table_name_length = strlen(table->m_table_name);
   table->m_table_definition =
-      "`ID` int(6),"
+      "`ID` int,"
       "`STAGE` char(32),"
       "`STATE` char(16),"
       "`BEGIN_TIME` timestamp(6),"
       "`END_TIME` timestamp(6),"
-      "`THREADS` int(6),"
-      "`ESTIMATE` bigint(20),"
-      "`DATA` bigint(20),"
-      "`NETWORK` bigint(20),"
-      "`DATA_SPEED` int(10),"
-      "`NETWORK_SPEED` int(10)";
+      "`THREADS` int,"
+      "`ESTIMATE` bigint,"
+      "`DATA` bigint,"
+      "`NETWORK` bigint,"
+      "`DATA_SPEED` int,"
+      "`NETWORK_SPEED` int";
   table->get_row_count = cbk_progress_row_count;
 
   auto &proxy_table = table->m_proxy_engine_table;

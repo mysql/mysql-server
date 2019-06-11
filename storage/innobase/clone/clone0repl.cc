@@ -390,7 +390,7 @@ void Clone_persist_gtid::flush_gtids(THD *thd) {
 
   /* During recovery, fetch existing GTIDs from gtid_executed table. */
   bool is_recovery = !m_thread_active.load();
-  if (is_recovery) {
+  if (is_recovery && !opt_initialize) {
     gtid_table_persistor->fetch_gtids(&table_gtid_set);
   }
 

@@ -1331,7 +1331,8 @@ void Clone_Task_Manager::reinit_apply_state(const byte *ref_loc, uint ref_len,
     len = CLONE_DESC_MAX_BASE_LEN;
     ut_ad(len >= temp_locator.m_header.m_length);
 
-    len += static_cast<uint>(m_chunk_info.get_serialized_length(64));
+    len += static_cast<uint>(m_chunk_info.get_serialized_length(
+        static_cast<uint32_t>(CLONE_MAX_TASKS)));
 
     auto heap = m_clone_snapshot->lock_heap();
 

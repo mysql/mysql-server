@@ -306,10 +306,11 @@ size_t Chunk_Info::get_serialized_length(uint32_t num_tasks) {
   size_t ret_size = 4;
 
   auto num_elements = m_incomplete_chunks.size();
+  auto suggested_elements = 2 * num_tasks;
 
   /* Have bigger allocated length if requested */
-  if (num_tasks > num_elements) {
-    num_elements = num_tasks;
+  if (suggested_elements > num_elements) {
+    num_elements = suggested_elements;
   }
 
   /* Add size for incomplete chunks data. Serialized element
@@ -431,9 +432,12 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
 
   len_left -= 4;
 
+  auto max_map_size = static_cast<uint32_t>(2 * CLONE_MAX_TASKS);
   /* Each task can have one incomplete chunk at most */
-  if (chunk_map_size > CLONE_MAX_TASKS) {
+  if (chunk_map_size > max_map_size) {
     ut_ad(false);
+    ib::error(ER_IB_CLONE_RESTART)
+        << "Clone too many incomplete chunks: " << chunk_map_size;
     return;
   }
 
