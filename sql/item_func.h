@@ -205,6 +205,7 @@ class Item_func : public Item_result_field {
     DATEADD_FUNC,
     DATETIME_LITERAL,
     GREATEST_FUNC,
+    COALESCE_FUNC,
     LEAST_FUNC,
     JSON_CONTAINS,
     JSON_OVERLAPS,
