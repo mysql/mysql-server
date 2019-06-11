@@ -196,6 +196,7 @@ void lock_rec_restore_from_page_infimum(
                                 whose infimum stored the lock
                                 state; lock bits are reset on
                                 the infimum */
+
 /** Determines if there are explicit record locks on a page.
  @return an explicit record lock on the page, or NULL if there are none */
 lock_t *lock_rec_expl_exist_on_page(space_id_t space,  /*!< in: space id */
@@ -522,9 +523,9 @@ ulint lock_number_of_rows_locked(
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Return the number of table locks for a transaction.
- The caller must be holding lock_sys->mutex. */
-ulint lock_number_of_tables_locked(
-    const trx_lock_t *trx_lock) /*!< in: transaction locks */
+ The caller must be holding trx->mutex.
+@param[in]  trx   the transaction for which we want the number of table locks */
+ulint lock_number_of_tables_locked(const trx_t *trx)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets the type of a lock. Non-inline version for using outside of the
@@ -645,12 +646,13 @@ bool lock_check_trx_id_sanity(
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
     MY_ATTRIBUTE((warn_unused_result));
 /** Check if the transaction holds an exclusive lock on a record.
- @return whether the locks are held */
-bool lock_trx_has_rec_x_lock(
-    const trx_t *trx,          /*!< in: transaction to check */
-    const dict_table_t *table, /*!< in: table to check */
-    const buf_block_t *block,  /*!< in: buffer block of the record */
-    ulint heap_no)             /*!< in: record heap number */
+@param[in]  thr     query thread of the transaction
+@param[in]  table   table to check
+@param[in]  block   buffer block of the record
+@param[in]  heap_no record heap number
+@return whether the locks are held */
+bool lock_trx_has_rec_x_lock(que_thr_t *thr, const dict_table_t *table,
+                             const buf_block_t *block, ulint heap_no)
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 
@@ -842,7 +844,7 @@ extern lock_sys_t *lock_sys;
 /** Test if lock_sys->mutex can be acquired without waiting. */
 #define lock_mutex_enter_nowait() (lock_sys->mutex.trylock(__FILE__, __LINE__))
 
-/** Test if lock_sys->mutex is owned. */
+/** Test if lock_sys->mutex is owned by the current thread. */
 #define lock_mutex_own() (lock_sys->mutex.is_owned())
 
 /** Acquire the lock_sys->mutex. */

@@ -1083,13 +1083,27 @@ lock_t *lock_rec_find_similar_on_page(ulint type_mode, ulint heap_no,
 
 /** Checks if a transaction has the specified table lock, or stronger. This
 function should only be called by the thread that owns the transaction.
+This function acquires trx->mutex which protects trx->lock.table_locks, but you
+should understand that this only makes it easier to argue against races at the
+level of access to the data structure, yet does not buy us any protection at
+the higher level of making actual decisions based on the result of this call -
+it may happen that another thread is performing lock_trx_table_locks_remove(),
+and even though lock_table_has returned true to the caller, the lock is no
+longer in possession of trx once the caller gets to evaluate if/else condition
+based on the result.
+Therefore it is up to caller to make sure that the context of the call to this
+function and making any decisions based on the result is protected from any
+concurrent modifications. This in turn makes the whole trx_mutex_enter/exit
+a bit redundant, but it does not affect performance yet makes the reasoning
+about data structure a bit easier and protects trx->lock.table_locks data
+structure from corruption in case our high level reasoning about absence of
+parallel modifications turns out wrong.
 @param[in]	trx	transaction
 @param[in]	table	table
 @param[in]	mode	lock mode
 @return lock or NULL */
 UNIV_INLINE
-const lock_t *lock_table_has(const trx_t *trx, const dict_table_t *table,
-                             enum lock_mode mode);
+bool lock_table_has(trx_t *trx, const dict_table_t *table, enum lock_mode mode);
 
 #include "lock0priv.ic"
 

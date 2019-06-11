@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -352,10 +352,10 @@ static bool rtr_pcur_getnext_from_path(
       lock_prdt_t prdt;
 
       trx_t *trx = thr_get_trx(btr_cur->rtr_info->thr);
-      lock_mutex_enter();
+      trx_mutex_enter(trx);
       lock_init_prdt_from_mbr(&prdt, &btr_cur->rtr_info->mbr, mode,
                               trx->lock.lock_heap);
-      lock_mutex_exit();
+      trx_mutex_exit(trx);
 
       if (rw_latch == RW_NO_LATCH) {
         rw_lock_s_lock(&(block->lock));
