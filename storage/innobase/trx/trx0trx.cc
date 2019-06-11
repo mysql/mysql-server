@@ -875,9 +875,14 @@ static void trx_resurrect_update(
   If so, this rseg is already assigned by trx_resurrect_insert(). */
   if (trx->rsegs.m_redo.rseg != nullptr) {
     ut_a(trx->rsegs.m_redo.rseg == rseg);
-    ut_ad(undo->xid.eq(trx->xid));
     ut_ad(trx->id == undo->trx_id);
     ut_ad(trx->is_recovered);
+    /* For GTID persistence, we might have empty update undo for
+    insert only transactions. */
+    if (undo->empty && trx_state_eq(trx, TRX_STATE_PREPARED)) {
+      undo->set_prepared(trx->xid);
+    }
+    ut_ad(undo->xid.eq(trx->xid));
   } else {
     rseg->trx_ref_count++;
     trx->rsegs.m_redo.rseg = rseg;

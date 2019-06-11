@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/dd/impl/utils.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"
+#include "sql/rpl_msr.h"  // is_slave_configured()
 
 /** Check if clone status file exists.
 @param[in]	file_name	file name
@@ -1693,6 +1694,12 @@ class Fixup_data {
       return (false);
     }
 
+    /* Handle only visible base tables. */
+    if (table->type() != dd::enum_table_type::BASE_TABLE ||
+        table->hidden() != dd::Abstract_table::HT_VISIBLE) {
+      return (true);
+    }
+
     /* Don't Skip tables in non-system schemas. */
     if (!is_system_schema(schema_name)) {
       return (false);
@@ -2175,7 +2182,11 @@ static int clone_drop_binary_logs(THD *thd) {
   char sql_stmt[FN_LEN + FN_LEN + 64];
   snprintf(sql_stmt, sizeof(sql_stmt), "STOP SLAVE");
 
-  if (clone_execute_query(thd, &sql_stmt[0], 1, false)) {
+  channel_map.rdlock();
+  auto is_slave = is_slave_configured();
+  channel_map.unlock();
+
+  if (is_slave && clone_execute_query(thd, &sql_stmt[0], 1, false)) {
     err = ER_INTERNAL_ERROR;
     my_error(err, MYF(0), "Clone failed to stop slave");
   }

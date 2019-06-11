@@ -983,16 +983,19 @@ static st_plugin_int *plugin_insert_or_reuse(st_plugin_int *plugin) {
   get installed before mandatory plugins like PFS. This will cause issue if
   the plugin has dependency on PFS like creating dynamic PFS table. This issue
   is observed during clone plugin testing. */
-  bool reuse_free_slot = (get_server_state() != SERVER_BOOTING);
+  const bool reuse_free_slot = (get_server_state() != SERVER_BOOTING);
 
-  for (st_plugin_int **it = plugin_array->begin();
-       reuse_free_slot && it != plugin_array->end(); ++it) {
-    tmp = *it;
-    if (tmp->state == PLUGIN_IS_FREED) {
-      *tmp = std::move(*plugin);
-      DBUG_RETURN(tmp);
+  if (reuse_free_slot) {
+    for (st_plugin_int **it = plugin_array->begin(); it != plugin_array->end();
+         ++it) {
+      tmp = *it;
+      if (tmp->state == PLUGIN_IS_FREED) {
+        *tmp = std::move(*plugin);
+        DBUG_RETURN(tmp);
+      }
     }
   }
+
   if (plugin_array->push_back(plugin)) DBUG_RETURN(NULL);
   tmp = plugin_array->back() =
       new (&plugin_mem_root) st_plugin_int(std::move(*plugin));
@@ -2550,8 +2553,6 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs, int type,
   mysql_mutex_lock(&LOCK_plugin);
   total = type == MYSQL_ANY_PLUGIN ? plugin_array->size()
                                    : plugin_hash[type]->size();
-  size_t binlog_index = 0;
-  bool found_binlog = false;
   /*
     Do the alloca out here in case we do have a working alloca:
         leaving the nested stack frame invalidates alloca allocation.
@@ -2568,16 +2569,25 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs, int type,
     idx = 0;
     for (const auto &key_and_value : *hash) {
       plugin = key_and_value.second;
-      /* Note index of binlog */
-      if (type == MYSQL_STORAGE_ENGINE_PLUGIN &&
-          (0 == std::strcmp(plugin->name.str, "binlog"))) {
-        binlog_index = idx;
-        found_binlog = true;
-      }
       plugins[idx++] = !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
   mysql_mutex_unlock(&LOCK_plugin);
+
+  size_t binlog_index = 0;
+  bool found_binlog = false;
+  /* Identify binary log SE which we need to invoke first. */
+  if (type == MYSQL_STORAGE_ENGINE_PLUGIN) {
+    for (idx = 0; idx < total; idx++) {
+      /* Note index of binlog */
+      plugin = plugins[idx];
+      if (plugin && (0 == std::strcmp(plugin->name.str, "binlog"))) {
+        binlog_index = idx;
+        found_binlog = true;
+        break;
+      }
+    }
+  }
 
   for (; *funcs != NULL; ++funcs) {
     /* Call binlog engine function first. This is required as GTID is generated
