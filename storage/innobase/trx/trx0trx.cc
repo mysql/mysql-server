@@ -354,7 +354,7 @@ struct TrxFactory {
 
     ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-    ut_ad(trx->autoinc_locks == NULL);
+    ut_ad(trx->lock.autoinc_locks == NULL);
 
     ut_ad(trx->lock.table_locks.empty());
 
@@ -465,7 +465,7 @@ static trx_t *trx_create_low() {
   alloc = ib_heap_allocator_create(heap);
 
   /* Remember to free the vector explicitly in trx_free(). */
-  trx->autoinc_locks = ib_vector_create(alloc, sizeof(void **), 4);
+  trx->lock.autoinc_locks = ib_vector_create(alloc, sizeof(void **), 4);
 
   /* Should have been either just initialized or .clear()ed by
   trx_free(). */
@@ -483,11 +483,11 @@ static void trx_free(trx_t *&trx) {
   trx->mysql_thd = 0;
 
   // FIXME: We need to avoid this heap free/alloc for each commit.
-  if (trx->autoinc_locks != NULL) {
-    ut_ad(ib_vector_is_empty(trx->autoinc_locks));
+  if (trx->lock.autoinc_locks != NULL) {
+    ut_ad(ib_vector_is_empty(trx->lock.autoinc_locks));
     /* We allocated a dedicated heap for the vector. */
-    ib_vector_free(trx->autoinc_locks);
-    trx->autoinc_locks = NULL;
+    ib_vector_free(trx->lock.autoinc_locks);
+    trx->lock.autoinc_locks = NULL;
   }
 
   trx->mod_tables.clear();
@@ -1249,7 +1249,7 @@ static void trx_start_low(
 
   trx->no = TRX_ID_MAX;
 
-  ut_a(ib_vector_is_empty(trx->autoinc_locks));
+  ut_a(ib_vector_is_empty(trx->lock.autoinc_locks));
   ut_a(trx->lock.table_locks.empty());
 
   /* If this transaction came from trx_allocate_for_mysql(),
@@ -1815,7 +1815,7 @@ written */
     /* Note: We are asserting without holding the lock mutex. But
     that is OK because this transaction is not waiting and cannot
     be rolled back and no new locks can (or should not) be added
-    becuase it is flagged as a non-locking read-only transaction. */
+    because it is flagged as a non-locking read-only transaction. */
 
     ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 

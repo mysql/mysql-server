@@ -433,6 +433,8 @@ static ibool fill_trx_row(
   size_t stmt_len;
   const char *s;
 
+  /* We are going to read various trx->lock fields protected by trx->mutex */
+  ut_ad(trx_mutex_own(trx));
   ut_ad(lock_mutex_own());
 
   row->trx_id = trx_get_id_for_print(trx);
@@ -495,11 +497,7 @@ thd_done:
 
   row->trx_tables_in_use = trx->n_mysql_tables_in_use;
 
-  row->trx_tables_locked = lock_number_of_tables_locked(&trx->lock);
-
-  /* These are protected by both trx->mutex or lock_sys->mutex,
-  or just lock_sys->mutex. For reading, it suffices to hold
-  lock_sys->mutex. */
+  row->trx_tables_locked = lock_number_of_tables_locked(trx);
 
   row->trx_lock_structs = UT_LIST_GET_LEN(trx->lock.trx_locks);
 

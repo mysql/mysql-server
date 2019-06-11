@@ -1168,8 +1168,11 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
   block = btr_pcur_get_block(pcur);
 
   trx = thr_get_trx(thr);
+  trx_mutex_enter(trx);
+  bool too_many_locks = (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000);
+  trx_mutex_exit(trx);
 
-  if (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000) {
+  if (too_many_locks) {
     if (buf_LRU_buf_pool_running_out()) {
       return (DB_LOCK_TABLE_FULL);
     }

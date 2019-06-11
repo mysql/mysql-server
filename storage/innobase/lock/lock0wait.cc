@@ -462,15 +462,11 @@ static void lock_wait_check_and_cancel(
 
     trx_mutex_enter(trx);
 
-    trx->owns_mutex = true;
-
     if (trx->lock.wait_lock != NULL && !trx_is_high_priority(trx)) {
       ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
       lock_cancel_waiting_and_release(trx->lock.wait_lock, false);
     }
-
-    trx->owns_mutex = false;
 
     lock_mutex_exit();
 

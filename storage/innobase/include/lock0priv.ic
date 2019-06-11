@@ -337,16 +337,14 @@ lock_t *lock_rec_find_similar_on_page(
   return (NULL);
 }
 
-/** Checks if a transaction has the specified table lock, or stronger. This
- function should only be called by the thread that owns the transaction.
- @return lock or NULL */
 UNIV_INLINE
-const lock_t *lock_table_has(const trx_t *trx,          /*!< in: transaction */
-                             const dict_table_t *table, /*!< in: table */
-                             lock_mode in_mode)         /*!< in: lock mode */
-{
+bool lock_table_has(trx_t *trx, const dict_table_t *table, lock_mode in_mode) {
+  ut_ad(!trx_mutex_own(trx));
+  trx_mutex_enter(trx);
+
   if (trx->lock.table_locks.empty()) {
-    return (NULL);
+    trx_mutex_exit(trx);
+    return (false);
   }
 
   typedef lock_pool_t::const_reverse_iterator iterator;
@@ -358,9 +356,7 @@ const lock_t *lock_table_has(const trx_t *trx,          /*!< in: transaction */
   for (iterator it = trx->lock.table_locks.rbegin(); it != end; ++it) {
     const lock_t *lock = *it;
 
-    if (lock == NULL) {
-      continue;
-    }
+    ut_ad(lock != nullptr);
 
     lock_mode mode = lock_get_mode(lock);
 
@@ -372,11 +368,13 @@ const lock_t *lock_table_has(const trx_t *trx,          /*!< in: transaction */
         lock_mode_stronger_or_eq(mode, in_mode)) {
       ut_ad(!lock_get_wait(lock));
 
-      return (lock);
+      trx_mutex_exit(trx);
+      return (true);
     }
   }
 
-  return (NULL);
+  trx_mutex_exit(trx);
+  return (false);
 }
 
 /* Check if the rec id matches the lock instance.

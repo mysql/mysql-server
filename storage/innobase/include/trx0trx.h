@@ -605,24 +605,43 @@ struct trx_lock_t {
                        only be modified by the thread that is
                        serving the running transaction. */
 
-  lock_pool_t rec_pool; /*!< Pre-allocated record locks */
+  /** Pre-allocated record locks. Protected by trx->mutex. */
+  lock_pool_t rec_pool;
 
-  lock_pool_t table_pool; /*!< Pre-allocated table locks */
+  /** Pre-allocated table locks. Protected by trx->mutex. */
+  lock_pool_t table_pool;
 
-  ulint rec_cached; /*!< Next free rec lock in pool */
+  /** Next free record lock in pool. Protected by trx->mutex. */
+  ulint rec_cached;
 
-  ulint table_cached; /*!< Next free table lock in pool */
+  /** Next free table lock in pool. Protected by trx->mutex. */
+  ulint table_cached;
 
-  mem_heap_t *lock_heap; /*!< memory heap for trx_locks;
-                         protected by lock_sys->mutex */
+  /** Memory heap for trx_locks. Protected by trx->mutex */
+  mem_heap_t *lock_heap;
 
-  trx_lock_list_t trx_locks; /*!< locks requested by the transaction;
-                             insertions are protected by trx->mutex
-                             and lock_sys->mutex; removals are
-                             protected by lock_sys->mutex */
+  /** Locks requested by the transaction.
+  Modifications are protected by trx->mutex and lock_sys mutex.
+  Reads can be performed while holding trx->mutex or exclusive lock_sys latch.
+  One can also check if this list is empty or not from the thread running this
+  transaction without holding any latches, keeping in mind that other threads
+  might modify the list in parallel (for example during implicit-to-explicit
+  conversion, or when B-tree split or merge causes locks to be moved from one
+  page to another) - we rely on assumption that such operations do not change
+  the "emptiness" of the list and that one can check for emptiness in a safe
+  manner (in current implementation length of the list is stored explicitly so
+  one can read it without risking unsafe pointer operations) */
+  trx_lock_list_t trx_locks;
 
-  lock_pool_t table_locks; /*!< All table locks requested by this
-                           transaction, including AUTOINC locks */
+  /** All table locks requested by this transaction, including AUTOINC locks.
+  Protected by trx->mutex. */
+  lock_pool_t table_locks;
+
+  /** AUTOINC locks held by this transaction. Note that these are also in the
+  lock list trx_locks and table_locks. This vector needs to be freed explicitly
+  when the trx instance is destroyed.
+  Protected by trx->mutex. */
+  ib_vector_t *autoinc_locks;
 
   /** number of rec locks in this trx */
   std::atomic<ulint> n_rec_locks;
@@ -762,13 +781,6 @@ struct trx_t {
                   state and lock (except some fields
                   of lock, which are protected by
                   lock_sys->mutex) */
-
-  bool owns_mutex; /*!< Set to the transaction that owns
-                   the mutex during lock acquire and/or
-                   release.
-
-                   This is used to avoid taking the
-                   trx_t::mutex recursively. */
 
   /* Note: in_depth was split from in_innodb for fixing a RO
   performance issue. Acquiring the trx_t::mutex for each row
@@ -1078,15 +1090,9 @@ struct trx_t {
   ulint pages_undone; /*!< number of undo log pages undone
                       since the last undo log truncation */
   /*------------------------------*/
-  ulint n_autoinc_rows;       /*!< no. of AUTO-INC rows required for
-                              an SQL statement. This is useful for
-                              multi-row INSERTs */
-  ib_vector_t *autoinc_locks; /* AUTOINC locks held by this
-                              transaction. Note that these are
-                              also in the lock list trx_locks. This
-                              vector needs to be freed explicitly
-                              when the trx instance is destroyed.
-                              Protected by lock_sys->mutex. */
+  ulint n_autoinc_rows; /*!< no. of AUTO-INC rows required for
+                        an SQL statement. This is useful for
+                        multi-row INSERTs */
   /*------------------------------*/
   bool read_only;        /*!< true if transaction is flagged
                          as a READ-ONLY transaction.
@@ -1211,7 +1217,7 @@ struct commit_node_t {
   enum commit_node_state state; /*!< node execution state */
 };
 
-/** Test if trx->mutex is owned. */
+/** Test if trx->mutex is owned by the current thread. */
 #define trx_mutex_own(t) mutex_own(&t->mutex)
 
 /** Acquire the trx->mutex. */

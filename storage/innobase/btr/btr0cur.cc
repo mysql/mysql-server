@@ -1281,10 +1281,10 @@ retry_page_get:
     trx_t *trx = thr_get_trx(cursor->thr);
     lock_prdt_t prdt;
 
-    lock_mutex_enter();
+    trx_mutex_enter(trx);
     lock_init_prdt_from_mbr(&prdt, &cursor->rtr_info->mbr, mode,
                             trx->lock.lock_heap);
-    lock_mutex_exit();
+    trx_mutex_exit(trx);
 
     if (rw_latch == RW_NO_LATCH && height != 0) {
       rw_lock_s_lock(&(block->lock));
