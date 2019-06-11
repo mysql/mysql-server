@@ -4581,7 +4581,7 @@ finish:
     }
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_TIMEOUT) {
       thd->killed = THD::NOT_KILLED;
-      thd->set_query_for_display(nullptr, 0);
+      thd->reset_query_for_display();
     }
   }
 

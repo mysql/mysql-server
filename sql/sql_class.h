@@ -3712,15 +3712,13 @@ class THD : public MDL_context_owner,
     PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
 #endif
   }
+  void reset_query_for_display(void) { set_query_for_display(nullptr, 0); }
   void set_query(const char *query_arg, size_t query_length_arg) {
     LEX_CSTRING tmp = {query_arg, query_length_arg};
     set_query(tmp);
   }
   void set_query(const LEX_CSTRING &query_arg);
-  void reset_query() {
-    set_query(LEX_CSTRING());
-    rewritten_query.mem_free();
-  }
+  void reset_query() { set_query(LEX_CSTRING()); }
 
   /**
     Assign a new value to thd->query_id.
