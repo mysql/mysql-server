@@ -298,7 +298,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_ERROR);
   }
 
-  auto size = srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT);
+  auto size = srv_log_file_size >> 20;
 
   ib::info(ER_IB_MSG_1062, name, size);
 
@@ -340,11 +340,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 @param[in,out]  logfilename	    buffer for log file name
 @param[in]      dirnamelen      length of the directory path
 @param[in]      lsn             FIL_PAGE_FILE_FLUSH_LSN value
+@param[in]      num_old_files   number of old redo log files to remove
 @param[out]     logfile0	      name of the first log file
 @param[out]     checkpoint_lsn  lsn of the first created checkpoint
 @return DB_SUCCESS or error code */
 static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
-                                char *&logfile0, lsn_t &checkpoint_lsn) {
+                                uint32_t num_old_files, char *&logfile0,
+                                lsn_t &checkpoint_lsn) {
   dberr_t err;
 
   if (srv_read_only_mode) {
@@ -352,8 +354,12 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
     return (DB_READ_ONLY);
   }
 
+  if (num_old_files < INIT_LOG_FILE0) {
+    num_old_files = INIT_LOG_FILE0;
+  }
+
   /* Remove any old log files. */
-  for (unsigned i = 0; i <= INIT_LOG_FILE0; i++) {
+  for (unsigned i = 0; i <= num_old_files; i++) {
     sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
     /* Ignore errors about non-existent files or files
@@ -2204,7 +2210,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
     flushed_lsn = LOG_START_LSN;
 
-    err = create_log_files(logfilename, dirnamelen, flushed_lsn, logfile0,
+    err = create_log_files(logfilename, dirnamelen, flushed_lsn, 0, logfile0,
                            new_checkpoint_lsn);
 
     if (err != DB_SUCCESS) {
@@ -2216,7 +2222,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     ut_a(new_checkpoint_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
   } else {
-    for (i = 0; i < SRV_N_LOG_FILES_MAX; i++) {
+    for (i = 0; i < SRV_N_LOG_FILES_CLONE_MAX; i++) {
       os_offset_t size;
       os_file_stat_t stat_info;
 
@@ -2232,7 +2238,8 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
             return (srv_init_abort(DB_ERROR));
           }
 
-          err = create_log_files(logfilename, dirnamelen, flushed_lsn, logfile0,
+          err = create_log_files(logfilename, dirnamelen, flushed_lsn,
+                                 SRV_N_LOG_FILES_CLONE_MAX, logfile0,
                                  new_checkpoint_lsn);
 
           if (err != DB_SUCCESS) {
@@ -2589,8 +2596,9 @@ files_checked:
 
       srv_log_file_size = srv_log_file_size_requested;
 
-      err = create_log_files(logfilename, dirnamelen, flushed_lsn, logfile0,
-                             new_checkpoint_lsn);
+      err =
+          create_log_files(logfilename, dirnamelen, flushed_lsn,
+                           srv_n_log_files_found, logfile0, new_checkpoint_lsn);
 
       if (err != DB_SUCCESS) {
         return (srv_init_abort(err));

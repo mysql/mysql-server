@@ -1649,6 +1649,13 @@ dberr_t trx_undo_assign_undo(
     trx_undo_mark_as_dict_operation(trx, undo, &mtr);
   }
 
+  /* For GTID persistence we might add undo segment to prepared transaction. If
+  the transaction is in prepared state, we need to set XA properties. */
+  if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
+    ut_ad(!is_first);
+    undo->set_prepared(trx->xid);
+  }
+
 func_exit:
   mutex_exit(&(rseg->mutex));
   mtr_commit(&mtr);
@@ -1733,12 +1740,8 @@ page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
     return (undo_page);
   }
 
-  /*------------------------------*/
   ut_ad(undo->state == TRX_UNDO_ACTIVE);
-  undo->state = TRX_UNDO_PREPARED;
-  undo->xid = *trx->xid;
-  undo->flag |= TRX_UNDO_FLAG_XID;
-  /*------------------------------*/
+  undo->set_prepared(trx->xid);
 
   mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, undo->state, MLOG_2BYTES, mtr);
 

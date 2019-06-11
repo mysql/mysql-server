@@ -384,6 +384,9 @@ extern char *srv_log_group_home_dir;
 /** Enable or Disable Encrypt of REDO tablespace. */
 extern bool srv_redo_log_encrypt;
 
+/* Maximum number of redo files of a cloned DB. */
+#define SRV_N_LOG_FILES_CLONE_MAX 1000
+
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong srv_n_log_files;

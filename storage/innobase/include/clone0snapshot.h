@@ -589,6 +589,9 @@ class Clone_Snapshot {
   /** Number of bytes on disk. */
   uint64_t m_data_bytes_disk;
 
+  /** Index into m_data_file_vector for all undo files. */
+  std::vector<int> m_undo_file_indexes;
+
   /** @name Snapshot page data */
 
   /** Page archiver client */

@@ -8,7 +8,7 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Non innodb table: .* is not 
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Clone removing all user data for provisioning: .*");
 --enable_query_log
 
-CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64));
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64), FULLTEXT KEY fts_index(col2));
 
 INSERT INTO t1 VALUES(10, 'clone row 1');
 INSERT INTO t1 VALUES(20, 'clone row 2');

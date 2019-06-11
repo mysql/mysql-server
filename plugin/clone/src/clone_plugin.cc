@@ -503,7 +503,7 @@ static MYSQL_SYSVAR_UINT(max_data_bandwidth, clone_max_io_bandwidth,
 static MYSQL_SYSVAR_BOOL(enable_compression, clone_enable_compression,
                          PLUGIN_VAR_NOCMDARG,
                          "If compression is done at network", NULL, NULL,
-                         true); /* Enable compression by default */
+                         false); /* Disable compression by default */
 
 /** List of valid donor addresses allowed to clone from. */
 static MYSQL_SYSVAR_STR(valid_donor_list, clone_valid_donor_list,

@@ -102,6 +102,14 @@ int Clone_Snapshot::add_buf_pool_file() {
     auto file_size = os_file_get_size(path);
     auto size_bytes = file_size.m_total_size;
 
+    /* Check for error */
+    if (size_bytes == static_cast<os_offset_t>(~0)) {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_CANT_OPEN_FILE, MYF(0), path, errno,
+               my_strerror(errbuf, sizeof(errbuf), errno));
+      return (ER_CANT_OPEN_FILE);
+    }
+
     /* Always the first file in list */
     ut_ad(m_num_data_files == 0);
 
@@ -653,6 +661,14 @@ dberr_t Clone_Snapshot::add_node(fil_node_t *node) {
   auto size_bytes = file_size.m_total_size;
   auto alloc_size = file_size.m_alloc_size;
 
+  /* Check for error */
+  if (size_bytes == static_cast<os_offset_t>(~0)) {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_CANT_OPEN_FILE, MYF(0), node->name, errno,
+             my_strerror(errbuf, sizeof(errbuf), errno));
+    return (DB_ERROR);
+  }
+
   /* Update estimation */
   m_data_bytes_disk += alloc_size;
   m_monitor.add_estimate(size_bytes);
@@ -737,6 +753,14 @@ int Clone_Snapshot::add_redo_file(char *file_name, uint64_t file_size,
 
   m_num_redo_chunks += num_chunks;
   m_num_current_chunks = m_num_redo_chunks;
+
+  /* In rare case of small redo file, large concurrent DMLs and
+  slow data transfer. Currently we support maximum 1k redo files. */
+  if (m_num_redo_files > SRV_N_LOG_FILES_CLONE_MAX) {
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "More than 1000 archived redo files. Please retry clone.");
+    return (ER_INTERNAL_ERROR);
+  }
 
   return (0);
 }
