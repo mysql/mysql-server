@@ -647,6 +647,7 @@ static const char* const jamFileNames[] =
    "IntrusiveTags.hpp",                  // 511
    "Sysfile.cpp",                        // 512
    "BlockThreadBitmask.hpp",             // 513
+   "SyncThreadViaReqConf.hpp",           // 514
    };
 
 bool 

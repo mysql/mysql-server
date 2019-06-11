@@ -127,6 +127,13 @@ Uint32 mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
                                           BlockThreadBitmask& mask);
 
 /**
+ * Get a bitset with a set bit for each thread that given thread can send
+ * signals too.
+ */
+Uint32 mt_get_addressable_threads(const Uint32 my_thr_no,
+                                  BlockThreadBitmask& mask);
+
+/**
  * wakeup thread running block
  */
 void mt_wakeup(class SimulatedBlock*);

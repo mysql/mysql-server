@@ -30,6 +30,8 @@
 #include <LocalProxy.hpp>
 #include <signaldata/EnableCom.hpp>
 #include <signaldata/CloseComReqConf.hpp>
+#include <signaldata/SyncThreadViaReqConf.hpp>
+#include <ndb_limits.h>
 
 #define JAM_FILE_ID 334
 
@@ -49,11 +51,15 @@ public:
   void execCONNECT_REP(Signal *signal);
   void execROUTE_ORD(Signal* signal);
 
+  void sendSYNC_THREAD_VIA_CONF(Signal*, Uint32, Uint32);
+  void execSYNC_THREAD_VIA_REQ(Signal*);
+
   void execDBINFO_SCANREQ(Signal*);
 
   void execNDB_TAMPER(Signal*);
   void execDUMP_STATE_ORD(Signal*);
 protected:
+  bool getParam(const char* name, Uint32* count) override;
 private:
   bool handles_this_node(Uint32 nodeId);
   void close_com_failed_node(Signal*, Uint32);
@@ -105,6 +111,24 @@ public:
   void sendENABLE_COMREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execENABLE_COMCONF(Signal *signal);
   void sendENABLE_COMCONF(Signal*, Uint32 ssId);
+
+  // GSN_SYNC_THREAD_VIA
+  struct Ss_SYNC_THREAD_VIA : SsParallel {
+    SyncThreadViaReqConf m_req;
+    Ss_SYNC_THREAD_VIA() {
+      m_sendREQ = (SsFUNCREQ)&TrpmanProxy::sendSYNC_THREAD_VIA_REQ;
+      m_sendCONF = (SsFUNCREP)&TrpmanProxy::sendSYNC_THREAD_VIA_CONF;
+    }
+    enum { poolSize = MAX_DATA_NODE_ID }; // Qmgr::MAX_DATA_NODE_FAILURES
+    static SsPool<Ss_SYNC_THREAD_VIA>& pool(LocalProxy* proxy) {
+      return ((TrpmanProxy*)proxy)->c_ss_SYNC_THREAD_VIA;
+    }
+  };
+  SsPool<Ss_SYNC_THREAD_VIA> c_ss_SYNC_THREAD_VIA;
+  void execSYNC_THREAD_VIA_REQ(Signal*);
+  void sendSYNC_THREAD_VIA_REQ(Signal*, Uint32, SectionHandle*);
+  void execSYNC_THREAD_VIA_CONF(Signal*);
+  void sendSYNC_THREAD_VIA_CONF(Signal*, Uint32);
 
   void execROUTE_ORD(Signal* signal);
   void execNDB_TAMPER(Signal*);

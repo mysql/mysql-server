@@ -8576,6 +8576,28 @@ mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
   return cnt;
 }
 
+Uint32
+mt_get_addressable_threads(const Uint32 my_thr_no, BlockThreadBitmask& mask)
+{
+  const Uint32 thr_cnt = get_total_number_of_block_threads();
+  Uint32 cnt = 0;
+  for (Uint32 thr_no = 0; thr_no < thr_cnt; thr_no++)
+  {
+    if (may_communicate(my_thr_no, thr_no))
+    {
+      mask.set(thr_no);
+      cnt++;
+    }
+  }
+  if (!mask.get(my_thr_no))
+  {
+    mask.set(my_thr_no);
+    cnt++;
+  }
+  require(mask.count() == cnt);
+  return cnt;
+}
+
 void
 mt_wakeup(class SimulatedBlock* block)
 {

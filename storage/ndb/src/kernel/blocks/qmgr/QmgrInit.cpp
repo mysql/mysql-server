@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,14 @@ void Qmgr::initData()
   for (Uint32 i = 0; i<MAX_NODES; i++)
   {
     nodeRec[i].m_secret = 0;
+  }
+
+  nodeFailRec = new NodeFailRec[MAX_DATA_NODE_FAILURES];
+  for (Uint32 i = 0; i < MAX_DATA_NODE_FAILURES; i++)
+  {
+    nodeFailRec[i].nodes.clear();
+    nodeFailRec[i].failureNr = 0;
+    nodeFailRec[i].president = 0;
   }
 
   c_maxDynamicId = 0;
@@ -218,6 +226,7 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_ALLOC_NODEID_REF,  &Qmgr::execALLOC_NODEID_REF);
   addRecSignal(GSN_ENABLE_COMCONF,  &Qmgr::execENABLE_COMCONF);
   addRecSignal(GSN_PROCESSINFO_REP, &Qmgr::execPROCESSINFO_REP);
+  addRecSignal(GSN_SYNC_THREAD_VIA_CONF, &Qmgr::execSYNC_THREAD_VIA_CONF);
 
   // Arbitration signals
   addRecSignal(GSN_ARBIT_PREPREQ, &Qmgr::execARBIT_PREPREQ);

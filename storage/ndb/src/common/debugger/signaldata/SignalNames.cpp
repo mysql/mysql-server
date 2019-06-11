@@ -878,5 +878,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_WAIT_LCP_IDLE_REQ, "WAIT_LCP_IDLE_REQ" }
   ,{ GSN_WAIT_LCP_IDLE_CONF, "WAIT_LCP_IDLE_CONF" }
   ,{ GSN_LOCAL_LATEST_LCP_ID_REP, "LOCAL_LATEST_LCP_ID_REP" }
+  ,{ GSN_SYNC_THREAD_VIA_REQ, "SYNC_THREAD_VIA_REQ" }
+  ,{ GSN_SYNC_THREAD_VIA_CONF, "SYNC_THREAD_VIA_CONF" }
+
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

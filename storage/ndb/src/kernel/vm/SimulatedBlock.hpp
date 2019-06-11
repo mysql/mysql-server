@@ -596,6 +596,12 @@ public:
    *   thread running an instance any of the threads in blocks[]
    *   will have executed a signal
    */
+  void synchronize_threads(Signal * signal,
+                           const BlockThreadBitmask& threads,
+                           const Callback & cb,
+                           JobBufferLevel req_prio,
+                           JobBufferLevel conf_prio);
+
   void synchronize_threads_for_blocks(
            Signal*,
            const Uint32 blocks[],
@@ -603,6 +609,13 @@ public:
            JobBufferLevel req_prio = JBB,
            JobBufferLevel conf_prio = ILLEGAL_JB_LEVEL);
   
+  /**
+   * This method will make sure that all external signals from nodes handled by
+   * transporters in current thread are processed.
+   * Should be called from a TRPMAN-worker.
+   */
+  void synchronize_external_signals(Signal* signal, const Callback& cb);
+
   /**
    * This method make sure that the path specified in blocks[]
    *   will be traversed before returning
