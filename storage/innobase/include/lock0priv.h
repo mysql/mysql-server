@@ -105,6 +105,22 @@ inline std::ostream &operator<<(std::ostream &out, const lock_rec_t &lock) {
   return (lock.print(out));
 }
 
+/**
+Checks if the `mode` is LOCK_S or LOCK_X, which means the lock is a
+Next Key Lock, a.k.a. LOCK_ORDINARY, as opposed to Predicate Lock,
+GAP lock, Insert Intention or Record Lock.
+@param  mode  A mode and flags, of a non-waiting lock.
+@return true iff the only bits set in `mode` are LOCK_S or LOCK_X */
+UNIV_INLINE
+bool lock_mode_is_next_key_lock(ulint mode) {
+  static_assert(LOCK_ORDINARY == 0, "LOCK_ORDINARY must be 0 (no flags)");
+  ut_ad((mode & LOCK_WAIT) == 0);
+  ut_ad((mode & LOCK_TYPE_MASK) == 0);
+  ut_ad(((mode & ~(LOCK_MODE_MASK)) == LOCK_ORDINARY) ==
+        (mode == LOCK_S || mode == LOCK_X));
+  return (mode & ~(LOCK_MODE_MASK)) == LOCK_ORDINARY;
+}
+
 /** Lock struct; protected by lock_sys->mutex */
 struct lock_t {
   /** transaction owning the lock */
@@ -174,6 +190,12 @@ struct lock_t {
 
   /** @return true if the not gap lock bit is set */
   bool is_record_not_gap() const { return (type_mode & LOCK_REC_NOT_GAP); }
+
+  /** @return true iff the lock is a Next Key Lock */
+  bool is_next_key_lock() const {
+    return is_record_lock() &&
+           lock_mode_is_next_key_lock(type_mode & ~(LOCK_WAIT | LOCK_REC));
+  }
 
   /** @return true if the insert intention bit is set */
   bool is_insert_intention() const {
@@ -719,18 +741,19 @@ class RecLock {
   }
 
   /**
-  Enqueue a lock wait for a transaction. If it is a high priority
-  transaction (cannot rollback) then jump ahead in the record lock wait
-  queue and if the transaction at the head of the queue is itself waiting
-  roll it back.
-  @param[in, out] wait_for	The lock that the the joining
-                                  transaction is waiting for
-  @param[in] prdt			Predicate [optional]
-  @return DB_LOCK_WAIT, DB_DEADLOCK, or
-          DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
-          there was a deadlock, but another transaction was chosen
-          as a victim, and we got the lock immediately: no need to
-          wait then */
+  Enqueue a lock wait for a transaction. If it is a high priority transaction
+  (cannot rollback) then try to jump ahead in the record lock wait queue. Also
+  do a deadlock check and resolve.
+  @param[in, out] wait_for      The lock that the the joining transaction is
+                                waiting for
+  @param[in] prdt               Predicate [optional]
+  @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_SUCCESS_LOCKED_REC
+  @retval DB_SUCCESS_LOCKED_REC means that either:
+        (1) there was a deadlock, but another transaction was chosen
+            as a victim, and we got the lock immediately
+        (2) we are High Priority transaction and we've managed to jump in front
+            of other waiting transactions and got the lock granted
+        In either case there is no need to wait. */
   dberr_t add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt = NULL);
 
   /**
@@ -1058,11 +1081,11 @@ UNIV_INLINE
 ulint lock_mode_compatible(enum lock_mode mode1, enum lock_mode mode2);
 
 /** Calculates if lock mode 1 is stronger or equal to lock mode 2.
-@param[in]	mode1	lock mode
-@param[in]	mode2	lock mode
-@return nonzero if mode1 stronger or equal to mode2 */
+@param[in]	mode1	lock mode 1
+@param[in]	mode2	lock mode 2
+@return true iff mode1 stronger or equal to mode2 */
 UNIV_INLINE
-ulint lock_mode_stronger_or_eq(enum lock_mode mode1, enum lock_mode mode2);
+bool lock_mode_stronger_or_eq(enum lock_mode mode1, enum lock_mode mode2);
 
 /** Gets the wait flag of a lock.
  @return LOCK_WAIT if waiting, 0 if not */
