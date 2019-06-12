@@ -1014,8 +1014,11 @@ StreamingIterator::StreamingIterator(
   //
   // table->ref_is_set_without_position_call is set so that weedout won't
   // try to call position(), but will just blindly trust the pointer we give it.
-  DBUG_ASSERT(table->file->ref_length >= sizeof(m_row_number));
   table->ref_is_set_without_position_call = true;
+  if (table->file->ref_length < sizeof(m_row_number)) {
+    table->file->ref_length = sizeof(m_row_number);
+    table->file->ref = nullptr;
+  }
   if (table->file->ref == nullptr) {
     table->file->ref =
         pointer_cast<uchar *>(thd->mem_calloc(table->file->ref_length));
