@@ -175,10 +175,8 @@ IF (WITH_BOOST)
   ENDIF()
   IF(LOCAL_BOOST_ZIP)
     MESSAGE(STATUS "Local boost zip ${LOCAL_BOOST_ZIP}")
-    SET(LOCAL_BOOST_ZIP_ZERO_LENGTH)
-    FILE(STRINGS ${LOCAL_BOOST_ZIP} LOCAL_BOOST_ZIP_ZERO_LENGTH
-      LIMIT_INPUT 0)
-    IF(DEFINED LOCAL_BOOST_ZIP_ZERO_LENGTH)
+    GET_FILE_SIZE(${LOCAL_BOOST_ZIP} LOCAL_BOOST_ZIP_SIZE)
+    IF(LOCAL_BOOST_ZIP_SIZE EQUAL 0)
       # A previous failed download has left an empty file, most likely the
       # user pressed Ctrl-C to kill a hanging connection due to missing vpn
       # proxy.  Remove it!
