@@ -192,6 +192,8 @@ void Applier_module::set_applier_thread_context() {
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
+  // Protocol is only initiated because of process list status
+  thd->get_protocol_classic()->init_net(0);
   /*
     We only set the thread type so the applier thread shows up
     in the process list.
@@ -216,8 +218,8 @@ void Applier_module::set_applier_thread_context() {
 }
 
 void Applier_module::clean_applier_thread_context() {
+  applier_thd->get_protocol_classic()->end_net();
   applier_thd->release_resources();
-  THD_CHECK_SENTRY(applier_thd);
   global_thd_manager_remove_thd(applier_thd);
 }
 
