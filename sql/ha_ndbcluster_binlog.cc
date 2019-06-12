@@ -5184,21 +5184,24 @@ class Ndb_schema_event_handler {
 
     for (auto &table_ref : table_refs)
     {
-      const char *schema_name = table_ref.m_schema_name.c_str();
-      const char *table_name = table_ref.m_name.c_str();
-      if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
-      {
+      // Convert table_refs to correct case when necessary
+      const std::string schema_name =
+          ndb_dd_fs_name_case(table_ref.m_schema_name.c_str());
+      const std::string table_name =
+          ndb_dd_fs_name_case(table_ref.m_name.c_str());
+      if (!dd_client.mdl_locks_acquire_exclusive(schema_name.c_str(),
+                                                 table_name.c_str())) {
         log_and_clear_THD_conditions();
-        ndb_log_error("MDL lock could not be acquired on table '%s'",
-                      table_name);
+        ndb_log_error("MDL lock could not be acquired on table '%s.%s'",
+                      schema_name.c_str(), table_name.c_str());
         return false;
       }
 
-      if (!dd_client.set_tablespace_id_in_table(schema_name, table_name,
-                                                tablespace_id))
-      {
+      if (!dd_client.set_tablespace_id_in_table(
+              schema_name.c_str(), table_name.c_str(), tablespace_id)) {
         log_and_clear_THD_conditions();
-        ndb_log_error("Could not set tablespace id in table '%s'", table_name);
+        ndb_log_error("Could not set tablespace id in table '%s.%s'",
+                      schema_name.c_str(), table_name.c_str());
         return false;
       }
     }
