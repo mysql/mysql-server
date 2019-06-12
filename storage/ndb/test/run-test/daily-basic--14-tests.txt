@@ -106,7 +106,7 @@ args: -n ScanUsingMultipleNdbObjects T1
 max-time: 30
 
 cmd: testBackup
-args: -n ConsistencyUnderLoadStallGCP T1
+args: -n ConsistencyUnderLoadSnapshotStart T1
 max-time: 900
 
 cmd: testBackup
