@@ -81,18 +81,28 @@ NdbBackup::clearOldBackups()
     /* 
      * Clear old backup files
      */ 
-    BaseString tmp;
+    BaseString tmp1, tmp2;
     if (!isHostLocal(host))
     {
-      tmp.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+      // clean up backup from BackupDataDir
+      tmp1.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+      // clean up local copy created by scp
+      tmp2.assfmt("rm -rf ./BACKUP*");
     }
     else
     {
-      tmp.assfmt("rm -rf %s/BACKUP", path);
+      // clean up backup from BackupDataDir
+      tmp1.assfmt("rm -rf %s/BACKUP", path);
+      // clean up copy created by cp
+      tmp2.assfmt("rm -rf ./BACKUP*");
     }
 
-    ndbout << "buf: "<< tmp.c_str() <<endl;
-    int res = system(tmp.c_str());  
+    ndbout << "buf: "<< tmp1.c_str() <<endl;
+    int res = system(tmp1.c_str());
+    ndbout << "res: " << res << endl;
+
+    ndbout << "buf: "<< tmp2.c_str() <<endl;
+    res = system(tmp2.c_str());
     ndbout << "res: " << res << endl;
 
     if (res && retCode == 0)

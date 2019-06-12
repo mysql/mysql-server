@@ -562,35 +562,69 @@ int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_FAILED;
 }
 
-int runRestoreEpochFailOk(NDBT_Context* ctx, NDBT_Step* step){
+int createNdbApplyStatusIfMissing(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const char* saveDb = pNdb->getDatabaseName();
+  pNdb->setDatabaseName("mysql");
+
+  const NdbDictionary::Table* apply_status_table =
+    pNdb->getDictionary()->getTable("ndb_apply_status");
+
+  if (!apply_status_table)
+  {
+    g_err << "ndb_apply_status table not found, creating it" << endl;
+    NdbDictionary::Table tab;
+    NdbDictionary::Index idx;
+
+    tab.setName("ndb_apply_status");
+    tab.setLogging(true);
+
+    NdbDictionary::Column col1("server_id");
+    col1.setType(NdbDictionary::Column::Unsigned);
+    col1.setPrimaryKey(true);
+    tab.addColumn(col1);
+
+    NdbDictionary::Column col2("epoch");
+    col2.setType(NdbDictionary::Column::Bigunsigned);
+    tab.addColumn(col2);
+
+    NdbDictionary::Column col3("log_name");
+    col3.setType(NdbDictionary::Column::Varchar);
+    tab.addColumn(col3);
+
+    NdbDictionary::Column col4("start_pos");
+    col4.setType(NdbDictionary::Column::Bigunsigned);
+    tab.addColumn(col4);
+
+    NdbDictionary::Column col5("end_pos");
+    col5.setType(NdbDictionary::Column::Bigunsigned);
+    tab.addColumn(col5);
+
+    if (pNdb->getDictionary()->createTable(tab) == -1)
+    {
+      g_err << "Failed to create table ndb_apply_status, error: "
+            << pNdb->getDictionary()->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  pNdb->setDatabaseName(saveDb);
+  return NDBT_OK;
+}
+
+int runRestoreEpoch(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
   unsigned backupId = ctx->getProperty("BackupId");
 
   ndbout << "Restoring epoch from backup " << backupId << endl;
 
-  Ndb* pNdb = GETNDB(step);
-  const char* saveDb = pNdb->getDatabaseName();
-  pNdb->setDatabaseName("mysql");
-  const NdbDictionary::Table* apply_status_table =
-    pNdb->getDictionary()->getTable("ndb_apply_status");
-  pNdb->setDatabaseName(saveDb);
-
-  if (!apply_status_table)
-  {
-    g_err << "No mysql.ndb_apply_status table on this system,"
-          << " skipping epoch restore" << endl;
-    return NDBT_OK;
-  }
   if (backup.restore(backupId, false, false, 0, true) == -1)
   {
     ndbout << "Restoring epoch failed" << endl;
-    // Ignore, presumably table does not exist
-  }
-  else
-  {
-    ndbout << "Restoring epoch succeeded" << endl;
+    return NDBT_FAILED;
   }
 
+  ndbout << "Restoring epoch succeeded" << endl;
   return NDBT_OK;
 }
 
@@ -1267,21 +1301,12 @@ runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
 int
 runRestoreEpochRetry(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbBackup backup;
-  g_err << "Starting backup." << endl;
-  unsigned backupId = 0;
-  if (backup.start(backupId) == -1) {
-    g_err << "Failed to start backup." << endl;
-    return NDBT_FAILED;
-  }
-
   NdbRestarter restarter;
   g_err << "Inserting error to cause temporary redo errors" << endl;
   restarter.insertErrorInAllNodes(5032);
 
-  g_err << "Restoring from backup with epoch restore."
-        << endl;
-  if (backup.restore(backupId, false, false, 0, true) == -1)
+  g_err << "Restoring from backup with epoch restore." << endl;
+  if (runRestoreEpoch(ctx, step) != NDBT_OK)
   {
     ndbout << "Restoring epoch failed" << endl;
     restarter.insertErrorInAllNodes(0);
@@ -2127,6 +2152,7 @@ TESTCASE("BackupUndoLog",
 	 "5. Restore\n"
 	 "6. Verify records of table\n"
 	 "7. Clear tables\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupUndoWaitStarted);
   INITIALIZER(runChangeUndoDataDuringBackup);
@@ -2179,35 +2205,44 @@ TESTCASE("FailSlave",
 }
 TESTCASE("Bug57650", "")
 {
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runBug57650);
 }
 TESTCASE("Bug14019036", "")
 {
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runBug14019036);
 }
 TESTCASE("OutOfScanRecordsInLDM",
          "Test that uses up all scan slots before starting backup")
 {
+  INITIALIZER(clearOldBackups);
   INITIALIZER(createOrderedPkIndex);
   INITIALIZER(runLoadTable10000);
   INITIALIZER(outOfScanRecordsInLDM);
 }
 TESTCASE("Bug16656639", "")
 {
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runBug16656639);
 }
 TESTCASE("Bug17882305", "")
 {
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runBug17882305);
 }
 TESTCASE("Bug19202654", 
          "Test restore with a large number of tables")
 {
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runBug19202654);
 }
 TESTCASE("RestoreEpochRetry",
          "Test that epoch restore is retried on temporary error")
 {
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runBackupOne);
+  INITIALIZER(createNdbApplyStatusIfMissing);
   INITIALIZER(runRestoreEpochRetry);
 }
 
@@ -2223,13 +2258,14 @@ TESTCASE("ConsistencyUnderLoad",
   INITIALIZER(runLoadTable);
   INITIALIZER(initWorkerIds);
   INITIALIZER(initHistoryList);
+  INITIALIZER(createNdbApplyStatusIfMissing);
 
   STEPS(runUpdatesWithHistory, NumUpdateThreads);
   STEP(runDelayedBackup);
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(runRestoreEpoch);     // Restore epoch
   VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
@@ -2248,6 +2284,7 @@ TESTCASE("ConsistencyUnderLoadStallGCP",
   INITIALIZER(runLoadTable);
   INITIALIZER(initWorkerIds);
   INITIALIZER(initHistoryList);
+  INITIALIZER(createNdbApplyStatusIfMissing);
 
   STEPS(runUpdatesWithHistory, NumUpdateThreads);
   STEP(runDelayedBackup);
@@ -2255,7 +2292,7 @@ TESTCASE("ConsistencyUnderLoadStallGCP",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(runRestoreEpoch);     // Restore epoch
   VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
@@ -2273,13 +2310,14 @@ TESTCASE("ConsistencyUnderLoadSnapshotStart",
   INITIALIZER(runLoadTable);
   INITIALIZER(initWorkerIds);
   INITIALIZER(initHistoryList);
+  INITIALIZER(createNdbApplyStatusIfMissing);
 
   STEPS(runUpdatesWithHistory, NumUpdateThreads);
   STEP(runDelayedBackup);
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(runRestoreEpoch);     // Restore epoch
   VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
@@ -2297,6 +2335,7 @@ TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
   INITIALIZER(runLoadTable);
   INITIALIZER(initWorkerIds);
   INITIALIZER(initHistoryList);
+  INITIALIZER(createNdbApplyStatusIfMissing);
 
   STEPS(runUpdatesWithHistory, NumUpdateThreads);
   STEP(runDelayedBackup);
@@ -2304,7 +2343,7 @@ TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(runRestoreEpoch);     // Restore epoch
   VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
