@@ -233,16 +233,17 @@ int Group_partition_handling::terminate_partition_handler_thread() {
     DBUG_PRINT("loop", ("killing group replication partition handler thread"));
 
     struct timespec abstime;
-    set_timespec(&abstime, 2);
+    set_timespec(&abstime, (stop_wait_timeout == 1 ? 1 : 2));
 #ifndef DBUG_OFF
     int error =
 #endif
         mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
-    if (stop_wait_timeout >= 2) {
-      stop_wait_timeout = stop_wait_timeout - 2;
+    if (stop_wait_timeout >= 1) {
+      stop_wait_timeout = stop_wait_timeout - (stop_wait_timeout == 1 ? 1 : 2);
     }
     /* purecov: begin inspected */
-    else if (group_partition_thd_state.is_thread_alive())  // quit waiting
+    if (group_partition_thd_state.is_thread_alive() &&
+        stop_wait_timeout <= 0)  // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
       return 1;
@@ -280,11 +281,11 @@ int Group_partition_handling::partition_thread_handler() {
   mysql_mutex_lock(&trx_termination_aborted_lock);
   while (!timeout && !partition_handling_aborted) {
     struct timespec abstime;
-    set_timespec(&abstime, 2);
+    set_timespec(&abstime, (timeout_remaining_time == 1 ? 1 : 2));
     mysql_cond_timedwait(&trx_termination_aborted_cond,
                          &trx_termination_aborted_lock, &abstime);
 
-    timeout_remaining_time -= 2;
+    timeout_remaining_time -= (timeout_remaining_time == 1 ? 1 : 2);
     timeout = (timeout_remaining_time <= 0);
   }
 

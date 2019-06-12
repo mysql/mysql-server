@@ -643,15 +643,17 @@ int Applier_module::terminate_applier_thread() {
       alarm. To protect against it, resend the signal until it reacts
     */
     struct timespec abstime;
-    set_timespec(&abstime, 2);
+    set_timespec(&abstime, (stop_wait_timeout == 1 ? 1 : 2));
 #ifndef DBUG_OFF
     int error =
 #endif
         mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
 
-    if (stop_wait_timeout >= 2) {
-      stop_wait_timeout = stop_wait_timeout - 2;
-    } else if (applier_thd_state.is_thread_alive())  // quit waiting
+    if (stop_wait_timeout >= 1) {
+      stop_wait_timeout = stop_wait_timeout - (stop_wait_timeout == 1 ? 1 : 2);
+    }
+    if (applier_thd_state.is_thread_alive() &&
+        stop_wait_timeout <= 0)  // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
       return 1;
