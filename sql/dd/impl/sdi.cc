@@ -313,9 +313,15 @@ bool generic_lookup_ref(THD *thd, MDL_key::enum_mdl_namespace mdlns,
   }
 
   // Acquire MDL here so that it becomes possible to acquire the
-  // schema to look up its id in the current DD
-  if (mdl_lock(thd, mdlns, name, "", MDL_INTENTION_EXCLUSIVE)) {
-    return true;
+  // tablespace/schema to look up its id in the current DD
+  if (mdlns == MDL_key::TABLESPACE) {
+    if (mdl_lock(thd, mdlns, "", name, MDL_INTENTION_EXCLUSIVE)) {
+      return true;
+    }
+  } else {
+    if (mdl_lock(thd, mdlns, name, "", MDL_INTENTION_EXCLUSIVE)) {
+      return true;
+    }
   }
 
   dd::cache::Dictionary_client *dc = thd->dd_client();
