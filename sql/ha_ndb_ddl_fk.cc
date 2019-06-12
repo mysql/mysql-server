@@ -1667,6 +1667,8 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       // The fk has a name, use it
       lex2str(fk->name, fk_name);
+      if (lower_case_table_names)
+        ndb_fk_casedn(fk_name);
     }
     else
     {
@@ -1679,8 +1681,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                   child_index->getObjectId() :
                   child_tab.get_table()->getObjectId());
     }
-    if (lower_case_table_names)
-      ndb_fk_casedn(fk_name);
     ndbfk.setName(fk_name);
     ndbfk.setParent(* parent_tab.get_table(), parent_index, parentcols);
     ndbfk.setChild(* child_tab.get_table(), child_index, childcols);
