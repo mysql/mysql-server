@@ -313,6 +313,12 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES **ppsec_attr,
     DWORD last_error_num = GetLastError();
 
     if (last_error_num == ERROR_ACCESS_DENIED) {
+      /*
+        TODO: ER_NPIPE_PIPE_ALREADY_IN_USE is in the error-log range; refactor
+        this to use LogErr() or log_message() instead of my_printf_error() once
+        the logger has been refactored to simplify unit testing of expected
+        errors.
+      */
       my_printf_error(ER_NPIPE_PIPE_ALREADY_IN_USE,
                       ER_DEFAULT(ER_NPIPE_PIPE_ALREADY_IN_USE),
                       MYF(ME_FATALERROR), name);

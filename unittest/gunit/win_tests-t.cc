@@ -37,6 +37,68 @@ namespace win_unittest {
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
 
+extern "C" void mock_error_handler_hook(uint err, const char *str, myf MyFlags);
+
+/**
+  An alternative error_handler for non-server unit tests since it does
+  not rely on THD.  It sets the global error handler function.
+  Note that a Mock_global_error_handler instance is used in
+  TEST_F(NamedPipeTest, CreatePipeTwice) specifically to verify that a
+  server range error code is passed to my_printf_error during the execution of
+  create_server_named_pipe.
+  The use of my_printf_error with a server range error code would cause
+  an assertion failure if the "usual" combination of Mock_error_handler and
+  my_message_sql were used to verify this expected error code.
+  As and when the logger is refactored to simplify unit testing of expected
+  error codes, the my_printf_error call should be replaced with LogErr or
+  log_message and this use of Mock_global_error_handler replaced with the
+  appropriate (new) logger test.
+*/
+
+class Mock_global_error_handler {
+ public:
+  explicit Mock_global_error_handler(uint expected_error)
+      : m_expected_error(expected_error), m_handle_called(0) {
+    current = this;
+    m_old_error_handler_hook = error_handler_hook;
+    error_handler_hook = mock_error_handler_hook;
+  }
+
+  virtual ~Mock_global_error_handler() {
+    if (m_expected_error == 0) {
+      EXPECT_EQ(0, m_handle_called);
+    } else {
+      EXPECT_GT(m_handle_called, 0);
+    }
+    error_handler_hook = m_old_error_handler_hook;
+    current = NULL;
+  }
+
+  void error_handler(uint err) {
+    EXPECT_EQ(m_expected_error, err);
+    ++m_handle_called;
+  }
+
+  int handle_called() const { return m_handle_called; }
+
+  static Mock_global_error_handler *current;
+
+ private:
+  uint m_expected_error;
+  int m_handle_called;
+
+  void (*m_old_error_handler_hook)(uint, const char *, myf);
+};
+Mock_global_error_handler *Mock_global_error_handler::current = NULL;
+
+/*
+  Error handler function.
+*/
+extern "C" void mock_error_handler_hook(uint err, const char *, myf) {
+  if (Mock_global_error_handler::current)
+    Mock_global_error_handler::current->error_handler(err);
+}
+
 class NamedPipeTest : public ::testing::Test {
  protected:
   static void SetUpTestCase() {
@@ -107,9 +169,10 @@ TEST_F(NamedPipeTest, CreatePipeTwice) {
   m_pipe_handle = create_server_named_pipe(&mp_sec_attr, 1024, m_name.c_str(),
                                            m_pipe_name, sizeof(m_pipe_name));
   EXPECT_NE(INVALID_HANDLE_VALUE, m_pipe_handle);
-
-  Mock_error_handler error_handler(m_initializer.thd(),
-                                   ER_NPIPE_PIPE_ALREADY_IN_USE);
+  // Use Mock_global_error_handler rather than Mock_error_handler to verify
+  // server error codes (routing server error codes through my_message_sql
+  // via the error_handler_hook with Mock_error_handler would fail an assertion)
+  Mock_global_error_handler error_handler(ER_NPIPE_PIPE_ALREADY_IN_USE);
   HANDLE handle = create_server_named_pipe(&mp_sec_attr, 1024, m_name.c_str(),
                                            m_pipe_name, sizeof(m_pipe_name));
   EXPECT_EQ(INVALID_HANDLE_VALUE, handle);
