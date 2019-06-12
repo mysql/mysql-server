@@ -29,9 +29,6 @@ ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOE
 ndb.ndb_parallel_undo_log : BUG#28794807 FIX NDB.NDB_PARALLEL_UNDO_LOG TESTCASE FAILURE
 ndb.ndb_dd_schema_distribution : Bug#29871406 HANG IN ACQUIRE_LOCK WHEN ALTERING TABLESPACE
 
-# Problem with distribution of CREATE TABLE
-ndb.ndb_dd_restore_check_tablespace_mdl : BUG#28876892 SCHEMA DISTRIBUTION OF CREATE TABLE WITH DISK DATA AND RANGE PARTITIONING FAILS
-
 # Problem with ndb_index_stat tables missing from DD
 ndb.ndb_statistics0 : BUG#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART
 
