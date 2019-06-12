@@ -3023,7 +3023,7 @@ from t1 straight_join t1 as t2
 on (t2.d = t2.c);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using pushed condition (`test`.`t2`.`c` = `test`.`t2`.`d`)
 explain
 select *
 from t1 straight_join t1 as t2
@@ -3044,7 +3044,7 @@ from t1 straight_join t1 as t2
 on (t2.a between t1.a and t2.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	11.11	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	11.11	Using pushed condition (`test`.`t2`.`a` between `test`.`t1`.`a` and `test`.`t2`.`b`)
 delete from t1;
 insert into t1 values (1,1,1,1), (2, 2, NULL, NULL);
 explain
@@ -3589,3 +3589,35 @@ EXPLAIN
     -> Index range scan on t1 using ix1, with pushed condition: (t1.col_int_unique <> 8)
 
 DROP TABLE t1;
+#
+# WL#13120 & WL#13121
+#
+Testing all combinations of pushing '<col1> <compare op> <col2>' conditions
+CALL test_all("=");
+CALL test_all("<>");
+CALL test_all("<");
+CALL test_all("<=");
+CALL test_all(">");
+CALL test_all(">=");
+Test combinations using the 'variant' columns.
+Even if the base type is the same for these conditions,
+different precision, length, scale etc. should prevent pushing:
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string4",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE vstring1 = vstring3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE bin1 = bin3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE vbin1 = vbin3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE bits1 = bits3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE options1 = options3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE flags1 = flags3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_field1 = time_field3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE date_time1 = date_time3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
+Test that <col1> like <col2> is not pushed, - even if types are comparable
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string1",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string1",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string2",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string2",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string3",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string3",false);

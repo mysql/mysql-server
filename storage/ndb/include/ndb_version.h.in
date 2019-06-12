@@ -1209,4 +1209,19 @@ ndbd_frag_tckeyreq(Uint32 x)
 
 #define NDBD_NOWAIT_KEYREQ NDB_MAKE_VERSION(8,0,18)
 
+/**
+ * wl#13120 extended NdbScanFilter and NdbInterpretedCode to allow
+ * two columns to be compared.
+ */
+
+#define NDBD_SUPPORT_CMP_COLUMNS NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+bool
+ndbd_support_column_cmp(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_CMP_COLUMNS;
+}
+
 #endif

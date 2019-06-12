@@ -3492,3 +3492,367 @@ SELECT t1.col_varchar_256 AS field1
   ORDER BY field1;
 
 DROP TABLE t1;
+
+
+
+--echo #
+--echo # WL#13120 & WL#13121
+--echo #
+
+--disable_query_log
+
+# Create table with:
+# - Two columns of each datatype, used to test that compare
+#   of column with identical definitions are pushed, else not.
+# - Some additional columns for data types where length, spec
+#   and precision may be specified. These should not be
+#   pushed when compared against the other similar columns.
+
+CREATE TABLE t1 (
+  pk int unsigned NOT NULL PRIMARY KEY,
+
+  string1 char(10),
+  vstring1 varchar(10),
+  bin1 binary(2),
+  vbin1 varbinary(7),	
+  tiny1 tinyint,
+  short1 smallint,
+  medium1 mediumint,
+  long_int1 int,
+  longlong1 bigint,
+  real_float1 float,
+  real_double1 double,
+  real_decimal1 decimal(16,4),
+  utiny1 tinyint unsigned,
+  ushort1 smallint unsigned,
+  umedium1 mediumint unsigned,
+  ulong1 int unsigned,
+  ulonglong1 bigint unsigned,
+  bits1 bit(3),
+  options1 enum('zero','one','two','three','four'),
+  flags1 set('zero','one','two','three','four'),
+  date_field1 date,
+  year_field1 year,
+  time_field1 time,
+  date_time1 datetime,
+  time_stamp1 timestamp,
+
+  # Set of column with data types identical to the those above
+  string2 char(10),
+  vstring2 varchar(10),
+  bin2 binary(2),
+  vbin2 varbinary(7),	
+  tiny2 tinyint,
+  short2 smallint,
+  medium2 mediumint,
+  long_int2 int,
+  longlong2 bigint,
+  real_float2 float,
+  real_double2 double,
+  real_decimal2 decimal(16,4),
+  utiny2 tinyint unsigned,
+  ushort2 smallint unsigned,
+  umedium2 mediumint unsigned,
+  ulong2 int unsigned,
+  ulonglong2 bigint unsigned,
+  bits2 bit(6),
+  options2 enum('zero','one','two','three','four'),
+  flags2 set('zero','one','two','three','four'),
+  date_field2 date,
+  year_field2 year,
+  time_field2 time,
+  date_time2 datetime,
+  time_stamp2 timestamp,
+
+  #Also add some special variants:
+
+  string3 char(12),
+  string4 char(10) collate latin1_swedish_ci,
+  vstring3 varchar(12),
+  bin3 binary(4),
+  vbin3 varbinary(10),
+
+  real_decimal3 decimal(8,2),
+  bits3 bit(22),
+  options3 enum('zero','one','foo','two','three','four'),
+  flags3 set('zero','one','foo','two','three','four'),
+  time_field3 time(2),
+  date_time3 datetime(2),
+  time_stamp3 timestamp(2)
+
+) ENGINE=ndb;
+
+
+# Test values selected such that when comparing columns there is
+# one column being equal to the col2 variant, and one '>' and one '<'
+INSERT INTO t1 VALUES
+(1,
+ "aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1,
+ b'001','one','one',
+ '1901-01-01','1901',
+ '01:01:01','1901-01-01 01:01:01','2001-01-01 01:01:01',
+
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02'),
+
+(2,
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+  "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02'),
+
+(3,
+ "cccc","cccc",0xCCCC,0xCCCC,-3,-3,-3,-3,-3,3.3,3.3,3.3,3,3,3,3,3,
+ b'011','three','one,two,three',
+ '1903-03-03','1903',
+ '03:03:03','1903-03-03 03:03:03','2003-03-03 03:03:03',
+
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02')
+;
+
+# Insert NULL valued columns in order to check correct comparison
+# of NULL values.
+INSERT INTO t1 VALUES
+(4,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02');
+
+INSERT INTO t1 VALUES
+(5,
+ "dddd","dddd",0xDDDD,0xDDDD,-4,-4,-4,-4,-4,4.4,4.4,4.4,4,4,4,4,4,
+ b'100','four','one,two,three,four',
+ '1904-04-04','1904',
+'04:04:04','1904-04-04 04:04:04','2004-04-04 04:04:04',
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL);
+
+INSERT INTO t1 VALUES
+(6,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL);
+
+
+# Get the column name of one of the 25 different 'base' columns
+DELIMITER //;
+CREATE FUNCTION get_column(col int) RETURNS TEXT DETERMINISTIC
+BEGIN
+  RETURN ELT(col, 'string', 'vstring', 'bin', 'vbin', 'tiny', 'short', 'medium',
+                  'long_int', 'longlong', 'real_float', 'real_double', 'real_decimal',
+		  'utiny', 'ushort', 'umedium', 'ulong', 'ulonglong', 'bits', 'options',
+		  'flags', 'date_field', 'year_field', 'time_field', 'date_time', 'time_stamp');
+END //
+DELIMITER ;//
+
+
+# Construct a test query fetching a single rows pk.
+DELIMITER //;
+CREATE FUNCTION get_pk_query(col1 int, op varchar(4), col2 int) RETURNS TEXT DETERMINISTIC
+BEGIN
+  SET @column1 = CONCAT(get_column(col1),"1");
+  SET @column2 = CONCAT(get_column(col2),"2");
+  RETURN CONCAT("SELECT pk INTO @res FROM t1 WHERE ", @column1, op, @column2);
+END //
+DELIMITER ;//
+
+
+# Construct a test query fetching the count(*) of rows qualifying the condition
+DELIMITER //;
+CREATE FUNCTION get_count_query(col1 int, op varchar(4), col2 int) RETURNS TEXT DETERMINISTIC
+BEGIN
+  SET @column1 = CONCAT(get_column(col1),"1");
+  SET @column2 = CONCAT(get_column(col2),"2");
+  RETURN CONCAT("SELECT count(*) INTO @res FROM t1 WHERE ", @column1, op, @column2);
+END //
+DELIMITER ;//
+
+
+# Execute the specified query, both with 'engine_condition_pushdown'
+# enabled and disabled, verify that both return the same result.
+# Fetch 'Ndb_api_read_row_count' from performance statistics
+# and use that to verify whether condition was pushed as expected.
+DELIMITER //;
+CREATE PROCEDURE test_query(IN query varchar(256), IN expect_filtered bool)
+BEGIN
+
+  SET @query = query;
+  #SELECT @query;
+
+  # Execute query with and without condition push down enabled.
+  # Count number of rows read from the NDB handler
+  SELECT variable_value into @read_cnt0
+  FROM performance_schema.global_status
+    WHERE variable_name = 'Ndb_api_read_row_count';
+
+  SET optimizer_switch = 'engine_condition_pushdown=off';
+  SET @res = 0;
+  PREPARE stmt FROM @query;
+  EXECUTE stmt;
+  SET @expected_res = @res;
+  DEALLOCATE PREPARE stmt;
+
+  SELECT variable_value into @read_cnt1
+  FROM performance_schema.global_status
+    WHERE variable_name = 'Ndb_api_read_row_count';
+  SET @read_cnt_no_filter = @read_cnt1-@read_cnt0;
+
+  SET optimizer_switch = 'engine_condition_pushdown=on';
+  SET @res = 0;
+  PREPARE stmt FROM @query;
+  EXECUTE stmt;
+  DEALLOCATE PREPARE stmt;
+  ##SELECT @res;
+
+  SELECT variable_value into @read_cnt2
+  FROM performance_schema.global_status
+    WHERE variable_name = 'Ndb_api_read_row_count';
+  SET @read_cnt_filtered = @read_cnt2-@read_cnt1;
+
+  ##SELECT @read_cnt_filtered, read_cnt_no_filter;
+
+  # Verify expected result:
+  IF (@res <> @expected_res) THEN
+    SELECT "Unexpected result:" AS Reason, @query, @res, @expected_res;
+  END IF;
+
+  # Verify expected filtering effect on number of rows read:
+  IF (expect_filtered=true AND @read_cnt_filtered >= @read_cnt_no_filter) THEN
+    SELECT "Failed to apply filters", @query, @read_cnt_filtered, @read_cnt_no_filter ;
+  END IF;
+
+  IF (expect_filtered=false AND @read_cnt_filtered <> @read_cnt_no_filter) THEN
+    SELECT "Unexpected filtering", @query, @read_cnt_filtered, @read_cnt_no_filter ;
+  END IF;
+END //
+DELIMITER ;//
+
+# Create and test a query combining the specified (compare) op
+# with  the different combinations of <col1>  op> <col2>
+# Set up the expectations whether the condition should be
+# pushed or not and call test_query() to verify outcome.
+DELIMITER //;
+CREATE PROCEDURE test_all(IN op varchar(4))
+BEGIN
+  SET @col1 = 1;
+  #Loop over all combinations of col1, col2
+  WHILE @col1 <= 25 DO
+    SET @col2 = 1;
+    WHILE @col2 <= 25 DO
+      SET @query = get_count_query(@col1,op,@col2);
+      #SELECT @query;
+
+      SET @expect_filtered = false;
+      IF (@col1 = @col2) THEN
+        # Expect filters when comparing identical columns
+	# ... with some exceptions though:
+        IF (@col1 = 18) THEN
+          # Column#18 is a bit columns, which is not not supported as a
+          # pushable type (yet)
+          SET @expect_filtered = false;
+        ELSEIF (@col1 = 19 AND OP IN ('>','>=','<','<=')) THEN
+	  # Column#19 is an enum column, which does not support '>' / '<' compare
+          SET @expect_filtered = false;
+	ELSE
+          SET @expect_filtered = true;
+	END IF;
+      END IF;
+
+      CALL test_query(@query,@expect_filtered);
+      SET @col2 = @col2+1;
+    END WHILE;
+    SET @col1 = @col1+1;
+  END WHILE;
+END //
+DELIMITER ;//
+
+--enable_query_log
+
+
+--echo Testing all combinations of pushing '<col1> <compare op> <col2>' conditions
+CALL test_all("=");
+CALL test_all("<>");
+CALL test_all("<");
+CALL test_all("<=");
+CALL test_all(">");
+CALL test_all(">=");
+
+--echo Test combinations using the 'variant' columns.
+--echo Even if the base type is the same for these conditions,
+--echo different precision, length, scale etc. should prevent pushing:
+
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string4",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE vstring1 = vstring3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE bin1 = bin3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE vbin1 = vbin3",false);
+
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE bits1 = bits3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE options1 = options3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE flags1 = flags3",false);
+
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_field1 = time_field3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE date_time1 = date_time3",false);
+CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
+
+
+--echo Test that <col1> like <col2> is not pushed, - even if types are comparable
+
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string1",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string1",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string2",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string2",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string3",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string3",false);
+
+
+--disable_query_log
+DROP PROCEDURE test_all;
+DROP PROCEDURE test_query;
+DROP FUNCTION get_pk_query;
+DROP FUNCTION get_count_query;
+DROP FUNCTION get_column;
+
+DROP TABLE t1;
+
+--enable_query_log

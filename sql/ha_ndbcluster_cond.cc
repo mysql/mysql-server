@@ -35,6 +35,7 @@
 #include "sql/item_cmpfunc.h" // Item_func_like etc.
 #include "sql/item_func.h"  // Item_func
 #include "sql/ndb_log.h"
+#include "sql/ndb_thd.h"
 
 // Typedefs for long names 
 typedef NdbDictionary::Column NDBCOL;
@@ -64,21 +65,17 @@ typedef enum ndb_func_type {
   NDB_UNSUPPORTED_FUNC = 13
 } NDB_FUNC_TYPE;
 
-typedef union ndb_item_qualification {
-  Item::Type value_type;       // NDB_VALUE
-  enum_field_types field_type; // NDB_FIELD, instead of Item::FIELD_ITEM
-  NDB_FUNC_TYPE function_type; // NDB_FUNCTION, instead of Item::FUNC_ITEM
-} NDB_ITEM_QUALIFICATION;
-
-typedef struct ndb_item_field_value {
-  Field* field;
-  int column_no;
-} NDB_ITEM_FIELD_VALUE;
 
 typedef union ndb_item_value {
   const Item *item;                     // NDB_VALUE
-  NDB_ITEM_FIELD_VALUE *field_value;    // NDB_FIELD
-  uint arg_count;                       // NDB_FUNCTION
+  struct {                              // NDB_FIELD
+    Field* field;
+    int column_no;
+  };
+  struct {                              // NDB_FUNCTION
+    NDB_FUNC_TYPE func_type;
+    uint arg_count;
+  };
 } NDB_ITEM_VALUE;
 
 /*
@@ -134,61 +131,50 @@ class Ndb_item
 public:
   Ndb_item(NDB_ITEM_TYPE item_type) : type(item_type) {}
   // A Ndb_Item where an Item expression defines the value (a const)
-  Ndb_item(const Item *item_value, Item::Type item_type) : type(NDB_VALUE)
+  Ndb_item(const Item *item_value) : type(NDB_VALUE)
   {
-    qualification.value_type= item_type;
     value.item= item_value;
   }
-  // A Ndb_Item referring a Field from a previous table
-  // Handled as a NDB_VALUE, as its value is known when we 'generate'
-  Ndb_item(Field *field) : type(NDB_VALUE)
-  {
-    const Item *item_value = new(*THR_MALLOC) Item_field(field);
-    value.item= item_value;
-    qualification.value_type= item_value->type();
-  }
-  // A Ndb_Item reffering a Field from 'this' table
+  // A Ndb_Item refering a Field from 'this' table
   Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
   {
-    NDB_ITEM_FIELD_VALUE *field_value= new (*THR_MALLOC) NDB_ITEM_FIELD_VALUE();
-    qualification.field_type= field->real_type();
-    field_value->field= field;
-    field_value->column_no= column_no;
-    value.field_value= field_value;
+    value.field= field;
+    value.column_no= column_no;
   }
   Ndb_item(Item_func::Functype func_type, const Item_func *item_func)
     : type(NDB_FUNCTION)
   {
-    qualification.function_type= item_func_to_ndb_func(func_type);
+    value.func_type= item_func_to_ndb_func(func_type);
     value.arg_count= item_func->argument_count();
   }
   Ndb_item(Item_func::Functype func_type, uint no_args)
     : type(NDB_FUNCTION)
   {
-    qualification.function_type= item_func_to_ndb_func(func_type);
+    value.func_type= item_func_to_ndb_func(func_type);
     value.arg_count= no_args;
   }
   ~Ndb_item()
-  {
-    if (type == NDB_FIELD)
-    {
-      destroy(value.field_value);
-      value.field_value= NULL;
-    }
-  }
+  {}
 
   Field *get_field() const
   {
     DBUG_ASSERT(type == NDB_FIELD);
-    return value.field_value->field;
+    return value.field;
   }
 
   int get_field_no() const
   {
-    return value.field_value->column_no;
+    DBUG_ASSERT(type == NDB_FIELD);
+    return value.column_no;
   }
 
-  int argument_count() const
+  NDB_FUNC_TYPE get_func_type() const
+  {
+    DBUG_ASSERT(type == NDB_FUNCTION);
+    return value.func_type;
+  }
+
+  int get_argument_count() const
   {
     DBUG_ASSERT(type == NDB_FUNCTION);
     return value.arg_count;
@@ -222,8 +208,8 @@ public:
   int save_in_field(const Ndb_item *field_item) const
   {
     DBUG_ENTER("save_in_field");
-    Field *field = field_item->value.field_value->field;
-    const Item *item= value.item;
+    Field *field = field_item->get_field();
+    const Item *item= get_item();
     if (unlikely(item == nullptr || field == nullptr))
       DBUG_RETURN(-1);
 
@@ -272,7 +258,6 @@ public:
   }
 
   const NDB_ITEM_TYPE type;
-  NDB_ITEM_QUALIFICATION qualification;
  private:
   NDB_ITEM_VALUE value;
 };
@@ -293,8 +278,8 @@ class Ndb_expect_stack
   static const uint MAX_EXPECT_FIELD_TYPES = MYSQL_TYPE_GEOMETRY + 1;
   static const uint MAX_EXPECT_FIELD_RESULTS = DECIMAL_RESULT + 1;
  public:
-  Ndb_expect_stack(): table(nullptr),
-                      collation(NULL), length(0), max_length(0), next(NULL)
+  Ndb_expect_stack(): other_field(nullptr), collation(nullptr),
+                      length(0), max_length(0), next(nullptr)
   {
     // Allocate type checking bitmaps using fixed size buffers
     // since max size is known at compile time
@@ -320,30 +305,14 @@ class Ndb_expect_stack
     if (next)
     {
       Ndb_expect_stack* expect_next= next;
-      bitmap_clear_all(&expect_mask);
-      bitmap_union(&expect_mask, &next->expect_mask);
-      bitmap_clear_all(&expect_field_type_mask);
-      bitmap_union(&expect_field_type_mask, &next->expect_field_type_mask);
-      bitmap_clear_all(&expect_field_result_mask);
-      bitmap_union(&expect_field_result_mask, &next->expect_field_result_mask);
+      bitmap_copy(&expect_mask, &next->expect_mask);
+      bitmap_copy(&expect_field_type_mask, &next->expect_field_type_mask);
+      bitmap_copy(&expect_field_result_mask, &next->expect_field_result_mask);
+      other_field= next->other_field;
       collation= next->collation;
-      table= next->table;
       next= next->next;
       destroy(expect_next);
     }
-  }
-
-  void expect(TABLE* tab)
-  {
-    table = tab;
-  }
-  void dont_expect(TABLE *tab MY_ATTRIBUTE((unused)))
-  {
-    table = nullptr;
-  }
-  bool expecting(TABLE *tab) const
-  {
-    return (table == tab);
   }
 
   void expect(Item::Type type)
@@ -402,18 +371,24 @@ class Ndb_expect_stack
     }
     return bitmap_is_set(&expect_field_type_mask, (uint) type);
   }
-  void expect_no_field_type()
+  void expect_only_field_type(enum_field_types type)
   {
     bitmap_clear_all(&expect_field_type_mask);
+    expect_field_type(type);
   }
-  bool expecting_no_field_type()
+
+  void expect_comparable_field(const Field *field)
   {
-    return bitmap_is_clear_all(&expect_field_type_mask);
+    other_field = field;
   }
-  void expect_only_field_type(enum_field_types result)
+  bool expecting_comparable_field(const Field *field)
   {
-    expect_no_field_type();
-    expect_field_type(result);
+    if (other_field == nullptr)
+      // No Field to be comparable with
+      return true;
+
+    // Fields need to have equal definition
+    return other_field->eq_def(field);
   }
 
   void expect_field_result(Item_result result)
@@ -437,11 +412,6 @@ class Ndb_expect_stack
   bool expecting_no_field_result()
   {
     return bitmap_is_clear_all(&expect_field_result_mask);
-  }
-  void expect_only_field_result(Item_result result)
-  {
-    expect_no_field_result();
-    expect_field_result(result);
   }
   void expect_collation(const CHARSET_INFO* col)
   {
@@ -478,7 +448,6 @@ class Ndb_expect_stack
   }
 
 private:
-  TABLE* table;
   my_bitmap_map
     m_expect_buf[bitmap_buffer_size(MAX_EXPECT_ITEMS)];
   my_bitmap_map
@@ -488,6 +457,7 @@ private:
   MY_BITMAP expect_mask;
   MY_BITMAP expect_field_type_mask;
   MY_BITMAP expect_field_result_mask;
+  const Field* other_field;
   const CHARSET_INFO* collation;
   Uint32 length;
   Uint32 max_length;
@@ -530,29 +500,14 @@ public:
 
   inline void expect_field_from_table()
   {
-    expect_stack.expect(table);
     expect_stack.expect(Item::FIELD_ITEM);
     expect_stack.expect_all_field_types();
+    expect_stack.expect_comparable_field(nullptr);
   }
   inline void expect_only_field_from_table()
   {
     expect_stack.expect_nothing();
     expect_field_from_table();
-  }
-  inline void dont_expect_field_from_table()
-  {
-    expect_stack.dont_expect(table);
-    expect_stack.dont_expect(Item::FIELD_ITEM);
-  }
-  inline bool expecting_field_from_table()
-  {
-    return expect_stack.expecting(table) &&
-           expect_stack.expecting(Item::FIELD_ITEM);
-  }
-  inline bool expecting_only_field_from_table()
-  {
-    return expect_stack.expecting(table) &&
-           expect_stack.expecting_only(Item::FIELD_ITEM);
   }
 
   inline void expect(Item::Type type)
@@ -588,25 +543,20 @@ public:
   {
     expect_stack.dont_expect_field_type(type);
   }
-  inline void expect_all_field_types()
-  {
-    expect_stack.expect_all_field_types();
-  }
-  inline bool expecting_field_type(enum_field_types type)
-  {
-    return expect_stack.expecting_field_type(type);
-  }
-  inline void expect_no_field_type()
-  {
-    expect_stack.expect_no_field_type();
-  }
-  inline bool expecting_no_field_type()
-  {
-    return expect_stack.expecting_no_field_type();
-  }
   inline void expect_only_field_type(enum_field_types result)
   {
     expect_stack.expect_only_field_type(result);
+  }
+
+  inline void expect_comparable_field(const Field *field)
+  {
+    expect_stack.expect_only_field_type(field->real_type());
+    expect_stack.expect_comparable_field(field);
+  }
+  inline bool expecting_comparable_field(const Field *field)
+  {
+    return expect_stack.expecting_field_type(field->real_type()) &&
+           expect_stack.expecting_comparable_field(field);
   }
 
   inline void expect_field_result(Item_result result)
@@ -624,10 +574,6 @@ public:
   inline bool expecting_no_field_result()
   {
     return expect_stack.expecting_no_field_result();
-  }
-  inline void expect_only_field_result(Item_result result)
-  {
-    expect_stack.expect_only_field_result(result);
   }
   inline void expect_collation(const CHARSET_INFO* col)
   {
@@ -867,7 +813,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             // Item is a boolean func, (e.g. an EQ_FUNC)
             DBUG_ASSERT(item->result_type() == INT_RESULT);
             DBUG_PRINT("info", ("BOOLEAN 'VALUE' expression: '%s'", str.c_ptr_safe()));
-            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+            ndb_item= new (*THR_MALLOC) Ndb_item(item);
 
             // Expect another logical expression
             context->expect_only(Item::FUNC_ITEM);
@@ -880,12 +826,12 @@ ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("VARBIN_ITEM 'VALUE' expression: '%s'", str.c_ptr_safe()));
             if (context->expecting(Item::VARBIN_ITEM))
             {
-              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::VARBIN_ITEM);
-              if (context->expecting_field_from_table())
+              ndb_item= new (*THR_MALLOC) Ndb_item(item);
+              if (context->expecting_no_field_result())
               {
                 // We have not seen the field argument referring this table yet
                 context->expect_only_field_from_table();
-                context->expect_only_field_result(STRING_RESULT);
+                context->expect_field_result(STRING_RESULT);
               }
               else
               {
@@ -918,12 +864,12 @@ ndb_serialize_cond(const Item *item, void *arg)
               DBUG_PRINT("info", ("INTEGER 'VALUE' expression: '%s'", str.c_ptr_safe()));
               if (context->expecting(Item::INT_ITEM))
               {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
                   context->expect_only_field_from_table();
-                  context->expect_only_field_result(INT_RESULT);
+                  context->expect_field_result(INT_RESULT);
                   context->expect_field_result(REAL_RESULT);
                   context->expect_field_result(DECIMAL_RESULT);
                 }
@@ -942,12 +888,12 @@ ndb_serialize_cond(const Item *item, void *arg)
               DBUG_PRINT("info", ("REAL 'VALUE' expression: '%s'", str.c_ptr_safe()));
               if (context->expecting(Item::REAL_ITEM))
               {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
                   context->expect_only_field_from_table();
-                  context->expect_only_field_result(REAL_RESULT);
+                  context->expect_field_result(REAL_RESULT);
                 }
                 else
                 {
@@ -964,12 +910,12 @@ ndb_serialize_cond(const Item *item, void *arg)
               DBUG_PRINT("info", ("DECIMAL 'VALUE' expression: '%s'", str.c_ptr_safe()));
               if (context->expecting(Item::DECIMAL_ITEM))
               {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
                   context->expect_only_field_from_table();
-                  context->expect_only_field_result(REAL_RESULT);
+                  context->expect_field_result(REAL_RESULT);
                   context->expect_field_result(DECIMAL_RESULT);
                 }
                 else
@@ -989,12 +935,12 @@ ndb_serialize_cond(const Item *item, void *arg)
               if (context->expecting(Item::STRING_ITEM) &&
                   context->expecting_length(item->max_length))
               {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
                   context->expect_only_field_from_table();
-                  context->expect_only_field_result(STRING_RESULT);
+                  context->expect_field_result(STRING_RESULT);
                   context->expect_collation(item->collation.collation);
                   context->expect_length(item->max_length);
                 }
@@ -1055,14 +1001,11 @@ ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("column length %u", field->field_length));
           DBUG_PRINT("info", ("type %d", type));
           DBUG_PRINT("info", ("result type %d", field->result_type()));
-	  /*
-            Check that the field is part of the table of the handler
-            instance and that we expect a field of this result type.
-          */
-          // Check that we are expecting a field and with the correct
-          // result type and of length that can store the item value
+
+          // Check that we are expecting a field with the correct
+          // type, and possibly being 'comparable' with a previous Field.
           if (context->expecting(Item::FIELD_ITEM) &&
-              context->expecting_field_type(type) &&
+              context->expecting_comparable_field(field) &&
               // Bit fields not yet supported in scan filter
               type != MYSQL_TYPE_BIT &&
               /* Char(0) field is treated as Bit fields inside NDB
@@ -1082,15 +1025,6 @@ ndb_serialize_cond(const Item *item, void *arg)
             const NDBCOL *col= context->ndb_table->getColumn(field->field_name);
             DBUG_ASSERT(col);
             ndb_item= new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
-
-            // Field is a reference to 'this' table, was it expected?
-            if (!context->expecting_field_from_table())
-            {
-              DBUG_PRINT("info", ("Was not expecting field from table %s",
-                                  field->table->s->table_name.str));
-              context->supported= false;
-              break;
-            }
 
 	    /*
               Check, or set, further expectations for the operand(s).
@@ -1118,13 +1052,12 @@ ndb_serialize_cond(const Item *item, void *arg)
                 break;
               }
 
-              // STRING has to be checked for correct 'length' and
-              // collation, except if it is used as a temporal data type.
+              // STRING results has to be checked for correct 'length' and
+              // collation, except if it is a result from a temporal data type.
               if (field->result_type() == STRING_RESULT &&
 	          !is_supported_temporal_type(type))
               {
-                if (!context->expecting_max_length(field->field_length) ||
-	            !context->expecting_length(item->max_length))
+                if (!context->expecting_max_length(field->field_length))
                 {
                   DBUG_PRINT("info", ("Found non-matching string length %s",
                                       field->field_name));
@@ -1140,6 +1073,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                   break;
                 }
               }
+
               // Seen expected arguments, expect another logical expression
               context->expect_only(Item::FUNC_ITEM);
               context->expect(Item::COND_ITEM);
@@ -1148,10 +1082,6 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               // This is the first operand, it decides expectations for
               // the next operand, required to be compatible with this one.
-
-              // Dont expect more Fields referring 'this' table
-              context->dont_expect_field_from_table();
-
               if (is_supported_temporal_type(type))
               {
                 context->expect_only(Item::STRING_ITEM);
@@ -1182,14 +1112,21 @@ ndb_serialize_cond(const Item *item, void *arg)
                   context->expect(Item::INT_ITEM);
                   break;
                 default:
+                  DBUG_ASSERT(false);
                   break;
                 }
               }
-              // In addition, second argument can always be a FIELD_ITEM
-              // referring a previous table in the query plan.
-              context->expect(Item::FIELD_ITEM);
-              context->expect_only_field_type(type);
-              context->expect_only_field_result(field->result_type());	
+              const Ndb *ndb = get_thd_ndb(current_thd)->ndb;
+              if (ndbd_support_column_cmp(ndb->getMinDbNodeVersion()))
+              {
+                // Since WL#13120: Two columns may be compared in NdbScanFilter:
+                // -> Second argument can also be a FIELD_ITEM, referring
+                // another Field from this table. Need to ensure that these Fields
+                // are of identical type, length, precision etc.
+                context->expect(Item::FIELD_ITEM);
+                context->expect_comparable_field(field);
+	      }
+              context->expect_field_result(field->result_type());
             }
           }
           else
@@ -1879,45 +1816,49 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<const Ndb_item> &c
   switch (ndb_item->type) {
   case NDB_FUNCTION:
   {
-    const Ndb_item *b, *field, *value= nullptr;
+    const Ndb_item *b, *field1, *field2 = nullptr, *value = nullptr;
     const Ndb_item *a = cond++;
     if (a == nullptr)
       break;
 
     enum ndb_func_type function_type = (negated)
-       ? Ndb_item::negate(ndb_item->qualification.function_type)
-       : ndb_item->qualification.function_type;
+      ? Ndb_item::negate(ndb_item->get_func_type())
+      : ndb_item->get_func_type();
 
-    switch (ndb_item->argument_count()) {
+    switch (ndb_item->get_argument_count()) {
     case 1:
-      field= (a->type == NDB_FIELD)? a : NULL;
+      field1 = (a->type == NDB_FIELD)? a : NULL;
       break;
     case 2:
       b = cond++;
       if (b == nullptr)
       {
-        field= nullptr;
+        field1 = nullptr;
         break;
       }
-      value= ((a->type == NDB_VALUE) ? a :
-              (b->type == NDB_VALUE) ? b :
-              NULL);
-      field= ((a->type == NDB_FIELD) ? a :
-              (b->type == NDB_FIELD) ? b :
-              NULL);
-      if (!value)
+      if (a->type == NDB_FIELD)
       {
-        DBUG_PRINT("info", ("condition missing 'value' argument"));
-        DBUG_RETURN(1);
+        field1 = a;
+        if (b->type == NDB_VALUE)
+          value = b;
+        else if (b->type == NDB_FIELD)
+          field2 = b;
       }
-      if (field == b)
+      else
+      {
+        DBUG_ASSERT(a->type == NDB_VALUE);
+        DBUG_ASSERT(b->type == NDB_FIELD);
+        field1 = b;
+        value = a;
+      }
+      if (value == a)
         function_type = Ndb_item::swap(function_type);
       break;
     default:
       DBUG_PRINT("info", ("condition had unexpected number of arguments"));
       DBUG_RETURN(1);
     }
-    if (!field)
+    if (field1 == nullptr)
     {
       DBUG_PRINT("info", ("condition missing 'field' argument"));
       DBUG_RETURN(1);
@@ -1963,8 +1904,11 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<const Ndb_item> &c
       }
     }
 
-    bool need_explicit_null_check = field->get_field()->maybe_null();
-    if (unlikely(need_explicit_null_check))
+    const bool field1_maybe_null = field1->get_field()->maybe_null();
+    const bool field2_maybe_null = field2 && field2->get_field()->maybe_null();
+    bool added_null_check = false;
+
+    if (field1_maybe_null || field2_maybe_null)
     {
       switch (function_type) {
       /*
@@ -1980,170 +1924,175 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<const Ndb_item> &c
 
         This is mitigated by adding an extra isnotnull-check to
         eliminate NULL valued rows which otherwise would have passed
-        the ScanFilter.
+        a '<NULL> < <any value>' check in the ScanFilter.
       */
-      case NDB_NE_FUNC:
       case NDB_LT_FUNC:
       case NDB_LE_FUNC:
-      /*
-        The NdbInterpreter will also let any null valued columns
-        in *both* a LIKE / NOT LIKE predicate pass the filter.
-      */
+        // NdbInterpreter incorrectly compare '<NULL> < f2' as 'true'
+        // -> NULL filter f1
+
       case NDB_LIKE_FUNC:
       case NDB_NOTLIKE_FUNC:
-      {
-        DBUG_PRINT("info", ("Appending extra ISNOTNULL filter"));
-        if (filter->begin(NdbScanFilter::AND) == -1 ||
-	    filter->isnotnull(field->get_field_no()) == -1)
-          DBUG_RETURN(1);
-	break;
-      }
-      /*
-        As the NULL value is less than any non-NULL values, they are
-        correctly eliminated from a '>', '>=' and '=' comparison.
-        Thus, no notnull-check needed here.
-      */
+        // NdbInterpreter incorrectly compare '<NULL> [not] like <value>' as 'true'
+        // -> NULL filter f1
+        if (field1_maybe_null)
+        {
+          DBUG_PRINT("info", ("Appending extra field1 ISNOTNULL check"));
+          if (filter->begin(NdbScanFilter::AND) == -1 ||
+              filter->isnotnull(field1->get_field_no()) == -1)
+            DBUG_RETURN(1);
+          added_null_check = true;
+        }
+        break;
+
       case NDB_EQ_FUNC:
+        // NdbInterpreter incorrectly compare <NULL> = <NULL> as 'true'
+        // -> At least either f1 or f2 need a NULL filter to ensure
+        //    not both are NULL.
+        if (!field1_maybe_null)
+          break;
+        // Fall through to check 'field2_maybe_null'
+	
       case NDB_GE_FUNC:
       case NDB_GT_FUNC:
+        // NdbInterpreter incorrectly compare f1 > <NULL> as true -> NULL filter f2
+        if (field2_maybe_null)
+        {
+          DBUG_PRINT("info", ("Appending extra field2 ISNOTNULL check"));
+          if (filter->begin(NdbScanFilter::AND) == -1 ||
+              filter->isnotnull(field2->get_field_no()) == -1)
+            DBUG_RETURN(1);
+          added_null_check = true;
+        }
+        break;
+
+      case NDB_NE_FUNC:
+        // f1 '<>' f2 -> f1 < f2 or f2 < f1: Both f1 and f2 need NULL filters
+        DBUG_PRINT("info", ("Appending extra field1 & field2 ISNOTNULL check"));
+        if (filter->begin(NdbScanFilter::AND) == -1 ||
+            (field1_maybe_null && filter->isnotnull(field1->get_field_no()) == -1) ||
+            (field2_maybe_null && filter->isnotnull(field2->get_field_no()) == -1))
+          DBUG_RETURN(1);
+        added_null_check = true;
+        break;
+
       default:
-        need_explicit_null_check = false;
         break;
       }
     }
 
+    NdbScanFilter::BinaryCondition cond;
     switch (function_type) {
     case NDB_EQ_FUNC:
     {
-      // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == -1))
-        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating EQ filter"));
-      if (filter->cmp(NdbScanFilter::COND_EQ, 
-                      field->get_field_no(),
-                      field->get_val(),
-                      field->pack_length()) == -1)
-        DBUG_RETURN(1);
+      cond = NdbScanFilter::COND_EQ;
       break;
     }
     case NDB_NE_FUNC:
     {
-      // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == -1))
-        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating NE filter"));
-      if (filter->cmp(NdbScanFilter::COND_NE, 
-                      field->get_field_no(),
-                      field->get_val(),
-                      field->pack_length()) == -1)
-        DBUG_RETURN(1);
+      cond = NdbScanFilter::COND_NE;
       break;
     }
     case NDB_LT_FUNC:
     {
-      // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == -1))
-        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating LT filter"));
-      if (filter->cmp(NdbScanFilter::COND_LT,
-                      field->get_field_no(),
-                      field->get_val(),
-                      field->pack_length()) == -1)
-        DBUG_RETURN(1);
+      cond = NdbScanFilter::COND_LT;
       break;
     }
     case NDB_LE_FUNC:
     {
-      // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == -1))
-        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating LE filter"));
-      if (filter->cmp(NdbScanFilter::COND_LE,
-                      field->get_field_no(),
-                      field->get_val(),
-                      field->pack_length()) == -1)
-        DBUG_RETURN(1);
+      cond = NdbScanFilter::COND_LE;
       break;
     }
     case NDB_GE_FUNC:
     {
-      // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == -1))
-        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating GE filter"));
-      if (filter->cmp(NdbScanFilter::COND_GE,
-                      field->get_field_no(),
-                      field->get_val(),
-                      field->pack_length()) == -1)
-        DBUG_RETURN(1);
+      cond = NdbScanFilter::COND_GE;
       break;
     }
     case NDB_GT_FUNC:
     {
-      // Save value in right format for the field type
-      if (unlikely(value->save_in_field(field) == -1))
-        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating GT filter"));
-      if (filter->cmp(NdbScanFilter::COND_GT,
-                      field->get_field_no(),
-                      field->get_val(),
-                      field->pack_length()) == -1)
-        DBUG_RETURN(1);
+      cond = NdbScanFilter::COND_GT;
       break;
     }
     case NDB_LIKE_FUNC:
     {
-      DBUG_ASSERT(field == a && value == b);
-      char buff[MAX_FIELD_WIDTH];
-      String str(buff, sizeof(buff), field->get_field_charset());
-      Item *value_item = const_cast<Item*>(value->get_item());
-      const String *pattern = value_item->val_str(&str);
-      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%zu)",
-                          field->get_field_no(),
-                          pattern->ptr(),
-                          pattern->length()));
-      if (filter->cmp(NdbScanFilter::COND_LIKE,
-                      field->get_field_no(),
-                      pattern->ptr(),
-                      pattern->length()) == -1)
-        DBUG_RETURN(1);
+      DBUG_PRINT("info", ("Generating LIKE filter"));
+      cond = NdbScanFilter::COND_LIKE;
       break;
     }
     case NDB_NOTLIKE_FUNC:
     {
-      DBUG_ASSERT(field == a && value == b);
-      char buff[MAX_FIELD_WIDTH];
-      String str(buff, sizeof(buff), field->get_field_charset());
-      Item *value_item = const_cast<Item*>(value->get_item());
-      const String *pattern = value_item->val_str(&str);
-      DBUG_PRINT("info", ("Generating NOTLIKE filter: like(%d,%s,%zu)",
-                          field->get_field_no(),
-                          pattern->ptr(),
-                          pattern->length()));
-      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE,
-                      field->get_field_no(),
-                      pattern->ptr(),
-                      pattern->length()) == -1)
-        DBUG_RETURN(1);
+      DBUG_PRINT("info", ("Generating NOT LIKE filter"));
+      cond = NdbScanFilter::COND_NOT_LIKE;
       break;
     }
     case NDB_ISNULL_FUNC:
+    {
       DBUG_PRINT("info", ("Generating ISNULL filter"));
-      if (filter->isnull(field->get_field_no()) == -1)
+      if (filter->isnull(field1->get_field_no()) == -1)
         DBUG_RETURN(1);
-      break;
+      DBUG_RETURN(0);
+    }
     case NDB_ISNOTNULL_FUNC:
     {
       DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
-      if (filter->isnotnull(field->get_field_no()) == -1)
+      if (filter->isnotnull(field1->get_field_no()) == -1)
         DBUG_RETURN(1);         
-      break;
+      DBUG_RETURN(0);
     }
     default:
       DBUG_ASSERT(false);
-      break;
+      DBUG_RETURN(1);
     }
-    if (need_explicit_null_check && filter->end() == -1) //Local AND group
+
+    if (cond <= NdbScanFilter::COND_NE)
+    {
+      if (value != nullptr)
+      {
+        // Save value in right format for the field type
+        if (unlikely(value->save_in_field(field1) == -1))
+          DBUG_RETURN(1);
+        if (filter->cmp(cond,
+                        field1->get_field_no(),
+                        field1->get_val(),
+                        field1->pack_length()) == -1)
+          DBUG_RETURN(1);
+      }
+      else
+      {
+        DBUG_ASSERT(field2 != nullptr);
+        DBUG_ASSERT(ndbd_support_column_cmp(
+                    get_thd_ndb(current_thd)->ndb->getMinDbNodeVersion()));
+        if (filter->cmp(cond,
+                        field1->get_field_no(),
+                        field2->get_field_no()) == -1)
+          DBUG_RETURN(1);
+      }
+    }
+    else  // [NOT] LIKE
+    {
+      DBUG_ASSERT(cond == NdbScanFilter::COND_LIKE ||
+		  cond == NdbScanFilter::COND_NOT_LIKE);
+      DBUG_ASSERT(field1 == a && value == b);
+
+      char buff[MAX_FIELD_WIDTH];
+      String str(buff, sizeof(buff), field1->get_field_charset());
+      Item *value_item = const_cast<Item*>(value->get_item());
+      const String *pattern = value_item->val_str(&str);
+
+      if (filter->cmp(cond,
+                      field1->get_field_no(),
+                      pattern->ptr(),
+                      pattern->length()) == -1)
+        DBUG_RETURN(1);
+    }
+
+    if (added_null_check && filter->end() == -1) //Local AND group
       DBUG_RETURN(1);
     DBUG_RETURN(0);
   }
@@ -2171,7 +2120,7 @@ ha_ndbcluster_cond::build_scan_filter_group(List_iterator<const Ndb_item> &cond,
     switch (ndb_item->type) {
     case NDB_FUNCTION:
     {
-      switch (ndb_item->qualification.function_type) {
+      switch (ndb_item->get_func_type()) {
       case NDB_COND_AND_FUNC:
       {
         level++;
@@ -2270,7 +2219,7 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
   const Ndb_item *ndb_item = m_ndb_cond.head();
   if (ndb_item->type == NDB_FUNCTION)
   {
-    switch (ndb_item->qualification.function_type) {
+    switch (ndb_item->get_func_type()) {
     case NDB_COND_AND_FUNC:
     case NDB_COND_OR_FUNC:
       // A single AND/OR condition has its own AND/OR-group
