@@ -1279,6 +1279,9 @@ class Ndb_binlog_setup {
   bool
   remove_deleted_ndb_tables_from_dd()
   {
+
+    ndb_log_verbose(50, "Looking for deleted tables...");
+
     Ndb_dd_client dd_client(m_thd);
 
     // Fetch list of schemas in DD
@@ -1289,9 +1292,11 @@ class Ndb_binlog_setup {
       return false;
     }
 
+    ndb_log_verbose(50, "Found %zu databases in DD", schema_names.size());
+
     // Iterate over each schema and remove deleted NDB tables
     // from the DD one by one
-    for (const auto name : schema_names)
+    for (const auto& name : schema_names)
     {
       const char* schema_name = name.c_str();
       // Lock the schema in DD
@@ -1300,6 +1305,8 @@ class Ndb_binlog_setup {
         ndb_log_error("Failed to acquire MDL lock on schema '%s'", schema_name);
         return false;
       }
+
+      ndb_log_verbose(50, "Fetching list of NDB tables");
 
       // Fetch list of NDB tables in DD, also acquire MDL lock on
       // table names
@@ -1311,6 +1318,7 @@ class Ndb_binlog_setup {
                       schema_name);
         return false;
       }
+      ndb_log_verbose(50, "Found %zu NDB tables in DD", ndb_tables_in_DD.size());
 
       // Fetch list of NDB tables in NDB
       std::unordered_set<std::string> ndb_tables_in_NDB;
@@ -1323,10 +1331,13 @@ class Ndb_binlog_setup {
         return false;
       }
 
+      ndb_log_verbose(50, "Found %zu NDB tables in NDB Dictionary",
+                      ndb_tables_in_NDB.size());
+
       // Iterate over all NDB tables found in DD. If they
       // don't exist in NDB anymore, then remove the table
       // from DD
-      for (const auto ndb_table_name : ndb_tables_in_DD)
+      for (const auto& ndb_table_name : ndb_tables_in_DD)
       {
         if (ndb_tables_in_NDB.find(ndb_table_name) == ndb_tables_in_NDB.end())
         {
@@ -1341,6 +1352,8 @@ class Ndb_binlog_setup {
         }
       }
     }
+
+    ndb_log_verbose(50, "Done looking for deleted tables!");
 
     return true;
 
@@ -4800,7 +4813,7 @@ class Ndb_schema_event_handler {
 
     Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
 
-    for (const auto ndb_table_name : ndb_tables_in_DD)
+    for (const auto& ndb_table_name : ndb_tables_in_DD)
     {
       if (!dd_client.mdl_locks_acquire_exclusive(schema->db,
                                                  ndb_table_name.c_str()))
