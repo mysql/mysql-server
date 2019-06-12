@@ -70,6 +70,7 @@
 #include "sql/mysqld.h"             // key_file_misc
 #include "sql/partition_element.h"  // PART_ADMIN
 #include "sql/protocol.h"
+#include "sql/protocol_classic.h"
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
 #include "sql/sp.h"           // Sroutine_hash_entry

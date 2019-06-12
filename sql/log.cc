@@ -82,6 +82,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/mysqld.h"
+#include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"  // key_memory_File_query_log_name
 #include "sql/query_options.h"
 #include "sql/sql_audit.h"  // mysql_audit_general_log

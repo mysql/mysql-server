@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/log_event.h"
 #include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h"
+#include "sql/protocol_classic.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_handler.h"

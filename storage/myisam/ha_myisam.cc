@@ -46,6 +46,7 @@
 #include "sql/key.h"  // key_copy
 #include "sql/log.h"
 #include "sql/mysqld.h"
+#include "sql/protocol.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"

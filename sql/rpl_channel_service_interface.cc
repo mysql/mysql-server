@@ -51,6 +51,7 @@
 #include "sql/log_event.h"
 #include "sql/mysqld.h"              // opt_mts_slave_parallel_workers
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql/protocol_classic.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_info_factory.h"
 #include "sql/rpl_info_handler.h"

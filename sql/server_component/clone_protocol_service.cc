@@ -29,6 +29,7 @@
 #include "my_byteorder.h"
 #include "mysql.h"
 #include "sql/mysqld.h"
+#include "sql/protocol_classic.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"

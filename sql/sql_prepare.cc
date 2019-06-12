@@ -140,7 +140,9 @@ When one supplies long data for a placeholder:
 #include "sql/mysqld.h"     // opt_general_log
 #include "sql/opt_trace.h"  // Opt_trace_array
 #include "sql/protocol.h"
+#include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
+#include "sql/query_result.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/session_tracker.h"
@@ -148,6 +150,7 @@ When one supplies long data for a placeholder:
 #include "sql/sp_cache.h"   // sp_cache_enforce_limit
 #include "sql/sql_audit.h"  // mysql_global_audit_mask
 #include "sql/sql_base.h"   // open_tables_for_query, open_temporary_table
+#include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
 #include "sql/sql_const.h"
@@ -156,6 +159,7 @@ When one supplies long data for a placeholder:
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // sql_command_flags
 #include "sql/sql_profile.h"
 #include "sql/sql_query_rewrite.h"
@@ -178,6 +182,8 @@ using std::min;
 
 /****************************************************************************/
 
+namespace {
+
 /**
   Execute one SQL statement in an isolated context.
 */
@@ -190,6 +196,24 @@ class Execute_sql_statement : public Server_runnable {
  private:
   LEX_STRING m_sql_text;
 };
+
+/**
+  A result class used to send cursor rows using the binary protocol.
+*/
+
+class Query_fetch_protocol_binary final : public Query_result_send {
+  Protocol_binary protocol;
+
+ public:
+  explicit Query_fetch_protocol_binary(THD *thd)
+      : Query_result_send(), protocol(thd) {}
+  bool send_result_set_metadata(THD *thd, List<Item> &list,
+                                uint flags) override;
+  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_eof(THD *thd) override;
+};
+
+}  // namespace
 
 /**
   Protocol_local: a helper class to intercept the result
@@ -1426,9 +1450,9 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
   bool switch_protocol = thd->is_classic_protocol();
   if (switch_protocol) {
     // set the current client capabilities before switching the protocol
-    thd->protocol_binary.set_client_capabilities(
+    thd->protocol_binary->set_client_capabilities(
         thd->get_protocol()->get_client_capabilities());
-    thd->push_protocol(&thd->protocol_binary);
+    thd->push_protocol(thd->protocol_binary);
   }
 
   /* Create PS table entry, set query text after rewrite. */
@@ -1874,9 +1898,9 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   bool switch_protocol = thd->is_classic_protocol();
   if (switch_protocol) {
     // set the current client capabilities before switching the protocol
-    thd->protocol_binary.set_client_capabilities(
+    thd->protocol_binary->set_client_capabilities(
         thd->get_protocol()->get_client_capabilities());
-    thd->push_protocol(&thd->protocol_binary);
+    thd->push_protocol(thd->protocol_binary);
   }
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
@@ -2111,8 +2135,10 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
 }
 
 /***************************************************************************
- Select_fetch_protocol_binary
+ Query_fetch_protocol_binary
 ****************************************************************************/
+
+namespace {
 
 bool Query_fetch_protocol_binary::send_result_set_metadata(THD *thd,
                                                            List<Item> &list,
@@ -2157,6 +2183,8 @@ bool Query_fetch_protocol_binary::send_data(THD *thd, List<Item> &fields) {
   return rc;
 }
 
+}  // namespace
+
 /*******************************************************************
  * Reprepare_observer
  *******************************************************************/
@@ -2189,6 +2217,8 @@ bool Reprepare_observer::report_error(THD *thd) {
 Server_runnable::~Server_runnable() {}
 
 ///////////////////////////////////////////////////////////////////////////
+
+namespace {
 
 Execute_sql_statement::Execute_sql_statement(LEX_STRING sql_text)
     : m_sql_text(sql_text) {}
@@ -2247,6 +2277,8 @@ end:
 
   return error;
 }
+
+}  // namespace
 
 /***************************************************************************
  Prepared_statement

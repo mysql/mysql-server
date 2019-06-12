@@ -61,6 +61,7 @@
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
 #include "sql/ndb_thd.h"
+#include "sql/protocol_classic.h"
 #include "sql/rpl_injector.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_lex.h"

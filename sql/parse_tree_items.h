@@ -34,20 +34,18 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"  // Create_func
 #include "sql/item_func.h"
-#include "sql/item_strfunc.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"       // Item_sum_count
 #include "sql/item_timefunc.h"  // Item_func_now_local
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // Parse_tree_item
 #include "sql/parse_tree_node_base.h"
-#include "sql/protocol.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"  // sp_head
 #include "sql/sql_class.h"
@@ -157,24 +155,7 @@ class PTI_simple_ident_q_3d : public Parse_tree_item {
                         const char *table_arg, const char *field_arg)
       : super(pos), db(db_arg), table(table_arg), field(field_arg) {}
 
-  bool itemize(Parse_context *pc, Item **res) override {
-    if (super::itemize(pc, res)) return true;
-
-    THD *thd = pc->thd;
-    const char *schema =
-        thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? NULL
-                                                                     : db;
-    if (pc->select->no_table_names_allowed) {
-      my_error(ER_TABLENAME_NOT_ALLOWED_HERE, MYF(0), table, thd->where);
-    }
-    if ((pc->select->parsing_place != CTX_HAVING) ||
-        (pc->select->get_in_sum_expr() > 0)) {
-      *res = new (pc->mem_root) Item_field(POS(), schema, table, field);
-    } else {
-      *res = new (pc->mem_root) Item_ref(POS(), schema, table, field);
-    }
-    return *res == NULL || (*res)->itemize(pc, res);
-  }
+  bool itemize(Parse_context *pc, Item **res) override;
 };
 
 /**

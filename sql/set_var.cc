@@ -1323,8 +1323,8 @@ int set_var_collation_client::update(THD *thd) {
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
         ->mark_as_changed(thd, NULL);
-  thd->protocol_text.init(thd);
-  thd->protocol_binary.init(thd);
+  thd->protocol_text->init(thd);
+  thd->protocol_binary->init(thd);
   return 0;
 }
 

@@ -32,6 +32,7 @@
 #include "plugin/semisync/semisync_master.h"
 #include "plugin/semisync/semisync_master_ack_receiver.h"
 #include "sql/current_thd.h"
+#include "sql/protocol_classic.h"
 #include "sql/sql_class.h"  // THD
 #include "typelib.h"
 

@@ -72,6 +72,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/opt_explain_json.h"
 #include "sql/opt_explain_traditional.h"
 #include "sql/parser_yystype.h"
+#include "sql/protocol.h"
 #include "sql/resourcegroups/resource_group_mgr.h" // resource_group_support
 #include "sql/resourcegroups/resource_group_sql_cmd.h" // Sql_cmd_*_resource_group etc.
 #include "sql/rpl_filter.h"

@@ -51,7 +51,7 @@ static void BM_Protocol_binary_store_date(size_t num_iterations) {
 
   my_testing::Server_initializer initializer;
   initializer.SetUp();
-  Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  Protocol_binary *const protocol = initializer.thd()->protocol_binary.get();
   SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
 
@@ -75,7 +75,7 @@ static void BM_Protocol_binary_store_time(size_t num_iterations) {
 
   my_testing::Server_initializer initializer;
   initializer.SetUp();
-  Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  Protocol_binary *const protocol = initializer.thd()->protocol_binary.get();
   SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
 
@@ -99,7 +99,7 @@ static void BM_Protocol_binary_store_datetime(size_t num_iterations) {
 
   my_testing::Server_initializer initializer;
   initializer.SetUp();
-  Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  Protocol_binary *const protocol = initializer.thd()->protocol_binary.get();
   SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
 
@@ -123,7 +123,7 @@ static void BM_Protocol_binary_store_decimal(size_t num_iterations) {
 
   my_testing::Server_initializer initializer;
   initializer.SetUp();
-  Protocol_binary *const protocol = &initializer.thd()->protocol_binary;
+  Protocol_binary *const protocol = initializer.thd()->protocol_binary.get();
   SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
 

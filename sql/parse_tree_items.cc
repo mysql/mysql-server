@@ -25,10 +25,12 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/item_cmpfunc.h"  // Item_func_eq
 #include "sql/mysqld.h"        // using_udf_functions
 #include "sql/parse_tree_nodes.h"
+#include "sql/protocol.h"
 #include "sql/sp.h"
 #include "sql/sp_pcontext.h"  // sp_pcontext
 #include "sql/sql_udf.h"
@@ -375,6 +377,25 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
     if (*res == NULL || (*res)->itemize(pc, res)) return true;
   }
   return *res == NULL;
+}
+
+bool PTI_simple_ident_q_3d::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;
+
+  THD *thd = pc->thd;
+  const char *schema =
+      thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? nullptr
+                                                                   : db;
+  if (pc->select->no_table_names_allowed) {
+    my_error(ER_TABLENAME_NOT_ALLOWED_HERE, MYF(0), table, thd->where);
+  }
+  if ((pc->select->parsing_place != CTX_HAVING) ||
+      (pc->select->get_in_sum_expr() > 0)) {
+    *res = new (pc->mem_root) Item_field(POS(), schema, table, field);
+  } else {
+    *res = new (pc->mem_root) Item_ref(POS(), schema, table, field);
+  }
+  return *res == nullptr || (*res)->itemize(pc, res);
 }
 
 bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {

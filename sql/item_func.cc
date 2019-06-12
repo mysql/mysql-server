@@ -95,6 +95,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"              // log_10 stage_user_sleep
 #include "sql/parse_tree_helpers.h"  // PT_item_list
+#include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/resourcegroups/resource_group.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
@@ -124,9 +125,6 @@
 #include "sql/val_int_compare.h"  // Integer_value
 #include "template_utils.h"       // pointer_cast
 #include "thr_mutex.h"
-
-class Protocol;
-class sp_rcontext;
 
 using std::max;
 using std::min;
