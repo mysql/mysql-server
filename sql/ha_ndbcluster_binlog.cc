@@ -2998,7 +2998,8 @@ public:
     DBUG_ASSERT(m_active_schema_ops.size() == 0);
   }
 
-  void init(Ndb_cluster_connection *cluster_connection, uint max_subscribers) {
+  void init(Ndb_cluster_connection *cluster_connection) {
+    Uint32 max_subscribers = cluster_connection->max_api_nodeid() + 1;
     m_own_nodeid = cluster_connection->node_id();
     NDB_SCHEMA_OBJECT::init(m_own_nodeid);
 
@@ -8652,9 +8653,7 @@ restart_cluster_failure:
     thd_ndb->set_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
   }
 
-  // NOTE! The initialization should be changed to dynamically lookup number of
-  // subscribers in current configuration
-  schema_dist_data.init(g_ndb_cluster_connection, MAX_NODES);
+  schema_dist_data.init(g_ndb_cluster_connection);
 
   {
     log_verbose(1, "Wait for first event");
