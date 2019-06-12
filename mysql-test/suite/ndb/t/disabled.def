@@ -10,7 +10,6 @@
 #
 ##############################################################################
 ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
-ndb_restore_gcp      : Bug#29692418 NDB_RESTORE_GCP.TEST FAIL TO CLEANUP BACKUP DIRECTORY
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 ndb_cache_trans           : Bug#42197 Query cache and autocommit

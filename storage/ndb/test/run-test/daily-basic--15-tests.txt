@@ -56,7 +56,7 @@ args: -n ScanReadRestart T1 T6 T13
 max-time: 3060
 
 cmd: testBackup
-args: -n ConsistencyUnderLoadStallGCP T1
+args: -n ConsistencyUnderLoadSnapshotStart T1
 max-time: 900
 
 cmd: testBackup
