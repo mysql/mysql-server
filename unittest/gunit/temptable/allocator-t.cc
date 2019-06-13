@@ -208,8 +208,8 @@ TEST(Allocator, Casts) {
   Allocator_helper::set_allocator_max_ram_default();
   init_allocator_once();
 
-  using ItemType1 = int;
-  using ItemType2 = double;
+  using ItemType1 = char;
+  using ItemType2 = int;
   using ItemType3 = TestItem;
 
   temptable::Allocator<ItemType1> allocator1;
