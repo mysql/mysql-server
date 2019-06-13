@@ -1948,16 +1948,16 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `field1`,`test`.`t2
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2 LEFT
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_jsonn->'$[*]'));
 field1	field2
-NULL	1
 4	1
-NULL	2
-4	2
-NULL	3
-4	3
-NULL	11
 4	11
-NULL	12
 4	12
+4	2
+4	3
+NULL	1
+NULL	11
+NULL	12
+NULL	2
+NULL	3
 DROP TABLE t1,t2;
 #
 # Bug#29111067: SIG6 IN HANDLER::HA_EXTRA() AT SQL/HANDLER.CC

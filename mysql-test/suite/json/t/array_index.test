@@ -994,6 +994,7 @@ ANALYZE TABLE t1,t2;
 EXPLAIN SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2 LEFT
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_jsonn->'$[*]'));
 
+--sorted_result
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2 LEFT
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_jsonn->'$[*]'));
 
