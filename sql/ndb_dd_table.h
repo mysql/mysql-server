@@ -38,11 +38,6 @@ namespace dd {
 /* Functions operating on dd::Table*, prefixed with ndb_dd_table_ */
 
 /*
-  Return name of table in table definition
-*/
-dd::String_type ndb_dd_table_get_name(const dd::Table* table_def);
-
-/*
    Save the tables object id and version in table definition
 */
 void ndb_dd_table_set_object_id_and_version(dd::Table* table_def,

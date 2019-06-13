@@ -119,11 +119,6 @@ bool ndb_dd_table_is_using_fixed_row_format(const dd::Table* table_def)
   return table_def->row_format() == dd::Table::RF_FIXED;
 }
 
-dd::String_type ndb_dd_table_get_name(const dd::Table* table_def)
-{
-  return table_def->name();
-}
-
 void
 ndb_dd_table_set_row_format(dd::Table* table_def,
                             const bool force_var_part)
