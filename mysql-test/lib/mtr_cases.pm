@@ -1518,10 +1518,7 @@ my @tags = (
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.
-  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ],
-
-  [ "include/have_change_propagation_off.inc", "change-propagation", 0 ],
-  [ "include/have_change_propagation_on.inc",  "change-propagation", 1 ],);
+  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ]);
 
 sub tags_from_test_file {
   my $tinfo = shift;

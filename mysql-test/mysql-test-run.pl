@@ -5530,8 +5530,6 @@ sub check_expected_crash_and_restart($$) {
           my $restart_flag = 1;
           # Start secondary engine servers.
           start_secondary_engine_servers($tinfo, $restart_flag);
-          # Load table contents to secondary engine.
-          load_table_contents($mysqld) if defined $tinfo->{'load_pool'};
         }
 
         return 1;

@@ -163,7 +163,6 @@ enum {
   OPT_CURSOR_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
-  OPT_LOAD_POOL,
   OPT_LOG_DIR,
   OPT_MARK_PROGRESS,
   OPT_MAX_CONNECT_RETRIES,
@@ -175,7 +174,6 @@ enum {
 #ifdef _WIN32
   OPT_SAFEPROCESS_PID,
 #endif
-  OPT_SECONDARY_ENGINE,
   OPT_SP_PROTOCOL,
   OPT_TAIL_LINES,
   OPT_TRACE_EXEC,
@@ -234,9 +232,7 @@ static bool use_async_client = false;
 static bool enable_async_client = false;
 
 // Secondary engine options
-static const char *opt_load_pool = 0;
 static const char *opt_offload_count_file;
-static const char *opt_secondary_engine;
 
 static Secondary_engine *secondary_engine = nullptr;
 
@@ -7359,9 +7355,6 @@ static struct my_option my_long_options[] = {
      "FORMAT=JSON",
      &json_explain_protocol, &json_explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0,
      0, 0, 0, 0},
-    {"load-pool", OPT_LOAD_POOL, "Load pool value for secondary engine.",
-     &opt_load_pool, &opt_load_pool, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
     {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir, &opt_logdir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"mark-progress", OPT_MARK_PROGRESS,
@@ -7421,9 +7414,6 @@ static struct my_option my_long_options[] = {
      &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
      0, 0, 0, 0, 0},
 #endif
-    {"secondary-engine", OPT_SECONDARY_ENGINE, "Secondary engine name.",
-     &opt_secondary_engine, &opt_secondary_engine, 0, GET_STR, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -8191,16 +8181,6 @@ static void run_query_normal(struct st_connection *cn,
   MYSQL *mysql = &cn->mysql;
   MYSQL_RES *res = 0;
 
-  if (opt_load_pool) {
-    secondary_engine->match_statement(query, expected_errors->count());
-    if (secondary_engine->statement_type()) {
-      std::vector<unsigned int> ignore_errors = expected_errors->errors();
-      // Run secondary engine unload statements.
-      if (secondary_engine->run_unload_statements(mysql, ignore_errors))
-        die("Original query '%s'.", query);
-    }
-  }
-
   if (flags & QUERY_SEND_FLAG) {
     /* Send the query */
     if (mysql_send_query_wrapper(&cn->mysql, query,
@@ -8299,13 +8279,6 @@ end:
   // to the server into the mysqltest builtin variable $mysql_errno. This
   // variable then can be used from the test case itself.
   var_set_errno(mysql_errno(mysql));
-
-  if (opt_load_pool && secondary_engine->statement_type()) {
-    std::vector<unsigned int> ignore_errors = expected_errors->errors();
-    // Run secondary engine load statements.
-    if (secondary_engine->run_load_statements(mysql, ignore_errors))
-      die("Original query '%s'.", query);
-  }
 }
 
 /// Run query using prepared statement C API
@@ -8326,16 +8299,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   if (!(stmt = cur_con->stmt)) {
     if (!(stmt = mysql_stmt_init(mysql))) die("unable to init stmt structure");
     cur_con->stmt = stmt;
-  }
-
-  if (opt_load_pool) {
-    secondary_engine->match_statement(query, expected_errors->count());
-    if (secondary_engine->statement_type()) {
-      std::vector<unsigned int> ignore_errors = expected_errors->errors();
-      // Run secondary engine unload statements.
-      if (secondary_engine->run_unload_statements(mysql, ignore_errors))
-        die("Original query '%s'.", query);
-    }
   }
 
   DYNAMIC_STRING ds_prepare_warnings;
@@ -8502,13 +8465,6 @@ end:
   if (mysql->reconnect) {
     mysql_stmt_close(stmt);
     cur_con->stmt = NULL;
-  }
-
-  if (opt_load_pool && secondary_engine->statement_type()) {
-    std::vector<unsigned int> ignore_errors = expected_errors->errors();
-    // Run secondary engine load statements.
-    if (secondary_engine->run_load_statements(mysql, ignore_errors))
-      die("Original query '%s'.", query);
   }
 }
 
@@ -9285,14 +9241,8 @@ int main(int argc, char **argv) {
     open_file(opt_include);
   }
 
-  if (opt_load_pool) {
-    secondary_engine =
-        new Secondary_engine(opt_load_pool, opt_secondary_engine);
-  } else if (opt_offload_count_file) {
-    secondary_engine = new Secondary_engine();
-  }
-
   if (opt_offload_count_file) {
+    secondary_engine = new Secondary_engine();
     // Save the initial value of secondary engine execution status.
     if (secondary_engine->offload_count(&cur_con->mysql, "before"))
       cleanup_and_exit(1);
