@@ -214,7 +214,7 @@ INSERT INTO t1 VALUES (5,5,5),(7,7,7);
     index_name,lock_type,lock_mode,lock_status,lock_data
   FROM performance_schema.data_locks
   WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 
 --connection con1
   SET debug_sync = 'row_ins_sec_index_entry_dup_locks_created SIGNAL
@@ -229,7 +229,7 @@ INSERT INTO t1 VALUES (5,5,5),(7,7,7);
     index_name,lock_type,lock_mode,lock_status,lock_data
   FROM performance_schema.data_locks
   WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 
   SELECT COUNT(*) FROM performance_schema.data_locks
       WHERE object_schema='test'
@@ -255,7 +255,7 @@ INSERT INTO t1 VALUES (5,5,5),(7,7,7);
     index_name,lock_type,lock_mode,lock_status,lock_data
   FROM performance_schema.data_locks
   WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 
 --connection con2
   # We actually expect ER_LOCK_WAIT_TIMEOUT, but we let a buggy implementation
@@ -271,7 +271,7 @@ INSERT INTO t1 VALUES (5,5,5),(7,7,7);
     index_name,lock_type,lock_mode,lock_status,lock_data
   FROM performance_schema.data_locks
   WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 
   SET debug_sync = 'now SIGNAL con1_go';
 

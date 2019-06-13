@@ -202,7 +202,8 @@ WHERE object_schema='test' AND object_name = 't1';
 index_name	lock_type	lock_mode	lock_status	lock_data
 NULL	TABLE	IX	GRANTED	NULL
 PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	0
-a	RECORD	X	GRANTED	0, 0
+a	RECORD	X,REC_NOT_GAP	GRANTED	0, 0
+a	RECORD	X,GAP	GRANTED	0, 0
 a	RECORD	X	GRANTED	1, 1
 COMMIT;
 SELECT * FROM t1;

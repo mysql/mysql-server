@@ -704,22 +704,6 @@ bool lock_has_to_wait(const lock_t *lock1, /*!< in: waiting lock */
 
 /*============== RECORD LOCK BASIC FUNCTIONS ============================*/
 
-/** Counts the set bits in a record lock bitmap, effectively computing number
-of records this lock represents.
-@param[in]  lock  record lock with at least one bit set
-@return number of bits set to one in the bitmap */
-static ulint lock_rec_count_set_bits(const lock_t *lock) {
-  ut_ad(lock->is_record_lock());
-
-  ulint res = 0;
-  for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
-    if (lock_rec_get_nth_bit(lock, i)) {
-      ++res;
-    }
-  }
-  return (res);
-}
-
 /** Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
  if none found.
  @return bit index == heap number of the record, or ULINT_UNDEFINED if
@@ -1853,19 +1837,17 @@ lock_rec_req_status lock_rec_lock_fast(
 /** A helper function for lock_rec_lock_slow(), which grants a Next Key Lock
 (either LOCK_X or LOCK_S as specified by `mode`) on <`block`,`heap_no`> in the
 `index` to the `trx`, assuming that it already has a granted `held_lock`, which
-is at least as strong as mode|LOCK_REC_NOT_GAP. It does so by either reusing,
-or upgrading the `held_lock`, eventually resorting to acquiring a separate
-GAP Lock, which in combination with Record Lock satisfies the request.
-@param[in,out]  held_lock   a lock granted to `trx` which is at least as strong
-                            as mode|LOCK_REC_NOT_GAP. It may become modified if
-                            it is determined to be safe to upgrade Record Lock
-                            to Next Key Lock.
+is at least as strong as mode|LOCK_REC_NOT_GAP. It does so by either reusing the
+lock if it already covers the gap, or by ensuring a separate GAP Lock, which in
+combination with Record Lock satisfies the request.
+@param[in]      held_lock   a lock granted to `trx` which is at least as strong
+                            as mode|LOCK_REC_NOT_GAP
 @param[in]      mode	    requested lock mode: LOCK_X or LOCK_S
 @param[in]      block	    buffer block containing the record to be locked
 @param[in]      heap_no	    heap number of the record to be locked
 @param[in]      index	    index of record to be locked
 @param[in]      trx         the transaction requesting the Next Key Lock */
-static void lock_reuse_for_next_key_lock(lock_t *held_lock, ulint mode,
+static void lock_reuse_for_next_key_lock(const lock_t *held_lock, ulint mode,
                                          const buf_block_t *block,
                                          ulint heap_no, dict_index_t *index,
                                          trx_t *trx) {
@@ -1880,28 +1862,13 @@ static void lock_reuse_for_next_key_lock(lock_t *held_lock, ulint mode,
   /* We have a Record Lock granted, so we only need a GAP Lock. We assume
   that GAP Locks do not conflict with anything. Therefore a GAP Lock
   could be granted to us right now if we've requested: */
-  ut_ad(nullptr ==
-        lock_rec_other_has_conflicting(mode | LOCK_GAP, block, heap_no, trx));
-
-  /* However, instead of requesting it, we will first try to "upgrade" our
-  existing Record Lock to a Next Key Lock. We can do that only if the
-  bitmap has only one bit set, the one for heap_no, as otherwise we would
-  "upgrade" locks on several records at once, which while correct
-  (remember that locks on gaps do not have to wait for anything) would be
-  suboptimal, because it would prevent inserts into too many gaps. */
-  if (lock_rec_count_set_bits(held_lock) == 1) {
-    ut_ad(lock_rec_get_nth_bit(held_lock, heap_no));
-    const_cast<lock_t *>(held_lock)->type_mode &= ~LOCK_REC_NOT_GAP;
-    return;
-  }
-  /* We can not "upgrade" held_lock, so we need a separate GAP Lock */
   mode |= LOCK_GAP;
-  /* It might be the case we already have one, so we first check that. */
-  if (lock_rec_has_expl(mode, block, heap_no, trx) != nullptr) {
-    return;
-  }
+  ut_ad(nullptr == lock_rec_other_has_conflicting(mode, block, heap_no, trx));
 
-  lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx);
+  /* It might be the case we already have one, so we first check that. */
+  if (lock_rec_has_expl(mode, block, heap_no, trx) == nullptr) {
+    lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx);
+  }
 }
 /** This is the general, and slower, routine for locking a record. This is a
 low-level function which does NOT look at implicit locks! Checks lock
@@ -1946,12 +1913,6 @@ static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
   equivalent to two locks: Record Lock and GAP Lock separately.
   Thus, in case we need to wait, we check if we already own a Record Lock,
   and if we do, we only need the GAP Lock.
-  We could do that for the case where we don't need to wait as well, but doing
-  so doesn't seem to increase performance, yet it might cause increased variety
-  of `lock_mode`s in possession of this trx, and we store locks of different
-  modes in separate lock_t structs, so that might increase the length of queue,
-  and eat our preallocated supply of lock_t structs etc. Thus we do that only
-  when wait_for is non-null.
   We don't do the opposite thing (of checking for GAP Lock, and only requesting
   Record Lock), because if Next Key Lock has to wait, then it is because of a
   conflict with someone who locked the record, as locks on gaps are compatible
@@ -1969,7 +1930,7 @@ static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
           ? mode | LOCK_REC_NOT_GAP
           : mode;
 
-  auto *held_lock = lock_rec_has_expl(checked_mode, block, heap_no, trx);
+  const auto *held_lock = lock_rec_has_expl(checked_mode, block, heap_no, trx);
 
   if (held_lock != nullptr) {
     if (checked_mode == mode) {
@@ -1981,31 +1942,7 @@ static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
     emulated by implicit lock (which are LOCK_REC_NOT_GAP only). */
     ut_ad(!impl);
 
-    /* We are modifying a granted lock, which requires dropping `const`
-    as it is generally not a very safe thing to do.
-    We believe that this is safe in this particular case, because:
-    1. we make the lock stronger then it was, but only by granting a right
-    to the gap, which we know is not conflicting with anything, so this
-    is almost equivalent to requesting and granting a GAP Lock immediately
-    placing it in the same spot in the queue, and ..
-    2. Placing a granted lock not at the end, can introduce new waits-for
-    edges (in particular, adding a GAP Lock in front of Insert Intention),
-    but can not create a deadlock immediately, if our current transaction
-    is active (not waiting yet) - we already exploit this fact below,
-    where lock_rec_add_to_queue might use lock_rec_insert_cats to add the
-    lock to the front of queue.
-    3. The hypothetical problems caused by row_unlock_for_mysql() and
-    lock_rec_unlock() which (in theory) could be used to unlock
-    `held_lock`, or the currently requested lock, and fail to find the
-    lock with matching type_mode, are not a real issue, because these
-    functions can only be called for the most recently created lock, and
-    only if DB_SUCCESS_LOCKED_REC was returned, so it will not be called
-    for held_lock, because we return DB_SUCCESS, and this is the latest
-    call to create the lock for the trx, as we are the thread running the
-    transaction */
-    ut_ad(lock_current_thread_handles_trx(trx));
-    lock_reuse_for_next_key_lock(const_cast<lock_t *>(held_lock), mode, block,
-                                 heap_no, index, trx);
+    lock_reuse_for_next_key_lock(held_lock, mode, block, heap_no, index, trx);
     return (DB_SUCCESS);
   }
 
