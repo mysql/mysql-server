@@ -362,3 +362,22 @@ EXPLAIN format=tree SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
+
+--echo #
+--echo # Bug#29904996 EXPLAIN FORMAT=TREE PRINTS OUT HIDDEN COLUMN NAME INSTEAD
+--echo #              OF INDEXED EXPRESSION
+--echo #
+CREATE TABLE t1 (
+  col_int_key INTEGER,
+  col_json JSON,
+  KEY mv_idx ((CAST(col_json->'$[*]' AS CHAR(40) ARRAY)))
+);
+
+CREATE TABLE t2 (col_int INTEGER);
+
+--echo # See that we print the indexed expression, and not the hidden column
+--echo # name.
+EXPLAIN FORMAT=tree SELECT /*+ NO_BNL(t1, t2) */ * FROM t2
+  JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
+
+DROP TABLE t1, t2;

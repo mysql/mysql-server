@@ -178,7 +178,15 @@ string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
     if (key_part_idx != 0) {
       ret += ", ";
     }
-    ret += key->key_part[key_part_idx].field->field_name;
+    const Field *field = key->key_part[key_part_idx].field;
+    if (field->is_field_for_functional_index()) {
+      // Do not print out the column name if the column represents a functional
+      // index. Instead, print out the indexed expression.
+      ret += ItemToString(field->gcol_info->expr_item);
+    } else {
+      DBUG_ASSERT(!field->is_hidden_from_user());
+      ret += field->field_name;
+    }
     ret += "=";
     ret += ItemToString(ref.items[key_part_idx]);
 
