@@ -35,6 +35,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "libbinlogevents/include/table_id.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -142,7 +143,6 @@
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "sql_string.h"
-#include "table_id.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
 

@@ -38,9 +38,9 @@
 #include <string>
 #include <type_traits>
 
-#include "binlog_event.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "m_string.h"  // my_stpncpy
 #include "my_alloc.h"

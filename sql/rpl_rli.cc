@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "mutex_lock.h"  // Mutex_lock
 #include "my_dbug.h"

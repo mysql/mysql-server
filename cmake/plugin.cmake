@@ -61,10 +61,6 @@ MACRO(MYSQL_ADD_PLUGIN)
     ${ARGN}
   )
   
-  # Add common include directories
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
-
   LIST(GET ARG_DEFAULT_ARGS 0 plugin) 
   SET(SOURCES ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT SOURCES 0)

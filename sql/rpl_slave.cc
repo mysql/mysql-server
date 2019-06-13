@@ -66,11 +66,11 @@
 #include <utility>
 #include <vector>
 
-#include "binlog_event.h"
-#include "control_events.h"
-#include "debug_vars.h"
 #include "errmsg.h"  // CR_*
 #include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"
+#include "libbinlogevents/include/control_events.h"
+#include "libbinlogevents/include/debug_vars.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"  // MY_BITMAP

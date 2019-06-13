@@ -41,8 +41,10 @@
 
 #include "base64.h"
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
-#include "debug_vars.h"
 #include "decimal.h"
+#include "libbinlogevents/include/debug_vars.h"
+#include "libbinlogevents/include/table_id.h"
+#include "libbinlogevents/include/wrapper_functions.h"
 #include "m_ctype.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -70,9 +72,7 @@
 #include "sql/tc_log.h"
 #include "sql_const.h"
 #include "sql_string.h"
-#include "table_id.h"
 #include "template_utils.h"
-#include "wrapper_functions.h"
 
 #ifndef MYSQL_SERVER
 #include "client/mysqlbinlog.h"
@@ -88,7 +88,7 @@
 #include <cstdint>
 #include <new>
 
-#include "binary_log.h"  // binary_log
+#include "libbinlogevents/include/binary_log.h"  // binary_log
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dir.h"  // my_dir

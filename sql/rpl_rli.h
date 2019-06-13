@@ -39,8 +39,8 @@
 #include <string>
 #include <vector>
 
-#include "binlog_event.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_bitmap.h"

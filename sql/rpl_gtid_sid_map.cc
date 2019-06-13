@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "control_events.h"
+#include "libbinlogevents/include/control_events.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

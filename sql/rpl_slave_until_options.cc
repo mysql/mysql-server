@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_loglevel.h"
 #include "my_sys.h"

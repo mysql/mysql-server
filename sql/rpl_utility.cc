@@ -43,7 +43,7 @@ struct TYPELIB;
 
 #include <algorithm>
 
-#include "binlog_event.h"  // checksum_crv32
+#include "libbinlogevents/include/binlog_event.h"  // checksum_crv32
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"

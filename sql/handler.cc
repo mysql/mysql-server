@@ -45,8 +45,8 @@
 #include <string>
 #include <vector>
 
-#include "binlog_event.h"
 #include "keycache.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bit.h"     // my_count_bits

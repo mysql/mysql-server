@@ -147,14 +147,14 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
     ${CMAKE_SOURCE_DIR}/storage/innobase
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
     ${CMAKE_SOURCE_DIR}/sql
-    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   )
 
   # We use the InnoDB code directly in case the code changes.
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc)
   TARGET_COMPILE_DEFINITIONS(innochecksum PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
   IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    ADD_COMPILE_FLAGS(innochecksum.cc COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
+    ADD_COMPILE_FLAGS(innochecksum.cc
+      COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
   ENDIF()
   TARGET_LINK_LIBRARIES(innochecksum
     mysys innodb_zipdecompress ${LZ4_LIBRARY})
@@ -163,7 +163,8 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   MYSQL_ADD_EXECUTABLE(ibd2sdi ibd2sdi.cc)
   TARGET_COMPILE_DEFINITIONS(ibd2sdi PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
   IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    ADD_COMPILE_FLAGS(ibd2sdi.cc COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
+    ADD_COMPILE_FLAGS(ibd2sdi.cc
+      COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
   ENDIF()
   TARGET_LINK_LIBRARIES(ibd2sdi
     mysys innodb_zipdecompress ${LZ4_LIBRARY})

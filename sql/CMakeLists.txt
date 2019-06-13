@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-)
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)

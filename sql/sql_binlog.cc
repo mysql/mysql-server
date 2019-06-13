@@ -28,8 +28,8 @@
 #include <utility>
 
 #include "base64.h"  // base64_needed_decoded_length
-#include "binlog_event.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"

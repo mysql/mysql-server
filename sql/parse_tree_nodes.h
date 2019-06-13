@@ -28,8 +28,8 @@
 #include <cctype>  // std::isspace
 #include <limits>
 
-#include "binlog_event.h"  // UNDEFINED_SERVER_VERSION
 #include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"  // UNDEFINED_SERVER_VERSION
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bit.h"  // is_single_bit

@@ -27,7 +27,7 @@
 #include <time.h>
 #include <atomic>
 
-#include "binlog_event.h"  // enum_binlog_checksum_alg
+#include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"

@@ -29,6 +29,7 @@
 
 #include "field_types.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/table_id.h"  // Table_id
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -55,7 +56,6 @@
 #include "sql/sql_plist.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_sort.h"  // Sort_result
-#include "table_id.h"      // Table_id
 #include "thr_lock.h"
 #include "typelib.h"
 

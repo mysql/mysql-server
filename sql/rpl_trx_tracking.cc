@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/binlog.h"

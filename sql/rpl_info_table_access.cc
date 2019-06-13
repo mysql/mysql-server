@@ -24,7 +24,7 @@
 
 #include <stddef.h>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"

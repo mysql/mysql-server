@@ -35,7 +35,7 @@
 #include <algorithm>
 #include <atomic>
 
-#include "load_data_events.h"
+#include "libbinlogevents/include/load_data_events.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"

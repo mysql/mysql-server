@@ -28,8 +28,8 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "control_events.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/control_events.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

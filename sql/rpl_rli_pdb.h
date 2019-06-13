@@ -28,7 +28,7 @@
 #include <time.h>
 #include <atomic>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

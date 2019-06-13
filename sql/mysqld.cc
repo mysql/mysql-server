@@ -540,11 +540,11 @@ The documentation is based on the source files such as:
 
 #include "my_config.h"
 
-#include "binlog_event.h"
-#include "control_events.h"
 #include "errmsg.h"  // init_client_errs
 #include "ft_global.h"
 #include "keycache.h"  // KEY_CACHE
+#include "libbinlogevents/include/binlog_event.h"
+#include "libbinlogevents/include/control_events.h"
 #include "m_string.h"
 #include "migrate_keyring.h"  // Migrate_keyring
 #include "my_alloc.h"

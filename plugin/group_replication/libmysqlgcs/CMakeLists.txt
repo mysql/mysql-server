@@ -40,7 +40,6 @@ INCLUDE(rpcgen.cmake)
 ### INCLUDE FILES ###
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
 )
 

@@ -66,8 +66,8 @@
 #include <utility>
 
 #include "../components/mysql_server/log_builtins_filter_imp.h"  // until we have pluggable variables
-#include "binlog_event.h"
 #include "ft_global.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_aes.h"  // my_aes_opmode_names
 #include "my_command.h"

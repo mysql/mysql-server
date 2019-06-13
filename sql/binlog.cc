@@ -50,9 +50,12 @@
 #include <new>
 #include <string>
 
-#include "control_events.h"
-#include "debug_vars.h"
 #include "dur_prop.h"
+#include "libbinlogevents/include/control_events.h"
+#include "libbinlogevents/include/debug_vars.h"
+#include "libbinlogevents/include/rows_event.h"
+#include "libbinlogevents/include/statement_events.h"
+#include "libbinlogevents/include/table_id.h"
 #include "m_ctype.h"
 #include "mf_wcomp.h"    // wild_one, wild_many
 #include "mutex_lock.h"  // Mutex_lock
@@ -73,7 +76,6 @@
 #include "mysqld_error.h"
 #include "partition_info.h"
 #include "prealloced_array.h"
-#include "rows_event.h"
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"
 #include "sql/create_field.h"
@@ -120,8 +122,6 @@
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "sql_partition.h"
-#include "statement_events.h"
-#include "table_id.h"
 #include "thr_lock.h"
 
 class Item;

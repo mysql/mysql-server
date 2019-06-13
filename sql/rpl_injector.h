@@ -25,8 +25,8 @@
 
 #include <stddef.h>
 
-#include "control_events.h"  // enum_incidents
 #include "lex_string.h"
+#include "libbinlogevents/include/control_events.h"  // enum_incidents
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/table.h"  // TABLE

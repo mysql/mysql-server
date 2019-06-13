@@ -26,7 +26,7 @@
 #include <algorithm>
 #include <atomic>
 
-#include "control_events.h"
+#include "libbinlogevents/include/control_events.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

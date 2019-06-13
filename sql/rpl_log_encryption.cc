@@ -25,12 +25,12 @@
 #include <string.h>
 #include <algorithm>
 #include <sstream>
-#include "event_reader.h"
+#include "libbinlogevents/include/event_reader.h"
 #include "mutex_lock.h"
 #include "my_byteorder.h"
 
 #ifdef MYSQL_SERVER
-#include "byteorder.h"
+#include "libbinlogevents/include/byteorder.h"
 #include "my_aes.h"
 #include "my_rnd.h"
 #include "mysql/components/services/log_builtins.h"

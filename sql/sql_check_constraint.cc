@@ -22,13 +22,13 @@
 
 #include "sql_check_constraint.h"
 
-#include "binlog_event.h"  // UNDEFINED_SERVER_VERSION
-#include "item_func.h"     // print
-#include "mysqld_error.h"  // ER_*
-#include "sql_parse.h"     // check_string_char_length
-#include "sql_string.h"    // String
-#include "strfunc.h"       // make_lex_string_root
-#include "thd_raii.h"      // Sql_mode_parse_guard
+#include "item_func.h"                             // print
+#include "libbinlogevents/include/binlog_event.h"  // UNDEFINED_SERVER_VERSION
+#include "mysqld_error.h"                          // ER_*
+#include "sql_parse.h"                             // check_string_char_length
+#include "sql_string.h"                            // String
+#include "strfunc.h"                               // make_lex_string_root
+#include "thd_raii.h"                              // Sql_mode_parse_guard
 
 bool Sql_check_constraint_spec::pre_validate() {
   /*

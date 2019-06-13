@@ -41,10 +41,13 @@
 #include <set>
 #include <string>
 
-#include "binlog_event.h"
-#include "control_events.h"
 #include "lex_string.h"
-#include "load_data_events.h"
+#include "libbinlogevents/include/binlog_event.h"
+#include "libbinlogevents/include/control_events.h"
+#include "libbinlogevents/include/load_data_events.h"
+#include "libbinlogevents/include/rows_event.h"
+#include "libbinlogevents/include/statement_events.h"
+#include "libbinlogevents/include/uuid.h"
 #include "m_string.h"   // native_strncasecmp
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_dbug.h"
@@ -58,16 +61,13 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // SERVER_VERSION_LENGTH
 #include "partition_info.h"
-#include "rows_event.h"
 #include "sql/query_options.h"  // OPTION_AUTO_IS_NULL
 #include "sql/rpl_gtid.h"       // enum_gtid_type
 #include "sql/rpl_utility.h"    // Hash_slave_rows
 #include "sql/sql_const.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "statement_events.h"
 #include "typelib.h"  // TYPELIB
-#include "uuid.h"
 
 class THD;
 class Table_id;

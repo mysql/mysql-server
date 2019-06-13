@@ -25,7 +25,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"

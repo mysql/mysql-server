@@ -23,8 +23,8 @@
 #include <time.h>
 #include <atomic>
 
-#include "control_events.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/control_events.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

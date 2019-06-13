@@ -29,8 +29,8 @@
 #include <atomic>
 #include <utility>
 
-#include "binlog_event.h"  // enum_binlog_checksum_alg
-#include "m_string.h"      // llstr
+#include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
+#include "m_string.h"                              // llstr
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

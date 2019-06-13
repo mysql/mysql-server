@@ -37,7 +37,7 @@
 #include <algorithm>
 #include <list>
 
-#include "control_events.h"
+#include "libbinlogevents/include/control_events.h"
 #include "m_string.h"  // my_strtoll
 #include "my_byteorder.h"
 #include "my_dbug.h"

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #define NDB_BINLOG_EXTRA_ROW_INFO_H
 
 #include "my_byteorder.h"
-#include "rows_event.h"
+#include "libbinlogevents/include/rows_event.h"
 #include "sql/rpl_constants.h"
 #include "storage/ndb/include/ndb_types.h"
 

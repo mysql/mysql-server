@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <chrono>
 
-#include "binlog_event.h"  // enum_binlog_checksum_alg, Log_event_type
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql_com.h"

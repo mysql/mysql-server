@@ -27,7 +27,7 @@
 #include <atomic>
 #include <utility>
 
-#include "binlog_event.h"  // SEQ_UNINIT
+#include "libbinlogevents/include/binlog_event.h"  // SEQ_UNINIT
 #include "my_inttypes.h"
 #include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"  // Prealloced_array

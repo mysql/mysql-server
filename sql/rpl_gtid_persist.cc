@@ -31,7 +31,7 @@
 #endif
 #include <list>
 
-#include "control_events.h"
+#include "libbinlogevents/include/control_events.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
