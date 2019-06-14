@@ -1,0 +1,108 @@
+--source include/have_debug_sync.inc
+
+# A scenario in which we choose the "joining" transaction (the
+# one which added the last edge to form the cycle) con1 to be
+# the victim
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY) Engine=InnoDB;
+INSERT INTO t1 (id) VALUES (1),(2),(3),(4),(5);
+
+--connect (con1, localhost, root,,)
+  BEGIN;
+  SELECT * FROM t1 WHERE id = 1 FOR UPDATE;
+
+--connect (con2, localhost, root,,)
+  BEGIN;
+  SELECT * FROM t1 WHERE id = 2 FOR UPDATE;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+  --send SELECT * FROM t1 WHERE id = 1 FOR UPDATE; ROLLBACK
+
+--connect (con3, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+  SELECT * FROM t1 WHERE id = 3 FOR UPDATE;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con3_will_wait';
+  --send SELECT * FROM t1 WHERE id = 2 FOR UPDATE; ROLLBACK
+
+--connect (con4, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC = 'now WAIT_FOR con3_will_wait';
+  SELECT * FROM t1 WHERE id = 4 FOR UPDATE;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con4_will_wait';
+  --send SELECT * FROM t1 WHERE id = 3 FOR UPDATE; ROLLBACK
+
+--connection con1
+  SET DEBUG_SYNC = 'now WAIT_FOR con4_will_wait';
+  --error ER_LOCK_DEADLOCK
+  SELECT * FROM t1 WHERE id = 4 FOR UPDATE;
+
+--connection con2
+  --reap
+
+--connection con3
+  --reap
+
+--connection con4
+  --reap
+
+--source suite/innodb/include/show_last_deadlock.inc
+
+
+# A scenario in which we choose the transaction waiting for our
+#  "joining" transaction, which is con2.
+
+CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY) Engine=InnoDB;
+INSERT INTO t2 (id) VALUES (1),(2),(3),(4),(5);
+
+--connection con1
+  BEGIN;
+  # Make con1 "heavy" so it is not chosen as victim
+  SELECT * FROM t2 FOR UPDATE;
+  SELECT * FROM t1 WHERE id = 1 FOR UPDATE;
+
+--connection con2
+  BEGIN;
+  SELECT * FROM t1 WHERE id = 2 FOR UPDATE;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+  --send SELECT * FROM t1 WHERE id = 1 FOR UPDATE; ROLLBACK
+
+--connection con3
+  BEGIN;
+  SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+  SELECT * FROM t1 WHERE id = 3 FOR UPDATE;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con3_will_wait';
+  --send SELECT * FROM t1 WHERE id = 2 FOR UPDATE; ROLLBACK
+
+--connection con4
+  BEGIN;
+  SET DEBUG_SYNC = 'now WAIT_FOR con3_will_wait';
+  SELECT * FROM t1 WHERE id = 4 FOR UPDATE;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con4_will_wait';
+  --send SELECT * FROM t1 WHERE id = 3 FOR UPDATE; ROLLBACK
+
+--connection con1
+  SET DEBUG_SYNC = 'now WAIT_FOR con4_will_wait';
+  SELECT * FROM t1 WHERE id = 4 FOR UPDATE;
+  ROLLBACK;
+
+--connection con2
+  --error ER_LOCK_DEADLOCK
+  --reap
+
+--connection con3
+  --reap
+
+--connection con4
+  --reap
+
+--source suite/innodb/include/show_last_deadlock.inc
+
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+
+
+DROP TABLE t2;
+DROP TABLE t1;

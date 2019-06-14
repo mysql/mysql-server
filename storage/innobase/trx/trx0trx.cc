@@ -2642,7 +2642,7 @@ static lsn_t trx_prepare_low(
   return 0;
 }
 
-bool trx_is_mysql_xa(trx_t *trx) {
+bool trx_is_mysql_xa(const trx_t *trx) {
   auto my_xid = trx->xid->get_my_xid();
   return (my_xid != 0);
 }
