@@ -12,6 +12,7 @@
 
 --source include/have_debug.inc
 --source include/have_log_component.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
 
