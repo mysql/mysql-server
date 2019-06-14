@@ -27,8 +27,8 @@
 #include <new>
 #include <utility>
 
-#include "binary_log_funcs.h"
 #include "lex_string.h"
+#include "libbinlogevents/export/binary_log_funcs.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"

@@ -40,8 +40,8 @@
 #include <utility>
 
 #include "base64.h"
-#include "binary_log_funcs.h"  // my_timestamp_binary_length
 #include "decimal.h"
+#include "libbinlogevents/export/binary_log_funcs.h"  // my_timestamp_binary_length
 #include "libbinlogevents/include/debug_vars.h"
 #include "libbinlogevents/include/table_id.h"
 #include "libbinlogevents/include/wrapper_functions.h"

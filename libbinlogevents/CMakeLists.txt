@@ -26,6 +26,6 @@ INCLUDE(configure.cmake)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 
 CONFIGURE_FILE(binlog_config.h.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/include/binlog_config.h)
+  ${CMAKE_BINARY_DIR}/include/binlog_config.h)
 
 ADD_SUBDIRECTORY(src)

@@ -977,8 +977,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+  )
 
 
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)

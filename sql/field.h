@@ -32,10 +32,10 @@
 
 #include <string>
 
-#include "binary_log_funcs.h"  // my_time_binary_length
-#include "decimal.h"           // E_DEC_OOM
-#include "field_types.h"       // enum_field_types
+#include "decimal.h"      // E_DEC_OOM
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
+#include "libbinlogevents/export/binary_log_funcs.h"  // my_time_binary_length
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"  // ha_storage_media
