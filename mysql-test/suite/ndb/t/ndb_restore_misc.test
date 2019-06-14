@@ -437,9 +437,18 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --source include/ndb_backup.inc
 
 # ndb_restore should now fail, table t2_c already exists
---replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+--disable_query_log
+CREATE TEMPORARY TABLE ndb_restore_output (output_line VARCHAR(512)) ENGINE = HEAP;
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 1
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+--remove_file $dump_file
+--enable_query_log
+select output_line from ndb_restore_output where output_line like '%t2_c%' order by output_line;
+--disable_query_log
+DROP TABLE ndb_restore_output;
+--enable_query_log
 
 CREATE TABLE t11_c (
   c1 int primary key, c2 char(10), c3 varchar(10)
@@ -692,11 +701,28 @@ delete from mysql.ndb_apply_status;
 
 select count(1) from mysql.ndb_apply_status where server_id=0;
 drop table t1;
---replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+
+--disable_query_log
+CREATE TEMPORARY TABLE ndb_restore_output (output_line VARCHAR(512)) ENGINE = HEAP;
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 2
---exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+--remove_file $dump_file
+--enable_query_log
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+--disable_query_log
+
 --error 2
---exec $NDB_RESTORE --nodeid=2 -r $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE --nodeid=2 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+--remove_file $dump_file
+--enable_query_log
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+--disable_query_log
+
+DROP TABLE ndb_restore_output;
+--enable_query_log
 
 # Reset metadata check value
 --connection server2

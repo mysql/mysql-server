@@ -578,9 +578,8 @@ select * from t11_c) a;
 count(*)
 1
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
-Backup Id = the_backup_id
-Nodeid = 1
-Analyse node group map
+select output_line from ndb_restore_output where output_line like '%t2_c%' order by output_line;
+output_line
 Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
 Restore: Failed to restore table: `test/def/t2_c` ... Exiting 
 CREATE TABLE t11_c (
@@ -747,9 +746,12 @@ select count(1) from mysql.ndb_apply_status where server_id=0;
 count(1)
 1
 drop table t1;
-Backup Id = the_backup_id
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+output_line
 Backup file node ID not specified, please provide --nodeid
-Nodeid = 2
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+output_line
+Backup file node ID not specified, please provide --nodeid
 Backup ID not specified, please provide --backupid
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
