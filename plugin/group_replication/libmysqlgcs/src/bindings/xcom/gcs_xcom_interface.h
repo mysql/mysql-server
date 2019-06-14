@@ -212,6 +212,8 @@ class Gcs_xcom_interface : public Gcs_interface {
 
   Gcs_xcom_node_address *get_node_address();
 
+  void set_node_address(std::string const &address);
+
   /**
    This member function shall return the set of parameters that configure
    the interface at the time its initialization was done. The parameters

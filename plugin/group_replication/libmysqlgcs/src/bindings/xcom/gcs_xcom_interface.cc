@@ -510,9 +510,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   if (local_node_str != NULL) {
     /* purecov: begin tested */
     // Changing local_node
-    delete m_node_address;
-    m_node_address = new Gcs_xcom_node_address(local_node_str->c_str());
-    xcom_local_port = m_node_address->get_member_port();
+    set_node_address(*local_node_str);
     xcom_control->set_node_address(m_node_address);
 
     reconfigured |= true;
@@ -713,7 +711,7 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
         new Gcs_xcom_view_change_control();
 
     auto *xcom_communication = new Gcs_xcom_communication(
-        stats, xcom_proxy, vce, *m_node_address, gcs_engine, group_identifier);
+        stats, xcom_proxy, vce, gcs_engine, group_identifier);
     group_interface->communication_interface = xcom_communication;
 
     Gcs_xcom_state_exchange_interface *se =
@@ -856,8 +854,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   MYSQL_GCS_LOG_DEBUG("Configured total number of peers: %llu",
                       static_cast<long long unsigned>(m_xcom_peers.size()))
 
-  m_node_address = new Gcs_xcom_node_address(local_node_str->c_str());
-  xcom_local_port = m_node_address->get_member_port();
+  set_node_address(*local_node_str);
 
   MYSQL_GCS_LOG_DEBUG("Configured Local member: %s", local_node_str->c_str())
 
@@ -1090,6 +1087,12 @@ Gcs_xcom_node_address *Gcs_xcom_interface::get_node_address() {
   return m_node_address;
 }
 /* purecov: end*/
+
+void Gcs_xcom_interface::set_node_address(std::string const &address) {
+  delete m_node_address;
+  m_node_address = new Gcs_xcom_node_address(address.c_str());
+  xcom_local_port = m_node_address->get_member_port();
+}
 
 enum_gcs_error Gcs_xcom_interface::configure_message_stages(
     const Gcs_group_identifier &gid) {

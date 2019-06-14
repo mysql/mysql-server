@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"  // gcs_protocol_to_mysql_version
 
 #include <assert.h>
@@ -58,18 +59,16 @@ using std::map;
 Gcs_xcom_communication::Gcs_xcom_communication(
     Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
     Gcs_xcom_view_change_control_interface *view_control,
-    Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine *gcs_engine,
-    Gcs_group_identifier const &group_id)
+    Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id)
     : event_listeners(),
       stats(stats),
       m_xcom_proxy(proxy),
       m_view_control(view_control),
       m_msg_pipeline(),
       m_buffered_packets(),
-      m_myself(xcom_node_address.get_member_address()),
       m_xcom_nodes(),
       m_gid_hash(),
-      m_protocol_changer(xcom_node_address, *gcs_engine, m_msg_pipeline) {
+      m_protocol_changer(*gcs_engine, m_msg_pipeline) {
   const void *id_str = group_id.get_group_id().c_str();
   m_gid_hash = Gcs_xcom_utils::mhash(static_cast<const unsigned char *>(id_str),
                                      group_id.get_group_id().size());
@@ -262,13 +261,21 @@ Gcs_xcom_communication::possible_packet_recovery_donors() const {
   DBUG_ASSERT(!all_members.empty());
 
   std::vector<Gcs_xcom_node_information> donors;
-  auto not_me_predicate = [this](Gcs_xcom_node_information const &xcom_node) {
-    bool const is_me = (xcom_node.get_member_id() == m_myself);
-    return !is_me;
-  };
-  std::copy_if(all_members.cbegin(), all_members.cend(),
-               std::back_inserter(donors), not_me_predicate);
-  DBUG_ASSERT(donors.size() == all_members.size() - 1);
+
+  Gcs_xcom_interface *const xcom_interface =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  if (xcom_interface != nullptr) {
+    Gcs_member_identifier myself{
+        xcom_interface->get_node_address()->get_member_address()};
+    auto not_me_predicate =
+        [&myself](Gcs_xcom_node_information const &xcom_node) {
+          bool const is_me = (xcom_node.get_member_id() == myself);
+          return !is_me;
+        };
+    std::copy_if(all_members.cbegin(), all_members.cend(),
+                 std::back_inserter(donors), not_me_predicate);
+    DBUG_ASSERT(donors.size() == all_members.size() - 1);
+  }
 
   return donors;
 }
