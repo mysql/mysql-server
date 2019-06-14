@@ -62,3 +62,6 @@ if ($skip_test)
 {
   --skip $skip_reason
 }
+
+--echo Test program success!
+
