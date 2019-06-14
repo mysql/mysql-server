@@ -777,10 +777,9 @@ struct trx_t {
     SERIALIZABLE
   };
 
-  TrxMutex mutex; /*!< Mutex protecting the fields
-                  state and lock (except some fields
-                  of lock, which are protected by
-                  lock_sys->mutex) */
+  /** Mutex protecting the fields `state` and `lock` (except some fields of
+  `lock`,  which are protected by lock_sys->mutex) */
+  mutable TrxMutex mutex;
 
   /* Note: in_depth was split from in_innodb for fixing a RO
   performance issue. Acquiring the trx_t::mutex for each row
@@ -1374,7 +1373,7 @@ class TrxInInnoDB {
 
   /**
   Wait for the asynchronous rollback to complete, if it is in progress */
-  static void wait(trx_t *trx) {
+  static void wait(const trx_t *trx) {
     ut_ad(trx_mutex_own(trx));
 
     ulint loop_count = 0;
@@ -1422,7 +1421,7 @@ class TrxInInnoDB {
 /** Check if transaction is internal XA transaction
 @param[in]	trx	transaction
 @return true, iff internal XA transaction. */
-bool trx_is_mysql_xa(trx_t *trx);
+bool trx_is_mysql_xa(const trx_t *trx);
 
 /** Update transaction binlog file name and position from session THD.
 @param[in,out]  trx     current transaction. */

@@ -1126,7 +1126,8 @@ parallel modifications turns out wrong.
 @param[in]	mode	lock mode
 @return lock or NULL */
 UNIV_INLINE
-bool lock_table_has(trx_t *trx, const dict_table_t *table, enum lock_mode mode);
+bool lock_table_has(const trx_t *trx, const dict_table_t *table,
+                    enum lock_mode mode);
 
 #include "lock0priv.ic"
 
