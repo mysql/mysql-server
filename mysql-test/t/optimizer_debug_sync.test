@@ -3,6 +3,10 @@
 
 --source include/have_debug_sync.inc
 
+# The test simulates an out-of-memory condition, don't run it in Valgrind
+--source include/not_valgrind.inc
+
+
 --echo
 --echo BUG#11763382 Assertion 'inited==INDEX' on SELECT MAX(...)
 --echo
