@@ -45,17 +45,17 @@ TEST(temptable_allocator, basic) {
   {
     EXPECT_TRUE(temptable::shared_block.is_empty());
     std::thread t([]() {
-      temptable::Allocator<uint64_t> allocator;
+      temptable::Allocator<uint8_t> allocator;
 
       constexpr size_t n_allocate = 128;
-      std::array<uint64_t *, n_allocate> a;
+      std::array<uint8_t *, n_allocate> a;
       constexpr size_t n_elements = 16;
 
       for (size_t i = 0; i < n_allocate; ++i) {
         a[i] = allocator.allocate(n_elements);
 
         for (size_t j = 0; j < n_elements; ++j) {
-          a[i][j] = 0xF00BA4C0FFEE1234;
+          a[i][j] = 0xB;
         }
       }
 
