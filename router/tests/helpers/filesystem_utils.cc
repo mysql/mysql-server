@@ -22,7 +22,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
+#include "common.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/filesystem.h"
 
@@ -36,9 +38,6 @@ namespace {
 
 #ifdef _WIN32
 
-using mysql_harness::SecurityDescriptorPtr;
-using mysql_harness::SidPtr;
-
 void check_ace_access_rights_local_service(const std::string &file_name,
                                            ACCESS_ALLOWED_ACE *access_ace,
                                            const bool read_only,
@@ -46,7 +45,8 @@ void check_ace_access_rights_local_service(const std::string &file_name,
   is_local_service_ace = false;
   SID *sid = reinterpret_cast<SID *>(&access_ace->SidStart);
   DWORD sid_size = SECURITY_MAX_SID_SIZE;
-  SidPtr local_service_sid(static_cast<SID *>(std::malloc(sid_size)));
+  std::unique_ptr<SID, decltype(&free)> local_service_sid(
+      static_cast<SID *>(std::malloc(sid_size)), &free);
 
   if (CreateWellKnownSid(WinLocalServiceSid, nullptr, local_service_sid.get(),
                          &sid_size) == FALSE) {
@@ -118,9 +118,10 @@ void check_acl_access_rights_local_service(const std::string &file_name,
            << file_name << "'.";
 }
 
-void check_security_descriptor_access_rights(const std::string &file_name,
-                                             SecurityDescriptorPtr &sec_desc,
-                                             bool read_only) {
+void check_security_descriptor_access_rights(
+    const std::string &file_name,
+    std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> &sec_desc,
+    bool read_only) {
   BOOL dacl_present;
   ACL *dacl;
   BOOL dacl_defaulted;
@@ -154,7 +155,8 @@ void check_security_descriptor_access_rights(const std::string &file_name,
 void check_config_file_access_rights(const std::string &file_name,
                                      const bool read_only) {
 #ifdef _WIN32
-  SecurityDescriptorPtr sec_descr;
+  std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> sec_descr(nullptr,
+                                                                  &free);
   try {
     sec_descr = mysql_harness::get_security_descriptor(file_name);
   } catch (const std::system_error &) {

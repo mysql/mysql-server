@@ -29,6 +29,7 @@
 ////////////////////////////////////////
 // Package include files
 #include "builtin_plugins.h"
+#include "common.h"  // mysql_harness::rename_thread()
 #include "designator.h"
 #include "dim.h"
 #include "exception.h"

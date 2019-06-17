@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,46 +37,6 @@
  */
 
 namespace mysql_harness {
-
-/**
- * Deleter for smart pointers pointing to objects allocated with `std::malloc`.
- */
-template <typename T>
-class StdFreeDeleter {
- public:
-  void operator()(T *ptr) { std::free(ptr); }
-};
-
-/**
- * Changes file access permissions to be fully accessible by all users.
- *
- * On Unix, the function sets file permission mask to 777.
- * On Windows, Everyone group is granted full access to the file.
- *
- * @param[in] file_name File name.
- *
- * @throw std::exception Failed to change file permissions.
- */
-void HARNESS_EXPORT make_file_public(const std::string &file_name);
-
-/**
- * Changes file access permissions to be accessible only by a limited set of
- * users.
- *
- * On Unix, the function sets file permission mask to 600.
- * On Windows, all permissions to this file are removed for Everyone group,
- * LocalService account gets read (and optionally write) access.
- *
- * @param[in] file_name File name.
- * @param[in] read_only_for_local_service Weather the LocalService user on
- * Windows should get only the read access (if false will grant write access
- * too). Not used on non-Windows.
- *
- * @throw std::exception Failed to change file permissions.
- */
-void HARNESS_EXPORT
-make_file_private(const std::string &file_name,
-                  const bool read_only_for_local_service = true);
 
 /** @brief Wrapper for thread safe function returning error string.
  *
@@ -260,8 +220,7 @@ std::string list_elements(Collection collection,
 
 #if defined(_MSC_VER)
 
-#define MYSQL_HARNESS_DISABLE_WARNINGS() \
-  __pragma(warning(push)) __pragma(warning(disable:))
+#define MYSQL_HARNESS_DISABLE_WARNINGS() __pragma(warning(push, 0))
 
 #define MYSQL_HARNESS_ENABLE_WARNINGS() __pragma(warning(pop))
 

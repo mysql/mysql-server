@@ -24,6 +24,7 @@
 
 #include "gr_notifications_listener.h"
 
+#include "common.h"  // rename_thread()
 #include "mysql/harness/logging/logging.h"
 #include "mysqlxclient/xsession.h"
 #include "socket_operations.h"
