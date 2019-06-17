@@ -489,31 +489,32 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
         goto err; /* purecov: inspected */
       instantiate_tmp_table = true;
     }
+
+    if (fake_select_lex != NULL) {
+      /*
+        There exists a query block that consolidates the UNION result.
+        Prepare the active options for this query block. If these options
+        contain OPTION_BUFFER_RESULT, the query block will perform a buffering
+        operation, which means that an underlying query block does not need to
+        buffer its result, and the buffer option for the underlying query blocks
+        can be cleared.
+        For subqueries in form "a IN (SELECT .. UNION SELECT ..):
+        when optimizing the fake_select_lex that reads the results of the union
+        from a temporary table, do not mark the temp. table as constant because
+        the contents in it may vary from one subquery execution to another, by
+        adding OPTION_NO_CONST_TABLES.
+      */
+      fake_select_lex->make_active_options(
+          (added_options & (OPTION_FOUND_ROWS | OPTION_BUFFER_RESULT)) |
+              OPTION_NO_CONST_TABLES | SELECT_NO_UNLOCK,
+          0);
+      added_options &= ~OPTION_BUFFER_RESULT;
+    }
   } else {
     // Only one query block, and no "fake" object: No extra result needed:
     tmp_result = sel_result;
   }
 
-  if (fake_select_lex != NULL) {
-    /*
-      There exists a query block that consolidates the UNION result.
-      Prepare the active options for this query block. If these options
-      contain OPTION_BUFFER_RESULT, the query block will perform a buffering
-      operation, which means that an underlying query block does not need to
-      buffer its result, and the buffer option for the underlying query blocks
-      can be cleared.
-      For subqueries in form "a IN (SELECT .. UNION SELECT ..):
-      when optimizing the fake_select_lex that reads the results of the union
-      from a temporary table, do not mark the temp. table as constant because
-      the contents in it may vary from one subquery execution to another, by
-      adding OPTION_NO_CONST_TABLES.
-    */
-    fake_select_lex->make_active_options(
-        (added_options & (OPTION_FOUND_ROWS | OPTION_BUFFER_RESULT)) |
-            OPTION_NO_CONST_TABLES | SELECT_NO_UNLOCK,
-        0);
-    added_options &= ~OPTION_BUFFER_RESULT;
-  }
   first_select()->context.resolve_in_select_list = true;
 
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
@@ -711,6 +712,9 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
 
   Change_current_select save_select(thd);
 
+  ha_rows estimated_rowcount = 0;
+  double estimated_cost = 0.0;
+
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
     thd->lex->set_current_select(sl);
 
@@ -725,17 +729,28 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
          rows).
       2. If GROUP BY clause is optimized away because it was a constant then
          query produces at most one row.
-    */
-    if (query_result()) {
-      query_result()->estimated_rowcount +=
-          sl->is_implicitly_grouped() || sl->join->group_optimized_away
-              ? 1
-              : sl->join->best_rowcount;
-      query_result()->estimated_cost += sl->join->best_read;
+     */
+    estimated_rowcount +=
+        sl->is_implicitly_grouped() || sl->join->group_optimized_away
+            ? 1
+            : sl->join->best_rowcount;
+    estimated_cost += sl->join->best_read;
+
+    // TABLE_LIST::fetch_number_of_rows() expects to get the number of rows
+    // from all earlier query blocks from the query result, so we need to update
+    // it as we go. In particular, this is used when optimizing a recursive
+    // SELECT in a CTE, so that it knows how many rows the non-recursive query
+    // blocks will produce.
+    //
+    // TODO(sgunders): Communicate this in a different way when the query result
+    // goes away.
+    if (query_result() != nullptr) {
+      query_result()->estimated_rowcount = estimated_rowcount;
+      query_result()->estimated_cost = estimated_cost;
     }
   }
-  if ((uncacheable & UNCACHEABLE_DEPENDENT) && query_result() &&
-      query_result()->estimated_rowcount <= 1) {
+
+  if ((uncacheable & UNCACHEABLE_DEPENDENT) && estimated_rowcount <= 1) {
     /*
       This depends on outer references, so optimization cannot assume that all
       executions will always produce the same row. So, increase the counter to
@@ -743,7 +758,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
       Not testing all bits of "uncacheable", as if derived table sets user
       vars (UNCACHEABLE_SIDEEFFECT) the logic above doesn't apply.
     */
-    query_result()->estimated_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;
+    estimated_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;
   }
 
   if (fake_select_lex) {
@@ -769,6 +784,12 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
 
     if (fake_select_lex->optimize(thd)) return true;
   }
+
+  if (query_result() != nullptr) {
+    query_result()->estimated_rowcount = estimated_rowcount;
+    query_result()->estimated_cost = estimated_cost;
+  }
+
   set_optimized();  // All query blocks optimized, update the state
   return false;
 }

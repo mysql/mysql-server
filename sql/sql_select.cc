@@ -194,15 +194,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   */
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) goto err;
 
-  if (single_query) {
-    if (unit->set_limit(thd, unit->global_parameters()))
-      goto err; /* purecov: inspected */
-    if (select->optimize(thd)) goto err;
-
-    unit->set_optimized();
-  } else {
-    if (unit->optimize(thd)) goto err;
-  }
+  if (unit->optimize(thd)) goto err;
 
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) goto err; /* purecov: inspected */
@@ -470,6 +462,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
   if (prepare_inner(thd)) goto err;
 
   set_prepared();
+  unit->set_prepared();
 
   // Pop ignore / strict error handler
   if (error_handler_active) thd->pop_internal_handler();
@@ -574,6 +567,8 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
     SELECT_LEX *const select = unit->first_select();
     select->context.resolve_in_select_list = true;
     select->set_query_result(result);
+    unit->set_query_result(result);
+    // Unlock the table as soon as possible, so don't set SELECT_NO_UNLOCK.
     select->make_active_options(0, 0);
     select->fields_list = select->item_list;
 
@@ -581,6 +576,8 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
 
     unit->set_prepared();
   } else {
+    // If we have multiple query blocks, don't unlock and re-lock
+    // tables between each each of them.
     if (unit->prepare(thd, result, SELECT_NO_UNLOCK, 0)) return true;
   }
 
@@ -886,15 +883,7 @@ static bool optimize_secondary_engine(THD *thd) {
 bool Sql_cmd_dml::execute_inner(THD *thd) {
   SELECT_LEX_UNIT *unit = lex->unit;
 
-  if (unit->is_simple()) {
-    if (unit->set_limit(thd, unit->global_parameters()))
-      return true; /* purecov: inspected */
-    if (unit->first_select()->optimize(thd)) return true;
-
-    unit->set_optimized();
-  } else {
-    if (unit->optimize(thd)) return true;
-  }
+  if (unit->optimize(thd)) return true;
 
   // Calculate the current statement cost. It will be made available in
   // the Last_query_cost status variable.
