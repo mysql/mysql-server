@@ -3268,32 +3268,25 @@ show_json_object('"join_execution": {', TRACE)
             } /* creating_tmp_table */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
-          },
-          {
-            "join_execution": {
-              "select#": 3,
-              "steps": [
-              ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           }
         ] /* steps */
       } 
@@ -3325,18 +3318,18 @@ show_json_object('"join_execution": {', TRACE)
             } /* creating_tmp_table */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           }
         ] /* steps */
       } 

@@ -29,8 +29,10 @@
 
 #include "my_inttypes.h"
 #include "scope_guard.h"
+#include "sql/basic_row_iterators.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
+#include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/filesort.h"
 #include "sql/handler.h"
@@ -811,6 +813,9 @@ bool MaterializeIterator::Init() {
       // If we're being called several times (in particular, as part of a
       // LATERAL join), the table iterator may have started a scan, so end it
       // before we start our own.
+      //
+      // If we're in a recursive CTE, this also provides a signal to
+      // FollowTailIterator that we're starting a new recursive materalization.
       table()->file->ha_index_or_rnd_end();
     }
     table()->file->ha_delete_all_rows();
@@ -836,70 +841,15 @@ bool MaterializeIterator::Init() {
     end_unique_index.commit();
   }
 
-  ha_rows stored_rows = 0;
-
-  for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
-    Opt_trace_context *const trace = &thd()->opt_trace;
-    Opt_trace_object trace_wrapper(trace);
-    Opt_trace_object trace_exec(trace, "materialize");
-    trace_exec.add_select_number(query_block.select_number);
-    Opt_trace_array trace_steps(trace, "steps");
-
-    JOIN *join = query_block.join;
-
-    if (query_block.subquery_iterator->Init()) {
-      return true;
-    }
-
-    PFSBatchMode pfs_batch_mode(nullptr, join);
-    while (stored_rows < m_limit_rows) {
-      int error = query_block.subquery_iterator->Read();
-      if (error > 0 || thd()->is_error())
-        return true;
-      else if (error < 0)
+  if (m_unit != nullptr && m_unit->is_recursive()) {
+    if (MaterializeRecursive()) return true;
+  } else {
+    ha_rows stored_rows = 0;
+    for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
+      if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
+      if (stored_rows >= m_limit_rows) {
         break;
-      else if (thd()->killed) {
-        thd()->send_kill_message();
-        return true;
       }
-
-      // Materialize items for this row.
-      if (query_block.copy_fields_and_items) {
-        if (copy_fields_and_funcs(query_block.temp_table_param, thd()))
-          return true;
-      }
-
-      if (query_block.disable_deduplication_by_hash_field) {
-        DBUG_ASSERT(doing_hash_deduplication());
-      } else if (!check_unique_constraint(table())) {
-        continue;
-      }
-
-      error = table()->file->ha_write_row(table()->record[0]);
-      if (error == 0) {
-        ++stored_rows;
-        continue;
-      }
-      // create_ondisk_from_heap will generate error if needed.
-      if (!table()->file->is_ignorable_error(error)) {
-        bool is_duplicate;
-        if (create_ondisk_from_heap(thd(), table(), error, true, &is_duplicate))
-          return true; /* purecov: inspected */
-        // Table's engine changed; index is not initialized anymore.
-        if (doing_hash_deduplication()) {
-          table()->file->ha_index_init(0, false);
-        }
-        if (!is_duplicate) ++stored_rows;
-      } else {
-        // An ignorable error means duplicate key, ie. we deduplicated
-        // away the row by means of an unique index. Note that we can
-        // also deduplicate manually (by means of a non-unique hash index)
-        // in the cases where we cannot use an unique index;
-        // see the call to check_unique_constraint() above.
-      }
-    }
-    if (stored_rows >= m_limit_rows) {
-      break;
     }
   }
 
@@ -916,6 +866,215 @@ bool MaterializeIterator::Init() {
   }
 
   return m_table_iterator->Init();
+}
+
+/**
+  Recursive materialization happens much like regular materialization,
+  but some steps are repeated multiple times. Our general strategy is:
+
+    1. Materialize all non-recursive query blocks, once.
+
+    2. Materialize all recursive query blocks in turn.
+
+    3. Repeat #2 until no query block writes any more rows (ie., we have
+       converged) -- for UNION DISTINCT queries, rows removed by deduplication
+       do not count. Each materialization sees only rows that were newly added
+       since the previous iteration; see FollowTailIterator for more details
+       on the implementation.
+
+  Note that the result table is written to while other iterators are still
+  reading from it; again, see FollowTailIterator. This means that each run
+  of #2 can potentially run many actual CTE iterations -- possibly the entire
+  query to completion if we have only one query block.
+
+  This is not how the SQL standard specifies recursive CTE execution
+  (it assumes building up the new result set from scratch for each iteration,
+  using the previous iteration's results), but it is equivalent, and more
+  efficient for the class of queries we support, since we don't need to
+  re-create the same rows over and over again.
+ */
+bool MaterializeIterator::MaterializeRecursive() {
+  /*
+    For RECURSIVE, beginners will forget that:
+    - the CTE's column types are defined by the non-recursive member
+    - which implies that recursive member's selected expressions are cast to
+    the non-recursive member's type.
+    That will cause silent truncation and possibly an infinite recursion due
+    to a condition like: 'LENGTH(growing_col) < const', or,
+    'growing_col < const',
+    which is always satisfied due to truncation.
+
+    This situation is similar to
+    create table t select "x" as a;
+    insert into t select concat("x",a) from t;
+    which sends ER_DATA_TOO_LONG in strict mode.
+
+    So we should inform the user.
+
+    If we only raised warnings: it will not interrupt an infinite recursion,
+    a MAX_RECURSION hint (if we featured one) may interrupt; but then the
+    warnings won't be seen, as the interruption will raise an error. So
+    warnings are useless.
+    Instead, we send a truncation error: it is visible, indicates the
+    source of the problem, and is consistent with the INSERT case above.
+
+    Usually, truncation in SELECT triggers an error only in
+    strict mode; but if we don't send an error we get a runaway query;
+    and as WITH RECURSIVE is a new feature we don't have to carry the
+    permissiveness of the past, so we send an error even if in non-strict
+    mode.
+
+    For a non-recursive UNION, truncation shouldn't happen as all UNION
+    members participated in type calculation.
+  */
+  Strict_error_handler strict_handler(
+      Strict_error_handler::ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
+  enum_check_fields save_check_for_truncated_fields{};
+  bool set_error_handler = thd()->is_strict_mode();
+  if (set_error_handler) {
+    save_check_for_truncated_fields = thd()->check_for_truncated_fields;
+    thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
+    thd()->push_internal_handler(&strict_handler);
+  }
+  auto cleanup_handler = create_scope_guard(
+      [this, set_error_handler, save_check_for_truncated_fields] {
+        if (set_error_handler) {
+          thd()->pop_internal_handler();
+          thd()->check_for_truncated_fields = save_check_for_truncated_fields;
+        }
+      });
+
+  DBUG_ASSERT(m_limit_rows == HA_POS_ERROR);
+
+  ha_rows stored_rows = 0;
+
+  // Give each recursive iterator access to the stored number of rows
+  // (see FollowTailIterator::Read() for details).
+  for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
+    if (query_block.is_recursive_reference) {
+      query_block.recursive_reader->set_stored_rows_pointer(&stored_rows);
+    }
+  }
+
+#ifndef DBUG_OFF
+  // Trash the pointers on exit, to ease debugging of dangling ones to the
+  // stack.
+  auto pointer_cleanup = create_scope_guard([this] {
+    for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
+      if (query_block.is_recursive_reference) {
+        query_block.recursive_reader->set_stored_rows_pointer(nullptr);
+      }
+    }
+  });
+#endif
+
+  // First, materialize all non-recursive query blocks.
+  for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
+    if (!query_block.is_recursive_reference) {
+      if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
+    }
+  }
+
+  // Then, materialize all recursive query blocks until we converge.
+  Opt_trace_context &trace = thd()->opt_trace;
+  bool disabled_trace = false;
+  ha_rows last_stored_rows;
+  do {
+    last_stored_rows = stored_rows;
+    for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
+      if (query_block.is_recursive_reference) {
+        if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
+      }
+    }
+
+    /*
+      If recursive query blocks have been executed at least once, and repeated
+      executions should not be traced, disable tracing, unless it already is
+      disabled.
+    */
+    if (!disabled_trace &&
+        !trace.feature_enabled(Opt_trace_context::REPEATED_SUBSELECT)) {
+      trace.disable_I_S_for_this_and_children();
+      disabled_trace = true;
+    }
+  } while (stored_rows > last_stored_rows);
+
+  if (disabled_trace) {
+    trace.restore_I_S();
+  }
+  return false;
+}
+
+bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
+                                                ha_rows *stored_rows) {
+  Opt_trace_context *const trace = &thd()->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_exec(trace, "materialize");
+  trace_exec.add_select_number(query_block.select_number);
+  Opt_trace_array trace_steps(trace, "steps");
+
+  JOIN *join = query_block.join;
+  if (join != nullptr) {
+    join->set_executed();  // The dynamic range optimizer expects this.
+  }
+
+  if (query_block.subquery_iterator->Init()) {
+    return true;
+  }
+
+  PFSBatchMode pfs_batch_mode(nullptr, join);
+  while (*stored_rows < m_limit_rows) {
+    int error = query_block.subquery_iterator->Read();
+    if (error > 0 || thd()->is_error())
+      return true;
+    else if (error < 0)
+      break;
+    else if (thd()->killed) {
+      thd()->send_kill_message();
+      return true;
+    }
+
+    // Materialize items for this row.
+    if (query_block.copy_fields_and_items) {
+      if (copy_fields_and_funcs(query_block.temp_table_param, thd()))
+        return true;
+    }
+
+    if (query_block.disable_deduplication_by_hash_field) {
+      DBUG_ASSERT(doing_hash_deduplication());
+    } else if (!check_unique_constraint(table())) {
+      continue;
+    }
+
+    error = table()->file->ha_write_row(table()->record[0]);
+    if (error == 0) {
+      ++*stored_rows;
+      continue;
+    }
+    // create_ondisk_from_heap will generate error if needed.
+    if (!table()->file->is_ignorable_error(error)) {
+      bool is_duplicate;
+      if (create_ondisk_from_heap(thd(), table(), error, true, &is_duplicate))
+        return true; /* purecov: inspected */
+      // Table's engine changed; index is not initialized anymore.
+      if (table()->hash_field) table()->file->ha_index_init(0, false);
+      if (!is_duplicate) ++*stored_rows;
+
+      // Inform each reader that the table has changed under their feet,
+      // so they'll need to reposition themselves.
+      for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
+        if (query_block.is_recursive_reference) {
+          query_block.recursive_reader->RepositionCursorAfterSpillToDisk();
+        }
+      }
+    } else {
+      // An ignorable error means duplicate key, ie. we deduplicated
+      // away the row. This is seemingly separate from
+      // check_unique_constraint(), which only checks hash indexes.
+    }
+  }
+
+  return false;
 }
 
 int MaterializeIterator::Read() {
@@ -959,7 +1118,9 @@ vector<string> MaterializeIterator::DebugString() const {
   const bool is_union = m_query_blocks_to_materialize.size() > 1;
   string str;
 
-  if (m_cte != nullptr) {
+  if (m_cte != nullptr && m_cte->recursive) {
+    str = "Materialize recursive CTE " + to_string(m_cte->name);
+  } else if (m_cte != nullptr) {
     if (is_union) {
       str = "Materialize union CTE " + to_string(m_cte->name);
     } else {
@@ -1039,6 +1200,15 @@ vector<RowIterator::Child> MaterializeIterator::children() const {
         this_heading += ", disable deduplication";
       }
     }
+
+    if (query_block.is_recursive_reference) {
+      if (this_heading.empty()) {
+        this_heading = "Repeat until convergence";
+      } else {
+        this_heading += ", repeat until convergence";
+      }
+    }
+
     ret.emplace_back(Child{query_block.subquery_iterator.get(), this_heading});
   }
   return ret;

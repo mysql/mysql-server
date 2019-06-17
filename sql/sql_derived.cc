@@ -405,6 +405,9 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   if (!(derived_result = new (thd->mem_root) Query_result_union()))
     return true; /* purecov: inspected */
 
+  /// Give the unit to the result (the other fields are ignored).
+  if (derived_result->prepare(thd, derived->types, derived_unit())) return true;
+
   /*
     Prepare the underlying query expression of the derived table.
     The SELECT_STRAIGHT_JOIN option prevents semi-join transformation.

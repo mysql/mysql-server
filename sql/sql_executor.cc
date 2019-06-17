@@ -2372,6 +2372,7 @@ void JOIN::create_iterators() {
       create_root_iterator_for_join();
   if (iterator == nullptr) {
     // The query is not supported by the iterator executor.
+    DBUG_ASSERT(!select_lex->parent_lex->force_iterator_executor);
     return;
   }
 
@@ -2436,17 +2437,8 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  if (unit->is_recursive()) {
-    // We're part of a unit with WITH RECURSIVE, which the iterator executor
-    // can't do yet. It may be that we could have done this specific query block
-    // using the iterator executor, but every query block needs to either be
-    // entirely iterator-based or entirely done in the old executor, so we bail
-    // out.
-    return nullptr;
-  }
-
-  // Apart from WITH RECURSIVE, there are only two specific cases where
-  // we need to use the pre-iterator executor:
+  // There are only two specific cases where we need to use the pre-iterator
+  // executor:
   //
   //   1. We have a child query expression that needs to run in it.
   //   2. We have join buffering (BNL/BKA).

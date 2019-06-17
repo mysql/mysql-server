@@ -270,7 +270,7 @@ DROP TABLE t11,t12;
 
 --echo LATERAL
 
---echo # prevents join buffer
+--echo # prevents join buffer if materialized (but not if merged)
 explain select dt.a from t1, lateral (select t1.a from t2) dt;
 
 --echo # no right join

@@ -38,6 +38,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "sql/debug_sync.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
@@ -47,6 +48,7 @@
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h"
 #include "sql/table.h"
 #include "sql/timing_iterator.h"
 
@@ -248,6 +250,13 @@ unique_ptr_destroy_only<RowIterator> create_table_iterator(
     return NewIterator<SortBufferIndirectIterator>(
         thd, table, &table->unique_result, ignore_not_found_rows,
         examined_rows);
+  } else if (qep_tab != nullptr && qep_tab->table_ref != nullptr &&
+             qep_tab->table_ref->is_recursive_reference()) {
+    unique_ptr_destroy_only<RowIterator> iterator =
+        NewIterator<FollowTailIterator>(thd, table, qep_tab, examined_rows);
+    qep_tab->recursive_iterator =
+        down_cast<FollowTailIterator *>(iterator.get());
+    return iterator;
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
     if (using_table_scan != nullptr) {
@@ -420,4 +429,145 @@ vector<string> TableScanIterator::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
   return {string("Table scan on ") + table()->alias +
           table()->file->explain_extra()};
+}
+
+FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                                       ha_rows *examined_rows)
+    : TableRowIterator(thd, table),
+      m_record(table->record[0]),
+      m_qep_tab(qep_tab),
+      m_examined_rows(examined_rows) {}
+
+FollowTailIterator::~FollowTailIterator() {
+  if (table()->file != nullptr) {
+    table()->file->ha_index_or_rnd_end();
+  }
+}
+
+bool FollowTailIterator::Init() {
+  // BeginMaterialization() must be called before this.
+  DBUG_ASSERT(m_stored_rows != nullptr);
+
+  /*
+    Only attempt to allocate a record buffer the first time the handler is
+    initialized.
+  */
+  const bool first_init = !table()->file->inited;
+
+  if (first_init) {
+    // The first Init() call at the start of a new WITH RECURSIVE
+    // execution. MaterializeIterator calls ha_index_or_rnd_end()
+    // before each iteration, which sets file->inited = false,
+    // so we can use that as a signal.
+    if (!table()->is_created()) {
+      // Recursive references always refer to a temporary table,
+      // which do not exist at resolution time; thus, we need to
+      // connect to it on first run here.
+      if (open_tmp_table(table())) {
+        return true;
+      }
+    }
+
+    int error = table()->file->ha_rnd_init(true);
+    if (error) {
+      PrintError(error);
+      return true;
+    }
+
+    if (first_init && set_record_buffer(m_qep_tab))
+      return true; /* purecov: inspected */
+
+    // The first seen record will start a new iteration.
+    m_read_rows = 0;
+    m_recursive_iteration_count = 0;
+    m_end_of_current_iteration = 0;
+  } else {
+    // Just continue where we left off last time.
+  }
+
+  return false;
+}
+
+int FollowTailIterator::Read() {
+  if (m_read_rows == *m_stored_rows) {
+    /*
+      Return EOF without even checking if there are more rows
+      (there isn't), so that we can continue reading when there are.
+      There are two underlying reasons why we need to do this,
+      depending on the storage engine in use:
+
+      1. For both MEMORY and InnoDB, when they report EOF,
+         the scan stays blocked at EOF forever even if new rows
+         are inserted later. (InnoDB has a supremum record, and
+         MEMORY increments info->current_record unconditionally.)
+
+      2. Specific to MEMORY, inserting records that are deduplicated
+         away can corrupt cursors that hit EOF. Consider the following
+         scenario:
+
+         - write 'A'
+         - write 'A': allocates a record, hits a duplicate key error, leaves
+           the allocated place as "deleted record".
+         - init scan
+         - read: finds 'A' at #0
+         - read: finds deleted record at #1, properly skips over it, moves to
+           EOF
+         - even if we save the read position at this point, it's "after #1"
+         - close scan
+         - write 'B': takes the place of deleted record, i.e. writes at #1
+         - write 'C': writes at #2
+         - init scan, reposition at saved position
+         - read: still after #1, so misses 'B'.
+
+         In this scenario, the table is formed of real records followed by
+         deleted records and then EOF.
+
+       To avoid these problems, we keep track of the number of rows in the
+       table by holding the m_stored_rows pointer into the MaterializeIterator,
+       and simply avoid hitting EOF.
+     */
+    return -1;
+  }
+
+  if (m_read_rows == m_end_of_current_iteration) {
+    // We have started a new iteration. Check to see if we have passed the
+    // user-set limit.
+    if (++m_recursive_iteration_count >
+        thd()->variables.cte_max_recursion_depth) {
+      my_error(ER_CTE_MAX_RECURSION_DEPTH, MYF(0), m_recursive_iteration_count);
+      return 1;
+    }
+    m_end_of_current_iteration = *m_stored_rows;
+
+#ifdef ENABLED_DEBUG_SYNC
+    if (m_recursive_iteration_count == 4) {
+      DEBUG_SYNC(thd(), "in_WITH_RECURSIVE");
+    }
+#endif
+  }
+
+  // Read the actual row.
+  //
+  // We can never have MyISAM here, so we don't need the checks
+  // for HA_ERR_RECORD_DELETED that TableScanIterator has.
+  int err = table()->file->ha_rnd_next(m_record);
+  if (err) {
+    return HandleError(err);
+  }
+
+  ++m_read_rows;
+
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
+  return 0;
+}
+
+vector<string> FollowTailIterator::DebugString() const {
+  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+  return {string("Scan new records on ") + table()->alias};
+}
+
+bool FollowTailIterator::RepositionCursorAfterSpillToDisk() {
+  return reposition_innodb_cursor(table(), m_read_rows);
 }

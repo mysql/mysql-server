@@ -36,6 +36,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "sql/mem_root_array.h"
 #include "sql/row_iterator.h"
 
 class Filesort_info;
@@ -437,6 +438,74 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
   const char *const m_reason;
   JOIN *const m_join;
   ha_rows *const m_examined_rows;
+};
+
+/**
+  FollowTailIterator is a special version of TableScanIterator that is used
+  as part of WITH RECURSIVE queries. It is designed to read from a temporary
+  table at the same time as MaterializeIterator writes to the same table,
+  picking up new records in the order they come in -- it follows the tail,
+  much like the UNIX tool “tail -f”.
+
+  Furthermore, when materializing a recursive query expression consisting of
+  multiple query blocks, MaterializeIterator needs to run each block several
+  times until convergence. (For a single query block, one iteration suffices,
+  since the iterator sees new records as they come in.) Each such run, the
+  recursive references should see only rows that were added since the last
+  iteration, even though Init() is called anew. FollowTailIterator is thus
+  different from TableScanIterator in that subsequent calls to Init() do not
+  move the cursor back to the start.
+
+  In addition, FollowTailIterator implements the WITH RECURSIVE iteration limit.
+  This is not specified in terms of Init() calls, since one run can encompass
+  many iterations. Instead, it keeps track of the number of records in the table
+  at the start of iteration, and when it has read all of those records, the next
+  iteration is deemed to have begun. If the iteration counter is above the
+  user-set limit, it raises an error to stop runaway queries with infinite
+  recursion.
+ */
+class FollowTailIterator final : public TableRowIterator {
+ public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                     ha_rows *examined_rows);
+  ~FollowTailIterator() override;
+
+  bool Init() override;
+  int Read() override;
+
+  std::vector<std::string> DebugString() const override;
+
+  /**
+    Signal where we can expect to find the number of generated rows for this
+    materialization (this points into the MaterializeIterator's data).
+
+    This must be called when we start materializing the CTE,
+    before Init() runs.
+   */
+  void set_stored_rows_pointer(ha_rows *stored_rows) {
+    m_stored_rows = stored_rows;
+  }
+
+  /**
+    Signal to the iterator that the underlying table was closed and replaced
+    with an InnoDB table with the same data, due to a spill-to-disk
+    (e.g. the table used to be MEMORY and now is InnoDB). This is
+    required so that Read() can continue scanning from the right place.
+    Called by MaterializeIterator::MaterializeRecursive().
+   */
+  bool RepositionCursorAfterSpillToDisk();
+
+ private:
+  uchar *const m_record;
+  QEP_TAB *const m_qep_tab;
+  ha_rows *const m_examined_rows;
+  ha_rows m_read_rows;
+  ha_rows m_end_of_current_iteration;
+  unsigned m_recursive_iteration_count;
+
+  // Points into MaterializeIterator's data; set by BeginMaterialization() only.
+  ha_rows *m_stored_rows = nullptr;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

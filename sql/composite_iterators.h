@@ -51,6 +51,7 @@
 #include "sql/row_iterator.h"
 #include "sql/table.h"
 
+class FollowTailIterator;
 template <class T>
 class List;
 class JOIN;
@@ -564,6 +565,17 @@ class MaterializeIterator final : public TableRowIterator {
     /// If copy_fields_and_items is true, used for copying the Field objects
     /// into the temporary table row. Otherwise unused.
     Temp_table_param *temp_table_param;
+
+    // Whether this query block is a recursive reference back to the
+    // output of the materialization.
+    bool is_recursive_reference = false;
+
+    // If is_recursive_reference is true, contains the FollowTailIterator
+    // in the query block (there can be at most one recursive reference
+    // in a join list, as per the SQL standard, so there should be exactly one).
+    // Used for informing the iterators about various shared state in the
+    // materialization (including coordinating rematerializations).
+    FollowTailIterator *recursive_reader = nullptr;
   };
 
   /**
@@ -722,6 +734,10 @@ class MaterializeIterator final : public TableRowIterator {
   /// Whether we are deduplicating, whether through a hash field
   /// or a regular unique index.
   bool doing_deduplication() const;
+
+  bool MaterializeRecursive();
+  bool MaterializeQueryBlock(const QueryBlock &query_block,
+                             ha_rows *stored_rows);
 };
 
 /**

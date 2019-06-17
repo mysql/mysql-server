@@ -318,7 +318,6 @@ EXPLAIN
                         "rows_examined_per_scan": 2,
                         "rows_produced_per_join": 4,
                         "filtered": "100.00",
-                        "using_join_buffer": "Block Nested Loop",
                         "cost_info": {
                           "read_cost": "0.25",
                           "eval_cost": "0.40",
@@ -348,7 +347,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Recursive; Using where
-3	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with recursive `qn` as (/* select#2 */ select cast('x' as char(100) charset utf8mb4) AS `a` union all /* select#3 */ select concat('x',`qn`.`a`) AS `concat("x",qn.a)` from `qn` join `test`.`t1` where (length(`qn`.`a`) < 10)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
 drop table t1;

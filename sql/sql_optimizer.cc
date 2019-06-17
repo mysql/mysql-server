@@ -536,6 +536,11 @@ bool JOIN::optimize() {
       select_lex->ftfunc_list->elements)
     no_jbuf_after = 0;
 
+  // If we _must_ use the iterator executor, turn off BNL/BKA, since those
+  // are the only features that it can't deal with now.
+  // See SELECT_LEX::find_common_table_expr() for more information.
+  if (select_lex->parent_lex->force_iterator_executor) no_jbuf_after = 0;
+
   /* Perform FULLTEXT search before all regular searches */
   if (select_lex->has_ft_funcs() && optimize_fts_query()) return true;
 
@@ -1128,6 +1133,12 @@ int JOIN::replace_index_subquery() {
 
   if (in_subs->exec_method == Item_exists_subselect::EXEC_MATERIALIZATION) {
     // We cannot have two engines at the same time
+  } else if (first_join_tab->table_ref->is_view_or_derived() &&
+             first_join_tab->table_ref->derived_unit()->is_recursive()) {
+    // The index subquery engine, which runs the derived table machinery
+    // from the old executor, is not capable of materializing a WITH RECURSIVE
+    // query from the iterator executor. Thus, be conservative here, so that the
+    // case never happens.
   } else if (having_cond == NULL) {
     const join_type type = first_join_tab->type();
     if ((type == JT_EQ_REF || type == JT_REF) &&

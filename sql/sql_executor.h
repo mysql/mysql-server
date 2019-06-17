@@ -693,6 +693,8 @@ class QEP_TAB : public QEP_shared_owner {
   /**
     Count of rows fetched from this table; maintained by sub_select() and
     reset to 0 by JOIN::reset().
+
+    Only used by the pre-iterator executor.
   */
   ha_rows m_fetched_rows;
 
@@ -723,6 +725,13 @@ class QEP_TAB : public QEP_shared_owner {
     is a ref access).
    */
   bool m_using_table_scan = false;
+
+  /**
+    If this table is a recursive reference(to a CTE), contains a pointer to the
+    iterator here. This is so that MaterializeIterator can get a list of all
+    such iterators, to coordinate rematerialization and other signals.
+   */
+  FollowTailIterator *recursive_iterator = nullptr;
 
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined

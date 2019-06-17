@@ -2574,6 +2574,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
       /* remove heap table and change to use on-disk table */
 
+      // TODO(sgunders): Move this into MaterializeIterator when we remove the
+      // pre-iterator executor.
       if (table->pos_in_table_list &&
           table->pos_in_table_list->is_recursive_reference() &&
           table->file->inited) {
@@ -2641,6 +2643,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       tab->quick()->set_handler(table->file);
     }
 
+    // TODO(sgunders): Move this into MaterializeIterator when we remove the
+    // pre-iterator executor.
     if (rec_ref_w_open_cursor) {
       /*
         The table just changed from MEMORY to INNODB. 'table' is a reader and
@@ -2653,8 +2657,15 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
         cursor after the same N rows in the InnoDB table.
       */
       if (psi_batch_started) table->file->start_psi_batch_mode();
-      if (reposition_innodb_cursor(table, qep_tab->m_fetched_rows))
-        goto err_after_proc_info; /* purecov: inspected */
+
+      // In the iterator executor, repositioning happens by
+      // means of an explicit call to
+      // FollowTailIterator::RepositionCursorAfterSpillToDisk().
+      // qep_tab->m_fetched_rows is not used.
+      if (qep_tab->recursive_iterator == nullptr) {
+        if (reposition_innodb_cursor(table, qep_tab->m_fetched_rows))
+          goto err_after_proc_info; /* purecov: inspected */
+      }
     }
 
     // Point 'table' back to old_share; *old_share will be updated after loop.

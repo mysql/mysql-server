@@ -435,15 +435,6 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
               fake_select_lex->where_cond() == NULL &&
               fake_select_lex->having_cond() == NULL);
 
-  if (is_recursive()) {
-    /*
-      The fake_select_lex's JOIN is going to read result_table_list
-      repeatedly, so this table has all the attributes of a recursive
-      reference:
-    */
-    result_table_list.set_recursive_reference();
-  }
-
   if (fake_select_lex->prepare(thd_arg)) return true;
 
   return false;
@@ -463,9 +454,7 @@ bool SELECT_LEX_UNIT::can_materialize_directly_into_result(THD *thd) const {
   }
 
   // We can only do this in an all-iterator world. (This mirrors
-  // create_iterators().) Note that select->join() can be nullptr
-  // at this point, if we're called before optimize(). Thus, we can
-  // give a false positive.
+  // create_iterators().)
   if (!all_query_blocks_use_iterator_executor()) {
     return false;
   }
@@ -840,6 +829,9 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
     m_query_blocks_to_materialize = setup_materialization(
         thd, materialize_destination, /*union_distinct_only=*/false);
   } else {
+    // Recursive CTEs expect to see the rows in the result table immediately
+    // after writing them.
+    DBUG_ASSERT(!is_recursive());
     create_iterators(thd);
   }
 
@@ -879,6 +871,28 @@ SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
         !join->streaming_aggregation ||
         join->tmp_table_param.precomputed_group_by;
     query_block.temp_table_param = &join->tmp_table_param;
+    query_block.is_recursive_reference = select->recursive_reference;
+
+    if (query_block.is_recursive_reference) {
+      // Find the recursive reference to ourselves; there should be exactly one,
+      // as per the standard.
+      for (unsigned table_idx = 0; table_idx < join->tables; ++table_idx) {
+        QEP_TAB *qep_tab = &join->qep_tab[table_idx];
+        if (qep_tab->recursive_iterator != nullptr) {
+          DBUG_ASSERT(query_block.recursive_reader == nullptr);
+          query_block.recursive_reader = qep_tab->recursive_iterator;
+#ifndef DBUG_OFF
+          break;
+#endif
+        }
+      }
+      if (query_block.recursive_reader == nullptr) {
+        // The recursive reference was optimized away, e.g. due to an impossible
+        // WHERE condition, so we're not a recursive reference after all.
+        query_block.is_recursive_reference = false;
+      }
+    }
+
     query_blocks.push_back(move(query_block));
 
     if (select == union_distinct) {
@@ -1015,8 +1029,7 @@ bool SELECT_LEX_UNIT::all_query_blocks_use_iterator_executor() const {
   // called before optimize(). Thus, we can give a false negative.
   for (SELECT_LEX *select = first_select(); select != nullptr;
        select = select->next_select()) {
-    if (select->is_recursive() ||
-        (select->join != nullptr && select->join->root_iterator() == nullptr)) {
+    if (select->join != nullptr && select->join->root_iterator() == nullptr) {
       // No support yet.
       return false;
     }

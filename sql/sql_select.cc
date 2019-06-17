@@ -181,7 +181,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
     // select->set_query_result() is for the pre-iterator executor; this one
     // is for the iterator executor.
     // TODO(sgunders): Get rid of this when we remove Query_result from the
-    // SQL_LEX_UNIT.
+    // SELECT_LEX_UNIT.
     unit->set_query_result(result);
   } else {
     if (unit->prepare(thd, result, SELECT_NO_UNLOCK | added_options,
