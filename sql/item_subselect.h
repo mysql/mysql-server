@@ -683,7 +683,7 @@ class subselect_engine {
  public:
   enum enum_engine_type {
     ABSTRACT_ENGINE,
-    UNION_ENGINE,
+    ITERATOR_ENGINE,
     INDEXSUBQUERY_ENGINE,
     HASH_SJ_ENGINE
   };
@@ -741,10 +741,11 @@ class subselect_engine {
 #endif
 };
 
-class subselect_union_engine final : public subselect_engine {
+class subselect_iterator_engine final : public subselect_engine {
  public:
-  subselect_union_engine(SELECT_LEX_UNIT *u, Query_result_interceptor *result,
-                         Item_subselect *item);
+  subselect_iterator_engine(SELECT_LEX_UNIT *u,
+                            Query_result_interceptor *result,
+                            Item_subselect *item);
   void cleanup(THD *thd) override;
   bool prepare(THD *thd) override;
   void fix_length_and_dec(Item_cache **row) override;
@@ -756,7 +757,7 @@ class subselect_union_engine final : public subselect_engine {
   void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool change_query_result(THD *thd, Item_subselect *si,
                            Query_result_subquery *result) override;
-  enum_engine_type engine_type() const override { return UNION_ENGINE; }
+  enum_engine_type engine_type() const override { return ITERATOR_ENGINE; }
   SELECT_LEX *single_select_lex() const;  // Only if unit is simple.
 
  private:
@@ -866,15 +867,15 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
     Through this member we can re-create and re-prepare the join object
     used to materialize the subquery for each execution of a prepared
     statement. We also reuse the functionality of
-    subselect_union_engine::[prepare | cols].
+    subselect_iterator_engine::[prepare | cols].
   */
-  subselect_union_engine *materialize_engine;
+  subselect_iterator_engine *materialize_engine;
   /* Temp table context of the outer select's JOIN. */
   Temp_table_param *tmp_param;
 
  public:
   subselect_hash_sj_engine(Item_subselect *in_predicate,
-                           subselect_union_engine *old_engine)
+                           subselect_iterator_engine *old_engine)
       : subselect_indexsubquery_engine(NULL, in_predicate, NULL, NULL),
         is_materialized(false),
         materialize_engine(old_engine),

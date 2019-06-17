@@ -3170,7 +3170,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
         turn a ref access into a "full scan on NULL key" table scan.
 
         @see Item_in_optimizer::val_int()
-        @see subselect_union_engine::exec()
+        @see subselect_iterator_engine::exec()
         @see TABLE_REF::cond_guards
         @see push_index_cond()
 

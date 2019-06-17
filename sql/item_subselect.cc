@@ -161,7 +161,7 @@ void Item_subselect::init(SELECT_LEX *select_lex,
     */
     parsing_place =
         (outer_select->in_sum_expr ? CTX_NONE : outer_select->parsing_place);
-    engine = new (*THR_MALLOC) subselect_union_engine(unit, result, this);
+    engine = new (*THR_MALLOC) subselect_iterator_engine(unit, result, this);
   }
   {
     SELECT_LEX *upper = unit->outer_select();
@@ -451,9 +451,9 @@ Item *Item_in_subselect::remove_in2exists_conds(Item *conds) {
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
                                                            JOIN *join) {
   DBUG_ASSERT(exec_method == EXEC_EXISTS_OR_MAT);
-  DBUG_ASSERT(engine->engine_type() == subselect_engine::UNION_ENGINE);
-  subselect_union_engine *old_engine_derived =
-      static_cast<subselect_union_engine *>(engine);
+  DBUG_ASSERT(engine->engine_type() == subselect_engine::ITERATOR_ENGINE);
+  subselect_iterator_engine *old_engine_derived =
+      static_cast<subselect_iterator_engine *>(engine);
 
   DBUG_ASSERT(join == old_engine_derived->single_select_lex()->join);
   // No UNION in materialized subquery so this holds:
@@ -2682,13 +2682,13 @@ void Item_allany_subselect::print(const THD *thd, String *str,
   Item_subselect::print(thd, str, query_type);
 }
 
-void subselect_union_engine::cleanup(THD *thd) {
+void subselect_iterator_engine::cleanup(THD *thd) {
   DBUG_TRACE;
   item->unit->reset_executed();
   result->cleanup(thd);
 }
 
-subselect_union_engine::subselect_union_engine(
+subselect_iterator_engine::subselect_iterator_engine(
     SELECT_LEX_UNIT *u, Query_result_interceptor *result_arg,
     Item_subselect *item_arg)
     : subselect_engine(item_arg, result_arg) {
@@ -2708,7 +2708,7 @@ subselect_union_engine::subselect_union_engine(
   @returns false if success, true if error
 */
 
-bool subselect_union_engine::prepare(THD *thd) {
+bool subselect_iterator_engine::prepare(THD *thd) {
   if (!unit->is_prepared())
     return unit->prepare(thd, result, SELECT_NO_UNLOCK, 0);
 
@@ -2731,10 +2731,8 @@ bool subselect_indexsubquery_engine::prepare(THD *) {
   @param row             cache objects to hold the result row of the subquery
   @param possibly_empty  true if the subquery could return empty result
 */
-void subselect_union_engine::set_row(List<Item> &item_list, Item_cache **row,
-                                     bool possibly_empty) {
-  DBUG_ASSERT(engine_type() == UNION_ENGINE);
-
+void subselect_iterator_engine::set_row(List<Item> &item_list, Item_cache **row,
+                                        bool possibly_empty) {
   /*
     Empty scalar or row subqueries evaluate to NULL, so if it is
     possibly empty, it is also possibly NULL.
@@ -2778,7 +2776,7 @@ static bool guaranteed_one_row(const SELECT_LEX *select_lex) {
          !select_lex->having_cond() && !select_lex->select_limit;
 }
 
-void subselect_union_engine::fix_length_and_dec(Item_cache **row) {
+void subselect_iterator_engine::fix_length_and_dec(Item_cache **row) {
   DBUG_ASSERT(row || unit->first_select()->item_list.elements == 1);
 
   // A UNION is possibly empty only if all of its SELECTs are possibly empty.
@@ -2805,7 +2803,7 @@ void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **) {
   DBUG_ASSERT(0);
 }
 
-bool subselect_union_engine::exec(THD *thd) {
+bool subselect_iterator_engine::exec(THD *thd) {
   DBUG_ASSERT(unit->is_optimized());
   char const *save_where = thd->where;
   const bool res = unit->execute(thd);
@@ -3147,14 +3145,16 @@ bool subselect_indexsubquery_engine::exec(THD *) {
   return error != 0;
 }
 
-uint subselect_union_engine::cols() const {
+uint subselect_iterator_engine::cols() const {
   DBUG_ASSERT(unit->is_prepared());  // should be called after fix_fields()
   return unit->types.elements;
 }
 
-uint8 subselect_union_engine::uncacheable() const { return unit->uncacheable; }
+uint8 subselect_iterator_engine::uncacheable() const {
+  return unit->uncacheable;
+}
 
-void subselect_union_engine::exclude() { unit->exclude_level(); }
+void subselect_iterator_engine::exclude() { unit->exclude_level(); }
 
 void subselect_indexsubquery_engine::exclude() {
   // this never should be called
@@ -3170,12 +3170,12 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table) {
   return map;
 }
 
-table_map subselect_union_engine::upper_select_const_tables() const {
+table_map subselect_iterator_engine::upper_select_const_tables() const {
   return calc_const_tables(unit->outer_select()->leaf_tables);
 }
 
-void subselect_union_engine::print(const THD *thd, String *str,
-                                   enum_query_type query_type) {
+void subselect_iterator_engine::print(const THD *thd, String *str,
+                                      enum_query_type query_type) {
   unit->print(thd, str, query_type);
 }
 
@@ -3231,15 +3231,15 @@ void subselect_indexsubquery_engine::print(const THD *thd, String *str,
     true  error
 */
 
-bool subselect_union_engine::change_query_result(THD *thd, Item_subselect *si,
-                                                 Query_result_subquery *res) {
+bool subselect_iterator_engine::change_query_result(
+    THD *thd, Item_subselect *si, Query_result_subquery *res) {
   item = si;
   int rc = unit->change_query_result(thd, res, result);
   result = res;
   return rc;
 }
 
-SELECT_LEX *subselect_union_engine::single_select_lex() const {
+SELECT_LEX *subselect_iterator_engine::single_select_lex() const {
   DBUG_ASSERT(unit->is_simple());
   return unit->first_select();
 }
