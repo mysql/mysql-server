@@ -76,6 +76,9 @@ static std::set<uint> supported_dd_versions = {
 static constexpr uint SERVER_VERSION_50700 = 50700;
 static constexpr uint SERVER_VERSION_80011 = 80011;
 static constexpr uint SERVER_VERSION_80013 = 80013;
+static constexpr uint SERVER_VERSION_80014 = 80014;
+static constexpr uint SERVER_VERSION_80015 = 80015;
+static constexpr uint SERVER_VERSION_80016 = 80016;
 
 /*
   Set of unsupported server version labels. An unsupported server version is a

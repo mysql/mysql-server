@@ -115,5 +115,50 @@ x$schema_flattened_keys	VIEW
 # restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --autocommit=0 --completion_type=chain --upgrade=force
 # Stop the server and do cleanup.
 # Remove copied files
+#
+# Bug#29917793: REJECT UPGRADE 8.0.14-16 -> 8.0.17 FOR LCTN=1 AND PARTITIONED TABLES
+#
+# This is the test case for case sensitive file systems. A corresponding test case
+# for case insensitive file systems can be found in dd_upgrade_ci.test.
+#
+# Test with lctn=1 and no partitioned tables. Upgrade should succeed.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
+# Stop the server and do cleanup.
+# Test with lctn=1 and partitioned tables. Upgrade should be rejected unless submitting --upgrade=FORCE.
+# Set different path for --datadir and check that it exists.
+# Upgrading the server should be rejected.
+Pattern "with partitioned tables and lower_case_table_names == 1" found
+# Retry upgrading the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1 --upgrade=force
+# Table rebuild will fail.
+ALTER TABLE test.t ENGINE = InnoDB;
+ERROR HY000: Got error 44 - 'InnoDB error' from storage engine
+# After RENAME, table rebuild will succeed.
+RENAME TABLE test.t TO test.t_new;
+RENAME TABLE test.t_new TO test.t;
+ALTER TABLE test.t ENGINE = InnoDB;
+SHOW CREATE TABLE test.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (-1) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+# Stop the server and do cleanup.
+# Test with lctn=0 and no partitioned tables. Upgrade should succeed.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG
+# Stop the server and do cleanup.
+# Test with lctn=0 and partitioned tables. Upgrade should succeed.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG
+# Table rebuild will succeed.
+ALTER TABLE test.t ENGINE = InnoDB;
+# Stop the server and do cleanup.
 # Restart the server with default options.
 # restart:
