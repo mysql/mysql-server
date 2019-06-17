@@ -22,7 +22,7 @@ test.parent	analyze	status	OK
 test.child	analyze	status	OK
 set ndb_join_pushdown = off;
 explain
-select straight_join * 
+select straight_join count(*)
 from parent join child
 on child.a = parent.a and child.b = parent.b
 where parent.b > 5;
@@ -32,7 +32,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`parent`.`a` AS `a`,`test`.`parent`.`b` AS `b`,`test`.`child`.`a` AS `a`,`test`.`child`.`b` AS `b` from `test`.`parent` join `test`.`child` where ((`test`.`child`.`b` = `test`.`parent`.`b`) and (`test`.`child`.`a` = `test`.`parent`.`a`) and (`test`.`parent`.`b` > 5))
 explain
-select straight_join *
+select straight_join count(*)
 from parent join child
 on child.a = parent.a 
 where parent.b > 5;
@@ -42,7 +42,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`parent`.`a` AS `a`,`test`.`parent`.`b` AS `b`,`test`.`child`.`a` AS `a`,`test`.`child`.`b` AS `b` from `test`.`parent` join `test`.`child` where ((`test`.`child`.`a` = `test`.`parent`.`a`) and (`test`.`parent`.`b` > 5))
 explain
-select straight_join *
+select straight_join count(*)
 from parent join child
 on child.b = parent.b 
 where parent.b > 5;
@@ -59,7 +59,7 @@ begin
 set @x=time_to_sec(current_time()) + seconds;
 repeat
 set ndb_join_pushdown = off;
-select straight_join * 
+select straight_join count(*)
 from parent join child
 on child.a = parent.a and child.b = parent.b
 where parent.b > 5;
@@ -71,7 +71,7 @@ begin
 set @x=time_to_sec(current_time()) + seconds;
 repeat
 set ndb_join_pushdown = off;
-select straight_join * 
+select straight_join count(*)
 from parent join child
 on child.a = parent.a and child.b = parent.b
 where parent.b > 5;
@@ -83,7 +83,7 @@ begin
 set @x=time_to_sec(current_time()) + seconds;
 repeat
 set ndb_join_pushdown = off;
-select straight_join *
+select straight_join count(*)
 from parent join child
 on child.a = parent.a and child.b = parent.b
 where parent.b > 5;
