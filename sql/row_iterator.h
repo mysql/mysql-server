@@ -136,15 +136,24 @@ class RowIterator {
     std::string description;
   };
 
+  /// List of zero or more iterators which are direct children of this one.
+  /// By convention, if there are multiple ones (ie., we're doing a join),
+  /// the outer iterator is listed first. So for a LEFT JOIN b, we'd list
+  /// a before b.
   virtual std::vector<Child> children() const { return std::vector<Child>(); }
 
-  // Returns a short string (used for EXPLAIN FORMAT=tree) with user-readable
-  // information for this iterator. When implementing these, try to avoid
-  // internal jargon (e.g. “eq_ref”); prefer things that read like normal,
-  // technical English (e.g. “single-row index lookup”).
-  //
-  // Callers should use FullDebugString() below, which adds costs
-  // (see set_estimated_cost() etc.) if present.
+  /// Returns a short string (used for EXPLAIN FORMAT=tree) with user-readable
+  /// information for this iterator. When implementing these, try to avoid
+  /// internal jargon (e.g. “eq_ref”); prefer things that read like normal,
+  /// technical English (e.g. “single-row index lookup”).
+  ///
+  /// For certain complex operations, such as MaterializeIterator, there can be
+  /// multiple strings. If so, they are interpreted as nested operations,
+  /// with the outermost, last-done operation first and the other ones indented
+  /// as if they were child iterators.
+  ///
+  /// Callers should use FullDebugString() below, which adds costs
+  /// (see set_estimated_cost() etc.) if present.
   virtual std::vector<std::string> DebugString() const = 0;
 
   virtual std::string TimingString() const {
