@@ -3034,10 +3034,18 @@ TRACE
           {
             "rows_estimation": [
               {
-                "table": "`q`"
+                "table": "`q`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 2.525
+                } /* table_scan */
               },
               {
-                "table": "`q` `q1`"
+                "table": "`q` `q1`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 2.525
+                } /* table_scan */
               }
             ] /* rows_estimation */
           },
@@ -3215,6 +3223,13 @@ TRACE
           {
             "materialize": {
               "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* materialize */
+          },
+          {
+            "materialize": {
+              "select#": 3,
               "steps": [
               ] /* steps */
             } /* materialize */

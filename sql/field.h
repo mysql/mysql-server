@@ -934,7 +934,8 @@ class Field {
              of hidden.
   */
   bool is_field_for_functional_index() const {
-    return hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
+    return hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_SQL &&
+           gcol_info != nullptr;
   }
 
   Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,

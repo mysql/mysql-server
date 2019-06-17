@@ -2298,7 +2298,7 @@ explain SELECT *
 FROM t1 JOIN (SELECT * FROM t2 UNION SELECT * FROM t2) AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	test.t1.a	2	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -2798,7 +2798,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 5	SUBQUERY	t1	NULL	ref	col_varchar_key	col_varchar_key	6	test.t3.col_varchar_nokey	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where (<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where true ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`)))) is false) or (`test`.`t1`.`pk` = 96))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where (<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where true ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`)))) is false) or (`test`.`t1`.`pk` = 96))
 SELECT table1.pk
 FROM (SELECT * FROM t1) AS table1
 LEFT JOIN
@@ -2998,7 +2998,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 3	DERIVED	t2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>(sha(`test`.`t1`.`pk`),sha(`test`.`t1`.`pk`) in ( <materialize> (/* select#2 */ select `` from (/* select#3 */ select '' AS `` from `test`.`t2`) `a` where true ), <primary_index_lookup>(sha(`test`.`t1`.`pk`) in <temporary table> on <auto_key> where ((sha(`test`.`t1`.`pk`) = ``))))) AS `SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)` from `test`.`t1`
+Note	1003	/* select#1 */ select <in_optimizer>(sha(`test`.`t1`.`pk`),sha(`test`.`t1`.`pk`) in ( <materialize> (/* select#2 */ select `` from (/* select#3 */ select '' AS `` from `test`.`t2`) `a` where true ), <primary_index_lookup>(sha(`test`.`t1`.`pk`) in <temporary table> on <auto_distinct_key> where ((sha(`test`.`t1`.`pk`) = ``))))) AS `SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)` from `test`.`t1`
 SELECT SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a) FROM t1;
 SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)
 0
@@ -4252,7 +4252,7 @@ FROM t3 AS subquery4_t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	subquery2_t2	NULL	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	subquery3_t1	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_key>	<auto_key>	7	const	1	100.00	Using where
+1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	7	const	1	100.00	Using where
 1	SIMPLE	subquery2_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 4	MATERIALIZED	subquery4_t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:

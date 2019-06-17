@@ -744,7 +744,6 @@ MaterializeIterator::MaterializeIterator(
   query_block.subquery_iterator = move(subquery_iterator);
   query_block.select_number = select_number;
   query_block.join = join;
-  query_block.deduplication_strategy = QueryBlock::ENABLE_INDEXES;
   query_block.copy_fields_and_items = copy_fields_and_items;
   query_block.temp_table_param = temp_table_param;
 }
@@ -848,16 +847,6 @@ bool MaterializeIterator::Init() {
 
     JOIN *join = query_block.join;
 
-    if (query_block.deduplication_strategy == QueryBlock::DISABLE_INDEXES) {
-      if (table()->file->ha_disable_indexes(HA_KEY_SWITCH_ALL)) {
-        return true;
-      }
-    } else {
-      if (table()->file->ha_enable_indexes(HA_KEY_SWITCH_ALL)) {
-        return true;
-      }
-    }
-
     if (query_block.subquery_iterator->Init()) {
       return true;
     }
@@ -880,8 +869,9 @@ bool MaterializeIterator::Init() {
           return true;
       }
 
-      if (query_block.deduplication_strategy == QueryBlock::ENABLE_INDEXES &&
-          !check_unique_constraint(table())) {
+      if (query_block.disable_deduplication_by_hash_field) {
+        DBUG_ASSERT(doing_hash_deduplication());
+      } else if (!check_unique_constraint(table())) {
         continue;
       }
 
@@ -1042,7 +1032,7 @@ vector<RowIterator::Child> MaterializeIterator::children() const {
   for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
     string this_heading = heading;
 
-    if (query_block.deduplication_strategy != QueryBlock::ENABLE_INDEXES) {
+    if (query_block.disable_deduplication_by_hash_field) {
       if (this_heading.empty()) {
         this_heading = "Disable deduplication";
       } else {

@@ -160,13 +160,15 @@ bool Query_result_union::create_result_table(
       tmp_table_param.can_use_pk_for_unique = false;
     }
     if (unit->mixed_union_operators()) {
-      /*
-        Generally, UNIQUE key can be promoted to PK, saving the space
-        consumption of a hidden PK. However, if the query mixes UNION ALL and
-        UNION DISTINCT, the PK will be disabled at some point in execution,
-        which InnoDB doesn't support as it uses a clustered PK. Then, no PK:
-      */
-      tmp_table_param.can_use_pk_for_unique = false;
+      // If we have mixed UNION DISTINCT / UNION ALL, we can't use an unique
+      // index to deduplicate, as we need to be able to turn off deduplication
+      // checking when we get to the UNION ALL part. The handler supports
+      // turning off indexes (and the pre-iterator executor used this to
+      // implement mixed DISTINCT/ALL), but not selectively, and we might very
+      // well need the other indexes when querying against the table.
+      // (Also, it would be nice to be able to remove this functionality
+      // altogether from the handler.) Thus, we do it manually instead.
+      tmp_table_param.force_hash_field_for_unique = true;
     }
   }
 
@@ -447,6 +449,32 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   return false;
 }
 
+bool SELECT_LEX_UNIT::can_materialize_directly_into_result(THD *thd) const {
+  // There's no point in doing this if we're not already trying to materialize.
+  if (!is_union()) {
+    return false;
+  }
+
+  // For now, we don't accept LIMIT or OFFSET; this restriction could probably
+  // be lifted fairly easily in the future.
+  if (global_parameters()->get_offset(thd) != 0 ||
+      global_parameters()->get_limit(thd) != HA_POS_ERROR) {
+    return false;
+  }
+
+  // We can only do this in an all-iterator world. (This mirrors
+  // create_iterators().) Note that select->join() can be nullptr
+  // at this point, if we're called before optimize(). Thus, we can
+  // give a false positive.
+  if (!all_query_blocks_use_iterator_executor()) {
+    return false;
+  }
+
+  // We can't materialize directly into the result if we have sorting.
+  // Otherwise, we're fine.
+  return global_parameters()->order_list.elements == 0;
+}
+
 /**
   Prepares all query blocks of a query expression, including
   fake_select_lex. If a recursive query expression, this also creates the
@@ -707,15 +735,7 @@ err:
   return true;
 }
 
-/**
-  Optimize all query blocks of a query expression, including fake_select_lex
-
-  @param thd    thread handler
-
-  @returns false if optimization successful, true if error
-*/
-
-bool SELECT_LEX_UNIT::optimize(THD *thd) {
+bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
   DBUG_TRACE;
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
@@ -798,7 +818,31 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
   query_result()->estimated_rowcount = estimated_rowcount;
   query_result()->estimated_cost = estimated_cost;
 
-  create_iterators(thd);
+  // If the caller has asked for materialization directly into a table of its
+  // own, and we can do so, do an unfinished materialization (see the comment
+  // on this function for more details).
+  if (thd->lex->m_sql_cmd != nullptr &&
+      thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
+    // Not supported when using secondary storage engine.
+    create_iterators(thd);
+  } else if (estimated_rowcount <= 1) {
+    // Don't do it for const tables, as for those, optimize_derived() wants to
+    // run the query during optimization, and thus needs an iterator.
+    //
+    // Do note that JOIN::extract_func_dependent_tables() can want to read from
+    // the derived table during the optimization phase even if it has
+    // estimated_rowcount larger than one (e.g., because it understands it can
+    // get only one row due to a unique index), but will detect that the table
+    // has not been created, and treat the the lookup as non-const.
+    create_iterators(thd);
+  } else if (materialize_destination != nullptr &&
+             can_materialize_directly_into_result(thd)) {
+    m_query_blocks_to_materialize = setup_materialization(
+        thd, materialize_destination, /*union_distinct_only=*/false);
+  } else {
+    create_iterators(thd);
+  }
+
   if (false) {
     // This can be useful during debugging.
     fprintf(stderr, "Query plan:\n%s\n",
@@ -818,30 +862,24 @@ SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
        select =
            select->next_select()) {  // Termination condition at end of loop.
     JOIN *join = select->join;
-    MaterializeIterator::QueryBlock table;
+    MaterializeIterator::QueryBlock query_block;
     DBUG_ASSERT(join && join->is_optimized());
     DBUG_ASSERT(join->root_iterator() != nullptr);
     ConvertItemsToCopy(join->fields, dst_table->visible_field_ptr(),
                        &join->tmp_table_param, join);
 
-    table.subquery_iterator = join->release_root_iterator();
-    table.select_number = select->select_number;
-    table.join = join;
+    query_block.subquery_iterator = join->release_root_iterator();
+    query_block.select_number = select->select_number;
+    query_block.join = join;
     if (mixed_union_operators() && !activate_deduplication) {
-      table.deduplication_strategy =
-          MaterializeIterator::QueryBlock::DISABLE_INDEXES;
-    } else {
-      // NOTE: For a pure UNION ALL query, we keep the indexes _on_;
-      // we won't have a unique index anyway, and turning off the others
-      // would cause wrong results when querying the table.
-      table.deduplication_strategy =
-          MaterializeIterator::QueryBlock::ENABLE_INDEXES;
+      query_block.disable_deduplication_by_hash_field = true;
     }
     // See the class comment on AggregateIterator.
-    table.copy_fields_and_items = !join->streaming_aggregation ||
-                                  join->tmp_table_param.precomputed_group_by;
-    table.temp_table_param = &join->tmp_table_param;
-    query_blocks.push_back(move(table));
+    query_block.copy_fields_and_items =
+        !join->streaming_aggregation ||
+        join->tmp_table_param.precomputed_group_by;
+    query_block.temp_table_param = &join->tmp_table_param;
+    query_blocks.push_back(move(query_block));
 
     if (select == union_distinct) {
       // Last query block that is part of a UNION DISTINCT.
@@ -863,12 +901,8 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
     return;
   }
 
-  for (SELECT_LEX *select = first_select(); select != nullptr;
-       select = select->next_select()) {
-    if (select->is_recursive() || select->join->root_iterator() == nullptr) {
-      // No support yet.
-      return;
-    }
+  if (!all_query_blocks_use_iterator_executor()) {
+    return;
   }
 
   // Decide whether we can stream rows, ie., never actually put them into the
@@ -974,6 +1008,20 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
         thd, move(m_root_iterator), limit, offset, calc_found_rows,
         &send_records);
   }
+}
+
+bool SELECT_LEX_UNIT::all_query_blocks_use_iterator_executor() const {
+  // Note that select->join() can be nullptr at this point, if we're
+  // called before optimize(). Thus, we can give a false negative.
+  for (SELECT_LEX *select = first_select(); select != nullptr;
+       select = select->next_select()) {
+    if (select->is_recursive() ||
+        (select->join != nullptr && select->join->root_iterator() == nullptr)) {
+      // No support yet.
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -1510,6 +1558,27 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
   DBUG_ASSERT(is_optimized());
 
   if (is_executed() && !uncacheable) return false;
+
+  if (unfinished_materialization()) {
+    // We were asked to materialize directly into a parent query block's
+    // temporary table (which only works in the iterator executor),
+    // but we're called from the non-iterator executor. (A typical case is
+    // where the parent query ended up using BKA, which we don't know when
+    // setting up derived tables.) This means we'll need some last-ditch
+    // execution strategy; we solve this by putting the iterators back
+    // where we found them and create iterators for normal (non-direct)
+    // derived table materialization. These iterators will generate our
+    // output (possibly by use of MaterializeIterator), which goes into the
+    // derived table by means of Query_result_union.
+    for (MaterializeIterator::QueryBlock &query_block :
+         m_query_blocks_to_materialize) {
+      query_block.join->set_root_iterator(move(query_block.subquery_iterator));
+      query_block.temp_table_param->items_to_copy = nullptr;
+    }
+    m_query_blocks_to_materialize.init_empty_const();
+    create_iterators(thd);
+    DBUG_ASSERT(m_root_iterator != nullptr);
+  }
 
   /*
     Even if we return "true" the statement might continue

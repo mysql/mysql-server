@@ -622,6 +622,9 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   from_field[-1] = NULL;
   field->table = field->orig_table = table;
   field->field_index = 0;
+
+  // Keep the field from being expanded by SELECT *.
+  field->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
 }
 
 /**
@@ -835,8 +838,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   /**
     When true, enforces unique constraint (by adding a hidden hash_field and
     creating a key over this field) when:
-    (1) unique key is too long or
-    (2) number of key parts in distinct key is too big.
+    (1) unique key is too long, or
+    (2) number of key parts in distinct key is too big, or
+    (3) the caller has requested it.
   */
   bool using_unique_constraint = false;
   bool use_packed_rows = false;
@@ -1221,6 +1225,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       keyinfo->usable_key_parts = keyinfo->user_defined_key_parts =
           param->group_parts;
       keyinfo->actual_key_parts = keyinfo->user_defined_key_parts;
+      share->key_parts = keyinfo->user_defined_key_parts;
       keyinfo->rec_per_key = 0;
       // keyinfo->algorithm is set later, when storage engine is known
       keyinfo->set_rec_per_key_array(NULL, NULL);
@@ -1257,14 +1262,14 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       Field **reg_field;
       keyinfo->user_defined_key_parts = field_count - param->hidden_field_count;
       keyinfo->actual_key_parts = keyinfo->user_defined_key_parts;
+      share->key_parts = keyinfo->user_defined_key_parts;
       if (!(key_part_info = new (&share->mem_root)
                 KEY_PART_INFO[keyinfo->user_defined_key_parts]))
         goto err;
       table->key_info = share->key_info = keyinfo;
       keyinfo->key_part = key_part_info;
       keyinfo->actual_flags = keyinfo->flags = HA_NOSAME | HA_NULL_ARE_EQUAL;
-      // TODO rename to <distinct_key>
-      keyinfo->name = "<auto_key>";
+      keyinfo->name = "<auto_distinct_key>";
       // keyinfo->algorithm is set later, when storage engine is known
       keyinfo->set_rec_per_key_array(NULL, NULL);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
@@ -1282,14 +1287,16 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
   /*
     To enforce unique constraint we need to add a field to hold key's hash
-    A1) already detected unique constraint
-    A2) distinct key is too long
-    A3) number of keyparts in distinct key is too big
+    A1) distinct key is too long
+    A2) number of keyparts in distinct key is too big
+    A3) caller cannot accept distinct via indexes (e.g. because it wants
+        to turn off the checking at some point)
   */
-  if (using_unique_constraint ||               // 1
-      distinct_key_length > max_key_length ||  // 2
-      (distinct &&                             // 3
-       (fieldnr - param->hidden_field_count) > max_key_parts)) {
+  if (distinct_key_length > max_key_length ||  // 1
+      (distinct &&                             // 2
+       (fieldnr - param->hidden_field_count) > max_key_parts) ||
+      (distinct && param->force_hash_field_for_unique)  // 3
+  ) {
     using_unique_constraint = true;
   }
 
@@ -1307,7 +1314,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       /* purecov: begin inspected */
       DBUG_ASSERT(thd->is_fatal_error());
       goto err;  // Got OOM
-      /* purecov: end */
+                 /* purecov: end */
     }
 
     // Mark hash_field as NOT NULL
@@ -1507,6 +1514,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                           NullS))
       goto err;
     table->key_info = share->key_info = hash_key;
+    share->key_parts = 1;
     hash_key->table = table;
     hash_key->key_part = hash_kpi;
     hash_key->actual_flags = hash_key->flags = HA_NULL_ARE_EQUAL;
@@ -1741,6 +1749,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     table->key_info->user_defined_key_parts = 1;
     table->key_info->usable_key_parts = 1;
     table->key_info->actual_key_parts = table->key_info->user_defined_key_parts;
+    share->key_parts = table->key_info->user_defined_key_parts;
     table->key_info->set_rec_per_key_array(NULL, NULL);
     table->key_info->algorithm = table->file->get_default_index_algorithm();
     table->key_info->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);

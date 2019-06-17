@@ -1864,7 +1864,8 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
     for (SELECT_LEX_UNIT *unit = select->first_inner_unit(); unit;
          unit = unit->next_unit()) {
       // Derived tables and const subqueries are already optimized
-      if (!unit->is_optimized() && unit->optimize(explain_thd))
+      if (!unit->is_optimized() &&
+          unit->optimize(explain_thd, /*materialize_destination=*/nullptr))
         return true; /* purecov: inspected */
     }
   }

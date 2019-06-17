@@ -34,7 +34,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where <in_optimizer>(`test`.`t`.`x`,`test`.`t`.`x` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t` group by `test`.`t`.`x` having true ), <primary_index_lookup>(`test`.`t`.`x` in <temporary table> on <auto_key> where ((`test`.`t`.`x` = `materialized-subquery`.`COUNT(*)`)))))
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where <in_optimizer>(`test`.`t`.`x`,`test`.`t`.`x` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t` group by `test`.`t`.`x` having true ), <primary_index_lookup>(`test`.`t`.`x` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`x` = `materialized-subquery`.`COUNT(*)`)))))
 SELECT * FROM t WHERE x IN (SELECT COUNT(*) FROM t GROUP BY x);
 x
 1

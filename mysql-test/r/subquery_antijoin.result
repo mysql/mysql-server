@@ -178,7 +178,7 @@ EXPLAIN SELECT 1 as a FROM t2 as ot
 WHERE NOT EXISTS (SELECT * FROM t1 AS it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot	NULL	index	NULL	PRIMARY	4	NULL	80	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
 2	MATERIALIZED	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t2` `ot` anti join (`test`.`t1` `it`) on((1 = 1)) where true
@@ -190,7 +190,7 @@ WHERE NOT EXISTS (SELECT * FROM t1 AS it WHERE it.uk=ot.pk)
 AND ot.pk<25;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot	NULL	range	PRIMARY	PRIMARY	4	NULL	24	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot.pk	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot.pk	1	100.00	Using where; Not exists
 2	MATERIALIZED	it	NULL	index	uk	uk	5	NULL	3	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
@@ -238,7 +238,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "5",
           "ref": [
             "test.ot.pk"
@@ -351,7 +351,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "5",
           "ref": [
             "test.t1.a"
@@ -421,25 +421,25 @@ EXPLAIN SELECT * FROM t1 WHERE t1.a NOT IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t2.a	1	100.00	Using where; Not exists
+2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	100.00	Using where; Not exists
 3	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))) is false)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))) is false)
 EXPLAIN SELECT * FROM t1 WHERE t1.a IN
 (SELECT a FROM t1 t2 WHERE a NOT IN (SELECT a FROM t1 t3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t2.a	1	100.00	Using where; Not exists
+2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	100.00	Using where; Not exists
 3	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
 EXPLAIN SELECT * FROM t1 JOIN t1 t2 ON t1.a>t2.a
 AND NOT EXISTS(SELECT * FROM t1 t3, t1 t4 WHERE t3.a=t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -448,21 +448,21 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 EXPLAIN SELECT * FROM t1 WHERE t1.a NOT IN (SELECT t3.a FROM t1 t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((`<subquery2>`.`a` = `test`.`t1`.`a`)) where true
 EXPLAIN SELECT * FROM t1 WHERE t1.a <> ALL (SELECT t3.a FROM t1 t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((`<subquery2>`.`a` = `test`.`t1`.`a`)) where true
 ALTER TABLE t1 MODIFY a INT NULL;
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -470,13 +470,13 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE NOT EXISTS(SELECT * FROM t1 t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((1 = 1)) where true
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -484,7 +484,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS FALSE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((1 = 1)) where true
@@ -497,13 +497,13 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS NOT TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((1 = 1)) where true
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS NOT FALSE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -517,7 +517,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE t1.a IN (SELECT t3.a FROM t1 t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1` `t3`) where (`<subquery2>`.`a` = `test`.`t1`.`a`)
@@ -530,7 +530,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE NOT EXISTS (SELECT t3.a FROM t1 t3 WHERE t3.a=t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -538,7 +538,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE (t1.a IN (SELECT t3.a FROM t1 t3)) IS TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1` `t3`) where (`<subquery2>`.`a` = `test`.`t1`.`a`)
@@ -565,7 +565,7 @@ a	b
 EXPLAIN SELECT * FROM t1 WHERE (t1.a IN (SELECT t3.a FROM t1 t3)) IS NOT TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((`<subquery2>`.`a` = `test`.`t1`.`a`)) where true
@@ -590,7 +590,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE (NOT t1.a IN (SELECT t3.a FROM t1 t3)) IS FALSE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1` `t3`) where (`<subquery2>`.`a` = `test`.`t1`.`a`)
@@ -609,7 +609,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE (NOT t1.a IN (SELECT t3.a FROM t1 t3)) IS NOT FALSE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	Using where; Not exists
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((`<subquery2>`.`a` = `test`.`t1`.`a`)) where true
@@ -657,7 +657,7 @@ subquery2_t1.col_varchar_key >= '2'
 t1.pk IN (2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
 2	MATERIALIZED	subquery2_t1	NULL	index	idx_cc_col_varchar_key	idx_cc_col_varchar_key	7	NULL	1	100.00	Using index
 2	MATERIALIZED	subquery2_t2	NULL	index	NULL	idx_cc_col_varchar_key	7	NULL	1	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	subquery2_t3	NULL	index	NULL	idx_cc_col_varchar_key	7	NULL	1	100.00	Using index; Using join buffer (Block Nested Loop)
@@ -701,7 +701,7 @@ FROM t1 AS t1 LEFT JOIN t1 AS t2 ON t1.pk NOT IN (SELECT 1 FROM t1 AS subq);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	idx_cc_col_int_key	5	NULL	64	100.00	Using index
 1	SIMPLE	t2	NULL	index	NULL	idx_cc_col_int_key	5	NULL	64	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.pk	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.pk	1	100.00	Using where; Not exists
 2	MATERIALIZED	subq	NULL	index	NULL	idx_cc_col_int_key	5	NULL	64	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` left join (`test`.`t1` `t2` anti join (`test`.`t1` `subq`) on((`test`.`t1`.`pk` = 1))) on(true) where true
@@ -726,7 +726,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	alias2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias1.col_int	1	100.00	Using index
-1	SIMPLE	<subquery3>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery3>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
 3	MATERIALIZED	sj1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
 Warnings:
 Note	1249	Select 5 was reduced during optimization
@@ -837,7 +837,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))))
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2);
 col_int	col_int2
@@ -848,7 +848,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is true)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is true)
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2) IS TRUE;
 col_int	col_int2
@@ -859,7 +859,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is false)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is false)
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2) IS FALSE;
 col_int	col_int2
@@ -869,7 +869,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is false)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is false)
 SELECT * FROM t1 WHERE
 t1.col_int+1 NOT IN (SELECT col_int FROM t1 t2);
 col_int	col_int2
@@ -879,7 +879,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`))))) is null)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`))))) is null)
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2) IS UNKNOWN;
 col_int	col_int2
@@ -905,7 +905,7 @@ NOT EXISTS ( SELECT * FROM t1 as t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	PRIMARY	<subquery3>	NULL	const	<auto_key>	<auto_key>	8	const	1	100.00	Using where; Not exists
+1	PRIMARY	<subquery3>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
 3	MATERIALIZED	t4	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
 2	UNCACHEABLE SUBQUERY	t3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:

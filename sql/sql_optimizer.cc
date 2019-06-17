@@ -5336,14 +5336,17 @@ bool JOIN::extract_func_dependent_tables() {
              3. are part of semi-join, or
              4. have an expensive outer join condition.
              5. are blocked by handler for const table optimize.
+             6. are not going to be used, typically because they are streamed
+                instead of materialized
+                (see SELECT_LEX_UNIT::can_materialize_directly_into_result()).
           */
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                                // 1
               !tl->outer_join_nest() &&                                   // 2
               !(tl->embedding && tl->embedding->is_sj_or_aj_nest()) &&    // 3
               !(tab->join_cond() && tab->join_cond()->is_expensive()) &&  // 4
-              !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))    // 5
-          {
+              !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE) &&  // 5
+              table->is_created()) {                                      // 6
             if (table->key_info[key].flags & HA_NOSAME) {
               if (const_ref == eq_part) {  // Found everything for ref.
                 ref_changed = true;
@@ -8761,15 +8764,32 @@ void JOIN::finalize_derived_keys() {
 
       adjust_key_count = true;
 
-      Key_use *const keyuse = tab->position()->key;
+      Key_map used_keys;
 
-      if (!keyuse) {
+      // Mark all unique indexes as in use, since they have an effect
+      // (deduplication) whether any expression refers to them or not.
+      // In particular, they are used if we want to materialize a UNION DISTINCT
+      // directly into the derived table.
+      for (uint i = 0; i < table->s->keys; ++i) {
+        if (table->key_info[i].flags & HA_NOSAME) {
+          used_keys.set_bit(i);
+        }
+      }
+
+      // Same for the hash key used for manual deduplication, if any. (It always
+      // has index 0 if it exists.)
+      if (table->hash_field) {
+        used_keys.set_bit(0);
+      }
+
+      Key_use *const keyuse = tab->position()->key;
+      if (keyuse == nullptr && used_keys.is_clear_all()) {
+        // Nothing uses any keys.
         tab->keys().clear_all();
         tab->const_keys.clear_all();
         continue;
       }
 
-      Key_map used_keys;
       Derived_refs_iterator it(table_ref);
       while (TABLE *t = it.get_next()) {
         /*
@@ -8795,7 +8815,12 @@ void JOIN::finalize_derived_keys() {
         }
       }
 
-      uint new_idx = table->s->find_first_unused_tmp_key(used_keys);
+      uint new_idx = table->s->find_first_unused_tmp_key(
+          used_keys);  // Also updates table->s->first_unused_tmp_key.
+      if (keyuse == nullptr) {
+        continue;
+      }
+
       const uint old_idx = keyuse->key;
       DBUG_ASSERT(old_idx != new_idx);
 

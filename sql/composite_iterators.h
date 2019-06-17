@@ -543,20 +543,18 @@ class MaterializeIterator final : public TableRowIterator {
     /// what ExecuteIteratorQuery() needs to do at the top level.)
     JOIN *join;
 
-    enum {
-      /// Keep indexes on as usual. Deduplication, if there is a unique index,
-      /// will remain active. This is the normal strategy, which is used
-      /// for pure UNION DISTINCT or pure UNION ALL queries.
-      ENABLE_INDEXES,
-
-      /// Unique constraint checking on the destination table is disabled when
-      /// materializing this query block. Used when materializing
-      /// UNION DISTINCT and UNION ALL parts into the same table. Note that
-      /// this disables writing to _all_ indexes, so if you use this, you cannot
-      /// query the table by index (e.g. ref access). Also disables checking
-      /// by means of hash keys (see doing_hash_deduplication()).
-      DISABLE_INDEXES,
-    } deduplication_strategy;
+    /// If true, unique constraint checking via hash key is disabled
+    /// when materializing this query block (ie., we simply avoid calling
+    /// check_unique_constraint() for each row). Used when materializing
+    /// UNION DISTINCT and UNION ALL parts into the same table.
+    /// We'd like to just use a unique constraint via unique index instead,
+    /// but there might be other indexes on the destination table
+    /// that we'd like to keep, and the implementation doesn't allow
+    /// disabling only one index.
+    ///
+    /// If you use this on a query block, doing_hash_deduplication()
+    /// must be true.
+    bool disable_deduplication_by_hash_field = false;
 
     /// If set to false, the Field objects in the output row are
     /// presumed already to be filled out. This is the case iff

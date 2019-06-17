@@ -1790,11 +1790,23 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
           !join->streaming_aggregation ||
           join->tmp_table_param.precomputed_group_by;
     }
-    if (qep_tab->table_ref->common_table_expr() == nullptr && rematerialize &&
-        qep_tab->using_table_scan()) {
-      // We don't actually need the materialization for anything (we would just
-      // be reading the rows straight out from the table, never to be used
-      // again), so we can just stream rows directly over to the next
+    if (unit->unfinished_materialization()) {
+      // The unit is a UNION capable of materializing directly into our result
+      // table. This saves us from doing double materialization (first into
+      // a UNION result table, then from there into our own).
+      //
+      // We will already have set up a unique index on the table if
+      // required; see TABLE_LIST::setup_materialized_derived_tmp_table().
+      table_iterator = NewIterator<MaterializeIterator>(
+          thd, unit->release_query_blocks_to_materialize(), qep_tab->table(),
+          move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
+          unit, /*subjoin=*/nullptr,
+          /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records);
+    } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
+               rematerialize && qep_tab->using_table_scan()) {
+      // We don't actually need the materialization for anything (we would
+      // just reading the rows straight out from the table, never to be used
+      // again), so we can just stream records directly over to the next
       // iterator. This saves both CPU time and memory (for the temporary
       // table).
       table_iterator = NewIterator<StreamingIterator>(
@@ -2433,15 +2445,22 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     return nullptr;
   }
 
-  // The new executor engine can't do BNL/BKA.
-  // Revert to the old one if they show up.
+  // Apart from WITH RECURSIVE, there are only two specific cases where
+  // we need to use the pre-iterator executor:
+  //
+  //   1. We have a child query expression that needs to run in it.
+  //   2. We have join buffering (BNL/BKA).
+  //
+  // If either #1 or #2 is detected, revert to the pre-iterator executor.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
     if (qep_tab->materialize_table == join_materialize_derived) {
       // If we have a derived table that can be processed by
       // the iterator executor, MaterializeIterator can deal with it.
       SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
-      if (unit->root_iterator() == nullptr) {
+      if (unit->root_iterator() == nullptr &&
+          !unit->unfinished_materialization()) {
+        // Runs in the pre-iterator executor.
         return nullptr;
       }
     }

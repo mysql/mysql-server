@@ -1941,7 +1941,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "5",
           "ref": [
             "test.t1.a"
@@ -3830,7 +3830,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "5",
           "ref": [
             "test.t1.a"

@@ -2426,8 +2426,8 @@ Handler_external_lock	4
 Handler_read_first	16
 Handler_read_key	16
 Handler_read_next	12
-Handler_read_rnd_next	20
-Handler_write	17
+Handler_read_rnd_next	14
+Handler_write	12
 FLUSH STATUS;
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2) t4;
 a	b
@@ -2442,8 +2442,8 @@ Handler_external_lock	4
 Handler_read_first	16
 Handler_read_key	16
 Handler_read_next	12
-Handler_read_rnd_next	20
-Handler_write	17
+Handler_read_rnd_next	14
+Handler_write	12
 FLUSH STATUS;
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3) t4 UNION SELECT * FROM t2;
 a	b
@@ -2474,8 +2474,8 @@ Handler_external_lock	4
 Handler_read_first	3
 Handler_read_key	4
 Handler_read_next	12
-Handler_read_rnd_next	18
-Handler_write	16
+Handler_read_rnd_next	12
+Handler_write	11
 #
 # Test EXPLAIN SELECT ... UNION SELECT ...
 #

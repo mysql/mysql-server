@@ -12022,9 +12022,10 @@ EXPLAIN
         "read_cost": "2.70",
         "eval_cost": "1.60",
         "prefix_cost": "4.30",
-        "data_read_per_join": "512"
+        "data_read_per_join": "640"
       },
       "used_columns": [
+        "<hash_field>",
         "i",
         "j",
         "ROW_NUMBER() OVER (ORDER BY j)"

@@ -6088,6 +6088,14 @@ SELECT sq2_alias2.col_varchar_key AS sq2_field1,
 FROM t3 AS sq2_alias1 LEFT OUTER JOIN t3 AS sq2_alias2
      ON sq2_alias1.pk = sq2_alias2.col_int_key;
 
+#
+# Note that due to the UNION DISTINCT, view_inline_2 will get a unique index
+# on the temporary table it is materialized into (both parts of the query are
+# materialized straight into the same table). This enables more semijoin
+# optimizations than one would expect; in particular, we can do semijoin
+# table pullout (rewriting the IN into a simple inner join) if enabled,
+# and use unique_subquery instead of index_subquery if not.
+#
 CREATE VIEW view_inline_2 AS
 SELECT 'p', 'p' UNION SELECT 'k', 's';
 

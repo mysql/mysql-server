@@ -588,7 +588,7 @@ EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b >
 EXPLAIN
 -> Nested loop anti-join
     -> Table scan on t1  (cost=0.25 rows=3)
-    -> Single-row index lookup on <subquery2> using <auto_key> (b=t1.a)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)
         -> Materialize with deduplication
             -> Filter: (t1.b > 2)  (cost=0.25 rows=3)
                 -> Table scan on t1  (cost=0.25 rows=3)
@@ -726,3 +726,24 @@ EXPLAIN
 -> Table scan on ENGINES
     -> Fill information schema table ENGINES
 
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES (1), (2), (3);
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 ) d1;
+EXPLAIN
+-> Nested loop inner join
+    -> Index scan on t1 using PRIMARY  (cost=0.25 rows=3)
+    -> Table scan on d1
+        -> Union materialize with deduplication
+            -> Index scan on t1 using PRIMARY  (cost=0.25 rows=3)
+            -> Index scan on t1 using PRIMARY  (cost=0.25 rows=3)
+
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
+EXPLAIN
+-> Nested loop inner join
+    -> Index scan on t1 using PRIMARY  (cost=0.25 rows=3)
+    -> Table scan on d1
+        -> Union materialize
+            -> Index scan on t1 using PRIMARY  (cost=0.25 rows=3)
+            -> Index scan on t1 using PRIMARY  (cost=0.25 rows=3)
+
+DROP TABLE t1;

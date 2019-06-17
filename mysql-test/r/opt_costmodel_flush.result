@@ -291,7 +291,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "4",
           "ref": [
             "test.t1.i1"
@@ -382,7 +382,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "4",
           "ref": [
             "test.t1.i1"
@@ -474,7 +474,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "4",
           "ref": [
             "test.t1.i1"
@@ -568,7 +568,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "4",
           "ref": [
             "test.t1.i1"
@@ -661,7 +661,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "1001",
           "ref": [
             "test.t1.c1"
@@ -741,7 +741,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "1001",
           "ref": [
             "test.t1.c1"
@@ -821,7 +821,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "1001",
           "ref": [
             "test.t1.c1"
@@ -904,7 +904,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "1001",
           "ref": [
             "test.t1.c1"

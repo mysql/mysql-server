@@ -200,7 +200,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   */
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) goto err;
 
-  if (unit->optimize(thd)) goto err;
+  if (unit->optimize(thd, /*materialize_destination=*/nullptr)) goto err;
 
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) goto err; /* purecov: inspected */
@@ -883,7 +883,7 @@ static bool optimize_secondary_engine(THD *thd) {
 bool Sql_cmd_dml::execute_inner(THD *thd) {
   SELECT_LEX_UNIT *unit = lex->unit;
 
-  if (unit->optimize(thd)) return true;
+  if (unit->optimize(thd, /*materialize_destination=*/nullptr)) return true;
 
   // Calculate the current statement cost. It will be made available in
   // the Last_query_cost status variable.
@@ -1762,7 +1762,9 @@ bool SELECT_LEX::optimize(THD *thd) {
   for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
        unit = unit->next_unit()) {
     // Derived tables and const subqueries are already optimized
-    if (!unit->is_optimized() && unit->optimize(thd)) return true;
+    if (!unit->is_optimized() &&
+        unit->optimize(thd, /*materialize_destination=*/nullptr))
+      return true;
   }
 
   return false;

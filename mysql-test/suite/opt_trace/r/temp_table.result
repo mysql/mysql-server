@@ -1209,10 +1209,10 @@ ORDER BY cc	{
                       "in_plan_at_position": 0,
                       "columns": 2,
                       "row_length": 757,
-                      "key_length": 0,
+                      "key_length": 757,
                       "unique_constraint": false,
                       "makes_grouped_rows": false,
-                      "cannot_insert_duplicates": false,
+                      "cannot_insert_duplicates": true,
                       "location": "memory (heap)",
                       "row_limit_estimate": 1
                     } /* tmp_table_info */
@@ -1220,39 +1220,8 @@ ORDER BY cc	{
                 },
                 {
                   "materialize": {
-                    "select#": "fake",
+                    "select#": 2,
                     "steps": [
-                      {
-                        "materialize": {
-                          "select#": 2,
-                          "steps": [
-                            {
-                              "converting_tmp_table_to_ondisk": {
-                                "cause": "memory_table_size_exceeded",
-                                "tmp_table_info": {
-                                  "table": "``.``",
-                                  "in_plan_at_position": 0,
-                                  "columns": 2,
-                                  "row_length": 757,
-                                  "key_length": 757,
-                                  "unique_constraint": false,
-                                  "makes_grouped_rows": false,
-                                  "cannot_insert_duplicates": true,
-                                  "location": "disk (TMP_TABLE_ENGINE)",
-                                  "record_format": "packed"
-                                } /* tmp_table_info */
-                              } /* converting_tmp_table_to_ondisk */
-                            }
-                          ] /* steps */
-                        } /* materialize */
-                      },
-                      {
-                        "materialize": {
-                          "select#": 3,
-                          "steps": [
-                          ] /* steps */
-                        } /* materialize */
-                      },
                       {
                         "converting_tmp_table_to_ondisk": {
                           "cause": "memory_table_size_exceeded",
@@ -1261,15 +1230,22 @@ ORDER BY cc	{
                             "in_plan_at_position": 0,
                             "columns": 2,
                             "row_length": 757,
-                            "key_length": 0,
+                            "key_length": 757,
                             "unique_constraint": false,
                             "makes_grouped_rows": false,
-                            "cannot_insert_duplicates": false,
+                            "cannot_insert_duplicates": true,
                             "location": "disk (TMP_TABLE_ENGINE)",
                             "record_format": "packed"
                           } /* tmp_table_info */
                         } /* converting_tmp_table_to_ondisk */
                       }
+                    ] /* steps */
+                  } /* materialize */
+                },
+                {
+                  "materialize": {
+                    "select#": 3,
+                    "steps": [
                     ] /* steps */
                   } /* materialize */
                 },
@@ -1293,7 +1269,7 @@ ORDER BY cc	{
                     "key_size": 4,
                     "row_size": 763,
                     "max_rows_per_buffer": 340,
-                    "num_rows_estimate": 1365,
+                    "num_rows_estimate": 1820,
                     "num_rows_found": 132,
                     "num_initial_chunks_spilled_to_disk": 0,
                     "peak_memory_used": "NNN",

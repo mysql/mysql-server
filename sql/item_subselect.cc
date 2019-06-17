@@ -674,7 +674,9 @@ bool Item_subselect::exec(THD *thd) {
   trace_exec.add_select_number(unit->first_select()->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   // Statements like DO and SET may still rely on lazy optimization
-  if (!unit->is_optimized() && unit->optimize(thd)) return true;
+  if (!unit->is_optimized() &&
+      unit->optimize(thd, /*materialize_destination=*/nullptr))
+    return true;
   bool res = engine->exec(thd);
 
   return res;

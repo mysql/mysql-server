@@ -573,17 +573,29 @@ class SELECT_LEX_UNIT {
 
   TABLE_LIST result_table_list;
   Query_result_union *union_result;
-  TABLE *table; /* temporary table using for appending UNION results */
-  /// Object to which the result for this query expression is sent
+  /// Temporary table using for appending UNION results.
+  /// Not used if we materialize directly into a parent query expression's
+  /// result table (see optimize()).
+  TABLE *table;
+  /// Object to which the result for this query expression is sent.
+  /// Not used if we materialize directly into a parent query expression's
+  /// result table (see optimize()).
   Query_result *m_query_result;
 
   /**
     An iterator you can read from to get all records for this query.
 
     May be nullptr even after create_iterators() if the current query
-    is not supported by the iterator executor.
+    is not supported by the iterator executor, or in the case of an
+    unfinished materialization (see optimize()).
    */
   unique_ptr_destroy_only<RowIterator> m_root_iterator;
+
+  /**
+    If there is an unfinished materialization (see optimize()),
+    contains one element for each query block in this query expression.
+   */
+  Mem_root_array<MaterializeIterator::QueryBlock> m_query_blocks_to_materialize;
 
   /**
     Sets up each query block in this query expression for materialization
@@ -603,6 +615,14 @@ class SELECT_LEX_UNIT {
     nullptr.
    */
   void create_iterators(THD *thd);
+
+  /**
+    Whether all children use the iterator executor or not.
+
+    Before optimize(), can return false positives. See
+    can_materialize_directly_into_result().
+   */
+  bool all_query_blocks_use_iterator_executor() const;
 
  public:
   /**
@@ -742,6 +762,17 @@ class SELECT_LEX_UNIT {
     return move(m_root_iterator);
   }
 
+  /// See optimize().
+  bool unfinished_materialization() const {
+    return !m_query_blocks_to_materialize.empty();
+  }
+
+  /// See optimize().
+  Mem_root_array<MaterializeIterator::QueryBlock>
+  release_query_blocks_to_materialize() {
+    return std::move(m_query_blocks_to_materialize);
+  }
+
   /**
     If this unit is recursive, then this returns the Query_result which holds
     the rows of the recursive reference read by 'reader':
@@ -754,9 +785,40 @@ class SELECT_LEX_UNIT {
   /// Set new query result object for this query expression
   void set_query_result(Query_result *res) { m_query_result = res; }
 
+  /**
+    Whether there is a chance that optimize() is capable of materializing
+    directly into a result table if given one. Note that even if this function
+    returns true, optimize() can choose later not to do so, since it depends
+    on information (in particular, whether the query blocks can run under
+    the iterator executor or not) that is not available before optimize time.
+   */
+  bool can_materialize_directly_into_result(THD *thd) const;
+
   bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);
-  bool optimize(THD *thd);
+
+  /**
+    If and only if materialize_destination is non-nullptr, it means that the
+    caller intends to materialize our result into the given table. If it is
+    advantageous (in particular, if this query expression is a UNION DISTINCT),
+    optimize() will not create an iterator by itself, but rather do an
+    unfinished materialize. This means that it will collect iterators for
+    all the query blocks and prepare them for materializing into the given
+    table, but not actually create a root iterator for this query expression;
+    the caller is responsible for calling release_tables_to_materialize() and
+    creating the iterator itself.
+
+    Even if materialize_destination is non-nullptr, this function may choose
+    to make a regular iterator. The caller is responsible for checking
+    unfinished_materialization() if it has given a non-nullptr table.
+
+    @param thd Thread handle.
+
+    @param materialize_destination What table to try to materialize into,
+      or nullptr if the caller does not intend to materialize the result.
+   */
+  bool optimize(THD *thd, TABLE *materialize_destination);
+
   bool ExecuteIteratorQuery(THD *thd);
   bool execute(THD *thd);
   bool explain(THD *explain_thd, const THD *query_thd);

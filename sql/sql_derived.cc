@@ -179,12 +179,6 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
   // Allocate clone on the memory root of the TABLE_SHARE.
   TABLE *t = static_cast<TABLE *>(first->s->mem_root.Alloc(sizeof(TABLE)));
   if (!t) return nullptr; /* purecov: inspected */
-  /*
-    Share's of derived tables has key descriptions that can't be properly
-    processed by open_table_from_share(). Luckily we never get such tables
-    with keys here.
-  */
-  DBUG_ASSERT(first->s->keys == 0);
   if (open_table_from_share(thd, first->s, tl->alias,
                             /*
                               Pass db_stat == 0 to delay opening of table in SE,
@@ -540,8 +534,17 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
                                               *m_derived_column_names);
     }
 
+    // If we're materializing directly into the result and we have a UNION
+    // DISTINCT query, we're going to need a unique index for deduplication.
+    // (If we're materializing into a temporary table instead, the deduplication
+    // will happen on that table, and is not set here.) create_result_table()
+    // will figure out whether it wants to create it as the primary key or just
+    // a regular index.
+    bool is_distinct = derived->can_materialize_directly_into_result(thd) &&
+                       derived->union_distinct != nullptr;
+
     bool rc = derived_result->create_result_table(
-        thd, &derived->types, false, create_options, alias, false, false);
+        thd, &derived->types, is_distinct, create_options, alias, false, false);
 
     if (m_derived_column_names)  // Restore names
       swap_column_names_of_unit_and_tmp_table(derived->types,
@@ -554,10 +557,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
     if (m_common_table_expr && m_common_table_expr->tmp_tables.push_back(this))
       return true; /* purecov: inspected */
   }
-
-  // Detect cases which common_table_expr::clone_tmp_table() couldn't clone:
-  DBUG_ASSERT(!table->s->keys && !table->s->key_info && !table->hash_field &&
-              !table->group && !table->is_distinct);
 
   // Make table's name same as the underlying materialized table
   set_name_temporary();
@@ -705,7 +704,7 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
 
   DBUG_ASSERT(unit && !unit->is_optimized());
 
-  if (unit->optimize(thd) || thd->is_error()) return true;
+  if (unit->optimize(thd, table) || thd->is_error()) return true;
 
   if (materializable_is_const() &&
       (create_materialized_table(thd) || materialize_derived(thd)))
@@ -807,12 +806,21 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
     be the same as insertion order.
     So let's verify that the table has no MySQL-created PK.
   */
-  DBUG_ASSERT(table->s->primary_key == MAX_KEY);
-
   SELECT_LEX_UNIT *const unit = derived_unit();
+  if (unit->is_recursive()) {
+    DBUG_ASSERT(table->s->primary_key == MAX_KEY);
+  }
+
+  if (table->hash_field) {
+    table->file->ha_index_init(0, false);
+  }
 
   // execute unit without cleaning up
   bool res = unit->execute(thd);
+
+  if (table->hash_field) {
+    table->file->ha_index_or_rnd_end();
+  }
 
   if (!res) {
     /*

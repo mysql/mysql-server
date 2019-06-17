@@ -285,7 +285,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	m18	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	m19	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`s00`.`a` AS `a`,`test`.`s00`.`b` AS `b`,`test`.`s01`.`a` AS `a`,`test`.`s01`.`b` AS `b`,`test`.`s02`.`a` AS `a`,`test`.`s02`.`b` AS `b`,`test`.`s03`.`a` AS `a`,`test`.`s03`.`b` AS `b`,`test`.`s04`.`a` AS `a`,`test`.`s04`.`b` AS `b`,`test`.`s05`.`a` AS `a`,`test`.`s05`.`b` AS `b`,`test`.`s06`.`a` AS `a`,`test`.`s06`.`b` AS `b`,`test`.`s07`.`a` AS `a`,`test`.`s07`.`b` AS `b`,`test`.`s08`.`a` AS `a`,`test`.`s08`.`b` AS `b`,`test`.`s09`.`a` AS `a`,`test`.`s09`.`b` AS `b`,`test`.`s10`.`a` AS `a`,`test`.`s10`.`b` AS `b`,`test`.`s11`.`a` AS `a`,`test`.`s11`.`b` AS `b`,`test`.`s12`.`a` AS `a`,`test`.`s12`.`b` AS `b`,`test`.`s13`.`a` AS `a`,`test`.`s13`.`b` AS `b`,`test`.`s14`.`a` AS `a`,`test`.`s14`.`b` AS `b`,`test`.`s15`.`a` AS `a`,`test`.`s15`.`b` AS `b`,`test`.`s16`.`a` AS `a`,`test`.`s16`.`b` AS `b`,`test`.`s17`.`a` AS `a`,`test`.`s17`.`b` AS `b`,`test`.`s18`.`a` AS `a`,`test`.`s18`.`b` AS `b`,`test`.`s19`.`a` AS `a`,`test`.`s19`.`b` AS `b`,`test`.`s20`.`a` AS `a`,`test`.`s20`.`b` AS `b`,`test`.`s21`.`a` AS `a`,`test`.`s21`.`b` AS `b`,`test`.`s22`.`a` AS `a`,`test`.`s22`.`b` AS `b`,`test`.`s23`.`a` AS `a`,`test`.`s23`.`b` AS `b`,`test`.`s24`.`a` AS `a`,`test`.`s24`.`b` AS `b`,`test`.`s25`.`a` AS `a`,`test`.`s25`.`b` AS `b`,`test`.`s26`.`a` AS `a`,`test`.`s26`.`b` AS `b`,`test`.`s27`.`a` AS `a`,`test`.`s27`.`b` AS `b`,`test`.`s28`.`a` AS `a`,`test`.`s28`.`b` AS `b`,`test`.`s29`.`a` AS `a`,`test`.`s29`.`b` AS `b`,`test`.`s30`.`a` AS `a`,`test`.`s30`.`b` AS `b`,`test`.`s31`.`a` AS `a`,`test`.`s31`.`b` AS `b`,`test`.`s32`.`a` AS `a`,`test`.`s32`.`b` AS `b`,`test`.`s33`.`a` AS `a`,`test`.`s33`.`b` AS `b`,`test`.`s34`.`a` AS `a`,`test`.`s34`.`b` AS `b`,`test`.`s35`.`a` AS `a`,`test`.`s35`.`b` AS `b`,`test`.`s36`.`a` AS `a`,`test`.`s36`.`b` AS `b`,`test`.`s37`.`a` AS `a`,`test`.`s37`.`b` AS `b`,`test`.`s38`.`a` AS `a`,`test`.`s38`.`b` AS `b`,`test`.`s39`.`a` AS `a`,`test`.`s39`.`b` AS `b`,`test`.`s40`.`a` AS `a`,`test`.`s40`.`b` AS `b`,`test`.`s41`.`a` AS `a`,`test`.`s41`.`b` AS `b`,`test`.`s42`.`a` AS `a`,`test`.`s42`.`b` AS `b`,`test`.`s43`.`a` AS `a`,`test`.`s43`.`b` AS `b`,`test`.`s44`.`a` AS `a`,`test`.`s44`.`b` AS `b`,`test`.`s45`.`a` AS `a`,`test`.`s45`.`b` AS `b`,`test`.`s46`.`a` AS `a`,`test`.`s46`.`b` AS `b`,`test`.`s47`.`a` AS `a`,`test`.`s47`.`b` AS `b`,`test`.`s48`.`a` AS `a`,`test`.`s48`.`b` AS `b`,`test`.`s49`.`a` AS `a`,`test`.`s49`.`b` AS `b` from `test`.`t1` `s00` join `test`.`t1` `s01` join `test`.`t1` `s02` join `test`.`t1` `s03` join `test`.`t1` `s04` join `test`.`t1` `s05` join `test`.`t1` `s06` join `test`.`t1` `s07` join `test`.`t1` `s08` join `test`.`t1` `s09` join `test`.`t1` `s10` join `test`.`t1` `s11` join `test`.`t1` `s12` join `test`.`t1` `s13` join `test`.`t1` `s14` join `test`.`t1` `s15` join `test`.`t1` `s16` join `test`.`t1` `s17` join `test`.`t1` `s18` join `test`.`t1` `s19` join `test`.`t1` `s20` join `test`.`t1` `s21` join `test`.`t1` `s22` join `test`.`t1` `s23` join `test`.`t1` `s24` join `test`.`t1` `s25` join `test`.`t1` `s26` join `test`.`t1` `s27` join `test`.`t1` `s28` join `test`.`t1` `s29` join `test`.`t1` `s30` join `test`.`t1` `s31` join `test`.`t1` `s32` join `test`.`t1` `s33` join `test`.`t1` `s34` join `test`.`t1` `s35` join `test`.`t1` `s36` join `test`.`t1` `s37` join `test`.`t1` `s38` join `test`.`t1` `s39` join `test`.`t1` `s40` join `test`.`t1` `s41` join `test`.`t1` `s42` join `test`.`t1` `s43` join `test`.`t1` `s44` join `test`.`t1` `s45` join `test`.`t1` `s46` join `test`.`t1` `s47` join `test`.`t1` `s48` join `test`.`t1` `s49` where <in_optimizer>(`test`.`s00`.`a`,`test`.`s00`.`a` in ( <materialize> (/* select#2 */ select `test`.`m00`.`a` from `test`.`t1` `m00` join `test`.`t1` `m01` join `test`.`t1` `m02` join `test`.`t1` `m03` join `test`.`t1` `m04` join `test`.`t1` `m05` join `test`.`t1` `m06` join `test`.`t1` `m07` join `test`.`t1` `m08` join `test`.`t1` `m09` join `test`.`t1` `m10` join `test`.`t1` `m11` join `test`.`t1` `m12` join `test`.`t1` `m13` join `test`.`t1` `m14` join `test`.`t1` `m15` join `test`.`t1` `m16` join `test`.`t1` `m17` join `test`.`t1` `m18` join `test`.`t1` `m19` where true ), <primary_index_lookup>(`test`.`s00`.`a` in <temporary table> on <auto_key> where ((`test`.`s00`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`s00`.`a` AS `a`,`test`.`s00`.`b` AS `b`,`test`.`s01`.`a` AS `a`,`test`.`s01`.`b` AS `b`,`test`.`s02`.`a` AS `a`,`test`.`s02`.`b` AS `b`,`test`.`s03`.`a` AS `a`,`test`.`s03`.`b` AS `b`,`test`.`s04`.`a` AS `a`,`test`.`s04`.`b` AS `b`,`test`.`s05`.`a` AS `a`,`test`.`s05`.`b` AS `b`,`test`.`s06`.`a` AS `a`,`test`.`s06`.`b` AS `b`,`test`.`s07`.`a` AS `a`,`test`.`s07`.`b` AS `b`,`test`.`s08`.`a` AS `a`,`test`.`s08`.`b` AS `b`,`test`.`s09`.`a` AS `a`,`test`.`s09`.`b` AS `b`,`test`.`s10`.`a` AS `a`,`test`.`s10`.`b` AS `b`,`test`.`s11`.`a` AS `a`,`test`.`s11`.`b` AS `b`,`test`.`s12`.`a` AS `a`,`test`.`s12`.`b` AS `b`,`test`.`s13`.`a` AS `a`,`test`.`s13`.`b` AS `b`,`test`.`s14`.`a` AS `a`,`test`.`s14`.`b` AS `b`,`test`.`s15`.`a` AS `a`,`test`.`s15`.`b` AS `b`,`test`.`s16`.`a` AS `a`,`test`.`s16`.`b` AS `b`,`test`.`s17`.`a` AS `a`,`test`.`s17`.`b` AS `b`,`test`.`s18`.`a` AS `a`,`test`.`s18`.`b` AS `b`,`test`.`s19`.`a` AS `a`,`test`.`s19`.`b` AS `b`,`test`.`s20`.`a` AS `a`,`test`.`s20`.`b` AS `b`,`test`.`s21`.`a` AS `a`,`test`.`s21`.`b` AS `b`,`test`.`s22`.`a` AS `a`,`test`.`s22`.`b` AS `b`,`test`.`s23`.`a` AS `a`,`test`.`s23`.`b` AS `b`,`test`.`s24`.`a` AS `a`,`test`.`s24`.`b` AS `b`,`test`.`s25`.`a` AS `a`,`test`.`s25`.`b` AS `b`,`test`.`s26`.`a` AS `a`,`test`.`s26`.`b` AS `b`,`test`.`s27`.`a` AS `a`,`test`.`s27`.`b` AS `b`,`test`.`s28`.`a` AS `a`,`test`.`s28`.`b` AS `b`,`test`.`s29`.`a` AS `a`,`test`.`s29`.`b` AS `b`,`test`.`s30`.`a` AS `a`,`test`.`s30`.`b` AS `b`,`test`.`s31`.`a` AS `a`,`test`.`s31`.`b` AS `b`,`test`.`s32`.`a` AS `a`,`test`.`s32`.`b` AS `b`,`test`.`s33`.`a` AS `a`,`test`.`s33`.`b` AS `b`,`test`.`s34`.`a` AS `a`,`test`.`s34`.`b` AS `b`,`test`.`s35`.`a` AS `a`,`test`.`s35`.`b` AS `b`,`test`.`s36`.`a` AS `a`,`test`.`s36`.`b` AS `b`,`test`.`s37`.`a` AS `a`,`test`.`s37`.`b` AS `b`,`test`.`s38`.`a` AS `a`,`test`.`s38`.`b` AS `b`,`test`.`s39`.`a` AS `a`,`test`.`s39`.`b` AS `b`,`test`.`s40`.`a` AS `a`,`test`.`s40`.`b` AS `b`,`test`.`s41`.`a` AS `a`,`test`.`s41`.`b` AS `b`,`test`.`s42`.`a` AS `a`,`test`.`s42`.`b` AS `b`,`test`.`s43`.`a` AS `a`,`test`.`s43`.`b` AS `b`,`test`.`s44`.`a` AS `a`,`test`.`s44`.`b` AS `b`,`test`.`s45`.`a` AS `a`,`test`.`s45`.`b` AS `b`,`test`.`s46`.`a` AS `a`,`test`.`s46`.`b` AS `b`,`test`.`s47`.`a` AS `a`,`test`.`s47`.`b` AS `b`,`test`.`s48`.`a` AS `a`,`test`.`s48`.`b` AS `b`,`test`.`s49`.`a` AS `a`,`test`.`s49`.`b` AS `b` from `test`.`t1` `s00` join `test`.`t1` `s01` join `test`.`t1` `s02` join `test`.`t1` `s03` join `test`.`t1` `s04` join `test`.`t1` `s05` join `test`.`t1` `s06` join `test`.`t1` `s07` join `test`.`t1` `s08` join `test`.`t1` `s09` join `test`.`t1` `s10` join `test`.`t1` `s11` join `test`.`t1` `s12` join `test`.`t1` `s13` join `test`.`t1` `s14` join `test`.`t1` `s15` join `test`.`t1` `s16` join `test`.`t1` `s17` join `test`.`t1` `s18` join `test`.`t1` `s19` join `test`.`t1` `s20` join `test`.`t1` `s21` join `test`.`t1` `s22` join `test`.`t1` `s23` join `test`.`t1` `s24` join `test`.`t1` `s25` join `test`.`t1` `s26` join `test`.`t1` `s27` join `test`.`t1` `s28` join `test`.`t1` `s29` join `test`.`t1` `s30` join `test`.`t1` `s31` join `test`.`t1` `s32` join `test`.`t1` `s33` join `test`.`t1` `s34` join `test`.`t1` `s35` join `test`.`t1` `s36` join `test`.`t1` `s37` join `test`.`t1` `s38` join `test`.`t1` `s39` join `test`.`t1` `s40` join `test`.`t1` `s41` join `test`.`t1` `s42` join `test`.`t1` `s43` join `test`.`t1` `s44` join `test`.`t1` `s45` join `test`.`t1` `s46` join `test`.`t1` `s47` join `test`.`t1` `s48` join `test`.`t1` `s49` where <in_optimizer>(`test`.`s00`.`a`,`test`.`s00`.`a` in ( <materialize> (/* select#2 */ select `test`.`m00`.`a` from `test`.`t1` `m00` join `test`.`t1` `m01` join `test`.`t1` `m02` join `test`.`t1` `m03` join `test`.`t1` `m04` join `test`.`t1` `m05` join `test`.`t1` `m06` join `test`.`t1` `m07` join `test`.`t1` `m08` join `test`.`t1` `m09` join `test`.`t1` `m10` join `test`.`t1` `m11` join `test`.`t1` `m12` join `test`.`t1` `m13` join `test`.`t1` `m14` join `test`.`t1` `m15` join `test`.`t1` `m16` join `test`.`t1` `m17` join `test`.`t1` `m18` join `test`.`t1` `m19` where true ), <primary_index_lookup>(`test`.`s00`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`s00`.`a` = `materialized-subquery`.`a`)))))
 select * from
 t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10)) 
 where t1.a < 5;
@@ -3551,7 +3551,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.i	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.i	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -3599,7 +3599,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	5	const	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	5	const	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -3895,7 +3895,7 @@ a
 explain select * from (select a from t0) x where a in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	5	func	1	100.00	Using where
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	func	1	100.00	Using where
 3	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` semi join (`test`.`t1`) where (`<subquery3>`.`a` = `test`.`t0`.`a`)
@@ -3930,7 +3930,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery3>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "5",
           "ref": [
             "func"
@@ -3976,7 +3976,7 @@ insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t3.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t3.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	range	kp1	kp1	5	NULL	48	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi join (`test`.`t1`) where ((`<subquery2>`.`kp1` = `test`.`t3`.`a`) and (`test`.`t1`.`kp1` < 20))
@@ -4036,7 +4036,7 @@ explain select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t3.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t3.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	range	kp1	kp1	5	NULL	48	100.00	Using index condition; Using where; Using MRR
 2	MATERIALIZED	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	100.00	Using index
 Warnings:
@@ -4047,7 +4047,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Filter: (t3.a is not null)  (cost=0.54 rows=100)
         -> Table scan on t3  (cost=0.54 rows=100)
-    -> Single-row index lookup on <subquery2> using <auto_key> (kp1=t3.a)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (kp1=t3.a)
         -> Materialize with deduplication
             -> Filter: (t1.kp1 is not null)  (cost=33.20 rows=48)
                 -> Nested loop inner join  (cost=33.20 rows=48)
@@ -4097,7 +4097,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	c	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.c.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.c.a	1	100.00	NULL
 2	MATERIALIZED	d	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t0` `a` join `test`.`t0` `b` join `test`.`t0` `c` semi join (`test`.`t1` `d`) where (`<subquery2>`.`a` = `test`.`c`.`a`)
@@ -4291,21 +4291,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	b	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select straight_join `test`.`a`.`a` AS `a`,`test`.`b`.`a` AS `a` from `test`.`t1` `a` join `test`.`t1` `b` where <in_optimizer>(`test`.`a`.`a`,`test`.`a`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`a`.`a` in <temporary table> on <auto_key> where ((`test`.`a`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select straight_join `test`.`a`.`a` AS `a`,`test`.`b`.`a` AS `a` from `test`.`t1` `a` join `test`.`t1` `b` where <in_optimizer>(`test`.`a`.`a`,`test`.`a`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`a`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`a`.`a` = `materialized-subquery`.`a`)))))
 explain select * from t2 where a in (select straight_join a.a from t1 a, t1 b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 2	SUBQUERY	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 2	SUBQUERY	b	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select straight_join `test`.`a`.`a` from `test`.`t1` `a` join `test`.`t1` `b` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select straight_join `test`.`a`.`a` from `test`.`t1` `a` join `test`.`t1` `b` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 explain select * from t2 where a in (select straight_join a.a from t1 a, t1 b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 2	SUBQUERY	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 2	SUBQUERY	b	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select straight_join `test`.`a`.`a` from `test`.`t1` `a` join `test`.`t1` `b` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select straight_join `test`.`a`.`a` from `test`.`t1` `a` join `test`.`t1` `b` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 explain select straight_join * from t2 x, t2 y 
 where x.a in (select straight_join a.a from t1 a, t1 b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4314,7 +4314,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 2	SUBQUERY	b	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select straight_join `test`.`x`.`a` AS `a`,`test`.`y`.`a` AS `a` from `test`.`t2` `x` join `test`.`t2` `y` where <in_optimizer>(`test`.`x`.`a`,`test`.`x`.`a` in ( <materialize> (/* select#2 */ select straight_join `test`.`a`.`a` from `test`.`t1` `a` join `test`.`t1` `b` where true ), <primary_index_lookup>(`test`.`x`.`a` in <temporary table> on <auto_key> where ((`test`.`x`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select straight_join `test`.`x`.`a` AS `a`,`test`.`y`.`a` AS `a` from `test`.`t2` `x` join `test`.`t2` `y` where <in_optimizer>(`test`.`x`.`a`,`test`.`x`.`a` in ( <materialize> (/* select#2 */ select straight_join `test`.`a`.`a` from `test`.`t1` `a` join `test`.`t1` `b` where true ), <primary_index_lookup>(`test`.`x`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`x`.`a` = `materialized-subquery`.`a`)))))
 create table t0 (a int, b int);
 insert into t0 values(1,1);
 explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30);
@@ -4343,7 +4343,7 @@ create table t2 as select * from t1;
 explain select * from t2 where a in (select b from t1 where a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t2.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ref	a	a	5	const	8	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`<subquery2>`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = 3))
@@ -4361,7 +4361,7 @@ insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	10	test.t1.a,test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	10	test.t1.a,test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`b` = `test`.`t1`.`b`) and (`<subquery2>`.`a` = `test`.`t1`.`a`))
@@ -4504,7 +4504,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot.a	1	100.00	NULL
 2	MATERIALIZED	it	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `length(filler1)=length(filler2)` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where (`<subquery2>`.`a` = `test`.`ot`.`a`)
@@ -4576,7 +4576,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot.a	1	100.00	NULL
 2	MATERIALIZED	it	NULL	ALL	NULL	NULL	NULL	NULL	52	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `length(filler1)=length(filler2)` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where (`<subquery2>`.`a` = `test`.`ot`.`a`)
@@ -4620,7 +4620,7 @@ from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	9	test.t0.a	1	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t0.a	1	100.00	Using where
 2	MATERIALIZED	t1	NULL	index	a	a	5	NULL	10	100.00	Using index
 2	MATERIALIZED	t2	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
 2	MATERIALIZED	t3	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
@@ -4722,7 +4722,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having true ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_16`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having true ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_16`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -4839,7 +4839,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_512	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_512	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having true ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having true ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -4856,7 +4856,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_512	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_512	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having true ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having true ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -4940,7 +4940,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_513	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_513	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,`test`.`t1_513`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` having true ), <primary_index_lookup>(`test`.`t1_513`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_513`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,`test`.`t1_513`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` having true ), <primary_index_lookup>(`test`.`t1_513`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_513`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
@@ -5024,7 +5024,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_1024	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1024	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -5041,7 +5041,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_1024	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1024	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -5125,7 +5125,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_1025	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1025	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -5142,7 +5142,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_1025	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1025	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having true ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -5398,7 +5398,7 @@ explain SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot1.a	1	100.00	NULL
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	MATERIALIZED	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -5420,7 +5420,7 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot2.a IN (SELECT a FROM it2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot2.a	1	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot2.a	1	100.00	Using where
 2	MATERIALIZED	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` left join (`test`.`ot2` semi join (`test`.`it2`)) on(((`test`.`ot2`.`a` = `test`.`ot1`.`a`) and (`<subquery2>`.`a` = `test`.`ot1`.`a`))) where true
@@ -5441,9 +5441,9 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1)
 AND ot2.a IN (SELECT a FROM it2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot1.a	1	100.00	NULL
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot2.a	1	100.00	Using where
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot2.a	1	100.00	Using where
 2	MATERIALIZED	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 3	MATERIALIZED	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
@@ -5468,7 +5468,7 @@ FROM it1 JOIN it2 ON it1.a=it2.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	10	test.ot1.a,test.ot2.a	1	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	10	test.ot1.a,test.ot2.a	1	100.00	Using where
 2	MATERIALIZED	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	MATERIALIZED	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -5564,7 +5564,7 @@ EXPLAIN
     -> Nested loop left join
         -> Table scan on ot1  (cost=0.50 rows=8)
         -> Nested loop inner join
-            -> Single-row index lookup on <subquery2> using <auto_key> (a=ot1.a)
+            -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a=ot1.a)
                 -> Materialize with deduplication
                     -> Filter: (it3.a is not null)  (cost=0.50 rows=3)
                         -> Table scan on it3  (cost=0.50 rows=3)
@@ -5574,7 +5574,7 @@ EXPLAIN
         -> Filter: (ot3.a = ot2.a)  (cost=0.02 rows=3)
             -> Table scan on ot3  (cost=0.02 rows=3)
         -> Filter: (`<subquery3>`.a = ot2.a)
-            -> Single-row index lookup on <subquery3> using <auto_key> (a=ot3.a)
+            -> Single-row index lookup on <subquery3> using <auto_distinct_key> (a=ot3.a)
                 -> Materialize with deduplication
                     -> Filter: (it3.a is not null)  (cost=0.50 rows=3)
                         -> Table scan on it3  (cost=0.50 rows=3)
@@ -5612,7 +5612,7 @@ LEFT JOIN
 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot1.a	1	100.00	NULL
 1	SIMPLE	ot3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	MATERIALIZED	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
@@ -5662,7 +5662,7 @@ ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot2.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot2.a	1	100.00	NULL
 1	SIMPLE	ot3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 Warnings:
@@ -5685,7 +5685,7 @@ LEFT JOIN
 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot1.a	1	100.00	NULL
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 1	SIMPLE	ot3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	MATERIALIZED	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
@@ -6854,7 +6854,7 @@ WHERE PNUM IN
 (SELECT PNUM  FROM proj));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	staff	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	3	test.staff.EMPNUM	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	3	test.staff.EMPNUM	1	100.00	NULL
 2	MATERIALIZED	proj	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	MATERIALIZED	works	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -7331,7 +7331,7 @@ WHERE 1 IN(SELECT 1
 FROM t3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	4	const	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	4	const	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -7370,7 +7370,7 @@ WHERE 1 IN(SELECT 1
 FROM t4)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_key>	<auto_key>	4	const	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	4	const	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using join buffer (Block Nested Loop)
@@ -7706,7 +7706,7 @@ WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	31	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	12	test.t1.Code	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	12	test.t1.Code	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	CountryCode	NULL	NULL	NULL	545	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`Name` AS `Name` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`CountryCode` = `test`.`t1`.`Code`) and (`test`.`t2`.`Population` > 5000000))
@@ -8369,7 +8369,7 @@ WHERE t1.a IN (SELECT t2.a
 FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	MATERIALIZED	t2inner	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
@@ -8454,7 +8454,7 @@ FROM t2
 WHERE varchar_nokey < 'n' XOR pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	12	test.t1.varchar_nokey,test.t1.varchar_nokey	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	12	test.t1.varchar_nokey,test.t1.varchar_nokey	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	varchar_key	NULL	NULL	NULL	15	63.34	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`varchar_nokey` AS `varchar_nokey` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`varchar_key` = `test`.`t1`.`varchar_nokey`) and (`<subquery2>`.`varchar_nokey` = `test`.`t1`.`varchar_nokey`) and (`test`.`t2`.`varchar_nokey` = `test`.`t2`.`varchar_key`) and ((`test`.`t2`.`varchar_nokey` < 'n') xor (0 <> `test`.`t2`.`pk`)))
@@ -8482,7 +8482,7 @@ FROM t2 JOIN t3
 WHERE t2.i + t3.i = 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.i	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.i	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -8544,7 +8544,7 @@ LEFT JOIN
 ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot1.a	1	100.00	NULL
 1	SIMPLE	ot3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	MATERIALIZED	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
@@ -8961,7 +8961,7 @@ FROM t2)
 ORDER BY col_datetime_key LIMIT 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using where; Using filesort
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	6	test.t1.col_varchar_key	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	6	test.t1.col_varchar_key	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (`test`.`t2`) where (`<subquery2>`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`) order by `test`.`t1`.`col_datetime_key` limit 4
@@ -9036,7 +9036,7 @@ AND grandparent1.col_varchar_key IS NOT NULL
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	7	test.t1.g1	1	100.00	Using where; Not exists
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	7	test.t1.g1	1	100.00	Using where; Not exists
 2	MATERIALIZED	parent1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 2	MATERIALIZED	parent2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.parent1.pk	1	100.00	Using index
 2	MATERIALIZED	grandparent1	NULL	ref	col_varchar_key	col_varchar_key	6	test.parent1.col_varchar_nokey	1	100.00	Using index condition
@@ -9855,7 +9855,7 @@ t1 AS sq2_alias1, t1 AS sq2_alias2
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	14	test.alias1.col_varchar_nokey,test.alias2.col_varchar_nokey	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	14	test.alias1.col_varchar_nokey,test.alias2.col_varchar_nokey	1	100.00	NULL
 2	MATERIALIZED	sq2_alias1	NULL	index	col_varchar_key	col_varchar_key	12	NULL	4	100.00	Using index
 2	MATERIALIZED	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -10461,7 +10461,7 @@ FROM t1 AS it1 LEFT JOIN t1 AS it2 ON it1.pk=it2.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.ot2.pk	1	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.ot2.pk	1	100.00	Using where
 2	MATERIALIZED	it1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	MATERIALIZED	it2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -10581,8 +10581,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index
 1	SIMPLE	table2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	100.00	Using where
-1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.table3.col_int_nokey	1	100.00	NULL
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.table2.pk	1	100.00	NULL
+1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.table3.col_int_nokey	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.table2.pk	1	100.00	NULL
 4	MATERIALIZED	subquery1_t3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using where
 4	MATERIALIZED	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t3.col_int_key	1	10.00	Using where
 4	MATERIALIZED	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
@@ -11024,11 +11024,10 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 (SELECT * FROM view_inline_2
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	<subquery4>.p,<subquery4>.My_exp_p	2	100.00	NULL
+1	PRIMARY	<derived7>	NULL	ALL	<auto_distinct_key>	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,<subquery4>.p	3	100.00	Using index; FirstMatch(alias2)
-4	MATERIALIZED	<derived7>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,view_inline_2.p	3	100.00	Using index; FirstMatch(alias2)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	view_inline_2.p,view_inline_2.My_exp_p	2	100.00	NULL
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -11037,7 +11036,7 @@ NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) semi join (`test`.`view_inline_2`) where ((`view_inline_1`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `<subquery4>`.`My_exp_p`) and (`alias1`.`col_varchar_key` = `<subquery4>`.`p`) and (`test`.`alias2`.`col_varchar_key` = `<subquery4>`.`p`) and (`view_inline_1`.`sq2_field2` = `<subquery4>`.`p`))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`view_inline_2` join `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) where ((`view_inline_1`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`My_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`view_inline_1`.`sq2_field2` = `view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -11322,7 +11321,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "7",
           "ref": [
             "test.t2.vc"
@@ -11662,7 +11661,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "8",
           "ref": [
             "test.grandparent1.col_int_nokey",
@@ -12609,7 +12608,7 @@ SELECT tv1.var_255_utf8
 FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tv	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	768	test.tv.field1	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	768	test.tv.field1	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -12848,7 +12847,7 @@ FROM t AS t3
 WHERE t3.b=1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	NULL
+1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:

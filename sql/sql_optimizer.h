@@ -917,6 +917,9 @@ class JOIN {
   unique_ptr_destroy_only<RowIterator> release_root_iterator() {
     return move(m_root_iterator);
   }
+  void set_root_iterator(unique_ptr_destroy_only<RowIterator> iterator) {
+    m_root_iterator = move(iterator);
+  }
 
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN

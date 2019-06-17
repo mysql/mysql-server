@@ -419,3 +419,11 @@ EXPLAIN ANALYZE FOR CONNECTION 1;
 
 # An information_schema table.
 EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
+
+# Union materialization directly into a temporary table (no double materialization).
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES (1), (2), (3);
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 ) d1;
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
+
+DROP TABLE t1;

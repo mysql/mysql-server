@@ -176,6 +176,12 @@ class Temp_table_param {
   /// Whether the UNIQUE index can be promoted to PK
   bool can_use_pk_for_unique;
 
+  /// Whether UNIQUE keys should always be implemented by way of a hidden
+  /// hash field, never a unique index. Needed for materialization of mixed
+  /// UNION ALL / UNION DISTINCT queries (see comments in
+  /// create_result_table()).
+  bool force_hash_field_for_unique{false};
+
   /// (Last) window's tmp file step can be skipped
   bool m_window_short_circuit;
 
