@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -338,6 +338,36 @@ class FakeSingleRowIterator final : public RowIterator {
  private:
   bool m_has_row;
   ha_rows *const m_examined_rows;
+};
+
+/**
+  An iterator for unqualified COUNT(*) (ie., no WHERE, no join conditions,
+  etc.), taking a special fast path in the handler. It returns a single row,
+  much like FakeSingleRowIterator; however, unlike said iterator, it actually
+  does the counting in Read() instead of expecting all fields to already be
+  filled out.
+ */
+class UnqualifiedCountIterator final : public RowIterator {
+ public:
+  UnqualifiedCountIterator(THD *thd, JOIN *join)
+      : RowIterator(thd), m_join(join) {}
+
+  bool Init() override {
+    m_has_row = true;
+    return false;
+  }
+
+  int Read() override;
+
+  std::vector<std::string> DebugString() const override;
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  bool m_has_row;
+  JOIN *const m_join;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

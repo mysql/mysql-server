@@ -539,6 +539,17 @@ c
 3
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 c
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
+EXPLAIN
+-> Filter: (c > 7)
+    -> Count rows in t_innodb
+
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
+EXPLAIN
+<not executable by iterator executor>
+
+SELECT COUNT(*) c FROM t_innodb LIMIT 10 OFFSET 5;
+c
 set sql_mode=default;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
 COUNT(*)
@@ -546,4 +557,17 @@ COUNT(*)
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
 COUNT(*)
 6
+SELECT /*+ BNL(t2) */ -(t1.c1 + t2.c1) FROM t_innodb t1, t_innodb t2
+UNION ALL SELECT COUNT(*) FROM t_innodb;
+-(t1.c1 + t2.c1)
+-2
+-3
+-3
+-4
+-4
+-4
+-5
+-5
+-6
+3
 DROP TABLE t_innodb, t_myisam;

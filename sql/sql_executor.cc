@@ -2301,6 +2301,28 @@ void JOIN::create_iterators() {
 
   // 1) Set up the basic RowIterators for accessing each specific table.
   //    This is needed even if we run in pre-iterator executor.
+  create_table_iterators();
+
+  if (select_lex->parent_lex->m_sql_cmd != nullptr &&
+      select_lex->parent_lex->m_sql_cmd->using_secondary_storage_engine()) {
+    return;
+  }
+
+  // 2) If supported by the implemented iterators, we also create the
+  //    composite iterators combining the row from each table.
+  unique_ptr_destroy_only<RowIterator> iterator =
+      create_root_iterator_for_join();
+  if (iterator == nullptr) {
+    // The query is not supported by the iterator executor.
+    return;
+  }
+
+  iterator = attach_iterators_for_having_and_limit(move(iterator));
+  iterator->set_join(this);
+  m_root_iterator = move(iterator);
+}
+
+void JOIN::create_table_iterators() {
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
     if (qep_tab->position() == nullptr) {
@@ -2337,10 +2359,12 @@ void JOIN::create_iterators() {
           down_cast<SortingIterator *>(qep_tab->iterator->real_iterator());
     }
   }
+}
 
-  if (select_lex->parent_lex->m_sql_cmd != nullptr &&
-      select_lex->parent_lex->m_sql_cmd->using_secondary_storage_engine()) {
-    return;
+unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
+  if (select_count) {
+    return unique_ptr_destroy_only<RowIterator>(
+        new (thd->mem_root) UnqualifiedCountIterator(thd, this));
   }
 
   struct MaterializeOperation {
@@ -2354,9 +2378,6 @@ void JOIN::create_iterators() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // 2) If supported by the implemented iterators, we also create the
-  //    composite iterators combining the row from each table.
-  //
   // The new executor engine can't do recursive CTEs or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
@@ -2367,19 +2388,19 @@ void JOIN::create_iterators() {
       // MaterializeIterator can deal with it.
       SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
       if (!unit->is_simple()) {
-        return;
+        return nullptr;
       }
 
       JOIN *subjoin = unit->first_select()->join;
       if (subjoin->root_iterator() == nullptr) {
-        return;
+        return nullptr;
       }
     }
     if (qep_tab->next_select == sub_select_op) {
       // We don't support join buffering, but we do support temporary tables.
       QEP_operation *op = qep_tab[1].op;
       if (op->type() != QEP_operation::OT_TMP_TABLE) {
-        return;
+        return nullptr;
       }
 
       QEP_tmp_table *tmp_op = down_cast<QEP_tmp_table *>(op);
@@ -2402,7 +2423,7 @@ void JOIN::create_iterators() {
     if (qep_tab->table_ref != nullptr &&
         qep_tab->table_ref->is_recursive_reference()) {
       // Recursive CTE.
-      return;
+      return nullptr;
     }
   }
 
@@ -2444,7 +2465,7 @@ void JOIN::create_iterators() {
         // We don't support join buffering, but we do support temporary tables.
         QEP_operation *op = qep_tab->op;
         if (op->type() != QEP_operation::OT_TMP_TABLE) {
-          return;
+          return nullptr;
         }
         DBUG_ASSERT(down_cast<QEP_tmp_table *>(op)->get_write_func() ==
                     end_write);
@@ -2693,6 +2714,12 @@ void JOIN::create_iterators() {
     }
   }
 
+  return iterator;
+}
+
+unique_ptr_destroy_only<RowIterator>
+JOIN::attach_iterators_for_having_and_limit(
+    unique_ptr_destroy_only<RowIterator> iterator) {
   // Attach HAVING and LIMIT if needed.
   // NOTE: We can have HAVING even without GROUP BY, although it's not very
   // useful.
@@ -2700,20 +2727,15 @@ void JOIN::create_iterators() {
     iterator = NewIterator<FilterIterator>(thd, move(iterator), having_cond);
   }
 
+  // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the
+  // common case, but not for CALC_FOUND_ROWS. OFFSET also isn't handled there.
   if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
     iterator = NewIterator<LimitOffsetIterator>(
         thd, move(iterator), unit->select_limit_cnt, unit->offset_limit_cnt,
         calc_found_rows, &send_records);
   }
 
-  if (false) {
-    // This can be useful during debugging.
-    fprintf(stderr, "Query plan:\n%s\n",
-            PrintQueryPlan(0, iterator.get()).c_str());
-  }
-
-  iterator->set_join(this);
-  m_root_iterator = move(iterator);
+  return iterator;
 }
 
 static int ExecuteIteratorQuery(JOIN *join) {
@@ -2787,12 +2809,12 @@ static int do_select(JOIN *join) {
   join->send_records = 0;
   THD *thd = join->thd;
 
-  if (join->select_count) {
-    QEP_TAB *qep_tab = join->qep_tab;
-    error = end_send_count(join, qep_tab);
-  } else if (join->root_iterator() != nullptr) {
+  if (join->root_iterator() != nullptr) {
     error =
         ExecuteIteratorQuery(join) == 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
+  } else if (join->select_count) {
+    QEP_TAB *qep_tab = join->qep_tab;
+    error = end_send_count(join, qep_tab);
   } else if (join->plan_is_const() && !join->need_tmp_before_win) {
     // Special code for dealing with queries that don't need to
     // read any tables.
@@ -2845,9 +2867,6 @@ static int do_select(JOIN *join) {
       relevant to this join table).
     */
     if (thd->is_error()) error = NESTED_LOOP_ERROR;
-  } else if (join->select_count) {
-    QEP_TAB *qep_tab = join->qep_tab;
-    error = end_send_count(join, qep_tab);
   } else {
     // Pre-iterator query execution path.
     DBUG_ASSERT(join->primary_tables);
@@ -5040,6 +5059,7 @@ ulonglong get_exact_record_count(QEP_TAB *qep_tab, uint table_count,
     }
     count *= tmp;
   }
+  *error = 0;
   return count;
 }
 
@@ -8351,3 +8371,36 @@ bool QEP_TAB::pfs_batch_update(JOIN *join) const {
 /**
   @} (end of group Query_Executor)
 */
+
+vector<string> UnqualifiedCountIterator::DebugString() const {
+  return {"Count rows in " + string(m_join->qep_tab->table()->alias)};
+}
+
+int UnqualifiedCountIterator::Read() {
+  if (!m_has_row) {
+    return -1;
+  }
+
+  for (Item &item : m_join->all_fields) {
+    if (item.type() == Item::SUM_FUNC_ITEM &&
+        down_cast<Item_sum &>(item).sum_func() == Item_sum::COUNT_FUNC) {
+      int error;
+      ulonglong count = get_exact_record_count(m_join->qep_tab,
+                                               m_join->primary_tables, &error);
+      if (error) return 1;
+
+      down_cast<Item_sum_count &>(item).make_const(
+          static_cast<longlong>(count));
+    }
+  }
+
+  // If we are outputting to a temporary table, we need to copy the results
+  // into it here. It is also used for nonaggregated items, even when there are
+  // no temporary tables involved.
+  if (copy_fields_and_funcs(&m_join->tmp_table_param, m_join->thd)) {
+    return 1;
+  }
+
+  m_has_row = false;
+  return 0;
+}

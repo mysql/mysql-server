@@ -208,11 +208,25 @@ SELECT COUNT(*) c FROM t_innodb HAVING c > 1;
 #empty result.
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 
+# Tests FORMAT=tree printing of COUNT(*).
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
+
+# Should be empty.
+SELECT COUNT(*) c FROM t_innodb LIMIT 10 OFFSET 5;
+
 set sql_mode=default;
 
 # Bug #28056133: Requires a fix in get_exact_record_count to avoid dummy temp
 # tables.
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
+
+# Unqualified COUNT(*) (running in the iterator executor) combined with BNL
+# (running in the pre-iterator executor).
+# TODO(sgunders): Remove when BNL enters the iterator executor.
+--sorted_result
+SELECT /*+ BNL(t2) */ -(t1.c1 + t2.c1) FROM t_innodb t1, t_innodb t2
+UNION ALL SELECT COUNT(*) FROM t_innodb;
 
 DROP TABLE t_innodb, t_myisam;

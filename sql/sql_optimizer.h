@@ -1113,6 +1113,13 @@ class JOIN {
    */
   void create_iterators();
 
+  /** @{ Helpers for create_iterators. */
+  void create_table_iterators();
+  unique_ptr_destroy_only<RowIterator> create_root_iterator_for_join();
+  unique_ptr_destroy_only<RowIterator> attach_iterators_for_having_and_limit(
+      unique_ptr_destroy_only<RowIterator> iterator);
+  /** @} */
+
   /**
     An iterator you can read from to get all records for this query.
 

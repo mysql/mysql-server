@@ -1,7 +1,7 @@
 #ifndef PFS_BATCH_MODE_INCLUDED
 #define PFS_BATCH_MODE_INCLUDED
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,9 @@ class PFSBatchMode {
       // The QEP_TAB isn't even part of a join (typically used when sorting
       // data for UPDATE or DELETE), so we can safely enable batch mode.
       m_enable = true;
+    } else if (qep_tab->join()->select_count) {
+      // handler::ha_records() does its own batching.
+      m_enable = false;
     } else {
       // If this table is a single-table right-hand side of an outer join
       // (which is what the last_inner() test checks for), NestedLoopIterator
