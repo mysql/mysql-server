@@ -2048,8 +2048,9 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
       ret += PrintQueryPlan(level, child.iterator);
     }
   }
-  if (iterator->join() != nullptr) {
-    for (const auto &child : GetIteratorsFromSelectList(iterator->join())) {
+  if (iterator->join_for_explain() != nullptr) {
+    for (const auto &child :
+         GetIteratorsFromSelectList(iterator->join_for_explain())) {
       ret.append(top_level * 4, ' ');
       ret.append("-> ");
       ret.append(child.description);

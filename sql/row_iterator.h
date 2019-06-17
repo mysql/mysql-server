@@ -171,10 +171,10 @@ class RowIterator {
   // on the iterator (it breaks the abstraction a bit to refer to JOIN here),
   // but setting a single pointer is cheaper, especially considering that most
   // queries are not EXPLAIN queries and we don't want the overhead for them.
-  JOIN *join() const { return m_join; }
+  JOIN *join_for_explain() const { return m_join_for_explain; }
 
   // Should be called by JOIN::create_iterators() only.
-  void set_join(JOIN *join) { m_join = join; }
+  void set_join_for_explain(JOIN *join) { m_join_for_explain = join; }
 
   /**
     Start performance schema batch mode, if supported (otherwise ignored).
@@ -232,7 +232,7 @@ class RowIterator {
 
  private:
   THD *const m_thd;
-  JOIN *m_join = nullptr;
+  JOIN *m_join_for_explain = nullptr;
   double m_estimated_cost = -1.0;
   double m_expected_rows = -1.0;
 };

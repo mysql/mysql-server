@@ -2376,7 +2376,7 @@ void JOIN::create_iterators() {
   }
 
   iterator = attach_iterators_for_having_and_limit(move(iterator));
-  iterator->set_join(this);
+  iterator->set_join_for_explain(this);
   m_root_iterator = move(iterator);
 }
 
