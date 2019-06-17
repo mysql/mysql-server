@@ -1003,23 +1003,22 @@ TEST_F(RouterBootstrapTest,
  *       verify that master key file is not overridden by sunsequent bootstrap.
  */
 TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
-  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
-  // RandomGenerator
-  dim.set_RandomGenerator(
-      []() {
-        static mysql_harness::RandomGenerator rg;
-        return &rg;
-      },
-      [](mysql_harness::RandomGeneratorInterface *) {});
-
-  mysql_harness::mkdir(Path(bootstrap_dir.name()).str(), 0777);
   std::string master_key_path =
       Path(bootstrap_dir.name()).join("master_key").str();
-  mysql_harness::mkdir(Path(bootstrap_dir.name()).join("data").str(), 0777);
   std::string keyring_path =
       Path(bootstrap_dir.name()).join("data").join("keyring").str();
 
-  mysql_harness::init_keyring(keyring_path, master_key_path, true);
+  mysql_harness::mkdir(Path(bootstrap_dir.name()).str(), 0777);
+  mysql_harness::mkdir(Path(bootstrap_dir.name()).join("data").str(), 0777);
+
+  auto &proc = launch_command(get_origin().join("mysqlrouter_keyring").str(),
+                              {
+                                  "init",
+                                  keyring_path,
+                                  "--master-key-file",
+                                  master_key_path,
+                              });
+  ASSERT_NO_THROW(proc.wait_for_exit());
 
   std::string master_key;
   {
