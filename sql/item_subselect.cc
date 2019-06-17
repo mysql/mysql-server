@@ -161,11 +161,7 @@ void Item_subselect::init(SELECT_LEX *select_lex,
     */
     parsing_place =
         (outer_select->in_sum_expr ? CTX_NONE : outer_select->parsing_place);
-    if (unit->is_union() || unit->fake_select_lex)
-      engine = new (*THR_MALLOC) subselect_union_engine(unit, result, this);
-    else
-      engine = new (*THR_MALLOC)
-          subselect_single_select_engine(select_lex, result, this);
+    engine = new (*THR_MALLOC) subselect_union_engine(unit, result, this);
   }
   {
     SELECT_LEX *upper = unit->outer_select();
@@ -455,11 +451,11 @@ Item *Item_in_subselect::remove_in2exists_conds(Item *conds) {
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
                                                            JOIN *join) {
   DBUG_ASSERT(exec_method == EXEC_EXISTS_OR_MAT);
-  DBUG_ASSERT(engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE);
-  subselect_single_select_engine *old_engine_derived =
-      static_cast<subselect_single_select_engine *>(engine);
+  DBUG_ASSERT(engine->engine_type() == subselect_engine::UNION_ENGINE);
+  subselect_union_engine *old_engine_derived =
+      static_cast<subselect_union_engine *>(engine);
 
-  DBUG_ASSERT(join == old_engine_derived->select_lex->join);
+  DBUG_ASSERT(join == old_engine_derived->single_select_lex()->join);
   // No UNION in materialized subquery so this holds:
   DBUG_ASSERT(join->select_lex == unit->first_select());
   DBUG_ASSERT(join->unit == unit);
@@ -488,7 +484,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
   unit->uncacheable &= ~UNCACHEABLE_DEPENDENT;
 
   OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1,
-                      old_engine_derived->select_lex->select_number,
+                      old_engine_derived->single_select_lex()->select_number,
                       "IN (SELECT)", "materialization");
   oto1.add("chosen", true);
 
@@ -1365,7 +1361,7 @@ Item *Item_exists_subselect::truth_transformer(THD *, enum Bool_test test) {
   // truth test Item at the outside.
   if (!unit->is_union() && unit->first_select()->table_list.elements == 0 &&
       unit->first_select()->where_cond() == nullptr && substype() == IN_SUBS &&
-      down_cast<Item_in_subselect *>(this)->left_expr->cols() == 1)
+      unit->first_select()->item_list.elements == 1)
     return nullptr;
 
   // Combine requested test with already present test, if any.
@@ -2686,19 +2682,6 @@ void Item_allany_subselect::print(const THD *thd, String *str,
   Item_subselect::print(thd, str, query_type);
 }
 
-subselect_single_select_engine::subselect_single_select_engine(
-    SELECT_LEX *select, Query_result_interceptor *result_arg,
-    Item_subselect *item_arg)
-    : subselect_engine(item_arg, result_arg), select_lex(select) {
-  select_lex->master_unit()->item = item_arg;
-}
-
-void subselect_single_select_engine::cleanup(THD *thd) {
-  DBUG_TRACE;
-  item->unit->reset_executed();
-  result->cleanup(thd);
-}
-
 void subselect_union_engine::cleanup(THD *thd) {
   DBUG_TRACE;
   item->unit->reset_executed();
@@ -2725,27 +2708,6 @@ subselect_union_engine::subselect_union_engine(
   @returns false if success, true if error
 */
 
-bool subselect_single_select_engine::prepare(THD *thd) {
-  if (item->unit->is_prepared()) return false;
-
-  SELECT_LEX_UNIT *const unit = item->unit;
-
-  DBUG_ASSERT(result);
-
-  select_lex->set_query_result(result);
-  select_lex->make_active_options(SELECT_NO_UNLOCK, 0);
-
-  if (unit->prepare_limit(thd, unit->global_parameters()))
-    return true; /* purecov: inspected */
-
-  SELECT_LEX *save_select = thd->lex->current_select();
-  thd->lex->set_current_select(select_lex);
-  const bool ret = select_lex->prepare(thd);
-  if (!ret) unit->set_prepared();
-  thd->lex->set_current_select(save_select);
-  return ret;
-}
-
 bool subselect_union_engine::prepare(THD *thd) {
   if (!unit->is_prepared())
     return unit->prepare(thd, result, SELECT_NO_UNLOCK, 0);
@@ -2763,18 +2725,15 @@ bool subselect_indexsubquery_engine::prepare(THD *) {
 
 /**
   Makes storage for the output values for a scalar or row subquery and
-  calculates their data and column types and their nullability. Only
-  to be called on engines that represent scalar or row subqueries
-  (that is, subselect_single_select_engine and subselect_union_engine).
+  calculates their data and column types and their nullability.
 
   @param item_list       list of items in the select list of the subquery
   @param row             cache objects to hold the result row of the subquery
   @param possibly_empty  true if the subquery could return empty result
 */
-void subselect_engine::set_row(List<Item> &item_list, Item_cache **row,
-                               bool possibly_empty) {
-  DBUG_ASSERT(engine_type() == SINGLE_SELECT_ENGINE ||
-              engine_type() == UNION_ENGINE);
+void subselect_union_engine::set_row(List<Item> &item_list, Item_cache **row,
+                                     bool possibly_empty) {
+  DBUG_ASSERT(engine_type() == UNION_ENGINE);
 
   /*
     Empty scalar or row subqueries evaluate to NULL, so if it is
@@ -2819,12 +2778,6 @@ static bool guaranteed_one_row(const SELECT_LEX *select_lex) {
          !select_lex->having_cond() && !select_lex->select_limit;
 }
 
-void subselect_single_select_engine::fix_length_and_dec(Item_cache **row) {
-  DBUG_ASSERT(row || select_lex->item_list.elements == 1);
-  set_row(select_lex->item_list, row, !guaranteed_one_row(select_lex));
-  item->collation.set(row[0]->collation);
-}
-
 void subselect_union_engine::fix_length_and_dec(Item_cache **row) {
   DBUG_ASSERT(row || unit->first_select()->item_list.elements == 1);
 
@@ -2837,7 +2790,12 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row) {
     }
   }
 
-  set_row(unit->item_list, row, possibly_empty);
+  if (unit->is_simple()) {
+    set_row(unit->first_select()->item_list, row, possibly_empty);
+  } else {
+    set_row(unit->item_list, row, possibly_empty);
+  }
+
   if (unit->first_select()->item_list.elements == 1)
     item->collation.set(row[0]->collation);
 }
@@ -2845,42 +2803,6 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row) {
 void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **) {
   // this never should be called
   DBUG_ASSERT(0);
-}
-
-bool subselect_single_select_engine::exec(THD *thd) {
-  DBUG_TRACE;
-
-  int rc = 0;
-  SELECT_LEX_UNIT *const unit = item->unit;
-  char const *save_where = thd->where;
-  SELECT_LEX *save_select = thd->lex->current_select();
-  thd->lex->set_current_select(select_lex);
-
-  JOIN *const join = select_lex->join;
-
-  DBUG_ASSERT(join->is_optimized());
-
-  if (select_lex->uncacheable && unit->is_executed()) {
-    join->reset();
-    item->reset();
-    unit->reset_executed();
-    unit->clear_corr_ctes();
-    item->assigned(false);
-  }
-  if (!unit->is_executed()) {
-    item->reset_value_registration();
-
-    if (unit->set_limit(thd, unit->global_parameters()))
-      return true; /* purecov: inspected */
-    join->exec();
-    unit->set_executed();
-
-    rc = join->error || thd->is_fatal_error();
-  }
-
-  thd->where = save_where;
-  thd->lex->set_current_select(save_select);
-  return rc;
 }
 
 bool subselect_union_engine::exec(THD *thd) {
@@ -3225,24 +3147,12 @@ bool subselect_indexsubquery_engine::exec(THD *) {
   return error != 0;
 }
 
-uint subselect_single_select_engine::cols() const {
-  return select_lex->item_list.elements;
-}
-
 uint subselect_union_engine::cols() const {
   DBUG_ASSERT(unit->is_prepared());  // should be called after fix_fields()
   return unit->types.elements;
 }
 
-uint8 subselect_single_select_engine::uncacheable() const {
-  return select_lex->uncacheable;
-}
-
 uint8 subselect_union_engine::uncacheable() const { return unit->uncacheable; }
-
-void subselect_single_select_engine::exclude() {
-  select_lex->master_unit()->exclude_level();
-}
 
 void subselect_union_engine::exclude() { unit->exclude_level(); }
 
@@ -3260,17 +3170,8 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table) {
   return map;
 }
 
-table_map subselect_single_select_engine::upper_select_const_tables() const {
-  return calc_const_tables(select_lex->outer_select()->leaf_tables);
-}
-
 table_map subselect_union_engine::upper_select_const_tables() const {
   return calc_const_tables(unit->outer_select()->leaf_tables);
-}
-
-void subselect_single_select_engine::print(const THD *thd, String *str,
-                                           enum_query_type query_type) {
-  item->unit->print(thd, str, query_type);
 }
 
 void subselect_union_engine::print(const THD *thd, String *str,
@@ -3330,32 +3231,17 @@ void subselect_indexsubquery_engine::print(const THD *thd, String *str,
     true  error
 */
 
-bool subselect_single_select_engine::change_query_result(
-    THD *thd, Item_subselect *si, Query_result_subquery *res) {
-  item = si;
-  result = res;
-  return select_lex->change_query_result(thd, result, NULL);
-}
-
-/**
-  change query result object of engine.
-
-  @param thd    thread handle
-  @param si		new subselect Item
-  @param res		new Query_result object
-
-  @retval
-    false OK
-  @retval
-    true  error
-*/
-
 bool subselect_union_engine::change_query_result(THD *thd, Item_subselect *si,
                                                  Query_result_subquery *res) {
   item = si;
   int rc = unit->change_query_result(thd, res, result);
   result = res;
   return rc;
+}
+
+SELECT_LEX *subselect_union_engine::single_select_lex() const {
+  DBUG_ASSERT(unit->is_simple());
+  return unit->first_select();
 }
 
 /**
@@ -3573,7 +3459,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
   */
   materialize_engine->prepare(thd);
   /* Let our engine reuse this query plan for materialization. */
-  materialize_engine->select_lex->change_query_result(thd, result, NULL);
+  materialize_engine->unit->change_query_result(thd, result, nullptr);
 
   return false;
 }
@@ -3632,10 +3518,11 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
   if (!is_materialized) {
     bool res;
     SELECT_LEX *save_select = thd->lex->current_select();
-    thd->lex->set_current_select(materialize_engine->select_lex);
-    DBUG_ASSERT(materialize_engine->select_lex->master_unit()->is_optimized());
+    thd->lex->set_current_select(materialize_engine->single_select_lex());
+    DBUG_ASSERT(
+        materialize_engine->single_select_lex()->master_unit()->is_optimized());
 
-    JOIN *join = materialize_engine->select_lex->join;
+    JOIN *join = materialize_engine->single_select_lex()->join;
 
     join->exec();
     if ((res = join->error || thd->is_fatal_error())) goto err;

@@ -2477,7 +2477,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
        that can be turned on or off during execution of a 'Full scan on NULL
        key'.
        @see Item_in_optimizer::val_int()
-       @see subselect_single_select_engine::exec()
+       @see subselect_union_engine::exec()
        @see TABLE_REF::cond_guards
        @see setup_join_buffering
     5. The join type is not CONST or SYSTEM. The reason for excluding

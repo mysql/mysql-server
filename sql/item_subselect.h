@@ -683,7 +683,6 @@ class subselect_engine {
  public:
   enum enum_engine_type {
     ABSTRACT_ENGINE,
-    SINGLE_SELECT_ENGINE,
     UNION_ENGINE,
     INDEXSUBQUERY_ENGINE,
     HASH_SJ_ENGINE
@@ -740,33 +739,6 @@ class subselect_engine {
   */
   const Item_subselect *get_item() const { return item; }
 #endif
-
- protected:
-  void set_row(List<Item> &item_list, Item_cache **row, bool never_empty);
-};
-
-class subselect_single_select_engine final : public subselect_engine {
- private:
-  SELECT_LEX *select_lex; /* corresponding select_lex */
- public:
-  subselect_single_select_engine(SELECT_LEX *select,
-                                 Query_result_interceptor *result,
-                                 Item_subselect *item);
-  void cleanup(THD *thd) override;
-  bool prepare(THD *thd) override;
-  void fix_length_and_dec(Item_cache **row) override;
-  bool exec(THD *thd) override;
-  uint cols() const override;
-  uint8 uncacheable() const override;
-  void exclude() override;
-  table_map upper_select_const_tables() const override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
-  bool change_query_result(THD *thd, Item_subselect *si,
-                           Query_result_subquery *result) override;
-  enum_engine_type engine_type() const override { return SINGLE_SELECT_ENGINE; }
-
-  friend class subselect_hash_sj_engine;
-  friend class Item_in_subselect;
 };
 
 class subselect_union_engine final : public subselect_engine {
@@ -785,9 +757,14 @@ class subselect_union_engine final : public subselect_engine {
   bool change_query_result(THD *thd, Item_subselect *si,
                            Query_result_subquery *result) override;
   enum_engine_type engine_type() const override { return UNION_ENGINE; }
+  SELECT_LEX *single_select_lex() const;  // Only if unit is simple.
 
  private:
   SELECT_LEX_UNIT *unit; /* corresponding unit structure */
+
+  void set_row(List<Item> &item_list, Item_cache **row, bool never_empty);
+
+  friend class subselect_hash_sj_engine;
 };
 
 /**
@@ -889,15 +866,15 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
     Through this member we can re-create and re-prepare the join object
     used to materialize the subquery for each execution of a prepared
     statement. We also reuse the functionality of
-    subselect_single_select_engine::[prepare | cols].
+    subselect_union_engine::[prepare | cols].
   */
-  subselect_single_select_engine *materialize_engine;
+  subselect_union_engine *materialize_engine;
   /* Temp table context of the outer select's JOIN. */
   Temp_table_param *tmp_param;
 
  public:
   subselect_hash_sj_engine(Item_subselect *in_predicate,
-                           subselect_single_select_engine *old_engine)
+                           subselect_union_engine *old_engine)
       : subselect_indexsubquery_engine(NULL, in_predicate, NULL, NULL),
         is_materialized(false),
         materialize_engine(old_engine),
