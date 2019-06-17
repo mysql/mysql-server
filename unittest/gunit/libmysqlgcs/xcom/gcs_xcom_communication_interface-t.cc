@@ -320,6 +320,12 @@ TEST_F(XComCommunicationTest, ReceiveMessageTest) {
   // Mock the sending of a dummy message instead of our test payload.
   EXPECT_CALL(*mock_vce, belongs_to_group()).Times(1).WillOnce(Return(true));
   EXPECT_CALL(*mock_vce, is_view_changing()).Times(1).WillOnce(Return(false));
+  Gcs_view mock_view(
+      {Gcs_member_identifier(mock_xcom_address->get_member_address())},
+      Gcs_xcom_view_identifier(0, 0), {}, {}, group_id);
+  EXPECT_CALL(*mock_vce, get_unsafe_current_view())
+      .Times(1)
+      .WillOnce(Return(&mock_view));
   EXPECT_CALL(*mock_proxy, xcom_client_send_data(_, _))
       .Times(1)
       .WillOnce(Invoke(&mock_xcom_client_send_data));
@@ -386,6 +392,12 @@ TEST_F(XComCommunicationTest, BufferMessageTest) {
   // Mock the sending of a dummy message instead of our test payload.
   EXPECT_CALL(*mock_vce, belongs_to_group()).Times(1).WillOnce(Return(true));
   EXPECT_CALL(*mock_vce, is_view_changing()).Times(1).WillOnce(Return(false));
+  Gcs_view mock_view(
+      {Gcs_member_identifier(mock_xcom_address->get_member_address())},
+      Gcs_xcom_view_identifier(0, 0), {}, {}, group_id);
+  EXPECT_CALL(*mock_vce, get_unsafe_current_view())
+      .Times(1)
+      .WillOnce(Return(&mock_view));
   EXPECT_CALL(*mock_proxy, xcom_client_send_data(_, _))
       .Times(1)
       .WillOnce(Invoke(&mock_xcom_client_send_data));

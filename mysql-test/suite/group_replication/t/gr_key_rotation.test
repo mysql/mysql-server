@@ -95,7 +95,6 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_rep
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
 --enable_query_log
 set sql_log_bin=1;
 

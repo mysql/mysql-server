@@ -320,7 +320,7 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   Gcs_xcom_communication_protocol_changer m_protocol_changer;
 
   /** Notify upper layers that a message has been received. */
-  void notify_received_message(Gcs_message *message);
+  void notify_received_message(std::unique_ptr<Gcs_message> &&message);
 
   /** Delivers the packet to the upper layer. */
   void deliver_user_data_packet(Gcs_packet &&packet,
