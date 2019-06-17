@@ -4918,9 +4918,6 @@ class Copy_field {
   Copy_func *get_copy_func(Field *to, Field *from);
 
  public:
-  uchar *from_ptr, *to_ptr;
-  uchar *from_null_ptr, *to_null_ptr;
-  uint from_bit, to_bit;
   String tmp;  // For items
 
   Copy_field() : m_from_field(NULL), m_to_field(NULL) {}
@@ -4933,6 +4930,14 @@ class Copy_field {
 
   void set(Field *to, Field *from, bool save);  // Field to field
   void set(uchar *to, Field *from);             // Field to string
+
+  /// Whether the from field is currently NULL or not (by itself, or by
+  /// means of being in a NULL row).
+  bool from_is_null() const;
+
+  /// Set the to field to NULL or not NULL (if it is non-nullable,
+  /// sets the NULL row in the containing row).
+  void set_to_is_null(bool is_null);
 
  private:
   void (*m_do_copy)(Copy_field *);
@@ -4964,6 +4969,17 @@ class Copy_field {
   */
   Field *m_from_field;
   Field *m_to_field;
+
+  // Pointing into the NULL information of the fields in question,
+  // if they are nullable. See from_is_null().
+  uchar *from_null_ptr;
+
+ public:
+  uchar *from_ptr, *to_ptr;  // Public by legacy only.
+  uchar *to_null_ptr;        // Needs to be public for the time being; see
+                             // setup_copy_fields().
+ private:
+  uint from_bit, to_bit;
 
   void check_and_set_temporary_null() {
     if (m_from_field && m_from_field->is_tmp_null() &&

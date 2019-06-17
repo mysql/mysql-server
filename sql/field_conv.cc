@@ -119,12 +119,12 @@ static void do_field_8(Copy_field *copy) {
 }
 
 static void do_field_to_null_str(Copy_field *copy) {
-  if (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)) {
+  if (copy->from_is_null()) {
     memset(copy->to_ptr, 0, copy->from_length());
-    copy->to_null_ptr[0] = 1;  // Always bit 1
+    copy->set_to_is_null(true);
   } else {
-    copy->to_null_ptr[0] = 0;
     memcpy(copy->to_ptr, copy->from_ptr, copy->from_length());
+    copy->set_to_is_null(false);
   }
 }
 
@@ -262,17 +262,17 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 static void do_skip(Copy_field *copy MY_ATTRIBUTE((unused))) {}
 
 static void do_copy_null(Copy_field *copy) {
-  if (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)) {
-    *copy->to_null_ptr |= copy->to_bit;
+  if (copy->from_is_null()) {
+    copy->set_to_is_null(true);
     copy->to_field()->reset();
   } else {
-    *copy->to_null_ptr &= ~copy->to_bit;
+    copy->set_to_is_null(false);
     copy->invoke_do_copy2(copy);
   }
 }
 
 static void do_copy_not_null(Copy_field *copy) {
-  if (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)) {
+  if (copy->from_is_null()) {
     if (copy->to_field()->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       my_error(ER_INVALID_USE_OF_NULL, MYF(0));
     else
@@ -284,17 +284,17 @@ static void do_copy_not_null(Copy_field *copy) {
 
 static void do_copy_maybe_null(Copy_field *copy) {
   /*
-    In reverse copying (see bring_back_frame_row() for windowing),
-    "to" is "from" and it may not have a null bit.
+    NOTE: In reverse copying (see bring_back_frame_row() for windowing),
+    "to" is "from".
   */
-  if (copy->to_null_ptr) *copy->to_null_ptr &= ~copy->to_bit;
+  copy->set_to_is_null(false);
   copy->invoke_do_copy2(copy);
 }
 
 /* timestamp and next_number has special handling in case of NULL values */
 
 static void do_copy_timestamp(Copy_field *copy) {
-  if (*copy->from_null_ptr & copy->from_bit) {
+  if (copy->from_is_null()) {
     /* Same as in set_field_to_null_with_conversions() */
     Item_func_now_local::store_in(copy->to_field());
   } else
@@ -302,7 +302,7 @@ static void do_copy_timestamp(Copy_field *copy) {
 }
 
 static void do_copy_next_number(Copy_field *copy) {
-  if (*copy->from_null_ptr & copy->from_bit) {
+  if (copy->from_is_null()) {
     /* Same as in set_field_to_null_with_conversions() */
     copy->to_field()->table->auto_increment_field_not_null = false;
     copy->to_field()->reset();
@@ -589,21 +589,9 @@ void Copy_field::set(uchar *to, Field *from) {
   from_ptr = from->ptr;
   to_ptr = to;
   m_from_length = from->pack_length();
+  m_from_field = from;
   if (from->maybe_null()) {
-    if ((from_null_ptr = from->get_null_ptr()))
-      from_bit = from->null_bit;
-    else {
-      /*
-        Field is not nullable but its table is the inner table of an outer
-        join so field may be NULL. Read its NULLness information from
-        TABLE::null_row.
-        @note that in the code of window functions, bring_back_frame_row() may
-        cause a change to *from_null_ptr, thus setting TABLE::null_row to be
-        what it was when the row was buffered, which is correct.
-      */
-      from_null_ptr = (uchar *)&from->table->null_row;
-      from_bit = 1;  // as TABLE::null_row contains 0 or 1
-    }
+    if ((from_null_ptr = from->get_null_ptr())) from_bit = from->null_bit;
     to_ptr[0] = 1;  // Null as default value
     to_null_ptr = to_ptr++;
     to_bit = 1;
@@ -643,12 +631,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
   // set up null handling
   from_null_ptr = to_null_ptr = 0;
   if (from->maybe_null()) {
-    if ((from_null_ptr = from->get_null_ptr()))
-      from_bit = from->null_bit;
-    else {
-      from_null_ptr = (uchar *)&from->table->null_row;
-      from_bit = 1;
-    }
+    if ((from_null_ptr = from->get_null_ptr())) from_bit = from->null_bit;
     if (m_to_field->real_maybe_null()) {
       to_null_ptr = to->get_null_ptr();
       to_bit = to->null_bit;
@@ -679,6 +662,39 @@ void Copy_field::set(Field *to, Field *from, bool save) {
 
   if (!m_do_copy)  // Not null
     m_do_copy = m_do_copy2;
+}
+
+bool Copy_field::from_is_null() const {
+  if (from_null_ptr != nullptr) {
+    return *from_null_ptr & from_bit;
+  } else if (m_from_field != nullptr) {
+    // Even if the source field is not nullable (from_null_ptr is nullptr),
+    // we can still read NULLs out of it if the table row is nullable.
+    // (The typical case is that the table is on the inner side of an outer
+    // join, but it can also happen with aggregation.)
+    return m_from_field->table->has_null_row();
+  } else {
+    return false;
+  }
+}
+
+void Copy_field::set_to_is_null(bool is_null) {
+  if (to_null_ptr != nullptr) {
+    if (is_null) {
+      *to_null_ptr |= to_bit;
+    } else {
+      *to_null_ptr &= ~to_bit;
+    }
+  } else if (m_to_field != nullptr) {
+    // This is used in the case of window functions, where
+    // bring_back_frame_row() may want to set TABLE::null_row to be what it was
+    // when the row was buffered. See also from_is_null().
+    if (is_null) {
+      m_to_field->table->set_null_row();
+    } else {
+      m_to_field->table->reset_null_row();
+    }
+  }
 }
 
 Copy_field::Copy_func *Copy_field::get_copy_func(Field *to, Field *from) {

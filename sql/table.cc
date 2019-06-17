@@ -5074,7 +5074,10 @@ Item *Field_iterator_table::create_item(THD *thd) {
     This function creates Item-s which don't go through fix_fields(); see same
     code in Item_field::fix_fields().
     */
-  if (is_null_on_empty_table(thd, item)) item->maybe_null = true;
+  if (is_null_on_empty_table(thd, item)) {
+    item->maybe_null = true;
+    (*ptr)->table->set_nullable();
+  }
 
   return item;
 }

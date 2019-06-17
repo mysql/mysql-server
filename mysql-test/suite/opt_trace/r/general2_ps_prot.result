@@ -843,7 +843,7 @@ TRACE
                                   "table_dependencies": [
                                     {
                                       "table": "`t1`",
-                                      "row_may_be_null": false,
+                                      "row_may_be_null": true,
                                       "map_bit": 0,
                                       "depends_on_map_bits": [
                                       ] /* depends_on_map_bits */

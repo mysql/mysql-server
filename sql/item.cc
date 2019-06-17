@@ -5289,7 +5289,15 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
 
     // If view column reference, Item in *reference is completely resolved:
     if (from_field == view_ref_found) {
-      if (is_null_on_empty_table(thd, this)) (*reference)->maybe_null = true;
+      if (is_null_on_empty_table(thd, this)) {
+        (*reference)->maybe_null = true;
+        if ((*reference)->real_item()->type() == Item::FIELD_ITEM) {
+          // See below for explanation.
+          TABLE *table =
+              down_cast<Item_field *>((*reference)->real_item())->field->table;
+          table->set_nullable();
+        }
+      }
       return false;
     }
 
@@ -5330,7 +5338,16 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
     }
   }
   fixed = 1;
-  if (is_null_on_empty_table(thd, this)) maybe_null = true;
+  if (is_null_on_empty_table(thd, this)) {
+    maybe_null = true;
+
+    // The Item is now nullable, but the underlying field still isn't,
+    // and Copy_field uses the underlying field. Thus,
+    // ZeroRowsAggregatedIterator sets the _table_ row to NULL instead, and
+    // thus, it needs to be nullable. This is similar to how inner tables of
+    // outer joins need to be nullable.
+    field->table->set_nullable();
+  }
   return false;
 
 error:

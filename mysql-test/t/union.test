@@ -2124,3 +2124,19 @@ DEALLOCATE PREPARE stmt;
 CREATE PROCEDURE p1() SELECT "foo", "foo2" UNION SELECT CONVERT("bar" USING utf8mb3), "bar2" UNION SELECT "foobar", CONVERT("foobar2" USING utf8mb3);
 CALL p1();
 DROP PROCEDURE p1;
+
+--echo #
+--echo # Verify that non-nullable columns are properly treated as nullable
+--echo # during implicit aggregation, even in UNIONs, even when involving
+--echo # views. The non-view case is tested by the test for bug #17580869,
+--echo # above.
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+--source include/turn_off_only_full_group_by.inc
+SELECT a, a, SUM(a) FROM t2 UNION ALL SELECT a, a+0, MIN(a) FROM v1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+DROP TABLE t1, t2;
+DROP VIEW v1;

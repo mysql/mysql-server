@@ -3167,3 +3167,19 @@ foo	foo2
 bar	bar2
 foobar	foobar2
 DROP PROCEDURE p1;
+#
+# Verify that non-nullable columns are properly treated as nullable
+# during implicit aggregation, even in UNIONs, even when involving
+# views. The non-view case is tested by the test for bug #17580869,
+# above.
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT a, a, SUM(a) FROM t2 UNION ALL SELECT a, a+0, MIN(a) FROM v1;
+a	a	SUM(a)
+1	1	1
+NULL	NULL	NULL
+DROP TABLE t1, t2;
+DROP VIEW v1;
