@@ -1767,7 +1767,8 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
       table_iterator = NewIterator<MaterializeIterator>(
           thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
           qep_tab->table(), move(qep_tab->iterator),
-          qep_tab->table_ref->common_table_expr(), subjoin->select_lex, subjoin,
+          qep_tab->table_ref->common_table_expr(),
+          subjoin->select_lex->select_number, subjoin->unit, subjoin,
           /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
           subjoin->tmp_table_param.end_write_records);
     }
@@ -1829,7 +1830,8 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
         true;  // We never have aggregation within semijoins.
     table_iterator = NewIterator<MaterializeIterator>(
         thd, move(subtree_iterator), &sjm->table_param, qep_tab->table(),
-        move(qep_tab->iterator), /*cte=*/nullptr, qep_tab->join()->select_lex,
+        move(qep_tab->iterator), /*cte=*/nullptr,
+        qep_tab->join()->select_lex->select_number, qep_tab->join()->unit,
         qep_tab->join(),
         /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
         qep_tab->rematerialize, sjm->table_param.end_write_records);
@@ -2451,8 +2453,9 @@ void JOIN::create_iterators() {
         qep_tab->table()->alias = "<temporary>";
         iterator = NewIterator<MaterializeIterator>(
             thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            move(qep_tab->iterator), /*cte=*/nullptr, select_lex, this,
-            qep_tab->ref_item_slice, /*copy_fields_and_items=*/true,
+            move(qep_tab->iterator), /*cte=*/nullptr, select_lex->select_number,
+            unit, this, qep_tab->ref_item_slice,
+            /*copy_fields_and_items=*/true,
             /*rematerialize=*/true,
             qep_tab->tmp_table_param->end_write_records);
       }
@@ -2540,7 +2543,8 @@ void JOIN::create_iterators() {
       if (!qep_tab->tmp_table_param->m_window_short_circuit) {
         iterator = NewIterator<MaterializeIterator>(
             thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            move(qep_tab->iterator), /*cte=*/nullptr, select_lex, this,
+            move(qep_tab->iterator), /*cte=*/nullptr, select_lex->select_number,
+            unit, this,
             /*ref_slice=*/-1, /*copy_fields_and_items_in_materialize=*/false,
             qep_tab->rematerialize, tmp_table_param.end_write_records);
       }
@@ -2574,8 +2578,8 @@ void JOIN::create_iterators() {
       } else {
         iterator = NewIterator<MaterializeIterator>(
             thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            move(qep_tab->iterator), /*cte=*/nullptr, select_lex, this,
-            qep_tab->ref_item_slice, copy_fields_and_items,
+            move(qep_tab->iterator), /*cte=*/nullptr, select_lex->select_number,
+            unit, this, qep_tab->ref_item_slice, copy_fields_and_items,
             /*rematerialize=*/true,
             qep_tab->tmp_table_param->end_write_records);
       }

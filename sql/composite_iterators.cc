@@ -697,15 +697,16 @@ MaterializeIterator::MaterializeIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *temp_table_param, TABLE *table,
     unique_ptr_destroy_only<RowIterator> table_iterator,
-    const Common_table_expr *cte, SELECT_LEX *select_lex, JOIN *join,
-    int ref_slice, bool copy_fields_and_items, bool rematerialize,
+    const Common_table_expr *cte, int select_number, SELECT_LEX_UNIT *unit,
+    JOIN *join, int ref_slice, bool copy_fields_and_items, bool rematerialize,
     ha_rows limit_rows)
     : TableRowIterator(thd, table),
       m_subquery_iterator(move(subquery_iterator)),
       m_table_iterator(move(table_iterator)),
       m_cte(cte),
       m_temp_table_param(temp_table_param),
-      m_select_lex(select_lex),
+      m_select_number(select_number),
+      m_unit(unit),
       m_join(join),
       m_ref_slice(ref_slice),
       m_copy_fields_and_items(copy_fields_and_items),
@@ -766,7 +767,7 @@ bool MaterializeIterator::Init() {
     Opt_trace_context *const trace = &thd()->opt_trace;
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object trace_exec(trace, "materialize");
-    trace_exec.add_select_number(m_select_lex->select_number);
+    trace_exec.add_select_number(m_select_number);
     Opt_trace_array trace_steps(trace, "steps");
 
     if (m_subquery_iterator->Init()) {
@@ -775,7 +776,8 @@ bool MaterializeIterator::Init() {
       // (e.g. MaterializeIterator); see the comment in
       // LimitOffsetIterator::Read(). Nevertheless, just to be sure, we clean up
       // here.
-      if (m_join->qep_tab != nullptr && m_join->primary_tables > 0) {
+      if (m_join != nullptr && m_join->qep_tab != nullptr &&
+          m_join->primary_tables > 0) {
         QEP_TAB *last_qep_tab = &m_join->qep_tab[m_join->primary_tables - 1];
         last_qep_tab->table()->file->end_psi_batch_mode_if_started();
       }
@@ -795,7 +797,7 @@ bool MaterializeIterator::Init() {
     }
 
     table()->file->ha_delete_all_rows();
-    m_join->unit->clear_corr_ctes();
+    m_unit->clear_corr_ctes();
 
     // If we are removing duplicates by way of a hash field
     // (see doing_hash_deduplication() for an explanation), we need to
@@ -813,7 +815,9 @@ bool MaterializeIterator::Init() {
       end_unique_index.commit();
     }
 
-    PFSBatchMode pfs_batch_mode(&m_join->qep_tab[m_join->const_tables], m_join);
+    QEP_TAB *first_primary_table =
+        m_join == nullptr ? nullptr : &m_join->qep_tab[m_join->const_tables];
+    PFSBatchMode pfs_batch_mode(first_primary_table, m_join);
     ha_rows stored_rows = 0;
     while (stored_rows < m_limit_rows) {
       int error = m_subquery_iterator->Read();

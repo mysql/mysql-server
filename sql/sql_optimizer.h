@@ -276,7 +276,6 @@ class JOIN {
         plan_state(NO_PLAN),
         select_count(false) {
     rollup.state = ROLLUP::STATE_NONE;
-    tmp_table_param.end_write_records = HA_POS_ERROR;
     if (select->order_list.first) explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
     if (select->group_list.first) explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
     if (select->is_distinct()) explain_flags.set(ESC_DISTINCT, ESP_EXISTS);

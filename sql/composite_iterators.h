@@ -522,7 +522,7 @@ class CacheInvalidatorIterator final : public RowIterator {
  */
 class MaterializeIterator final : public TableRowIterator {
  public:
-  // SELECT_LEX is used only to get active options.
+  // “join” can be nullptr.
   //
   // If “copy_fields_and_items” is set to false, the Field objects in the
   // output row is presumed already to be filled out. This is the case
@@ -540,9 +540,10 @@ class MaterializeIterator final : public TableRowIterator {
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
                       Temp_table_param *temp_table_param, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      const Common_table_expr *cte, SELECT_LEX *select_lex,
-                      JOIN *join, int ref_slice, bool copy_fields_and_items,
-                      bool rematerialize, ha_rows limit_rows);
+                      const Common_table_expr *cte, int select_number,
+                      SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
+                      bool copy_fields_and_items, bool rematerialize,
+                      ha_rows limit_rows);
 
   bool Init() override;
   int Read() override;
@@ -573,7 +574,10 @@ class MaterializeIterator final : public TableRowIterator {
   const Common_table_expr *m_cte;
 
   Temp_table_param *m_temp_table_param;
-  SELECT_LEX *m_select_lex;
+  int m_select_number;
+
+  /// The query expression of the join we are materializing.
+  SELECT_LEX_UNIT *m_unit;
 
   /// The join we are materializing.
   JOIN *const m_join;

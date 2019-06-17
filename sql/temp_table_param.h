@@ -88,7 +88,13 @@ class Temp_table_param {
     duplicate elimination, etc. There is at most one such index.
   */
   KEY *keyinfo;
-  ha_rows end_write_records;
+
+  /**
+    LIMIT (maximum number of rows) for this temp table, or HA_POS_ERROR
+    for no limit. Enforced by MaterializeIterator when writing to the table.
+   */
+  ha_rows end_write_records{HA_POS_ERROR};
+
   /**
     Number of normal fields in the query, including those referred to
     from aggregate functions. Hence, "SELECT `field1`,
@@ -185,7 +191,6 @@ class Temp_table_param {
         group_buff(nullptr),
         items_to_copy(nullptr),
         keyinfo(NULL),
-        end_write_records(0),
         field_count(0),
         func_count(0),
         sum_func_count(0),
