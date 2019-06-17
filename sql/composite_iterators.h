@@ -148,7 +148,11 @@ class LimitOffsetIterator final : public RowIterator {
       snprintf(buf, sizeof(buf), "Limit/Offset: %llu/%llu row(s)",
                m_limit - m_offset, m_offset);
     }
-    return {std::string(buf)};
+    if (m_count_all_rows) {
+      return {std::string(buf) + " (no early end due to SQL_CALC_FOUND_ROWS)"};
+    } else {
+      return {std::string(buf)};
+    }
   }
 
  private:
