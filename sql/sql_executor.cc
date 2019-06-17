@@ -1276,9 +1276,12 @@ enum CallingContext {
 
   TODO: The optimizer should output just one kind of structure directly.
  */
-static void ConvertItemsToCopy(List<Item> *items, Field **fields,
-                               Temp_table_param *param, JOIN *join) {
+void ConvertItemsToCopy(List<Item> *items, Field **fields,
+                        Temp_table_param *param, JOIN *join) {
   DBUG_ASSERT(param->items_to_copy == nullptr);
+
+  const bool replaced_items_for_rollup =
+      (join != nullptr && join->replaced_items_for_rollup);
 
   // All fields are to be copied.
   Func_ptr_array *copy_func =
@@ -1294,7 +1297,7 @@ static void ConvertItemsToCopy(List<Item> *items, Field **fields,
       // If any of the Item_null_result items are set to save in this field,
       // forward them to the new field instead. See below for the result fields
       // for the other items.
-      if (join->replaced_items_for_rollup) {
+      if (replaced_items_for_rollup) {
         for (size_t rollup_level = 0; rollup_level < join->send_group_parts;
              ++rollup_level) {
           for (Item &item : join->rollup.fields_list[rollup_level]) {
@@ -1313,7 +1316,7 @@ static void ConvertItemsToCopy(List<Item> *items, Field **fields,
 
       // Similarly to above, set the right result field for any aggregates
       // that we might output as part of rollup.
-      if (join->replaced_items_for_rollup && &item != real_item) {
+      if (replaced_items_for_rollup && &item != real_item) {
         for (Item_sum **func_ptr = join->sum_funcs;
              func_ptr != join->sum_funcs_end[join->send_group_parts];
              ++func_ptr) {
@@ -1331,7 +1334,7 @@ static void ConvertItemsToCopy(List<Item> *items, Field **fields,
   }
   param->items_to_copy = copy_func;
 
-  if (join->replaced_items_for_rollup) {
+  if (replaced_items_for_rollup) {
     // Patch up the rollup items so that they save in the same field as
     // the ref would. This is required because we call save_in_result_field()
     // directly on each field in the rollup field list
@@ -1732,45 +1735,78 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
     vector<QEP_TAB *> *unhandled_duplicates) {
   unique_ptr_destroy_only<RowIterator> table_iterator;
   if (qep_tab->materialize_table == join_materialize_derived) {
-    JOIN *subjoin = qep_tab->table_ref->derived_unit()->first_select()->join;
-    ConvertItemsToCopy(subjoin->fields, qep_tab->table()->visible_field_ptr(),
-                       &subjoin->tmp_table_param, subjoin);
+    SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
+    JOIN *subjoin = nullptr;
+    Temp_table_param *tmp_table_param;
+    int select_number;
+
+    // If we have a single query block at the end of the QEP_TAB array,
+    // it may contain aggregation that have already set up fields and items
+    // to copy, and we need to pass those to MaterializeIterator, so reuse its
+    // tmp_table_param. If not, make a new object, so that we don't
+    // disturb the materialization going on inside our own query block.
+    if (unit->is_simple()) {
+      subjoin = unit->first_select()->join;
+      tmp_table_param = &unit->first_select()->join->tmp_table_param;
+      select_number = subjoin->select_lex->select_number;
+    } else if (unit->fake_select_lex != nullptr) {
+      // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
+      // for ROLLUP, and fake_select_lex can't have ROLLUP.
+      subjoin = unit->fake_select_lex->join;
+      tmp_table_param = &unit->fake_select_lex->join->tmp_table_param;
+      select_number = unit->fake_select_lex->select_number;
+    } else {
+      tmp_table_param = new (thd->mem_root) Temp_table_param;
+      select_number = unit->first_select()->select_number;
+    }
+    ConvertItemsToCopy(unit->get_field_list(),
+                       qep_tab->table()->visible_field_ptr(), tmp_table_param,
+                       subjoin);
 
     bool rematerialize = qep_tab->rematerialize;
     if (qep_tab->join()->select_lex->uncacheable &&
         qep_tab->table_ref->common_table_expr() == nullptr) {
       // If the query is uncacheable, we need to rematerialize it each and
-      // every time it's read. In particular, this can happen for LATERAL
-      // tables.
+      // every time it's read. In particular, this can happen for
+      // outer-correlated derived tables.
       //
-      // For (lateral) CTEs, we don't need this check, as we already
+      // For (outer-correlated) CTEs, we don't need this check, as we already
       // explicitly clear CTEs when we start executing the query block where
       // it is defined (clear_corr_ctes(), called whenever we start a query
       // block or materialize a table, takes care of this). In fact,
       // rematerializing every time is actively harmful, as it would risk
       // clearing out a temporary table that an outer query block is still
-      // scanning.
+      // scanning. We don't want to set it for a LATERAL derived table either,
+      // as we only want to rematerialize it when the previous tables' rows
+      // change.
       rematerialize = true;
     }
 
-    bool copy_fields_and_items_in_materialize = !subjoin->streaming_aggregation;
+    bool copy_fields_and_items_in_materialize = true;
+    if (unit->is_simple()) {
+      // See if AggregateIterator already does this for us.
+      JOIN *join = unit->first_select()->join;
+      copy_fields_and_items_in_materialize =
+          !join->streaming_aggregation ||
+          join->tmp_table_param.precomputed_group_by;
+    }
     if (qep_tab->table_ref->common_table_expr() == nullptr && rematerialize &&
         qep_tab->using_table_scan()) {
       // We don't actually need the materialization for anything (we would just
-      // reading the rows straight out from the table, never to be used again),
-      // so we can just stream records directly over to the next iterator.
-      // This saves both CPU time and memory (for the temporary table).
+      // be reading the rows straight out from the table, never to be used
+      // again), so we can just stream rows directly over to the next
+      // iterator. This saves both CPU time and memory (for the temporary
+      // table).
       table_iterator = NewIterator<StreamingIterator>(
-          thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
+          thd, unit->release_root_iterator(), &subjoin->tmp_table_param,
           qep_tab->table(), copy_fields_and_items_in_materialize);
     } else {
       table_iterator = NewIterator<MaterializeIterator>(
-          thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
-          qep_tab->table(), move(qep_tab->iterator),
-          qep_tab->table_ref->common_table_expr(),
-          subjoin->select_lex->select_number, subjoin->unit, subjoin,
+          thd, unit->release_root_iterator(), tmp_table_param, qep_tab->table(),
+          move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
+          select_number, unit, /*subjoin=*/nullptr,
           /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
-          subjoin->tmp_table_param.end_write_records);
+          tmp_table_param->end_write_records);
     }
 
     if (!rematerialize) {
@@ -2388,21 +2424,24 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // The new executor engine can't do recursive CTEs or BNL/BKA.
+  if (unit->is_recursive()) {
+    // We're part of a unit with WITH RECURSIVE, which the iterator executor
+    // can't do yet. It may be that we could have done this specific query block
+    // using the iterator executor, but every query block needs to either be
+    // entirely iterator-based or entirely done in the old executor, so we bail
+    // out.
+    return nullptr;
+  }
+
+  // The new executor engine can't do BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
     if (qep_tab->materialize_table == join_materialize_derived) {
       // If we have a derived table that can be processed by
-      // the new query engine (and doesn't have UNION et al),
-      // MaterializeIterator can deal with it.
+      // the iterator executor, MaterializeIterator can deal with it.
       SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
-      if (!unit->is_simple()) {
-        return nullptr;
-      }
-
-      JOIN *subjoin = unit->first_select()->join;
-      if (subjoin->root_iterator() == nullptr) {
+      if (unit->root_iterator() == nullptr) {
         return nullptr;
       }
     }
@@ -2428,12 +2467,6 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         final_materializations.push_back(MaterializeOperation{
             qep_tab + 1, MaterializeOperation::WINDOWING_FUNCTION});
       }
-    }
-
-    if (qep_tab->table_ref != nullptr &&
-        qep_tab->table_ref->is_recursive_reference()) {
-      // Recursive CTE.
-      return nullptr;
     }
   }
 
@@ -2748,11 +2781,13 @@ JOIN::attach_iterators_for_having_and_limit(
   return iterator;
 }
 
+// Used only in the specific, odd case of a UNION between a non-iterator
+// and an iterator query block.
 static int ExecuteIteratorQuery(JOIN *join) {
   // The outermost LimitOffsetIterator, if any, will increment send_records for
   // each record skipped by OFFSET. This is needed because LIMIT 50 OFFSET 10
-  // with no SQL_CALC_ROWS is defined to return 60, not 50 (even though it's
-  // not necessarily the most useful definition).
+  // with no SQL_CALC_FOUND_ROWS is defined to return 60, not 50 (even though
+  // it's not necessarily the most useful definition).
   join->send_records = 0;
 
   join->thd->get_stmt_da()->reset_current_row_for_condition();
@@ -2769,12 +2804,7 @@ static int ExecuteIteratorQuery(JOIN *join) {
     return 1;
   }
 
-  QEP_TAB *first_qep_tab = nullptr;
-  if (join->qep_tab !=
-      nullptr) {  // NOTE: There can be zero tables in a valid query.
-    first_qep_tab = &join->qep_tab[join->const_tables];
-  }
-  PFSBatchMode pfs_batch_mode(first_qep_tab, join);
+  PFSBatchMode pfs_batch_mode(nullptr, join);
   for (;;) {
     int error = join->root_iterator()->Read();
 
@@ -4373,6 +4403,9 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
       m_examined_rows(examined_rows) {}
 
 bool DynamicRangeIterator::Init() {
+  // The range optimizer generally expects this to be set.
+  thd()->lex->set_current_select(m_qep_tab->join()->select_lex);
+
   Opt_trace_context *const trace = &thd()->opt_trace;
   const bool disable_trace =
       m_quick_traced_before &&
@@ -8412,5 +8445,34 @@ int UnqualifiedCountIterator::Read() {
   }
 
   m_has_row = false;
+  return 0;
+}
+
+int ZeroRowsAggregatedIterator::Read() {
+  if (!m_has_row) {
+    return -1;
+  }
+
+  // Mark tables as containing only NULL values
+  for (TABLE_LIST *table = m_join->select_lex->leaf_tables; table;
+       table = table->next_leaf) {
+    table->table->set_null_row();
+  }
+
+  // Calculate aggregate functions for no rows
+
+  /*
+    Must notify all fields that there are no rows (not only those
+    that will be returned) because join->having may refer to
+    fields that are not part of the result columns.
+   */
+  for (Item &item : m_join->all_fields) {
+    item.no_rows_in_result();
+  }
+
+  m_has_row = false;
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
   return 0;
 }

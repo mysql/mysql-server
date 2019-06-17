@@ -867,3 +867,44 @@ WHERE EXISTS ( SELECT * FROM t1 WHERE field1 <> alias1.field2 )
 );
 DROP TABLE t1, t2, t3;
 set optimizer_switch=default;
+#
+# Bug #29836364: WL#13000: SIG 11 AT COST_SKIP_SCAN() | SQL/OPT_RANGE.CC
+#
+CREATE TABLE t1 (
+f1 integer NOT NULL PRIMARY KEY,
+f2 varchar(1),
+KEY f2_idx (f2)
+);
+INSERT INTO t1 VALUES (20,'2');
+explain format=tree SELECT (
+SELECT t2.f2 FROM t1 JOIN (
+t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
+) ON t3.f2 = t2.f2
+WHERE t2.f1 > table1.f2
+) FROM t1 AS table1;
+EXPLAIN
+-> Index scan on table1 using f2_idx  (cost=0.25 rows=1)
+-> Select #2 (subquery in projection; dependent)
+    -> Nested loop inner join  (cost=0.95 rows=1)
+        -> Nested loop inner join  (cost=0.60 rows=1)
+            -> Index scan on t1 using f2_idx  (cost=0.25 rows=1)
+            -> Filter: (t2.f1 > table1.f2)  (cost=0.25 rows=1)
+                -> Index range scan on t2 (re-planned for each iteration)  (cost=0.25 rows=1)
+        -> Index lookup on t3 using f2_idx (f2=t2.f2)  (cost=0.25 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.f2' of SELECT #2 was resolved in SELECT #1
+SELECT (
+SELECT t2.f2 FROM t1 JOIN (
+t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
+) ON t3.f2 = t2.f2
+WHERE t2.f1 > table1.f2
+) FROM t1 AS table1;
+(
+SELECT t2.f2 FROM t1 JOIN (
+t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
+) ON t3.f2 = t2.f2
+WHERE t2.f1 > table1.f2
+)
+2
+DROP TABLE t1;

@@ -514,28 +514,129 @@ class CacheInvalidatorIterator final : public RowIterator {
   which items is governed by the temporary table parameters.
 
   Conceptually (although not performance-wise!), the MaterializeIterator is a
-  no-op if you don't ask for deduplication, and in some cases, we probably
-  should elide it (e.g. when scanning a table only once). However, it's not
-  necessarily straightforward to do so by just not inserting the iterator,
-  as the optimizer will have set up everything (e.g., read sets, or what table
-  upstream items will read from) assuming the materialization will happen.
+  no-op if you don't ask for deduplication, and in some cases (e.g. when
+  scanning a table only once), we elide it. However, it's not necessarily
+  straightforward to do so by just not inserting the iterator, as the optimizer
+  will have set up everything (e.g., read sets, or what table upstream items
+  will read from) assuming the materialization will happen, so the realistic
+  option is setting up everything as if materialization would happen but not
+  actually write to the table; see StreamingIterator for details.
+
+  MaterializeIterator conceptually materializes iterators, not JOINs or
+  SELECT_LEX_UNITs. However, there are many details that leak out
+  (e.g., setting performance schema batch mode, slices, reusing CTEs,
+  etc.), so we need to send them in anyway.
  */
 class MaterializeIterator final : public TableRowIterator {
  public:
-  // “join” can be nullptr.
-  //
-  // If “copy_fields_and_items” is set to false, the Field objects in the
-  // output row is presumed already to be filled out. This is the case
-  // iff there's an AggregateIterator earlier in the chain.
-  //
-  // The “limit_rows” parameter does the same job as a LimitOffsetIterator
-  // right before the MaterializeIterator would have done, except that it
-  // works _after_ deduplication (if that is active). It is used for when
-  // pushing LIMIT down to MaterializeIterator, so that we can stop
-  // materializing when there are enough rows. The deduplication is the
-  // reason why this specific limit has to be handled in MaterializeIterator
-  // and not using a regular LimitOffsetIterator. Set to HA_POS_ERROR
-  // for no limit.
+  struct QueryBlock {
+    /// The iterator to read the actual rows from.
+    unique_ptr_destroy_only<RowIterator> subquery_iterator;
+
+    /// Used only for optimizer trace.
+    int select_number;
+
+    /// The JOIN that this query block represents. Used for performance
+    /// schema batch mode: When materializing a query block that consists of
+    /// a single table, MaterializeIterator needs to set up schema batch mode,
+    /// since there is no nested loop iterator to do it. (This is similar to
+    /// what ExecuteIteratorQuery() needs to do at the top level.)
+    JOIN *join;
+
+    enum {
+      /// Keep indexes on as usual. Deduplication, if there is a unique index,
+      /// will remain active. This is the normal strategy, which is used
+      /// for pure UNION DISTINCT or pure UNION ALL queries.
+      ENABLE_INDEXES,
+
+      /// Unique constraint checking on the destination table is disabled when
+      /// materializing this query block. Used when materializing
+      /// UNION DISTINCT and UNION ALL parts into the same table. Note that
+      /// this disables writing to _all_ indexes, so if you use this, you cannot
+      /// query the table by index (e.g. ref access). Also disables checking
+      /// by means of hash keys (see doing_hash_deduplication()).
+      DISABLE_INDEXES,
+    } deduplication_strategy;
+
+    /// If set to false, the Field objects in the output row are
+    /// presumed already to be filled out. This is the case iff
+    /// there's an AggregateIterator earlier in the chain.
+    bool copy_fields_and_items;
+
+    /// If copy_fields_and_items is true, used for copying the Field objects
+    /// into the temporary table row. Otherwise unused.
+    Temp_table_param *temp_table_param;
+  };
+
+  /**
+    @param thd Thread handler.
+    @param query_blocks_to_materialize List of query blocks to materialize.
+    @param table Handle to table to materialize into.
+    @param table_iterator Iterator used for scanning the temporary table
+      after materialization.
+    @param cte If materializing a CTE, points to it (see m_cte), otherwise
+      nullptr.
+    @param unit The query expression we are materializing (see m_unit).
+    @param join
+      When materializing within the same JOIN (e.g., into a temporary table
+      before sorting), as opposed to a derived table or a CTE, we may need
+      to change the slice on the join before returning rows from the result
+      table. If so, join and ref_slice would need to be set, and
+      query_blocks_to_materialize should contain only one member, with the same
+      join.
+    @param ref_slice See join. If we are materializing across JOINs,
+      e.g. derived tables, ref_slice should be left at -1.
+    @param rematerialize true if rematerializing on every Init() call
+      (e.g., because we have a dependency on a value from outside the query
+      block).
+    @param limit_rows
+      Does the same job as a LimitOffsetIterator right before the
+      MaterializeIterator would have done, except that it works _after_
+      deduplication (if that is active). It is used for when pushing LIMIT down
+      to MaterializeIterator, so that we can stop materializing when there are
+      enough rows. The deduplication is the reason why this specific limit has
+      to be handled in MaterializeIterator and not using a regular
+      LimitOffsetIterator. Set to HA_POS_ERROR for no limit.
+   */
+  MaterializeIterator(THD *thd,
+                      Mem_root_array<QueryBlock> query_blocks_to_materialize,
+                      TABLE *table,
+                      unique_ptr_destroy_only<RowIterator> table_iterator,
+                      const Common_table_expr *cte, SELECT_LEX_UNIT *unit,
+                      JOIN *join, int ref_slice, bool rematerialize,
+                      ha_rows limit_rows);
+
+  /**
+    A convenience form for materializing a single table only.
+
+    @param thd Thread handler.
+    @param subquery_iterator The iterator to read the actual rows from.
+    @param temp_table_param If copy_fields_and_items is true, used for copying
+      the Field objects into the temporary table row. Otherwise unused.
+    @param table Handle to table to materialize into.
+    @param table_iterator Iterator used for scanning the temporary table
+      after materialization.
+    @param cte If materializing a CTE, points to it (see m_cte), otherwise
+      nullptr.
+    @param select_number Used only for optimizer trace.
+    @param unit The query expression we are materializing (see m_unit).
+    @param join
+      When materializing within the same JOIN (e.g., into a temporary table
+      before sorting), as opposed to a derived table or a CTE, we may need
+      to change the slice on the join before returning rows from the result
+      table. If so, join and ref_slice would need to be set, and
+      query_blocks_to_materialize should contain only one member, with the same
+      join.
+    @param ref_slice See join. If we are materializing across JOINs,
+      e.g. derived tables, ref_slice should be left at -1.
+    @param copy_fields_and_items If set to false, the Field objects in the
+      output row are presumed already to be filled out. This is the case iff
+      there's an AggregateIterator earlier in the chain.
+    @param rematerialize true if rematerializing on every Init() call
+      (e.g., because we have a dependency on a value from outside the query
+      block).
+    @param limit_rows See limit_rows on the other constructor.
+   */
   MaterializeIterator(THD *thd,
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
                       Temp_table_param *temp_table_param, TABLE *table,
@@ -567,27 +668,30 @@ class MaterializeIterator final : public TableRowIterator {
   void AddInvalidator(const CacheInvalidatorIterator *invalidator);
 
  private:
-  unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
+  Mem_root_array<QueryBlock> m_query_blocks_to_materialize;
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
 
-  /// If we are materializing a CTE, points to it. Otherwise nullptr.
+  /// If we are materializing a CTE, points to it (otherwise nullptr).
+  /// Used so that we see if some other iterator already materialized the table,
+  /// avoiding duplicate work.
   const Common_table_expr *m_cte;
 
-  Temp_table_param *m_temp_table_param;
-  int m_select_number;
-
-  /// The query expression of the join we are materializing.
+  /// The query expression we are materializing. For derived tables,
+  /// we materialize the entire query expression; for materialization within
+  /// a query expression (e.g. for sorting or for windowing functions),
+  /// we materialize only parts of it. Used to clear correlated CTEs within
+  /// the unit when we rematerialize, since they depend on values from
+  /// outside the query expression, and those values may have changed
+  /// since last materialization.
   SELECT_LEX_UNIT *m_unit;
 
-  /// The join we are materializing.
+  /// See constructor.
   JOIN *const m_join;
 
   /// The slice to set when accessing temporary table; used if anything upstream
   /// (e.g. WHERE, HAVING) wants to evaluate values based on its contents.
-  const int m_ref_slice;
-
   /// See constructor.
-  const bool m_copy_fields_and_items;
+  const int m_ref_slice;
 
   /// If true, we need to materialize anew for each Init() (because the contents
   /// of the table will depend on some outer non-constant value).
@@ -615,9 +719,11 @@ class MaterializeIterator final : public TableRowIterator {
   /// check_unique_constraint() is not called. However, B-tree indexes
   /// have limitations, in particular on length, that sometimes require us
   /// to do this instead. See create_tmp_table() for details.
-  bool doing_hash_deduplication() const {
-    return table()->hash_field && !table()->no_keyread;
-  }
+  bool doing_hash_deduplication() const { return table()->hash_field; }
+
+  /// Whether we are deduplicating, whether through a hash field
+  /// or a regular unique index.
+  bool doing_deduplication() const;
 };
 
 /**
@@ -1036,6 +1142,31 @@ class MaterializeInformationSchemaTableIterator final : public RowIterator {
   /// The iterator that reads from the materialized table.
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
   QEP_TAB *m_qep_tab;
+};
+
+/**
+  Takes in two or more iterators and output rows from them sequentially
+  (first all rows from the first one, the all from the second one, etc.).
+  Used for implementing UNION ALL, typically together with StreamingIterator.
+ */
+class AppendIterator final : public RowIterator {
+ public:
+  AppendIterator(
+      THD *thd,
+      std::vector<unique_ptr_destroy_only<RowIterator>> &&sub_iterators);
+
+  bool Init() override;
+  int Read() override;
+
+  std::vector<std::string> DebugString() const override { return {"Append"}; }
+  std::vector<Child> children() const override;
+
+  void SetNullRowFlag(bool is_null_row) override;
+  void UnlockRow() override;
+
+ private:
+  std::vector<unique_ptr_destroy_only<RowIterator>> m_sub_iterators;
+  size_t m_current_iterator_index = 0;
 };
 
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

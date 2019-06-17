@@ -727,3 +727,31 @@ UPDATE t3 SET field3 = 9 WHERE field3 IN (
 
 DROP TABLE t1, t2, t3;
 set optimizer_switch=default;
+
+--echo #
+--echo # Bug #29836364: WL#13000: SIG 11 AT COST_SKIP_SCAN() | SQL/OPT_RANGE.CC
+--echo #
+
+CREATE TABLE t1 (
+  f1 integer NOT NULL PRIMARY KEY,
+  f2 varchar(1),
+  KEY f2_idx (f2)
+);
+
+INSERT INTO t1 VALUES (20,'2');
+
+# Essentially verifies that running the range optimizer on a three-table
+# JOIN during execution (“re-planned for each iteration”) doesn't crash.
+# If it does, it's typically because the range optimizer doesn't know which
+# join it is working over.
+let $query = SELECT (
+        SELECT t2.f2 FROM t1 JOIN (
+                t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
+        ) ON t3.f2 = t2.f2
+        WHERE t2.f1 > table1.f2
+) FROM t1 AS table1;
+
+eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1;

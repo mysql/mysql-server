@@ -177,6 +177,12 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
     if (select->prepare(thd)) goto err;
 
     unit->set_prepared();
+
+    // select->set_query_result() is for the pre-iterator executor; this one
+    // is for the iterator executor.
+    // TODO(sgunders): Get rid of this when we remove Query_result from the
+    // SQL_LEX_UNIT.
+    unit->set_query_result(result);
   } else {
     if (unit->prepare(thd, result, SELECT_NO_UNLOCK | added_options,
                       removed_options))
@@ -199,13 +205,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) goto err; /* purecov: inspected */
   } else {
-    if (single_query) {
-      select->join->exec();
-      unit->set_executed();
-      if (thd->is_error()) goto err;
-    } else {
-      if (unit->execute(thd)) goto err;
-    }
+    if (unit->execute(thd)) goto err;
   }
 
   DBUG_ASSERT(!thd->is_error());
@@ -895,13 +895,7 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */
   } else {
-    if (unit->is_simple()) {
-      unit->first_select()->join->exec();
-      unit->set_executed();
-      if (thd->is_error()) return true;
-    } else {
-      if (unit->execute(thd)) return true;
-    }
+    if (unit->execute(thd)) return true;
   }
 
   return false;
@@ -1647,7 +1641,7 @@ bool JOIN::prepare_result() {
 
   // Fill information schema tables if needed (handled by
   // MaterializeInformationSchemaTableIterator in the iterator executor).
-  if (m_root_iterator == nullptr &&
+  if (unit->root_iterator() == nullptr &&
       (select_lex->active_options() & OPTION_SCHEMA_TABLE)) {
     if (get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC)) {
       goto err;

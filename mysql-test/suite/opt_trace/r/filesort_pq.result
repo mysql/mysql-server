@@ -6846,21 +6846,6 @@ LIMIT 30	{
             }
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "`v2`",
-                "in_plan_at_position": 1,
-                "columns": 3,
-                "row_length": 210,
-                "key_length": 5,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
             "materialize": {
               "select#": 2,
               "steps": [
@@ -6922,6 +6907,21 @@ LIMIT 30	{
               "chosen": true
             },
             "filesort_execution": [
+              {
+                "creating_tmp_table": {
+                  "tmp_table_info": {
+                    "table": "`v2`",
+                    "in_plan_at_position": 1,
+                    "columns": 3,
+                    "row_length": 210,
+                    "key_length": 5,
+                    "unique_constraint": false,
+                    "makes_grouped_rows": false,
+                    "cannot_insert_duplicates": false,
+                    "location": "TempTable"
+                  }
+                }
+              },
               {
                 "materialize": {
                   "select#": 3,
@@ -8652,21 +8652,6 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": " `d1`",
-                "in_plan_at_position": 1,
-                "columns": 3,
-                "row_length": 210,
-                "key_length": 5,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
             "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
@@ -8679,6 +8664,21 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "chosen": true
             },
             "filesort_execution": [
+              {
+                "creating_tmp_table": {
+                  "tmp_table_info": {
+                    "table": " `d1`",
+                    "in_plan_at_position": 1,
+                    "columns": 3,
+                    "row_length": 210,
+                    "key_length": 5,
+                    "unique_constraint": false,
+                    "makes_grouped_rows": false,
+                    "cannot_insert_duplicates": false,
+                    "location": "TempTable"
+                  }
+                }
+              },
               {
                 "materialize": {
                   "select#": 2,

@@ -16709,31 +16709,59 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "in_plan_at_position": 3,
+                "columns": 7,
+                "row_length": 45,
+                "key_length": 0,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
             "materialize": {
               "select#": 1,
               "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 2,
+                      "columns": 6,
+                      "row_length": 29,
+                      "key_length": 0,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    }
+                  }
+                },
                 {
                   "materialize": {
                     "select#": 1,
                     "steps": [
                       {
+                        "creating_tmp_table": {
+                          "tmp_table_info": {
+                            "in_plan_at_position": 1,
+                            "columns": 5,
+                            "row_length": 22,
+                            "key_length": 5,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": true,
+                            "cannot_insert_duplicates": false,
+                            "location": "TempTable"
+                          }
+                        }
+                      },
+                      {
                         "materialize": {
                           "select#": 1,
                           "steps": [
-                            {
-                              "creating_tmp_table": {
-                                "tmp_table_info": {
-                                  "in_plan_at_position": 1,
-                                  "columns": 5,
-                                  "row_length": 22,
-                                  "key_length": 5,
-                                  "unique_constraint": false,
-                                  "makes_grouped_rows": true,
-                                  "cannot_insert_duplicates": false,
-                                  "location": "TempTable"
-                                }
-                              }
-                            }
                           ]
                         }
                       },
@@ -16762,20 +16790,6 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                           "peak_memory_used": "NNN",
                           "sort_algorithm": "std::stable_sort",
                           "sort_mode": "<fixed_sort_key, packed_additional_fields>"
-                        }
-                      },
-                      {
-                        "creating_tmp_table": {
-                          "tmp_table_info": {
-                            "in_plan_at_position": 2,
-                            "columns": 6,
-                            "row_length": 29,
-                            "key_length": 0,
-                            "unique_constraint": false,
-                            "makes_grouped_rows": false,
-                            "cannot_insert_duplicates": false,
-                            "location": "TempTable"
-                          }
                         }
                       }
                     ]
@@ -16806,20 +16820,6 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                     "peak_memory_used": "NNN",
                     "sort_algorithm": "std::stable_sort",
                     "sort_mode": "<fixed_sort_key, packed_additional_fields>"
-                  }
-                },
-                {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "in_plan_at_position": 3,
-                      "columns": 7,
-                      "row_length": 45,
-                      "key_length": 0,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": false,
-                      "cannot_insert_duplicates": false,
-                      "location": "TempTable"
-                    }
                   }
                 }
               ]

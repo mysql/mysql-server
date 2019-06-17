@@ -2091,7 +2091,7 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 
   {
     std::string explain;
-    if (unit != nullptr && unit->is_simple()) {
+    if (unit != nullptr) {
       int base_level = 0;
       JOIN *join = unit->first_select()->join;
       const THD::Query_plan *query_plan = &query_thd->query_plan;
@@ -2123,7 +2123,7 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
         default:
           break;
       }
-      explain += PrintQueryPlan(base_level, join->root_iterator());
+      explain += PrintQueryPlan(base_level, unit->root_iterator());
     } else {
       explain += PrintQueryPlan(0, nullptr);
     }
@@ -2198,19 +2198,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
     if (lex->is_explain_analyze) {
       // Run the query, but with the result suppressed.
       Query_result_null null_result;
-      if (unit->is_simple()) {
-        unit->first_select()->set_query_result(&null_result);
-        unit->first_select()->join->exec();
-        unit->set_executed();
-        if (query_thd->is_error()) return true;
-      } else {
-        unit->change_query_result(explain_thd, &null_result, nullptr);
-        if (unit->fake_select_lex != nullptr) {
-          unit->fake_select_lex->set_query_result(&null_result);
-        }
-        DBUG_ASSERT(explain_thd == query_thd);
-        if (unit->execute(explain_thd)) return true;
-      }
+      unit->set_query_result(&null_result);
+      unit->execute(explain_thd);
+      unit->set_executed();
+      if (query_thd->is_error()) return true;
     }
 
     return ExplainIterator(explain_thd, query_thd, unit);
@@ -2578,14 +2569,9 @@ void ForEachSubselect(
       int select_number = select_lex->select_number;
       bool is_dependent = select_lex->is_dependent();
       bool is_cacheable = select_lex->is_cacheable();
-      if (subselect->unit->is_simple()) {
-        JOIN *join = select_lex->join;
-        if (join == nullptr || join->root_iterator() == nullptr) {
-          callback(select_number, is_dependent, is_cacheable, nullptr);
-        } else {
-          callback(select_number, is_dependent, is_cacheable,
-                   join->root_iterator());
-        }
+      if (subselect->unit->root_iterator() != nullptr) {
+        callback(select_number, is_dependent, is_cacheable,
+                 subselect->unit->root_iterator());
       } else {
         callback(select_number, is_dependent, is_cacheable, nullptr);
       }

@@ -786,4 +786,7 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
                           enum Window::retrieve_cached_row_reason reason,
                           int fno = 0);
 
+void ConvertItemsToCopy(List<Item> *items, Field **fields,
+                        Temp_table_param *param, JOIN *join);
+
 #endif /* SQL_EXECUTOR_INCLUDED */

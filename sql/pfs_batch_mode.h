@@ -32,7 +32,9 @@
 // Normally, pfs_batch_update() would be handled by the NestedLoopIterator.
 // However, if we only have one table (and it is not outer-joined to any
 // const tables), PFS batch mode should be activated for it,
-// and there's no NestedLoopIterator to do so.
+// and there's no NestedLoopIterator to do so, and single-table iterators like
+// TableRowIterator don't do so either. So it is up to an owner of such
+// single-table iterator to act, by using this class.
 //
 // Note that this needs to happen after Init() on the root iterator,
 // since Init() could close and reopen the TABLE object (if a materialized
@@ -40,7 +42,8 @@
 class PFSBatchMode {
  public:
   // If we're scanning a JOIN (ie., a whole iterator subtree): qep_tab should be
-  // the first primary table in the join, and join should point to that join.
+  // the first primary table in the join (or nullptr, in which case it will
+  // default to that), and join should point to that JOIN.
   //
   // If we're scanning a single table: qep_tab should be that table, and join
   // should be nullptr. If so, we will assume we're scanning a single table (no
@@ -48,7 +51,10 @@ class PFSBatchMode {
   // off batch mode on the rightmost table.
   PFSBatchMode(QEP_TAB *qep_tab, JOIN *join)
       : m_qep_tab(qep_tab), m_join(join) {
-    if (qep_tab == nullptr) {
+    if (qep_tab == nullptr && join != nullptr && join->qep_tab != nullptr) {
+      qep_tab = m_qep_tab = &join->qep_tab[m_join->const_tables];
+    }
+    if (qep_tab == nullptr || (join != nullptr && join->qep_tab == nullptr)) {
       // No tables at all.
       m_enable = false;
     } else if (qep_tab->join() == nullptr) {

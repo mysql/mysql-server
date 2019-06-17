@@ -89,6 +89,7 @@
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"
 
@@ -281,18 +282,22 @@ bool JOIN::optimize() {
 
   if (unit->first_select()->active_options() & OPTION_FOUND_ROWS) {
     /*
-      Calculate found rows if
+      Calculate found rows (ie., keep counting rows even after we hit LIMIT) if
       - LIMIT is set, and
-      - This is not a UNION query. If is, each query block must be calculated
-        fully, and the limit is then applied on the final UNION evaluation.
-    */
-    calc_found_rows = m_select_limit != HA_POS_ERROR && !unit->is_union();
+      - This is the outermost query block (for a UNION query, this is the
+        fake query block that contains the limit applied on the final UNION
+        evaluation).
+     */
+    calc_found_rows =
+        m_select_limit != HA_POS_ERROR &&
+        (!unit->is_union() || select_lex == unit->fake_select_lex);
   }
   if (having_cond || calc_found_rows) m_select_limit = HA_POS_ERROR;
 
   if (unit->select_limit_cnt == 0 && !calc_found_rows) {
     zero_result_cause = "Zero limit";
     best_rowcount = 0;
+    create_iterators_for_zero_rows();
     goto setup_subq_exit;
   }
 
@@ -306,6 +311,7 @@ bool JOIN::optimize() {
     if (select_lex->cond_value == Item::COND_FALSE) {
       zero_result_cause = "Impossible WHERE";
       best_rowcount = 0;
+      create_iterators_for_zero_rows();
       goto setup_subq_exit;
     }
   }
@@ -319,6 +325,7 @@ bool JOIN::optimize() {
     if (select_lex->having_value == Item::COND_FALSE) {
       zero_result_cause = "Impossible HAVING";
       best_rowcount = 0;
+      create_iterators_for_zero_rows();
       goto setup_subq_exit;
     }
   }
@@ -360,31 +367,34 @@ bool JOIN::optimize() {
         tables_list = nullptr;  // All tables resolved
         best_rowcount = 1;
         const_tables = tables = primary_tables = select_lex->leaf_table_count;
+        m_root_iterator =
+            NewIterator<FakeSingleRowIterator>(thd, &examined_rows);
+        m_root_iterator =
+            attach_iterators_for_having_and_limit(move(m_root_iterator));
         /*
-          Extract all table-independent conditions and replace the WHERE
-          clause with them. All other conditions were computed by
-          optimize_aggregated_query() and the MIN/MAX/COUNT function(s) have
-          been replaced by constants, so there is no need to compute the whole
-          WHERE clause again.
-          Notice that make_cond_for_table() will always succeed to remove all
-          computed conditions, because optimize_aggregated_query() is applicable
-          only to conjunctions.
-          Preserve conditions for EXPLAIN.
+          There are no relevant conditions left from the WHERE;
+          optimize_aggregated_query() will not return AGGR_COMPLETE if there are
+          any table-independent conditions, and all other conditions have been
+          optimized away by it. Thus, remove the condition, unless we have
+          EXPLAIN (in which case we will keep it for printing).
         */
-        if (where_cond && !thd->lex->is_explain()) {
-          Item *table_independent_conds = make_cond_for_table(
-              thd, where_cond, PSEUDO_TABLE_BITS, table_map(0), false);
-          DBUG_EXECUTE("where",
-                       print_where(thd, table_independent_conds,
-                                   "where after optimize_aggregated_query()",
-                                   QT_ORDINARY););
-          where_cond = table_independent_conds;
+        if (!thd->lex->is_explain()) {
+#ifndef DBUG_OFF
+          // Verify, to be sure.
+          if (where_cond != nullptr) {
+            Item *table_independent_conds = make_cond_for_table(
+                thd, where_cond, PSEUDO_TABLE_BITS, table_map(0), false);
+            DBUG_ASSERT(table_independent_conds == nullptr);
+          }
+#endif
+          where_cond = nullptr;
         }
         goto setup_subq_exit;
       case AGGR_EMPTY:
         // It was detected that the result tables are empty
         DBUG_PRINT("info", ("No matching min/max row"));
         zero_result_cause = "No matching min/max row";
+        create_iterators_for_zero_rows();
         goto setup_subq_exit;
     }
   }
@@ -435,7 +445,10 @@ bool JOIN::optimize() {
   // At this stage, join_tab==NULL, JOIN_TABs are listed in order by best_ref.
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
-  if (zero_result_cause) goto setup_subq_exit;
+  if (zero_result_cause != nullptr) {  // Can be set by make_join_plan().
+    create_iterators_for_zero_rows();
+    goto setup_subq_exit;
+  }
 
   if (rollup.state == ROLLUP::STATE_NONE) {
     /* Remove distinct if only const tables */
@@ -506,6 +519,7 @@ bool JOIN::optimize() {
     if (thd->is_error()) return true;
 
     zero_result_cause = "Impossible WHERE noticed after reading const tables";
+    create_iterators_for_zero_rows();
     goto setup_subq_exit;
   }
 
@@ -557,6 +571,7 @@ bool JOIN::optimize() {
       having_cond = new Item_func_false();
       zero_result_cause =
           "Impossible HAVING noticed after reading const tables";
+      create_iterators_for_zero_rows();
       goto setup_subq_exit;
     }
   }
@@ -752,7 +767,8 @@ bool JOIN::optimize() {
 
 setup_subq_exit:
 
-  DBUG_ASSERT(zero_result_cause != NULL);
+  DBUG_ASSERT(zero_result_cause != nullptr);
+  DBUG_ASSERT(m_root_iterator != nullptr);
   /*
     Even with zero matching rows, subqueries in the HAVING clause may
     need to be evaluated if there are aggregate functions in the
@@ -779,6 +795,19 @@ setup_subq_exit:
 
   set_plan_state(ZERO_RESULT);
   return false;
+}
+
+void JOIN::create_iterators_for_zero_rows() {
+  if (send_row_on_empty_set()) {
+    // Aggregate no rows into an aggregate row.
+    m_root_iterator = NewIterator<ZeroRowsAggregatedIterator>(
+        thd, zero_result_cause, select_lex->join, &examined_rows);
+    m_root_iterator =
+        attach_iterators_for_having_and_limit(move(m_root_iterator));
+  } else {
+    // Send no row at all (so also no need to check HAVING or LIMIT).
+    m_root_iterator = NewIterator<ZeroRowsIterator>(thd, zero_result_cause);
+  }
 }
 
 /**

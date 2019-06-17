@@ -376,7 +376,9 @@ TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
       m_examined_rows(examined_rows) {}
 
 TableScanIterator::~TableScanIterator() {
-  table()->file->ha_index_or_rnd_end();
+  if (table()->file != nullptr) {
+    table()->file->ha_index_or_rnd_end();
+  }
 }
 
 bool TableScanIterator::Init() {

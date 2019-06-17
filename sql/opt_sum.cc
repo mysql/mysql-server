@@ -309,10 +309,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
   /*
     A subquery is optimized once but executed possibly multiple times.
     If the value of the set function depends on the join's emptiness (like
-    MIN() does), and the join's emptiness depends on the outer row, we cannot
-    mark the set function as constant:
+    MIN() does), and the join's emptiness depends on the outer row or
+    something nondeterministic, we cannot mark the set function as constant:
    */
-  if (where_tables & OUTER_REF_TABLE_BIT) return false;
+  if (where_tables & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) return false;
 
   /*
     Analyze outer join dependencies, and, if possible, compute the number

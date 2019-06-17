@@ -920,7 +920,14 @@ class JOIN {
 
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN
-  bool executed;   ///< Set by exec(), reset by reset()
+
+  /**
+    Set by exec(), reset by reset(). Note that this needs to be set
+    _during_ the query (not only when it's done executing), or the
+    dynamic range optimizer will not understand which tables have been
+    read.
+   */
+  bool executed;
 
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
@@ -1112,6 +1119,15 @@ class JOIN {
     nullptr.
    */
   void create_iterators();
+
+  /**
+    Create iterators with the knowledge that there are going to be zero rows
+    coming from tables (before aggregation); typically because we know that
+    all of them would be filtered away by WHERE (e.g. SELECT * FROM t1
+    WHERE 1=2). This will normally yield no output rows, but if we have implicit
+    aggregation, it might yield a single one.
+   */
+  void create_iterators_for_zero_rows();
 
   /** @{ Helpers for create_iterators. */
   void create_table_iterators();

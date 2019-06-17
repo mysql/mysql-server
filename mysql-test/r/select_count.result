@@ -546,7 +546,8 @@ EXPLAIN
 
 EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
 EXPLAIN
-<not executable by iterator executor>
+-> Filter: (c > 7)
+    -> Rows fetched before execution
 
 SELECT COUNT(*) c FROM t_innodb LIMIT 10 OFFSET 5;
 c

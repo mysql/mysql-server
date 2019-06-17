@@ -1752,6 +1752,8 @@ select max(fld1) from t2 where fld1>= 098024;
 select count(*) from t3 where price2=76234234;
 select count(*) from t3 where companynr=512 and price2=76234234;
 explain select min(fld1),max(fld1),count(*) from t2;
+explain format=tree select min(fld1),max(fld1),count(*) from t2;  # Should be computed at optimize time.
+explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;  # Should _not_ be computed at optimize time.
 # PS does correct pre-zero here. MySQL can't do it as it returns a number.
 --disable_ps_protocol
 select min(fld1),max(fld1),count(*) from t2;
@@ -2345,8 +2347,10 @@ DROP TABLE IF EXISTS t1,t2;
 #
 # Bug #20954 "avg(keyval) retuns 0.38 but max(keyval) returns an empty set"
 #
-CREATE TABLE t1 (key1 float default NULL, UNIQUE KEY key1 (key1));
-CREATE TABLE t2 (key2 float default NULL, UNIQUE KEY key2 (key2));
+# TODO: Change double in the table definition back to float after bug #29931596 is fixed.
+#
+CREATE TABLE t1 (key1 double default NULL, UNIQUE KEY key1 (key1));
+CREATE TABLE t2 (key2 double default NULL, UNIQUE KEY key2 (key2));
 INSERT INTO t1 VALUES (0.3762),(0.3845),(0.6158),(0.7941);
 INSERT INTO t2 VALUES (1.3762),(1.3845),(1.6158),(1.7941);
 

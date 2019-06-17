@@ -211,15 +211,6 @@ ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
 DROP TABLE t1;
 
-# A subquery that contains a query we can't execute as iterators.
-CREATE TABLE t1 ( f1 INT PRIMARY KEY );
-INSERT INTO t1 VALUES ( 1 );
-INSERT INTO t1 VALUES ( 2 );
-INSERT INTO t1 VALUES ( 3 );
-ANALYZE TABLE t1;
-EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 LIMIT 1 ) FROM t1;
-DROP TABLE t1;
-
 # A subquery which is pushed to a temporary table due to ordering.
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );

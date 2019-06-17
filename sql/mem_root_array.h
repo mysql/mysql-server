@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <type_traits>
+#include <utility>
 
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -377,7 +378,7 @@ class Mem_root_array_YY {
   bool empty() const { return size() == 0; }
   size_t size() const { return m_size; }
 
- private:
+ protected:
   MEM_ROOT *m_root;
   Element_type *m_array;
   size_t m_size;
@@ -403,7 +404,26 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
 
   typedef typename super::const_iterator const_iterator;
 
+  Mem_root_array() { super::init_empty_const(); }
+
   explicit Mem_root_array(MEM_ROOT *root) { super::init(root); }
+
+  /// Move constructor and assignment.
+  Mem_root_array(Mem_root_array &&other) {
+    this->m_root = other.m_root;
+    this->m_array = other.m_array;
+    this->m_size = other.m_size;
+    this->m_capacity = other.m_capacity;
+    other.init_empty_const();
+  }
+  Mem_root_array &operator=(Mem_root_array &&other) {
+    this->m_root = other.m_root;
+    this->m_array = other.m_array;
+    this->m_size = other.m_size;
+    this->m_capacity = other.m_capacity;
+    other.init_empty_const();
+    return *this;
+  }
 
   Mem_root_array(MEM_ROOT *root, size_t n) {
     super::init(root);
@@ -438,10 +458,9 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
 
   ~Mem_root_array() { super::clear(); }
 
- private:
   // Not (yet) implemented.
-  Mem_root_array(const Mem_root_array &);
-  Mem_root_array &operator=(const Mem_root_array &);
+  Mem_root_array(const Mem_root_array &) = delete;
+  Mem_root_array &operator=(const Mem_root_array &) = delete;
 };
 
 #endif  // MEM_ROOT_ARRAY_INCLUDED

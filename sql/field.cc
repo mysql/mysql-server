@@ -10448,7 +10448,9 @@ Field_varstring::Field_varstring(uchar *ptr_arg, uint32 len_arg,
     : Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
                     auto_flags_arg, field_name_arg, cs),
       length_bytes(length_bytes_arg) {
-  if (share) share->varchar_fields++;
+  if (share != nullptr) {
+    share->varchar_fields++;
+  }
 }
 
 Field_varstring::Field_varstring(uint32 len_arg, bool maybe_null_arg,
@@ -10458,7 +10460,9 @@ Field_varstring::Field_varstring(uint32 len_arg, bool maybe_null_arg,
                     maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
                     field_name_arg, cs),
       length_bytes(len_arg < 256 ? 1 : 2) {
-  share->varchar_fields++;
+  if (share != nullptr) {
+    share->varchar_fields++;
+  }
 }
 
 void Field_blob::store_length(uchar *i_ptr, uint i_packlength,

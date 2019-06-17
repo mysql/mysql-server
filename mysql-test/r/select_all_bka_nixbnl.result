@@ -2092,6 +2092,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2`
+explain format=tree select min(fld1),max(fld1),count(*) from t2;
+EXPLAIN
+-> Rows fetched before execution
+
+explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
+EXPLAIN
+-> Aggregate: min(t2.fld1), max(t2.fld1), count(0)
+    -> Filter: (rand() > 0.5)  (cost=31.70 rows=1199)
+        -> Index scan on t2 using fld1  (cost=31.70 rows=1199)
+
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)
 0	1232609	1199
@@ -2796,7 +2806,7 @@ select count(*) from t1 limit 2,3;
 count(*)
 select found_rows();
 found_rows()
-0
+1
 Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
@@ -2957,8 +2967,8 @@ a	b	a	b
 1	NULL	4	10
 2	10	4	10
 DROP TABLE IF EXISTS t1,t2;
-CREATE TABLE t1 (key1 float default NULL, UNIQUE KEY key1 (key1));
-CREATE TABLE t2 (key2 float default NULL, UNIQUE KEY key2 (key2));
+CREATE TABLE t1 (key1 double default NULL, UNIQUE KEY key1 (key1));
+CREATE TABLE t2 (key2 double default NULL, UNIQUE KEY key2 (key2));
 INSERT INTO t1 VALUES (0.3762),(0.3845),(0.6158),(0.7941);
 INSERT INTO t2 VALUES (1.3762),(1.3845),(1.6158),(1.7941);
 explain select max(key1) from t1 where key1 <= 0.6158;
@@ -2989,12 +2999,12 @@ Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`key1`) AS `max(key1)`,min(`test`.`t2`.`key2`) AS `min(key2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`key1` <= 0.6158) and (`test`.`t2`.`key2` >= 1.3762))
 explain select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	SIMPLE	t1	NULL	range	key1	key1	9	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`key1`) AS `max(key1)` from `test`.`t1` where ((`test`.`t1`.`key1` <= 0.6158) and ((rand() + 0.5) >= 0.5))
 explain select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	SIMPLE	t1	NULL	index	key1	key1	9	NULL	4	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`key1`) AS `min(key1)` from `test`.`t1` where ((`test`.`t1`.`key1` >= 0.3762) and ((rand() + 0.5) >= 0.5))
 select max(key1) from t1 where key1 <= 0.6158;

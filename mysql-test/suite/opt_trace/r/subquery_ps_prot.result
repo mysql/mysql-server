@@ -3213,18 +3213,11 @@ TRACE
             } /* creating_tmp_table */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
-          },
-          {
-            "join_execution": {
-              "select#": 3,
-              "steps": [
-              ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           }
         ] /* steps */
       } /* join_execution */

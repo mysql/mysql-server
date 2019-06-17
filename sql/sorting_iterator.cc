@@ -624,7 +624,7 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
     }
   }
 
-  if (join != nullptr && join->root_iterator() == nullptr) {
+  if (join != nullptr && join->unit->root_iterator() == nullptr) {
     /* Fill schema tables with data before filesort if it's necessary */
     if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
         get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
@@ -634,7 +634,7 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
   ha_rows found_rows;
   bool error = filesort(thd(), m_filesort, m_source_iterator.get(), &m_fs_info,
                         &m_sort_result, &found_rows);
-  qep_tab->set_records(found_rows);  // For SQL_CALC_ROWS
+  qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
   table->set_keyread(false);         // Restore if we used indexes
   if (qep_tab->type() == JT_FT)
     table->file->ft_end();

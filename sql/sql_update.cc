@@ -1386,7 +1386,11 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
         Query_result_update(update_fields, update_value_list);
     if (result == NULL) return true; /* purecov: inspected */
 
+    // The former is for the pre-iterator executor; the latter is for the
+    // iterator executor.
+    // TODO(sgunders): Get rid of this when we remove Query_result.
     select->set_query_result(result);
+    select->master_unit()->set_query_result(result);
   }
 
   lex->allow_sum_func = 0;  // Query block cannot be aggregated

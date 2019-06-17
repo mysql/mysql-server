@@ -56,7 +56,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "prealloced_array.h"                // Prealloced_array
+#include "prealloced_array.h"  // Prealloced_array
+#include "sql/composite_iterators.h"
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
 #include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
@@ -74,6 +75,7 @@
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
+#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_alter.h"  // Alter_info
 #include "sql/sql_array.h"
@@ -532,6 +534,7 @@ class JOIN;
 class PT_with_clause;
 class Query_result;
 class Query_result_union;
+class RowIterator;
 struct LEX;
 
 /**
@@ -573,6 +576,33 @@ class SELECT_LEX_UNIT {
   TABLE *table; /* temporary table using for appending UNION results */
   /// Object to which the result for this query expression is sent
   Query_result *m_query_result;
+
+  /**
+    An iterator you can read from to get all records for this query.
+
+    May be nullptr even after create_iterators() if the current query
+    is not supported by the iterator executor.
+   */
+  unique_ptr_destroy_only<RowIterator> m_root_iterator;
+
+  /**
+    Sets up each query block in this query expression for materialization
+    into the given table.
+
+    @param thd thread handle
+    @param dst_table the table to materialize into
+    @param union_distinct_only if true, keep only UNION DISTINCT query blocks
+      (any UNION ALL blocks are presumed handled higher up, by AppendIterator)
+   */
+  Mem_root_array<MaterializeIterator::QueryBlock> setup_materialization(
+      THD *thd, TABLE *dst_table, bool union_distinct_only);
+
+  /**
+    If possible, convert the executor structures to a set of row iterators,
+    storing the result in m_root_iterator. If not, m_root_iterator will remain
+    nullptr.
+   */
+  void create_iterators(THD *thd);
 
  public:
   /**
@@ -707,6 +737,11 @@ class SELECT_LEX_UNIT {
   /// @return the query result object in use for this query expression
   Query_result *query_result() const { return m_query_result; }
 
+  RowIterator *root_iterator() const { return m_root_iterator.get(); }
+  unique_ptr_destroy_only<RowIterator> release_root_iterator() {
+    return move(m_root_iterator);
+  }
+
   /**
     If this unit is recursive, then this returns the Query_result which holds
     the rows of the recursive reference read by 'reader':
@@ -722,6 +757,7 @@ class SELECT_LEX_UNIT {
   bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);
   bool optimize(THD *thd);
+  bool ExecuteIteratorQuery(THD *thd);
   bool execute(THD *thd);
   bool explain(THD *explain_thd, const THD *query_thd);
   bool cleanup(THD *thd, bool full);
@@ -766,6 +802,19 @@ class SELECT_LEX_UNIT {
 
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
+
+  // If we are doing a query with global LIMIT but without fake_select_lex,
+  // we need somewhere to store the record count for FOUND_ROWS().
+  // It can't be in any of the JOINs, since they may have their own
+  // LimitOffsetIterators, which will write to join->send_records
+  // whenever there is an OFFSET. (It also can't be in saved_fake_select_lex,
+  // which has no join.) Thus, we'll keep it here instead.
+  //
+  // If we have a fake_select_lex, we use its send_records instead
+  // (since its LimitOffsetIterator will write there), and if we don't
+  // have a UNION, FOUND_ROWS() refers to the (single) JOIN, and thus,
+  // we use its send_records.
+  ha_rows send_records;
 
   enum_parsing_context get_explain_marker(const THD *thd) const;
   void set_explain_marker(THD *thd, enum_parsing_context m);
@@ -838,6 +887,7 @@ enum class enum_explain_type {
   EXPLAIN_MATERIALIZED,
   // Total:
   EXPLAIN_total  ///< fake type, total number of all valid types
+
   // Don't insert new types below this line!
 };
 

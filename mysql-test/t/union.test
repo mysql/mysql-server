@@ -319,6 +319,7 @@ insert into t2 (b) values (10),(11),(12),(13);
 analyze table t1;
 
 explain (select * from t1 where a=1) union (select * from t2 where a=1);
+explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);  # Tests printing of ZeroRowsIterator.
 (select * from t1 where a=5) union (select * from t2 where a=1);
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
 (select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
@@ -1311,6 +1312,7 @@ CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
 
 --source include/turn_off_only_full_group_by.inc
+EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;  # Tests printing of ZeroRowsAggregatedIterator.
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 
 SELECT FOUND_ROWS();
@@ -2140,3 +2142,41 @@ SELECT a, a, SUM(a) FROM t2 UNION ALL SELECT a, a+0, MIN(a) FROM v1;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2;
 DROP VIEW v1;
+
+--echo #
+--echo # Bug #29645319: WL#13000: SIG 6 AT AGGREGATOR_DISTINCT::SETUP | SQL/ITEM_SUM.CC
+--echo #
+--echo # Tests that when executing a UNION query during optimization, lex->current_select
+--echo # is properly restored.
+--echo #
+
+CREATE TABLE t1 (f1 VARCHAR(1));
+INSERT INTO t1 VALUES ('t'),('a');
+
+SELECT COUNT(DISTINCT f1) FROM t1 WHERE (
+	SELECT MAX(f1) FROM t1 WHERE f1 NOT IN ( SELECT 5 UNION SELECT 5 )
+) IS NOT NULL;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #29687893: WL#13000: SIG 6 AT HANDLER::START_PSI_BATCH_MODE() AT SQL/HANDLER.CC
+--echo #
+--echo # Verify that performance schema batch mode is properly disabled even in non-materialized
+--echo # UNIONs.
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1));
+CREATE INDEX i1 ON t1 (f1);
+CREATE TABLE t2 (f1 varchar(1));
+
+INSERT INTO t1 VALUES ('d');
+INSERT INTO t2 VALUES ('d');
+ANALYZE TABLE t1, t2;
+
+SELECT t1.f1 FROM t1 LEFT JOIN t2 ON EXISTS ( SELECT * FROM t1, t2 )
+UNION ALL
+SELECT t1.f1 FROM t1;
+
+FLUSH TABLES;
+DROP TABLE t1, t2;

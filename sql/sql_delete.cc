@@ -647,7 +647,11 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     result = new (thd->mem_root) Query_result_delete();
     if (result == NULL) return true; /* purecov: inspected */
 
+    // The former is for the pre-iterator executor; the latter is for the
+    // iterator executor.
+    // TODO(sgunders): Get rid of this when we remove Query_result.
     select->set_query_result(result);
+    select->master_unit()->set_query_result(result);
 
     select->make_active_options(SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
                                 OPTION_BUFFER_RESULT);
@@ -940,7 +944,6 @@ bool Query_result_delete::optimize() {
       return true; /* purecov: inspected */
     *(table_ptr++) = table;
   }
-  DBUG_ASSERT(select == thd->lex->current_select());
 
   if (select->has_ft_funcs() && init_ftfuncs(thd, select)) return true;
 
@@ -964,7 +967,6 @@ bool Query_result_delete::send_data(THD *thd, List<Item> &) {
 
   JOIN *const join = unit->first_select()->join;
 
-  DBUG_ASSERT(thd->lex->current_select() == unit->first_select());
   int unique_counter = 0;
 
   for (uint i = 0; i < join->primary_tables; i++) {
@@ -1098,7 +1100,6 @@ int Query_result_delete::do_deletes(THD *thd) {
   DBUG_TRACE;
   DBUG_ASSERT(!delete_completed);
 
-  DBUG_ASSERT(thd->lex->current_select() == unit->first_select());
   delete_completed = true;  // Mark operation as complete
   if (found_rows == 0) return 0;
 
@@ -1242,10 +1243,10 @@ bool Query_result_delete::send_eof(THD *thd) {
   if (local_error != 0)
     error_handled = true;  // to force early leave from ::send_error()
 
-  if (!local_error) {
+  if (!local_error && !thd->is_error()) {
     ::my_ok(thd, deleted_rows);
   }
-  return 0;
+  return thd->is_error();
 }
 
 bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {

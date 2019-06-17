@@ -819,7 +819,7 @@ bool Query_result_scalar_subquery::send_data(THD *thd, List<Item> &items) {
 }
 
 Item_singlerow_subselect::Item_singlerow_subselect(SELECT_LEX *select_lex)
-    : Item_subselect(), value(0), no_rows(false) {
+    : Item_subselect(), value(nullptr), no_rows(false) {
   DBUG_TRACE;
   init(select_lex, new (*THR_MALLOC) Query_result_scalar_subquery(this));
   maybe_null = 1;  // if the subquery is empty, value is NULL
@@ -3516,16 +3516,20 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     the subquery predicate.
   */
   if (!is_materialized) {
-    bool res;
     SELECT_LEX *save_select = thd->lex->current_select();
     thd->lex->set_current_select(materialize_engine->single_select_lex());
     DBUG_ASSERT(
         materialize_engine->single_select_lex()->master_unit()->is_optimized());
 
-    JOIN *join = materialize_engine->single_select_lex()->join;
-
-    join->exec();
-    if ((res = join->error || thd->is_fatal_error())) goto err;
+    bool error;
+    if (materialize_engine->unit->root_iterator() != nullptr) {
+      error = materialize_engine->unit->ExecuteIteratorQuery(thd);
+    } else {
+      JOIN *join = materialize_engine->single_select_lex()->join;
+      join->exec();
+      error = join->error;
+    }
+    if (error || thd->is_fatal_error()) goto err;
 
     /*
       TODO:
@@ -3547,7 +3551,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
       ha_rows num_rows = 0;
       table->file->ha_records(&num_rows);
       table->file->stats.records = num_rows;
-      res = thd->is_error();
+      error = thd->is_error();
     }
 
     /* Set tmp_param only if its usable, i.e. there are Copy_field's. */
@@ -3556,7 +3560,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
 
   err:
     thd->lex->set_current_select(save_select);
-    if (res) return res;
+    if (error) return error;
   }  // if (!is_materialized)
 
   if (table->file->stats.records == 0) {

@@ -46,7 +46,9 @@
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
+#include "sql/basic_row_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"     // DEBUG_SYNC
 #include "sql/error_handler.h"  // Strict_error_handler
@@ -58,9 +60,12 @@
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain.h"  // explain_no_table
 #include "sql/opt_explain_format.h"
+#include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h"  // PT_with_clause
+#include "sql/pfs_batch_mode.h"
+#include "sql/protocol.h"
 #include "sql/query_options.h"
 #include "sql/set_var.h"
 #include "sql/sql_base.h"  // fill_record
@@ -74,8 +79,12 @@
 #include "sql/sql_tmp_table.h"   // tmp tables
 #include "sql/table_function.h"  // Table_function
 #include "sql/thr_malloc.h"
+#include "sql/timing_iterator.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
+
+using std::move;
+using std::vector;
 
 bool Query_result_union::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
   unit = u;
@@ -110,7 +119,8 @@ bool Query_result_union::send_eof(THD *) { return false; }
 bool Query_result_union::flush() { return false; }
 
 /**
-  Create a temporary table to store the result of Query_result_union.
+  Create a temporary table to store the result of a query expression
+  (used, among others, when materializing a UNION DISTINCT).
 
   @param thd_arg            thread handle
   @param column_types       a list of items used to define columns of the
@@ -785,13 +795,185 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
     if (fake_select_lex->optimize(thd)) return true;
   }
 
-  if (query_result() != nullptr) {
-    query_result()->estimated_rowcount = estimated_rowcount;
-    query_result()->estimated_cost = estimated_cost;
-  }
+  query_result()->estimated_rowcount = estimated_rowcount;
+  query_result()->estimated_cost = estimated_cost;
 
+  create_iterators(thd);
+  if (false) {
+    // This can be useful during debugging.
+    fprintf(stderr, "Query plan:\n%s\n",
+            PrintQueryPlan(0, m_root_iterator.get()).c_str());
+  }
   set_optimized();  // All query blocks optimized, update the state
   return false;
+}
+
+Mem_root_array<MaterializeIterator::QueryBlock>
+SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
+                                       bool union_distinct_only) {
+  Mem_root_array<MaterializeIterator::QueryBlock> query_blocks(thd->mem_root);
+
+  bool activate_deduplication = (union_distinct != nullptr);
+  for (SELECT_LEX *select = first_select(); select != nullptr;
+       select =
+           select->next_select()) {  // Termination condition at end of loop.
+    JOIN *join = select->join;
+    MaterializeIterator::QueryBlock table;
+    DBUG_ASSERT(join && join->is_optimized());
+    DBUG_ASSERT(join->root_iterator() != nullptr);
+    ConvertItemsToCopy(join->fields, dst_table->visible_field_ptr(),
+                       &join->tmp_table_param, join);
+
+    table.subquery_iterator = join->release_root_iterator();
+    table.select_number = select->select_number;
+    table.join = join;
+    if (mixed_union_operators() && !activate_deduplication) {
+      table.deduplication_strategy =
+          MaterializeIterator::QueryBlock::DISABLE_INDEXES;
+    } else {
+      // NOTE: For a pure UNION ALL query, we keep the indexes _on_;
+      // we won't have a unique index anyway, and turning off the others
+      // would cause wrong results when querying the table.
+      table.deduplication_strategy =
+          MaterializeIterator::QueryBlock::ENABLE_INDEXES;
+    }
+    // See the class comment on AggregateIterator.
+    table.copy_fields_and_items = !join->streaming_aggregation ||
+                                  join->tmp_table_param.precomputed_group_by;
+    table.temp_table_param = &join->tmp_table_param;
+    query_blocks.push_back(move(table));
+
+    if (select == union_distinct) {
+      // Last query block that is part of a UNION DISTINCT.
+      activate_deduplication = false;
+      if (union_distinct_only) {
+        // The rest will be done by appending.
+        break;
+      }
+    }
+  }
+  return query_blocks;
+}
+
+void SELECT_LEX_UNIT::create_iterators(THD *thd) {
+  if (is_simple()) {
+    JOIN *join = first_select()->join;
+    DBUG_ASSERT(join && join->is_optimized());
+    m_root_iterator = join->release_root_iterator();
+    return;
+  }
+
+  for (SELECT_LEX *select = first_select(); select != nullptr;
+       select = select->next_select()) {
+    if (select->is_recursive() || select->join->root_iterator() == nullptr) {
+      // No support yet.
+      return;
+    }
+  }
+
+  // Decide whether we can stream rows, ie., never actually put them into the
+  // temporary table. If we can, we materialize the UNION DISTINCT blocks first,
+  // and then stream the remaining UNION ALL blocks (if any) by means of
+  // AppendIterator.
+  //
+  // If we cannot stream (ie., everything has to go into the temporary table),
+  // our strategy for mixed UNION ALL/DISTINCT becomes a bit different;
+  // see MaterializeIterator for details.
+  bool streaming_allowed = true;
+  if (global_parameters()->order_list.size() != 0) {
+    // If we're sorting, we currently put it in a real table no matter what.
+    // This is a legacy decision, because we used to not know whether filesort
+    // would want to refer to rows in the table after the sort (sort by row ID).
+    // We could probably be more intelligent here now.
+    streaming_allowed = false;
+  } else if ((thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+              thd->lex->sql_command == SQLCOM_REPLACE_SELECT) &&
+             thd->lex->unit == this) {
+    // If we're doing an INSERT or REPLACE, and we're not outputting to
+    // a temporary table already (ie., we are the topmost unit), then we
+    // don't want to insert any records before we're done scanning. Otherwise,
+    // we would risk incorrect results and/or infinite loops, as we'd be seeing
+    // our own records as they get inserted.
+    //
+    // @todo Figure out if we can check for OPTION_BUFFER_RESULT instead;
+    //       see bug #23022426.
+    streaming_allowed = false;
+  }
+
+  TABLE *tmp_table = union_result->table;
+  tmp_table->alias = "<union temporary>";
+
+  ha_rows offset = global_parameters()->get_offset(thd);
+  ha_rows limit = global_parameters()->get_limit(thd);
+  if (limit + offset >= limit)
+    limit += offset;
+  else
+    limit = HA_POS_ERROR; /* purecov: inspected */
+  const bool calc_found_rows =
+      (first_select()->active_options() & OPTION_FOUND_ROWS);
+
+  vector<unique_ptr_destroy_only<RowIterator>> union_all_sub_iterators;
+
+  // If streaming is allowed, we can do all the parts that are UNION ALL by
+  // streaming; the rest have to go to the table.
+  //
+  // Handle the query blocks that we need to materialize. This may be
+  // UNION DISTINCT query blocks only, or all blocks.
+  if (union_distinct != nullptr || !streaming_allowed) {
+    Mem_root_array<MaterializeIterator::QueryBlock> query_blocks =
+        setup_materialization(thd, tmp_table, streaming_allowed);
+
+    unique_ptr_destroy_only<RowIterator> table_iterator;
+    if (fake_select_lex != nullptr) {
+      table_iterator = fake_select_lex->join->release_root_iterator();
+    } else {
+      table_iterator =
+          NewIterator<TableScanIterator>(thd, tmp_table, nullptr, nullptr);
+    }
+    bool push_limit_down =
+        global_parameters()->order_list.size() == 0 && !calc_found_rows;
+    union_all_sub_iterators.emplace_back(NewIterator<MaterializeIterator>(
+        thd, move(query_blocks), tmp_table, move(table_iterator),
+        /*cte=*/nullptr, /*unit=*/nullptr, /*join=*/nullptr,
+        /*ref_slice=*/-1,
+        /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR));
+  }
+
+  if (streaming_allowed) {
+    SELECT_LEX *first_union_all = (union_distinct == nullptr)
+                                      ? first_select()
+                                      : union_distinct->next_select();
+    for (SELECT_LEX *select = first_union_all; select != nullptr;
+         select = select->next_select()) {
+      JOIN *join = select->join;
+      DBUG_ASSERT(join && join->is_optimized());
+      ConvertItemsToCopy(join->fields, tmp_table->visible_field_ptr(),
+                         &join->tmp_table_param, join);
+      bool copy_fields_and_items = !join->streaming_aggregation ||
+                                   join->tmp_table_param.precomputed_group_by;
+      union_all_sub_iterators.emplace_back(NewIterator<StreamingIterator>(
+          thd, join->release_root_iterator(), &join->tmp_table_param, tmp_table,
+          copy_fields_and_items));
+    }
+  }
+
+  DBUG_ASSERT(!union_all_sub_iterators.empty());
+  if (union_all_sub_iterators.size() == 1) {
+    m_root_iterator = move(union_all_sub_iterators[0]);
+  } else {
+    // Just append all the UNION ALL sub-blocks.
+    DBUG_ASSERT(streaming_allowed);
+    m_root_iterator =
+        NewIterator<AppendIterator>(thd, move(union_all_sub_iterators));
+  }
+
+  // NOTE: If there's a fake_select_lex, its JOIN's iterator already handles
+  // LIMIT/OFFSET, so we don't do it again here.
+  if ((limit != HA_POS_ERROR || offset != 0) && fake_select_lex == nullptr) {
+    m_root_iterator = NewIterator<LimitOffsetIterator>(
+        thd, move(m_root_iterator), limit, offset, calc_found_rows,
+        &send_records);
+  }
 }
 
 /**
@@ -1145,6 +1327,176 @@ class Recursive_executor {
   }
 };
 
+bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
+  THD_STAGE_INFO(thd, stage_executing);
+  DEBUG_SYNC(thd, "before_join_exec");
+
+  Opt_trace_context *const trace = &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_exec(trace, "join_execution");
+  if (is_simple()) {
+    trace_exec.add_select_number(first_select()->select_number);
+  }
+  Opt_trace_array trace_steps(trace, "steps");
+
+  if (is_executed()) {
+    if (clear_corr_ctes()) return true;
+
+    // TODO(sgunders): Most of JOIN::reset() should be done in iterators.
+    for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
+      if (sl->join->is_executed()) {
+        thd->lex->set_current_select(sl);
+        sl->join->reset();
+      }
+      if (fake_select_lex != nullptr) {
+        thd->lex->set_current_select(fake_select_lex);
+        fake_select_lex->join->reset();
+      }
+    }
+  }
+
+  for (SELECT_LEX *select_lex = first_select(); select_lex;
+       select_lex = select_lex->next_select()) {
+    JOIN *join = select_lex->join;
+    select_lex->join->examined_rows = 0;
+    select_lex->join
+        ->set_executed();  // The dynamic range optimizer expects this.
+
+    // TODO(sgunders): Consider doing this in some iterator instead.
+    if (join->m_windows.elements > 0 && !join->m_windowing_steps) {
+      // Initialize state of window functions as end_write_wf() will be shortcut
+      for (Window &w : select_lex->join->m_windows) {
+        w.reset_all_wf_state();
+      }
+    }
+  }
+
+  List<Item> *fields = get_field_list();
+  Query_result *query_result = this->query_result();
+  DBUG_ASSERT(query_result != nullptr);
+
+  if (query_result->start_execution(thd)) return true;
+
+  if (query_result->send_result_set_metadata(
+          thd, *fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
+    return true;
+  }
+
+  set_executed();
+
+  if (item) {
+    item->reset_value_registration();
+
+    if (item->assigned()) {
+      item->assigned(false);  // Prepare for re-execution of this unit
+      item->reset();
+    }
+  }
+
+  // We need to accumulate in the first join's send_records as long as
+  // we support SQL_CALC_FOUND_ROWS, since LimitOffsetIterator will use it
+  // for reporting rows skipped by OFFSET or LIMIT. When we get rid of
+  // SQL_CALC_FOUND_ROWS, we can use a local variable here instead.
+  ha_rows *send_records_ptr;
+  if (fake_select_lex != nullptr) {
+    // UNION with LIMIT: found_rows() applies to the outermost block.
+    // LimitOffsetIterator will write skipped OFFSET rows into the
+    // fake_select_lex's send_records, so use that.
+    send_records_ptr = &fake_select_lex->join->send_records;
+  } else if (is_simple()) {
+    // Not an UNION: found_rows() applies to the join.
+    // LimitOffsetIterator will write skipped OFFSET rows into the JOIN's
+    // send_records, so use that.
+    send_records_ptr = &first_select()->join->send_records;
+  } else {
+    // UNION, but without a fake_select_lex (may or may not have a
+    // LIMIT): found_rows() applies to the outermost block. See
+    // SELECT_LEX_UNIT::send_records for more information.
+    send_records_ptr = &send_records;
+  }
+  *send_records_ptr = 0;
+
+  // Normally, performance schema batch mode is turned on and off by the
+  // various iterators in the tree, most notably NestedLoopIterator.
+  // However, if we're scanning a single table in a single join, there's
+  // no such iterator, so we need to do it ourselves.
+  //
+  // TODO(sgunders): Move batch mode into the iterator system somehow, so that
+  // the outer executor (this function) doesn't have to worry about it.
+  JOIN *single_join = is_simple() ? first_select()->join : nullptr;
+
+  thd->get_stmt_da()->reset_current_row_for_condition();
+  if (m_root_iterator->Init()) {
+    // Nothing should really enable PSI batch mode from Init(), since nothing
+    // calls Read() from Init() without also being capable of cleaning up
+    // (e.g. MaterializeIterator); see the comment in
+    // LimitOffsetIterator::Read(). Nevertheless, just to be sure, we clean up
+    // here.
+    if (single_join != nullptr && single_join->qep_tab != nullptr &&
+        single_join->primary_tables > 0) {
+      QEP_TAB *last_qep_tab =
+          &single_join->qep_tab[single_join->primary_tables - 1];
+      last_qep_tab->table()->file->end_psi_batch_mode_if_started();
+    }
+    return true;
+  }
+
+  // If we are scanning single table in a single join, enable PFS batch mode,
+  // as the basic iterator (e.g. TableScanIterator) won't do so.
+  PFSBatchMode pfs_batch_mode(nullptr, single_join);
+
+  auto join_cleanup = create_scope_guard([this, thd, single_join] {
+    for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
+      JOIN *join = sl->join;
+
+      if (single_join == nullptr) {
+        // PFSBatchMode above hasn't enabled PFS batch mode, so its destructor
+        // won't do anything. But m_root_iterator or its children, if they are
+        // not basic iterators (e.g. NestedLoopIterator), may have enabled the
+        // mode; so we must turn it off upon exit.
+        if (join != nullptr && join->qep_tab != nullptr) {
+          QEP_TAB *last_qep_tab = &join->qep_tab[join->primary_tables - 1];
+          last_qep_tab->table()->file->end_psi_batch_mode_if_started();
+        }
+      }
+
+      join->join_free();
+      thd->inc_examined_row_count(sl->join->examined_rows);
+    }
+    if (fake_select_lex != nullptr) {
+      thd->inc_examined_row_count(fake_select_lex->join->examined_rows);
+    }
+  });
+
+  for (;;) {
+    int error = m_root_iterator->Read();
+    DBUG_EXECUTE_IF("bug13822652_1", thd->killed = THD::KILL_QUERY;);
+
+    if (error > 0 || thd->is_error())  // Fatal error
+      return true;
+    else if (error < 0)
+      break;
+    else if (thd->killed)  // Aborted by user
+    {
+      thd->send_kill_message();
+      return true;
+    }
+
+    ++*send_records_ptr;
+    if (query_result->send_data(thd, *fields)) {
+      return true;
+    }
+    thd->get_stmt_da()->inc_current_row_for_condition();
+  }
+
+  // Must be done before we send EOF, so that we get the row counts right.
+  join_cleanup.rollback();
+
+  thd->current_found_rows = *send_records_ptr;
+
+  return query_result->send_eof(thd);
+}
+
 /**
   Execute a query expression that may be a UNION and/or have an ordered result.
 
@@ -1165,6 +1517,10 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
     current_select():
   */
   Change_current_select save_select(thd);
+
+  if (m_root_iterator != nullptr) {
+    return ExecuteIteratorQuery(thd);
+  }
 
   if (is_executed()) {
     if (clear_corr_ctes()) return true;
@@ -1291,6 +1647,10 @@ bool SELECT_LEX_UNIT::cleanup(THD *thd, bool full) {
 
   cleaned = (full ? UC_CLEAN : UC_PART_CLEAN);
 
+  if (full) {
+    m_root_iterator.reset();
+  }
+
   bool error = false;
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select())
     error |= sl->cleanup(thd, full);
@@ -1342,6 +1702,7 @@ void SELECT_LEX_UNIT::assert_not_fully_clean() {
 
 void SELECT_LEX_UNIT::reinit_exec_mechanism() {
   prepared = optimized = executed = false;
+  m_root_iterator.reset();
 #ifndef DBUG_OFF
   if (is_union()) {
     List_iterator_fast<Item> it(item_list);
@@ -1418,7 +1779,13 @@ List<Item> *SELECT_LEX_UNIT::get_unit_column_types() {
 List<Item> *SELECT_LEX_UNIT::get_field_list() {
   DBUG_ASSERT(is_optimized());
 
-  return is_union() ? &types : first_select()->join->fields;
+  if (fake_select_lex != nullptr) {
+    return fake_select_lex->join->fields;
+  } else if (is_union()) {
+    return &item_list;
+  } else {
+    return first_select()->join->fields;
+  }
 }
 
 const Query_result *SELECT_LEX_UNIT::recursive_result(

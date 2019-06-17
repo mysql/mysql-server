@@ -352,14 +352,14 @@ class UnqualifiedCountIterator final : public RowIterator {
   UnqualifiedCountIterator(THD *thd, JOIN *join)
       : RowIterator(thd), m_join(join) {}
 
+  std::vector<std::string> DebugString() const override;
+
   bool Init() override {
     m_has_row = true;
     return false;
   }
 
   int Read() override;
-
-  std::vector<std::string> DebugString() const override;
 
   void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 
@@ -368,6 +368,75 @@ class UnqualifiedCountIterator final : public RowIterator {
  private:
   bool m_has_row;
   JOIN *const m_join;
+};
+
+/**
+  A simple iterator that takes no input and produces zero output rows.
+  Used when the optimizer has figured out ahead of time that a given table
+  can produce no output (e.g. SELECT ... WHERE 2+2 = 5).
+ */
+class ZeroRowsIterator final : public RowIterator {
+ public:
+  ZeroRowsIterator(THD *thd, const char *reason)
+      : RowIterator(thd), m_reason(reason) {}
+
+  bool Init() override { return false; }
+
+  int Read() override { return -1; }
+
+  std::vector<std::string> DebugString() const override {
+    return {std::string("Zero rows (") + m_reason + ")"};
+  }
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  const char *m_reason;
+};
+
+class SELECT_LEX;
+
+/**
+  Like ZeroRowsIterator, but produces a single output row, since there are
+  aggregation functions present and no GROUP BY. E.g.,
+
+    SELECT SUM(f1) FROM t1 WHERE 2+2 = 5;
+
+  should produce a single row, containing only the value NULL.
+ */
+class ZeroRowsAggregatedIterator final : public RowIterator {
+ public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  ZeroRowsAggregatedIterator(THD *thd, const char *reason, JOIN *join,
+                             ha_rows *examined_rows)
+      : RowIterator(thd),
+        m_reason(reason),
+        m_join(join),
+        m_examined_rows(examined_rows) {}
+
+  bool Init() override {
+    m_has_row = true;
+    return false;
+  }
+
+  int Read() override;
+
+  std::vector<std::string> DebugString() const override {
+    return {std::string("Zero input rows (") + m_reason +
+            "), aggregated into one output row"};
+  }
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  bool m_has_row;
+  const char *const m_reason;
+  JOIN *const m_join;
+  ha_rows *const m_examined_rows;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_
