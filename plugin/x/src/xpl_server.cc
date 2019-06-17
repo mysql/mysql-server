@@ -642,9 +642,8 @@ bool Server::on_net_startup() {
     ssl_config = choose_ssl_config(mysqld_have_ssl, ssl_config,
                                    Plugin_system_variables::ssl_config);
 
-    // wolfSSL doesn't support CRL according to vio
-    const char *crl = IS_WOLFSSL_OR_OPENSSL(NULL, ssl_config.ssl_crl);
-    const char *crlpath = IS_WOLFSSL_OR_OPENSSL(NULL, ssl_config.ssl_crlpath);
+    const char *crl = ssl_config.ssl_crl;
+    const char *crlpath = ssl_config.ssl_crlpath;
 
     const bool ssl_setup_result =
         ssl_ctx->setup(tls_version, ssl_config.ssl_key, ssl_config.ssl_ca,
@@ -652,9 +651,7 @@ bool Server::on_net_startup() {
                        ssl_config.ssl_cipher, crl, crlpath);
 
     if (ssl_setup_result) {
-      const char *is_wolfssl_or_openssl =
-          IS_WOLFSSL_OR_OPENSSL("WolfSSL", "OpenSSL");
-      log_info(ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION, is_wolfssl_or_openssl);
+      log_info(ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION, "OpenSSL");
     } else {
       log_info(ER_XPLUGIN_REFERENCE_TO_SECURE_CONN_WITH_XPLUGIN);
     }

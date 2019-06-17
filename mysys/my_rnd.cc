@@ -38,7 +38,7 @@
 #endif
 
 /*
-  A wrapper to use OpenSSL/wolfSSL PRNGs.
+  A wrapper to use OpenSSL PRNGs.
 */
 
 /**
@@ -76,7 +76,7 @@ int my_rand_buffer(unsigned char *buffer, size_t buffer_size) {
 }
 
 /**
-  Generate a random number using the OpenSSL/wolfSSL supplied
+  Generate a random number using the OpenSSL supplied
   random number generator if available.
 
   @param [in,out] rand_st Structure used for number generation

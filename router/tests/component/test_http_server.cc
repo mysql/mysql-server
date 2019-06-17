@@ -956,9 +956,7 @@ TEST_P(HttpClientSecureTest, ensure) {
     }
     if (where & SSL_CB_HANDSHAKE_START) {
       const char *cipher;
-      // wolfssl 3.14.0 needs the const_cast<>
-      for (int i = 0; (cipher = SSL_get_cipher_list(const_cast<SSL *>(ssl), i));
-           i++) {
+      for (int i = 0; (cipher = SSL_get_cipher_list(ssl, i)); i++) {
         std::cerr << __LINE__ << ": available cipher[" << i << "]: " << cipher
                   << std::endl;
       }
@@ -966,9 +964,7 @@ TEST_P(HttpClientSecureTest, ensure) {
 
     if (where & SSL_CB_HANDSHAKE_DONE) {
       const char *cipher;
-      // wolfssl 3.14.0 needs the const_cast<>
-      for (int i = 0; (cipher = SSL_get_cipher_list(const_cast<SSL *>(ssl), i));
-           i++) {
+      for (int i = 0; (cipher = SSL_get_cipher_list(ssl, i)); i++) {
         std::cerr << __LINE__ << ": available cipher[" << i << "]: " << cipher
                   << std::endl;
       }

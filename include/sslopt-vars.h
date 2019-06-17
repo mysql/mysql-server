@@ -55,13 +55,7 @@ const char *ssl_mode_names_lib[] = {"DISABLED",  "PREFERRED",       "REQUIRED",
 TYPELIB ssl_mode_typelib = {array_elements(ssl_mode_names_lib) - 1, "",
                             ssl_mode_names_lib, NULL};
 
-const char *ssl_fips_mode_names_lib[] =
-#ifndef HAVE_WOLFSSL
-    {"OFF", "ON", "STRICT",
-#else
-    {"OFF",
-#endif
-     NullS};
+const char *ssl_fips_mode_names_lib[] = {"OFF", "ON", "STRICT", NullS};
 TYPELIB ssl_fips_mode_typelib = {array_elements(ssl_fips_mode_names_lib) - 1,
                                  "", ssl_fips_mode_names_lib, NULL};
 

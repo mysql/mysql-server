@@ -4377,7 +4377,6 @@ static Sys_var_ulong Sys_max_execution_time(
     HINT_UPDATEABLE SESSION_VAR(max_execution_time), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
-#ifndef HAVE_WOLFSSL
 static bool update_fips_mode(sys_var *, THD *, enum_var_type) {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string) != 1) {
@@ -4388,32 +4387,17 @@ static bool update_fips_mode(sys_var *, THD *, enum_var_type) {
     return false;
   }
 }
-#endif
 
-#ifdef HAVE_WOLFSSL
-static const char *ssl_fips_mode_names[] = {"OFF", 0};
-#else
 static const char *ssl_fips_mode_names[] = {"OFF", "ON", "STRICT", 0};
-#endif
 static Sys_var_enum Sys_ssl_fips_mode(
     "ssl_fips_mode",
     "SSL FIPS mode (applies only for OpenSSL); "
-#ifndef HAVE_WOLFSSL
     "permitted values are: OFF, ON, STRICT",
-#else
-    "permitted values are: OFF",
-#endif
     GLOBAL_VAR(opt_ssl_fips_mode), CMD_LINE(REQUIRED_ARG, OPT_SSL_FIPS_MODE),
     ssl_fips_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(NULL),
-#ifndef HAVE_WOLFSSL
-    ON_UPDATE(update_fips_mode),
-#else
-    ON_UPDATE(NULL),
-#endif
-    NULL);
+    ON_CHECK(NULL), ON_UPDATE(update_fips_mode), NULL);
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
+#if defined(HAVE_OPENSSL)
 static Sys_var_bool Sys_auto_generate_certs(
     "auto_generate_certs",
     "Auto generate SSL certificates at server startup if --ssl is set to "
@@ -4422,7 +4406,7 @@ static Sys_var_bool Sys_auto_generate_certs(
     READ_ONLY NON_PERSIST GLOBAL_VAR(opt_auto_generate_certs),
     CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(NULL), ON_UPDATE(NULL), NULL);
-#endif /* HAVE_OPENSSL && !HAVE_WOLFSSL */
+#endif /* HAVE_OPENSSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[] = {"NO", "YES", 0};

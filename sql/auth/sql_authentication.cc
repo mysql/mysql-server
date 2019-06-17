@@ -907,7 +907,6 @@ extern bool initialized;
 #define MAX_CIPHER_LENGTH 1024
 #define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 
-#if !defined(HAVE_WOLFSSL)
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY "client-key.pem"
 
@@ -922,7 +921,6 @@ static bool do_auto_rsa_keys_generation();
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
 Rsa_authentication_keys *g_sha256_rsa_keys = 0;
-#endif /* HAVE_WOLFSSL */
 #endif /* HAVE_OPENSSL */
 
 bool Thd_charset_adapter::init_client_charset(uint cs_number) {
@@ -1011,9 +1009,7 @@ bool Rsa_authentication_keys::read_key_file(RSA **key_ptr, bool is_priv_key,
         Call ERR_clear_error() just in case there are more than 1 entry in the
         OpenSSL thread's error queue.
       */
-#ifndef HAVE_WOLFSSL
       ERR_clear_error();
-#endif
 
       return true;
     }
@@ -2015,12 +2011,12 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
     @retval true RSA support is not available
 */
 bool sha256_rsa_auth_status() {
-#if !defined(HAVE_OPENSSL) || defined(HAVE_WOLFSSL)
+#if !defined(HAVE_OPENSSL)
   return false;
 #else
   return (!g_sha256_rsa_keys->get_private_key() ||
           !g_sha256_rsa_keys->get_public_key());
-#endif /* !HAVE_OPENSSL || HAVE_WOLFSSL */
+#endif /* !HAVE_OPENSSL */
 }
 
 /* clang-format off */
@@ -3960,21 +3956,17 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio) {
   in sql_show.cc.
 */
 int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *) {
-#ifndef HAVE_WOLFSSL
   var->type = SHOW_CHAR;
   var->value = const_cast<char *>(g_sha256_rsa_keys->get_public_key_as_pem());
-#endif
   return 0;
 }
 
 void deinit_rsa_keys(void) {
-#ifndef HAVE_WOLFSSL
   if (g_sha256_rsa_keys) {
     g_sha256_rsa_keys->free_memory();
     delete g_sha256_rsa_keys;
     g_sha256_rsa_keys = 0;
   }
-#endif
   if (g_caching_sha2_rsa_keys) {
     g_caching_sha2_rsa_keys->free_memory();
     delete g_caching_sha2_rsa_keys;
@@ -4004,28 +3996,21 @@ class FileCloser {
 */
 
 bool init_rsa_keys(void) {
-#ifndef HAVE_WOLFSSL
   if (!do_auto_rsa_keys_generation()) return true;
 
   if (!(g_sha256_rsa_keys = new Rsa_authentication_keys(
             &auth_rsa_private_key_path, &auth_rsa_public_key_path)))
     return true;
-#endif
   if (!(g_caching_sha2_rsa_keys =
             new Rsa_authentication_keys(&caching_sha2_rsa_private_key_path,
                                         &caching_sha2_rsa_public_key_path))) {
-#ifndef HAVE_WOLFSSL
     delete g_sha256_rsa_keys;
     g_sha256_rsa_keys = 0;
-#endif
     return true;
   }
 
-  return (
-#ifndef HAVE_WOLFSSL
-      g_sha256_rsa_keys->read_rsa_keys() ||
-#endif
-      g_caching_sha2_rsa_keys->read_rsa_keys());
+  return (g_sha256_rsa_keys->read_rsa_keys() ||
+          g_caching_sha2_rsa_keys->read_rsa_keys());
 }
 
 static MYSQL_PLUGIN plugin_info_ptr;
@@ -4132,12 +4117,10 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   uchar *pkt;
   int pkt_len;
   String scramble_response_packet;
-#if !defined(HAVE_WOLFSSL)
   int cipher_length = 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
   RSA *private_key = NULL;
   RSA *public_key = NULL;
-#endif /* HAVE_WOLFSSL */
 
   DBUG_TRACE;
 
@@ -4200,7 +4183,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     info->password_used = PASSWORD_USED_YES;
 
   if (!my_vio_is_encrypted(vio)) {
-#if !defined(HAVE_WOLFSSL)
     /*
       Since a password is being used it must be encrypted by RSA since no
       other encryption is being active.
@@ -4261,10 +4243,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     pkt_len = strlen((char *)plain_text) + 1;  // include \0 intentionally.
 
     if (pkt_len == 1) return CR_ERROR;
-#else
-    return CR_ERROR;
-#endif /* HAVE_WOLFSSL */
-  }    // if(!my_vio_is_encrypter())
+  }  // if(!my_vio_is_encrypted())
 
   /* Don't process the password if it is longer than maximum limit */
   if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1) return CR_ERROR;
@@ -4318,7 +4297,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   return CR_ERROR;
 }
 
-#if !defined(HAVE_WOLFSSL)
 static MYSQL_SYSVAR_STR(
     private_key_path, auth_rsa_private_key_path,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
@@ -5246,7 +5224,6 @@ static bool do_auto_rsa_keys_generation() {
                             caching_sha2_rsa_public_key_path,
                             "--caching_sha2_password_auto_generate_rsa_keys"));
 }
-#endif /* HAVE_WOLFSSL */
 #endif /* HAVE_OPENSSL */
 
 bool MPVIO_EXT::can_authenticate() {
@@ -5308,13 +5285,9 @@ mysql_declare_plugin(mysql_password) {
       NULL,                             /* Deinit function  */
       0x0101,                           /* Version (1.0)    */
       NULL,                             /* status variables */
-#if !defined(HAVE_WOLFSSL)
-      sha256_password_sysvars, /* system variables */
-#else
-      NULL,
-#endif      /* HAVE_WOLFSSL */
-      NULL, /* config options   */
-      0     /* flags            */
+      sha256_password_sysvars,          /* system variables */
+      NULL,                             /* config options   */
+      0                                 /* flags            */
 }
 #endif /* HAVE_OPENSSL */
 mysql_declare_plugin_end;

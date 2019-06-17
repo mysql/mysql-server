@@ -95,15 +95,8 @@ SET(harness_source
   networking/ip_address.cc
   networking/ipv4_address.cc
   networking/ipv6_address.cc
-  networking/resolver.cc)
-
-IF(WITH_SSL STREQUAL "wolfssl")
-  LIST(APPEND harness_source
-    my_aes_wolfssl.cc)
-ELSE()
-  LIST(APPEND harness_source
-    my_aes_openssl.cc)
-ENDIF()
+  networking/resolver.cc
+  my_aes_openssl.cc)
 
 IF(WIN32)
   LIST(APPEND harness_source

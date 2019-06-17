@@ -1968,8 +1968,6 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
       gcs_module_parameters.add_parameter("cipher", ssl_cipher);
       gcs_module_parameters.add_parameter("tls_version", tls_version);
 
-#if !defined(HAVE_WOLFSSL)
-      // wolfSSL does not support CRL.
       if (!ssl_crl.empty())
         gcs_module_parameters.add_parameter("crl_file",
                                             ssl_crl); /* purecov: inspected */
@@ -1979,7 +1977,6 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
       if (!ssl_fips_mode.empty())
         gcs_module_parameters.add_parameter(
             "ssl_fips_mode", ssl_fips_mode); /* purecov: inspected */
-#endif
 
       LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_COMMUNICATION_SSL_CONF_INFO,
                    ssl_mode.c_str(), ssl_key.c_str(), ssl_cert.c_str(),

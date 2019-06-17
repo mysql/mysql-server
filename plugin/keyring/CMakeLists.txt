@@ -51,14 +51,6 @@ SET (KEYRING_FILE_SOURCES
 # because of windows we still are linking a copy of the SSL library
 # relying on the fact that the dynamic linker will prefer the symbols
 # in the shared library to the ones exported by the hosting executable (mysqld).
-# This causes problems with yaSSL, as it, unlike openssl,
-# does not hide all of its global variables.
-# So we get address sanitizer errors because of the global variable symbols
-# duplicated when we statically link a copy of yassl into the plugins.
-#
-# So for yaSSL we are using the mysqld copy and rely on the fact
-# that the initialization/deinitialization of the library is reentrant
-# and can be done by both the server and the plugin.
 IF (WIN32 OR (
        OPENSSL_INCLUDE_DIR   AND
        OPENSSL_LIBRARY       AND

@@ -27,11 +27,6 @@
 #define HAVE_BYTESTOKEY_SHA512_HANDLING
 #define HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
 
-#ifdef HAVE_WOLFSSL
-#undef HAVE_BYTESTOKEY_SHA512_HANDLING
-#undef HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
-#endif
-
 int Stream_cipher::get_header_size() { return m_header_size; }
 
 std::unique_ptr<Stream_cipher> Aes_ctr::get_encryptor() {

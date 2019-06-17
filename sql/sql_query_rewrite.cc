@@ -120,7 +120,7 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared) {
 #ifndef DBUG_OFF
     dummy =
 #endif
-        ssl_wrappe_service::
+        ssl_wrapper_service::
             dummy_function_to_ensure_we_are_linked_into_the_server();
     DBUG_ASSERT(dummy == 1);
   }

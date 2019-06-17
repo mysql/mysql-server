@@ -29,7 +29,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#if !defined(HAVE_WOLFSSL) && !defined(HAVE_PSI_INTERFACE)
+#if !defined(HAVE_PSI_INTERFACE)
 #include "mysql/psi/mysql_rwlock.h"
 #endif
 #include "mysql/service_mysql_alloc.h"
@@ -160,9 +160,7 @@ static void report_errors() {
 
   DBUG_TRACE;
 
-  // Note: WolfSSL returns failures to read data as negative int values
-  while (static_cast<int>(
-             l = ERR_get_error_line_data(&file, &line, &data, &flags)) > 0) {
+  while ((l = ERR_get_error_line_data(&file, &line, &data, &flags)) > 0) {
 #ifndef DBUG_OFF /* Avoid warning */
     char buf[200];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
@@ -235,8 +233,6 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
 
   return 0;
 }
-
-#ifndef HAVE_WOLFSSL
 
 /*
   OpenSSL 1.1 supports native platform threads,
@@ -409,8 +405,6 @@ void vio_ssl_end() {
   }
 }
 
-#endif  // OpenSSL specific
-
 void ssl_start() {
   if (!ssl_initialized) {
     ssl_initialized = true;
@@ -419,16 +413,13 @@ void ssl_start() {
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     init_ssl_locks();
     init_lock_callback_functions();
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
   }
 }
 
-#ifndef HAVE_WOLFSSL
 /**
   Set fips mode in openssl library,
   When we set fips mode ON/STRICT, it will perform following operations:
@@ -474,7 +465,6 @@ EXIT:
   @returns openssl current fips mode
 */
 uint get_fips_mode() { return FIPS_mode(); }
-#endif
 
 long process_tls_version(const char *tls_version) {
   const char *separator = ",";
@@ -524,26 +514,6 @@ long process_tls_version(const char *tls_version) {
     return tls_ctx_flag;
 }
 
-#ifdef HAVE_WOLFSSL
-static int wolfssl_recv(WOLFSSL *ssl, char *buf, int sz, void *vio) {
-  size_t ret;
-
-  (void)ssl;
-  ret = vio_read(static_cast<Vio *>(vio), (uchar *)buf, sz);
-
-  /* check if connection was closed */
-  if (ret == 0) {
-    return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-  }
-  return static_cast<int>(ret);
-}
-
-static int wolfssl_send(WOLFSSL *ssl, char *buf, int sz, void *vio) {
-  (void)ssl;
-  return (int)vio_write(static_cast<Vio *>(vio), (unsigned char *)buf, sz);
-}
-#endif /* HAVE_WOLFSSL */
-
 /************************ VioSSLFd **********************************/
 static struct st_VioSSLFd *new_VioSSLFd(
     const char *key_file, const char *cert_file, const char *ca_file,
@@ -579,10 +549,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
 #ifdef HAVE_TLSv13
                      | SSL_OP_NO_TLSv1_3
 #endif /* HAVE_TLSv13 */
-#ifndef HAVE_WOLFSSL
-                     | SSL_OP_NO_TICKET
-#endif
-                    );
+                     | SSL_OP_NO_TICKET);
   if (!(ssl_fd = ((struct st_VioSSLFd *)my_malloc(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
     return 0;
@@ -665,10 +632,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 
   if (crl_file || crl_path) {
-#ifdef HAVE_WOLFSSL
-    DBUG_PRINT("warning", ("wolfSSL MYSQL doesn't support CRL"));
-    DBUG_ASSERT(0);
-#else
     X509_STORE *store = SSL_CTX_get_cert_store(ssl_fd->ssl_context);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
@@ -678,7 +641,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
       *error = SSL_INITERR_BAD_PATHS;
       goto error;
     }
-#endif
   }
 
   if (vio_set_cert_stuff(ssl_fd->ssl_context, cert_file, key_file, error)) {
@@ -702,12 +664,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
   DH_free(dh);
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
-
-  /* set IO functions used by wolfSSL */
-#ifdef HAVE_WOLFSSL
-  wolfSSL_SetIORecv(ssl_fd->ssl_context, wolfssl_recv);
-  wolfSSL_SetIOSend(ssl_fd->ssl_context, wolfssl_send);
-#endif
 
   DBUG_PRINT("exit", ("OK 1"));
 

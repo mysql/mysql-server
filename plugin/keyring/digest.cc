@@ -72,8 +72,7 @@ Digest &Digest::operator=(const Digest &digest) {
 
 void Digest::compute(uchar *memory, size_t memory_size) {
   // We are using SHA_EVP256 method from mysys library which symbols are
-  // exported  by mysqld. SHA_EVP256 is defined in both cases - when server is
-  // linked with openssl  and when it is linked with wolfSSL.
+  // exported  by mysqld.
   (void)::SHA_EVP256(memory, memory_size, value);
   is_empty = false;
 }

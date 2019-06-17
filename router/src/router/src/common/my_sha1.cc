@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,7 @@
   @file
 
   @brief
-  Wrapper functions for OpenSSL, WolfSSL implementations. Also provides a
-  Compatibility layer to make available YaSSL's SHA1 implementation.
+  Wrapper functions for OpenSSL implementations.
 */
 
 #include "mysqlrouter/sha1.h"
@@ -33,7 +32,7 @@
 
 namespace my_sha1 {
 
-#if defined(HAVE_WOLFSSL) || defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
 
 namespace {
 int mysql_sha1_reset(SHA_CTX *context) { return SHA1_Init(context); }

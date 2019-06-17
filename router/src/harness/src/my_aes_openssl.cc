@@ -64,7 +64,7 @@ static uint my_aes_opmode_key_sizes_impl[] = {
 
   @param [in] key               Key to use for real key creation
   @param [in] key_length        Length of the key
-  @param [out] rkey             Real key (used by OpenSSL/WolfSSL)
+  @param [out] rkey             Real key (used by OpenSSL)
   @param [out] opmode           encryption mode
 */
 

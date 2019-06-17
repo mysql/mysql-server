@@ -48,7 +48,7 @@
 
   @param [in] key               Key to use for real key creation
   @param [in] key_length        Length of the key
-  @param [out] rkey             Real key (used by OpenSSL/WolfSSL)
+  @param [out] rkey             Real key (used by OpenSSL)
   @param [out] opmode           encryption mode
 */
 

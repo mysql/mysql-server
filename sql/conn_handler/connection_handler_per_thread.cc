@@ -309,11 +309,9 @@ static void *handle_connection(void *arg) {
     thd->release_resources();
 
     // Clean up errors now, before possibly waiting for a new connection.
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count();
 

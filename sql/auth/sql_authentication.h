@@ -103,9 +103,7 @@ bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 
-#ifndef HAVE_WOLFSSL
 typedef struct rsa_st RSA;
-#endif
 class Rsa_authentication_keys {
  private:
   RSA *m_public_key;

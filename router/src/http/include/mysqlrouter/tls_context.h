@@ -33,12 +33,6 @@
 
 #include <openssl/ssl.h>  // SSL_METHOD
 
-#if defined(LIBWOLFSSL_VERSION_HEX) && defined(close)
-// wolfssl 3.14.0 has a 'define close(fd) closesocket(fd)' which interfers
-// with all other uses of close() like fstream::close()
-#undef close
-#endif
-
 /**
  * TLS Versions.
  *

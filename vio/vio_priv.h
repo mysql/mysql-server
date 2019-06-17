@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,13 +41,6 @@ extern PSI_memory_key key_memory_vio_read_buffer;
 
 #ifdef HAVE_OPENSSL
 extern PSI_memory_key key_memory_vio_ssl_fd;
-#endif
-
-#ifdef HAVE_WOLFSSL
-
-#ifdef ERROR /* check for conflicting ERROR macro from wingdi.h */
-#undef ERROR
-#endif
 #endif
 
 #ifdef _WIN32

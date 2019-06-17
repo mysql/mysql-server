@@ -1452,15 +1452,9 @@ static void validate_user_plugin_records() {
       if (Cached_authentication_plugins::compare_plugin(PLUGIN_SHA256_PASSWORD,
                                                         acl_user->plugin) &&
           sha256_rsa_auth_status() && !SslAcceptorContext::have_ssl()) {
-#if !defined(HAVE_WOLFSSL)
-        const char *missing = "but neither SSL nor RSA keys are";
-#else
-        const char *missing = "but no SSL is";
-#endif
-
         LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG, acl_user->plugin.str,
                acl_user->user, static_cast<int>(acl_user->host.get_host_len()),
-               acl_user->host.get_host(), missing);
+               acl_user->host.get_host(), "but neither SSL nor RSA keys are");
       }
     }
   }

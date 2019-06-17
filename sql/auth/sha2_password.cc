@@ -75,9 +75,7 @@ struct SYS_VAR;
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
-#if !defined(HAVE_WOLFSSL)
 bool caching_sha2_auto_generate_rsa_keys = true;
-#endif
 Rsa_authentication_keys *g_caching_sha2_rsa_keys = 0;
 
 namespace sha2_password {
@@ -1348,7 +1346,6 @@ static MYSQL_SYSVAR_STR(
     "A fully qualified path to the public RSA key used for authentication.",
     NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 
-#if !defined(HAVE_WOLFSSL)
 static MYSQL_SYSVAR_BOOL(
     auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_keys,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
@@ -1356,15 +1353,11 @@ static MYSQL_SYSVAR_BOOL(
     "system variables are not specified and key files are not present "
     "at the default location.",
     NULL, NULL, true);
-#endif
 
 /** Array of system variables. Used in plugin declaration. */
 static SYS_VAR *caching_sha2_password_sysvars[] = {
     MYSQL_SYSVAR(private_key_path), MYSQL_SYSVAR(public_key_path),
-#if !defined(HAVE_WOLFSSL)
-    MYSQL_SYSVAR(auto_generate_rsa_keys),
-#endif
-    0};
+    MYSQL_SYSVAR(auto_generate_rsa_keys), 0};
 
 /** Array of status variables. Used in plugin declaration. */
 static SHOW_VAR caching_sha2_password_status_variables[] = {

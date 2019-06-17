@@ -553,9 +553,7 @@ void vio_delete(Vio *vio) { internal_vio_delete(vio); }
 
 */
 void vio_end(void) {
-#if defined(HAVE_WOLFSSL)
-  wolfSSL_Cleanup();
-#elif defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
   vio_ssl_end();
 #endif
 }

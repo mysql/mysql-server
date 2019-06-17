@@ -127,11 +127,7 @@ SET(MYSYS_SOURCES
   my_md5.cc
   my_rnd.cc
 )
-IF(WITH_SSL STREQUAL "wolfssl")
-  LIST(APPEND MYSYS_SOURCES my_aes_wolfssl.cc)
-ELSE()
-  LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
-ENDIF()
+LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
@@ -187,7 +183,7 @@ IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
 ENDIF()
 # Needed to resolve OpenSSL dependency on Windows
-IF(WIN32 AND NOT WITH_SSL STREQUAL "wolfssl")
+IF(WIN32)
   TARGET_LINK_LIBRARIES(mysys crypt32)
 ENDIF()
 

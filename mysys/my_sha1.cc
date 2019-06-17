@@ -27,8 +27,7 @@
 
 /**
   @file
-  Wrapper functions for OpenSSL, wolfSSL implementations. Also provides a
-  Compatibility layer to make available wolfSSL's SHA1 implementation.
+  Wrapper functions for OpenSSL implementations.
 */
 
 #include "my_inttypes.h"

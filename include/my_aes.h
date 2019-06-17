@@ -1,7 +1,7 @@
 #ifndef MY_AES_INCLUDED
 #define MY_AES_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -44,9 +44,7 @@ enum my_aes_opmode {
   my_aes_256_ecb,
   my_aes_128_cbc,
   my_aes_192_cbc,
-  my_aes_256_cbc
-#ifndef HAVE_WOLFSSL
-  ,
+  my_aes_256_cbc,
   my_aes_128_cfb1,
   my_aes_192_cfb1,
   my_aes_256_cfb1,
@@ -59,15 +57,10 @@ enum my_aes_opmode {
   my_aes_128_ofb,
   my_aes_192_ofb,
   my_aes_256_ofb
-#endif
 };
 
 #define MY_AES_BEGIN my_aes_128_ecb
-#ifdef HAVE_WOLFSSL
-#define MY_AES_END my_aes_256_cbc
-#else
 #define MY_AES_END my_aes_256_ofb
-#endif
 
 /* If bad data discovered during decoding */
 #define MY_AES_BAD_DATA -1

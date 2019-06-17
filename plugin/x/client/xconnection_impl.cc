@@ -183,9 +183,9 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     Use OpenSSL certificate matching functions instead of our own if we
     have OpenSSL. The X509_check_* functions return 1 on success.
   */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
-  const int check_result_for_ip = IS_WOLFSSL_OR_OPENSSL(
-      0, X509_check_ip_asc(server_cert, server_hostname.c_str(), 0));
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+  const int check_result_for_ip =
+      X509_check_ip_asc(server_cert, server_hostname.c_str(), 0);
   const int check_result_for_host = X509_check_host(
       server_cert, server_hostname.c_str(), server_hostname.length(), 0, 0);
   if ((check_result_for_host != 1) && (check_result_for_ip != 1)) {
@@ -477,18 +477,6 @@ XError Connection_impl::get_ssl_init_error(const int init_error_id) {
                 sslGetErrString((enum_ssl_init_error)init_error_id));
 }
 
-#ifdef HAVE_WOLFSSL
-
-#ifdef SOCKET_EPIPE
-#undef SOCKET_EPIPE
-#endif
-
-#ifdef SOCKET_ECONNABORTED
-#undef SOCKET_ECONNABORTED
-#endif
-
-#endif  // HAVE_WOLFSSL
-
 #define SOCKET_EPIPE IF_WIN(ERROR_BROKEN_PIPE, EPIPE)
 #define SOCKET_ECONNABORTED IF_WIN(WSAECONNABORTED, ECONNABORTED)
 
@@ -523,7 +511,6 @@ XError Connection_impl::get_ssl_error(const int error_id) {
   return XError(CR_SSL_CONNECTION_ERROR, buffer);
 }
 
-#ifndef HAVE_WOLFSSL
 /**
   Set fips mode in openssl library,
   When we set fips mode ON/STRICT, it will perform following operations:
@@ -562,7 +549,6 @@ int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
 EXIT:
   return rc;
 }
-#endif
 
 XError Connection_impl::activate_tls() {
   if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
@@ -573,13 +559,11 @@ XError Connection_impl::activate_tls() {
   if (!m_context->m_ssl_config.is_configured())
     return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_NOT_CONFIGURATED};
 
-#ifndef HAVE_WOLFSSL
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   if (set_fips_mode((int)m_context->m_ssl_config.m_ssl_fips_mode, err_string) !=
       1) {
     return XError{CR_SSL_CONNECTION_ERROR, err_string};
   }
-#endif
   auto ssl_ctx_flags = process_tls_version(
       details::null_when_empty(m_context->m_ssl_config.m_tls_version));
 

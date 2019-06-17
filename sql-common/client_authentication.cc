@@ -38,7 +38,6 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include "crypt_genhash_impl.h"
 #include "errmsg.h"
 #include "m_ctype.h"
@@ -51,7 +50,6 @@
     defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
-#include <wolfssl_fix_namespace_pollution.h>
 #include "client_async_authentication.h"
 #include "mysql/plugin.h"
 #include "sha2.h"
@@ -121,9 +119,7 @@ static RSA *rsa_init(MYSQL *mysql) {
   mysql_mutex_unlock(&g_public_key_mutex);
   fclose(pub_key_file);
   if (g_public_key == NULL) {
-#if !defined(HAVE_WOLFSSL)
     ERR_clear_error();
-#endif
     my_message_local(WARNING_LEVEL, EE_PUBLIC_KEY_NOT_IN_PEM_FORMAT,
                      mysql->options.extension->server_public_key_path);
     return 0;
@@ -145,12 +141,10 @@ static RSA *rsa_init(MYSQL *mysql) {
 
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
-#if !defined(HAVE_WOLFSSL)
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
   RSA *public_key = NULL;
   bool got_public_key_from_server = false;
-#endif
   bool connection_is_secure = false;
   unsigned char scramble_pkt[20];
   unsigned char *pkt;
@@ -179,9 +173,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure) {
-#if !defined(HAVE_WOLFSSL)
     public_key = rsa_init(mysql);
-#endif
   }
 
   if (!uses_password) {
@@ -193,7 +185,6 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     unsigned int passwd_len =
         static_cast<unsigned int>(strlen(mysql->passwd) + 1);
     if (!connection_is_secure) {
-#if !defined(HAVE_WOLFSSL)
       /*
         If no public key; request one from the server.
       */
@@ -253,12 +244,6 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
       if (vio->write_packet(vio, (uchar *)encrypted_password, cipher_length))
         return CR_ERROR;
-#else
-      set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
-                               ER_CLIENT(CR_AUTH_PLUGIN_ERR), "sha256_password",
-                               "Authentication requires SSL encryption");
-      return CR_ERROR;  // If no openssl support
-#endif
     } else {
       /* The vio is encrypted already; just send the plain text passwd */
       if (vio->write_packet(vio, (uchar *)mysql->passwd, passwd_len))
@@ -277,12 +262,10 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
                                                          int *result) {
   DBUG_TRACE;
   net_async_status status = NET_ASYNC_NOT_READY;
-#if !defined(HAVE_WOLFSSL)
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
   static RSA *public_key = NULL;
   bool got_public_key_from_server = false;
-#endif
   int io_result;
   bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != NULL);
   unsigned char scramble_pkt[20];
@@ -318,7 +301,6 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
             client_auth_sha256_password_plugin_status::
                 SHA256_REQUEST_PUBLIC_KEY;
       return NET_ASYNC_NOT_READY;
-#if !defined(HAVE_WOLFSSL)
     case client_auth_sha256_password_plugin_status::SHA256_REQUEST_PUBLIC_KEY: {
       public_key = rsa_init(mysql);
       /* If no public key; request one from the server. */
@@ -407,7 +389,6 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
         return NET_ASYNC_COMPLETE;
       }
     } break;
-#endif
     case client_auth_sha256_password_plugin_status::
         SHA256_SEND_PLAIN_PASSWORD: {
       status = vio->write_packet_nonblocking(vio, (uchar *)mysql->passwd,
@@ -551,9 +532,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0) {
-#ifndef HAVE_WOLFSSL
           ERR_clear_error();
-#endif /* !HAVE_WOLFSSL */
           DBUG_PRINT("info", ("Failed to parse public key"));
           return CR_ERROR;
         }
@@ -781,9 +760,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
         public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0) {
-#ifndef HAVE_WOLFSSL
           ERR_clear_error();
-#endif /* !HAVE_WOLFSSL */
           DBUG_PRINT("info", ("Failed to parse public key"));
           *result = CR_ERROR;
           return NET_ASYNC_COMPLETE;

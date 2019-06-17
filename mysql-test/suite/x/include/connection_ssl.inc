@@ -1,6 +1,6 @@
 ## Script connection_ssl.inc
 #
-# Extracted test logic form 'connection_(wolf|open)ssl.test' and changed to
+# Extracted test logic form 'connection_openssl.test' and changed to
 # a parametric test.
 #
 # Arguments:

@@ -26,7 +26,7 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-# Pass alternative ssl setting if provided. Needed for e.g. wolfssl.
+# Pass alternative ssl setting if provided.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
 # Regression tests may take a long time, override the default to skip them

@@ -24,22 +24,16 @@
 #ifdef XCOM_HAVE_OPENSSL
 #include <assert.h>
 #include <stdlib.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include <openssl/dh.h>
 #include <openssl/opensslv.h>
-
-#include <wolfssl_fix_namespace_pollution.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include "openssl/engine.h"
-
-#include <wolfssl_fix_namespace_pollution.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
@@ -297,7 +291,6 @@ error:
   return 1;
 }
 
-#ifndef HAVE_WOLFSSL
 #define OPENSSL_ERROR_LENGTH 512
 static int configure_ssl_fips_mode(const uint fips_mode) {
   int rc = -1;
@@ -321,7 +314,6 @@ static int configure_ssl_fips_mode(const uint fips_mode) {
 EXIT:
   return rc;
 }
-#endif
 
 static int configure_ssl_ca(SSL_CTX *ssl_ctx, const char *ca_file,
                             const char *ca_path) {
@@ -354,7 +346,6 @@ static int configure_ssl_revocation(SSL_CTX *ssl_ctx MY_ATTRIBUTE((unused)),
                                     const char *crl_path) {
   int retval = 0;
   if (crl_file || crl_path) {
-#ifndef HAVE_WOLFSSL
     X509_STORE *store = SSL_CTX_get_cert_store(ssl_ctx);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
@@ -363,7 +354,6 @@ static int configure_ssl_revocation(SSL_CTX *ssl_ctx MY_ATTRIBUTE((unused)),
       G_ERROR("X509_STORE_load_locations for CRL error");
       retval = 1;
     }
-#endif
   }
   return retval;
 }
@@ -521,12 +511,10 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
   int verify_server = SSL_VERIFY_NONE;
   int verify_client = SSL_VERIFY_NONE;
 
-#ifndef HAVE_WOLFSSL
   if (configure_ssl_fips_mode(ssl_fips_mode) != 1) {
     G_ERROR("Error setting the ssl fips mode");
     goto error;
   }
-#endif
 
   SSL_library_init();
   SSL_load_error_strings();
@@ -581,11 +569,9 @@ error:
 void xcom_cleanup_ssl() {
   if (!xcom_use_ssl()) return;
 
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
 }
 
 void xcom_destroy_ssl() {
@@ -605,9 +591,7 @@ void xcom_destroy_ssl() {
     client_ctx = NULL;
   }
 
-#if defined(HAVE_WOLFSSL) && defined(WITH_SSL_STANDALONE)
-  yaSSL_CleanUp();
-#elif defined(WITH_SSL_STANDALONE)
+#if defined(WITH_SSL_STANDALONE)
   ENGINE_cleanup();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();

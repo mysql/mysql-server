@@ -27,12 +27,6 @@
 
 #include <openssl/ssl.h>
 
-#if defined(LIBWOLFSSL_VERSION_HEX) && defined(close)
-// wolfssl 3.14.0 has a 'define close(fd) closesocket(fd)' which interfers
-// with all other uses of close() like fstream::close()
-#undef close
-#endif
-
 #include "mysqlrouter/http_client_export.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/tls_client_context.h"

@@ -9,9 +9,6 @@ TAGS_sorted_by_file
 # googletest files
 source_downloads
 
-# added so we can build with wolfSSL
-extra/wolfssl-*
-
 # Vim swap files
 [._]*.s[a-v][a-z]
 [._]*.sw[a-p]

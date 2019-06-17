@@ -30,9 +30,7 @@
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
-#if !defined(LIBWOLFSSL_VERSION_HEX)
 #include <openssl/safestack.h>
-#endif
 #include <openssl/ssl.h>
 
 #include "mysql/harness/utility/string.h"
@@ -151,7 +149,6 @@ void TlsServerContext::init_tmp_dh(const std::string &dh_params) {
       throw TlsError("failed to parse dh-param file");
     }
 
-#if !defined(LIBWOLFSSL_VERSION_HEX)
     int codes = 0;
     if (1 != DH_check(dh2048.get(), &codes)) {
       throw TlsError("DH_check() failed");
@@ -160,7 +157,6 @@ void TlsServerContext::init_tmp_dh(const std::string &dh_params) {
     if (codes != 0) {
       throw std::runtime_error("check of DH params failed: ");
     }
-#endif
 
     if (DH_bits(dh2048.get()) < kMinDhKeySize) {
       throw std::runtime_error("key size of DH param " + dh_params +

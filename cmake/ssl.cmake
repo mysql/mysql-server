@@ -26,7 +26,6 @@
 #     - cmake -DCMAKE_PREFIX_PATH=</path/to/custom/openssl> -DWITH_SSL="system"
 #   or
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
-# - "wolfssl" uses wolfssl source code in <source dir>/extra/wolfssl-<version>
 #
 # The default value for WITH_SSL is "system"
 # set in cmake/build_configurations/feature_set.cmake
@@ -51,8 +50,6 @@ SET(WITH_SSL_DOC
   "${WITH_SSL_DOC}, \nyes (synonym for system)")
 SET(WITH_SSL_DOC
   "${WITH_SSL_DOC}, \n</path/to/custom/openssl/installation>")
-SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, \nwolfssl (use wolfSSL. See extra/README-wolfssl.txt on how to set this up)")
 
 STRING(REPLACE "\n" "| " WITH_SSL_DOC_STRING "${WITH_SSL_DOC}")
 MACRO (CHANGE_SSL_SETTINGS string)
@@ -78,58 +75,6 @@ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   ENDIF()
 ENDMACRO()
 
-MACRO (MYSQL_USE_WOLFSSL)
-  SET(WOLFSSL_VERSION "3.14.0")
-  SET(WOLFSSL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/wolfssl-${WOLFSSL_VERSION}")
-  MESSAGE(STATUS "WOLFSSL_SOURCE_DIR = ${WOLFSSL_SOURCE_DIR}")
-
-  SET(INC_DIRS
-    ${CMAKE_SOURCE_DIR}/include
-    ${WOLFSSL_SOURCE_DIR}
-    ${WOLFSSL_SOURCE_DIR}/wolfssl
-    ${WOLFSSL_SOURCE_DIR}/wolfssl/wolfcrypt
-  )
-  SET(SSL_LIBRARIES  wolfssl wolfcrypt)
-  IF(SOLARIS)
-    SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
-  ENDIF()
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${INC_DIRS})
-  SET(SSL_INTERNAL_INCLUDE_DIRS ${WOLFSSL_SOURCE_DIR})
-  ADD_DEFINITIONS(
-    -DBUILDING_WOLFSSL
-    -DHAVE_ECC
-    -DHAVE_HASHDRBG
-    -DHAVE_WOLFSSL
-    -DKEEP_OUR_CERT
-    -DMULTI_THREADED
-    -DOPENSSL_EXTRA
-    -DSESSION_CERT
-    -DWC_NO_HARDEN
-    -DWOLFSSL_AES_COUNTER
-    -DWOLFSSL_AES_DIRECT
-    -DWOLFSSL_ALLOW_TLSV10
-    -DWOLFSSL_CERT_EXT
-    -DWOLFSSL_MYSQL_COMPATIBLE
-    -DWOLFSSL_SHA224
-    -DWOLFSSL_SHA384
-    -DWOLFSSL_SHA512
-    -DWOLFSSL_STATIC_RSA
-    -DWOLFSSL_CERT_GEN
-    )
-  CHANGE_SSL_SETTINGS("wolfssl")
-  ADD_SUBDIRECTORY(${WOLFSSL_SOURCE_DIR})
-  ADD_SUBDIRECTORY(${WOLFSSL_SOURCE_DIR}/wolfcrypt)
-  GET_TARGET_PROPERTY(src wolfssl SOURCES)
-  FOREACH(file ${src})
-    SET(SSL_SOURCES ${SSL_SOURCES} ${WOLFSSL_SOURCE_DIR}/${file})
-  ENDFOREACH()
-  GET_TARGET_PROPERTY(src wolfcrypt SOURCES)
-  FOREACH(file ${src})
-    SET(SSL_SOURCES ${SSL_SOURCES}
-      ${WOLFSSL_SOURCE_DIR}/wolfcrypt/${file})
-  ENDFOREACH()
-ENDMACRO()
-
 MACRO(RESET_SSL_VARIABLES)
   UNSET(WITH_SSL_PATH)
   UNSET(WITH_SSL_PATH CACHE)
@@ -150,18 +95,10 @@ ENDMACRO()
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
-# WITH_SSL=[yes|wolfssl|system|<path/to/custom/installation>]
+# WITH_SSL=[yes|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
 
   IF(NOT WITH_SSL)
-    CHANGE_SSL_SETTINGS("system")
-  ENDIF()
-
-  IF(WITH_SSL STREQUAL "bundled")
-    MESSAGE(WARNING
-      "bundled SSL (YaSSL) is no longer supported, changed to system"
-      )
-    RESET_SSL_VARIABLES()
     CHANGE_SSL_SETTINGS("system")
   ENDIF()
 
@@ -173,34 +110,7 @@ MACRO (MYSQL_CHECK_SSL)
     SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
 
-  IF(WITH_SSL STREQUAL "wolfssl")
-    MYSQL_USE_WOLFSSL()
-    # Reset some variables, in case we switch from /path/to/ssl to "wolfssl".
-    IF (WITH_SSL_PATH)
-      UNSET(WITH_SSL_PATH)
-      UNSET(WITH_SSL_PATH CACHE)
-    ENDIF()
-    IF (OPENSSL_ROOT_DIR)
-      UNSET(OPENSSL_ROOT_DIR)
-      UNSET(OPENSSL_ROOT_DIR CACHE)
-    ENDIF()
-    IF (OPENSSL_INCLUDE_DIR)
-      UNSET(OPENSSL_INCLUDE_DIR)
-      UNSET(OPENSSL_INCLUDE_DIR CACHE)
-    ENDIF()
-    IF (WIN32 AND OPENSSL_APPLINK_C)
-      UNSET(OPENSSL_APPLINK_C)
-      UNSET(OPENSSL_APPLINK_C CACHE)
-    ENDIF()
-    IF (OPENSSL_LIBRARY)
-      UNSET(OPENSSL_LIBRARY)
-      UNSET(OPENSSL_LIBRARY CACHE)
-    ENDIF()
-    IF (CRYPTO_LIBRARY)
-      UNSET(CRYPTO_LIBRARY)
-      UNSET(CRYPTO_LIBRARY CACHE)
-    ENDIF()
-  ELSEIF(WITH_SSL STREQUAL "system" OR
+  IF(WITH_SSL STREQUAL "system" OR
       WITH_SSL STREQUAL "yes" OR
       WITH_SSL_PATH
       )

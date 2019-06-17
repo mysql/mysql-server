@@ -231,13 +231,7 @@ static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
       break;
     default:
       /* first save the top ERR error */
-#ifdef HAVE_WOLFSSL
-      /* TODO: when wolfSSL issue 4240 is fixed (see bug 27855668) remove the
-       * "if" branch */
-      err_error = ssl_error;
-#else
       err_error = ERR_get_error();
-#endif
       /* now report all remaining errors on and/or clear the error stack */
 #ifndef DBUG_OFF /* Debug build */
       /* Note: the OpenSSL error queue gets cleared in report_errors(). */
@@ -255,12 +249,6 @@ static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
   return should_retry;
 }
 
-#ifdef HAVE_WOLFSSL
-size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
-  // YASSL maps ETIMEOUT to EWOULDBLOCK and hence no need for retry here.
-  return SSL_read(static_cast<SSL *>(vio->ssl_arg), buf, (int)size);
-}
-#else
 size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
   int ret;
   SSL *ssl = static_cast<SSL *>(vio->ssl_arg);
@@ -302,7 +290,6 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
   return ret < 0 ? -1 : ret;
 }
-#endif
 
 size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
   int ret;
@@ -393,11 +380,9 @@ void vio_ssl_delete(Vio *vio) {
     vio->ssl_arg = 0;
   }
 
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
 
   vio_delete(vio);
 }
@@ -474,7 +459,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_socket sd = mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(HAVE_WOLFSSL) && !defined(DBUG_OFF)
+#if !defined(DBUG_OFF)
   int j, n;
 #endif
 
@@ -496,14 +481,13 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     SSL_clear(ssl);
     SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
     SSL_set_fd(ssl, sd);
-#if !defined(HAVE_WOLFSSL) && defined(SSL_OP_NO_COMPRESSION)
+#if defined(SSL_OP_NO_COMPRESSION)
     SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
-#elif !defined(HAVE_WOLFSSL) && \
-    OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
+#elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
     sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(HAVE_WOLFSSL) && !defined(DBUG_OFF)
+#if !defined(DBUG_OFF)
     {
       STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
       ssl_comp_methods = SSL_COMP_get_compression_methods();
@@ -524,17 +508,6 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     }
 #endif
 
-    /*
-      Since yaSSL does not support non-blocking send operations, use
-      special transport functions that properly handles non-blocking
-      sockets. These functions emulate the behavior of blocking I/O
-      operations by waiting for I/O to become available.
-    */
-#ifdef HAVE_WOLFSSL
-    /* Set first argument of the transport functions. */
-    wolfSSL_SetIOReadCtx(ssl, vio);
-    wolfSSL_SetIOWriteCtx(ssl, vio);
-#endif
     *sslptr = ssl;
   } else {
     ssl = *sslptr;

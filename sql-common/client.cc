@@ -3334,7 +3334,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   X509 *server_cert = NULL;
   int ret_validation = 1;
 
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL))
+#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
   int cn_loc = -1;
   char *cn = NULL;
   ASN1_STRING *cn_asn1 = NULL;
@@ -3373,7 +3373,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   /* Use OpenSSL certificate matching functions instead of our own if we
      have OpenSSL. The X509_check_* functions return 1 on success.
   */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
   if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
                        0) != 1) &&
       (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
@@ -7657,7 +7657,7 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
 #endif
       break;
     case MYSQL_OPT_SSL_FIPS_MODE: {
-#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
+#if defined(HAVE_OPENSSL)
       char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->ssl_fips_mode = *static_cast<const uint *>(arg);
@@ -7669,7 +7669,7 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
             "Set Fips mode ON/STRICT failed, detail: '%s'.", ssl_err_string);
         return 1;
       }
-#endif  // defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
+#endif  // defined(HAVE_OPENSSL)
     } break;
     case MYSQL_OPT_SSL_MODE:
 #if defined(HAVE_OPENSSL)

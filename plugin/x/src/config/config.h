@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,6 @@
 
 #ifndef PLUGIN_X_SRC_CONFIG_CONFIG_H_
 #define PLUGIN_X_SRC_CONFIG_CONFIG_H_
-
-#ifdef HAVE_WOLFSSL
-#define IS_WOLFSSL_OR_OPENSSL(Y, O) Y
-#else  // HAVE_WOLFSSL
-#define IS_WOLFSSL_OR_OPENSSL(Y, O) O
-#endif  // HAVE_WOLFSSL
 
 #if defined(HAVE_SYS_UN_H)
 #define HAVE_UNIX_SOCKET(YES, NO) YES

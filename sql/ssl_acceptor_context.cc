@@ -455,15 +455,6 @@ bool SslAcceptorContext::have_ssl() {
 bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
   ssl_artifacts_status auto_detection_status;
 
-  /* turn certain options off for wolf */
-
-#ifdef HAVE_WOLFSSL
-  /* crl has no effect in wolfSSL. */
-  opt_ssl_crl = NULL;
-  opt_ssl_crlpath = NULL;
-  opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
-#endif /* HAVE_WOLFSSL */
-
   /*
     No need to take the ssl_ctx_lock lock here since it's being called
     from singleton_init().
@@ -474,11 +465,9 @@ bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
       LogErr(INFORMATION_LEVEL, ER_SSL_TRYING_DATADIR_DEFAULTS,
              DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
              DEFAULT_SSL_SERVER_KEY);
-#ifndef HAVE_WOLFSSL
     if (do_auto_cert_generation(auto_detection_status, &opt_ssl_ca,
                                 &opt_ssl_key, &opt_ssl_cert) == false)
       return true;
-#endif
   }
 
   /*
@@ -486,24 +475,11 @@ bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
     but we want the SSL material generation and/or validation (if supplied).
     So we keep it on.
 
-    For wolfSSL (since it can't auto-generate the certs from inside the
-    server) we need to hush the warning if in bootstrap mode, as in
-    that mode the server won't be listening for connections and thus
-    the lack of SSL material makes no real difference.
-    However if the user specified any of the --ssl options we keep the
-    warning as it's showing problems with the values supplied.
-
     For openssl, we don't hush the option since it would indicate a failure
     in auto-generation, bad key material explicitly specified or
     auto-generation disabled explcitly while SSL is still on.
   */
-  SslAcceptorContext *news = new SslAcceptorContext(
-      use_ssl_arg
-#ifdef HAVE_WOLFSSL
-      ,
-      (!opt_initialize || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
-#endif
-  );
+  SslAcceptorContext *news = new SslAcceptorContext(use_ssl_arg);
 
   lock = new SslAcceptorContext::SslAcceptorContextLockType(news);
   if (!lock) {
@@ -529,7 +505,6 @@ bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
   @retval NULL No errors found
   @retval non-null The text of the error from the library
 */
-#ifndef HAVE_WOLFSSL
 static const char *verify_store_cert(SSL_CTX *ctx, SSL *ssl) {
   const char *result = NULL;
   X509 *cert = SSL_get_certificate(ssl);
@@ -543,9 +518,6 @@ static const char *verify_store_cert(SSL_CTX *ctx, SSL *ssl) {
   if (sctx != NULL) X509_STORE_CTX_free(sctx);
   return result;
 }
-#else  /* HAVE_WOLFSSL */
-static const char *verify_store_cert(SSL_CTX *, SSL *) { return NULL; }
-#endif /* HAVE_WOLFSSL */
 
 SslAcceptorContext::SslAcceptorContext(bool use_ssl_arg, bool report_ssl_error,
                                        enum enum_ssl_init_error *out_error)

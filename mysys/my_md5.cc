@@ -27,7 +27,7 @@
 
 /**
   @file mysys/my_md5.cc
-  Wrapper functions for OpenSSL and wolfSSL.
+  Wrapper functions for OpenSSL.
 */
 
 #include "my_md5.h"
@@ -56,9 +56,7 @@ static void my_md5_hash(unsigned char *digest, unsigned const char *buf,
 int compute_md5_hash(char *digest, const char *buf, int len) {
   int retval = 0;
   int fips_mode = 0;
-#if !defined(HAVE_WOLFSSL)
   fips_mode = FIPS_mode();
-#endif /* HAVE_WOLFSSL */
   /* If fips mode is ON/STRICT restricted method calls will result into abort,
    * skipping call. */
   if (fips_mode == 0) {

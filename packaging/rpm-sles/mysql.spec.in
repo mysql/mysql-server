@@ -37,7 +37,7 @@
 # Pass path to the libcurl "lib" directory
 %{?WITH_CURL: %global curl_lib_option -DWITH_CURL=%{WITH_CURL}}
 
-# Pass alternative ssl setting if provided. Needed for e.g. wolfssl.
+# Pass alternative ssl setting if provided.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
 # Regression tests may take a long time, override the default to skip them

@@ -1173,11 +1173,6 @@ ssize_t vio_pending(Vio *vio) {
     if (socket_peek_read(vio, &bytes)) return -1;
   }
 
-  /*
-    SSL not checked due to a wolfSSL bug in SSL_pending that
-    causes it to attempt to read from the socket.
-  */
-
   return (ssize_t)bytes;
 }
 

@@ -229,19 +229,9 @@ extern "C" {
 #endif
 
 #define HEADER_DES_LOCL_H dummy_something
-#ifndef WOLFSSL_MYSQL_COMPATIBLE
-#define WOLFSSL_MYSQL_COMPATIBLE
-#endif
-/* Set wolfSSL to use same type as MySQL do for socket handles */
-typedef my_socket WOLFSSL_SOCKET_T;
-#define WOLFSSL_SOCKET_T_DEFINED
 
-// clang-format off
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <wolfssl_fix_namespace_pollution.h>
-// clang-format on
 
 enum enum_ssl_init_error {
   SSL_INITERR_NOERROR = 0,

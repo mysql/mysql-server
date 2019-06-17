@@ -653,7 +653,7 @@ void thd_report_row_lock_wait(THD *self, THD *wait_for) {
 */
 
 void remove_ssl_err_thread_state() {
-#if !defined(HAVE_WOLFSSL) && !defined(HAVE_OPENSSL11)
+#if !defined(HAVE_OPENSSL11)
   ERR_remove_thread_state(nullptr);
 #endif
 }
