@@ -179,7 +179,7 @@ class RowIterator {
   /**
     Start performance schema batch mode, if supported (otherwise ignored).
 
-    PFS batch mode is a hack to reduce the overhead of performance schema,
+    PFS batch mode is a mitigation to reduce the overhead of performance schema,
     typically applied at the innermost table of the entire join. If you start
     it before scanning the table and then end it afterwards, the entire set
     of handler calls will be timed only once, as a group, and the costs will
@@ -188,15 +188,38 @@ class RowIterator {
     If you start PFS batch mode, you must also take care to end it at the
     end of the scan, one way or the other. Do note that this is true even
     if the query ends abruptly (LIMIT is reached, or an error happens).
-    The easiest workaround for this is to simply go through all the open
-    handlers and call end_psi_batch_mode_if_started(). See the PFSBatchMode
-    class for a useful helper.
+    The easiest workaround for this is to simply call EndPSIBatchModeIfStarted()
+    on the root iterator at the end of the scan. See the PFSBatchMode class for
+    a useful helper.
+
+    The rules for starting batch and ending mode are:
+
+      1. If you are an iterator with exactly one child (FilterIterator etc.),
+         forward any StartPSIBatchMode() calls to it.
+      2. If you drive an iterator (read rows from it using a for loop
+         or similar), use PFSBatchMode as described above.
+      3. If you have multiple children, ignore the call and do your own
+         handling of batch mode as appropriate. For materialization,
+         #2 would typically apply. For joins, it depends on the join type
+         (e.g., NestedLoopIterator applies batch mode only when scanning
+         the innermost table).
+
+    The upshot of this is that when scanning a single table, batch mode
+    will typically be activated for that table (since we call
+    StartPSIBatchMode() on the root iterator, and it will trickle all the way
+    down to the table iterator), but for a join, the call will be ignored
+    and the join iterator will activate batch mode by itself as needed.
    */
   virtual void StartPSIBatchMode() {}
 
   /**
     Ends performance schema batch mode, if started. It's always safe to
     call this.
+
+    Iterators that have children (composite iterators) must forward the
+    EndPSIBatchModeIfStarted() call to every iterator they could conceivably
+    have called StartPSIBatchMode() on. This ensures that after such a call
+    to on the root iterator, all handlers are out of batch mode.
    */
   virtual void EndPSIBatchModeIfStarted() {}
 

@@ -80,6 +80,10 @@ class FilterIterator final : public RowIterator {
     m_source->SetNullRowFlag(is_null_row);
   }
 
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
   void UnlockRow() override { m_source->UnlockRow(); }
 
   std::vector<Child> children() const override;
@@ -133,6 +137,10 @@ class LimitOffsetIterator final : public RowIterator {
     m_source->SetNullRowFlag(is_null_row);
   }
 
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
   void UnlockRow() override { m_source->UnlockRow(); }
 
   std::vector<Child> children() const override {
@@ -217,7 +225,17 @@ class AggregateIterator final : public RowIterator {
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
-  void UnlockRow() override;
+
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
+  void UnlockRow() override {
+    // Most likely, HAVING failed. Ideally, we'd like to backtrack and
+    // unlock all rows that went into this aggregate, but we can't do that,
+    // and we also can't unlock the _current_ row, since that belongs to a
+    // different group. Thus, do nothing.
+  }
 
   std::vector<Child> children() const override {
     return std::vector<Child>{{m_source.get(), ""}};
@@ -351,7 +369,14 @@ class PrecomputedAggregateIterator final : public RowIterator {
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
-  void UnlockRow() override;
+
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
+  void UnlockRow() override {
+    // See AggregateIterator::UnlockRow().
+  }
 
   std::vector<Child> children() const override {
     return std::vector<Child>{{m_source.get(), ""}};
@@ -422,6 +447,11 @@ class NestedLoopIterator final : public RowIterator {
     // TODO: write something here about why we can't do this lazily.
     m_source_outer->SetNullRowFlag(is_null_row);
     m_source_inner->SetNullRowFlag(is_null_row);
+  }
+
+  void EndPSIBatchModeIfStarted() override {
+    m_source_outer->EndPSIBatchModeIfStarted();
+    m_source_inner->EndPSIBatchModeIfStarted();
   }
 
   void UnlockRow() override {
@@ -666,6 +696,9 @@ class MaterializeIterator final : public TableRowIterator {
     m_table_iterator->SetNullRowFlag(is_null_row);
   }
 
+  void StartPSIBatchMode() override { m_table_iterator->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override;
+
   // The temporary table is private to us, so there's no need to worry about
   // locks to other transactions.
   void UnlockRow() override {}
@@ -772,6 +805,12 @@ class StreamingIterator final : public TableRowIterator {
     return std::vector<Child>{{m_subquery_iterator.get(), ""}};
   }
 
+  void StartPSIBatchMode() override {
+    m_subquery_iterator->StartPSIBatchMode();
+  }
+  void EndPSIBatchModeIfStarted() override {
+    m_subquery_iterator->EndPSIBatchModeIfStarted();
+  }
   void UnlockRow() override { m_subquery_iterator->UnlockRow(); }
 
  private:
@@ -798,6 +837,10 @@ class TemptableAggregateIterator final : public TableRowIterator {
   int Read() override;
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
+  }
+  void EndPSIBatchModeIfStarted() override {
+    m_table_iterator->EndPSIBatchModeIfStarted();
+    m_subquery_iterator->EndPSIBatchModeIfStarted();
   }
   void UnlockRow() override {}
   std::vector<std::string> DebugString() const override;
@@ -843,6 +886,11 @@ class MaterializedTableFunctionIterator final : public TableRowIterator {
   }
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
+  }
+
+  void StartPSIBatchMode() override { m_table_iterator->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_table_iterator->EndPSIBatchModeIfStarted();
   }
 
   // The temporary table is private to us, so there's no need to worry about
@@ -891,6 +939,9 @@ class WeedoutIterator final : public RowIterator {
     m_source->SetNullRowFlag(is_null_row);
   }
 
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
@@ -925,6 +976,10 @@ class RemoveDuplicatesIterator final : public RowIterator {
     m_source->SetNullRowFlag(is_null_row);
   }
 
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
@@ -983,6 +1038,11 @@ class NestedLoopSemiJoinWithDuplicateRemovalIterator final
     m_source_inner->SetNullRowFlag(is_null_row);
   }
 
+  void EndPSIBatchModeIfStarted() override {
+    m_source_outer->EndPSIBatchModeIfStarted();
+    m_source_inner->EndPSIBatchModeIfStarted();
+  }
+
   void UnlockRow() override {
     m_source_outer->UnlockRow();
     m_source_inner->UnlockRow();
@@ -1028,6 +1088,11 @@ class WindowingIterator final : public RowIterator {
 
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
   }
 
   void UnlockRow() override {
@@ -1077,6 +1142,11 @@ class BufferingWindowingIterator final : public RowIterator {
 
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
   }
 
   void UnlockRow() override {
@@ -1148,6 +1218,11 @@ class MaterializeInformationSchemaTableIterator final : public RowIterator {
     m_table_iterator->SetNullRowFlag(is_null_row);
   }
 
+  void StartPSIBatchMode() override { m_table_iterator->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_table_iterator->EndPSIBatchModeIfStarted();
+  }
+
   // The temporary table is private to us, so there's no need to worry about
   // locks to other transactions.
   void UnlockRow() override {}
@@ -1175,12 +1250,16 @@ class AppendIterator final : public RowIterator {
   std::vector<std::string> DebugString() const override { return {"Append"}; }
   std::vector<Child> children() const override;
 
+  void StartPSIBatchMode() override;
+  void EndPSIBatchModeIfStarted() override;
+
   void SetNullRowFlag(bool is_null_row) override;
   void UnlockRow() override;
 
  private:
   std::vector<unique_ptr_destroy_only<RowIterator>> m_sub_iterators;
   size_t m_current_iterator_index = 0;
+  bool m_pfs_batch_mode_enabled = false;
 };
 
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

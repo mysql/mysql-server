@@ -503,13 +503,6 @@ int AggregateIterator::Read() {
   return 1;
 }
 
-void AggregateIterator::UnlockRow() {
-  // Most likely, HAVING failed. Ideally, we'd like to backtrack and
-  // unlock all rows that went into this aggregate, but we can't do that,
-  // and we also can't unlock the _current_ row, since that belongs to a
-  // different group. Thus, do nothing.
-}
-
 vector<string> AggregateIterator::DebugString() const {
   Item_sum **sum_funcs_end =
       m_rollup ? m_join->sum_funcs_end[m_join->send_group_parts]
@@ -562,10 +555,6 @@ int PrecomputedAggregateIterator::Read() {
   return 0;
 }
 
-void PrecomputedAggregateIterator::UnlockRow() {
-  // See AggregateIterator::UnlockRow().
-}
-
 vector<string> PrecomputedAggregateIterator::DebugString() const {
   string ret;
 
@@ -598,7 +587,9 @@ bool NestedLoopIterator::Init() {
     return true;
   }
   m_state = NEEDS_OUTER_ROW;
-  m_source_inner->EndPSIBatchModeIfStarted();
+  if (m_pfs_batch_mode) {
+    m_source_inner->EndPSIBatchModeIfStarted();
+  }
   return false;
 }
 
@@ -630,7 +621,7 @@ int NestedLoopIterator::Read() {
                 m_state == READING_FIRST_INNER_ROW);
 
     int err = m_source_inner->Read();
-    if (err != 0) {
+    if (err != 0 && m_pfs_batch_mode) {
       m_source_inner->EndPSIBatchModeIfStarted();
     }
     if (err == 1) {
@@ -1022,7 +1013,7 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
     return true;
   }
 
-  PFSBatchMode pfs_batch_mode(nullptr, join);
+  PFSBatchMode pfs_batch_mode(query_block.subquery_iterator.get());
   while (*stored_rows < m_limit_rows) {
     int error = query_block.subquery_iterator->Read();
     if (error > 0 || thd()->is_error())
@@ -1214,6 +1205,13 @@ vector<RowIterator::Child> MaterializeIterator::children() const {
   return ret;
 }
 
+void MaterializeIterator::EndPSIBatchModeIfStarted() {
+  for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
+    query_block.subquery_iterator->EndPSIBatchModeIfStarted();
+  }
+  m_table_iterator->EndPSIBatchModeIfStarted();
+}
+
 bool MaterializeIterator::doing_deduplication() const {
   if (doing_hash_deduplication()) {
     return true;
@@ -1341,7 +1339,7 @@ bool TemptableAggregateIterator::Init() {
   auto end_unique_index =
       create_scope_guard([&] { table()->file->ha_index_end(); });
 
-  PFSBatchMode pfs_batch_mode(nullptr, m_join);
+  PFSBatchMode pfs_batch_mode(m_subquery_iterator.get());
   for (;;) {
     int error = m_subquery_iterator->Read();
     if (error > 0 || thd()->is_error())  // Fatal error
@@ -1996,6 +1994,7 @@ AppendIterator::AppendIterator(
 
 bool AppendIterator::Init() {
   m_current_iterator_index = 0;
+  m_pfs_batch_mode_enabled = false;
   return m_sub_iterators[0]->Init();
 }
 
@@ -2011,11 +2010,15 @@ int AppendIterator::Read() {
   }
 
   // EOF. Go to the next iterator.
+  m_sub_iterators[m_current_iterator_index]->EndPSIBatchModeIfStarted();
   if (++m_current_iterator_index >= m_sub_iterators.size()) {
     return -1;
   }
   if (m_sub_iterators[m_current_iterator_index]->Init()) {
     return 1;
+  }
+  if (m_pfs_batch_mode_enabled) {
+    m_sub_iterators[m_current_iterator_index]->StartPSIBatchMode();
   }
   return Read();  // Try again, with the new iterator as current.
 }
@@ -2031,6 +2034,19 @@ vector<RowIterator::Child> AppendIterator::children() const {
 void AppendIterator::SetNullRowFlag(bool is_null_row) {
   DBUG_ASSERT(m_current_iterator_index < m_sub_iterators.size());
   m_sub_iterators[m_current_iterator_index]->SetNullRowFlag(is_null_row);
+}
+
+void AppendIterator::StartPSIBatchMode() {
+  m_pfs_batch_mode_enabled = true;
+  m_sub_iterators[m_current_iterator_index]->StartPSIBatchMode();
+}
+
+void AppendIterator::EndPSIBatchModeIfStarted() {
+  for (const unique_ptr_destroy_only<RowIterator> &sub_iterator :
+       m_sub_iterators) {
+    sub_iterator->EndPSIBatchModeIfStarted();
+  }
+  m_pfs_batch_mode_enabled = false;
 }
 
 void AppendIterator::UnlockRow() {

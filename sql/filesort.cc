@@ -1061,7 +1061,7 @@ static ha_rows read_all_rows(
     fs_info->clear_peak_memory_used();
   }
 
-  PFSBatchMode pfs_batch_mode(qep_tab, /*join=*/nullptr);
+  source_iterator->StartPSIBatchMode();
   for (;;) {
     DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
     if ((error = source_iterator->Read())) {
@@ -1142,6 +1142,8 @@ static ha_rows read_all_rows(
   }
 
 cleanup:
+  source_iterator->EndPSIBatchModeIfStarted();
+
   // Clear tmp_set so it can be used elsewhere
   bitmap_clear_all(&sort_form->tmp_set);
 

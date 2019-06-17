@@ -99,6 +99,14 @@ class EQRefIterator final : public TableRowIterator {
   void UnlockRow() override;
   std::vector<std::string> DebugString() const override;
 
+  // Performance schema batch mode on EQRefIterator does not make any sense,
+  // since it (by definition) can never scan more than one row. Normally,
+  // we should not get this (for nested loop joins, PFS batch mode is not
+  // enabled if the innermost iterator is an EQRefIterator); however,
+  // we cannot DBUG_ASSERT(false), since it could happen if we only have
+  // a single table. Thus, just ignore the call should it happen.
+  void StartPSIBatchMode() override {}
+
  private:
   TABLE_REF *const m_ref;
   const bool m_use_order;

@@ -907,3 +907,28 @@ INSERT INTO t1(a, a, b, c) VALUES (1, 1, DEFAULT, DEFAULT);
 INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #29899614: SIG 6 -`M_PSI_BATCH_MODE == PSI_BATCH_MODE_NONE' | SQL/HANDLER.CC
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER, INDEX ( f1 ) );
+CREATE TABLE t2 ( f1 INTEGER );
+
+INSERT INTO t1 VALUES (10);
+
+INSERT INTO t2
+  SELECT STRAIGHT_JOIN *
+  FROM t1 AS alias1
+  WHERE EXISTS (
+    SELECT * FROM (
+      SELECT * FROM t1 JOIN t1 AS alias2 USING ( f1 )
+    ) AS alias3
+    WHERE alias1.f1 < 20
+  );
+
+# We don't care about the result, but close the tables to make sure that
+# we haven't inadvertedly left any of them in performance schema batch mode.
+FLUSH TABLES;
+
+DROP TABLE t1, t2;

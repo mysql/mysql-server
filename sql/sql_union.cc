@@ -1477,81 +1477,48 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
   }
   *send_records_ptr = 0;
 
-  // Normally, performance schema batch mode is turned on and off by the
-  // various iterators in the tree, most notably NestedLoopIterator.
-  // However, if we're scanning a single table in a single join, there's
-  // no such iterator, so we need to do it ourselves.
-  //
-  // TODO(sgunders): Move batch mode into the iterator system somehow, so that
-  // the outer executor (this function) doesn't have to worry about it.
-  JOIN *single_join = is_simple() ? first_select()->join : nullptr;
-
   thd->get_stmt_da()->reset_current_row_for_condition();
   if (m_root_iterator->Init()) {
-    // Nothing should really enable PSI batch mode from Init(), since nothing
-    // calls Read() from Init() without also being capable of cleaning up
-    // (e.g. MaterializeIterator); see the comment in
-    // LimitOffsetIterator::Read(). Nevertheless, just to be sure, we clean up
-    // here.
-    if (single_join != nullptr && single_join->qep_tab != nullptr &&
-        single_join->primary_tables > 0) {
-      QEP_TAB *last_qep_tab =
-          &single_join->qep_tab[single_join->primary_tables - 1];
-      last_qep_tab->table()->file->end_psi_batch_mode_if_started();
-    }
     return true;
   }
 
-  // If we are scanning single table in a single join, enable PFS batch mode,
-  // as the basic iterator (e.g. TableScanIterator) won't do so.
-  PFSBatchMode pfs_batch_mode(nullptr, single_join);
+  {
+    PFSBatchMode pfs_batch_mode(m_root_iterator.get());
+    auto join_cleanup = create_scope_guard([this, thd] {
+      for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
+        JOIN *join = sl->join;
+        join->join_free();
+        thd->inc_examined_row_count(join->examined_rows);
+      }
+      if (fake_select_lex != nullptr) {
+        thd->inc_examined_row_count(fake_select_lex->join->examined_rows);
+      }
+    });
 
-  auto join_cleanup = create_scope_guard([this, thd, single_join] {
-    for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
-      JOIN *join = sl->join;
+    for (;;) {
+      int error = m_root_iterator->Read();
+      DBUG_EXECUTE_IF("bug13822652_1", thd->killed = THD::KILL_QUERY;);
 
-      if (single_join == nullptr) {
-        // PFSBatchMode above hasn't enabled PFS batch mode, so its destructor
-        // won't do anything. But m_root_iterator or its children, if they are
-        // not basic iterators (e.g. NestedLoopIterator), may have enabled the
-        // mode; so we must turn it off upon exit.
-        if (join != nullptr && join->qep_tab != nullptr) {
-          QEP_TAB *last_qep_tab = &join->qep_tab[join->primary_tables - 1];
-          last_qep_tab->table()->file->end_psi_batch_mode_if_started();
-        }
+      if (error > 0 || thd->is_error())  // Fatal error
+        return true;
+      else if (error < 0)
+        break;
+      else if (thd->killed)  // Aborted by user
+      {
+        thd->send_kill_message();
+        return true;
       }
 
-      join->join_free();
-      thd->inc_examined_row_count(sl->join->examined_rows);
-    }
-    if (fake_select_lex != nullptr) {
-      thd->inc_examined_row_count(fake_select_lex->join->examined_rows);
-    }
-  });
-
-  for (;;) {
-    int error = m_root_iterator->Read();
-    DBUG_EXECUTE_IF("bug13822652_1", thd->killed = THD::KILL_QUERY;);
-
-    if (error > 0 || thd->is_error())  // Fatal error
-      return true;
-    else if (error < 0)
-      break;
-    else if (thd->killed)  // Aborted by user
-    {
-      thd->send_kill_message();
-      return true;
+      ++*send_records_ptr;
+      if (query_result->send_data(thd, *fields)) {
+        return true;
+      }
+      thd->get_stmt_da()->inc_current_row_for_condition();
     }
 
-    ++*send_records_ptr;
-    if (query_result->send_data(thd, *fields)) {
-      return true;
-    }
-    thd->get_stmt_da()->inc_current_row_for_condition();
+    // NOTE: join_cleanup must be done before we send EOF, so that we get the
+    // row counts right.
   }
-
-  // Must be done before we send EOF, so that we get the row counts right.
-  join_cleanup.rollback();
 
   thd->current_found_rows = *send_records_ptr;
 
