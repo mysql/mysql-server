@@ -624,7 +624,7 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
     }
   }
 
-  if (join != nullptr) {
+  if (join != nullptr && join->root_iterator() == nullptr) {
     /* Fill schema tables with data before filesort if it's necessary */
     if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
         get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))

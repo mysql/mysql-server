@@ -1645,9 +1645,14 @@ bool JOIN::prepare_result() {
 
   if (select_lex->query_result()->start_execution(thd)) goto err;
 
-  if ((select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
-      get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
-    goto err;
+  // Fill information schema tables if needed (handled by
+  // MaterializeInformationSchemaTableIterator in the iterator executor).
+  if (m_root_iterator == nullptr &&
+      (select_lex->active_options() & OPTION_SCHEMA_TABLE)) {
+    if (get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC)) {
+      goto err;
+    }
+  }
 
   return false;
 

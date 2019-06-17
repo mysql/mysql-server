@@ -1436,6 +1436,12 @@ End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 MyISAM	YES	MyISAM storage engine	NO	NO	NO
+explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
+EXPLAIN
+-> Filter: (`engines`.`ENGINE` = 'MyISAM')
+    -> Table scan on engines
+        -> Fill information schema table engines
+
 create user user3148@localhost;
 grant select on *.* to user3148@localhost;
 select user,db from information_schema.processlist;

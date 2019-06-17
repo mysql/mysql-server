@@ -1850,6 +1850,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
 #endif
   } else {
     table_iterator = move(qep_tab->iterator);
+
     POSITION *pos = qep_tab->position();
     if (pos != nullptr) {
       table_iterator->set_expected_rows(pos->rows_fetched);
@@ -1862,6 +1863,15 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
         table_iterator->set_estimated_cost(pos->read_cost * pos->rows_fetched /
                                            pos->prefix_rowcount);
       }
+    }
+
+    // See if this is an information schema table that must be filled in before
+    // we scan.
+    if (qep_tab->table_ref->schema_table &&
+        qep_tab->table_ref->schema_table->fill_table) {
+      table_iterator.reset(new (thd->mem_root)
+                               MaterializeInformationSchemaTableIterator(
+                                   thd, qep_tab, move(table_iterator)));
     }
   }
   return table_iterator;

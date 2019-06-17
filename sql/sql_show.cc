@@ -3671,7 +3671,8 @@ bool make_schema_select(THD *thd, SELECT_LEX *sel,
   @retval true Error.
   @retval false Success.
 */
-static bool do_fill_table(THD *thd, TABLE_LIST *table_list, QEP_TAB *qep_tab) {
+bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
+                                      QEP_TAB *qep_tab) {
   /*
     Return if there is already an error reported.
 
@@ -3789,38 +3790,11 @@ bool get_schema_tables_result(JOIN *join,
         table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);
-        filesort_free_buffers(table_list->table, 1);
         table_list->table->set_not_started();
       } else
         table_list->table->file->stats.records = 0;
 
-      /* To be removed after 5.7 */
-      if (is_infoschema_db(table_list->db, table_list->db_length)) {
-        static LEX_CSTRING INNODB_LOCKS = {STRING_WITH_LEN("INNODB_LOCKS")};
-        static LEX_CSTRING INNODB_LOCK_WAITS = {
-            STRING_WITH_LEN("INNODB_LOCK_WAITS")};
-
-        if (my_strcasecmp(system_charset_info, table_list->schema_table_name,
-                          INNODB_LOCKS.str) == 0) {
-          /* Deprecated in 5.7 */
-          push_warning_printf(
-              thd, Sql_condition::SL_WARNING,
-              ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-              ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-              "INFORMATION_SCHEMA.INNODB_LOCKS");
-        } else if (my_strcasecmp(system_charset_info,
-                                 table_list->schema_table_name,
-                                 INNODB_LOCK_WAITS.str) == 0) {
-          /* Deprecated in 5.7 */
-          push_warning_printf(
-              thd, Sql_condition::SL_WARNING,
-              ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-              ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-              "INFORMATION_SCHEMA.INNODB_LOCK_WAITS");
-        }
-      }
-
-      if (do_fill_table(thd, table_list, tab)) {
+      if (do_fill_information_schema_table(thd, table_list, tab)) {
         result = true;
         join->error = 1;
         table_list->schema_table_state = executed_place;

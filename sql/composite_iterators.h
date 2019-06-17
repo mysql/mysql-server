@@ -1003,4 +1003,39 @@ class BufferingWindowingIterator final : public RowIterator {
   bool m_eof;
 };
 
+/**
+  MaterializeInformationSchemaTableIterator makes sure a given I_S temporary
+  table is materialized (filled out) before we try to scan it.
+ */
+class MaterializeInformationSchemaTableIterator final : public RowIterator {
+ public:
+  MaterializeInformationSchemaTableIterator(
+      THD *thd, QEP_TAB *qep_tab,
+      unique_ptr_destroy_only<RowIterator> table_iterator);
+
+  bool Init() override;
+  int Read() override { return m_table_iterator->Read(); }
+  std::vector<std::string> DebugString() const override;
+
+  std::vector<Child> children() const override {
+    // We don't list the table iterator as an explicit child; we mark it in
+    // our DebugString() instead. (Anything else would look confusingly much
+    // like a join.)
+    return {};
+  }
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_table_iterator->SetNullRowFlag(is_null_row);
+  }
+
+  // The temporary table is private to us, so there's no need to worry about
+  // locks to other transactions.
+  void UnlockRow() override {}
+
+ private:
+  /// The iterator that reads from the materialized table.
+  unique_ptr_destroy_only<RowIterator> m_table_iterator;
+  QEP_TAB *m_qep_tab;
+};
+
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

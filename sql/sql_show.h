@@ -31,6 +31,7 @@
 
 /* Forward declarations */
 class JOIN;
+class QEP_TAB;
 class SELECT_LEX;
 class String;
 class THD;
@@ -135,6 +136,9 @@ int get_quote_char_for_identifier(const THD *thd, const char *name,
 
 void show_sql_type(enum_field_types type, bool is_array, uint metadata,
                    String *str, const CHARSET_INFO *field_cs = NULL);
+
+bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
+                                      QEP_TAB *qep_tab);
 
 extern TYPELIB grant_types;
 #endif /* SQL_SHOW_H */

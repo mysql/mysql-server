@@ -1159,6 +1159,10 @@ USE test;
 
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 
+# Tests printing of MaterializeInformationSchemaTableIterator with nontrivial
+# table iterators.
+explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
+
 #
 # INFORMATION_SCHEMA.PROCESSLIST
 #

@@ -30,7 +30,9 @@
 #include "my_inttypes.h"
 #include "scope_guard.h"
 #include "sql/debug_sync.h"
+#include "sql/derror.h"
 #include "sql/field.h"
+#include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_sum.h"
@@ -44,6 +46,7 @@
 #include "sql/sql_join_buffer.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_show.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -1692,4 +1695,56 @@ int BufferingWindowingIterator::ReadBufferedRow(bool new_partition_or_eof) {
 
 vector<string> BufferingWindowingIterator::DebugString() const {
   return {"Window aggregate with buffering"};
+}
+
+MaterializeInformationSchemaTableIterator::
+    MaterializeInformationSchemaTableIterator(
+        THD *thd, QEP_TAB *qep_tab,
+        unique_ptr_destroy_only<RowIterator> table_iterator)
+    : RowIterator(thd),
+      m_table_iterator(move(table_iterator)),
+      m_qep_tab(qep_tab) {}
+
+bool MaterializeInformationSchemaTableIterator::Init() {
+  TABLE_LIST *const table_list = m_qep_tab->table_ref;
+
+  table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
+  table_list->table->file->ha_delete_all_rows();
+  free_io_cache(table_list->table);
+  table_list->table->set_not_started();
+
+  if (do_fill_information_schema_table(thd(), table_list, m_qep_tab)) {
+    return true;
+  }
+
+  table_list->schema_table_state = PROCESSED_BY_JOIN_EXEC;
+
+  return m_table_iterator->Init();
+}
+
+vector<string> MaterializeInformationSchemaTableIterator::DebugString() const {
+  // The table iterator could be a whole string of iterators
+  // (sort, filter, etc.) due to add_sorting_to_table(), so show them all.
+  //
+  // TODO(sgunders): Make the optimizer put these above us instead (or perhaps
+  // better yet, on the subquery iterator), so that table_iterator is
+  // always just a single basic iterator.
+  vector<string> ret;
+  RowIterator *sub_iterator = m_table_iterator.get();
+  for (;;) {
+    for (string str : sub_iterator->DebugString()) {
+      if (sub_iterator->children().size() > 1) {
+        // This can happen if e.g. a filter has subqueries in it.
+        // TODO(sgunders): Consider having a RowIterator::parent(), so that we
+        // can show the entire tree.
+        str += " [other sub-iterators not shown]";
+      }
+      ret.push_back(str);
+    }
+    if (sub_iterator->children().empty()) break;
+    sub_iterator = sub_iterator->children()[0].iterator;
+  }
+  ret.push_back("Fill information schema table " +
+                string(m_qep_tab->table()->alias));
+  return ret;
 }
