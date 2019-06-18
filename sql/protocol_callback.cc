@@ -294,6 +294,22 @@ uint Protocol_callback::get_rw_status() { return 0; }
 bool Protocol_callback::get_compression() { return false; }
 
 /**
+  Always returns null.
+
+  @return
+     null compression not supported
+*/
+char *Protocol_callback::get_compression_algorithm() { return nullptr; }
+
+/**
+  Always returns 0.
+
+  @return
+   compression not supported
+*/
+uint Protocol_callback::get_compression_level() { return 0; }
+
+/**
   Called BEFORE sending metadata
 
   @return

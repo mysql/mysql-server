@@ -46,6 +46,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "compression.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -344,6 +345,8 @@ Sid_map *global_sid_map = nullptr;
 Checkable_rwlock *global_sid_lock = nullptr;
 Gtid_set *gtid_set_included = nullptr;
 Gtid_set *gtid_set_excluded = nullptr;
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 
 static bool opt_print_table_metadata;
 
@@ -1585,6 +1588,17 @@ static struct my_option my_long_options[] = {
      &opt_print_table_metadata, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"compress", 'C', "Use compression in server/client protocol.",
      &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 /**
@@ -1843,6 +1857,13 @@ static Exit_status safe_connect() {
   }
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_compress_algorithm)
+    mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);

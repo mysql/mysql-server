@@ -1241,6 +1241,8 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> ENFORCED_SYM                  /* SQL-2015-N */
 %token<lexer.keyword> OJ_SYM                        /* ODBC */
 %token<lexer.keyword> NETWORK_NAMESPACE_SYM         /* MYSQL */
+%token<lexer.keyword> MASTER_COMPRESSION_ALGORITHM_SYM /* MYSQL */
+%token<lexer.keyword> MASTER_ZSTD_COMPRESSION_LEVEL_SYM  /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -2611,8 +2613,15 @@ master_def:
           {
             Lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
            }
-        |
-        MASTER_AUTO_POSITION_SYM EQ ulong_num
+        | MASTER_COMPRESSION_ALGORITHM_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.compression_algorithm = $3.str;
+           }
+        | MASTER_ZSTD_COMPRESSION_LEVEL_SYM EQ ulong_num
+          {
+            Lex->mi.zstd_compression_level = $3;
+           }
+        | MASTER_AUTO_POSITION_SYM EQ ulong_num
           {
             Lex->mi.auto_position= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE :
@@ -14273,6 +14282,7 @@ ident_keywords_unambiguous:
         | LOGFILE_SYM
         | LOGS_SYM
         | MASTER_AUTO_POSITION_SYM
+        | MASTER_COMPRESSION_ALGORITHM_SYM
         | MASTER_CONNECT_RETRY_SYM
         | MASTER_DELAY_SYM
         | MASTER_HEARTBEAT_PERIOD_SYM
@@ -14296,6 +14306,7 @@ ident_keywords_unambiguous:
         | MASTER_SYM
         | MASTER_TLS_VERSION_SYM
         | MASTER_USER_SYM
+        | MASTER_ZSTD_COMPRESSION_LEVEL_SYM
         | MAX_CONNECTIONS_PER_HOUR
         | MAX_QUERIES_PER_HOUR
         | MAX_ROWS

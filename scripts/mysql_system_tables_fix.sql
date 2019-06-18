@@ -817,6 +817,9 @@ ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Prefe
 
 ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.';
 
+ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
+                              ADD Master_zstd_compression_level INTEGER UNSIGNED NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.';
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info

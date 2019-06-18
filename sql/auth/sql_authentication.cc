@@ -33,6 +33,8 @@
 #include <utility>
 #include <vector> /* std::vector */
 
+#include "include/compression.h"
+
 #include <mysql/components/my_service.h>
 #include <sql/ssl_acceptor_context.h>
 #include "crypt_genhash_impl.h"  // generate_user_salt
@@ -1362,6 +1364,38 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
     protocol->add_client_capability(CLIENT_SSL_VERIFY_SERVER_CERT);
   }
 
+  if (opt_protocol_compression_algorithms &&
+      opt_protocol_compression_algorithms[0] != 0) {
+    /* turn off the capability flag as the global variable might have changed */
+    protocol->remove_client_capability(CLIENT_COMPRESS);
+    protocol->remove_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+    std::vector<std::string> list;
+    parse_compression_algorithms_list(opt_protocol_compression_algorithms,
+                                      list);
+    auto it = list.begin();
+    NET_SERVER *ext = static_cast<NET_SERVER *>(protocol->get_net()->extension);
+    struct compression_attributes *compression = &(ext->compression);
+    compression->compression_optional = false;
+    while (it != list.end()) {
+      std::string value = *it;
+      switch (get_compression_algorithm(value)) {
+        case enum_compression_algorithm::ZSTD:
+          protocol->add_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+          break;
+        case enum_compression_algorithm::ZLIB:
+          protocol->add_client_capability(CLIENT_COMPRESS);
+          break;
+        case enum_compression_algorithm::UNCOMPRESSED:
+          compression->compression_optional = true;
+          break;
+        case enum_compression_algorithm::INVALID:
+          DBUG_ASSERT(false);
+          break;
+      }
+      it++;
+    }
+  }
+
   if (data_len) {
     mpvio->cached_server_packet.pkt =
         (char *)memdup_root(mpvio->mem_root, data, data_len);
@@ -1872,6 +1906,8 @@ static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
            auth_info->host_or_ip, auth_info->authenticated_as,
            mpvio->can_authenticate() ? "yes" : "no");
 #endif /* HAVE_PSI_THREAD_INTERFACE */
+  *max_bytes_available -= length;
+  *ptr = *ptr + length;
   return false;
 }
 
@@ -2389,6 +2425,11 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
   Protocol_classic *protocol = mpvio->protocol;
   char *end;
   bool packet_has_required_size = false;
+  /* save server capabilities before setting client capabilities */
+  bool is_server_supports_zlib =
+      protocol->has_client_capability(CLIENT_COMPRESS);
+  bool is_server_supports_zstd =
+      protocol->has_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
   uint charset_code = 0;
@@ -2651,6 +2692,45 @@ skip_to_ssl:
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
     return packet_error;
+
+  NET_SERVER *ext = static_cast<NET_SERVER *>(protocol->get_net()->extension);
+  struct compression_attributes *compression = &(ext->compression);
+  bool is_client_supports_zlib =
+      protocol->has_client_capability(CLIENT_COMPRESS);
+  bool is_client_supports_zstd =
+      protocol->has_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+
+  if (is_client_supports_zlib && is_server_supports_zlib) {
+    strcpy(compression->compress_algorithm, COMPRESSION_ALGORITHM_ZLIB);
+    /*
+      for zlib compression method client does not send any compression level,
+      set default compression level
+    */
+    compression->compress_level = 6;
+  } else if (is_client_supports_zstd && is_server_supports_zstd) {
+    strcpy(compression->compress_algorithm, COMPRESSION_ALGORITHM_ZSTD);
+    compression->compress_level = (uint) * (end);
+    end += 1;
+    bytes_remaining_in_packet -= 1;
+    if (!is_zstd_compression_level_valid(compression->compress_level)) {
+      my_error(ER_WRONG_COMPRESSION_LEVEL_CLIENT, MYF(0),
+               compression->compress_algorithm);
+      mpvio->status = MPVIO_EXT::FAILURE;
+      return CR_COMPRESSION_WRONGLY_CONFIGURED;
+    }
+  } else if (!compression->compression_optional) {
+    /*
+      if server is configured to only allow connections with compression enabled
+      then check if client has enabled compression else report error
+    */
+    my_error(
+        ER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
+        (compression->compress_algorithm[0] ? compression->compress_algorithm
+                                            : "uncompressed"));
+
+    mpvio->status = MPVIO_EXT::FAILURE;
+    return CR_COMPRESSION_WRONGLY_CONFIGURED;
+  }
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
     /* An old client is connecting */

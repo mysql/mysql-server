@@ -649,6 +649,7 @@ SET(SQL_SOURCE
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
+  ../sql-common/compression.cc
   ../sql-common/get_password.cc
   ../sql-common/my_path_permissions.cc
   ../sql-common/net_serv.cc

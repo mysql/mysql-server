@@ -1280,6 +1280,12 @@ bool Rewriter_change_master::rewrite() const {
     }
     rlb->append(STRING_WITH_LEN(" )"));
   }
+  if (lex->mi.compression_algorithm)
+    comma = append_str(rlb, comma, "MASTER_COMPRESSION_ALGORITHMS = ",
+                       lex->mi.compression_algorithm);
+  comma = append_int(
+      rlb, comma, STRING_WITH_LEN("MASTER_ZSTD_COMPRESSION_LEVEL = "),
+      lex->mi.zstd_compression_level, lex->mi.zstd_compression_level != 0);
 
   /* channel options -- no preceding comma here! */
   if (lex->mi.for_channel)

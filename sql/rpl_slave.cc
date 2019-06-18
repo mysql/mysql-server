@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/compression.h"
 #include "include/mutex_lock.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -7879,8 +7880,6 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
   mi->events_until_exit = disconnect_slave_event_count;
 #endif
   ulong client_flag = CLIENT_REMEMBER_OPTIONS;
-  if (opt_slave_compressed_protocol)
-    client_flag |= CLIENT_COMPRESS; /* We will use compression */
 
   /* Always reset public key to remove cached copy */
   mysql_reset_server_public_key();
@@ -7921,7 +7920,11 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
   }
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
 #endif
-
+  mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                opt_slave_compressed_protocol ? COMPRESSION_ALGORITHM_ZLIB
+                                              : mi->compression_algorithm);
+  mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &mi->zstd_compression_level);
   /*
     If server's default charset is not supported (like utf16, utf32) as client
     charset, then set client charset to 'latin1' (default client charset).
@@ -8951,10 +8954,51 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO *lex_mi) {
       lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
       lex_mi->public_key_path ||
-      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->zstd_compression_level || lex_mi->compression_algorithm)
     have_receive_option = true;
 
   return have_receive_option;
+}
+
+/**
+   This function checks all possible cases in which compression algorithm,
+   compression level can be configured for a channel.
+
+   - used in change_receive_options
+
+   @param  lex_mi      pointer to structure holding all options specified
+                       as part of change master to statement
+   @param  mi          pointer to structure holding all options specified
+                       as part of change master to statement after performing
+                       necessary checks
+
+   @retval false    in case of success
+   @retval true     in case of failures
+*/
+static bool change_master_set_compression(THD *, const LEX_MASTER_INFO *lex_mi,
+                                          Master_info *mi) {
+  DBUG_TRACE;
+
+  if (lex_mi->compression_algorithm) {
+    if (validate_compression_attributes(lex_mi->compression_algorithm,
+                                        lex_mi->channel, false))
+      return true;
+    DBUG_ASSERT(sizeof(mi->compression_algorithm) >
+                strlen(lex_mi->compression_algorithm));
+    strcpy(mi->compression_algorithm, lex_mi->compression_algorithm);
+  }
+  /* level specified */
+  if (lex_mi->zstd_compression_level) {
+    /* vaildate compression level */
+    if (!is_zstd_compression_level_valid(lex_mi->zstd_compression_level)) {
+      my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_LEVEL_CLIENT, MYF(0),
+               lex_mi->zstd_compression_level, lex_mi->channel);
+      return true;
+    }
+    mi->zstd_compression_level = lex_mi->zstd_compression_level;
+  }
+  return false;
 }
 
 /**
@@ -9178,6 +9222,9 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_IGNORED_SSL_PARAMS,
                  ER_THD(thd, ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
+
+  ret = change_master_set_compression(thd, lex_mi, mi);
+  if (ret) goto err;
 
 err:
   return ret;
@@ -9753,7 +9800,8 @@ static bool is_invalid_change_master_for_group_replication_recovery(
       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
       lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->public_key_path ||
-      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->zstd_compression_level || lex_mi->compression_algorithm)
     have_extra_option_received = true;
 
   return have_extra_option_received;

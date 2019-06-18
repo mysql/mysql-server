@@ -1282,8 +1282,9 @@ char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
 Time_zone *default_tz;
-const char *mysql_data_home = ".";
+char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
+char *opt_protocol_compression_algorithms;
 char server_version[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
@@ -4377,6 +4378,20 @@ int init_common_variables() {
       opt_slave_preserve_commit_order = false;
   }
 
+  if (opt_protocol_compression_algorithms) {
+    if ((opt_protocol_compression_algorithms[0] == 0) ||
+        (validate_compression_attributes(
+            std::string(opt_protocol_compression_algorithms), std::string(),
+            true))) {
+      /*
+       --protocol-compression-algorithms is set to invalid value, resetting
+       its value to default "zlib,zstd,uncompressed"
+      */
+      opt_protocol_compression_algorithms =
+          const_cast<char *>(PROTOCOL_COMPRESSION_DEFAULT_VALUE);
+      LogErr(WARNING_LEVEL, ER_PROTOCOL_COMPRESSION_RESET_LOG);
+    }
+  }
   update_parser_max_mem_size();
 
   if (set_default_auth_plugin(default_auth_plugin,
@@ -7877,6 +7892,22 @@ static int show_net_compression(THD *thd, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+static int show_net_compression_algorithm(THD *thd, SHOW_VAR *var, char *buff) {
+  const char *s = thd->get_protocol()->get_compression_algorithm();
+  var->type = SHOW_CHAR;
+  var->value = buff;
+  sprintf(buff, "%s", (s ? s : ""));
+  return 0;
+}
+
+static int show_net_compression_level(THD *thd, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_INT;
+  var->value = buff;
+  unsigned int *value = reinterpret_cast<unsigned int *>(buff);
+  *value = thd->get_protocol()->get_compression_level();
+  return 0;
+}
+
 static int show_starttime(THD *thd, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONGLONG;
   var->value = buff;
@@ -8298,6 +8329,10 @@ SHOW_VAR status_vars[] = {
      (char *)offsetof(System_status_var, com_stmt_reprepare), SHOW_LONG_STATUS,
      SHOW_SCOPE_ALL},
     {"Compression", (char *)&show_net_compression, SHOW_FUNC,
+     SHOW_SCOPE_SESSION},
+    {"Compression_algorithm", (char *)&show_net_compression_algorithm,
+     SHOW_FUNC, SHOW_SCOPE_SESSION},
+    {"Compression_level", (char *)&show_net_compression_level, SHOW_FUNC,
      SHOW_SCOPE_SESSION},
     {"Connections", (char *)&show_thread_id_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},

@@ -34,6 +34,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "compression.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -58,6 +59,9 @@ static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = 0;
+
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
@@ -146,6 +150,13 @@ int main(int argc, char **argv) {
                   shared_memory_base_name);
 #endif
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+
+  if (opt_compress_algorithm)
+    mysql_options(&mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(&mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -278,6 +289,17 @@ static struct my_option my_long_options[] = {
      0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0,
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage(void) {

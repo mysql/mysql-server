@@ -40,6 +40,7 @@
 #include "client/client_priv.h"
 #include "client/my_readline.h"
 #include "client/pattern_matcher.h"
+#include "compression.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
@@ -212,6 +213,8 @@ static uint prompt_counter;
 static char delimiter[16] = DEFAULT_DELIMITER;
 static size_t delimiter_length = 1;
 unsigned short terminal_width = 80;
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
@@ -1857,6 +1860,18 @@ static struct my_option my_long_options[] = {
      &opt_network_namespace, &opt_network_namespace, 0, GET_STR, REQUIRED_ARG,
      0, 0, 0, 0, 0, 0},
 #endif
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
+
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage(int version) {
@@ -4533,6 +4548,12 @@ static bool init_connection_options(MYSQL *mysql) {
   if (opt_bind_addr) mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
 
   if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
+  if (opt_compress_algorithm)
+    mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
 
   if (using_opt_local_infile)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_infile);

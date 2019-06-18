@@ -28,6 +28,7 @@
 
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "init_net_server_extension.h"   // init_net_server_extension
 #include "my_byteorder.h"
 #include "my_shm_defaults.h"
 #include "mysql/components/services/log_builtins.h"
@@ -89,8 +90,10 @@ class Channel_info_shared_mem : public Channel_info {
   virtual THD *create_thd() {
     THD *thd = Channel_info::create_thd();
 
-    if (thd != NULL)
+    if (thd != NULL) {
+      init_net_server_extension(thd);
       thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    }
     return thd;
   }
 

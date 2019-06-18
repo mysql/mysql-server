@@ -684,6 +684,30 @@
 #define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
 
 /**
+  Compression protocol extended to support zstd compression method
+
+  This capability flag is used to send zstd compression level between
+  client and server provided both client and server are enabled with
+  this flag.
+
+  Server
+  ------
+  Server sets this flag when global variable protocol-compression-algorithms
+  has zstd in its list of supported values.
+
+  Client
+  ------
+  Client sets this flag when it is configured to use zstd compression method.
+
+*/
+#define CLIENT_ZSTD_COMPRESSION_ALGORITHM (1UL << 26)
+
+/**
+  This flag will be reserved to extend the 32bit capabilities structure to
+  64bits.
+*/
+#define CLIENT_CAPABILITY_EXTENSION (1UL << 29)
+/**
   Don't reset the options after an unsuccessful connect
 
   Client only flag.
@@ -710,7 +734,8 @@
    CLIENT_PLUGIN_AUTH | CLIENT_CONNECT_ATTRS |                                 \
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |                                     \
    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |                \
-   CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA)
+   CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
+   CLIENT_ZSTD_COMPRESSION_ALGORITHM)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and
@@ -718,9 +743,10 @@
   If any of the optional flags is supported by the build it will be switched
   on before sending to the client during the connection handshake.
 */
-#define CLIENT_BASIC_FLAGS                                 \
-  (((CLIENT_ALL_FLAGS & ~CLIENT_SSL) & ~CLIENT_COMPRESS) & \
-   ~CLIENT_SSL_VERIFY_SERVER_CERT)
+#define CLIENT_BASIC_FLAGS                                          \
+  (CLIENT_ALL_FLAGS &                                               \
+   ~(CLIENT_SSL | CLIENT_COMPRESS | CLIENT_SSL_VERIFY_SERVER_CERT | \
+     CLIENT_ZSTD_COMPRESSION_ALGORITHM))
 
 /** The status flags are a bit-field */
 enum SERVER_STATUS_flags_enum {

@@ -342,6 +342,8 @@ struct LEX_MASTER_INFO {
   char *public_key_path;
   char *relay_log_name;
   ulong relay_log_pos;
+  char *compression_algorithm;
+  uint zstd_compression_level;
   Prealloced_array<ulong, 2> repl_ignore_server_ids;
 
   /// Initializes everything to zero/NULL/empty.

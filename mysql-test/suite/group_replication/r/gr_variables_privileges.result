@@ -91,6 +91,8 @@ SET GLOBAL group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_s
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_public_key_path = @@GLOBAL.group_replication_recovery_public_key_path;
@@ -116,6 +118,8 @@ ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIA
 SET GLOBAL group_replication_recovery_ssl_verify_server_cert = @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_use_ssl = @@GLOBAL.group_replication_recovery_use_ssl;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_recovery_zstd_compression_level = @@GLOBAL.group_replication_recovery_zstd_compression_level;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_single_primary_mode = @@GLOBAL.group_replication_single_primary_mode;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
@@ -175,6 +179,7 @@ SET GLOBAL group_replication_member_weight = @@GLOBAL.group_replication_member_w
 SET GLOBAL group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
 SET GLOBAL group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
 SET GLOBAL group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
+SET GLOBAL group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
 SET GLOBAL group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
 SET GLOBAL group_replication_recovery_public_key_path = @@GLOBAL.group_replication_recovery_public_key_path;
 SET GLOBAL group_replication_recovery_reconnect_interval = @@GLOBAL.group_replication_recovery_reconnect_interval;
@@ -188,6 +193,7 @@ SET GLOBAL group_replication_recovery_ssl_crlpath = @@GLOBAL.group_replication_r
 SET GLOBAL group_replication_recovery_ssl_key = @@GLOBAL.group_replication_recovery_ssl_key;
 SET GLOBAL group_replication_recovery_ssl_verify_server_cert = @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;
 SET GLOBAL group_replication_recovery_use_ssl = @@GLOBAL.group_replication_recovery_use_ssl;
+SET GLOBAL group_replication_recovery_zstd_compression_level = @@GLOBAL.group_replication_recovery_zstd_compression_level;
 SET GLOBAL group_replication_single_primary_mode = @@GLOBAL.group_replication_single_primary_mode;
 SET GLOBAL group_replication_ssl_mode = @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_start_on_boot = @@GLOBAL.group_replication_start_on_boot;

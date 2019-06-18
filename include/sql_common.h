@@ -130,6 +130,10 @@ struct st_mysql_options_extention {
   unsigned int retry_count;
   unsigned int ssl_fips_mode; /* SSL fips mode for enforced encryption.*/
   char *tls_ciphersuites;
+  char *compression_algorithm;
+  unsigned int total_configured_compression_algorithms;
+  unsigned int zstd_compression_level;
+  bool connection_compressed;
 };
 
 struct MYSQL_METHODS {

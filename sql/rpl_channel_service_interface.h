@@ -102,6 +102,8 @@ struct Channel_creation_info {
   char *public_key_path;     // RSA Public key information
   int get_public_key;        // Preference to get public key from donor if not
                              // available
+  char *compression_algorithm;
+  unsigned int zstd_compression_level;
 };
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info);

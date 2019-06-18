@@ -352,6 +352,8 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
   `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
   `Network_namespace` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.',
+  `Master_compression_algorithm` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
+  `Master_zstd_compression_level` int(10) unsigned NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -420,6 +422,8 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
   `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
   `Network_namespace` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.',
+  `Master_compression_algorithm` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
+  `Master_zstd_compression_level` int(10) unsigned NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;

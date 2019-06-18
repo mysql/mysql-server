@@ -979,6 +979,16 @@ The following options may be given as the first argument:
  contains non-prinable characters
  --profiling-history-size=# 
  Limit of query profiling memory
+ --protocol-compression-algorithms=name 
+ List of compression algorithms supported by server.
+ Supported values are any combination of zlib, zstd,
+ uncompressed. Command line clients may use the
+ --compression-algorithms flag to specify a set of
+ algorithms, and the connection will use an algorithm
+ supported by both client and server. It picks zlib if
+ both client and server support it; otherwise it picks
+ zstd if both support it; otherwise it picks uncompressed
+ if both support it; otherwise it fails.
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
  --query-prealloc-size=# 
@@ -1667,6 +1677,7 @@ port-open-timeout 0
 preload-buffer-size 32768
 print-identified-with-as-hex FALSE
 profiling-history-size 15
+protocol-compression-algorithms zlib,zstd,uncompressed
 query-alloc-block-size 8192
 query-prealloc-size 8192
 range-alloc-block-size 4096

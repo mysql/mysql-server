@@ -27,6 +27,7 @@
 #include <time.h>
 #include <atomic>
 
+#include "compression.h"  // COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE
 #include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
 #include "m_string.h"
 #include "my_inttypes.h"
@@ -327,6 +328,12 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   const char *network_namespace_str() const {
     return is_set_network_namespace() ? network_namespace : "";
   }
+  /*
+    describes what compression algorithm and level is used between
+    master/slave communication protocol
+  */
+  char compression_algorithm[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
+  int zstd_compression_level;
 
   int mi_init_info();
   void end_info();

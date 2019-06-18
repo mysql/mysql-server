@@ -2881,6 +2881,22 @@ bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
 
 bool Protocol_classic::get_compression() { return m_thd->net.compress; }
 
+char *Protocol_classic::get_compression_algorithm() {
+  if (get_compression()) {
+    NET_SERVER *ext = static_cast<NET_SERVER *>(m_thd->net.extension);
+    return ext->compression.compress_algorithm;
+  }
+  return nullptr;
+}
+
+uint Protocol_classic::get_compression_level() {
+  if (get_compression()) {
+    NET_SERVER *ext = static_cast<NET_SERVER *>(m_thd->net.extension);
+    return ext->compression.compress_level;
+  }
+  return 0;
+}
+
 bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
                                              const CHARSET_INFO *cs) {
   DBUG_TRACE;

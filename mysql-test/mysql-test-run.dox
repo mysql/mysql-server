@@ -5956,7 +5956,8 @@
       <tt>connect (<b>name</b>, <b>host_name</b>,
                    <b>user_name</b>, <b>password</b>, <b>db_name</b>
                    [,<b>port_num</b> [,<b>socket</b> [,<b>options</b>
-                   [,<b>default_auth</b>]]]])</tt>
+                   [,<b>default_auth</b> [,<b>compression algorithm</b>,
+                   [,<b>compression level</b>]]]]]])</tt>
 
       Open a connection to the server and make the connection the
       current connection.
@@ -6051,6 +6052,34 @@
           "mysqltest" does not find the plugin, use the
           <b>--plugin-dir</b> option to specify the directory where
           the plugin is located.
+        </li>
+
+        <li>
+          <b><em>compression algorithm</em></b> is the name of compression
+          algorithm to be used to compress data transferred between client
+          server. It is passed to the <b>mysql_options()</b> C API function
+          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>zstd compression level</em></b> is the extent of compression
+          to be applied when zstd compression algorithm is used. It is passed to
+          the <b>mysql_options()</b> C API function using the
+          <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>compression algorithm</em></b> is the name of compression
+          algorithm to be used to comrpess data transferred between client
+          server. It is passed to the <b>mysql_options()</b> C API function
+          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>compression level</em></b> is the extent of compression to
+          be applied based on the compression algorithm used. It is passed to
+          the <b>mysql_options()</b> C API function using the
+          <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
         </li>
       </ul>
 

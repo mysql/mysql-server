@@ -531,25 +531,6 @@ int initialize_plugin_and_join(
   bool enabled_super_read_only = false;
   bool read_only_mode = false, super_read_only_mode = false;
 
-  /*
-    When restarting after a clone we need to fix the channels since
-    their information is cloned but not any of the associated files.
-    The applier channel is purged of all info.
-    The recovery channel is reinitialized so only access credentials remain.
-  */
-  bool is_restart_after_clone = is_server_restarting_after_clone();
-  if (is_restart_after_clone) {
-    Replication_thread_api gr_channel("group_replication_applier");
-    gr_channel.purge_logs(true);
-
-    gr_channel.set_channel_name("group_replication_recovery");
-    gr_channel.purge_logs(false);
-    gr_channel.initialize_channel(const_cast<char *>("<NULL>"), 0, NULL, NULL,
-                                  NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                                  NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false,
-                                  NULL, false);
-  }
-
   Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
 
@@ -2149,6 +2130,10 @@ int initialize_recovery_module() {
   recovery_module->set_recovery_public_key_path(
       ov.recovery_public_key_path_var);
   recovery_module->set_recovery_get_public_key(ov.recovery_get_public_key_var);
+  recovery_module->set_recovery_compression_algorithm(
+      ov.recovery_compression_algorithm_var);
+  recovery_module->set_recovery_zstd_compression_level(
+      ov.recovery_zstd_compression_level_var);
 
   return 0;
 }
@@ -3423,6 +3408,101 @@ static void update_message_cache_size(MYSQL_THD, SYS_VAR *, void *var_ptr,
   mysql_mutex_unlock(&lv.plugin_running_mutex);
 }
 
+static int check_recovery_compression_algorithm(MYSQL_THD thd, SYS_VAR *var,
+                                                void *save,
+                                                struct st_mysql_value *value) {
+  DBUG_TRACE;
+
+  if (plugin_running_mutex_trylock()) return 1;
+
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str = NULL;
+
+  *static_cast<const char **>(save) = NULL;
+
+  int length = sizeof(buff);
+  if ((str = value->val_str(value, buff, &length)))
+    str = thd->strmake(str, length);
+  else {
+    mysql_mutex_unlock(&lv.plugin_running_mutex); /* purecov: inspected */
+    return 1;
+  }
+  if (str) {
+    if (strcmp(str, COMPRESSION_ALGORITHM_ZLIB) &&
+        strcmp(str, COMPRESSION_ALGORITHM_ZSTD) &&
+        strcmp(str, COMPRESSION_ALGORITHM_UNCOMPRESSED)) {
+      mysql_mutex_unlock(&lv.plugin_running_mutex);
+      std::stringstream ss;
+      ss << "The value '" << str << "' is invalid for " << var->name
+         << " option.";
+      my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
+      return 1;
+    }
+  }
+  *static_cast<const char **>(save) = str;
+
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+  return 0;
+}
+
+static void update_recovery_compression_algorithm(MYSQL_THD, SYS_VAR *,
+                                                  void *var_ptr,
+                                                  const void *save) {
+  DBUG_TRACE;
+
+  if (plugin_running_mutex_trylock()) return;
+
+  const char *in_val = *static_cast<char *const *>(save);
+  *static_cast<const char **>(var_ptr) = in_val;
+
+  if (recovery_module != NULL) {
+    recovery_module->set_recovery_compression_algorithm(in_val);
+  }
+
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+  return;
+}
+
+static int check_recovery_zstd_compression_level(MYSQL_THD, SYS_VAR *var,
+                                                 void *save,
+                                                 struct st_mysql_value *value) {
+  DBUG_TRACE;
+
+  if (plugin_running_mutex_trylock()) return 1;
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+  if (in_val < 1 || in_val > 22) {
+    mysql_mutex_unlock(&lv.plugin_running_mutex);
+    std::stringstream ss;
+    ss << "The value '" << in_val << "' is invalid for " << var->name
+       << " option.";
+    my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
+    return 1;
+  }
+  *static_cast<uint *>(save) = in_val;
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+  return 0;
+}
+
+static void update_recovery_zstd_compression_level(MYSQL_THD, SYS_VAR *,
+                                                   void *var_ptr,
+                                                   const void *save) {
+  DBUG_TRACE;
+
+  if (plugin_running_mutex_trylock()) return;
+
+  uint in_val = *static_cast<const uint *>(save);
+  *static_cast<uint *>(var_ptr) = in_val;
+
+  if (recovery_module != NULL) {
+    recovery_module->set_recovery_zstd_compression_level(in_val);
+  }
+
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+  return;
+}
+
 // Clone var related methods
 
 static int check_clone_threshold(MYSQL_THD, SYS_VAR *var, void *save,
@@ -4152,6 +4232,30 @@ static MYSQL_SYSVAR_ULONGLONG(
     0                       /* block */
 );
 
+static MYSQL_SYSVAR_STR(
+    recovery_compression_algorithms,       /* name */
+    ov.recovery_compression_algorithm_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string */
+    "Recovery channel compression algorithm.",
+    check_recovery_compression_algorithm,  /* check func */
+    update_recovery_compression_algorithm, /* update func */
+    COMPRESSION_ALGORITHM_UNCOMPRESSED     /* default */
+);
+
+static MYSQL_SYSVAR_UINT(
+    recovery_zstd_compression_level,                       /* name */
+    ov.recovery_zstd_compression_level_var,                /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "Recovery channel compression level.",
+    check_recovery_zstd_compression_level,  /* check func */
+    update_recovery_zstd_compression_level, /* update func */
+    3U,                                     /* default */
+    1U,                                     /* min */
+    22U,                                    /* max */
+    0                                       /* block */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -4174,6 +4278,8 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(recovery_reconnect_interval),
     MYSQL_SYSVAR(recovery_public_key_path),
     MYSQL_SYSVAR(recovery_get_public_key),
+    MYSQL_SYSVAR(recovery_compression_algorithms),
+    MYSQL_SYSVAR(recovery_zstd_compression_level),
     MYSQL_SYSVAR(components_stop_timeout),
     MYSQL_SYSVAR(allow_local_lower_version_join),
     MYSQL_SYSVAR(auto_increment_increment),

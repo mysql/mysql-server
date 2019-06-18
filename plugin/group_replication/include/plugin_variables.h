@@ -162,6 +162,8 @@ struct plugin_options_variables {
   bool recovery_ssl_verify_server_cert_var;
   char *recovery_public_key_path_var;
   bool recovery_get_public_key_var;
+  char *recovery_compression_algorithm_var;
+  uint recovery_zstd_compression_level_var;
 
   const char *recovery_policies[3] = {"TRANSACTIONS_CERTIFIED",
                                       "TRANSACTIONS_APPLIED", (char *)0};

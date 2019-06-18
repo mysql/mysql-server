@@ -78,9 +78,11 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_communication_max_message_size = `SELECT @@GLOBAL.group_replication_communication_max_message_size;`
 --let $saved_gr_autorejoin_tries = `SELECT @@GLOBAL.group_replication_autorejoin_tries;`
 --let $saved_gr_message_cache_size = `SELECT @@GLOBAL.group_replication_message_cache_size;`
+--let $saved_gr_recovery_compression_algorithms = `SELECT @@GLOBAL.group_replication_recovery_compression_algorithms;`
+--let $saved_gr_recovery_compression_level = `SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level;`
 
 # Total number of GR variables.
---let $total_gr_vars= 51
+--let $total_gr_vars= 53
 
 --echo #
 --echo # Test Unit#1
@@ -143,6 +145,8 @@ SET @@GLOBAL.group_replication_consistency= default;
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
 SET @@GLOBAL.group_replication_autorejoin_tries= default;
 SET @@GLOBAL.group_replication_message_cache_size= default;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= default;
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -336,6 +340,16 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_message_cache_size]" = 1073741824
 --source include/assert.inc
 
+# group_replication_recovery_compression_algorithms
+--let $assert_text= Default group_replication_recovery_compression_algorithms is "uncompressed"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_compression_algorithms]" = "uncompressed"
+--source include/assert.inc
+
+# group_replication_recovery_zstd_compression_level
+--let $assert_text= Default group_replication_recovery_zstd_compression_level is 3
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level]" = 3
+--source include/assert.inc
+
 --echo #
 --echo # Clean up
 --echo #
@@ -384,6 +398,8 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@SESSION.group_replication_consistency= "$saved_gr_replication_consistency_s"
 --eval SET @@GLOBAL.group_replication_communication_max_message_size= $saved_gr_communication_max_message_size
 --eval SET @@GLOBAL.group_replication_message_cache_size= $saved_gr_message_cache_size
+--eval SET @@GLOBAL.group_replication_recovery_compression_algorithms= "$saved_gr_recovery_compression_algorithms"
+--eval SET @@GLOBAL.group_replication_recovery_zstd_compression_level= $saved_gr_recovery_compression_level
 --enable_query_log
 
 --let $total_gr_vars=

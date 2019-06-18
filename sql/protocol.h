@@ -246,6 +246,21 @@ class Protocol {
   */
   virtual bool get_compression() = 0;
   /**
+    Returns compression algorithm name.
+
+    @return
+     @retval string    compression method name
+     @retval NULL      if no compression is enabled
+  */
+  virtual char *get_compression_algorithm() = 0;
+  /**
+    Returns compression level.
+
+    @return
+     @retval uint compression level
+  */
+  virtual uint get_compression_level() = 0;
+  /**
     Prepares the server for metadata sending.
     Notifies the client that the metadata sending will start.
 

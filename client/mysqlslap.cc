@@ -108,6 +108,7 @@ TODO:
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "compression.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -161,6 +162,9 @@ static bool opt_compress = false, tty_password = false, opt_silent = false,
             auto_generate_sql_autoincrement = false,
             auto_generate_sql_guid_primary = false, auto_generate_sql = false;
 const char *auto_generate_sql_type = "mixed";
+
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 
 static unsigned long connect_flags =
     CLIENT_MULTI_RESULTS | CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS;
@@ -339,6 +343,14 @@ int main(int argc, char **argv) {
   }
   mysql_init(&mysql);
   if (opt_compress) mysql_options(&mysql, MYSQL_OPT_COMPRESS, NullS);
+
+  if (opt_compress_algorithm)
+    mysql_options(&mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(&mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
+
   if (SSL_SET_OPTIONS(&mysql)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
     return EXIT_FAILURE;
@@ -689,6 +701,17 @@ static struct my_option my_long_options[] = {
      &verbose, &verbose, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0,
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage(void) {

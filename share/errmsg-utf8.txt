@@ -9137,6 +9137,21 @@ ER_GLOBSTAT_CHANGE_DURING_QUERY
 ER_GRP_RPL_MESSAGE_SERVICE_INIT_FAILURE
   eng "The START GROUP_REPLICATION command failed to start its message service."
 
+ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+  eng "Invalid MASTER_COMPRESSION_ALGORITHMS '%.192s' for channel '%.192s'."
+
+ER_CHANGE_MASTER_WRONG_COMPRESSION_LEVEL_CLIENT
+  eng "Invalid MASTER_ZSTD_COMPRESSION_LEVEL %u for channel '%.192s'."
+
+ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+  eng "Invalid compression algorithm '%.192s'."
+
+ER_WRONG_COMPRESSION_LEVEL_CLIENT
+  eng "Invalid zstd compression level for algorithm '%.192s'."
+
+ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT
+  eng "Specified compression algorithm list '%.192s' exceeds total count of 3 for channel '%.192s'."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
@@ -19645,6 +19660,15 @@ ER_GRP_RPL_SERVER_SET_TO_OFFLINE_MODE_DUE_TO_ERRORS
 
 ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR
   eng "Message delivery error on message service of Group Replication. The server will now leave the group."
+
+ER_WARN_WRONG_COMPRESSION_ALGORITHM_LOG
+  eng "Invalid MASTER_COMPRESSION_ALGORITHMS '%.192s' found in repository for channel '%.192s'. Resetting to 'uncompressed' (no compression)."
+
+ER_WARN_WRONG_COMPRESSION_LEVEL_LOG
+  eng "Invalid MASTER_ZSTD_COMPRESSION_LEVEL found in repository for channel '%.192s'. Resetting to %u."
+
+ER_PROTOCOL_COMPRESSION_RESET_LOG
+  eng "Option --protocol-compression-algorithms is reset to default value."
 
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.

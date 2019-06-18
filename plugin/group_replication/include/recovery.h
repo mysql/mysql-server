@@ -277,6 +277,16 @@ class Recovery_module {
     recovery_state_transfer.set_recovery_get_public_key(set);
   }
 
+  /** Set compression algorithm */
+  void set_recovery_compression_algorithm(const char *name) {
+    recovery_state_transfer.set_recovery_compression_algorithm(name);
+  }
+
+  /** Set compression level */
+  void set_recovery_zstd_compression_level(uint level) {
+    recovery_state_transfer.set_recovery_zstd_compression_level(level);
+  }
+
   /**
     Checks if the given id matches the recovery applier thread
     @param id  the thread id

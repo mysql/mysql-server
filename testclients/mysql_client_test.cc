@@ -20358,6 +20358,56 @@ static void test_wl11381_qa() {
   mysql_close(mysql_con2);
 }
 
+static void test_wl12475() {
+  MYSQL *mysql_local;
+  char compress_method[] = "zstd";
+  int rc;
+  MYSQL_RES *result;
+
+  myheader("test_wl12475");
+  if (!(mysql_local = mysql_client_init(NULL))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(mysql_local, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                     compress_method);
+  myquery(rc);
+
+  if (!(mysql_real_connect(mysql_local, opt_host, opt_user, opt_password,
+                           current_db, opt_port, opt_unix_socket, 0))) {
+    myerror("connection failed");
+    exit(1);
+  }
+  rc = mysql_query(mysql, "SELECT REPEAT('A',1024*1024)");
+  myquery(rc);
+
+  /* get the result */
+  result = mysql_use_result(mysql);
+  mytest(result);
+
+  my_process_result_set(result);
+  mysql_free_result(result);
+
+  mysql_close(mysql_local);
+
+  if (!(mysql_local = mysql_client_init(NULL))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(mysql_local, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                     compress_method);
+  myquery(rc);
+  rc = mysql_options(mysql_local, MYSQL_OPT_COMPRESSION_ALGORITHMS, "zlib");
+  myquery(rc);
+  // connection should fail
+  if (!mysql_real_connect(mysql_local, opt_host, opt_user, opt_password,
+                          current_db, opt_port, opt_unix_socket, 0)) {
+    myerror("connection failed");
+    mysql_error(mysql_local);
+  }
+  mysql_close(mysql_local);
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
@@ -20640,6 +20690,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug27443252", test_bug27443252},
     {"test_wl11381", test_wl11381},
     {"test_wl11381_qa", test_wl11381_qa},
+    {"test_wl12475", test_wl12475},
     {0, 0}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

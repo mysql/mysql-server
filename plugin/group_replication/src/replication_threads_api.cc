@@ -34,7 +34,8 @@ int Replication_thread_api::initialize_channel(
     char *ssl_ca, char *ssl_capath, char *ssl_cert, char *ssl_cipher,
     char *ssl_key, char *ssl_crl, char *ssl_crlpath,
     bool ssl_verify_server_cert, int priority, int retry_count,
-    bool preserve_logs, char *public_key_path, bool get_public_key) {
+    bool preserve_logs, char *public_key_path, bool get_public_key,
+    char *compression_algorithm, uint zstd_compression_level) {
   DBUG_TRACE;
   int error = 0;
 
@@ -62,6 +63,9 @@ int Replication_thread_api::initialize_channel(
   if (public_key_path != NULL) info.public_key_path = public_key_path;
 
   info.get_public_key = get_public_key;
+
+  info.compression_algorithm = compression_algorithm;
+  info.zstd_compression_level = zstd_compression_level;
 
   if (use_ssl || ssl_ca != NULL || ssl_capath != NULL || ssl_cert != NULL ||
       ssl_cipher != NULL || ssl_key != NULL || ssl_crl != NULL ||

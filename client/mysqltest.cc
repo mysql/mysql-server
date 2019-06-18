@@ -34,6 +34,7 @@
 #include "client/mysqltest/regular_expressions.h"
 #include "client/mysqltest/secondary_engine.h"
 #include "client/mysqltest/utils.h"
+#include "compression.h"
 
 #include <algorithm>
 #include <chrono>
@@ -238,6 +239,9 @@ static const char *opt_offload_count_file;
 static const char *opt_secondary_engine;
 
 static Secondary_engine *secondary_engine = nullptr;
+
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
@@ -6336,6 +6340,8 @@ static void do_connect(struct st_command *command) {
   static DYNAMIC_STRING ds_options;
   static DYNAMIC_STRING ds_default_auth;
   static DYNAMIC_STRING ds_shm;
+  static DYNAMIC_STRING ds_compression_algorithm;
+  static DYNAMIC_STRING ds_zstd_compression_level;
   const struct command_arg connect_args[] = {
       {"connection name", ARG_STRING, true, &ds_connection_name,
        "Name of the connection"},
@@ -6350,7 +6356,13 @@ static void do_connect(struct st_command *command) {
       {"options", ARG_STRING, false, &ds_options,
        "Options to use while connecting"},
       {"default_auth", ARG_STRING, false, &ds_default_auth,
-       "Default authentication to use"}};
+       "Default authentication to use"},
+      {"default_compression_algorithm", ARG_STRING, false,
+       &ds_compression_algorithm, "Default compression algorithm to use"},
+      {"default_zstd_compression_level", ARG_STRING, false,
+       &ds_zstd_compression_level,
+       "Default compression level to use "
+       "when using zstd compression."}};
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("connect: %s", command->first_argument));
@@ -6445,6 +6457,19 @@ static void do_connect(struct st_command *command) {
   mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME, charset_info->csname);
   if (opt_charsets_dir)
     mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR, opt_charsets_dir);
+
+  if (ds_compression_algorithm.length)
+    mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  ds_compression_algorithm.str);
+  else if (opt_compress_algorithm)
+    mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+  if (ds_zstd_compression_level.length) {
+    char *end = nullptr;
+    opt_zstd_compress_level = strtol(ds_zstd_compression_level.str, &end, 10);
+  }
+  mysql_options(&con_slot->mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
 
 #if defined(HAVE_OPENSSL)
   /*
@@ -6554,6 +6579,8 @@ static void do_connect(struct st_command *command) {
   dynstr_free(&ds_options);
   dynstr_free(&ds_default_auth);
   dynstr_free(&ds_shm);
+  dynstr_free(&ds_compression_algorithm);
+  dynstr_free(&ds_zstd_compression_level);
 }
 
 static int do_done(struct st_command *command) {
@@ -7430,6 +7457,17 @@ static struct my_option my_long_options[] = {
      &view_protocol, &view_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"async-client", '*', "Use async client.", &use_async_client,
      &use_async_client, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
 
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 

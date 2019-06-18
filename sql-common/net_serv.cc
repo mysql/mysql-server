@@ -905,13 +905,18 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
       @ref sect_protocol_basic_packets_packet)
 
   It is enabled if:
-    - the server announces ::CLIENT_COMPRESS in its
-      @ref page_protocol_connection_phase_packets_protocol_handshake and
-    - the client requests it too in its
-      @ref page_protocol_connection_phase_packets_protocol_handshake_response
-      packet and
-    - After the server finishes the @ref page_protocol_connection_phase
-      with an @ref page_protocol_basic_ok_packet.
+    - the server announces ::CLIENT_COMPRESS or
+      ::CLIENT_ZSTD_COMPRESSION_ALGORITHM in its
+      @ref page_protocol_connection_phase_packets_protocol_handshake based on
+      variable protocol_compression_algorithms and
+    - the client does following:
+      - if client flags match with server flags, then client announces the
+        matching flag as part of @ref page_protocol_connection_phase_packets_protocol_handshake_response
+        if matching flag is ::CLIENT_ZSTD_COMPRESSION_ALGORITHM then client sends
+        extra 1 byte in @ref page_protocol_connection_phase_packets_protocol_handshake_response
+      - if client flags do not match then connection fallsback to uncompressed mode.
+    - Server finishes the @ref page_protocol_connection_phase with an
+      @ref page_protocol_basic_ok_packet.
 
    @subpage page_protocol_basic_compression_packet
 */

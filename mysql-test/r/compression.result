@@ -1,0 +1,557 @@
+#
+# WL#12475: Protocol Changes to specify compression configuration for connections
+#
+CREATE USER wl12475@localhost;
+SELECT @@global.protocol_compression_algorithms;
+@@global.protocol_compression_algorithms
+zlib,zstd,uncompressed
+# should report empty string and 0 for method and level
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# should report zlib and 6 for method and level
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# should report zstd and 3 for method and level
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+# should report zstd and 11 for method and level
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	11
+# should report zlib and 6 for method and level --zstd-compression-level for zlib compression is ignored
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	22
+# check all possible client compression-algorithm/level for default server configuration
+SET @@global.protocol_compression_algorithms=default;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	13
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	11
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# compression-level is ignored without --compression-algorithms
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# client is configured with both algorithms so report error
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# existing --compress option should still work
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# multiple values of zstd,zlib,uncompressed
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# multiple values of zstd,zlib,uncompressed without compression level
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# multiple duplicate values
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	8
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	1
+# compression level with default compression algorithm which is uncompressed
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# invalid algorithm values
+# empty algorithm values 
+# invalid and algorithm values
+# make new connection with zlib compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# make new connection without compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# make new connection with zstd compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	9
+# check all possible client compression-algorithm/level for server configured with only "zstd"
+SET GLOBAL protocol_compression_algorithms="zstd";
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	11
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+# check existing --compress option
+# make new connection with zlib compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Connection failed due to wrongly configured compression algorithm
+# make new connection without compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Invalid compression algorithm 'uncompressed'.
+# make new connection with zstd compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	9
+# check all possible client compression-algorithm/level for server configured with only "zstd,uncompressed"
+SET GLOBAL protocol_compression_algorithms="zstd,uncompressed";
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	11
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	13
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+# check existing --compress option
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# make new connection with zlib compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Connection failed due to wrongly configured compression algorithm
+# make new connection without compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# make new connection with zstd compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	9
+# check all possible client compression-algorithm/level for server configured with only "zlib"
+SET GLOBAL protocol_compression_algorithms="zlib";
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# check existing --compress option
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# make new connection with zlib compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# make new connection without compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Invalid compression algorithm 'uncompressed'.
+# make new connection with zstd compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Connection failed due to wrongly configured compression algorithm
+# check all possible client compression-algorithm/level for server configured with only "zlib,uncompressed"
+SET GLOBAL protocol_compression_algorithms="zlib,uncompressed";
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# existing --compress option
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# make new connection with zlib compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# make new connection without compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# make new connection with zstd compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Connection failed due to wrongly configured compression algorithm
+# check all possible client compression-algorithm/level for server configured with "zlib,zstd"
+SET GLOBAL protocol_compression_algorithms="zlib,zstd";
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	16
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	3
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	16
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# existing --compress option should still work
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# make new connection with zlib compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zlib
+Compression_level	6
+# make new connection without compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Invalid compression algorithm 'uncompressed'.
+# make new connection with zstd compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	ON
+Compression_algorithm	zstd
+Compression_level	9
+# check all possible client compression-algorithm/level for server not configured with any compression algorithm
+SET GLOBAL protocol_compression_algorithms="uncompressed";
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# existing --compress option
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# make new connection with zlib compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Connection failed due to wrongly configured compression algorithm
+# make new connection without compression
+select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression	OFF
+Compression_algorithm	
+Compression_level	0
+# make new connection with zstd compression
+connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Connection failed due to wrongly configured compression algorithm
+SET @@global.protocol_compression_algorithms=default;
+# check --compression-algorithms and --zstd-compression-level on all supported clients
+CREATE DATABASE wl12475;
+USE wl12475;
+CREATE TABLE t1(a LONGTEXT);
+INSERT INTO t1 VALUES (REPEAT('1',200));
+INSERT INTO t1 VALUES (REPEAT('2', 1800));
+DROP TABLE t1;
+SELECT COUNT(*) FROM wl12475.t1;
+COUNT(*)
+2
+DROP TABLE wl12475.t1;
+SELECT COUNT(*) FROM wl12475.t1;
+COUNT(*)
+2
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+mysqld is alive
+wl12475.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
+SELECT COUNT(*) FROM wl12475.t1;
+COUNT(*)
+3
+Database: wl12475
++--------+
+| Tables |
++--------+
+| t1     |
++--------+
+CALL mtr.add_suppression("Option --protocol-compression-algorithms is reset to default value.");
+# restart server with invalid value for protocol-compression-algorithms
+# restart: --protocol-compression-algorithms=lz4
+# must be set to default
+SELECT @@global.protocol_compression_algorithms;
+@@global.protocol_compression_algorithms
+zlib,zstd,uncompressed
+DROP USER wl12475@localhost;
+DROP DATABASE wl12475;

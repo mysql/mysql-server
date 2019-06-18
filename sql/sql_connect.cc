@@ -769,7 +769,9 @@ static void prepare_new_connection_state(THD *thd) {
   NET *net = thd->get_protocol_classic()->get_net();
   Security_context *sctx = thd->security_context();
 
-  if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS))
+  if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS) ||
+      thd->get_protocol()->has_client_capability(
+          CLIENT_ZSTD_COMPRESSION_ALGORITHM))
     net->compress = 1;  // Use compression
 
   // Initializing session system variables.

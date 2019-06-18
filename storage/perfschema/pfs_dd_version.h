@@ -121,6 +121,14 @@
   - WL#12571 increases the HOST name length from 60 to 255.
 
   Version published is now 800171. The next number to use is 80018.
+
+  80018:
+
+  performance_schema tables changed in MySQL 8.0.18
+  - replication_connection_configuration, added column
+  MASTER_COMPRESSION_ALGORITHMS, MASTER_COMPRESSION_LEVEL
+
+  Version published is now 800172.
 */
 
 static const uint PFS_DD_VERSION = 80018;

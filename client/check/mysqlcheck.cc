@@ -30,6 +30,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "compression.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -69,6 +70,8 @@ static const char *default_charset = nullptr;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static int first_error = 0;
 static const char *opt_skip_database = "";
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
 #endif
@@ -226,6 +229,17 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0,
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static const char *load_default_groups[] = {"mysqlcheck", "client", 0};
@@ -431,6 +445,13 @@ static int dbConnect(char *host, char *user, char *passwd) {
   }
   mysql_init(&mysql_connection);
   if (opt_compress) mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
+  if (opt_compress_algorithm)
+    mysql_options(&mysql_connection, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(&mysql_connection, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
+
   if (SSL_SET_OPTIONS(&mysql_connection)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
     return 1;

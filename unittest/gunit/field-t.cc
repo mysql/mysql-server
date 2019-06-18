@@ -101,15 +101,15 @@ class Mock_protocol : public Protocol {
     return 0;
   }
   SSL_handle get_ssl() { return 0; }
-  void start_row() override {}
-  bool end_row() override { return false; }
-  bool connection_alive() const override { return false; }
-  void abort_row() override {}
-  uint get_rw_status() override { return 0; }
-  bool get_compression() override { return false; }
-  bool start_result_metadata(uint, uint, const CHARSET_INFO *) override {
-    return false;
-  }
+  void start_row() {}
+  bool end_row() { return false; }
+  bool connection_alive() const { return false; }
+  void abort_row() {}
+  uint get_rw_status() { return 0; }
+  bool get_compression() { return false; }
+  char *get_compression_algorithm() { return nullptr; }
+  uint get_compression_level() { return 0; }
+  bool start_result_metadata(uint, uint, const CHARSET_INFO *) { return false; }
 
   bool store_ps_status(ulong, uint, uint, ulong) override { return false; }
   bool send_parameters(List<Item_param> *, bool) override { return false; }

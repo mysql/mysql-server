@@ -51,6 +51,8 @@
 #include <atomic>
 #include <limits>
 
+#include "include/compression.h"
+
 #include "my_loglevel.h"
 #include "mysql_com.h"
 #include "sql/protocol.h"
@@ -6686,3 +6688,25 @@ static Sys_var_bool Sys_var_show_create_table_skip_secondary_engine(
     "definition",
     SESSION_ONLY(show_create_table_skip_secondary_engine), NO_CMD_LINE,
     DEFAULT(false));
+
+static bool check_set_protocol_compression_algorithms(sys_var *, THD *,
+                                                      set_var *var) {
+  if (!(var->save_result.string_value.str)) return true;
+  return validate_compression_attributes(var->save_result.string_value.str,
+                                         std::string(), true);
+}
+
+static Sys_var_charptr Sys_protocol_compression_algorithms(
+    "protocol_compression_algorithms",
+    "List of compression algorithms supported by server. Supported values "
+    "are any combination of zlib, zstd, uncompressed. Command line clients "
+    "may use the --compression-algorithms flag to specify a set of algorithms, "
+    "and the connection will use an algorithm supported by both client and "
+    "server. It picks zlib if both client and server support it; otherwise it "
+    "picks zstd if both support it; otherwise it picks uncompressed if both "
+    "support it; otherwise it fails.",
+    GLOBAL_VAR(opt_protocol_compression_algorithms), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET,
+    DEFAULT(const_cast<char *>(PROTOCOL_COMPRESSION_DEFAULT_VALUE)),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_set_protocol_compression_algorithms), ON_UPDATE(0));

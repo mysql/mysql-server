@@ -364,6 +364,7 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 extern char *opt_log_error_suppression_list;
 extern char *opt_log_error_services;
+extern char *opt_protocol_compression_algorithms;
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
@@ -634,7 +635,7 @@ extern long tc_heuristic_recover;
 extern ulong specialflag;
 extern size_t mysql_data_home_len;
 extern const char *mysql_real_data_home_ptr;
-extern MYSQL_PLUGIN_IMPORT const char *mysql_data_home;
+extern MYSQL_PLUGIN_IMPORT char *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];

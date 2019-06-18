@@ -4670,6 +4670,8 @@ void LEX_MASTER_INFO::initialize() {
   repl_ignore_server_ids.clear();
   channel = NULL;
   for_channel = false;
+  compression_algorithm = nullptr;
+  zstd_compression_level = 0;
 }
 
 void LEX_MASTER_INFO::set_unspecified() {

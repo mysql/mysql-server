@@ -27,6 +27,7 @@
 #include <string.h>
 #include <algorithm>
 
+#include "include/compression.h"
 #include "include/mutex_lock.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
@@ -90,8 +91,14 @@ enum {
   /* line for network_namespace */
   LINE_FOR_NETWORK_NAMESPACE = 28,
 
+  /* line for master_compression_algorithm */
+  LINE_FOR_MASTER_COMPRESSION_ALGORITHM = 29,
+
+  /* line for master_zstd_compression_level */
+  LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL = 30,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO = LINE_FOR_NETWORK_NAMESPACE
+  LINES_IN_MASTER_INFO = LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL
 
 };
 
@@ -127,7 +134,9 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "tls_version",
                                 "public_key_path",
                                 "get_public_key",
-                                "network_namespace"};
+                                "network_namespace",
+                                "master_compression_algorithm",
+                                "master_zstd_compression_level"};
 
 const uint info_mi_table_pk_field_indexes[] = {
     LINE_FOR_CHANNEL - 1,
@@ -195,7 +204,8 @@ Master_info::Master_info(
   start_user[0] = 0;
   public_key_path[0] = 0;
   ignore_server_ids = new Server_ids;
-
+  strcpy(compression_algorithm, COMPRESSION_ALGORITHM_UNCOMPRESSED);
+  zstd_compression_level = default_zstd_compression_level;
   gtid_monitoring_info = new Gtid_monitoring_info(&data_lock);
 
   mysql_mutex_init(*key_info_rotate_lock, &this->rotate_lock,
@@ -574,6 +584,34 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   if (ssl) LogErr(WARNING_LEVEL, ER_RPL_SSL_INFO_IN_MASTER_INFO_IGNORED);
 #endif /* HAVE_OPENSSL */
 
+  if (lines >= LINE_FOR_MASTER_COMPRESSION_ALGORITHM) {
+    char algorithm_name[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
+    if (from->get_info(algorithm_name, sizeof(algorithm_name), nullptr))
+      return true;
+    else {
+      if (validate_compression_attributes(algorithm_name, channel, true)) {
+        LogErr(WARNING_LEVEL, ER_WARN_WRONG_COMPRESSION_ALGORITHM_LOG,
+               algorithm_name, channel);
+        strcpy(compression_algorithm, COMPRESSION_ALGORITHM_UNCOMPRESSED);
+      } else {
+        DBUG_ASSERT(strlen(algorithm_name) < sizeof(compression_algorithm));
+        strcpy(compression_algorithm, algorithm_name);
+      }
+    }
+  }
+
+  if (lines >= LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL) {
+    int level;
+    if (from->get_info(&level, (int)0)) return true;
+    if (is_zstd_compression_level_valid(level))
+      zstd_compression_level = level;
+    else {
+      int default_level = default_zstd_compression_level;
+      LogErr(WARNING_LEVEL, ER_WARN_WRONG_COMPRESSION_LEVEL_LOG, channel,
+             default_level);
+      zstd_compression_level = default_level;
+    }
+  }
   return false;
 }
 
@@ -609,7 +647,8 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info(ssl_crlpath) || to->set_info((int)auto_position) ||
       to->set_info(channel) || to->set_info(tls_version) ||
       to->set_info(public_key_path) || to->set_info(get_public_key) ||
-      to->set_info(network_namespace))
+      to->set_info(network_namespace) || to->set_info(compression_algorithm) ||
+      to->set_info((int)zstd_compression_level))
     return true;
 
   return false;

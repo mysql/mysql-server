@@ -239,30 +239,32 @@ class Query_fetch_protocol_binary final : public Query_result_send {
 class Protocol_local final : public Protocol {
  public:
   Protocol_local(THD *thd, Ed_connection *ed_connection);
-  ~Protocol_local() override { free_root(&m_rset_root, MYF(0)); }
+  ~Protocol_local() { free_root(&m_rset_root, MYF(0)); }
 
-  int read_packet() override;
+  virtual int read_packet();
 
-  int get_command(COM_DATA *com_data, enum_server_command *cmd) override;
-  ulong get_client_capabilities() override;
-  bool has_client_capability(unsigned long client_capability) override;
-  void end_partial_result_set() override;
-  int shutdown(bool server_shutdown = false) override;
-  bool connection_alive() const override;
-  void start_row() override;
-  bool end_row() override;
-  void abort_row() override {}
-  uint get_rw_status() override;
-  bool get_compression() override;
+  virtual int get_command(COM_DATA *com_data, enum_server_command *cmd);
+  virtual ulong get_client_capabilities();
+  virtual bool has_client_capability(unsigned long client_capability);
+  virtual void end_partial_result_set();
+  virtual int shutdown(bool server_shutdown = false);
+  virtual bool connection_alive() const;
+  virtual void start_row();
+  virtual bool end_row();
+  virtual void abort_row() {}
+  virtual uint get_rw_status();
+  virtual bool get_compression();
+  virtual char *get_compression_algorithm();
+  virtual uint get_compression_level();
 
-  bool start_result_metadata(uint num_cols, uint flags,
-                             const CHARSET_INFO *resultcs) override;
-  bool end_result_metadata() override;
-  bool send_field_metadata(Send_field *field,
-                           const CHARSET_INFO *charset) override;
-  bool flush() override { return true; }
-  bool send_parameters(List<Item_param> *, bool) override { return false; }
-  bool store_ps_status(ulong, uint, uint, ulong) override { return false; }
+  virtual bool start_result_metadata(uint num_cols, uint flags,
+                                     const CHARSET_INFO *resultcs);
+  virtual bool end_result_metadata();
+  virtual bool send_field_metadata(Send_field *field,
+                                   const CHARSET_INFO *charset);
+  virtual bool flush() { return true; }
+  virtual bool send_parameters(List<Item_param> *, bool) { return false; }
+  bool store_ps_status(ulong, uint, uint, ulong) { return false; }
 
  protected:
   bool store_null() override;
@@ -3678,6 +3680,10 @@ bool Protocol_local::send_field_metadata(Send_field *field,
 }
 
 bool Protocol_local::get_compression() { return false; }
+
+char *Protocol_local::get_compression_algorithm() { return nullptr; }
+
+uint Protocol_local::get_compression_level() { return 0; }
 
 int Protocol_local::get_command(COM_DATA *, enum_server_command *) {
   return -1;

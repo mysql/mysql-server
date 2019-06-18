@@ -181,6 +181,8 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->connect_retry = 0;
   channel_info->public_key_path = 0;
   channel_info->get_public_key = 0;
+  channel_info->compression_algorithm = nullptr;
+  channel_info->zstd_compression_level = 0;
 }
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
@@ -319,6 +321,13 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
       // So change master allows new configurations with a running SQL thread
       lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
     }
+  }
+
+  if (channel_info->compression_algorithm != nullptr) {
+    lex_mi->compression_algorithm = channel_info->compression_algorithm;
+  }
+  if (channel_info->zstd_compression_level) {
+    lex_mi->zstd_compression_level = channel_info->zstd_compression_level;
   }
 
   if (channel_info->ssl_info != nullptr) {

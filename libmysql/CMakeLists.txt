@@ -178,6 +178,7 @@ SET(CLIENT_SOURCES
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
+  ../sql-common/compression.cc
   ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
   ../sql/auth/password.cc

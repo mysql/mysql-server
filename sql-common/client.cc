@@ -62,6 +62,7 @@
 #include <string>
 
 #include "client_async_authentication.h"
+#include "compression.h"  // validate_compression_attributes
 #include "errmsg.h"
 #include "lex_string.h"
 #include "map_helpers.h"
@@ -3181,6 +3182,9 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
   ENSURE_EXTENSIONS_PRESENT(&mysql->options);
   mysql->options.extension->ssl_mode = SSL_MODE_PREFERRED;
 #endif
+  /* by default connection_compressed should be OFF */
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+  mysql->options.extension->connection_compressed = false;
 
   mysql->resultset_metadata = RESULTSET_METADATA_FULL;
   ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_UNSET;
@@ -4176,6 +4180,12 @@ static int cli_establish_ssl(MYSQL *mysql) {
     unsigned long ssl_error;
     char buff[33], *end;
 
+    /* check if server supports compression else turn off client capability */
+    if (!(mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
+      mysql->client_flag &= ~CLIENT_ZSTD_COMPRESSION_ALGORITHM;
+    if (!(mysql->server_capabilities & CLIENT_COMPRESS))
+      mysql->client_flag &= ~CLIENT_COMPRESS;
+
     end = mysql_fill_packet_header(mysql, buff, sizeof(buff));
 
     /*
@@ -4633,6 +4643,9 @@ int mysql_get_socket_descriptor(MYSQL *mysql) {
       <td>Value of the 1st client attribute</td></tr>
   <tr><td colspan="3">.. (if more data in length of all key-values, more keys and values parts)</td></tr>
   <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>zstd_compression_level</td>
+    <td>compression level for zstd compression algorithm</td></tr>
   </table>
 
   Example
@@ -4706,7 +4719,51 @@ static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
        mysql->options.extension)
           ? mysql->options.extension->connection_attributes_length
           : 0;
+  unsigned int compress_level = 0;
+  bool server_zstd =
+      (mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+  bool client_zstd =
+      (mysql->options.client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM);
 
+  /* validate compression configuration */
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+  if (mysql->options.extension->compression_algorithm) {
+    std::string algorithm = mysql->options.extension->compression_algorithm;
+    if (!algorithm.empty() &&
+        validate_compression_attributes(algorithm, std::string(), true)) {
+      set_mysql_error(mysql, CR_COMPRESSION_WRONGLY_CONFIGURED,
+                      unknown_sqlstate);
+      return true;
+    }
+  }
+
+  /**
+    If server/client is configured to use zstd compression then set compression
+    level if specified, else set level to a default value.
+  */
+  if (server_zstd && client_zstd) {
+    if (mysql->options.extension &&
+        mysql->options.extension->zstd_compression_level)
+      compress_level = mysql->options.extension->zstd_compression_level;
+    else
+      compress_level = default_zstd_compression_level;
+  }
+  /* Remove those compression capabilities that server does not support. */
+  if (!(mysql->server_capabilities & CLIENT_COMPRESS))
+    mysql->client_flag &= ~CLIENT_COMPRESS;
+  if (!(mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
+    mysql->client_flag &= ~CLIENT_ZSTD_COMPRESSION_ALGORITHM;
+  /*
+   If server and client have no compression algorithms in common, we must
+   fall back to uncompressed. In that case, check that uncompressed is
+   allowed by client.
+  */
+  if (!(mysql->client_flag & CLIENT_COMPRESS) &&
+      !(mysql->client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM) &&
+      mysql->options.extension->connection_compressed) {
+    set_mysql_error(mysql, CR_COMPRESSION_WRONGLY_CONFIGURED, unknown_sqlstate);
+    return true;
+  }
   DBUG_ASSERT(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
 
   *buff_out = nullptr;
@@ -4717,7 +4774,8 @@ static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
     +9 because data is a length encoded binary where meta data size is max 9.
   */
   buff_size = 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN +
-              connect_attrs_len + 9;
+              connect_attrs_len + 9 + ((server_zstd && client_zstd) ? 1 : 0);
+
   buff = static_cast<char *>(
       my_malloc(PSI_NOT_INSTRUMENTED, buff_size, MYF(MY_WME | MY_ZEROFILL)));
 
@@ -4770,6 +4828,13 @@ static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
     end = strmake(end, mpvio->plugin->name, NAME_LEN) + 1;
 
   end = (char *)send_client_connect_attrs(mysql, (uchar *)end);
+
+  if (server_zstd && client_zstd) {
+    /* send compression level if both client and server support it */
+    *end = static_cast<unsigned char>(compress_level);
+    end++;
+  }
+
   *buff_out = buff;
   *buff_len = end - buff;
 
@@ -6328,7 +6393,9 @@ static mysql_state_machine_status csm_prep_select_database(
   NET *net = &mysql->net;
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 
-  if (mysql->client_flag & CLIENT_COMPRESS) /* We will use compression */
+  /* We will use compression */
+  if ((mysql->client_flag & CLIENT_COMPRESS) ||
+      (mysql->client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
     net->compress = 1;
 
 #ifdef CHECK_LICENSE
@@ -6707,6 +6774,8 @@ void mysql_close_free_options(MYSQL *mysql) {
     my_free(mysql->options.extension->default_auth);
     my_free(mysql->options.extension->server_public_key_path);
     delete mysql->options.extension->connection_attributes;
+    my_free(mysql->options.extension->compression_algorithm);
+    mysql->options.extension->total_configured_compression_algorithms = 0;
     my_free(mysql->options.extension);
   }
   memset(&mysql->options, 0, sizeof(mysql->options));
@@ -7684,6 +7753,48 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
         mysql->options.client_flag |= CLIENT_OPTIONAL_RESULTSET_METADATA;
       else
         mysql->options.client_flag &= ~CLIENT_OPTIONAL_RESULTSET_METADATA;
+      break;
+
+    case MYSQL_OPT_COMPRESSION_ALGORITHMS: {
+      std::string compress_option(static_cast<const char *>(arg));
+      std::vector<std::string> list;
+      parse_compression_algorithms_list(compress_option, list);
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->connection_compressed = true;
+      mysql->options.client_flag &=
+          ~(CLIENT_COMPRESS | CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+      mysql->options.compress = 0;
+      auto it = list.begin();
+      unsigned int cnt = 0;
+      while (it != list.end() && cnt < COMPRESSION_ALGORITHM_COUNT_MAX) {
+        std::string value = *it;
+        switch (get_compression_algorithm(value)) {
+          case enum_compression_algorithm::ZLIB:
+            mysql->options.client_flag |= CLIENT_COMPRESS;
+            mysql->options.compress = 1;
+            break;
+          case enum_compression_algorithm::ZSTD:
+            mysql->options.client_flag |= CLIENT_ZSTD_COMPRESSION_ALGORITHM;
+            mysql->options.compress = 1;
+            break;
+          case enum_compression_algorithm::UNCOMPRESSED:
+            mysql->options.extension->connection_compressed = false;
+            break;
+          case enum_compression_algorithm::INVALID:
+            break;  // report error
+        }
+        it++;
+        cnt++;
+      }
+      if (cnt)
+        EXTENSION_SET_STRING(&mysql->options, compression_algorithm,
+                             static_cast<const char *>(arg));
+      mysql->options.extension->total_configured_compression_algorithms = cnt;
+    } break;
+    case MYSQL_OPT_ZSTD_COMPRESSION_LEVEL:
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->zstd_compression_level =
+          *static_cast<const unsigned int *>(arg);
       break;
 
     default:

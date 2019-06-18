@@ -37,6 +37,7 @@
 #include <string>
 
 #include "client/client_priv.h"
+#include "compression.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -135,6 +136,10 @@ static bool server_supports_switching_charsets = true;
   otherwise backticks (``, non-standard MySQL feature).
 */
 static bool ansi_quotes_mode = false;
+
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
+
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
 #define MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL 1
@@ -562,6 +567,17 @@ static struct my_option my_long_options[] = {
      &opt_show_create_table_skip_secondary_engine,
      &opt_show_create_table_skip_secondary_engine, 0, GET_BOOL, NO_ARG, 0, 0, 0,
      0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static const char *load_default_groups[] = {"mysqldump", "client", 0};
@@ -1490,6 +1506,13 @@ static int connect_to_db(char *host, char *user, char *passwd) {
                  "mysqldump");
   set_server_public_key(&mysql_connection);
   set_get_server_public_key_option(&mysql_connection);
+
+  if (opt_compress_algorithm)
+    mysql_options(&mysql_connection, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(&mysql_connection, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
 
   if (opt_network_timeout) {
     uint timeout = 700;

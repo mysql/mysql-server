@@ -60,6 +60,8 @@ TLS_VERSION
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
+COMPRESSION_ALGORITHM	uncompressed
+ZSTD_COMPRESSION_LEVEL	3
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -255,6 +257,8 @@ TLS_VERSION
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
+COMPRESSION_ALGORITHM	uncompressed
+ZSTD_COMPRESSION_LEVEL	3
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

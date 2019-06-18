@@ -33,6 +33,7 @@
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "compression.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -76,6 +77,9 @@ static char *opt_bind_addr = NULL;
 static char *opt_mysql_unix_port = 0;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static longlong opt_ignore_lines = -1;
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
+
 #include "caching_sha2_passwordopt-vars.h"
 #include "sslopt-vars.h"
 
@@ -211,6 +215,17 @@ static struct my_option my_long_options[] = {
      0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0,
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static const char *load_default_groups[] = {"mysqlimport", "client", 0};
@@ -419,6 +434,14 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
   } else if (!(mysql = mysql_init(NULL)))
     return 0;
   if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
+
+  if (opt_compress_algorithm)
+    mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
+
   if (opt_local_file)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_file);
   if (SSL_SET_OPTIONS(mysql)) {
