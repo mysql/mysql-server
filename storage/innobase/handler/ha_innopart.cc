@@ -107,10 +107,6 @@ Ha_innopart_share::~Ha_innopart_share() {
 void Ha_innopart_share::partition_name_casedn_str(char *s) {
 #ifdef _WIN32
   innobase_casedn_str(s);
-#else
-  if (innobase_get_lower_case_table_names() == 1) {
-    innobase_casedn_str(s);
-  }
 #endif
 }
 
