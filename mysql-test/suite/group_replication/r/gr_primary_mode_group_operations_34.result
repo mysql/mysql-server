@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 # 1. Use the debug point "group_replication_block_group_action_stop" on server 1
-SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 
 # 2. Start a change to single primary mode on server 1
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
@@ -16,10 +16,11 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 
 # 4. Kill the query
 [connection server_1]
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 KILL QUERY CONNECTION_ID;
 
 # 5. Unblock the debug point with "signal.action_stop_continue"
-SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 
 # 6. Check the action returns and it says: Despite being killed, the
 #    operation still completed successfully.
@@ -32,5 +33,5 @@ include/gr_assert_secondary_member.inc
 
 # 7. Cleanup
 [connection server1]
-SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 include/group_replication_end.inc

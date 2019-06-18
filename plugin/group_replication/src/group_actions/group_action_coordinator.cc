@@ -730,7 +730,9 @@ int Group_action_coordinator::signal_action_terminated() {
                                      number_of_terminated_members);
 
   DBUG_EXECUTE_IF("group_replication_block_group_action_stop", {
-    const char act[] = "now wait_for signal.action_stop_continue";
+    const char act[] =
+        "now signal signal.action_stopping wait_for "
+        "signal.action_stop_continue";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
