@@ -818,6 +818,24 @@ IF(LINK_RANDOMIZE)
   SET(CMAKE_C_ARCHIVE_CREATE_APPEND ${CMAKE_CXX_ARCHIVE_CREATE_APPEND})
 ENDIF()
 
+# Gold and LLD support the --gdb-index option, which adds a .gdb_index
+# section to the binaries. It makes loading the binaries in gdb much
+# faster. Enable it by default in debug builds on Linux when LLD is
+# used, as the overhead of generating the index is very small in LLD.
+IF(LINUX AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" AND
+   CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
+  OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." ON)
+ELSE()
+  OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." OFF)
+ENDIF()
+
+IF(ADD_GDB_INDEX AND
+   (CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" OR
+    CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold"))
+  STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--gdb-index")
+  STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--gdb-index")
+ENDIF()
+
 IF(LINUX)
   # May be set to ON in cmake/build_configurations/mysql_release.cmake
   IF(DEFINED REPRODUCIBLE_BUILD)

@@ -35,6 +35,10 @@ IF(USE_LD_LLD AND C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT)
     CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
   STRING(REPLACE "-fuse-ld=lld" ""
     CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
 ENDIF()
 
 # check if clang knows about the coverage and trace-pc-guard
