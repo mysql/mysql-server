@@ -452,8 +452,6 @@ bool PROFILING::show_profiles() {
        iterator = history.iterator_next(iterator)) {
     prof = history.iterator_value(iterator);
 
-    String elapsed;
-
     double query_time_usecs = prof->m_end_time_usecs - prof->m_start_time_usecs;
 
     if (++idx <= unit->offset_limit_cnt) continue;
@@ -462,7 +460,7 @@ bool PROFILING::show_profiles() {
     protocol->start_row();
     protocol->store((uint32)(prof->profiling_query_id));
     protocol->store_double(query_time_usecs / (1000.0 * 1000),
-                           TIME_FLOAT_DIGITS - 1, 0, &elapsed);
+                           TIME_FLOAT_DIGITS - 1, 0);
     if (prof->m_query_source.str != NULL)
       protocol->store_string(prof->m_query_source.str,
                              prof->m_query_source.length, system_charset_info);

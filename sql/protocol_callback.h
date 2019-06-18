@@ -174,28 +174,24 @@ class Protocol_callback final : public Protocol {
 
     @param from      value
     @param decimals
-    @param buffer    auxiliary buffer
 
     @return
       false  success
       true   failure
   */
-  bool store_float(float from, uint32 decimals, uint32,
-                   String *buffer) override;
+  bool store_float(float from, uint32 decimals, uint32) override;
 
   /**
     Sends DOUBLE value
 
     @param from      value
     @param decimals
-    @param buffer    auxiliary buffer
 
     @return
       false  success
       true   failure
   */
-  bool store_double(double from, uint32 decimals, uint32,
-                    String *buffer) override;
+  bool store_double(double from, uint32 decimals, uint32) override;
 
   /**
     Sends DATETIME value

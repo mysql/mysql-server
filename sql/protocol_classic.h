@@ -225,10 +225,8 @@ class Protocol_text : public Protocol_classic {
   bool store_longlong(longlong from, bool unsigned_flag,
                       uint32 zerofill) override;
   bool store_decimal(const my_decimal *, uint, uint) final;
-  bool store_float(float nr, uint32 decimals, uint32 zerofill,
-                   String *buffer) override;
-  bool store_double(double from, uint32 decimals, uint32 zerofill,
-                    String *buffer) override;
+  bool store_float(float nr, uint32 decimals, uint32 zerofill) override;
+  bool store_double(double from, uint32 decimals, uint32 zerofill) override;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
   bool store_time(const MYSQL_TIME &time, uint precision) override;
@@ -257,10 +255,8 @@ class Protocol_binary final : public Protocol_text {
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
   bool store_time(const MYSQL_TIME &time, uint precision) override;
-  bool store_float(float nr, uint32 decimals, uint32 zerofill,
-                   String *buffer) override;
-  bool store_double(double from, uint32 decimals, uint32 zerofill,
-                    String *buffer) override;
+  bool store_float(float nr, uint32 decimals, uint32 zerofill) override;
+  bool store_double(double from, uint32 decimals, uint32 zerofill) override;
 
   bool start_result_metadata(uint num_cols, uint flags,
                              const CHARSET_INFO *resultcs) override;

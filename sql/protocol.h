@@ -123,10 +123,8 @@ class Protocol {
   virtual bool store_decimal(const my_decimal *, uint, uint) = 0;
   virtual bool store_string(const char *from, size_t length,
                             const CHARSET_INFO *fromcs) = 0;
-  virtual bool store_float(float from, uint32 decimals, uint32 zerofill,
-                           String *buffer) = 0;
-  virtual bool store_double(double from, uint32 decimals, uint32 zerofill,
-                            String *buffer) = 0;
+  virtual bool store_float(float from, uint32 decimals, uint32 zerofill) = 0;
+  virtual bool store_double(double from, uint32 decimals, uint32 zerofill) = 0;
   virtual bool store_datetime(const MYSQL_TIME &time, uint precision) = 0;
   virtual bool store_date(const MYSQL_TIME &time) = 0;
   virtual bool store_time(const MYSQL_TIME &time, uint precision) = 0;

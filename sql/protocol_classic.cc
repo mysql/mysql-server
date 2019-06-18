@@ -3324,32 +3324,63 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
                         packet);
 }
 
-bool Protocol_text::store_float(float from, uint32 decimals, uint32 zerofill,
-                                String *buffer) {
+/**
+  Converts a floating-point value to text for the text protocol.
+
+  @param value          the floating point value
+  @param decimals       the precision of the value
+  @param gcvt_arg_type  the type of the floating-point value
+  @param buffer         a buffer large enough to hold FLOATING_POINT_BUFFER
+                        characters plus a terminating zero character
+  @return the length of the text representation of the value
+*/
+static size_t floating_point_to_text(double value, uint32 decimals,
+                                     my_gcvt_arg_type gcvt_arg_type,
+                                     char *buffer) {
+  if (decimals < DECIMAL_NOT_SPECIFIED)
+    return my_fcvt(value, decimals, buffer, nullptr);
+  return my_gcvt(value, gcvt_arg_type, FLOATING_POINT_BUFFER, buffer, nullptr);
+}
+
+/**
+  Stores a floating-point value in the text protocol.
+
+  @param value          the floating point value
+  @param decimals       the precision of the value
+  @param zerofill       the length up to which the value should be zero-padded,
+                        or 0 if no zero-padding should be used
+  @param gcvt_arg_type  the type of the floating-point value
+  @param packet         the destination buffer
+  @return false on success, true on error
+*/
+static bool store_floating_point(double value, uint32 decimals, uint32 zerofill,
+                                 my_gcvt_arg_type gcvt_arg_type,
+                                 String *packet) {
+  char buffer[FLOATING_POINT_BUFFER + 1];
+  size_t length =
+      floating_point_to_text(value, decimals, gcvt_arg_type, buffer);
+  if (zerofill != 0)
+    return net_store_zero_padded_data(buffer, length, zerofill, packet);
+  return net_store_data(pointer_cast<const uchar *>(buffer), length, packet);
+}
+
+bool Protocol_text::store_float(float from, uint32 decimals, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
-  buffer->set_float(from, decimals, m_thd->charset());
-  if (zerofill != 0)
-    return net_store_zero_padded_data(buffer->ptr(), buffer->length(), zerofill,
-                                      packet);
-  return net_store_data(pointer_cast<const uchar *>(buffer->ptr()),
-                        buffer->length(), packet);
+  return store_floating_point(from, decimals, zerofill, MY_GCVT_ARG_FLOAT,
+                              packet);
 }
 
-bool Protocol_text::store_double(double from, uint32 decimals, uint32 zerofill,
-                                 String *buffer) {
+bool Protocol_text::store_double(double from, uint32 decimals,
+                                 uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_DOUBLE);
   field_pos++;
-  buffer->set_real(from, decimals, m_thd->charset());
-  if (zerofill != 0)
-    return net_store_zero_padded_data(buffer->ptr(), buffer->length(), zerofill,
-                                      packet);
-  return net_store_data(pointer_cast<const uchar *>(buffer->ptr()),
-                        buffer->length(), packet);
+  return store_floating_point(from, decimals, zerofill, MY_GCVT_ARG_DOUBLE,
+                              packet);
 }
 
 /**
@@ -3589,10 +3620,10 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
   return 0;
 }
 
-bool Protocol_binary::store_float(float from, uint32 decimals, uint32 zerofill,
-                                  String *buffer) {
+bool Protocol_binary::store_float(float from, uint32 decimals,
+                                  uint32 zerofill) {
   if (send_metadata)
-    return Protocol_text::store_float(from, decimals, zerofill, buffer);
+    return Protocol_text::store_float(from, decimals, zerofill);
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_FLOAT);
@@ -3604,9 +3635,9 @@ bool Protocol_binary::store_float(float from, uint32 decimals, uint32 zerofill,
 }
 
 bool Protocol_binary::store_double(double from, uint32 decimals,
-                                   uint32 zerofill, String *buffer) {
+                                   uint32 zerofill) {
   if (send_metadata)
-    return Protocol_text::store_double(from, decimals, zerofill, buffer);
+    return Protocol_text::store_double(from, decimals, zerofill);
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_DOUBLE);

@@ -132,15 +132,13 @@ bool Protocol_callback::store_string(const char *from, size_t length,
   return false;
 }
 
-bool Protocol_callback::store_float(float from, uint32 decimals, uint32,
-                                    String *) {
+bool Protocol_callback::store_float(float from, uint32 decimals, uint32) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;
 }
 
-bool Protocol_callback::store_double(double from, uint32 decimals, uint32,
-                                     String *) {
+bool Protocol_callback::store_double(double from, uint32 decimals, uint32) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;

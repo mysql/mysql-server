@@ -335,17 +335,6 @@ class String {
   */
   bool set_real(double num, uint decimals, const CHARSET_INFO *cs);
 
-  /**
-    Sets the contents of this string to the string representation of the given
-    float value.
-
-    @param num the float value
-    @param decimals the number of decimals
-    @param cs the character set of the string
-    @return false on success, true on error
-  */
-  bool set_float(float num, uint decimals, const CHARSET_INFO *cs);
-
   /*
     PMG 2004.11.12
     This is a method that works the same as perl's "chop". It simply

@@ -6559,12 +6559,12 @@ bool Item::send(Protocol *protocol, String *buffer) {
     }
     case MYSQL_TYPE_FLOAT: {
       float nr = static_cast<float>(val_real());
-      if (!null_value) return protocol->store_float(nr, decimals, 0, buffer);
+      if (!null_value) return protocol->store_float(nr, decimals, 0);
       break;
     }
     case MYSQL_TYPE_DOUBLE: {
       double nr = val_real();
-      if (!null_value) return protocol->store_double(nr, decimals, 0, buffer);
+      if (!null_value) return protocol->store_double(nr, decimals, 0);
       break;
     }
     case MYSQL_TYPE_DATE: {

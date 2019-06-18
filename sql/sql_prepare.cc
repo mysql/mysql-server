@@ -279,10 +279,8 @@ class Protocol_local final : public Protocol {
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
   bool store_time(const MYSQL_TIME &time, uint precision) override;
-  bool store_float(float value, uint32 decimals, uint32 zerofill,
-                   String *buffer) override;
-  bool store_double(double value, uint32 decimals, uint32 zerofill,
-                    String *buffer) override;
+  bool store_float(float value, uint32 decimals, uint32 zerofill) override;
+  bool store_double(double value, uint32 decimals, uint32 zerofill) override;
   bool store_field(const Field *field) override;
 
   enum enum_protocol_type type() const override { return PROTOCOL_LOCAL; }
@@ -3541,13 +3539,13 @@ bool Protocol_local::store_time(const MYSQL_TIME &time, uint) {
 
 /* Store a floating point number, as is. */
 
-bool Protocol_local::store_float(float value, uint32, uint32, String *) {
+bool Protocol_local::store_float(float value, uint32, uint32) {
   return store_column(&value, sizeof(float));
 }
 
 /* Store a double precision number, as is. */
 
-bool Protocol_local::store_double(double value, uint32, uint32, String *) {
+bool Protocol_local::store_double(double value, uint32, uint32) {
   return store_column(&value, sizeof(double));
 }
 
