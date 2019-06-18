@@ -19634,6 +19634,9 @@ ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
 ER_LOG_CANNOT_WRITE_EXTENDED
   eng "Failed to write to %s: %s (%s)"
 
+ER_UPGRADE_WITH_PARTITIONED_TABLES_REJECTED
+  eng "Upgrading from server version %d with partitioned tables and lower_case_table_names == 1 on a case sensitive file system may cause issues, and is therefore prohibited. To upgrade anyway, restart the new server version with the command line option 'upgrade=FORCE'. When upgrade is completed, please execute 'RENAME TABLE <part_table_name> TO <new_table_name>; RENAME TABLE <new_table_name> TO <part_table_name>;' for each of the partitioned tables. Please see the documentation for further information."
+
 ER_KEYRING_AWS_INCORRECT_PROXY
   eng "Incorrect environment variable %s, invalid port: %s"
 
