@@ -12,3 +12,4 @@ col8 INT UNSIGNED
 Running command
 Result of command: 0
 DROP DATABASE TEST_DB;
+Test program success!

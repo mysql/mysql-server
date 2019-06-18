@@ -13,3 +13,4 @@ call mtr.add_suppression("Node failure caused abort of transaction");
 Running command
 Result of command: 0
 DROP DATABASE TEST_DB;
+Test program success!
