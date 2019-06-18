@@ -390,6 +390,15 @@ class Sql_service_command_interface {
   long kill_session(unsigned long session_id);
 
   /**
+    Checks if there is an existing session
+
+    @return the error value returned
+      @retval true  valid
+      @retval false some issue prob happened on connection
+  */
+  bool is_session_valid();
+
+  /**
     Method to set the super_read_only variable "ON".
 
     @return error code during execution of the sql query.
