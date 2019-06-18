@@ -93,6 +93,10 @@ int Sql_service_command_interface::reestablish_connection(
   return establish_session_connection(isolation_param, user, plugin_pointer);
 }
 
+bool Sql_service_command_interface::is_session_valid() {
+  return m_server_interface != NULL;
+}
+
 bool Sql_service_command_interface::is_session_killed() {
   DBUG_ENTER("Sql_service_command_interface::is_session_killed");
   DBUG_ASSERT(m_server_interface != NULL);

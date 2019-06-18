@@ -398,7 +398,13 @@ int Remote_clone_handler::set_clone_ssl_options(
 
 int Remote_clone_handler::fallback_to_recovery_or_leave(
     Sql_service_command_interface *sql_command_interface, bool critical_error) {
-  if (sql_command_interface->set_super_read_only()) {
+  // Do nothing if the server is shutting down.
+  // The stop process will leave the group
+  if (get_server_shutdown_status()) return 0;
+
+  // If it failed to (re)connect to the server or the set read only query
+  if (!sql_command_interface->is_session_valid() ||
+      sql_command_interface->set_super_read_only()) {
     abort_plugin_process(
         "Cannot re-enable the super read only after clone failure.");
     return 1;
