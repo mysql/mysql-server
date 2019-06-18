@@ -3535,11 +3535,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
     handle.getSection(ptr, 0);
 
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
-    memset(nodeFail->theNodes,
-           0,
-           sizeof(nodeFail->theNodes));
-    copy(nodeFail->theNodes, ptr);
-    allFailed.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
+    copy(allFailed.rep.data, ptr);
     releaseSections(handle);
   }
   else
@@ -3630,58 +3626,19 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   // Send node bitmask in linear section.
   LinearSectionPtr lsptr[3];
 
-  lsptr[0].p = nodeFail->theNodes;
+  lsptr[0].p = allFailed.rep.data;
   lsptr[0].sz = packed_nodebitmask_length;
 
-  Uint32 nodes_copy[NdbNodeBitmask::Size];
-  NdbNodeBitmask::assign(nodes_copy, nodeFail->theNodes);
-
-  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
+  /* QMGR and DBDIH are notified first since some of the other block will
+   * send NF_COMPLETREP when they completed NODE_FAILREP.
+   */
   sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB, lsptr, 1);
 
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal,
+  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB, lsptr, 1);
 
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
-
-  NdbNodeBitmask::assign(nodeFail->theNodes, nodes_copy);
-  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB, lsptr, 1);
+  /* DBDIH sends NODE_FAILREP to the other blocks that needs it. */
 
   if (c_stopRec.stopReq.senderRef)
   {
