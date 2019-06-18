@@ -1127,3 +1127,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `tt1`.`x` AS `x`,`tt1`.`y` AS `y`,`tt1`.`z` AS `z`,`tt1`.`c` AS `c`,`tt1`.`d` AS `d`,`tt2`.`x` AS `x`,`tt2`.`y` AS `y`,`tt2`.`z` AS `z`,`tt2`.`c` AS `c`,`tt2`.`d` AS `d` from (/* select#2 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`x` < 7) limit 20) `tt1` join (/* select#3 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`x` < `test`.`t1`.`y`) limit 20) `tt2` where ((`tt2`.`x` = `tt1`.`x`) and (`tt1`.`x` > 5))
 DROP TABLE t1;
+#
+# Bug#29994087: SIG11 AT MATERIALIZEITERATOR::INIT() IN
+#               SQL/COMPOSITE_ITERATORS.CC
+#
+CREATE TABLE t (a INT, b INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+SELECT 1 FROM t
+WHERE (1, 2) IN (SELECT 3, 4 UNION SELECT 5, 6) OR b <= 10;
+1
+DROP TABLE t;

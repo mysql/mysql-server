@@ -739,6 +739,16 @@ WHERE tt1.x> 5 and tt1.x=tt2.x;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#29994087: SIG11 AT MATERIALIZEITERATOR::INIT() IN
+--echo #               SQL/COMPOSITE_ITERATORS.CC
+--echo #
+CREATE TABLE t (a INT, b INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+SELECT 1 FROM t
+WHERE (1, 2) IN (SELECT 3, 4 UNION SELECT 5, 6) OR b <= 10;
+DROP TABLE t;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

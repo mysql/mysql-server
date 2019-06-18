@@ -7244,6 +7244,17 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
     return true;
   }
 
+  /*
+    Don't evaluate subqueries during optimization if they are disabled. This
+    function can be called during execution when doing dynamic range access, and
+    we only want to disable subquery evaluation during optimization, so check if
+    we're in the optimization phase by calling SELECT_LEX_UNIT::is_optimized().
+  */
+  const SELECT_LEX *const select = thd->lex->current_select();
+  if (!select->master_unit()->is_optimized() &&
+      !evaluate_during_optimization(value, select))
+    return true;
+
   // For comparison purposes allow invalid dates like 2000-01-32
   const sql_mode_t orig_sql_mode = thd->variables.sql_mode;
   thd->variables.sql_mode |= MODE_INVALID_DATES;

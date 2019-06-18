@@ -3455,7 +3455,13 @@ struct LEX : public Query_tables_list {
   ulonglong m_statement_options{0};
 
  public:
-  /// @return a bit set of options set for this statement
+  /**
+    Gets the options that have been set for this statement. The options are
+    propagated to the SELECT_LEX objects and should usually be read with
+    #SELECT_LEX::active_options().
+
+    @return a bit set of options set for this statement
+  */
   ulonglong statement_options() { return m_statement_options; }
   /**
     Add options to values of m_statement_options. options is an ORed

@@ -1316,4 +1316,16 @@ class Candidate_table_order {
 
 extern const char *antijoin_null_cond;
 
+/**
+  Checks if an Item, which is constant for execution, can be evaluated during
+  optimization. It cannot be evaluated if it contains a subquery and the
+  OPTION_NO_SUBQUERY_DURING_OPTIMIZATION query option is active.
+
+  @param item    the Item to check
+  @param select  the query block that contains the Item
+  @return false if this Item contains a subquery and subqueries cannot be
+  evaluated during optimization, or true otherwise
+*/
+bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */

@@ -2725,7 +2725,11 @@ struct TABLE_LIST {
   bool is_mergeable() const;
 
   /**
-    @returns true if materializable table contains one or zero rows.
+    Checks if this is a table that contains zero rows or one row, and that can
+    be materialized during optimization.
+
+    @returns true if materializable table contains one or zero rows, and
+    materialization during optimization is permitted
 
     Returning true implies that the table is materialized during optimization,
     so it need not be optimized during execution.

@@ -61,6 +61,7 @@
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Functional_index_error_handler
 #include "sql/handler.h"
+#include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_row.h"
@@ -3556,6 +3557,11 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       const_item = left_item;
     }
 
+    // Don't evaluate subqueries if they are disabled during optimization.
+    if (const_item != nullptr &&
+        !evaluate_during_optimization(const_item, thd->lex->current_select()))
+      return false;
+
     /*
       If the constant expression contains a reference to the field
       (for example, a = (a IS NULL)), we don't want to replace the
@@ -3650,7 +3656,7 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
         return true;
       if (!is_converted) thd->lex->current_select()->cond_count++;
     } else {
-      if (check_simple_equality(thd, left_item, right_item, 0, cond_equal,
+      if (check_simple_equality(thd, left_item, right_item, nullptr, cond_equal,
                                 &is_converted))
         return true;
       thd->lex->current_select()->cond_count++;
@@ -9108,7 +9114,8 @@ static bool make_join_select(JOIN *join, Item *cond) {
   }
   DBUG_EXECUTE("where",
                print_where(thd, const_cond, "constants", QT_ORDINARY););
-  if (const_cond != NULL) {
+  if (const_cond != nullptr &&
+      evaluate_during_optimization(const_cond, join->select_lex)) {
     const bool const_cond_result = const_cond->val_int() != 0;
     if (thd->is_error()) return true;
 
@@ -9695,7 +9702,8 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
         (primary_tables > 1 && rollup.state == ROLLUP::STATE_INITED &&
          select_lex->outer_join))
       *simple_order = 0;  // Must do a temp table to sort
-    else if (!(order_tables & not_const_tables)) {
+    else if ((order_tables & not_const_tables) == 0 &&
+             evaluate_during_optimization(order->item[0], select_lex)) {
       if (order->item[0]->has_subquery()) {
         if (!thd->lex->is_explain()) {
           Opt_trace_array trace_subselect(trace, "subselect_evaluation");
@@ -9864,14 +9872,25 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
 }
 
 /**
+  Checks if a condition can be evaluated during constant folding. It can be
+  evaluated if it is constant during execution and not expensive to evaluate. If
+  it contains a subquery, it should not be evaluated if the option
+  OPTION_NO_SUBQUERY_DURING_OPTIMIZATION is active.
+*/
+static bool can_evaluate_condition(THD *thd, Item *condition) {
+  return condition->const_for_execution() && !condition->is_expensive() &&
+         evaluate_during_optimization(condition, thd->lex->current_select());
+}
+
+/**
   Calls fold_condition. If that made the condition constant for execution,
   simplify and fold again. @see fold_condition() for arguments.
 */
 static bool fold_condition_exec(THD *thd, Item *cond, Item **retcond,
                                 Item::cond_result *cond_value) {
   if (fold_condition(thd, cond, retcond, cond_value)) return true;
-  if (*retcond != nullptr && (*retcond)->const_for_execution() &&
-      !(*retcond)->is_expensive())  // simplify further maybe
+  if (*retcond != nullptr &&
+      can_evaluate_condition(thd, *retcond))  // simplify further maybe
     return remove_eq_conds(thd, *retcond, retcond, cond_value);
   return false;
 }
@@ -9974,13 +9993,13 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
       *retcond = item;
       return false;
     }
-  } else if (cond->const_for_execution() && !cond->is_expensive()) {
+  } else if (can_evaluate_condition(thd, cond)) {
     bool value;
     if (eval_const_cond(thd, cond, &value)) return true;
     *cond_value = value ? Item::COND_TRUE : Item::COND_FALSE;
     *retcond = NULL;
     return false;
-  } else {  // boolan compare function
+  } else {  // Boolean compare function
     *cond_value = cond->eq_cmp_result();
     if (*cond_value == Item::COND_OK) {
       return fold_condition_exec(thd, cond, retcond, cond_value);
@@ -10876,4 +10895,20 @@ static uint32 get_key_length_tmp_table(Item *item) {
     len += HA_KEY_BLOB_LENGTH;
 
   return len;
+}
+
+bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select) {
+  /*
+    Should only be called on items that are const_for_execution(), as those
+    items are the only ones that are allowed to be evaluated during optimization
+    in the first place.
+
+    Additionally, allow items that only access tables in JOIN::const_table_map.
+    This should not be necessary, but the const_for_execution() property is not
+    always updated correctly by update_used_tables() for certain subqueries.
+  */
+  DBUG_ASSERT(item->const_for_execution() ||
+              (item->used_tables() & ~select->join->const_table_map) == 0);
+  return !item->has_subquery() || (select->active_options() &
+                                   OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
 }

@@ -2193,6 +2193,8 @@ class Item_func_like final : public Item_bool_func2 {
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
 
+  void update_used_tables() override;
+
  private:
   /**
     The method updates covering keys depending on the

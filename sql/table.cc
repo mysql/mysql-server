@@ -6469,10 +6469,12 @@ bool TABLE_LIST::is_mergeable() const {
          derived->is_mergeable();
 }
 
-///  @returns true if materializable table contains one or zero rows
 bool TABLE_LIST::materializable_is_const() const {
   DBUG_ASSERT(uses_materialization());
-  return derived_unit()->query_result()->estimated_rowcount <= 1;
+  const SELECT_LEX_UNIT *unit = derived_unit();
+  return unit->query_result()->estimated_rowcount <= 1 &&
+         (unit->first_select()->active_options() &
+          OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
 }
 
 /**
