@@ -318,7 +318,7 @@ typedef void (*get_thread_event_id_v1_t)(unsigned long long *thread_internal_id,
 
 /**
   Get the thread current event.
-  @param thread the instrumented thread
+  @param psi the instrumented thread
   @param [out] thread_internal_id The thread internal id
   @param [out] event_id The per thread event id.
 */
