@@ -177,7 +177,7 @@ uint64_t ProcessLauncher::get_pid() const { return (uint64_t)pi.hProcess; }
 int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
   DWORD dwExit = 0;
   BOOL get_ret{FALSE};
-  if (get_ret = GetExitCodeProcess(pi.hProcess, &dwExit)) {
+  if ((get_ret = GetExitCodeProcess(pi.hProcess, &dwExit))) {
     if (dwExit == STILL_ACTIVE) {
       auto wait_ret = WaitForSingleObject(pi.hProcess, timeout.count());
       switch (wait_ret) {
@@ -250,8 +250,8 @@ int ProcessLauncher::read(char *buf, size_t count,
   DWORD dwBytesRead;
   DWORD dwBytesAvail;
 
-  // at least 1ms
-  auto std_interval = std::max(timeout / 10, 1ms);
+  // at least 1ms, but max 100ms
+  auto std_interval = std::min(100ms, std::max(timeout / 10, 1ms));
 
   do {
     // check if there is data in the pipe before issuing a blocking read
