@@ -1914,7 +1914,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)
   {
     const Uint32 len = signal->getLength();
-    if (len == 1)
+    if (len == 1) // DUMP 1000
     {
       // Start dumping resource limits
       signal->theData[1] = 0;
@@ -1927,7 +1927,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    if (len == 2)
+    if (len == 2) // DUMP 1000 node-ref
     {
       // Dump data and index memory to specific ref
       Uint32 result_ref = signal->theData[1];
@@ -1949,21 +1949,43 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
+    // DUMP 1000 0 0
     Uint32 id = signal->theData[1];
-    Resource_limit rl;
-    if (m_ctx.m_mm.get_resource_limit(id, rl))
+    if (id == 0)
     {
+      infoEvent("Resource global total: %u used: %u",
+                m_ctx.m_mm.get_allocated(),
+                m_ctx.m_mm.get_in_use());
+      infoEvent("Resource reserved total: %u used: %u",
+                m_ctx.m_mm.get_reserved(),
+                m_ctx.m_mm.get_reserved_in_use());
+      infoEvent("Resource shared total: %u used: %u spare: %u",
+                m_ctx.m_mm.get_shared(),
+                m_ctx.m_mm.get_shared_in_use(),
+                m_ctx.m_mm.get_spare());
+      id++;
+    }
+    Resource_limit rl;
+    for (; id <= RG_COUNT; id++)
+    {
+      if (!m_ctx.m_mm.get_resource_limit(id, rl))
+      {
+        continue;
+      }
       if (rl.m_min || rl.m_curr || rl.m_max || rl.m_spare)
       {
-        infoEvent("Resource %d min: %d max: %d curr: %d spare: %d",
+        infoEvent("Resource %u min: %u max: %u curr: %u spare: %u",
                   id, rl.m_min, rl.m_max, rl.m_curr, rl.m_spare);
       }
-
-      signal->theData[0] = 1000;
-      signal->theData[1] = id+1;
-      signal->theData[2] = ~0;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
     }
+    m_ctx.m_mm.dump(); // To data node log
+    return;
+  }
+  if (dumpState->args[0] == DumpStateOrd::DumpPageMemoryOnFail)
+  {
+    const Uint32 len = signal->getLength();
+    const bool dump_on_fail = (len >= 2) ? (signal->theData[1] != 0) : true;
+    m_ctx.m_mm.dump_on_alloc_fail(dump_on_fail);
     return;
   }
   if (arg == DumpStateOrd::CmvmiSchedulerExecutionTimer)

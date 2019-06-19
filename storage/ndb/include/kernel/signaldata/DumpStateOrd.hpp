@@ -141,6 +141,7 @@ public:
     AccDumpFreeOpRecs = 2405,
     AccDumpNotFreeOpRecs = 2406,
     DumpPageMemory = 1000, // Acc & TUP
+    DumpPageMemoryOnFail = 1001,
     TcDumpSetOfScanFragRec = 2500,
     TcDumpOneScanFragRec = 2501,
     TcDumpSetOfScanRec = 2502,
