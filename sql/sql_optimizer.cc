@@ -8058,8 +8058,10 @@ void JOIN::make_outerjoin_info() {
       TABLE_LIST *const outer_join_nest = tbl->outer_join_nest();
       if (outer_join_nest) {
         DBUG_ASSERT(outer_join_nest->nested_join->first_nested != NO_PLAN_IDX);
-        if (!sj_mat_inner || (tab->emb_sj_nest->sj_inner_tables &
-                              outer_join_nest->nested_join->first_nested))
+        if (!sj_mat_inner ||
+            (tab->emb_sj_nest->sj_inner_tables &
+             best_ref[outer_join_nest->nested_join->first_nested]
+                 ->table_ref->map()))
           tab->set_first_upper(outer_join_nest->nested_join->first_nested);
       }
     }
@@ -8085,8 +8087,10 @@ void JOIN::make_outerjoin_info() {
         if (outer_join_nest) {
           DBUG_ASSERT(outer_join_nest->nested_join->first_nested !=
                       NO_PLAN_IDX);
-          if (!sj_mat_inner || (tab->emb_sj_nest->sj_inner_tables &
-                                outer_join_nest->nested_join->first_nested))
+          if (!sj_mat_inner ||
+              (tab->emb_sj_nest->sj_inner_tables &
+               best_ref[outer_join_nest->nested_join->first_nested]
+                   ->table_ref->map()))
             tab->set_first_upper(outer_join_nest->nested_join->first_nested);
         }
       }
