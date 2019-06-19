@@ -94,9 +94,10 @@ class ProcessManager {
    * @param timeout       maximum timeout to wait for the port
    * @param hostname      name/IP address of the network host to check
    */
-  void check_port_ready(ProcessWrapper &process, uint16_t port,
-                        std::chrono::milliseconds = kDefaultPortReadyTimeout,
-                        const std::string &hostname = "127.0.0.1");
+  void check_port_ready(
+      ProcessWrapper &process, uint16_t port,
+      std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
+      const std::string &hostname = "127.0.0.1");
 
   /**
    * ensures given port is NOT ready for accepting connections, prints some
@@ -109,7 +110,7 @@ class ProcessManager {
    */
   void check_port_not_ready(
       ProcessWrapper &process, uint16_t port,
-      std::chrono::milliseconds = kDefaultPortReadyTimeout,
+      std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
       const std::string &hostname = "127.0.0.1");
 
   /** @brief Launches the MySQLRouter process.
