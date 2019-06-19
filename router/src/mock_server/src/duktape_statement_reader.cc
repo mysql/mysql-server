@@ -329,6 +329,25 @@ duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
   return duk_pcall_method(ctx, 0);
 }
 
+static duk_int_t process_get_keys(duk_context *ctx) {
+  duk_push_global_stash(ctx);
+  duk_get_prop_string(ctx, -1, "shared");
+  auto *shared_globals =
+      static_cast<MockServerGlobalScope *>(duk_get_pointer(ctx, -1));
+
+  duk_push_array(ctx);
+  size_t ndx{0};
+  for (const auto &key : shared_globals->get_keys()) {
+    duk_push_lstring(ctx, key.data(), key.size());
+    duk_put_prop_index(ctx, -2, ndx++);
+  }
+
+  duk_remove(ctx, -2);  // 'shared' pointer
+  duk_remove(ctx, -2);  // global stash
+
+  return 1;
+}
+
 static duk_int_t process_get_shared(duk_context *ctx) {
   const char *key = duk_require_string(ctx, 0);
 
@@ -347,6 +366,22 @@ static duk_int_t process_get_shared(duk_context *ctx) {
     duk_push_lstring(ctx, value.c_str(), value.size());
     duk_json_decode(ctx, -1);
   }
+
+  duk_remove(ctx, -2);  // 'shared' pointer
+  duk_remove(ctx, -2);  // global stash
+
+  return 1;
+}
+
+static duk_int_t process_erase(duk_context *ctx) {
+  const char *key = duk_require_string(ctx, 0);
+
+  duk_push_global_stash(ctx);
+  duk_get_prop_string(ctx, -1, "shared");
+  auto *shared_globals =
+      static_cast<MockServerGlobalScope *>(duk_get_pointer(ctx, -1));
+
+  duk_push_int(ctx, shared_globals->erase(key));
 
   duk_remove(ctx, -2);  // 'shared' pointer
   duk_remove(ctx, -2);  // global stash
@@ -491,6 +526,12 @@ DuktapeStatementReader::DuktapeStatementReader(
   duk_push_c_function(ctx, process_set_shared, 2);
   duk_put_prop_string(ctx, -2, "set_shared");
 
+  duk_push_c_function(ctx, process_get_keys, 0);
+  duk_put_prop_string(ctx, -2, "get_keys");
+
+  duk_push_c_function(ctx, process_erase, 1);
+  duk_put_prop_string(ctx, -2, "erase");
+
   duk_pop(ctx);
 
   // mysqld = {
@@ -516,12 +557,26 @@ DuktapeStatementReader::DuktapeStatementReader(
       duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
                           "function () {\n"
                           "  return new Proxy({}, {\n"
-                          "    get: function(targ, key, recv) {return "
-                          "process.get_shared(key);},\n"
-                          "    set: function(targ, key, val, recv) {return "
-                          "process.set_shared(key, val);}\n"
+                          "    ownKeys: function(target) {\n"
+                          "      process.get_keys().forEach(function(el) {\n"
+                          "        Object.defineProperty(\n"
+                          "          target, el, {\n"
+                          "            configurable: true,\n"
+                          "            enumerable: true});\n"
+                          "      });\n"
+                          "      return Object.keys(target);\n"
+                          "    },\n"
+                          "    get: function(target, key, recv) {\n"
+                          "      return process.get_shared(key);},\n"
+                          "    set: function(target, key, val, recv) {\n"
+                          "      return process.set_shared(key, val);},\n"
+                          "    deleteProperty: function(target, prop) {\n"
+                          "      if (process.erase(prop) > 0) {\n"
+                          "        delete target[prop];\n"
+                          "      }\n"
+                          "    },\n"
                           "  });\n"
-                          "}")) {
+                          "}\n")) {
     throw DuktapeRuntimeError(ctx, -1);
   }
   if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
