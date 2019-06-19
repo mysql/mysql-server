@@ -83,14 +83,14 @@ size_t ndb_thd_query_length(const THD* thd);
 
  @return true if thread matches condition
 */
-bool ndb_thd_is_binlog_thread(const class THD* thd);
+bool ndb_thd_is_binlog_thread(const THD* thd);
 
 /*
  @brief Check if THD is a "background thread"
 
  @return true if thread matches condition
 */
-bool ndb_thd_is_background_thread(const class THD* thd);
+bool ndb_thd_is_background_thread(const THD* thd);
 
 /*
  @brief Register ndbcluster for a statement and optionally a transaction.
@@ -102,6 +102,23 @@ bool ndb_thd_is_background_thread(const class THD* thd);
 
  @note trans_register_ha() is idempotent. So this function is idempotent too.
 */
-void ndb_thd_register_trans(class THD *thd, bool register_trans);
+void ndb_thd_register_trans(THD *thd, bool register_trans);
+
+/*
+  @brief Clear conditions accumulated in THD
+
+  @param thd  Thread handle
+*/
+void clear_thd_conditions(THD *thd);
+
+enum condition_logging_level { INFO, WARNING, ERROR };
+/*
+  @brief Log and then clear conditions accumulated in THD
+
+  @param thd            Thread handle
+  @param logging_level  Level of the log messages i.e. info, warning, or error
+*/
+void log_and_clear_thd_conditions(
+  THD *thd, condition_logging_level logging_level);
 
 #endif

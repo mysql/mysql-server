@@ -408,6 +408,9 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
     ndb_log_info("Failed to acquire MDL on logfile group '%s'",
                  lfg_name.c_str());
     temp_error = true;
+    // Since it's a temporary error, the THD conditions should be cleared but
+    // not logged
+    clear_thd_conditions(thd);
     return false;
   }
 
@@ -420,15 +423,16 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   bool exists_in_NDB;
   if (!ndb_logfile_group_exists(dict, lfg_name, exists_in_NDB)) {
-    ndb_log_info("Failed to determine if logfile group '%s' exists in NDB",
-                 lfg_name.c_str());
+    ndb_log_warning("Failed to determine if logfile group '%s' exists in NDB",
+                    lfg_name.c_str());
     return false;
   }
 
   bool exists_in_DD;
   if (!dd_client.logfile_group_exists(lfg_name.c_str(), exists_in_DD)) {
-    ndb_log_info("Failed to determine if logfile group '%s' exists in DD",
-                 lfg_name.c_str());
+    log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
+    ndb_log_warning("Failed to determine if logfile group '%s' exists in DD",
+                    lfg_name.c_str());
     return false;
   }
 
@@ -441,6 +445,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
     // Logfile group exists in DD but not in NDB. Correct this by removing the
     // logfile group from DD
     if (!dd_client.drop_logfile_group(lfg_name.c_str())) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop logfile group '%s' in DD",
                     lfg_name.c_str());
       return false;
@@ -462,13 +467,14 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
   int ndb_id, ndb_version;
   if (!ndb_get_logfile_group_id_and_version(dict, lfg_name, ndb_id,
                                             ndb_version)) {
-    ndb_log_info("Failed to get id and version of logfile group '%s'",
-                 lfg_name.c_str());
+    ndb_log_error("Failed to get id and version of logfile group '%s'",
+                  lfg_name.c_str());
     return false;
   }
   if (!dd_client.install_logfile_group(lfg_name.c_str(), undofile_names, ndb_id,
                                        ndb_version,
                                        false /* force_overwrite */)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to install logfile group '%s' in DD",
                   lfg_name.c_str());
     return false;
@@ -484,6 +490,9 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   if (!dd_client.mdl_lock_tablespace_exclusive(ts_name.c_str(), true, 10)) {
     ndb_log_info("Failed to acquire MDL on tablespace '%s'", ts_name.c_str());
     temp_error = true;
+    // Since it's a temporary error, the THD conditions should be cleared but
+    // not logged
+    clear_thd_conditions(thd);
     return false;
   }
 
@@ -496,15 +505,16 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   bool exists_in_NDB;
   if (!ndb_tablespace_exists(dict, ts_name, exists_in_NDB)) {
-    ndb_log_info("Failed to determine if tablespace '%s' exists in NDB",
-                 ts_name.c_str());
+    ndb_log_warning("Failed to determine if tablespace '%s' exists in NDB",
+                    ts_name.c_str());
     return false;
   }
 
   bool exists_in_DD;
   if (!dd_client.tablespace_exists(ts_name.c_str(), exists_in_DD)) {
-    ndb_log_info("Failed to determine if tablespace '%s' exists in DD",
-                 ts_name.c_str());
+    log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
+    ndb_log_warning("Failed to determine if tablespace '%s' exists in DD",
+                    ts_name.c_str());
     return false;
   }
 
@@ -517,6 +527,7 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
     // Tablespace exists in DD but not in NDB. Correct this by removing the
     // tablespace from DD
     if (!dd_client.drop_tablespace(ts_name.c_str())) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop tablespace '%s' in DD", ts_name.c_str());
       return false;
     }
@@ -542,6 +553,7 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   }
   if (!dd_client.install_tablespace(ts_name.c_str(), datafile_names, ndb_id,
                                     ndb_version, false /* force_overwrite */)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to install tablespace '%s' in DD", ts_name.c_str());
     return false;
   }
@@ -592,6 +604,9 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     ndb_log_info("Failed to acquire MDL on table '%s.%s'", db_name.c_str(),
                  table_name.c_str());
     temp_error = true;
+    // Since it's a temporary error, the THD conditions should be cleared but
+    // not logged
+    clear_thd_conditions(thd);
     return false;
   }
 
@@ -606,16 +621,17 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   NdbDictionary::Dictionary *dict = ndb->getDictionary();
   bool exists_in_NDB;
   if (!ndb_table_exists(dict, db_name, table_name, exists_in_NDB)) {
-    ndb_log_info("Failed to determine if table '%s.%s' exists in NDB",
-                 db_name.c_str(), table_name.c_str());
+    ndb_log_warning("Failed to determine if table '%s.%s' exists in NDB",
+                    db_name.c_str(), table_name.c_str());
     return false;
   }
 
   bool exists_in_DD;
   if (!dd_client.table_exists(db_name.c_str(), table_name.c_str(),
                               exists_in_DD)) {
-    ndb_log_info("Failed to determine if table '%s.%s' exists in DD",
-                 db_name.c_str(), table_name.c_str());
+    log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
+    ndb_log_warning("Failed to determine if table '%s.%s' exists in DD",
+                    db_name.c_str(), table_name.c_str());
     return false;
   }
 
@@ -630,8 +646,9 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     bool local_table;
     if (!dd_client.is_local_table(db_name.c_str(), table_name.c_str(),
                                   local_table)) {
-      ndb_log_info("Failed to determine if table '%s.%s' was a local table",
-                   db_name.c_str(), table_name.c_str());
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
+      ndb_log_error("Failed to determine if table '%s.%s' was a local table",
+                    db_name.c_str(), table_name.c_str());
       return false;
     }
     if (local_table) {
@@ -643,12 +660,14 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
     if (!dd_client.remove_table(db_name.c_str(), table_name.c_str(),
                                 &invalidator)) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop table '%s.%s' in DD", db_name.c_str(),
                     table_name.c_str());
       return false;
     }
 
     if (!invalidator.invalidate()) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to invalidate tables referencing table '%s.%s' in "
           "DD",
@@ -659,15 +678,15 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     // Drop share if it exists
     drop_ndb_share(db_name.c_str(), table_name.c_str());
     ndb_tdc_close_cached_table(thd, db_name.c_str(), table_name.c_str());
-    dd_client.commit();
-    ndb_log_info("Table '%s.%s' dropped from DD", db_name.c_str(),
-                 table_name.c_str());
 
     // Invalidate the table in NdbApi
     if (ndb->setDatabaseName(db_name.c_str())) {
       ndb_log_error("Failed to set database name of NDB object");
       return false;
     }
+    dd_client.commit();
+    ndb_log_info("Table '%s.%s' dropped from DD", db_name.c_str(),
+                 table_name.c_str());
     Ndb_table_guard ndbtab_guard(dict, table_name.c_str());
     ndbtab_guard.invalidate();
     return true;
@@ -702,6 +721,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
             db_name.c_str(), table_name.c_str(),
             static_cast<const unsigned char *>(unpacked_data), unpacked_len,
             false)) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to migrate table '%s.%s' with extra metadata "
           "version 1",
@@ -712,6 +732,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     free(unpacked_data);
     const dd::Table *dd_table;
     if (!dd_client.get_table(db_name.c_str(), table_name.c_str(), &dd_table)) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to get table '%s.%s' from DD after it was installed",
           db_name.c_str(), table_name.c_str());
@@ -719,8 +740,9 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     }
     if (ndbcluster_binlog_setup_table(thd, ndb, db_name.c_str(),
                                       table_name.c_str(), dd_table) != 0) {
-      ndb_log_info("Failed to setup binlogging for table '%s.%s'",
-                   db_name.c_str(), table_name.c_str());
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
+      ndb_log_error("Failed to setup binlogging for table '%s.%s'",
+                    db_name.c_str(), table_name.c_str());
       return false;
     }
     dd_client.commit();
@@ -739,14 +761,18 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
       ndb_log_info("Failed to acquire MDL on tablespace '%s'",
                    tablespace_name.c_str());
       temp_error = true;
+      // Since it's a temporary error, the THD conditions should be cleared but
+      // not logged
+      clear_thd_conditions(thd);
       return false;
     }
 
     bool tablespace_exists;
     if (!dd_client.tablespace_exists(tablespace_name.c_str(),
                                      tablespace_exists)) {
-      ndb_log_error("Failed to determine if tablespace '%s' exists in DD",
-                    tablespace_name.c_str());
+      log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
+      ndb_log_warning("Failed to determine if tablespace '%s' exists in DD",
+                      tablespace_name.c_str());
       return false;
     }
     if (!tablespace_exists) {
@@ -770,6 +796,9 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
             "hasn't been synced yet",
             db_name.c_str(), table_name.c_str(), tablespace_name.c_str());
         temp_error = true;
+        // Since it's a temporary error, the THD conditions should be cleared
+        // but not logged
+        clear_thd_conditions(thd);
         return false;
       }
     }
@@ -779,26 +808,30 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
                                tab->getObjectId(), tab->getObjectVersion(),
                                tab->getPartitionCount(), tablespace_name, false,
                                &invalidator)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to install table '%s.%s' in DD", db_name.c_str(),
                   table_name.c_str());
     return false;
   }
 
   if (!invalidator.invalidate()) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to invalidate tables referencing table '%s.%s' in DD",
                   db_name.c_str(), table_name.c_str());
     return false;
   }
   const dd::Table *dd_table;
   if (!dd_client.get_table(db_name.c_str(), table_name.c_str(), &dd_table)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to get table '%s.%s' from DD after it was installed",
                   db_name.c_str(), table_name.c_str());
     return false;
   }
   if (ndbcluster_binlog_setup_table(thd, ndb, db_name.c_str(),
                                     table_name.c_str(), dd_table) != 0) {
-    ndb_log_info("Failed to setup binlogging for table '%s.%s'",
-                 db_name.c_str(), table_name.c_str());
+    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
+    ndb_log_error("Failed to setup binlogging for table '%s.%s'",
+                  db_name.c_str(), table_name.c_str());
     return false;
   }
   dd_client.commit();

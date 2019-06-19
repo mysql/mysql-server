@@ -27,6 +27,7 @@
 #include "my_dbug.h"
 #include "mysql/thread_type.h"
 #include "sql/handler.h"
+#include "sql/ndb_log.h"           // ndb_log_*
 #include "sql/ndb_thd_ndb.h"
 #include "sql/sql_class.h"
 
@@ -115,4 +116,35 @@ void ndb_thd_register_trans(THD *thd, bool register_trans)
       thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
     trans_register_ha(thd, true, ndbcluster_hton, nullptr);
   }
+}
+
+void clear_thd_conditions(THD *thd) {
+  // Remove the THD conditions
+  thd->get_stmt_da()->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_condition_info(thd);
+}
+
+void log_and_clear_thd_conditions(
+  THD *thd, condition_logging_level logging_level) {
+  // Print THD's list of conditions to error log
+  Diagnostics_area::Sql_condition_iterator it(
+    thd->get_stmt_da()->sql_conditions());
+  const Sql_condition *err;
+  while ((err = it++)) {
+    switch (logging_level) {
+      case condition_logging_level::INFO: {
+        ndb_log_info("Got error '%u: %s'", err->mysql_errno(),
+                     err->message_text());
+      } break;
+      case condition_logging_level::WARNING: {
+        ndb_log_warning("Got error '%u: %s'", err->mysql_errno(),
+                        err->message_text());
+      } break;
+      case condition_logging_level::ERROR: {
+        ndb_log_error("Got error '%u: %s'", err->mysql_errno(),
+                      err->message_text());
+      } break;
+    }
+  }
+  clear_thd_conditions(thd);
 }

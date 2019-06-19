@@ -17,6 +17,7 @@ SET GLOBAL ndb_metadata_check_interval = 5;
 call mtr.add_suppression("NDB: Table upgrade required");
 call mtr.add_suppression("NDB: Table definition contains obsolete data types");
 call mtr.add_suppression("NDB: Failed to migrate table");
+call mtr.add_suppression("NDB: Got error '1296: Table definition contains obsolete data types");
 --enable_query_log
 
 --let $initial_detected_count = $current_changes_detected

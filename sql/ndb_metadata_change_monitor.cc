@@ -107,6 +107,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
   // Fetch list of logfile groups from DD
   std::unordered_set<std::string> lfg_in_DD;
   if (!dd_client.fetch_ndb_logfile_group_names(lfg_in_DD)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::INFO);
     log_info("Failed to fetch logfile group names from DD");
     return false;
   }
@@ -154,6 +155,7 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
   // Fetch list of tablespaces from DD
   std::unordered_set<std::string> tablespaces_in_DD;
   if (!dd_client.fetch_ndb_tablespace_names(tablespaces_in_DD)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::INFO);
     log_info("Failed to fetch tablespace names from DD");
     return false;
   }
@@ -200,6 +202,7 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
   // Lock the schema in DD
   Ndb_dd_client dd_client(thd);
   if (!dd_client.mdl_lock_schema(schema_name.c_str())) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::INFO);
     log_info("Failed to MDL lock schema '%s'", schema_name.c_str());
     return false;
   }
@@ -209,6 +212,7 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
   std::unordered_set<std::string> local_tables_in_DD;
   if (!dd_client.get_table_names_in_schema(
           schema_name.c_str(), &ndb_tables_in_DD, &local_tables_in_DD)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::INFO);
     log_info("Failed to get list of tables in schema '%s' from DD",
              schema_name.c_str());
     return false;
@@ -279,6 +283,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes(THD *thd,
   Ndb_dd_client dd_client(thd);
   std::vector<std::string> schema_names;
   if (!dd_client.fetch_schema_names(&schema_names)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::INFO);
     log_info("Failed to fetch schema names from DD");
     return false;
   }
