@@ -33,17 +33,15 @@ id
 2
 id
 3
-SELECT SUBSTRING(@status,LOCATE('LATEST DETECTED DEADLOCK',@status)) INTO @status;
-SELECT SUBSTRING(@status,1,LOCATE('TRANSACTIONS',@status)-1) INTO @status;
-SELECT @status;
-@status
-LATEST DETECTED DEADLOCK
+SHOW ENGINE INNODB STATUS;
+Type	Name	Status
+InnoDB		
 ------------------------
 %DATE% %HEXADECIMAL%
 *** (1) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-LOCK WAIT 3 lock struct(s), heap size 1200, 2 row lock(s)
+LOCK WAIT 3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 1 FOR UPDATE
 
@@ -66,7 +64,7 @@ Record lock, heap no 2 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (2) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-3 lock struct(s), heap size 1200, 2 row lock(s)
+3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 4 FOR UPDATE
 
@@ -89,7 +87,7 @@ Record lock, heap no 5 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (3) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-LOCK WAIT 3 lock struct(s), heap size 1200, 2 row lock(s)
+LOCK WAIT 3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 3 FOR UPDATE
 
@@ -112,7 +110,7 @@ Record lock, heap no 4 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (4) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-LOCK WAIT 3 lock struct(s), heap size 1200, 2 row lock(s)
+LOCK WAIT 3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 2 FOR UPDATE
 
@@ -177,17 +175,15 @@ id
 2
 id
 3
-SELECT SUBSTRING(@status,LOCATE('LATEST DETECTED DEADLOCK',@status)) INTO @status;
-SELECT SUBSTRING(@status,1,LOCATE('TRANSACTIONS',@status)-1) INTO @status;
-SELECT @status;
-@status
-LATEST DETECTED DEADLOCK
+SHOW ENGINE INNODB STATUS;
+Type	Name	Status
+InnoDB		
 ------------------------
 %DATE% %HEXADECIMAL%
 *** (1) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-LOCK WAIT 3 lock struct(s), heap size 1200, 2 row lock(s)
+LOCK WAIT 3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 1 FOR UPDATE
 
@@ -210,7 +206,7 @@ Record lock, heap no 2 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (2) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-5 lock struct(s), heap size 1200, 8 row lock(s)
+5 lock struct(s), heap size %NUMBER%, 8 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 4 FOR UPDATE
 
@@ -233,7 +229,7 @@ Record lock, heap no 5 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (3) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-LOCK WAIT 3 lock struct(s), heap size 1200, 2 row lock(s)
+LOCK WAIT 3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 3 FOR UPDATE
 
@@ -256,7 +252,7 @@ Record lock, heap no 4 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (4) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-LOCK WAIT 3 lock struct(s), heap size 1200, 2 row lock(s)
+LOCK WAIT 3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 2 FOR UPDATE
 
