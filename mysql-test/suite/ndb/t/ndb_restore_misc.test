@@ -435,6 +435,7 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 1
 --exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
 --remove_file $dump_file
 --enable_query_log
 select output_line from ndb_restore_output where output_line like '%t2_c%' order by output_line;
@@ -700,6 +701,7 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 2
 --exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
 --remove_file $dump_file
 --enable_query_log
 select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
@@ -708,6 +710,7 @@ select output_line from ndb_restore_output where output_line like '%not specifie
 --error 2
 --exec $NDB_RESTORE --nodeid=2 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
 --remove_file $dump_file
 --enable_query_log
 select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
