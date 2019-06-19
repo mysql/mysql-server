@@ -325,7 +325,7 @@ class Protocol_callback final : public Protocol {
     @return
       algorithm name if compression is supported else null
   */
-  virtual char *get_compression_algorithm();
+  char *get_compression_algorithm() override;
 
   /**
    Checks if compression is enabled and return compression level.
@@ -333,7 +333,7 @@ class Protocol_callback final : public Protocol {
     @return
       compression level if compression is supported else 0
   */
-  virtual uint get_compression_level();
+  uint get_compression_level() override;
 
   /**
     Called BEFORE sending metadata

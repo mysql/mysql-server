@@ -117,12 +117,12 @@ class Protocol_classic : public Protocol {
   bool flush() override;
   void end_partial_result_set() override;
 
-  virtual void start_row() = 0;
-  virtual bool end_row();
-  virtual uint get_rw_status();
-  virtual bool get_compression();
-  virtual char *get_compression_algorithm();
-  virtual uint get_compression_level();
+  bool end_row() override;
+  uint get_rw_status() override;
+  bool get_compression() override;
+
+  char *get_compression_algorithm() override;
+  uint get_compression_level() override;
 
   bool start_result_metadata(uint num_cols, uint flags,
                              const CHARSET_INFO *resultcs) override;
