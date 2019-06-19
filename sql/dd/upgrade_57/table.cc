@@ -1785,6 +1785,23 @@ bool migrate_plugin_table_to_dd(THD *thd) {
 }
 
 /**
+  Check whether the table is a NDB table. This is done by checking for the
+  presence of a <table_name>.ndb file in the data directory. Note that these
+  files are permanently removed at a later step in the upgrade
+*/
+static bool is_ndb_table(const char *db_name, const char *table_name) {
+  char path[FN_REFLEN];
+  build_table_filename(path, FN_REFLEN - 1, db_name, table_name,
+                       NDB_EXT.c_str(), 0);
+
+  if (access(path, F_OK)) {
+    if (errno == ENOENT) return false;
+  }
+
+  return true;
+}
+
+/**
   Scan the database to identify all .frm files.
   Triggers existence will be checked only for tables found here.
 */
@@ -1845,6 +1862,9 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
           strcmp(schema_name, PERFORMANCE_SCHEMA_DB_NAME.str) == 0;
 
       if (is_skip_table) continue;
+
+      // Skip NDB tables which are upgraded later by the ndbcluster plugin
+      if (is_ndb_table(schema_name, table_name)) continue;
 
       log_sink_buffer_check_timeout();
 
