@@ -8542,11 +8542,10 @@ lookup_lock(const void * ptr)
 #endif
 
 Uint32
-mt_get_thread_references_for_blocks_no_proxy(const Uint32 blocks[],
-                                             Uint32 dst[], Uint32 len)
+mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
+                                   BlockThreadBitmask& mask)
 {
   Uint32 cnt = 0;
-  Bitmask<(MAX_BLOCK_THREADS+31)/32> mask;
   for (Uint32 i = 0; blocks[i] != 0; i++)
   {
     Uint32 block = blocks[i];
@@ -8570,8 +8569,7 @@ mt_get_thread_references_for_blocks_no_proxy(const Uint32 blocks[],
         continue;
 
       mask.set(thr_no);
-      require(cnt < len);
-      dst[cnt++] = numberToRef(block, instance, 0);
+      cnt++;
     }
   }
   require(mask.count() == cnt);

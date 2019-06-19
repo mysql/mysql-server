@@ -69,6 +69,7 @@
 #include "Ndbinfo.hpp"
 #include "portlib/NdbMem.h"
 #include <ndb_global.h>
+#include "BlockThreadBitmask.hpp"
 
 struct CHARSET_INFO;
 
@@ -624,6 +625,7 @@ public:
 private:
   struct SyncThreadRecord
   {
+    BlockThreadBitmask m_threads;
     Callback m_callback;
     Uint32 m_cnt;
     Uint32 nextPool;

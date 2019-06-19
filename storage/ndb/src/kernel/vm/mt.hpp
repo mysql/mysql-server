@@ -24,9 +24,11 @@
 #define ndb_mt_hpp
 
 #include <kernel_types.h>
+#include <ndb_limits.h>
 #include <TransporterDefinitions.hpp>
 #include <portlib/NdbTick.h>
 #include <SimulatedBlock.hpp>
+#include <util/Bitmask.hpp>
 
 #define JAM_FILE_ID 275
 
@@ -43,6 +45,8 @@
                            MAX_NDBMT_LQH_THREADS +  \
                            MAX_NDBMT_TC_THREADS +   \
                            MAX_NDBMT_RECEIVE_THREADS)
+
+static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -116,15 +120,11 @@ int mt_checkDoJob(Uint32 receiver_thread_idx);
 bool NdbIsMultiThreaded();
 
 /**
- * Get list of BlockReferences so that
- *   each thread holding an instance of any block in blocks[] get "covered"
- *   (excluding proxy block instances)
- *
- * eg. calling it with DBLQH, will return a block-reference to *a* block
- *     in each of the threads that has an DBLQH instance
+ * Get a bitset with a set bit for each thread holding an instance of any block
+ * in blocks[], not looking at proxy block instances.
  */
-Uint32 mt_get_thread_references_for_blocks_no_proxy(const Uint32 blocks[],
-                                                    Uint32 dst[], Uint32 len);
+Uint32 mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
+                                          BlockThreadBitmask& mask);
 
 /**
  * wakeup thread running block

@@ -280,6 +280,8 @@
 
 #define NDB_DEFAULT_LOG_PARTS 4
 
+#define NDBMT_MAIN_THREADS         2 /* Without receiver threads */
+
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_MAX_LOG_PARTS          4
 #define MAX_NDBMT_TC_THREADS       2

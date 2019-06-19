@@ -4712,30 +4712,36 @@ SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
   execute(signal, copy, 0);
 #else
   jam();
-  Uint32 ref[32]; // max threads
-  Uint32 cnt = mt_get_thread_references_for_blocks_no_proxy(blocks,
-                                                            ref,
-                                                            NDB_ARRAY_SIZE(ref));
+
+  Ptr<SyncThreadRecord> ptr;
+  ndbrequire(c_syncThreadPool.seize(ptr));
+  ptr.p->m_threads.clear();
+  ptr.p->m_cnt = 0;
+  ptr.p->m_callback = cb;
+
+  Uint32 cnt = mt_get_threads_for_blocks_no_proxy(blocks, ptr.p->m_threads);
+
   if (cnt == 0)
   {
     jam();
     Callback copy = cb;
+    c_syncThreadPool.release(ptr);
     execute(signal, copy, 0);
     return;
   }
 
-  Ptr<SyncThreadRecord> ptr;
-  ndbrequire(c_syncThreadPool.seize(ptr));
-  ptr.p->m_cnt = cnt;
-  ptr.p->m_callback = cb;
-
   signal->theData[0] = reference();
   signal->theData[1] = ptr.i;
   signal->theData[2] = Uint32(prio);
-  for (Uint32 i = 0; i<cnt; i++)
+  for (Uint32 instance = ptr.p->m_threads.find_first();
+       instance != BlockThreadBitmask::NotFound;
+       instance = ptr.p->m_threads.find_next(instance + 1))
   {
-    sendSignal(ref[i], GSN_SYNC_THREAD_REQ, signal, 3, prio);
+    Uint32 ref = numberToRef(THRMAN, instance, 0);
+    sendSignal(ref, GSN_SYNC_THREAD_REQ, signal, 3, prio);
+    ptr.p->m_cnt++;
   }
+  ndbrequire(ptr.p->m_cnt == cnt);
 #endif
 }
 
@@ -4763,7 +4769,8 @@ SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
     execute(signal, copy, 0);
     return;
   }
-  ptr.p->m_cnt --;
+  ndbrequire(ptr.p->m_cnt > 1);
+  ptr.p->m_cnt--;
 }
 
 void

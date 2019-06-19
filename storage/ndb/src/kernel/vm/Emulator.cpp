@@ -646,6 +646,7 @@ static const char* const jamFileNames[] =
    "ComposedSlotPool.hpp",               // 510
    "IntrusiveTags.hpp",                  // 511
    "Sysfile.cpp",                        // 512
+   "BlockThreadBitmask.hpp",             // 513
    };
 
 bool 
