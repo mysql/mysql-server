@@ -16148,10 +16148,15 @@ static void test_bug31669() {
   rc = mysql_query(mysql, query);
   myquery(rc);
 
-  strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
+  strxmov(query, "DROP USER '", user, "'@'localhost'", NullS);
   rc = mysql_query(mysql, query);
   myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 2);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 0);
+
+  strxmov(query, "DROP USER '", user, "'@'%'", NullS);
+  rc = mysql_query(mysql, query);
+  myquery(rc);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 0);
 
   mysql_close(l_mysql);
 }
