@@ -74,7 +74,7 @@ SET PERSIST group_replication_start_on_boot = @@GLOBAL.group_replication_start_o
 SET PERSIST group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 SET PERSIST group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 
-include/assert.inc ['Expect 52 persisted variables.']
+include/assert.inc ['Expect 53 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -83,9 +83,9 @@ include/assert.inc ['Expect 52 persisted variables.']
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 52 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 52 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 52 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 53 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 53 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 53 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST.

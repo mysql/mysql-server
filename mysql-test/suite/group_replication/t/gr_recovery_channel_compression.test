@@ -20,7 +20,7 @@
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --disable_query_log
---let $saved_gr_recovery_compression_algorithm = `SELECT @@GLOBAL.group_replication_recovery_compression_algorithm;`
+--let $saved_gr_recovery_compression_algorithm = `SELECT @@GLOBAL.group_replication_recovery_compression_algorithms;`
 --let $saved_gr_recovery_compression_level = `SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level;`
 --enable_query_log
 
@@ -44,19 +44,19 @@ CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 --source include/rpl_connection.inc
 
 --error ER_WRONG_TYPE_FOR_VAR
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= 1;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= 1;
 
 --error ER_WRONG_TYPE_FOR_VAR
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= 1.0;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= 1.0;
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "foo";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "foo";
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "ZLIB";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "ZLIB";
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "ZSTD";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "ZSTD";
 
 --error ER_WRONG_TYPE_FOR_VAR
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= "bar";
@@ -71,19 +71,19 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1.0;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "zlib";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zlib";
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "zstd";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "uncompressed";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "uncompressed";
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
 --error ER_WRONG_VALUE_FOR_VAR
@@ -95,27 +95,27 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= DEFAULT;
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= DEFAULT;
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "zlib";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zlib";
 --source ../include/gr_recovery_channel_block.inc
 --let $assert_text= 'Algorithm must be zlib'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="group_replication_recovery" AND COMPRESSION_ALGORITHM="zlib", count, 1] = 1
 --source include/assert.inc
 --source ../include/gr_recovery_channel_resume.inc
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= DEFAULT;
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= DEFAULT;
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "zstd";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
 --source ../include/gr_recovery_channel_block.inc
 --let $assert_text= 'Algorithm must be zstd and level must be 3 (the default)'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="group_replication_recovery" AND COMPRESSION_ALGORITHM="zstd" AND ZSTD_COMPRESSION_LEVEL=3, count, 1] = 1
 --source include/assert.inc
 --source ../include/gr_recovery_channel_resume.inc
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "zstd";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1;
 --source ../include/gr_recovery_channel_block.inc
 --let $assert_text= 'Algorithm must be zstd and level must be 1'
@@ -123,7 +123,7 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1;
 --source include/assert.inc
 --source ../include/gr_recovery_channel_resume.inc
 
-SET @@GLOBAL.group_replication_recovery_compression_algorithm= "zstd";
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 22;
 --source ../include/gr_recovery_channel_block.inc
 --let $assert_text= 'Algorithm must be zstd and level must be 22'
@@ -140,7 +140,7 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 22;
 DROP TABLE t1;
 
 --disable_query_log
---eval SET @@GLOBAL.group_replication_recovery_compression_algorithm= "$saved_gr_recovery_compression_algorithm"
+--eval SET @@GLOBAL.group_replication_recovery_compression_algorithms= "$saved_gr_recovery_compression_algorithm"
 --eval SET @@GLOBAL.group_replication_recovery_zstd_compression_level= $saved_gr_recovery_compression_level
 --enable_query_log
 
