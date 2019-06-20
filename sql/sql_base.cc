@@ -4164,8 +4164,10 @@ bool Open_table_context::recover_from_failed_open() {
       tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
                        m_failed_table->table_name, false);
       if (ha_create_table_from_engine(m_thd, m_failed_table->db,
-                                      m_failed_table->table_name))
+                                      m_failed_table->table_name)) {
+        result = true;
         break;
+      }
 
       m_thd->get_stmt_da()->reset_condition_info(m_thd);
       m_thd->clear_error();  // Clear error message
