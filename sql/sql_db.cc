@@ -857,26 +857,25 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
 
   tot_list_next_local = tot_list_next_global = &tot_list;
 
-  std::vector<const dd::Abstract_table *> sch_tables;
-  if (thd->dd_client()->fetch_schema_components(&schema, &sch_tables))
+  std::vector<dd::String_type> sch_tables;
+  /*
+    Skip tables which are implicitly created and dropped by SE (e.g.
+    InnoDB's auxiliary tables for FTS). Other hidden tables (e.g.
+    left-over #sql... tables from crashed non-atomic ALTER TABLEs)
+    should be dropped by DROP DATABASE.
+  */
+  if (thd->dd_client()->fetch_schema_table_names_not_hidden_by_se(&schema,
+                                                                  &sch_tables))
     return true;
 
-  for (const dd::Abstract_table *table : sch_tables) {
-    /*
-      Skip tables which are implicitly created and dropped by SE (e.g.
-      InnoDB's auxiliary tables for FTS). Other hidden tables (e.g.
-      left-over #sql... tables from crashed non-atomic ALTER TABLEs)
-      should be dropped by DROP DATABASE.
-    */
-    if (table->hidden() == dd::Abstract_table::HT_HIDDEN_SE) continue;
-
+  for (const dd::String_type table_name : sch_tables) {
     TABLE_LIST *table_list = new (thd->mem_root) TABLE_LIST;
     if (table_list == nullptr) return true; /* purecov: inspected */
 
     table_list->db = thd->mem_strdup(db);
     table_list->db_length = strlen(db);
-    table_list->table_name = thd->mem_strdup(table->name().c_str());
-    table_list->table_name_length = table->name().length();
+    table_list->table_name = thd->mem_strdup(table_name.c_str());
+    table_list->table_name_length = table_name.length();
 
     table_list->open_type = OT_BASE_ONLY;
 
@@ -887,7 +886,7 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
 
     table_list->alias = table_list->table_name;  // If lower_case_table_names=2
     table_list->internal_tmp_table =
-        is_prefix(table->name().c_str(), tmp_file_prefix);
+        is_prefix(table_name.c_str(), tmp_file_prefix);
     MDL_REQUEST_INIT(&table_list->mdl_request, MDL_key::TABLE, table_list->db,
                      table_list->table_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
     /* Link into list */

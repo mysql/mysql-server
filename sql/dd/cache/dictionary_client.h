@@ -860,9 +860,6 @@ class Dictionary_client {
     Fetch the names of the components in the schema. Hidden components are
     ignored. E.g., Object with dd::Table::hidden() == true will be ignored.
 
-    @note          This is an intermediate solution which will be replaced
-                   by the implementation in WL#6599.
-
     @tparam        T              Type of object to retrieve names for.
     @param         schema         Schema for which to get component names.
     @param   [out] names          An std::vector containing all object names.
@@ -874,6 +871,39 @@ class Dictionary_client {
   template <typename T>
   bool fetch_schema_component_names(const Schema *schema,
                                     std::vector<String_type> *names) const
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+    Fetch the names of the tables in the schema belonging to specific
+    storage engine. E.g., Object with dd::Table::hidden() == true will be
+    ignored.
+
+    @param         schema         Schema for which to get component names.
+    @param         engine         Engine name of tables to match.
+    @param   [out] names          An std::vector containing all object names.
+
+    @return      true   Failure (error is reported).
+    @return      false  Success.
+  */
+
+  bool fetch_schema_table_names_by_engine(const Schema *schema,
+                                          const String_type &engine,
+                                          std::vector<String_type> *names) const
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+    Fetch the names of the server tables in the schema.  Ignore tables
+    hidden by SE.
+
+    @param         schema         Schema for which to get component names.
+    @param   [out] names          An std::vector containing all object names.
+
+    @return      true   Failure (error is reported).
+    @return      false  Success.
+  */
+
+  bool fetch_schema_table_names_not_hidden_by_se(
+      const Schema *schema, std::vector<String_type> *names) const
       MY_ATTRIBUTE((warn_unused_result));
 
   /**
