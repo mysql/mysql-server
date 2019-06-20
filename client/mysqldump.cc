@@ -124,7 +124,7 @@ static MYSQL mysql_connection, *mysql = 0;
 static DYNAMIC_STRING insert_pat;
 static char *opt_password = 0, *current_user = 0, *current_host = 0, *path = 0,
             *fields_terminated = 0, *lines_terminated = 0, *enclosed = 0,
-            *opt_enclosed = 0, *escaped = 0, *where = 0, *order_by = 0,
+            *opt_enclosed = 0, *escaped = 0, *where = 0,
             *opt_compatible_mode_str = 0, *opt_ignore_error = 0,
             *log_error_file = NULL;
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
@@ -2603,8 +2603,6 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
   result_table = quote_name(table, table_buff, 1);
   opt_quoted_table = quote_name(table, table_buff2, 0);
 
-  if (opt_order_by_primary) order_by = primary_key_fields(result_table);
-
   if (!opt_xml && !mysql_query_with_error_report(mysql, 0, query_buff)) {
     /* using SHOW CREATE statement */
     if (!opt_no_create_info && !skip_ddl) {
@@ -3491,6 +3489,7 @@ static void dump_table(char *table, char *db) {
   MYSQL_ROW row;
   bool real_columns[MAX_FIELDS];
   DBUG_TRACE;
+  char *order_by = 0;
 
   /*
     Make sure you get the create table info before the following check for
@@ -3545,6 +3544,7 @@ static void dump_table(char *table, char *db) {
   if (extended_insert)
     init_dynamic_string_checked(&extended_row, "", 1024, 1024);
 
+  if (opt_order_by_primary) order_by = primary_key_fields(result_table);
   if (path) {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
 
@@ -3598,6 +3598,8 @@ static void dump_table(char *table, char *db) {
     if (order_by) {
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
+      my_free(order_by);
+      order_by = 0;
     }
 
     if (mysql_real_query(mysql, query_string.str, (ulong)query_string.length)) {
@@ -3633,6 +3635,8 @@ static void dump_table(char *table, char *db) {
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
+      my_free(order_by);
+      order_by = 0;
     }
 
     if (!opt_xml && !opt_compact) {
@@ -3915,6 +3919,10 @@ static void dump_table(char *table, char *db) {
 err:
   dynstr_free(&query_string);
   if (extended_insert) dynstr_free(&extended_row);
+  if (order_by) {
+    my_free(order_by);
+    order_by = 0;
+  }
   maybe_exit(error);
 } /* dump_table */
 
@@ -4416,8 +4424,6 @@ static int dump_all_tables_in_db(char *database) {
     char *end = my_stpcpy(afterdot, table);
     if (include_table(hash_key, end - hash_key)) {
       dump_table(table, database);
-      my_free(order_by);
-      order_by = 0;
       if (opt_dump_triggers && mysql_get_server_version(mysql) >= 50009) {
         if (dump_triggers_for_table(table, database)) {
           if (path) my_fclose(md_result_file, MYF(MY_WME));
@@ -4748,8 +4754,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
     dump_routines_for_db(db);
   }
   free_root(&root, MYF(0));
-  my_free(order_by);
-  order_by = 0;
   if (opt_xml) {
     fputs("</database>\n", md_result_file);
     check_io(md_result_file);
