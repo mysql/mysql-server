@@ -41,6 +41,7 @@
 #include <new>
 #include <set>
 #include <utility>
+#include <vector>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -57,7 +58,6 @@
 #include "welcome_copyright_notice.h"
 
 #define MAX_ERROR_NAME_LENGTH 64
-#define MAX_ROWS 6000
 #define HEADER_LENGTH 32 /* Length of header in errmsg.sys */
 #define ERRMSG_VERSION 3 /* Version number of errmsg.sys */
 #define DEFAULT_CHARSET_DIR "../share/charsets"
@@ -84,7 +84,7 @@ static const char *default_dbug_option = "d:t:O,/tmp/comp_err.trace";
 */
 uchar file_head[] = {254, 254, ERRMSG_VERSION, 1};
 /* Store positions to each error message row to store in errmsg.sys header */
-uint file_pos[MAX_ROWS];
+std::vector<uint> file_pos;
 
 const char *empty_string = ""; /* For empty states */
 /*
@@ -206,11 +206,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
         return 1;
       }
-      if (row_count > MAX_ROWS) {
-        fprintf(stderr, "Found too many error messages. ");
-        fprintf(stderr, "Increase MAX_ROWS in utilities/comp_err.cc.\n");
-        return 1;
-      }
+
 #if MYSQL_VERSION_ID >= 50100 && MYSQL_VERSION_ID < 50500
 /* Number of error messages in 5.1 - do not change this number! */
 #define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 641
@@ -478,7 +474,7 @@ static int create_sys_files(struct languages *lang_head,
       goto err;
 
     for (i = 0; i < row_count; i++) {
-      int4store(head, file_pos[i]);
+      int4store(head, file_pos.at(i));
       if (my_fwrite(to, (uchar *)head, 4, MYF(MY_WME | MY_FNABP))) goto err;
     }
     my_fclose(to, MYF(0));
@@ -1210,7 +1206,8 @@ static char *parse_text_line(char *pos) {
 static int copy_rows(FILE *to, char *row, int row_nr, long start_pos) {
   DBUG_TRACE;
 
-  file_pos[row_nr] = (int)(ftell(to) - start_pos);
+  file_pos.insert(file_pos.begin() + row_nr,
+                  static_cast<uint>(ftell(to) - start_pos));
   if (fputs(row, to) == EOF || fputc('\0', to) == EOF) {
     fprintf(stderr, "Can't write to outputfile\n");
     return 1;
