@@ -168,6 +168,10 @@ struct MEM_ROOT {
       return nullptr;
     }
     T *ret = static_cast<T *>(Alloc(num * sizeof(T)));
+    if (ret == nullptr) {
+      // Out of memory.
+      return nullptr;
+    }
 
     // Default-construct all elements. For primitive types like int,
     // the entire loop will be optimized away.
