@@ -46,8 +46,9 @@ using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::Handler;
 using mysql_harness::logging::log_level_from_string;
+using mysql_harness::logging::log_timestamp_precision_from_string;
 using mysql_harness::logging::LogLevel;
-
+using mysql_harness::logging::LogTimestampPrecision;
 IMPORT_LOG_FUNCTIONS()
 
 using HandlerPtr = std::shared_ptr<mysql_harness::logging::Handler>;
@@ -55,7 +56,9 @@ using LoggerHandlersList = std::vector<std::pair<std::string, HandlerPtr>>;
 
 static HandlerPtr create_logging_sink(
     const std::string &sink_name, const mysql_harness::LoaderConfig &config,
-    const mysql_harness::logging::LogLevel default_log_level) {
+    const mysql_harness::logging::LogLevel default_log_level,
+    const mysql_harness::logging::LogTimestampPrecision
+        default_log_timestamp_precision) {
   using mysql_harness::Path;
   using mysql_harness::logging::FileHandler;
   using mysql_harness::logging::get_default_log_level;
@@ -63,13 +66,21 @@ static HandlerPtr create_logging_sink(
   using mysql_harness::logging::StreamHandler;
 
   constexpr const char *kLogLevel = "level";
+  constexpr const char *kLogTimestampPrecision = "timestamp_precision";
 
   HandlerPtr result;
 
+#ifdef _WIN32
+  const std::string kSystemLogPluginName = kEventlogPluginName;
+#else
+  const std::string kSystemLogPluginName = kSyslogPluginName;
+#endif
+
   // check if the sink has a dedicated section in the configuration and if so if
-  // it contain the log level. If it does use it, otherwise we go with the
-  // default one.
+  // it contain the log level. If it does then use it, otherwise we go with the
+  // default one. Similar check is applied for timestamp precision.
   auto log_level = default_log_level;
+  auto log_timestamp_precision = default_log_timestamp_precision;
   if (config.has(sink_name)) {
     const auto &section = config.get(sink_name, "");
     if (section.has(kLogLevel)) {
@@ -77,16 +88,23 @@ static HandlerPtr create_logging_sink(
 
       log_level = log_level_from_string(level_name);
     }
+    if (section.has(kLogTimestampPrecision)) {
+      const auto precision_name = section.get(kLogTimestampPrecision);
+
+      // reject timestamp_precision set for syslog/eventlog sinks
+      if (sink_name.compare(kSystemLogPluginName) == 0) {
+        throw std::runtime_error("timestamp_precision not valid for '" +
+                                 kSystemLogPluginName + "'");
+      }
+
+      log_timestamp_precision =
+          log_timestamp_precision_from_string(precision_name);
+    }
   }
-#ifdef _WIN32
-  const std::string kSystemLogPluginName = kEventlogPluginName;
-#else
-  const std::string kSystemLogPluginName = kSyslogPluginName;
-#endif
 
   if (sink_name == kConsolelogPluginName) {
-    result.reset(
-        new StreamHandler(*get_default_logger_stream(), true, log_level));
+    result.reset(new StreamHandler(*get_default_logger_stream(), true,
+                                   log_level, log_timestamp_precision));
   } else if (sink_name == kFilelogPluginName) {
     const std::string logging_folder = config.get_default("logging_folder");
 
@@ -97,7 +115,8 @@ static HandlerPtr create_logging_sink(
 
     Path log_file = Path::make_path(logging_folder, "mysqlrouter", "log");
 
-    result.reset(new FileHandler(log_file, true, log_level));
+    result.reset(
+        new FileHandler(log_file, true, log_level, log_timestamp_precision));
   } else if (sink_name == kSystemLogPluginName) {
 #ifdef _WIN32
     result.reset(new EventlogHandler(true, log_level));
@@ -141,12 +160,24 @@ static bool init_handlers(mysql_harness::PluginFuncEnv *env,
                           const mysql_harness::LoaderConfig &config,
                           LoggerHandlersList &logger_handlers) {
   using mysql_harness::logging::get_default_log_level;
+  using mysql_harness::logging::get_default_timestamp_precision;
   logger_handlers.clear();
 
-  // we don't expect any keys for our secion
+  // we don't expect any keys for our section
   const auto &section = config.get(kLoggerPluginName, "");
 
   const auto default_log_level = get_default_log_level(config);
+  LogTimestampPrecision default_log_timestamp_precision;
+  // an illegal loglevel in the handler configuration has already been
+  // caught earlier during startup. Need to catch an illegal timestamp
+  // precision here.
+  try {
+    default_log_timestamp_precision = get_default_timestamp_precision(config);
+  } catch (const std::exception &exc) {
+    log_error("%s", exc.what());
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+    return false;
+  }
 
   constexpr const char *kSinksOption = "sinks";
   auto sinks_str = section.has(kSinksOption) ? section.get(kSinksOption) : "";
@@ -174,7 +205,8 @@ static bool init_handlers(mysql_harness::PluginFuncEnv *env,
   for (const auto &sink : sinks) {
     try {
       logger_handlers.push_back(std::make_pair(
-          sink, create_logging_sink(sink, config, default_log_level)));
+          sink, create_logging_sink(sink, config, default_log_level,
+                                    default_log_timestamp_precision)));
     } catch (const std::exception &exc) {
       log_error("%s", exc.what());
       set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -224,6 +256,12 @@ static void switch_to_loggers_in_config(
       [&registry]() { return registry.release(); },
       std::default_delete<mysql_harness::logging::Registry>());
   DIM::instance().reset_LoggingRegistry();
+
+  // set timestamp precision
+  auto precision =
+      mysql_harness::logging::get_default_timestamp_precision(config);
+  mysql_harness::logging::set_timestamp_precision_for_all_loggers(
+      DIM::instance().get_LoggingRegistry(), precision);
 
   // flag that the new loggers are ready for use
   DIM::instance().get_LoggingRegistry().set_ready();

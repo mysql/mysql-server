@@ -47,6 +47,7 @@
  */
 
 using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::LogTimestampPrecision;
 using testing::HasSubstr;
 using testing::Not;
 using testing::StartsWith;
@@ -314,6 +315,9 @@ struct LoggingConfigOkParams {
   LogLevel consolelog_expected_level;
   LogLevel filelog_expected_level;
 
+  LogTimestampPrecision consolelog_expected_timestamp_precision;
+  LogTimestampPrecision filelog_expected_timestamp_precision;
+
   LoggingConfigOkParams(const std::string &logger_config_,
                         const bool logging_folder_empty_,
                         const LogLevel consolelog_expected_level_,
@@ -321,7 +325,24 @@ struct LoggingConfigOkParams {
       : logger_config(logger_config_),
         logging_folder_empty(logging_folder_empty_),
         consolelog_expected_level(consolelog_expected_level_),
-        filelog_expected_level(filelog_expected_level_) {}
+        filelog_expected_level(filelog_expected_level_),
+        consolelog_expected_timestamp_precision(LogTimestampPrecision::kNotSet),
+        filelog_expected_timestamp_precision(LogTimestampPrecision::kNotSet) {}
+
+  LoggingConfigOkParams(
+      const std::string &logger_config_, const bool logging_folder_empty_,
+      const LogLevel consolelog_expected_level_,
+      const LogLevel filelog_expected_level_,
+      const LogTimestampPrecision consolelog_expected_timestamp_precision_,
+      const LogTimestampPrecision filelog_expected_timestamp_precision_)
+      : logger_config(logger_config_),
+        logging_folder_empty(logging_folder_empty_),
+        consolelog_expected_level(consolelog_expected_level_),
+        filelog_expected_level(filelog_expected_level_),
+        consolelog_expected_timestamp_precision(
+            consolelog_expected_timestamp_precision_),
+        filelog_expected_timestamp_precision(
+            filelog_expected_timestamp_precision_) {}
 };
 
 ::std::ostream &operator<<(::std::ostream &os,
@@ -937,6 +958,515 @@ INSTANTIATE_TEST_CASE_P(
                                  /* logging_folder_empty = */ false,
                                  /* expected_error =  */
                                  "plugin 'syslog' failed to load")));
+#endif
+
+class RouterLoggingTestTimestampPrecisionConfig
+    : public RouterComponentTest,
+      public ::testing::WithParamInterface<LoggingConfigOkParams> {};
+
+#define DATE_REGEX "[0-9]{4}-[0-9]{2}-[0-9]{2}"
+#define TIME_REGEX "[0-9]{2}:[0-9]{2}:[0-9]{2}"
+#define TS_MSEC_REGEX ".[0-9]{3}"
+#define TS_USEC_REGEX ".[0-9]{6}"
+#define TS_NSEC_REGEX ".[0-9]{9}"
+#define TS_REGEX DATE_REGEX " " TIME_REGEX
+
+const std::string kTimestampSecRegex = TS_REGEX " ";
+const std::string kTimestampMillisecRegex = TS_REGEX TS_MSEC_REGEX " ";
+const std::string kTimestampMicrosecRegex = TS_REGEX TS_USEC_REGEX " ";
+const std::string kTimestampNanosecRegex = TS_REGEX TS_NSEC_REGEX " ";
+
+/** @test This test verifies that a proper loggs are written to selected sinks
+ * for various sinks/levels combinations.
+ */
+TEST_P(RouterLoggingTestTimestampPrecisionConfig,
+       LoggingTestTimestampPrecisionConfig) {
+  auto test_params = GetParam();
+
+  TempDirectory tmp_dir;
+  TcpPortPool port_pool;
+  const auto router_port = port_pool.get_next_available();
+  const auto server_port = port_pool.get_next_available();
+
+  // Different log entries that are expected for different levels, but we only
+  // care that something is logged, not what, when checking timestamps.
+
+  // to trigger the warning entry in the log
+  const std::string kRoutingConfig =
+      "[routing]\n"
+      "bind_address=127.0.0.1:" +
+      std::to_string(router_port) +
+      "\n"
+      "destinations=localhost:" +
+      std::to_string(server_port) +
+      "\n"
+      "routing_strategy=round-robin\n";
+
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] =
+      test_params.logging_folder_empty ? "" : tmp_dir.name();
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_text =
+      test_params.logger_config + "\n" + kRoutingConfig;
+
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  auto &router = launch_router({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+
+  // try to make a connection; this will fail but should generate a warning in
+  // the logs
+  mysqlrouter::MySQLSession client;
+  try {
+    client.connect("127.0.0.1", router_port, "username", "password", "", "");
+  } catch (const std::exception &exc) {
+    if (std::string(exc.what()).find("Error connecting to MySQL server") !=
+        std::string::npos) {
+      // that's what we expect
+    } else
+      throw;
+  }
+
+  // check the console log if it contains what's expected
+  std::string console_log_txt = router.get_full_output();
+
+  // strip first line before checking if needed
+  const std::string prefix = "logging facility initialized";
+  if (std::mismatch(console_log_txt.begin(), console_log_txt.end(),
+                    prefix.begin(), prefix.end())
+          .second == prefix.end()) {
+    console_log_txt.erase(0, console_log_txt.find("\n") + 1);
+  }
+
+  if (test_params.consolelog_expected_level != LogLevel::kNotSet) {
+    switch (test_params.consolelog_expected_timestamp_precision) {
+      case LogTimestampPrecision::kNotSet:
+      case LogTimestampPrecision::kSec:
+        // EXPECT 12:00:00
+        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampSecRegex))
+            << console_log_txt;
+        break;
+      case LogTimestampPrecision::kMilliSec:
+        // EXPECT 12:00:00.000
+        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampMillisecRegex))
+            << console_log_txt;
+        break;
+      case LogTimestampPrecision::kMicroSec:
+        // EXPECT 12:00:00.000000
+        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampMicrosecRegex))
+            << console_log_txt;
+        break;
+      case LogTimestampPrecision::kNanoSec:
+        // EXPECT 12:00:00.000000000
+        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampNanosecRegex))
+            << console_log_txt;
+        break;
+    }
+  }
+
+  // check the file log if it contains what's expected
+  std::string file_log_txt =
+      router.get_full_logfile("mysqlrouter.log", tmp_dir.name());
+
+  // strip first line before checking if needed
+  if (std::mismatch(file_log_txt.begin(), file_log_txt.end(), prefix.begin(),
+                    prefix.end())
+          .second == prefix.end()) {
+    file_log_txt.erase(0, file_log_txt.find("\n") + 1);
+  }
+
+  if (test_params.filelog_expected_level != LogLevel::kNotSet) {
+    switch (test_params.filelog_expected_timestamp_precision) {
+      case LogTimestampPrecision::kNotSet:
+      case LogTimestampPrecision::kSec:
+        // EXPECT 12:00:00
+        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampSecRegex))
+            << file_log_txt;
+        break;
+      case LogTimestampPrecision::kMilliSec:
+        // EXPECT 12:00:00.000
+        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampMillisecRegex))
+            << file_log_txt;
+        break;
+      case LogTimestampPrecision::kMicroSec:
+        // EXPECT 12:00:00.000000
+        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampMicrosecRegex))
+            << file_log_txt;
+        break;
+      case LogTimestampPrecision::kNanoSec:
+        // EXPECT 12:00:00.000000000
+        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampNanosecRegex))
+            << file_log_txt;
+        break;
+    }
+  }
+}
+
+#define TS_FR1_1_STR(x)        \
+  "[logger]\n"                 \
+  "level=debug\n"              \
+  "sinks=consolelog,filelog\n" \
+  "timestamp_precision=" x     \
+  "\n"                         \
+  "[consolelog]\n\n[filelog]\n\n"
+
+#define TS_FR1_2_STR(x) TS_FR1_1_STR(x)
+
+#define TS_FR1_3_STR(x) TS_FR1_1_STR(x)
+
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigTimestampPrecisionTest,
+    RouterLoggingTestTimestampPrecisionConfig,
+    ::testing::Values(
+        // no logger section, no sinks sections
+        // logging_folder not empty so we are expected to log to the file
+        // with a warning level so info and debug logs will not be there
+        /*0*/ LoggingConfigOkParams(
+            "",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kWarning,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNotSet,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNotSet),
+        // Two sinks, common timestamp_precision
+        /*** TS_FR1_1 ***/
+        /*1*/ /*TS_FR1_1.1*/
+        LoggingConfigOkParams(
+            TS_FR1_1_STR("second"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec),
+        /*2*/ /*TS_FR1_1.2*/
+        LoggingConfigOkParams(
+            TS_FR1_1_STR("Second"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec),
+        /*3*/ /*TS_FR1_1.3*/
+        LoggingConfigOkParams(
+            TS_FR1_1_STR("sec"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec),
+        /*4*/ /*TS_FR1_1.4*/
+        LoggingConfigOkParams(
+            TS_FR1_1_STR("SEC"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec),
+        /*5*/ /*TS_FR1_1.5*/
+        LoggingConfigOkParams(
+            TS_FR1_1_STR("s"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec),
+        /*6*/ /*TS_FR1_1.6*/
+        LoggingConfigOkParams(
+            TS_FR1_1_STR("S"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec),
+        /*** TS_FR1_2 ***/
+        /*7*/ /*TS_FR1_2.1*/
+        LoggingConfigOkParams(
+            TS_FR1_2_STR("millisecond"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec),
+        /*8*/ /*TS_FR1_2.2*/
+        LoggingConfigOkParams(
+            TS_FR1_2_STR("MILLISECOND"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec),
+        /*9*/ /*TS_FR1_2.3*/
+        LoggingConfigOkParams(
+            TS_FR1_2_STR("msec"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec),
+        /*10*/ /*TS_FR1_2.4*/
+        LoggingConfigOkParams(
+            TS_FR1_2_STR("MSEC"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec),
+        /*11*/ /*TS_FR1_2.5*/
+        LoggingConfigOkParams(
+            TS_FR1_2_STR("ms"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec),
+        /*12*/ /*TS_FR1_2.6*/
+        LoggingConfigOkParams(
+            TS_FR1_2_STR("MS"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec),
+        /*** TS_FR1_3 ***/
+        /*13*/ /*TS_FR1_3.1*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("microsecond"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec),
+        /*14*/ /*TS_FR1_3.2*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("Microsecond"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec),
+        /*15*/ /*TS_FR1_3.3*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("usec"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec),
+        /*16*/ /*TS_FR1_3.4*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("UsEC"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec),
+        /*17*/ /*TS_FR1_3.5*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("us"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec),
+        /*18*/ /*TS_FR1_3.5*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("US"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMicroSec),
+        /*** TS_FR1_4 ***/
+        /*19*/ /*TS_FR1_4.1*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("nanosecond"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec),
+        /*20*/ /*TS_FR1_4.2*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("NANOSECOND"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec),
+        /*21*/ /*TS_FR1_4.3*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("nsec"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec),
+        /*22*/ /*TS_FR1_4.4*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("nSEC"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec),
+        /*23*/ /*TS_FR1_4.5*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("ns"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec),
+        /*24*/ /*TS_FR1_4.6*/
+        LoggingConfigOkParams(
+            TS_FR1_3_STR("NS"),
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec),
+        /*25*/ /*TS_FR4_2*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=debug\n"
+            "sinks=filelog\n"
+            "[filelog]\n"
+            "timestamp_precision=ms\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNotSet,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kMilliSec),
+        /*26*/ /*TS_FR4_3*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=debug\n"
+            "sinks=filelog,consolelog\n"
+            "[consolelog]\n"
+            "timestamp_precision=ns\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug,
+            /* consolelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kNanoSec,
+            /* filelog_expected_timestamp_precision = */
+            LogTimestampPrecision::kSec)));
+
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigTimestampPrecisionError, RouterLoggingConfigError,
+    ::testing::Values(
+        // Unknown timestamp_precision value in a sink
+        /*0*/ /*TS_FR3_1*/ LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=consolelog\n"
+            "[consolelog]\n"
+            "timestamp_precision=unknown\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Timestamp precision 'unknown' is not valid. "
+            "Valid values are: microsecond, millisecond, ms, msec, nanosecond, "
+            "ns, nsec, s, sec, second, us, and usec"),
+        // Unknown timestamp_precision value in the [logger] section
+        /*1*/ /*TS_FR3_1*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=consolelog,filelog\n"
+            "timestamp_precision=unknown\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Timestamp precision 'unknown' is not valid. "
+            "Valid values are: microsecond, millisecond, ms, msec, nanosecond, "
+            "ns, nsec, s, sec, second, us, and usec"),
+        /*2*/ /*TS_FR4_1*/
+        LoggingConfigErrorParams("[logger]\n"
+                                 "sinks=consolelog,filelog\n"
+                                 "timestamp_precision=ms\n"
+                                 "timestamp_precision=ns\n",
+                                 /* logging_folder_empty = */ false,
+                                 /* expected_error =  */
+                                 "Configuration error: Option "
+                                 "'timestamp_precision' already defined.")));
+#ifndef _WIN32
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigTimestampPrecisionErrorUnix, RouterLoggingConfigError,
+    ::testing::Values(
+        /*0*/ /* TS_HLD_1 */
+        LoggingConfigErrorParams("[logger]\n"
+                                 "sinks=syslog\n"
+                                 "[syslog]\n"
+                                 "timestamp_precision=ms\n",
+                                 /* logging_folder_empty = */ false,
+                                 /* expected_error =  */
+                                 "Configuration error: timestamp_precision not "
+                                 "valid for 'syslog'")));
+#else
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigTimestampPrecisionErrorWindows, RouterLoggingConfigError,
+    ::testing::Values(
+        /*0*/ /* TS_HLD_3 */
+        LoggingConfigErrorParams("[logger]\n"
+                                 "sinks=eventlog\n"
+                                 "[eventlog]\n"
+                                 "timestamp_precision=ms\n",
+                                 /* logging_folder_empty = */ false,
+                                 /* expected_error =  */
+                                 "Configuration error: timestamp_precision not "
+                                 "valid for 'eventlog'")));
 #endif
 
 TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {

@@ -36,6 +36,7 @@ using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::LogTimestampPrecision;
 
 constexpr const char *kEventSourceName = "MySQL Router";
 
@@ -141,7 +142,8 @@ static void create_eventlog_registry_entry() {
 EventlogHandler::EventlogHandler(bool format_messages,
                                  mysql_harness::logging::LogLevel level,
                                  bool create_registry_entries /*= true*/)
-    : mysql_harness::logging::Handler(format_messages, level) {
+    : mysql_harness::logging::Handler(format_messages, level,
+                                      LogTimestampPrecision::kSec) {
   if (create_registry_entries) create_eventlog_registry_entry();
 
   event_src_ = RegisterEventSourceA(NULL, kEventSourceName);

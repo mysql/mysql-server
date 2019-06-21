@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@ extern mysql_harness::Plugin harness_plugin_syslog;
 }
 
 using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::LogTimestampPrecision;
 
 /**
  * Unix-based systems specific logging handler(sink) that writes the logs to the
@@ -48,7 +49,8 @@ class SyslogHandler final : public mysql_harness::logging::Handler {
   static constexpr unsigned kMaxIdentSize = 100;
 
   SyslogHandler(bool format_messages = true, LogLevel level = LogLevel::kNotSet)
-      : mysql_harness::logging::Handler(format_messages, level) {}
+      : mysql_harness::logging::Handler(format_messages, level,
+                                        LogTimestampPrecision::kSec) {}
   ~SyslogHandler() override { close(); }
 
   void open(const std::string &ident) noexcept {

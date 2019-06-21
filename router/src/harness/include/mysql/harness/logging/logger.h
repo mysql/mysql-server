@@ -74,9 +74,14 @@ class HARNESS_EXPORT Logger {
 
   void set_level(LogLevel level) { level_ = level; }
   LogLevel get_level() const { return level_; }
+  void set_timestamp_precision(LogTimestampPrecision precision) {
+    precision_ = precision;
+  }
+  LogTimestampPrecision get_timestamp_precision() const { return precision_; }
 
  private:
   LogLevel level_;
+  LogTimestampPrecision precision_;
   std::set<std::string> handlers_;
   const Registry *registry_;  // owner backreference (we don't own Registry,
                               // Registry owns us)
