@@ -3300,10 +3300,11 @@ static ib_err_t parse_string_to_number(const char *num_str,
 static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
   /* 25 is sufficient here, the prefix will be
   sdi_number:number:number */
-  char key[25];
+  char key[25 + 1];
   char *saveptr1;
 
-  strncpy(key, key_str + strlen("sdi_"), sizeof(key));
+  strncpy(key, key_str + strlen("sdi_"), sizeof(key) - 1);
+  key[sizeof(key) - 1] = '\0';
 
   char *type_str = strtok_r(key, ":", &saveptr1);
   char *id_str = strtok_r(NULL, ":", &saveptr1);
