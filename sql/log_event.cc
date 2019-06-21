@@ -4478,6 +4478,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   {
     thd->set_time(&(common_header->when));
     thd->set_query(query_arg, q_len_arg);
+    thd->set_query_for_display(query_arg, q_len_arg);
     thd->set_query_id(next_query_id());
     thd->variables.pseudo_thread_id = thread_id;  // for temp tables
     attach_temp_tables_worker(thd, rli);

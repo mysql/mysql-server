@@ -1267,6 +1267,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
       called before deleting the rows_query event.
     */
     info_thd->reset_query();
+    info_thd->reset_query_for_display();
     delete rows_query_ev;
     rows_query_ev = nullptr;
     DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev", {
