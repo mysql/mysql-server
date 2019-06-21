@@ -104,7 +104,6 @@ START GROUP_REPLICATION;
 --echo # 6. Resume clone.
 
 SET DEBUG_SYNC = 'now SIGNAL resume_clone';
-SET DEBUG_SYNC = 'RESET';
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
@@ -126,6 +125,8 @@ SET DEBUG_SYNC = 'RESET';
 --echo
 --echo ############################################################
 --echo # 8. Cleanup
+
+SET DEBUG_SYNC = 'RESET';
 
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;

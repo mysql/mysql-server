@@ -42,7 +42,6 @@ ERROR HY000: The START GROUP_REPLICATION command encountered a failure. This ser
 ############################################################
 # 6. Resume clone.
 SET DEBUG_SYNC = 'now SIGNAL resume_clone';
-SET DEBUG_SYNC = 'RESET';
 [connection server_2]
 include/rpl_reconnect.inc
 ############################################################
@@ -52,6 +51,7 @@ include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
 
 ############################################################
 # 8. Cleanup
+SET DEBUG_SYNC = 'RESET';
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;

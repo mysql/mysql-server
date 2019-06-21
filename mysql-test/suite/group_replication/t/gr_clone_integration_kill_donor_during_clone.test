@@ -18,8 +18,6 @@
 # 10. Cleanup
 #
 
-# Due to mysqld_safe/restart limitation this test only works on windows for now
---source include/windows.inc
 --source include/big_test.inc
 --source include/have_debug_sync.inc
 --source include/have_clone_plugin.inc
@@ -137,7 +135,6 @@ if ($donor_ip_port == $server3_ip_port) {
 --source include/rpl_connection.inc
 
 SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
-SET DEBUG_SYNC = 'RESET';
 SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 
 --let $disconnect_timeout= 600
@@ -182,6 +179,8 @@ if ($donor_ip_port == $server3_ip_port) {
 --echo # 10. Cleanup
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC = 'RESET';
 
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
 

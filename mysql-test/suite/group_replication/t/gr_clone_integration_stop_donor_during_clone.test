@@ -116,7 +116,6 @@ SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
 --source include/rpl_connection.inc
 
 SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
-SET DEBUG_SYNC = 'RESET';
 SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 
 --let $group_replication_member_state=ERROR
@@ -170,6 +169,8 @@ START GROUP_REPLICATION;
 --echo # 10. Cleanup
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC = 'RESET';
 
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
 

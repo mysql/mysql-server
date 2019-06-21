@@ -188,7 +188,6 @@ if ($donor_ip_port == $server4_ip_port) {
 --source include/rpl_connection.inc
 
 SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
-SET DEBUG_SYNC = 'RESET';
 SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 
 --source include/wait_until_disconnected.inc
@@ -225,6 +224,8 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 --echo # 12. Cleanup
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC = 'RESET';
 
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
 

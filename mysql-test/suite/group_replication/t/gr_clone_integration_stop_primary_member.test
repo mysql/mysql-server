@@ -158,7 +158,6 @@ let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_gro
 --source include/rpl_connection.inc
 
 SET DEBUG_SYNC = 'now SIGNAL signal.gr_clone_thd_continue';
-SET DEBUG_SYNC = 'RESET';
 SET @@GLOBAL.DEBUG = '-d,gr_clone_process_before_execution';
 
 --source include/wait_until_disconnected.inc
@@ -192,6 +191,8 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_process_before_execution';
 --echo # 10. Cleanup
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC = 'RESET';
 
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
 
