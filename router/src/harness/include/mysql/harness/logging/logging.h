@@ -34,6 +34,7 @@
 #include "mysql/harness/compiler_attributes.h"
 #include "mysql/harness/filesystem.h"
 
+#include <chrono>
 #include <cstdarg>
 #include <fstream>
 #include <list>
@@ -68,8 +69,12 @@ const size_t kLogMessageMaxSize = 4096;
  * [logger]
  * level = DEBUG
  * ^^^^^-------------------- kConfigOptionLogLevel
+ * timestamp_precision = second|sec|s|millisecond|msec|ms|
+ *                       microsecond|usec|us|nanosecond|nsec|ns
+ * ^^^^^-------------------- kConfigOptionLogTimestampPrecision
  */
 constexpr char kConfigOptionLogLevel[] = "level";
+constexpr char kConfigOptionLogTimestampPrecision[] = "timestamp_precision";
 constexpr char kConfigSectionLogger[] = "logger";
 
 /**
@@ -138,6 +143,25 @@ const char *const kDefaultLogLevelName = "warning";
 const char *const kRawLogLevelName = "info";
 
 /**
+ * Log timestamp precision values.
+ */
+enum class LogTimestampPrecision {
+  // Second
+  kSec = 0,
+
+  // Millisecond
+  kMilliSec = 3,
+
+  // Microsecond
+  kMicroSec = 6,
+
+  // Nanosecond
+  kNanoSec = 9,
+
+  kNotSet  // Always higher than all other log precisions
+};
+
+/**
  * Log record containing information collected by the logging
  * system.
  *
@@ -146,7 +170,7 @@ const char *const kRawLogLevelName = "info";
 struct Record {
   LogLevel level;
   pid_t process_id;
-  time_t created;
+  std::chrono::time_point<std::chrono::system_clock> created;
   std::string domain;
   std::string message;
 };

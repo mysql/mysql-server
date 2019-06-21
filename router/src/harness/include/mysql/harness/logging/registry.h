@@ -46,6 +46,8 @@ class Handler;
 class HARNESS_EXPORT Registry {
  public:
   const static std::map<std::string, LogLevel> kLogLevels;
+  const static std::map<std::string, LogTimestampPrecision>
+      kLogTimestampPrecisions;
 
   Registry() = default;
   Registry(const Registry &) = delete;
@@ -234,6 +236,37 @@ HARNESS_EXPORT
 void set_log_level_for_all_loggers(Registry &registry, LogLevel level);
 
 /**
+ * Converts string with log timestamp precision description to
+ * LogTimestampPrecision type.
+ *
+ * @param name string with log timestamp precision description
+ *
+ * @throws std::invalid_argument if log timestamp precision string is invalid
+ */
+HARNESS_EXPORT
+LogTimestampPrecision log_timestamp_precision_from_string(std::string name);
+
+/**
+ * Get default timestamp precision
+ *
+ * Fetches default timestamp precision for logfiles
+ *
+ * @param config   Configuration items from configuration file
+ */
+HARNESS_EXPORT
+LogTimestampPrecision get_default_timestamp_precision(const Config &config);
+
+/**
+ * Set timestamp precision for all the loggers
+ *
+ * @param registry Registry object, typically managed by DIM
+ * @param precision Precision of timestamps
+ */
+HARNESS_EXPORT
+void set_timestamp_precision_for_all_loggers(Registry &registry,
+                                             LogTimestampPrecision precision);
+
+/**
  * Clear registry
  *
  * Removes all Loggers and removes all references to Handlers (they're held
@@ -323,6 +356,10 @@ void create_main_log_handler(Registry &registry, const std::string &program,
 /** Set log level for all registered loggers. */
 HARNESS_EXPORT
 void set_log_level_for_all_loggers(LogLevel level);
+
+/** Set timestamp precision for all registered loggers. */
+HARNESS_EXPORT
+void set_timestamp_precison_for_all_loggers(LogTimestampPrecision precision);
 
 /**
  * Register handler for all plugins.

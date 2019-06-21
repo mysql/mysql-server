@@ -43,6 +43,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdarg>
 #include <iostream>
 #include <sstream>
@@ -68,6 +69,22 @@ const std::map<std::string, LogLevel> Registry::kLogLevels{
     {"warning", LogLevel::kWarning}, {"info", LogLevel::kInfo},
     {"debug", LogLevel::kDebug},
 };
+
+const std::map<std::string, LogTimestampPrecision>
+    Registry::kLogTimestampPrecisions{
+        {"second", LogTimestampPrecision::kSec},
+        {"sec", LogTimestampPrecision::kSec},
+        {"s", LogTimestampPrecision::kSec},
+        {"millisecond", LogTimestampPrecision::kMilliSec},
+        {"msec", LogTimestampPrecision::kMilliSec},
+        {"ms", LogTimestampPrecision::kMilliSec},
+        {"microsecond", LogTimestampPrecision::kMicroSec},
+        {"usec", LogTimestampPrecision::kMicroSec},
+        {"us", LogTimestampPrecision::kMicroSec},
+        {"nanosecond", LogTimestampPrecision::kNanoSec},
+        {"nsec", LogTimestampPrecision::kNanoSec},
+        {"ns", LogTimestampPrecision::kNanoSec},
+    };
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -220,6 +237,15 @@ void set_log_level_for_all_loggers(Registry &registry, LogLevel level) {
   }
 }
 
+void set_timestamp_precision_for_all_loggers(Registry &registry,
+                                             LogTimestampPrecision precision) {
+  for (const std::string &logger_name : registry.get_logger_names()) {
+    Logger logger = registry.get_logger(logger_name);
+    logger.set_timestamp_precision(precision);
+    registry.update_logger(logger_name, logger);
+  }
+}
+
 void clear_registry(Registry &registry) {
   // wipe any existing loggers
   for (const std::string &name : registry.get_logger_names())
@@ -336,6 +362,48 @@ LogLevel get_default_log_level(const Config &config, bool raw_mode) {
   return log_level_from_string(level_name);  // throws std::invalid_argument
 }
 
+HARNESS_EXPORT
+LogTimestampPrecision log_timestamp_precision_from_string(std::string name) {
+  std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
+  // Return its enum representation
+  try {
+    return Registry::kLogTimestampPrecisions.at(name);
+  } catch (const std::out_of_range &) {
+    std::stringstream buffer;
+
+    buffer << "Timestamp precision '" << name
+           << "' is not valid. Valid values are: ";
+
+    // Print the entries using a serial comma
+    std::vector<std::string> alternatives;
+    for (const auto &pair : Registry::kLogTimestampPrecisions)
+      alternatives.push_back(pair.first);
+    serial_comma(buffer, alternatives.begin(), alternatives.end());
+    throw std::invalid_argument(buffer.str());
+  }
+}
+
+LogTimestampPrecision get_default_timestamp_precision(const Config &config) {
+  constexpr const char kNone[] = "";
+
+  // aliases with shorter names
+  constexpr const char *kLogTimestampPrecision =
+      mysql_harness::logging::kConfigOptionLogTimestampPrecision;
+  constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
+
+  std::string precision;
+  // extract precision from [logger] section/log, if it exists
+  if (config.has(kLogger) &&
+      config.get(kLogger, kNone).has(kLogTimestampPrecision))
+    precision = config.get(kLogger, kNone).get(kLogTimestampPrecision);
+  else
+    precision = "second";
+
+  return log_timestamp_precision_from_string(
+      precision);  // throws std::invalid_argument
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // These functions are simple proxies that can be used by logger plugins
@@ -378,6 +446,13 @@ bool log_level_is_handled(LogLevel level, const char *module) {
 
   return logger.is_handled(level);
 }
+
+void set_timestamp_precision_for_all_loggers(LogTimestampPrecision precision) {
+  mysql_harness::logging::Registry &registry =
+      mysql_harness::DIM::instance().get_LoggingRegistry();
+  set_timestamp_precision_for_all_loggers(registry, precision);
+}
+
 }  // namespace logging
 
 }  // namespace mysql_harness
@@ -403,8 +478,7 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
                             va_list ap) {
   harness_assert(level <= LogLevel::kDebug);
 
-  // get timestamp
-  time_t now{};
+  std::chrono::time_point<std::chrono::system_clock> now{};
 
   mysql_harness::logging::Registry &registry =
       mysql_harness::DIM::instance().get_LoggingRegistry();
@@ -435,7 +509,8 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
              "Module '%s' not registered with logger - "
              "logging the following message as '%s' instead",
              module, g_main_app_log_domain.c_str());
-    if (0 == now) time(&now);
+    if (std::chrono::time_point<std::chrono::system_clock>{} == now)
+      now = std::chrono::system_clock::now();
     logger.handle(
         {LogLevel::kError, getpid(), now, g_main_app_log_domain, msg});
 
@@ -446,7 +521,8 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
 
   if (!logger.is_handled(level)) return;
 
-  if (0 == now) time(&now);
+  if (std::chrono::time_point<std::chrono::system_clock>{} == now)
+    now = std::chrono::system_clock::now();
 
   // Build the message
   char message[mysql_harness::logging::kLogMessageMaxSize];
