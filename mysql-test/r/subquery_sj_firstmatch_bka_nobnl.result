@@ -7662,17 +7662,13 @@ Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t2` join `test`.`t0` semi join (`test`.`t1`) where ((`test`.`t0`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` = `test`.`t2`.`b`))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
-create temporary table tmp select * from t0 where t0.a in 
-(select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
-create temporary table tmp_as_ref (a int);
-insert into tmp_as_ref values(0),(1),(2),(3);
-select * from tmp;
+select * from t0 where t0.a in (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
 a
 0
 1
 2
 3
-drop table t0, t1, t2, tmp, tmp_as_ref;
+drop table t0, t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL,
 PRIMARY KEY (id));

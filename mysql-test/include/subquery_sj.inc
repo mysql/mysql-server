@@ -3348,21 +3348,9 @@ t1.b=t2.b);
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 
-# the query just below may exhibit BUG#49129:
-create temporary table tmp select * from t0 where t0.a in 
-  (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
-# detect it and warn in result file if it's the case:
-create temporary table tmp_as_ref (a int);
-insert into tmp_as_ref values(0),(1),(2),(3); # correct desired result
-if (`select count(*) from tmp_as_ref left join tmp on tmp.a=tmp_as_ref.a
-where tmp.a is null`)
-{
-  --echo 
-  --echo # The result below is wrong due to Bug#49129
-}
-select * from tmp;
+select * from t0 where t0.a in (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
 
-drop table t0, t1, t2, tmp, tmp_as_ref;
+drop table t0, t1, t2;
 
 #
 # BUG#35767: Processing of uncorrelated subquery with semi-join cause wrong result and crash
