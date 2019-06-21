@@ -45,9 +45,6 @@
 
 constexpr int default_zstd_compression_level = 3;
 
-/* List of valid values for compression_algorithm */
-enum class enum_compression_algorithm { UNCOMPRESSED = 1, ZLIB, ZSTD, INVALID };
-
 /* Helper functions to validate compression algorithm and level */
 enum_compression_algorithm get_compression_algorithm(
     std::string name = std::string());

@@ -755,6 +755,7 @@ class Client {
 
   /** Clone remote client connection */
   MYSQL *m_conn;
+  NET_SERVER m_conn_server_extn;
 
   /** Intermediate buffer for data copy when zero copy is not used. */
   Buffer m_copy_buff;

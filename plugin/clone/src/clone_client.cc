@@ -456,6 +456,11 @@ Client::Client(THD *thd, Client_Share *share, uint32_t index, bool is_master)
 
   m_conn_aux.m_conn = nullptr;
   m_conn_aux.reset();
+
+  m_conn_server_extn.m_user_data = nullptr;
+  m_conn_server_extn.m_before_header = nullptr;
+  m_conn_server_extn.m_after_header = nullptr;
+  m_conn_server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
 }
 
 Client::~Client() {
@@ -877,6 +882,8 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
   mysql_clone_ssl_context ssl_context;
 
   ssl_context.m_enable_compression = use_aux ? false : clone_enable_compression;
+  ssl_context.m_server_extn =
+      ssl_context.m_enable_compression ? &m_conn_server_extn : nullptr;
   ssl_context.m_ssl_mode = m_share->m_ssl_mode;
 
   /* Get Clone SSL configuration parameter value safely. */

@@ -35,6 +35,7 @@
 #include "m_ctype.h"
 #include "my_command.h"
 #include "my_compiler.h"
+#include "my_compress.h"
 #include "my_getopt.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"

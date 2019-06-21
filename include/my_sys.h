@@ -53,6 +53,7 @@
 
 #include "m_string.h" /* IWYU pragma: keep */
 #include "my_compiler.h"
+#include "my_compress.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h" /* IWYU pragma: keep */
@@ -816,9 +817,10 @@ extern char *strdup_root(MEM_ROOT *root, const char *str);
 extern char *safe_strdup_root(MEM_ROOT *root, const char *str);
 extern char *strmake_root(MEM_ROOT *root, const char *str, size_t len);
 extern void *memdup_root(MEM_ROOT *root, const void *str, size_t len);
-extern bool my_compress(uchar *, size_t *, size_t *);
-extern bool my_uncompress(uchar *, size_t, size_t *);
-extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
+extern bool my_compress(mysql_compress_context *, uchar *, size_t *, size_t *);
+extern bool my_uncompress(mysql_compress_context *, uchar *, size_t, size_t *);
+extern uchar *my_compress_alloc(mysql_compress_context *comp_ctx,
+                                const uchar *packet, size_t *len,
                                 size_t *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 

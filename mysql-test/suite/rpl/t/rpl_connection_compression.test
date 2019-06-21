@@ -73,8 +73,9 @@ CREATE TABLE levels (
 );
 
 # Exclude some levels, to make the test faster.
+# Intermediate compression levels are not making much difference, test default and max.
 INSERT INTO levels(level, position) VALUES
-  ('1', 1),
+#  ('1', 1),
   #('2', 2),
   ('default', 3),
   #('3', 3),
@@ -304,9 +305,7 @@ EOF
       --let $assert_cond = $bytes_sent == $last_bytes_sent
       --let $assert_text = Compression ratio should be equal to previous algorithm
     }
-    # TODO: uncomment this line when merging with WL#12039
-    # so that it actually uses the compression level.
-    #--source include/assert.inc
+    --source include/assert.inc
   }
 
   --let $last_bytes_sent = $bytes_sent

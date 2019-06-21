@@ -129,6 +129,7 @@ typedef struct NET_ASYNC {
 
 struct NET_EXTENSION {
   NET_ASYNC *net_async_context;
+  mysql_compress_context compress_ctx;
 };
 
 NET_EXTENSION *net_extension_init();

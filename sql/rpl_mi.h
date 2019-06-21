@@ -334,6 +334,7 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   */
   char compression_algorithm[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
   int zstd_compression_level;
+  NET_SERVER server_extn;  // maintain compress context info.
 
   int mi_init_info();
   void end_info();

@@ -46,6 +46,8 @@ struct MYSQL_SOCKET;
 #include <string>
 #include <vector>
 
+#include "mysql_com_server.h"
+
 /** Connection parameters including SSL */
 struct mysql_clone_ssl_context {
   /** Clone ssl mode. Same as mysql client --ssl-mode */
@@ -59,6 +61,7 @@ struct mysql_clone_ssl_context {
 
   /** Enable network compression. */
   bool m_enable_compression;
+  NET_SERVER *m_server_extn;
 };
 
 /** Vector of sting Values */

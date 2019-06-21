@@ -36,16 +36,18 @@
            a valid algorithm else return INVALID.
 */
 enum_compression_algorithm get_compression_algorithm(std::string name) {
+  if (name.empty() || name.c_str() == nullptr)
+    return enum_compression_algorithm::MYSQL_INVALID;
   if (!my_strcasecmp(&my_charset_latin1, name.c_str(),
                      COMPRESSION_ALGORITHM_ZLIB))
-    return enum_compression_algorithm::ZLIB;
+    return enum_compression_algorithm::MYSQL_ZLIB;
   else if (!my_strcasecmp(&my_charset_latin1, name.c_str(),
                           COMPRESSION_ALGORITHM_ZSTD))
-    return enum_compression_algorithm::ZSTD;
+    return enum_compression_algorithm::MYSQL_ZSTD;
   else if (!my_strcasecmp(&my_charset_latin1, name.c_str(),
                           COMPRESSION_ALGORITHM_UNCOMPRESSED))
-    return enum_compression_algorithm::UNCOMPRESSED;
-  return enum_compression_algorithm::INVALID;
+    return enum_compression_algorithm::MYSQL_UNCOMPRESSED;
+  return enum_compression_algorithm::MYSQL_INVALID;
 }
 
 /**
@@ -107,12 +109,12 @@ bool validate_compression_attributes(std::string algorithm_names,
   }
   /* validate compression algorithm names */
   auto name_it = algorithm_name_list.begin();
-  enum_compression_algorithm method = enum_compression_algorithm::INVALID;
+  enum_compression_algorithm method = enum_compression_algorithm::MYSQL_INVALID;
   while (name_it != algorithm_name_list.end()) {
     std::string algorithm_name = *name_it;
     /* validate algorithm name */
     method = get_compression_algorithm(algorithm_name);
-    if (method == enum_compression_algorithm::INVALID) {
+    if (method == enum_compression_algorithm::MYSQL_INVALID) {
       if (!ignore_errors)
         my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
                  algorithm_name.c_str(), channel_name.c_str());

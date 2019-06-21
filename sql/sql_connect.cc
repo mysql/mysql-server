@@ -771,8 +771,31 @@ static void prepare_new_connection_state(THD *thd) {
 
   if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS) ||
       thd->get_protocol()->has_client_capability(
-          CLIENT_ZSTD_COMPRESSION_ALGORITHM))
+          CLIENT_ZSTD_COMPRESSION_ALGORITHM)) {
     net->compress = 1;  // Use compression
+    enum enum_compression_algorithm algorithm = get_compression_algorithm(
+        thd->get_protocol()->get_compression_algorithm());
+    NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);
+    if (server_extn != nullptr)
+      mysql_compress_context_init(&server_extn->compress_ctx, algorithm,
+                                  thd->get_protocol()->get_compression_level());
+    if (net->extension == nullptr) {
+      LEX_CSTRING sctx_user = sctx->user();
+      Host_errors errors;
+      my_error(ER_NEW_ABORTING_CONNECTION, MYF(0), thd->thread_id(),
+               thd->db().str ? thd->db().str : "unconnected",
+               sctx_user.str ? sctx_user.str : "unauthenticated",
+               sctx->host_or_ip().str,
+               "Unable to allocate memory for compression context: Aborting "
+               "connection.");
+      thd->server_status &= ~SERVER_STATUS_CLEAR_SET;
+      thd->send_statement_status();
+      thd->killed = THD::KILL_CONNECTION;
+      errors.m_init_connect = 1;
+      inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
+      return;
+    }
+  }
 
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
@@ -835,6 +858,9 @@ static void prepare_new_connection_state(THD *thd) {
       thd->killed = THD::KILL_CONNECTION;
       errors.m_init_connect = 1;
       inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
+      NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);
+      if (server_extn != nullptr)
+        mysql_compress_context_deinit(&server_extn->compress_ctx);
       return;
     }
 

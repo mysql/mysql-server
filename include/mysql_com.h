@@ -39,6 +39,7 @@
 #endif
 
 #include "my_command.h"
+#include "my_compress.h"
 
 /*
   We need a definition for my_socket. On the client, <mysql.h> already provides

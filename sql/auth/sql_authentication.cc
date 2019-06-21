@@ -1375,16 +1375,16 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
     while (it != list.end()) {
       std::string value = *it;
       switch (get_compression_algorithm(value)) {
-        case enum_compression_algorithm::ZSTD:
+        case enum_compression_algorithm::MYSQL_ZSTD:
           protocol->add_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
           break;
-        case enum_compression_algorithm::ZLIB:
+        case enum_compression_algorithm::MYSQL_ZLIB:
           protocol->add_client_capability(CLIENT_COMPRESS);
           break;
-        case enum_compression_algorithm::UNCOMPRESSED:
+        case enum_compression_algorithm::MYSQL_UNCOMPRESSED:
           compression->compression_optional = true;
           break;
-        case enum_compression_algorithm::INVALID:
+        case enum_compression_algorithm::MYSQL_INVALID:
           DBUG_ASSERT(false);
           break;
       }

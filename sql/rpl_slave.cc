@@ -5169,6 +5169,7 @@ extern "C" void *handle_slave_io(void *arg) {
                  ER_THD(thd, ER_SLAVE_FATAL_ERROR), "error in mysql_init()");
       goto err;
     }
+    mysql_extension_set_server_extn(mysql, &mi->server_extn);
 
     THD_STAGE_INFO(thd, stage_connecting_to_master);
 
@@ -7981,7 +7982,6 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
                  "binary_log_listener");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "_client_replication_channel_name", mi->get_channel());
-
   while (!(slave_was_killed = io_slave_killed(thd, mi)) &&
          (reconnect ? mysql_reconnect(mysql) != 0
                     : mysql_real_connect(mysql, mi->host, user, password, 0,

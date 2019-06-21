@@ -297,6 +297,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
   /* Enable compression. */
   if (ssl_ctx->m_enable_compression) {
     mysql_options(mysql, MYSQL_OPT_COMPRESS, nullptr);
+    mysql_extension_set_server_extn(mysql, ssl_ctx->m_server_extn);
   }
 
   ret_mysql =
@@ -429,14 +430,19 @@ DEFINE_METHOD(int, mysql_clone_get_response,
   server_extn.m_user_data = static_cast<void *>(net_length);
   server_extn.m_before_header = func_before;
   server_extn.m_after_header = func_after;
-
   auto saved_extn = net->extension;
+  if (saved_extn != nullptr && net->compress)
+    server_extn.compress_ctx =
+        (static_cast<NET_SERVER *>(saved_extn))->compress_ctx;
+  else
+    server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
   net->extension = &server_extn;
 
   *net_length = 0;
   *length = my_net_read(net);
 
   net->extension = saved_extn;
+  server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
 
   /* Reset timeout back to default value. */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);

@@ -96,7 +96,7 @@ NET_EXTENSION *net_extension_init() {
       PSI_NOT_INSTRUMENTED, sizeof(NET_EXTENSION), MYF(MY_WME | MY_ZEROFILL)));
   ext->net_async_context = static_cast<NET_ASYNC *>(my_malloc(
       PSI_NOT_INSTRUMENTED, sizeof(NET_ASYNC), MYF(MY_WME | MY_ZEROFILL)));
-
+  ext->compress_ctx.algorithm = enum_compression_algorithm::MYSQL_UNCOMPRESSED;
   return ext;
 }
 
@@ -108,6 +108,7 @@ void net_extension_free(NET *net) {
       my_free(ext->net_async_context);
       ext->net_async_context = nullptr;
     }
+    mysql_compress_context_deinit(&ext->compress_ctx);
     my_free(ext);
     net->extension = 0;
 #endif
@@ -136,7 +137,7 @@ bool my_net_init(NET *net, Vio *vio) {
   net->where_b = net->remain_in_buf = 0;
   net->last_errno = 0;
 #ifdef MYSQL_SERVER
-  net->extension = NULL;
+  net->extension = nullptr;
 #else
   NET_EXTENSION *ext = net_extension_init();
   ext->net_async_context->cur_pos = net->buff + net->where_b;
@@ -147,6 +148,7 @@ bool my_net_init(NET *net, Vio *vio) {
   ext->net_async_context->async_read_query_result_status =
       NET_ASYNC_READ_QUERY_RESULT_IDLE;
   ext->net_async_context->async_packet_read_state = NET_ASYNC_PACKET_READ_IDLE;
+  ext->compress_ctx.algorithm = enum_compression_algorithm::MYSQL_UNCOMPRESSED;
   net->extension = ext;
 #endif
   if (vio) {
@@ -159,6 +161,13 @@ bool my_net_init(NET *net, Vio *vio) {
 
 void net_end(NET *net) {
   DBUG_TRACE;
+#ifdef MYSQL_SERVER
+  NET_SERVER *server_extension = static_cast<NET_SERVER *>(net->extension);
+  if (server_extension != nullptr)
+    mysql_compress_context_deinit(&server_extension->compress_ctx);
+#else
+  net_extension_free(net);
+#endif
   my_free(net->buff);
   net->buff = 0;
 }
@@ -1112,8 +1121,19 @@ static uchar *compress_packet(NET *net, const uchar *packet, size_t *length) {
 
   memcpy(compr_packet + header_length, packet, *length);
 
+  mysql_compress_context *compress_ctx = nullptr;
+#ifdef MYSQL_SERVER
+  NET_SERVER *server_extension = static_cast<NET_SERVER *>(net->extension);
+  if (server_extension != nullptr) {
+    compress_ctx = &server_extension->compress_ctx;
+  }
+#else
+  NET_EXTENSION *ext = NET_EXTENSION_PTR(net);
+  if (ext != nullptr) compress_ctx = &ext->compress_ctx;
+#endif
   /* Compress the encapsulated packet. */
-  if (my_compress(compr_packet + header_length, length, &compr_length)) {
+  if (my_compress(compress_ctx, compr_packet + header_length, length,
+                  &compr_length)) {
     /*
       If the length of the compressed packet is larger than the
       original packet, the original packet is sent uncompressed.
@@ -1274,7 +1294,7 @@ static bool net_read_packet_header(NET *net) {
 
   server_extension = static_cast<NET_SERVER *>(net->extension);
 
-  if (server_extension != NULL) {
+  if (server_extension != NULL && server_extension->m_user_data != nullptr) {
     void *user_data = server_extension->m_user_data;
     DBUG_ASSERT(server_extension->m_before_header != NULL);
     DBUG_ASSERT(server_extension->m_after_header != NULL);
@@ -1752,7 +1772,18 @@ ulong my_net_read(NET *net) {
       if ((packet_len = net_read_packet(net, &complen)) == packet_error) {
         return packet_error;
       }
-      if (my_uncompress(net->buff + net->where_b, packet_len, &complen)) {
+      mysql_compress_context *mysql_compress_ctx = nullptr;
+#ifdef MYSQL_SERVER
+      NET_SERVER *server_extension = static_cast<NET_SERVER *>(net->extension);
+      if (server_extension != nullptr) {
+        mysql_compress_ctx = &server_extension->compress_ctx;
+      }
+#else
+      NET_EXTENSION *ext = NET_EXTENSION_PTR(net);
+      if (ext != nullptr) mysql_compress_ctx = &ext->compress_ctx;
+#endif
+      if (my_uncompress(mysql_compress_ctx, net->buff + net->where_b,
+                        packet_len, &complen)) {
         net->error = 2; /* caller will close socket */
         net->last_errno = ER_NET_UNCOMPRESS_ERROR;
 #ifdef MYSQL_SERVER

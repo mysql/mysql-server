@@ -86,6 +86,36 @@ enum enum_server_command {
   COM_CLONE,
   COM_END
 };
+#include "my_compress.h"
+enum enum_compression_algorithm {
+  MYSQL_UNCOMPRESSED = 1,
+  MYSQL_ZLIB,
+  MYSQL_ZSTD,
+  MYSQL_INVALID
+};
+typedef struct mysql_zlib_compress_context {
+  unsigned int compression_level;
+} mysql_zlib_compress_context;
+typedef struct ZSTD_CCtx_s ZSTD_CCtx;
+typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+typedef struct mysql_zstd_compress_context {
+  ZSTD_CCtx *cctx;
+  ZSTD_DCtx *dctx;
+  unsigned int compression_level;
+} mysql_zstd_compress_context;
+typedef struct mysql_compress_context {
+  enum enum_compression_algorithm algorithm;
+  union {
+    mysql_zlib_compress_context zlib_ctx;
+    mysql_zstd_compress_context zstd_ctx;
+  } u;
+} mysql_compress_context;
+unsigned int mysql_default_compression_level(enum enum_compression_algorithm);
+void mysql_compress_context_init(mysql_compress_context *cmp_ctx,
+                                 enum enum_compression_algorithm algorithm,
+                                 unsigned int compression_level);
+void mysql_compress_context_deinit(
+   mysql_compress_context *mysql_compress_context);
 enum SERVER_STATUS_flags_enum {
   SERVER_STATUS_IN_TRANS = 1,
   SERVER_STATUS_AUTOCOMMIT = 2,

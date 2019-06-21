@@ -124,6 +124,7 @@
 #include "../libmysql/mysql_trace.h" /* MYSQL_TRACE() instrumentation */
 #include "sql_common.h"
 #ifdef MYSQL_SERVER
+#include "mysql_com_server.h"
 #include "sql/client_settings.h"
 #else
 #include "libmysql/client_settings.h"
@@ -1807,7 +1808,7 @@ void end_server(MYSQL *mysql) {
     mysql_prune_stmt_list(mysql);
   }
   net_end(&mysql->net);
-  net_extension_free(&mysql->net);
+  //  net_extension_free(&mysql->net);
   free_old_query(mysql);
   errno = save_errno;
   MYSQL_TRACE(DISCONNECTED, mysql, ());
@@ -3188,7 +3189,6 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
 
   mysql->resultset_metadata = RESULTSET_METADATA_FULL;
   ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_UNSET;
-
   return mysql;
 }
 
@@ -3208,7 +3208,9 @@ MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused))) {
                 MYF(MY_WME | MY_ZEROFILL)));
   /* set default value */
   ext->mysql_async_context->async_op_status = ASYNC_OP_UNSET;
-
+#ifdef MYSQL_SERVER
+  ext->server_extn = nullptr;
+#endif
   return ext;
 }
 
@@ -6391,13 +6393,37 @@ static mysql_state_machine_status csm_prep_select_database(
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
   NET *net = &mysql->net;
+
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 
   /* We will use compression */
   if ((mysql->client_flag & CLIENT_COMPRESS) ||
-      (mysql->client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
+      (mysql->client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM)) {
     net->compress = 1;
-
+    uint compress_level;
+    enum enum_compression_algorithm algorithm =
+        mysql->client_flag & CLIENT_COMPRESS ? MYSQL_ZLIB : MYSQL_ZSTD;
+    if (mysql->options.extension &&
+        mysql->options.extension->zstd_compression_level)
+      compress_level = mysql->options.extension->zstd_compression_level;
+    else
+      compress_level = mysql_default_compression_level(algorithm);
+#ifndef MYSQL_SERVER
+    NET_EXTENSION *ext = NET_EXTENSION_PTR(net);
+    DBUG_ASSERT(ext != nullptr);
+    mysql_compress_context_init(&ext->compress_ctx, algorithm, compress_level);
+#else
+    NET_SERVER *server_ext = static_cast<NET_SERVER *>(net->extension);
+    if (server_ext == nullptr) {
+      server_ext =
+          static_cast<NET_SERVER *>(MYSQL_EXTENSION_PTR(mysql)->server_extn);
+      net->extension = server_ext;
+    }
+    DBUG_ASSERT(server_ext != nullptr);
+    mysql_compress_context_init(&server_ext->compress_ctx, algorithm,
+                                compress_level);
+#endif
+  }
 #ifdef CHECK_LICENSE
   if (check_license(mysql)) return STATE_MACHINE_FAILED;
 #endif
@@ -6480,7 +6506,11 @@ bool mysql_reconnect(MYSQL *mysql) {
   mysql_close_free_options(&tmp_mysql);
   tmp_mysql.options = mysql->options;
   tmp_mysql.options.my_cnf_file = tmp_mysql.options.my_cnf_group = 0;
-
+#ifdef MYSQL_SERVER
+  MYSQL_EXTENSION_PTR(&tmp_mysql)->server_extn =
+      MYSQL_EXTENSION_PTR(mysql)->server_extn;
+  MYSQL_EXTENSION_PTR(mysql)->server_extn = nullptr;
+#endif
   if (!mysql_real_connect(&tmp_mysql, mysql->host, mysql->user, mysql->passwd,
                           mysql->db, mysql->port, mysql->unix_socket,
                           mysql->client_flag | CLIENT_REMEMBER_OPTIONS)) {
@@ -7769,18 +7799,18 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       while (it != list.end() && cnt < COMPRESSION_ALGORITHM_COUNT_MAX) {
         std::string value = *it;
         switch (get_compression_algorithm(value)) {
-          case enum_compression_algorithm::ZLIB:
+          case enum_compression_algorithm::MYSQL_ZLIB:
             mysql->options.client_flag |= CLIENT_COMPRESS;
             mysql->options.compress = 1;
             break;
-          case enum_compression_algorithm::ZSTD:
+          case enum_compression_algorithm::MYSQL_ZSTD:
             mysql->options.client_flag |= CLIENT_ZSTD_COMPRESSION_ALGORITHM;
             mysql->options.compress = 1;
             break;
-          case enum_compression_algorithm::UNCOMPRESSED:
+          case enum_compression_algorithm::MYSQL_UNCOMPRESSED:
             mysql->options.extension->connection_compressed = false;
             break;
-          case enum_compression_algorithm::INVALID:
+          case enum_compression_algorithm::MYSQL_INVALID:
             break;  // report error
         }
         it++;

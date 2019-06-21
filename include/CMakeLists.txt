@@ -29,6 +29,7 @@
 SET(HEADERS
   errmsg.h
   my_command.h
+  my_compress.h
   my_list.h
   mysql.h
   mysql_com.h

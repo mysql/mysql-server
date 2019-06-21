@@ -60,6 +60,7 @@ typedef struct NET_SERVER {
   after_header_callback_fn m_after_header;
   void *m_user_data;
   struct compression_attributes compression;
+  mysql_compress_context compress_ctx;
 } NET_SERVER;
 
 #endif
