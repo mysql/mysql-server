@@ -358,6 +358,11 @@ class Statement_backup {
 
     m_query_string = thd->query();
     thd->set_query(stmt->m_query_string);
+    if (thd->lex->contains_plaintext_password)
+      thd->set_query_for_display("<secret>", 8);
+    else
+      thd->set_query_for_display(stmt->m_query_string.str,
+                                 stmt->m_query_string.length);
 
     DBUG_VOID_RETURN;
   }
@@ -376,6 +381,7 @@ class Statement_backup {
 
     stmt->m_query_string = thd->query();
     thd->set_query(m_query_string);
+    thd->reset_query_for_display();
 
     DBUG_VOID_RETURN;
   }

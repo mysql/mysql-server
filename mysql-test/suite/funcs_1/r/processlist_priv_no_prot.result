@@ -187,13 +187,13 @@ Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
-ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	root	HOST_NAME	information_schema	Sleep	TIME		GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost'
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
-ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	root	HOST_NAME	information_schema	Sleep	TIME		GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost'
 ####################################################################################
 5 Grant PROCESS privilege to anonymous user.
 connection default (user=root)
@@ -214,14 +214,14 @@ ID		HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
-ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	root	HOST_NAME	information_schema	Sleep	TIME		GRANT PROCESS ON *.* TO ''@'localhost'
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID		HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
-ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	root	HOST_NAME	information_schema	Sleep	TIME		GRANT PROCESS ON *.* TO ''@'localhost'
 ####################################################################################
 6 Revoke PROCESS privilege from ddicttestuser1
 connection default (user=root)
@@ -359,7 +359,7 @@ SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost'
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -373,7 +373,7 @@ SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost'
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
