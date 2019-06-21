@@ -90,6 +90,15 @@ colA
 SELECT * FROM tinytbl WHERE colA <=> 255;
 colA
 255
+SELECT * FROM tinytbl WHERE NOT(colA <=> 255);
+colA
+0
+1
+0
+1
+3
+254
+NULL
 SELECT * FROM tinytbl WHERE colA <> 255;
 colA
 0
@@ -106,6 +115,14 @@ SELECT * FROM tinytbl WHERE colA <=> 0;
 colA
 0
 0
+SELECT * FROM tinytbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+254
+255
+NULL
 SELECT * FROM tinytbl WHERE colA <> 0;
 colA
 1
@@ -117,6 +134,16 @@ SELECT * FROM tinytbl WHERE colA = -1;
 colA
 SELECT * FROM tinytbl WHERE colA <=> -1;
 colA
+SELECT * FROM tinytbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+254
+255
+NULL
 SELECT * FROM tinytbl WHERE colA <> -1;
 colA
 0
@@ -132,7 +159,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbl WHERE colA <> ?';
 SET @maxint_plus_1=256;
 SET @maxint=255;
 SET @minint_minus_1=-1;
@@ -195,6 +223,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -204,12 +241,21 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 255
 EXECUTE p_equal   USING @maxint;
 colA
 255
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+254
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -218,6 +264,7 @@ colA
 1
 3
 254
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -226,6 +273,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -233,10 +287,20 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -246,11 +310,13 @@ colA
 3
 254
 255
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbl WHERE colA < 256;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -475,7 +541,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -534,6 +601,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -543,12 +619,21 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 255
 EXECUTE p_equal   USING @maxint;
 colA
 255
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+254
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -557,6 +642,7 @@ colA
 1
 3
 254
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -565,6 +651,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -572,10 +665,20 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -585,11 +688,13 @@ colA
 3
 254
 255
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbl WHERE 256 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1435,6 +1540,15 @@ colA
 SELECT * FROM tinytbl WHERE colA <=> '255';
 colA
 255
+SELECT * FROM tinytbl WHERE NOT(colA <=> '255');
+colA
+0
+1
+0
+1
+3
+254
+NULL
 SELECT * FROM tinytbl WHERE colA <> '255';
 colA
 0
@@ -1451,6 +1565,14 @@ SELECT * FROM tinytbl WHERE colA <=> '0';
 colA
 0
 0
+SELECT * FROM tinytbl WHERE NOT(colA <=> '0');
+colA
+1
+1
+3
+254
+255
+NULL
 SELECT * FROM tinytbl WHERE colA <> '0';
 colA
 1
@@ -1462,6 +1584,16 @@ SELECT * FROM tinytbl WHERE colA = '-1';
 colA
 SELECT * FROM tinytbl WHERE colA <=> '-1';
 colA
+SELECT * FROM tinytbl WHERE NOT(colA <=> '-1');
+colA
+0
+1
+0
+1
+3
+254
+255
+NULL
 SELECT * FROM tinytbl WHERE colA <> '-1';
 colA
 0
@@ -1477,7 +1609,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbl WHERE colA <> ?';
 SET @maxint_plus_1='256';
 SET @maxint='255';
 SET @minint_minus_1='-1';
@@ -1540,6 +1673,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -1549,12 +1691,21 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 255
 EXECUTE p_equal   USING @maxint;
 colA
 255
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+254
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -1563,6 +1714,7 @@ colA
 1
 3
 254
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -1571,6 +1723,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -1578,10 +1737,20 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -1591,11 +1760,13 @@ colA
 3
 254
 255
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbl WHERE colA < '256';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1820,7 +1991,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -1879,6 +2051,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -1888,12 +2069,21 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 255
 EXECUTE p_equal   USING @maxint;
 colA
 255
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+254
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -1902,6 +2092,7 @@ colA
 1
 3
 254
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -1910,6 +2101,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -1917,10 +2115,20 @@ colA
 3
 254
 255
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -1930,11 +2138,13 @@ colA
 3
 254
 255
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbl WHERE '256' > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2985,6 +3195,15 @@ colA
 SELECT * FROM tinytbl WHERE colA <=> 2.55E02;
 colA
 255
+SELECT * FROM tinytbl WHERE NOT(colA <=> 2.55E02);
+colA
+0
+1
+0
+1
+3
+254
+0
 SELECT * FROM tinytbl WHERE colA <> 2.55E02;
 colA
 0
@@ -3004,6 +3223,13 @@ colA
 0
 0
 0
+SELECT * FROM tinytbl WHERE NOT(colA <=> 0.0E+00);
+colA
+1
+1
+3
+254
+255
 SELECT * FROM tinytbl WHERE colA <> 0.0E+00;
 colA
 1
@@ -3015,6 +3241,16 @@ SELECT * FROM tinytbl WHERE colA = -1.0E00;
 colA
 SELECT * FROM tinytbl WHERE colA <=> -1.0E00;
 colA
+SELECT * FROM tinytbl WHERE NOT(colA <=> -1.0E00);
+colA
+0
+1
+0
+1
+3
+254
+255
+0
 SELECT * FROM tinytbl WHERE colA <> -1.0E00;
 colA
 0
@@ -3031,7 +3267,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbl WHERE colA <> ?';
 SET @maxint_plus_1=2.56E02;
 SET @maxint=2.55E02;
 SET @minint_minus_1=-1.0E00;
@@ -3099,6 +3336,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -3115,6 +3362,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 255
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+254
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -3134,6 +3390,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -3145,6 +3408,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -3160,6 +3433,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbl WHERE colA < 2.56E02;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3394,7 +3668,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -3458,6 +3733,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -3474,6 +3759,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 255
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+254
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -3493,6 +3787,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+254
+255
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -3504,6 +3805,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+254
+255
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -3519,6 +3830,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbl WHERE 2.56E02 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4412,6 +4724,15 @@ colA
 SELECT * FROM tinytbls WHERE colA <=> 127;
 colA
 127
+SELECT * FROM tinytbls WHERE NOT(colA <=> 127);
+colA
+-128
+-127
+0
+1
+3
+126
+NULL
 SELECT * FROM tinytbls WHERE colA <> 127;
 colA
 -128
@@ -4426,6 +4747,15 @@ colA
 SELECT * FROM tinytbls WHERE colA <=> -128;
 colA
 -128
+SELECT * FROM tinytbls WHERE NOT(colA <=> -128);
+colA
+-127
+0
+1
+3
+126
+127
+NULL
 SELECT * FROM tinytbls WHERE colA <> -128;
 colA
 -127
@@ -4438,6 +4768,16 @@ SELECT * FROM tinytbls WHERE colA = -129;
 colA
 SELECT * FROM tinytbls WHERE colA <=> -129;
 colA
+SELECT * FROM tinytbls WHERE NOT(colA <=> -129);
+colA
+-128
+-127
+0
+1
+3
+126
+127
+NULL
 SELECT * FROM tinytbls WHERE colA <> -129;
 colA
 -128
@@ -4453,7 +4793,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbls WHERE colA <> ?';
 SET @maxint_plus_1=128;
 SET @maxint=127;
 SET @minint_minus_1=-129;
@@ -4516,6 +4857,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -128
@@ -4525,12 +4875,21 @@ colA
 3
 126
 127
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 127
 EXECUTE p_equal   USING @maxint;
 colA
 127
+EXECUTE p_n_eq    USING @maxint;
+colA
+-128
+-127
+0
+1
+3
+126
 EXECUTE p_n_equal USING @maxint;
 colA
 -128
@@ -4539,12 +4898,21 @@ colA
 1
 3
 126
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -128
 EXECUTE p_equal   USING @minint;
 colA
 -128
+EXECUTE p_n_eq    USING @minint;
+colA
+-127
+0
+1
+3
+126
+127
 EXECUTE p_n_equal USING @minint;
 colA
 -127
@@ -4553,10 +4921,20 @@ colA
 3
 126
 127
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -128
@@ -4566,11 +4944,13 @@ colA
 3
 126
 127
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbls WHERE colA < 128;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4794,7 +5174,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -128
@@ -4853,6 +5234,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -128
@@ -4862,12 +5252,21 @@ colA
 3
 126
 127
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 127
 EXECUTE p_equal   USING @maxint;
 colA
 127
+EXECUTE p_n_eq    USING @maxint;
+colA
+-128
+-127
+0
+1
+3
+126
 EXECUTE p_n_equal USING @maxint;
 colA
 -128
@@ -4876,12 +5275,21 @@ colA
 1
 3
 126
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -128
 EXECUTE p_equal   USING @minint;
 colA
 -128
+EXECUTE p_n_eq    USING @minint;
+colA
+-127
+0
+1
+3
+126
+127
 EXECUTE p_n_equal USING @minint;
 colA
 -127
@@ -4890,10 +5298,20 @@ colA
 3
 126
 127
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -128
@@ -4903,11 +5321,13 @@ colA
 3
 126
 127
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbls WHERE 128 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5759,6 +6179,15 @@ colA
 SELECT * FROM tinytbls WHERE colA <=> 127;
 colA
 127
+SELECT * FROM tinytbls WHERE NOT(colA <=> 127);
+colA
+-128
+-127
+0
+1
+3
+126
+0
 SELECT * FROM tinytbls WHERE colA <> 127;
 colA
 -128
@@ -5774,6 +6203,15 @@ colA
 SELECT * FROM tinytbls WHERE colA <=> -128;
 colA
 -128
+SELECT * FROM tinytbls WHERE NOT(colA <=> -128);
+colA
+-127
+0
+1
+3
+126
+127
+0
 SELECT * FROM tinytbls WHERE colA <> -128;
 colA
 -127
@@ -5787,6 +6225,16 @@ SELECT * FROM tinytbls WHERE colA = -129;
 colA
 SELECT * FROM tinytbls WHERE colA <=> -129;
 colA
+SELECT * FROM tinytbls WHERE NOT(colA <=> -129);
+colA
+-128
+-127
+0
+1
+3
+126
+127
+0
 SELECT * FROM tinytbls WHERE colA <> -129;
 colA
 -128
@@ -5803,7 +6251,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbls WHERE colA <> ?';
 SET @maxint_plus_1=128;
 SET @maxint=127;
 SET @minint_minus_1=-129;
@@ -5871,6 +6320,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -128
@@ -5887,6 +6346,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 127
+EXECUTE p_n_eq    USING @maxint;
+colA
+-128
+-127
+0
+1
+3
+126
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -128
@@ -5902,6 +6370,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -128
+EXECUTE p_n_eq    USING @minint;
+colA
+-127
+0
+1
+3
+126
+127
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -127
@@ -5915,6 +6392,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -128
@@ -5930,6 +6417,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbls WHERE colA < 128;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6162,7 +6650,8 @@ PREPARE p_greater FROM 'SELECT * FROM tinytbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM tinytbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM tinytbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM tinytbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM tinytbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM tinytbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -128
@@ -6226,6 +6715,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -128
@@ -6242,6 +6741,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 127
+EXECUTE p_n_eq    USING @maxint;
+colA
+-128
+-127
+0
+1
+3
+126
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -128
@@ -6257,6 +6765,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -128
+EXECUTE p_n_eq    USING @minint;
+colA
+-127
+0
+1
+3
+126
+127
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -127
@@ -6270,6 +6787,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-128
+-127
+0
+1
+3
+126
+127
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -128
@@ -6285,6 +6812,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM tinytbls WHERE 128 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7178,6 +7706,15 @@ colA
 SELECT * FROM smalltbl WHERE colA <=> 65535;
 colA
 65535
+SELECT * FROM smalltbl WHERE NOT(colA <=> 65535);
+colA
+0
+1
+0
+1
+3
+65534
+NULL
 SELECT * FROM smalltbl WHERE colA <> 65535;
 colA
 0
@@ -7194,6 +7731,14 @@ SELECT * FROM smalltbl WHERE colA <=> 0;
 colA
 0
 0
+SELECT * FROM smalltbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+65534
+65535
+NULL
 SELECT * FROM smalltbl WHERE colA <> 0;
 colA
 1
@@ -7205,6 +7750,16 @@ SELECT * FROM smalltbl WHERE colA = -1;
 colA
 SELECT * FROM smalltbl WHERE colA <=> -1;
 colA
+SELECT * FROM smalltbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+65534
+65535
+NULL
 SELECT * FROM smalltbl WHERE colA <> -1;
 colA
 0
@@ -7220,7 +7775,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbl WHERE colA <> ?';
 SET @maxint_plus_1=65536;
 SET @maxint=65535;
 SET @minint_minus_1=-1;
@@ -7283,6 +7839,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -7292,12 +7857,21 @@ colA
 3
 65534
 65535
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 65535
 EXECUTE p_equal   USING @maxint;
 colA
 65535
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+65534
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -7306,6 +7880,7 @@ colA
 1
 3
 65534
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -7314,6 +7889,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -7321,10 +7903,20 @@ colA
 3
 65534
 65535
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -7334,11 +7926,13 @@ colA
 3
 65534
 65535
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbl WHERE colA < 65536;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7563,7 +8157,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -7622,6 +8217,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -7631,12 +8235,21 @@ colA
 3
 65534
 65535
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 65535
 EXECUTE p_equal   USING @maxint;
 colA
 65535
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+65534
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -7645,6 +8258,7 @@ colA
 1
 3
 65534
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -7653,6 +8267,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -7660,10 +8281,20 @@ colA
 3
 65534
 65535
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -7673,11 +8304,13 @@ colA
 3
 65534
 65535
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbl WHERE 65536 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -8529,6 +9162,15 @@ colA
 SELECT * FROM smalltbl WHERE colA <=> 65535;
 colA
 65535
+SELECT * FROM smalltbl WHERE NOT(colA <=> 65535);
+colA
+0
+1
+0
+1
+3
+65534
+0
 SELECT * FROM smalltbl WHERE colA <> 65535;
 colA
 0
@@ -8548,6 +9190,13 @@ colA
 0
 0
 0
+SELECT * FROM smalltbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+65534
+65535
 SELECT * FROM smalltbl WHERE colA <> 0;
 colA
 1
@@ -8559,6 +9208,16 @@ SELECT * FROM smalltbl WHERE colA = -1;
 colA
 SELECT * FROM smalltbl WHERE colA <=> -1;
 colA
+SELECT * FROM smalltbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+65534
+65535
+0
 SELECT * FROM smalltbl WHERE colA <> -1;
 colA
 0
@@ -8575,7 +9234,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbl WHERE colA <> ?';
 SET @maxint_plus_1=65536;
 SET @maxint=65535;
 SET @minint_minus_1=-1;
@@ -8643,6 +9303,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -8659,6 +9329,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 65535
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+65534
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -8678,6 +9357,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -8689,6 +9375,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -8704,6 +9400,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbl WHERE colA < 65536;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -8938,7 +9635,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -9002,6 +9700,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -9018,6 +9726,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 65535
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+65534
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -9037,6 +9754,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+65534
+65535
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -9048,6 +9772,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+65534
+65535
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -9063,6 +9797,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbl WHERE 65536 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9956,6 +10691,15 @@ colA
 SELECT * FROM smalltbls WHERE colA <=> 32767;
 colA
 32767
+SELECT * FROM smalltbls WHERE NOT(colA <=> 32767);
+colA
+-32768
+-32767
+0
+1
+3
+32766
+NULL
 SELECT * FROM smalltbls WHERE colA <> 32767;
 colA
 -32768
@@ -9970,6 +10714,15 @@ colA
 SELECT * FROM smalltbls WHERE colA <=> -32768;
 colA
 -32768
+SELECT * FROM smalltbls WHERE NOT(colA <=> -32768);
+colA
+-32767
+0
+1
+3
+32766
+32767
+NULL
 SELECT * FROM smalltbls WHERE colA <> -32768;
 colA
 -32767
@@ -9982,6 +10735,16 @@ SELECT * FROM smalltbls WHERE colA = -32769;
 colA
 SELECT * FROM smalltbls WHERE colA <=> -32769;
 colA
+SELECT * FROM smalltbls WHERE NOT(colA <=> -32769);
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
+NULL
 SELECT * FROM smalltbls WHERE colA <> -32769;
 colA
 -32768
@@ -9997,7 +10760,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbls WHERE colA <> ?';
 SET @maxint_plus_1=32768;
 SET @maxint=32767;
 SET @minint_minus_1=-32769;
@@ -10060,6 +10824,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -32768
@@ -10069,12 +10842,21 @@ colA
 3
 32766
 32767
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 32767
 EXECUTE p_equal   USING @maxint;
 colA
 32767
+EXECUTE p_n_eq    USING @maxint;
+colA
+-32768
+-32767
+0
+1
+3
+32766
 EXECUTE p_n_equal USING @maxint;
 colA
 -32768
@@ -10083,12 +10865,21 @@ colA
 1
 3
 32766
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -32768
 EXECUTE p_equal   USING @minint;
 colA
 -32768
+EXECUTE p_n_eq    USING @minint;
+colA
+-32767
+0
+1
+3
+32766
+32767
 EXECUTE p_n_equal USING @minint;
 colA
 -32767
@@ -10097,10 +10888,20 @@ colA
 3
 32766
 32767
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -32768
@@ -10110,11 +10911,13 @@ colA
 3
 32766
 32767
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbls WHERE colA < 32768;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -10338,7 +11141,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -32768
@@ -10397,6 +11201,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -32768
@@ -10406,12 +11219,21 @@ colA
 3
 32766
 32767
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 32767
 EXECUTE p_equal   USING @maxint;
 colA
 32767
+EXECUTE p_n_eq    USING @maxint;
+colA
+-32768
+-32767
+0
+1
+3
+32766
 EXECUTE p_n_equal USING @maxint;
 colA
 -32768
@@ -10420,12 +11242,21 @@ colA
 1
 3
 32766
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -32768
 EXECUTE p_equal   USING @minint;
 colA
 -32768
+EXECUTE p_n_eq    USING @minint;
+colA
+-32767
+0
+1
+3
+32766
+32767
 EXECUTE p_n_equal USING @minint;
 colA
 -32767
@@ -10434,10 +11265,20 @@ colA
 3
 32766
 32767
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -32768
@@ -10447,11 +11288,13 @@ colA
 3
 32766
 32767
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbls WHERE 32768 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -11303,6 +12146,15 @@ colA
 SELECT * FROM smalltbls WHERE colA <=> 32767;
 colA
 32767
+SELECT * FROM smalltbls WHERE NOT(colA <=> 32767);
+colA
+-32768
+-32767
+0
+1
+3
+32766
+0
 SELECT * FROM smalltbls WHERE colA <> 32767;
 colA
 -32768
@@ -11318,6 +12170,15 @@ colA
 SELECT * FROM smalltbls WHERE colA <=> -32768;
 colA
 -32768
+SELECT * FROM smalltbls WHERE NOT(colA <=> -32768);
+colA
+-32767
+0
+1
+3
+32766
+32767
+0
 SELECT * FROM smalltbls WHERE colA <> -32768;
 colA
 -32767
@@ -11331,6 +12192,16 @@ SELECT * FROM smalltbls WHERE colA = -32769;
 colA
 SELECT * FROM smalltbls WHERE colA <=> -32769;
 colA
+SELECT * FROM smalltbls WHERE NOT(colA <=> -32769);
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
+0
 SELECT * FROM smalltbls WHERE colA <> -32769;
 colA
 -32768
@@ -11347,7 +12218,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbls WHERE colA <> ?';
 SET @maxint_plus_1=32768;
 SET @maxint=32767;
 SET @minint_minus_1=-32769;
@@ -11415,6 +12287,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -32768
@@ -11431,6 +12313,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 32767
+EXECUTE p_n_eq    USING @maxint;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -32768
@@ -11446,6 +12337,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -32768
+EXECUTE p_n_eq    USING @minint;
+colA
+-32767
+0
+1
+3
+32766
+32767
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -32767
@@ -11459,6 +12359,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -32768
@@ -11474,6 +12384,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbls WHERE colA < 32768;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -11706,7 +12617,8 @@ PREPARE p_greater FROM 'SELECT * FROM smalltbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM smalltbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM smalltbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM smalltbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM smalltbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM smalltbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -32768
@@ -11770,6 +12682,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -32768
@@ -11786,6 +12708,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 32767
+EXECUTE p_n_eq    USING @maxint;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -32768
@@ -11801,6 +12732,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -32768
+EXECUTE p_n_eq    USING @minint;
+colA
+-32767
+0
+1
+3
+32766
+32767
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -32767
@@ -11814,6 +12754,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-32768
+-32767
+0
+1
+3
+32766
+32767
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -32768
@@ -11829,6 +12779,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM smalltbls WHERE 32768 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -12722,6 +13673,15 @@ colA
 SELECT * FROM mediumtbl WHERE colA <=> 16777215;
 colA
 16777215
+SELECT * FROM mediumtbl WHERE NOT(colA <=> 16777215);
+colA
+0
+1
+0
+1
+3
+16777214
+NULL
 SELECT * FROM mediumtbl WHERE colA <> 16777215;
 colA
 0
@@ -12738,6 +13698,14 @@ SELECT * FROM mediumtbl WHERE colA <=> 0;
 colA
 0
 0
+SELECT * FROM mediumtbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+16777214
+16777215
+NULL
 SELECT * FROM mediumtbl WHERE colA <> 0;
 colA
 1
@@ -12749,6 +13717,16 @@ SELECT * FROM mediumtbl WHERE colA = -1;
 colA
 SELECT * FROM mediumtbl WHERE colA <=> -1;
 colA
+SELECT * FROM mediumtbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
+NULL
 SELECT * FROM mediumtbl WHERE colA <> -1;
 colA
 0
@@ -12764,7 +13742,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbl WHERE colA <> ?';
 SET @maxint_plus_1=16777216;
 SET @maxint=16777215;
 SET @minint_minus_1=-1;
@@ -12827,6 +13806,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -12836,12 +13824,21 @@ colA
 3
 16777214
 16777215
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 16777215
 EXECUTE p_equal   USING @maxint;
 colA
 16777215
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+16777214
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -12850,6 +13847,7 @@ colA
 1
 3
 16777214
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -12858,6 +13856,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -12865,10 +13870,20 @@ colA
 3
 16777214
 16777215
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -12878,11 +13893,13 @@ colA
 3
 16777214
 16777215
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbl WHERE colA < 16777216;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -13107,7 +14124,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -13166,6 +14184,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -13175,12 +14202,21 @@ colA
 3
 16777214
 16777215
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 16777215
 EXECUTE p_equal   USING @maxint;
 colA
 16777215
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+16777214
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -13189,6 +14225,7 @@ colA
 1
 3
 16777214
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -13197,6 +14234,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -13204,10 +14248,20 @@ colA
 3
 16777214
 16777215
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -13217,11 +14271,13 @@ colA
 3
 16777214
 16777215
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbl WHERE 16777216 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -13432,6 +14488,15 @@ colA
 SELECT * FROM mediumtbl WHERE colA <=> 16777215;
 colA
 16777215
+SELECT * FROM mediumtbl WHERE NOT(colA <=> 16777215);
+colA
+0
+1
+0
+1
+3
+16777214
+0
 SELECT * FROM mediumtbl WHERE colA <> 16777215;
 colA
 0
@@ -13451,6 +14516,13 @@ colA
 0
 0
 0
+SELECT * FROM mediumtbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+16777214
+16777215
 SELECT * FROM mediumtbl WHERE colA <> 0;
 colA
 1
@@ -13462,6 +14534,16 @@ SELECT * FROM mediumtbl WHERE colA = -1;
 colA
 SELECT * FROM mediumtbl WHERE colA <=> -1;
 colA
+SELECT * FROM mediumtbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
+0
 SELECT * FROM mediumtbl WHERE colA <> -1;
 colA
 0
@@ -13478,7 +14560,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbl WHERE colA <> ?';
 SET @maxint_plus_1=16777216;
 SET @maxint=16777215;
 SET @minint_minus_1=-1;
@@ -13546,6 +14629,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -13562,6 +14655,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 16777215
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+16777214
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -13581,6 +14683,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -13592,6 +14701,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -13607,6 +14726,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbl WHERE colA < 16777216;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -13841,7 +14961,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -13905,6 +15026,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -13921,6 +15052,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 16777215
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+16777214
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -13940,6 +15080,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+16777214
+16777215
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -13951,6 +15098,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+16777214
+16777215
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -13966,6 +15123,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbl WHERE 16777216 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -14170,6 +15328,15 @@ colA
 SELECT * FROM mediumtbls WHERE colA <=> 8388607;
 colA
 8388607
+SELECT * FROM mediumtbls WHERE NOT(colA <=> 8388607);
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+NULL
 SELECT * FROM mediumtbls WHERE colA <> 8388607;
 colA
 -8388608
@@ -14184,6 +15351,15 @@ colA
 SELECT * FROM mediumtbls WHERE colA <=> -8388608;
 colA
 -8388608
+SELECT * FROM mediumtbls WHERE NOT(colA <=> -8388608);
+colA
+-8388607
+0
+1
+3
+8388606
+8388607
+NULL
 SELECT * FROM mediumtbls WHERE colA <> -8388608;
 colA
 -8388607
@@ -14196,6 +15372,16 @@ SELECT * FROM mediumtbls WHERE colA = -8388609;
 colA
 SELECT * FROM mediumtbls WHERE colA <=> -8388609;
 colA
+SELECT * FROM mediumtbls WHERE NOT(colA <=> -8388609);
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
+NULL
 SELECT * FROM mediumtbls WHERE colA <> -8388609;
 colA
 -8388608
@@ -14211,7 +15397,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbls WHERE colA <> ?';
 SET @maxint_plus_1=8388608;
 SET @maxint=8388607;
 SET @minint_minus_1=-8388609;
@@ -14274,6 +15461,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -8388608
@@ -14283,12 +15479,21 @@ colA
 3
 8388606
 8388607
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 8388607
 EXECUTE p_equal   USING @maxint;
 colA
 8388607
+EXECUTE p_n_eq    USING @maxint;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
 EXECUTE p_n_equal USING @maxint;
 colA
 -8388608
@@ -14297,12 +15502,21 @@ colA
 1
 3
 8388606
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -8388608
 EXECUTE p_equal   USING @minint;
 colA
 -8388608
+EXECUTE p_n_eq    USING @minint;
+colA
+-8388607
+0
+1
+3
+8388606
+8388607
 EXECUTE p_n_equal USING @minint;
 colA
 -8388607
@@ -14311,10 +15525,20 @@ colA
 3
 8388606
 8388607
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -8388608
@@ -14324,11 +15548,13 @@ colA
 3
 8388606
 8388607
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbls WHERE colA < 8388608;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -14552,7 +15778,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -8388608
@@ -14611,6 +15838,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -8388608
@@ -14620,12 +15856,21 @@ colA
 3
 8388606
 8388607
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 8388607
 EXECUTE p_equal   USING @maxint;
 colA
 8388607
+EXECUTE p_n_eq    USING @maxint;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
 EXECUTE p_n_equal USING @maxint;
 colA
 -8388608
@@ -14634,12 +15879,21 @@ colA
 1
 3
 8388606
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -8388608
 EXECUTE p_equal   USING @minint;
 colA
 -8388608
+EXECUTE p_n_eq    USING @minint;
+colA
+-8388607
+0
+1
+3
+8388606
+8388607
 EXECUTE p_n_equal USING @minint;
 colA
 -8388607
@@ -14648,10 +15902,20 @@ colA
 3
 8388606
 8388607
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -8388608
@@ -14661,11 +15925,13 @@ colA
 3
 8388606
 8388607
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbls WHERE 8388608 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -14876,6 +16142,15 @@ colA
 SELECT * FROM mediumtbls WHERE colA <=> 8388607;
 colA
 8388607
+SELECT * FROM mediumtbls WHERE NOT(colA <=> 8388607);
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+0
 SELECT * FROM mediumtbls WHERE colA <> 8388607;
 colA
 -8388608
@@ -14891,6 +16166,15 @@ colA
 SELECT * FROM mediumtbls WHERE colA <=> -8388608;
 colA
 -8388608
+SELECT * FROM mediumtbls WHERE NOT(colA <=> -8388608);
+colA
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 SELECT * FROM mediumtbls WHERE colA <> -8388608;
 colA
 -8388607
@@ -14904,6 +16188,16 @@ SELECT * FROM mediumtbls WHERE colA = -8388609;
 colA
 SELECT * FROM mediumtbls WHERE colA <=> -8388609;
 colA
+SELECT * FROM mediumtbls WHERE NOT(colA <=> -8388609);
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 SELECT * FROM mediumtbls WHERE colA <> -8388609;
 colA
 -8388608
@@ -14920,7 +16214,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbls WHERE colA <> ?';
 SET @maxint_plus_1=8388608;
 SET @maxint=8388607;
 SET @minint_minus_1=-8388609;
@@ -14988,6 +16283,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -8388608
@@ -15004,6 +16309,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 8388607
+EXECUTE p_n_eq    USING @maxint;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -8388608
@@ -15019,6 +16333,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -8388608
+EXECUTE p_n_eq    USING @minint;
+colA
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -8388607
@@ -15032,6 +16355,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -8388608
@@ -15047,6 +16380,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbls WHERE colA < 8388608;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -15279,7 +16613,8 @@ PREPARE p_greater FROM 'SELECT * FROM mediumtbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM mediumtbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM mediumtbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM mediumtbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM mediumtbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM mediumtbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -8388608
@@ -15343,6 +16678,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -8388608
@@ -15359,6 +16704,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 8388607
+EXECUTE p_n_eq    USING @maxint;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -8388608
@@ -15374,6 +16728,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -8388608
+EXECUTE p_n_eq    USING @minint;
+colA
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -8388607
@@ -15387,6 +16750,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-8388608
+-8388607
+0
+1
+3
+8388606
+8388607
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -8388608
@@ -15402,6 +16775,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM mediumtbls WHERE 8388608 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -15606,6 +16980,15 @@ colA
 SELECT * FROM inttbl WHERE colA <=> 4294967295;
 colA
 4294967295
+SELECT * FROM inttbl WHERE NOT(colA <=> 4294967295);
+colA
+0
+1
+0
+1
+3
+4294967294
+NULL
 SELECT * FROM inttbl WHERE colA <> 4294967295;
 colA
 0
@@ -15622,6 +17005,14 @@ SELECT * FROM inttbl WHERE colA <=> 0;
 colA
 0
 0
+SELECT * FROM inttbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+4294967294
+4294967295
+NULL
 SELECT * FROM inttbl WHERE colA <> 0;
 colA
 1
@@ -15633,6 +17024,16 @@ SELECT * FROM inttbl WHERE colA = -1;
 colA
 SELECT * FROM inttbl WHERE colA <=> -1;
 colA
+SELECT * FROM inttbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
+NULL
 SELECT * FROM inttbl WHERE colA <> -1;
 colA
 0
@@ -15648,7 +17049,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE colA <> ?';
 SET @maxint_plus_1=4294967296;
 SET @maxint=4294967295;
 SET @minint_minus_1=-1;
@@ -15711,6 +17113,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -15720,12 +17131,21 @@ colA
 3
 4294967294
 4294967295
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 4294967295
 EXECUTE p_equal   USING @maxint;
 colA
 4294967295
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+4294967294
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -15734,6 +17154,7 @@ colA
 1
 3
 4294967294
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -15742,6 +17163,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -15749,10 +17177,20 @@ colA
 3
 4294967294
 4294967295
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -15762,11 +17200,13 @@ colA
 3
 4294967294
 4294967295
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE colA < 4294967296;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -15991,7 +17431,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -16050,6 +17491,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -16059,12 +17509,21 @@ colA
 3
 4294967294
 4294967295
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 4294967295
 EXECUTE p_equal   USING @maxint;
 colA
 4294967295
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+4294967294
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -16073,6 +17532,7 @@ colA
 1
 3
 4294967294
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -16081,6 +17541,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -16088,10 +17555,20 @@ colA
 3
 4294967294
 4294967295
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -16101,11 +17578,13 @@ colA
 3
 4294967294
 4294967295
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE 4294967296 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -16316,6 +17795,15 @@ colA
 SELECT * FROM inttbl WHERE colA <=> 4294967295;
 colA
 4294967295
+SELECT * FROM inttbl WHERE NOT(colA <=> 4294967295);
+colA
+0
+1
+0
+1
+3
+4294967294
+0
 SELECT * FROM inttbl WHERE colA <> 4294967295;
 colA
 0
@@ -16335,6 +17823,13 @@ colA
 0
 0
 0
+SELECT * FROM inttbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+4294967294
+4294967295
 SELECT * FROM inttbl WHERE colA <> 0;
 colA
 1
@@ -16346,6 +17841,16 @@ SELECT * FROM inttbl WHERE colA = -1;
 colA
 SELECT * FROM inttbl WHERE colA <=> -1;
 colA
+SELECT * FROM inttbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
+0
 SELECT * FROM inttbl WHERE colA <> -1;
 colA
 0
@@ -16362,7 +17867,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE colA <> ?';
 SET @maxint_plus_1=4294967296;
 SET @maxint=4294967295;
 SET @minint_minus_1=-1;
@@ -16430,6 +17936,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -16446,6 +17962,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 4294967295
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+4294967294
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -16465,6 +17990,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -16476,6 +18008,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -16491,6 +18033,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE colA < 4294967296;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -16725,7 +18268,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -16789,6 +18333,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -16805,6 +18359,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 4294967295
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+4294967294
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -16824,6 +18387,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+4294967294
+4294967295
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -16835,6 +18405,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+4294967294
+4294967295
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -16850,6 +18430,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE 4294967296 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -17054,6 +18635,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> 2147483647;
 colA
 2147483647
+SELECT * FROM inttbls WHERE NOT(colA <=> 2147483647);
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+NULL
 SELECT * FROM inttbls WHERE colA <> 2147483647;
 colA
 -2147483648
@@ -17068,6 +18658,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> -2147483648;
 colA
 -2147483648
+SELECT * FROM inttbls WHERE NOT(colA <=> -2147483648);
+colA
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+NULL
 SELECT * FROM inttbls WHERE colA <> -2147483648;
 colA
 -2147483647
@@ -17080,6 +18679,16 @@ SELECT * FROM inttbls WHERE colA = -2147483649;
 colA
 SELECT * FROM inttbls WHERE colA <=> -2147483649;
 colA
+SELECT * FROM inttbls WHERE NOT(colA <=> -2147483649);
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+NULL
 SELECT * FROM inttbls WHERE colA <> -2147483649;
 colA
 -2147483648
@@ -17095,7 +18704,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE colA <> ?';
 SET @maxint_plus_1=2147483648;
 SET @maxint=2147483647;
 SET @minint_minus_1=-2147483649;
@@ -17158,6 +18768,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -2147483648
@@ -17167,12 +18786,21 @@ colA
 3
 2147483646
 2147483647
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 2147483647
 EXECUTE p_equal   USING @maxint;
 colA
 2147483647
+EXECUTE p_n_eq    USING @maxint;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
 EXECUTE p_n_equal USING @maxint;
 colA
 -2147483648
@@ -17181,12 +18809,21 @@ colA
 1
 3
 2147483646
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -2147483648
 EXECUTE p_equal   USING @minint;
 colA
 -2147483648
+EXECUTE p_n_eq    USING @minint;
+colA
+-2147483647
+0
+1
+3
+2147483646
+2147483647
 EXECUTE p_n_equal USING @minint;
 colA
 -2147483647
@@ -17195,10 +18832,20 @@ colA
 3
 2147483646
 2147483647
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -2147483648
@@ -17208,11 +18855,13 @@ colA
 3
 2147483646
 2147483647
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE colA < 2147483648;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -17436,7 +19085,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -2147483648
@@ -17495,6 +19145,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -2147483648
@@ -17504,12 +19163,21 @@ colA
 3
 2147483646
 2147483647
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 2147483647
 EXECUTE p_equal   USING @maxint;
 colA
 2147483647
+EXECUTE p_n_eq    USING @maxint;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
 EXECUTE p_n_equal USING @maxint;
 colA
 -2147483648
@@ -17518,12 +19186,21 @@ colA
 1
 3
 2147483646
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -2147483648
 EXECUTE p_equal   USING @minint;
 colA
 -2147483648
+EXECUTE p_n_eq    USING @minint;
+colA
+-2147483647
+0
+1
+3
+2147483646
+2147483647
 EXECUTE p_n_equal USING @minint;
 colA
 -2147483647
@@ -17532,10 +19209,20 @@ colA
 3
 2147483646
 2147483647
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -2147483648
@@ -17545,11 +19232,13 @@ colA
 3
 2147483646
 2147483647
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE 2147483648 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -17760,6 +19449,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> 2147483647;
 colA
 2147483647
+SELECT * FROM inttbls WHERE NOT(colA <=> 2147483647);
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+0
 SELECT * FROM inttbls WHERE colA <> 2147483647;
 colA
 -2147483648
@@ -17775,6 +19473,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> -2147483648;
 colA
 -2147483648
+SELECT * FROM inttbls WHERE NOT(colA <=> -2147483648);
+colA
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 SELECT * FROM inttbls WHERE colA <> -2147483648;
 colA
 -2147483647
@@ -17788,6 +19495,16 @@ SELECT * FROM inttbls WHERE colA = -2147483649;
 colA
 SELECT * FROM inttbls WHERE colA <=> -2147483649;
 colA
+SELECT * FROM inttbls WHERE NOT(colA <=> -2147483649);
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 SELECT * FROM inttbls WHERE colA <> -2147483649;
 colA
 -2147483648
@@ -17804,7 +19521,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE colA <> ?';
 SET @maxint_plus_1=2147483648;
 SET @maxint=2147483647;
 SET @minint_minus_1=-2147483649;
@@ -17872,6 +19590,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -2147483648
@@ -17888,6 +19616,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 2147483647
+EXECUTE p_n_eq    USING @maxint;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -2147483648
@@ -17903,6 +19640,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -2147483648
+EXECUTE p_n_eq    USING @minint;
+colA
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -2147483647
@@ -17916,6 +19662,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -2147483648
@@ -17931,6 +19687,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE colA < 2147483648;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -18163,7 +19920,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -2147483648
@@ -18227,6 +19985,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -2147483648
@@ -18243,6 +20011,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 2147483647
+EXECUTE p_n_eq    USING @maxint;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -2147483648
@@ -18258,6 +20035,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -2147483648
+EXECUTE p_n_eq    USING @minint;
+colA
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -2147483647
@@ -18271,6 +20057,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-2147483648
+-2147483647
+0
+1
+3
+2147483646
+2147483647
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -2147483648
@@ -18286,6 +20082,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE 2147483648 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -18490,6 +20287,15 @@ colA
 SELECT * FROM inttbl WHERE colA <=> 18446744073709551615;
 colA
 18446744073709551615
+SELECT * FROM inttbl WHERE NOT(colA <=> 18446744073709551615);
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+NULL
 SELECT * FROM inttbl WHERE colA <> 18446744073709551615;
 colA
 0
@@ -18506,6 +20312,14 @@ SELECT * FROM inttbl WHERE colA <=> 0;
 colA
 0
 0
+SELECT * FROM inttbl WHERE NOT(colA <=> 0);
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
+NULL
 SELECT * FROM inttbl WHERE colA <> 0;
 colA
 1
@@ -18517,6 +20331,16 @@ SELECT * FROM inttbl WHERE colA = -1;
 colA
 SELECT * FROM inttbl WHERE colA <=> -1;
 colA
+SELECT * FROM inttbl WHERE NOT(colA <=> -1);
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
+NULL
 SELECT * FROM inttbl WHERE colA <> -1;
 colA
 0
@@ -18532,7 +20356,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE colA <> ?';
 SET @maxint_plus_1=18446744073709551616;
 SET @maxint=18446744073709551615;
 SET @minint_minus_1=-1;
@@ -18595,6 +20420,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -18604,12 +20438,21 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 18446744073709551615
 EXECUTE p_equal   USING @maxint;
 colA
 18446744073709551615
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -18618,6 +20461,7 @@ colA
 1
 3
 18446744073709551614
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -18626,6 +20470,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -18633,10 +20484,20 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -18646,11 +20507,13 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE colA < 18446744073709551616;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -18875,7 +20738,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -18934,6 +20798,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -18943,12 +20816,21 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 18446744073709551615
 EXECUTE p_equal   USING @maxint;
 colA
 18446744073709551615
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -18957,6 +20839,7 @@ colA
 1
 3
 18446744073709551614
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -18965,6 +20848,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -18972,10 +20862,20 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -18985,11 +20885,13 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE 18446744073709551616 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -19835,6 +21737,15 @@ colA
 SELECT * FROM inttbl WHERE colA <=> '18446744073709551615';
 colA
 18446744073709551615
+SELECT * FROM inttbl WHERE NOT(colA <=> '18446744073709551615');
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+NULL
 SELECT * FROM inttbl WHERE colA <> '18446744073709551615';
 colA
 0
@@ -19851,6 +21762,14 @@ SELECT * FROM inttbl WHERE colA <=> '0';
 colA
 0
 0
+SELECT * FROM inttbl WHERE NOT(colA <=> '0');
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
+NULL
 SELECT * FROM inttbl WHERE colA <> '0';
 colA
 1
@@ -19862,6 +21781,16 @@ SELECT * FROM inttbl WHERE colA = '-1';
 colA
 SELECT * FROM inttbl WHERE colA <=> '-1';
 colA
+SELECT * FROM inttbl WHERE NOT(colA <=> '-1');
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
+NULL
 SELECT * FROM inttbl WHERE colA <> '-1';
 colA
 0
@@ -19877,7 +21806,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE colA <> ?';
 SET @maxint_plus_1='18446744073709551616';
 SET @maxint='18446744073709551615';
 SET @minint_minus_1='-1';
@@ -19940,6 +21870,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -19949,12 +21888,21 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 18446744073709551615
 EXECUTE p_equal   USING @maxint;
 colA
 18446744073709551615
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -19963,6 +21911,7 @@ colA
 1
 3
 18446744073709551614
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -19971,6 +21920,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -19978,10 +21934,20 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -19991,11 +21957,13 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE colA < '18446744073709551616';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -20220,7 +22188,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -20279,6 +22248,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -20288,12 +22266,21 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 18446744073709551615
 EXECUTE p_equal   USING @maxint;
 colA
 18446744073709551615
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -20302,6 +22289,7 @@ colA
 1
 3
 18446744073709551614
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 0
@@ -20310,6 +22298,13 @@ EXECUTE p_equal   USING @minint;
 colA
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -20317,10 +22312,20 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -20330,11 +22335,13 @@ colA
 3
 18446744073709551614
 18446744073709551615
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE '18446744073709551616' > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -20545,6 +22552,15 @@ colA
 SELECT * FROM inttbl WHERE colA <=> '18446744073709551615';
 colA
 18446744073709551615
+SELECT * FROM inttbl WHERE NOT(colA <=> '18446744073709551615');
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+0
 SELECT * FROM inttbl WHERE colA <> '18446744073709551615';
 colA
 0
@@ -20564,6 +22580,13 @@ colA
 0
 0
 0
+SELECT * FROM inttbl WHERE NOT(colA <=> '0');
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
 SELECT * FROM inttbl WHERE colA <> '0';
 colA
 1
@@ -20575,6 +22598,16 @@ SELECT * FROM inttbl WHERE colA = '-1';
 colA
 SELECT * FROM inttbl WHERE colA <=> '-1';
 colA
+SELECT * FROM inttbl WHERE NOT(colA <=> '-1');
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
+0
 SELECT * FROM inttbl WHERE colA <> '-1';
 colA
 0
@@ -20591,7 +22624,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE colA <> ?';
 SET @maxint_plus_1='18446744073709551616';
 SET @maxint='18446744073709551615';
 SET @minint_minus_1='-1';
@@ -20659,6 +22693,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -20675,6 +22719,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 18446744073709551615
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -20694,6 +22747,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -20705,6 +22765,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -20720,6 +22790,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE colA < '18446744073709551616';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -20954,7 +23025,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbl WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbl WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbl WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbl WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbl WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbl WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 0
@@ -21018,6 +23090,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 0
@@ -21034,6 +23116,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 18446744073709551615
+EXECUTE p_n_eq    USING @maxint;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 0
@@ -21053,6 +23144,13 @@ colA
 0
 0
 0
+EXECUTE p_n_eq    USING @minint;
+colA
+1
+1
+3
+18446744073709551614
+18446744073709551615
 EXECUTE p_n_equal USING @minint;
 colA
 1
@@ -21064,6 +23162,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+0
+1
+0
+1
+3
+18446744073709551614
+18446744073709551615
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 0
@@ -21079,6 +23187,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbl WHERE '18446744073709551616' > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -21283,6 +23392,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> 9223372036854775807;
 colA
 9223372036854775807
+SELECT * FROM inttbls WHERE NOT(colA <=> 9223372036854775807);
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+NULL
 SELECT * FROM inttbls WHERE colA <> 9223372036854775807;
 colA
 -9223372036854775808
@@ -21297,6 +23415,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> -9223372036854775808;
 colA
 -9223372036854775808
+SELECT * FROM inttbls WHERE NOT(colA <=> -9223372036854775808);
+colA
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+NULL
 SELECT * FROM inttbls WHERE colA <> -9223372036854775808;
 colA
 -9223372036854775807
@@ -21309,6 +23436,16 @@ SELECT * FROM inttbls WHERE colA = -9223372036854775809;
 colA
 SELECT * FROM inttbls WHERE colA <=> -9223372036854775809;
 colA
+SELECT * FROM inttbls WHERE NOT(colA <=> -9223372036854775809);
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+NULL
 SELECT * FROM inttbls WHERE colA <> -9223372036854775809;
 colA
 -9223372036854775808
@@ -21324,7 +23461,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE colA <> ?';
 SET @maxint_plus_1=9223372036854775808;
 SET @maxint=9223372036854775807;
 SET @minint_minus_1=-9223372036854775809;
@@ -21387,6 +23525,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -9223372036854775808
@@ -21396,12 +23543,21 @@ colA
 3
 9223372036854775806
 9223372036854775807
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 9223372036854775807
 EXECUTE p_equal   USING @maxint;
 colA
 9223372036854775807
+EXECUTE p_n_eq    USING @maxint;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
 EXECUTE p_n_equal USING @maxint;
 colA
 -9223372036854775808
@@ -21410,12 +23566,21 @@ colA
 1
 3
 9223372036854775806
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -9223372036854775808
 EXECUTE p_equal   USING @minint;
 colA
 -9223372036854775808
+EXECUTE p_n_eq    USING @minint;
+colA
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
 EXECUTE p_n_equal USING @minint;
 colA
 -9223372036854775807
@@ -21424,10 +23589,20 @@ colA
 3
 9223372036854775806
 9223372036854775807
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -9223372036854775808
@@ -21437,11 +23612,13 @@ colA
 3
 9223372036854775806
 9223372036854775807
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE colA < 9223372036854775808;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -21665,7 +23842,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -9223372036854775808
@@ -21724,6 +23902,15 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -9223372036854775808
@@ -21733,12 +23920,21 @@ colA
 3
 9223372036854775806
 9223372036854775807
+NULL
 EXECUTE p_eq      USING @maxint;
 colA
 9223372036854775807
 EXECUTE p_equal   USING @maxint;
 colA
 9223372036854775807
+EXECUTE p_n_eq    USING @maxint;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
 EXECUTE p_n_equal USING @maxint;
 colA
 -9223372036854775808
@@ -21747,12 +23943,21 @@ colA
 1
 3
 9223372036854775806
+NULL
 EXECUTE p_eq      USING @minint;
 colA
 -9223372036854775808
 EXECUTE p_equal   USING @minint;
 colA
 -9223372036854775808
+EXECUTE p_n_eq    USING @minint;
+colA
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
 EXECUTE p_n_equal USING @minint;
 colA
 -9223372036854775807
@@ -21761,10 +23966,20 @@ colA
 3
 9223372036854775806
 9223372036854775807
+NULL
 EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -9223372036854775808
@@ -21774,11 +23989,13 @@ colA
 3
 9223372036854775806
 9223372036854775807
+NULL
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE 9223372036854775808 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -21989,6 +24206,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> 9223372036854775807;
 colA
 9223372036854775807
+SELECT * FROM inttbls WHERE NOT(colA <=> 9223372036854775807);
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+0
 SELECT * FROM inttbls WHERE colA <> 9223372036854775807;
 colA
 -9223372036854775808
@@ -22004,6 +24230,15 @@ colA
 SELECT * FROM inttbls WHERE colA <=> -9223372036854775808;
 colA
 -9223372036854775808
+SELECT * FROM inttbls WHERE NOT(colA <=> -9223372036854775808);
+colA
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 SELECT * FROM inttbls WHERE colA <> -9223372036854775808;
 colA
 -9223372036854775807
@@ -22017,6 +24252,16 @@ SELECT * FROM inttbls WHERE colA = -9223372036854775809;
 colA
 SELECT * FROM inttbls WHERE colA <=> -9223372036854775809;
 colA
+SELECT * FROM inttbls WHERE NOT(colA <=> -9223372036854775809);
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 SELECT * FROM inttbls WHERE colA <> -9223372036854775809;
 colA
 -9223372036854775808
@@ -22033,7 +24278,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE colA > ?';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE colA >= ?';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE colA = ?';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE colA <=> ?';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE colA <> ?';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(colA <=> ?)';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE colA <> ?';
 SET @maxint_plus_1=9223372036854775808;
 SET @maxint=9223372036854775807;
 SET @minint_minus_1=-9223372036854775809;
@@ -22101,6 +24347,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -9223372036854775808
@@ -22117,6 +24373,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 9223372036854775807
+EXECUTE p_n_eq    USING @maxint;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -9223372036854775808
@@ -22132,6 +24397,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -9223372036854775808
+EXECUTE p_n_eq    USING @minint;
+colA
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -9223372036854775807
@@ -22145,6 +24419,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -9223372036854775808
@@ -22160,6 +24444,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE colA < 9223372036854775808;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -22392,7 +24677,8 @@ PREPARE p_greater FROM 'SELECT * FROM inttbls WHERE ? > colA';
 PREPARE p_gret_eq FROM 'SELECT * FROM inttbls WHERE ? >= colA';
 PREPARE p_eq      FROM 'SELECT * FROM inttbls WHERE ? = colA';
 PREPARE p_equal   FROM 'SELECT * FROM inttbls WHERE ? <=> colA';
-PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_eq    FROM 'SELECT * FROM inttbls WHERE ? <> colA';
+PREPARE p_n_equal FROM 'SELECT * FROM inttbls WHERE NOT(? <=> colA)';
 EXECUTE p_greater USING @maxint_plus_1;
 colA
 -9223372036854775808
@@ -22456,6 +24742,16 @@ EXECUTE p_eq      USING @maxint_plus_1;
 colA
 EXECUTE p_equal   USING @maxint_plus_1;
 colA
+EXECUTE p_n_eq    USING @maxint_plus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 EXECUTE p_n_equal USING @maxint_plus_1;
 colA
 -9223372036854775808
@@ -22472,6 +24768,15 @@ colA
 EXECUTE p_equal   USING @maxint;
 colA
 9223372036854775807
+EXECUTE p_n_eq    USING @maxint;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+0
 EXECUTE p_n_equal USING @maxint;
 colA
 -9223372036854775808
@@ -22487,6 +24792,15 @@ colA
 EXECUTE p_equal   USING @minint;
 colA
 -9223372036854775808
+EXECUTE p_n_eq    USING @minint;
+colA
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 EXECUTE p_n_equal USING @minint;
 colA
 -9223372036854775807
@@ -22500,6 +24814,16 @@ EXECUTE p_eq      USING @minint_minus_1;
 colA
 EXECUTE p_equal   USING @minint_minus_1;
 colA
+EXECUTE p_n_eq    USING @minint_minus_1;
+colA
+-9223372036854775808
+-9223372036854775807
+0
+1
+3
+9223372036854775806
+9223372036854775807
+0
 EXECUTE p_n_equal USING @minint_minus_1;
 colA
 -9223372036854775808
@@ -22515,6 +24839,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 EXPLAIN SELECT * FROM inttbls WHERE 9223372036854775808 > colA;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -47515,3 +49840,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`c` AS `c` from `test`.`t` where (`test`.`t`.`c` <=> 8106.000)
 DROP TABLE t;
+CREATE TABLE t0(c0 TINYINT);
+INSERT INTO t0(c0) VALUES(NULL);
+SELECT * FROM t0 WHERE NOT(t0.c0 <=> 2035382037);
+c0
+NULL
+SELECT * FROM t0 WHERE t0.c0 <=> 2035382037;
+c0
+DROP TABLE t0;
