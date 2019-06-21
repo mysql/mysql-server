@@ -2957,3 +2957,10 @@ select @advertAcctId as a from dual union all select 1.0 from dual;
 a
 1000003.0
 1.0
+#
+# Bug #29916900 (duplicate of #27903792) [ASSERTION `FIELD_TYPE() ==
+# MYSQL_TYPE_GEOMETRY' FAILED]
+#
+SELECT ST_GEOMFROMTEXT('POINT(0 0)')
+UNION
+SELECT * FROM (SELECT NULL) AS a;
