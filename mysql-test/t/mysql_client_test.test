@@ -54,7 +54,7 @@ EOF
 --exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # Restart the server against DDIR.
---let $restart_parameters= restart: --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG
+--let $restart_parameters= restart: --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv= --no-console --log-error=$MYSQLD_LOG
 --replace_result $DDIR DDIR $MYSQLD_LOG MYSQLD_LOG
 --source include/start_mysqld.inc
 
