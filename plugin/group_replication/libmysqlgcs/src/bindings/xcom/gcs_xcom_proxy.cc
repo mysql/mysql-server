@@ -517,10 +517,12 @@ void Gcs_xcom_proxy_impl::set_should_exit(bool should_exit) {
   m_should_exit.store(should_exit, std::memory_order_relaxed);
 }
 
-bool Gcs_xcom_proxy_impl::xcom_input_connect() {
+bool Gcs_xcom_proxy_impl::xcom_input_connect(std::string const &address,
+                                             xcom_port port) {
   m_xcom_input_queue.reset();
   ::xcom_input_free_signal_connection();
-  bool const successful = ::xcom_input_new_signal_connection();
+  bool const successful =
+      ::xcom_input_new_signal_connection(address.c_str(), port);
   return successful;
 }
 
