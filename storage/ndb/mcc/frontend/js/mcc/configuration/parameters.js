@@ -429,6 +429,26 @@ var processParameterDefaults = {
                 visibleInstance: false,
                 advancedLevel: true
             },
+            LocationDomainId: {
+                label: 'LocationDomainId',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                    '-api-definition.html#ndbparam-api-locationdomainid',
+                tooltip: 'Assigns node to a specific ' +
+                    'availability domain (also known as an availability zone) ' +
+                    'within a cloud.',
+                constraints: { min: 0, max: 16, places: 0, pattern: '#' },
+                attribute: 'LocationDomainId',
+                destination: 'config.ini',
+                overridableType: false,
+                overridableInstance: true,
+                widget: dijit.form.NumberSpinner,
+                width: '50%',
+                defaultValueType: 0,
+                defaultValueInstance: [],
+                visibleType: false,
+                visibleInstance: true,
+                advancedLevel: true
+            },
             HeartbeatOrder: {
                 label: 'HeartbeatOrder',
                 docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
@@ -502,7 +522,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 20,
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -522,7 +542,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 10,
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -543,7 +563,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 50,
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -563,7 +583,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 200,
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -593,63 +613,6 @@ var processParameterDefaults = {
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: true
-            },
-            BackupMaxWriteSize: {
-                label: 'BackupMaxWriteSize(KB)',
-                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
-                    '-ndbd-definition.html#ndbparam-ndbd-backupmaxwritesize',
-                tooltip: 'Max size of filesystem writes made by backup',
-                constraints: { min: 256, max: 4194304, places: 0, pattern: '#' },
-                attribute: 'BackupMaxWriteSize',
-                destination: 'config.ini',
-                suffix: 'K',
-                overridableType: true,
-                overridableInstance: true,
-                widget: dijit.form.NumberSpinner,
-                width: '50%',
-                defaultValueType: 1024,
-                defaultValueInstance: [],
-                visibleType: true,
-                visibleInstance: false,
-                advancedLevel: true
-            },
-            BackupWriteSize: {
-                label: 'BackupWriteSize(KB)',
-                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
-                    '-ndbd-definition.html#ndbparam-ndbd-backupwritesize',
-                tooltip: 'Size of filesystem writes made by backup',
-                constraints: { min: 32, max: 4194304, places: 0, pattern: '#' },
-                attribute: 'BackupWriteSize',
-                destination: 'config.ini',
-                suffix: 'K',
-                overridableType: true,
-                overridableInstance: true,
-                widget: dijit.form.NumberSpinner,
-                width: '50%',
-                defaultValueType: 256,
-                defaultValueInstance: [],
-                visibleType: true,
-                visibleInstance: false,
-                advancedLevel: true
-            },
-            BackupDataBufferSize: {
-                label: 'BackupDataBufferSz(KB)',
-                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
-                    '-ndbd-definition.html#ndbparam-ndbd-backupdatabuffersize',
-                tooltip: 'Default size of databuffer for a backup',
-                constraints: { min: 512, max: 4194304, places: 0, pattern: '#' },
-                attribute: 'BackupDataBufferSize',
-                destination: 'config.ini',
-                suffix: 'K',
-                overridableType: true,
-                overridableInstance: true,
-                widget: dijit.form.NumberSpinner,
-                width: '50%',
-                defaultValueType: 1024,
-                defaultValueInstance: [],
-                visibleType: true,
-                visibleInstance: false,
-                advancedLevel: true
             },
             BackupLogBufferSize: {
                 label: 'BackupLogBufferSz(MB)',
@@ -689,26 +652,6 @@ var processParameterDefaults = {
                 visibleInstance: false,
                 advancedLevel: true
             },
-            BackupDiskWriteSpeedPct: {
-                label: 'BackupDiskWrSpeedPct',
-                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
-                    '-ndbd-definition.html#ndbparam-ndbd-backupdiskwritespeedpct',
-                tooltip: "Node's max write rate budget reserved prior to " +
-                         'sharing out the remainder of the budget among ' +
-                         'LDM threads for LCPs.',
-                constraints: { min: 0, max: 90, places: 0, pattern: '#' },
-                attribute: 'BackupDiskWriteSpeedPct',
-                destination: 'config.ini',
-                overridableType: true,
-                overridableInstance: true,
-                widget: dijit.form.NumberSpinner,
-                width: '50%',
-                defaultValueType: 50,
-                defaultValueInstance: [],
-                visibleType: true,
-                visibleInstance: false,
-                advancedLevel: true
-            },
             CompressedBackup: {
                 label: 'CompressedBackup',
                 docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
@@ -739,7 +682,41 @@ var processParameterDefaults = {
                 overridableInstance: false,
                 widget: dijit.form.CheckBox,
                 width: '15px',
-                defaultValueType: false,
+                defaultValueType: true,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false,
+                advancedLevel: true
+            },
+            EnablePartialLcp: {
+                label: 'EnablePartialLcp',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                        '-ndbd-definition.html#ndbparam-ndbd-enablepartiallcp',
+                tooltip: 'When true, enable partial local checkpoints.',
+                attribute: 'EnablePartialLcp',
+                destination: 'config.ini',
+                overridableType: true,
+                overridableInstance: false,
+                widget: dijit.form.CheckBox,
+                width: '15px',
+                defaultValueType: true,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false,
+                advancedLevel: true
+            },
+            EnableRedoControl: {
+                label: 'EnableRedoControl',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                        '-ndbd-definition.html#ndbparam-ndbd-enableredocontrol',
+                tooltip: 'Enable adaptive checkpointing speed for controlling redo log usage.',
+                attribute: 'EnableRedoControl',
+                destination: 'config.ini',
+                overridableType: true,
+                overridableInstance: false,
+                widget: dijit.form.CheckBox,
+                width: '15px',
+                defaultValueType: true,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1009,26 +986,6 @@ var processParameterDefaults = {
                 visibleInstance: false,
                 advancedLevel: true
             },
-            IndexMemory: {
-                label: 'IndexMemory(MB)',
-                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
-                    '-ndbd-definition.html#ndbparam-ndbd-indexmemory',
-                tooltip: 'Number of Mbytes on each ndbd(DB) node allocated ' +
-                        'for storing indexes',
-                constraints: { min: 1, max: 1048576, places: 0, pattern: '#' },
-                attribute: 'IndexMemory',
-                suffix: 'M',
-                destination: 'config.ini',
-                overridableType: true,
-                overridableInstance: false,
-                widget: dijit.form.NumberSpinner,
-                width: '50%',
-                defaultValueType: undefined,
-                defaultValueInstance: [],
-                visibleType: true,
-                visibleInstance: false,
-                advancedLevel: true
-            },
             MinFreePct: {
                 label: 'MinFreePct',
                 docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
@@ -1202,7 +1159,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 25,
+                defaultValueType: 5,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1261,7 +1218,7 @@ var processParameterDefaults = {
                 overridableInstance: false,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 60,
+                defaultValueType: 150,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1299,7 +1256,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 1,
+                defaultValueType: 0,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1321,6 +1278,43 @@ var processParameterDefaults = {
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
+                advancedLevel: true
+            },
+            ODirectSyncFlag: {
+                label: 'ODirectSyncFlag',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                        '-ndbd-definition.html#ndbparam-ndbd-odirectsyncflag',
+                tooltip: 'When this parameter is enabled, redo log writes are ' +
+                    'performed such that each completed file system write is ' +
+                    'handled as a call to fsync.',
+                attribute: 'ODirectSyncFlag',
+                destination: 'config.ini',
+                overridableType: true,
+                overridableInstance: false,
+                widget: dijit.form.CheckBox,
+                width: '15px',
+                defaultValueType: false,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false,
+                advancedLevel: true
+            },
+            UseShm: {
+                label: 'Use shm',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                        '-ndbd-definition.html#ndbparam-ndbd-useshm',
+                tooltip: 'Use shared memory connections between this data node ' +
+                    'and the API node also running on this host.',
+                attribute: 'UseShm',
+                destination: 'config.ini',
+                overridableType: true,
+                overridableInstance: true,
+                widget: dijit.form.CheckBox,
+                width: '15px',
+                defaultValueType: false,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: true,
                 advancedLevel: true
             },
             Arbitration: {
@@ -1365,7 +1359,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 10,
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1397,7 +1391,7 @@ var processParameterDefaults = {
                     '-ndbd-definition.html#ndbparam-ndbd-sharedglobalmemory',
                 tooltip: 'Total number of Mbytes on each ndbd(DB) node ' +
                         'allocated for any use',
-                constraints: { min: 0, max: 67108864, places: 0, pattern: '#' },
+                constraints: { min: 0, max: 1073741824, places: 0, pattern: '#' }, // 67108864
                 attribute: 'SharedGlobalMemory',
                 suffix: 'M',
                 destination: 'config.ini',
@@ -1405,7 +1399,7 @@ var processParameterDefaults = {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 128,
+                defaultValueType: 300,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1937,25 +1931,6 @@ var processParameterDefaults = {
                 visibleInstance: false,
                 advancedLevel: true
             },
-            TwoPassInitialNodeRestartCopy: {
-                label: 'TwoPassInitNRCopy',
-                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
-                        '-ndbd-definition.html#ndbparam-ndbd-twopassinitialnoderestartcopy',
-                tooltip: 'Enables multi-thd building of ordered indexes, ' +
-                         'two-pass copy of data during init. node restarts.' +
-                         'Requires BuildIndexThreads > 0.',
-                attribute: 'TwoPassInitialNodeRestartCopy',
-                destination: 'config.ini',
-                overridableType: true,
-                overridableInstance: true,
-                widget: dijit.form.CheckBox,
-                width: '15px',
-                defaultValueType: false,
-                defaultValueInstance: [],
-                visibleType: true,
-                visibleInstance: true,
-                advancedLevel: true
-            },
             BuildIndexThreads: {
                 label: 'BuildIndexThreads',
                 docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
@@ -1996,6 +1971,45 @@ var processParameterDefaults = {
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
                 defaultValueType: undefined,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: true,
+                advancedLevel: true
+            },
+            MaxNoOfExecutionThreads: {
+                label: "MaxNoOfExecutionThreads",
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
+                        "-ndbd-definition.html#ndbparam-ndbmtd-" +
+                        "maxnoofexecutionthreads", 
+                tooltip: "For ndbmtd, specify max no of execution threads",
+                constraints: {min: 4, max: 72, places: 0, pattern: "#"},
+                attribute: "MaxNoOfExecutionThreads",
+                destination: "config.ini",
+                overridableType: true,
+                overridableInstance: true,
+                widget: dijit.form.NumberSpinner,
+                width: "50%",
+                defaultValueType: 8,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: true,
+                advancedLevel: true
+            },
+            NoOfFragmentLogParts: {
+                label: "NoOfFragmentLogParts",
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
+                        "-ndbd-definition.html#ndbparam-ndbmtd-" +
+                        "nooffragmentlogparts", 
+                tooltip: "Set the number of log file groups for redo logs " +
+                    "belonging to this ndbmtd.",
+                constraints: "2,4,6,8,10,12,16,20,24,32",
+                attribute: "NoOfFragmentLogParts",
+                destination: "config.ini",
+                overridableType: true,
+                overridableInstance: true,
+                widget: dijit.form.FilteringSelect,
+                width: "50%",
+                defaultValueType: 4,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: true,
@@ -2356,7 +2370,7 @@ var processParameterDefaults = {
                 overridableInstance: false,
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
-                defaultValueType: 4294967039,
+                defaultValueType: 0,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -2419,6 +2433,23 @@ var processParameterDefaults = {
                 widget: dijit.form.NumberSpinner,
                 width: '50%',
                 defaultValueType: 12000,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false,
+                advancedLevel: true
+            },
+            MaxSendDelay: {
+                label: 'MaxSendDelay',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster.html',
+                tooltip: 'Max number of microseconds to delay sending in ndbmtd.',
+                constraints: { min: 0, max: 11000, places: 0, pattern: '#' },
+                attribute: 'MaxSendDelay',
+                destination: 'config.ini',
+                overridableType: true,
+                overridableInstance: false,
+                widget: dijit.form.NumberSpinner,
+                width: '50%',
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -2606,7 +2637,7 @@ var processParameterDefaults = {
                 advancedLevel: false
             },
             ndbwaitsetup: {
-                label: 'ndb-wait-setup',
+                label: 'Wait setup',
                 docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
                     '-options-variables.html#option_mysqld_ndb-wait-setup',
                 tooltip: 'Size (in bytes) to use for NDB transaction batches',
@@ -2623,7 +2654,7 @@ var processParameterDefaults = {
                 visibleInstance: true
             },
             ndbbatchsize: {
-                label: 'ndb-batch-size',
+                label: 'Batch size',
                 docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
                     '-options-variables.html#option_mysqld_ndb-batch-size',
                 tooltip: 'Size (in bytes) to use for NDB transaction batches',
@@ -2770,6 +2801,42 @@ var processParameterDefaults = {
                 visibleType: true,
                 visibleInstance: true,
                 advancedLevel: true
+            },
+            ndbfullyreplicated: {
+                label: 'Fully replicated',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                    '-system-variables.html#sysvar_ndb_fully_replicated',
+                tooltip: 'Determines whether new NDB tables are fully replicated.',
+                attribute: 'ndb_fully_replicated',
+                destination: 'my.cnf',
+                constraints: { min: 0, max: 1, places: 0, pattern: '#' },
+                widget: dijit.form.NumberSpinner,
+                width: '50%',
+                defaultValueType: 0,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false,
+                advancedLevel: true,
+                overridableType: true,
+                overridableInstance: false,
+            },
+            ndbreadbackup: {
+                label: 'Read backup',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                    '-system-variables.html#sysvar_ndb_read_backup',
+                tooltip: 'Enable read from any replica for any NDB table subsequently created.',
+                attribute: 'ndb_read_backup',
+                destination: 'my.cnf',
+                constraints: { min: 0, max: 1, places: 0, pattern: '#' },
+                widget: dijit.form.NumberSpinner,
+                width: '50%',
+                defaultValueType: 1,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false,
+                advancedLevel: true,
+                overridableType: true,
+                overridableInstance: false,
             },
 /******************************* MYSQLDparams ********************************/
             MYSQLDHeading: {
@@ -2975,6 +3042,26 @@ var processParameterDefaults = {
                 visibleInstance: false,
                 advancedLevel: true
             },
+            LocationDomainId: {
+                label: 'LocationDomainId',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                    '-api-definition.html#ndbparam-api-locationdomainid',
+                tooltip: 'Assigns an SQL or other API node to a specific ' +
+                    'availability domain (also known as an availability zone) ' +
+                    'within a cloud.',
+                constraints: { min: 0, max: 16, places: 0, pattern: '#' },
+                attribute: 'LocationDomainId',
+                destination: 'config.ini',
+                overridableType: false,
+                overridableInstance: true,
+                widget: dijit.form.NumberSpinner,
+                width: '50%',
+                defaultValueType: undefined,
+                defaultValueInstance: [],
+                visibleType: false,
+                visibleInstance: true,
+                advancedLevel: true
+            },
 /******************************* Communication ********************************/
             CommunicationHeading: {
                 label: '<br><b>Communication</b>',
@@ -3083,6 +3170,26 @@ var processParameterDefaults = {
                 defaultValueInstance: [],
                 visibleType: false,
                 visibleInstance: true
+            },
+            LocationDomainId: {
+                label: 'LocationDomainId',
+                docurl: mcc.util.getDocUrlRoot() + 'mysql-cluster' +
+                    '-api-definition.html#ndbparam-api-locationdomainid',
+                tooltip: 'Assigns an SQL or other API node to a specific ' +
+                    'availability domain (also known as an availability zone) ' +
+                    'within a cloud.',
+                constraints: { min: 0, max: 16, places: 0, pattern: '#' },
+                attribute: 'LocationDomainId',
+                destination: 'config.ini',
+                overridableType: false,
+                overridableInstance: true,
+                widget: dijit.form.NumberSpinner,
+                width: '50%',
+                defaultValueType: undefined,
+                defaultValueInstance: [],
+                visibleType: false,
+                visibleInstance: true,
+                advancedLevel: true
             }
         }
     }

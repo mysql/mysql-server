@@ -320,18 +320,20 @@ function updateWidgets (getAttribute, prefix, attribute, defaultValue, started, 
         // Save default value
         setPropertyDefault(prefix + attribute, defaultValue);
         // If the item has attr value, display it, enable check ctrl
-        if (storedVal !== undefined) {
+        if (storedVal) { // !== undefined
             // this is where "special" parameters will end up since they are always saved
             dijit.byId(prefix + attribute + '_ctrl').set('checked', true);
             dijit.byId(prefix + attribute).set('disabled', false);
             if (fsWid.declaredClass === 'dijit.form.FilteringSelect') {
+                // console.debug('[DBG]' + (prefix + attribute) + ' as FiltSel, setting value to ' + defaultValue);
                 dijit.byId(prefix + attribute).textbox.value = storedVal;
             } else {
+                // console.debug('[DBG]' + (prefix + attribute) + ' as something, setting value to ' + defaultValue);
                 dijit.byId(prefix + attribute).set('value', storedVal);
             }
-            console.debug('[DBG]There was val for ' + attribute + ', val:' + storedVal + ', default:' + defaultValue);
-            //  && String(attribute) !== 'NoOfFragmentLogFiles' && String(attribute) !== 'FragmentLogFileSize'
-            if (String(attribute) === 'NoOfReplicas' || String(attribute) === 'NoOfFragmentLogParts') {
+            // console.debug('[DBG]There was value for ' + attribute + ', val:' + storedVal + ', default:' + defaultValue);
+            //  && String(attribute) !== 'NoOfFragmentLogFiles' && String(attribute) !== 'FragmentLogFileSize' || String(attribute) === 'NoOfFragmentLogParts'
+            if (String(attribute) === 'NoOfReplicas') {
                 // if special, just warn
                 // pt_data_NoOfReplicas
                 if (String(storedVal) !== String(defaultValue)) {
@@ -344,7 +346,7 @@ function updateWidgets (getAttribute, prefix, attribute, defaultValue, started, 
                 // do not bother unless absolutely necessary
                 if (String(storedVal) !== String(defaultValue) && started) {
                     var msg = 'For ' + attribute + ' actual value(' + storedVal + ') is different ' +
-                        'from recomended value (' + (defaultValue || '-') + ')!';
+                        'from recommended value (' + (defaultValue || '-') + ')!';
                     console.warn('[WRN]' + msg);
                     mcc.util.displayModal('H', 3, '<span style="font-size:135%;color:orangered;">' +
                         msg + '</span>', '<span style="font-size:150%;color:red">Configuration ' +
@@ -360,13 +362,14 @@ function updateWidgets (getAttribute, prefix, attribute, defaultValue, started, 
             // removed last 2, && String(attribute) !== 'NoOfFragmentLogFiles'
             // && String(attribute) !== 'FragmentLogFileSize'
             if (fsWid.declaredClass === 'dijit.form.FilteringSelect') {
+                // console.debug('[DBG]' + (prefix + attribute) + ' as FilteringSelect, setting value to ' + defaultValue);
                 dijit.byId(prefix + attribute).textbox.value = defaultValue;
             } else {
                 dijit.byId(prefix + attribute).set('value', defaultValue);
             }
             // all we need to do here is make sure special params end up written to configuration
-            // file by not disabling CheckButton
-            if (String(attribute) !== 'NoOfReplicas' && String(attribute) !== 'NoOfFragmentLogParts') {
+            // file by not disabling CheckButton. && String(attribute) !== 'NoOfFragmentLogParts'
+            if (String(attribute) !== 'NoOfReplicas') {
                 dijit.byId(prefix + attribute + '_ctrl').set('checked', false);
                 dijit.byId(prefix + attribute).set('disabled', true);
             } else {
@@ -384,7 +387,7 @@ function updateWidgets (getAttribute, prefix, attribute, defaultValue, started, 
         }
     // Show default value for a non-overridable field
     } else {
-        console.log(attribute + ', default:' + (defaultValue || '-') + ', actual:' + (storedVal || '-'));
+        // console.log(attribute + ', default:' + (defaultValue || '-') + ', actual:' + (storedVal || '-'));
         if (fsWid.declaredClass === 'dijit.form.FilteringSelect') {
             dijit.byId(prefix + attribute).textbox.value = defaultValue;
         } else {

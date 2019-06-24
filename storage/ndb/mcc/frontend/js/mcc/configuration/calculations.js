@@ -364,16 +364,15 @@ function typeSetup (processTypeItem) {
                         'DiskPageBufferMemory', 'defaultValueType');
                 }
                 diskBuf = Number(diskBuf);
-                // If user didn't set it, calculate.
+                // Default for SGM is 300M. Adjust if needed.
                 if (diskBuf > 8192) {
                     mcc.configuration.setPara(processFamilyName, null,
                         'SharedGlobalMemory', 'defaultValueType', 1024);
-                } else if (diskBuf > 64) {
-                    mcc.configuration.setPara(processFamilyName, null,
-                        'SharedGlobalMemory', 'defaultValueType', 384);
                 } else {
-                    mcc.configuration.setPara(processFamilyName, null,
-                        'SharedGlobalMemory', 'defaultValueType', 32);
+                    if (diskBuf > 64) {
+                        mcc.configuration.setPara(processFamilyName, null,
+                            'SharedGlobalMemory', 'defaultValueType', 400);
+                    }
                 }
                 // Restrict MaxNoOfTables
                 var maxTab = processFamilyItem.getValue(
@@ -416,12 +415,64 @@ function typeSetup (processTypeItem) {
                         }
                         // These are fine. Cluster is stopped.
                         setLow('DataMemory');
-                        setLow('IndexMemory');
+                        // setLow('IndexMemory');
                         // parameters.js, constraints: {min: 2, max: 72, thus 2.
 
                         // Silent change of defaults is handled in processtreedetails.js
                         // and html.js on widget level for NoOfReplicas and NoOfFragmentLogParts
                         // no more (NoOfFragmentLogFiles and FragmentLogFileSize).
+                        
+                        // NoOfFragmentLogParts and MaxNoOfExecutionThreads reintroduced, need
+                        // handling here.
+                        var x = parseInt(processFamilyItem.getValue('MaxNoOfExecutionThreads'));
+                        if (!x) {
+                            mcc.configuration.setPara(processFamilyName, null,
+                                'MaxNoOfExecutionThreads', 'defaultValueType', 8);
+                            x = 8;
+                        }
+                        var flp = 0;
+                        switch (true) {
+                            case (x <= 3): // 1
+                                flp = 4;
+                                break;
+                            case (x <= 6): // 2
+                                flp = 4;
+                                break;
+                            case (x <= 11): // 4
+                                flp = 4;
+                                break;
+                            case (x <= 15): // 6
+                                flp = 6;
+                                break;
+                            case (x <= 19): // 8
+                                flp = 8;
+                                break;
+                            case (x <= 23): // 10
+                                flp = 10;
+                                break;
+                            case (x <= 31): // 12
+                                flp = 12;
+                                break;
+                            case (x <= 39): // 16
+                                flp = 16;
+                                break;
+                            case (x <= 47): // 20
+                                flp = 20;
+                                break;
+                            case (x <= 63): // 24
+                                flp = 24;
+                                break;
+                            case (x <= 72): // 32
+                                flp = 32;
+                                break;
+                            default:
+                                console.warn('[WRN]Failed to set NoOfFragmentLogParts! Will be 32.');
+                                flp = 32;
+                                break;
+                        }
+                        mcc.configuration.setPara(processFamilyName, null,
+                            'NoOfFragmentLogParts', 'defaultValueType', flp);
+
                         // Get overridden redo log file size
                         var fileSz = processFamilyItem.getValue('FragmentLogFileSize');
 
@@ -801,39 +852,13 @@ function ndbdSetup (processItem, processFamilyItem, host, waitCondition) {
                     var nNdbdOnHost = nNodesOnHost['ndbd'] + nNodesOnHost['ndbmtd'];
                     // Set IndexMemory
                     if (!isNaN(machineRAM)) {
-                        var indexMemory = Math.floor((machineRAM -
-                                reserveMemoryToOS - buffers -
-                                DiskPageBufferMemory - connectionMemory -
-                                tableObjectMemory - attrsObjectMemory -
-                                indexes - RedoBuffer - ops - backup -
-                                SharedGlobalMemory) / (8 * nNdbdOnHost));
-                        // Lower value if simple testing, easier on resources
-                        if (cluster.getValue('apparea') === 'simple testing') {
-                            indexMemory = Math.floor(indexMemory / 4);
-                        }
-                        // Obey constraints
-                        var indexConstraints = mcc.configuration.getPara(processFamilyName, null,
-                            'IndexMemory', 'constraints');
-                        if (indexMemory < indexConstraints.min) {
-                            indexMemory = indexConstraints.min;
-                        } else if (indexMemory > indexConstraints.max) {
-                            indexMemory = indexConstraints.max;
-                        }
-                        mcc.configuration.setPara(processFamilyName, id,
-                            'IndexMemory', 'defaultValueInstance', indexMemory);
-                        // Use overridden indexMemory for dataMemory calc
-                        var realIndexMemory = getRealValue('IndexMemory');
-                        // May not have been set yet
-                        if (isNaN(realIndexMemory)) {
-                            realIndexMemory = indexMemory;
-                        }
                         // Set DataMemory
                         var dataMemory = Math.floor(multiplier *
                                 (machineRAM - reserveMemoryToOS - buffers -
                                 DiskPageBufferMemory - connectionMemory -
                                 tableObjectMemory - attrsObjectMemory - indexes -
-                                RedoBuffer - ops - backup - SharedGlobalMemory -
-                                realIndexMemory) / (1000 * nNdbdOnHost));
+                                RedoBuffer - ops - backup - SharedGlobalMemory) /
+                                (1000 * nNdbdOnHost));
                         // Lower value if simple testing, easier on resources
                         if (cluster.getValue('apparea') === 'simple testing') {
                             dataMemory = Math.floor(dataMemory / 4);
