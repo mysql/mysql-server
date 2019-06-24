@@ -33,6 +33,8 @@
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
+bool Mysql::Tools::Dump::use_show_create_user;
+
 void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char *) {
   std::vector<std::string> schemas;
   std::istringstream schema_stream(m_parallel_schemas_string.value());
@@ -182,23 +184,26 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       We do not filter password_history since the password history
       will be lost this way.
     */
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "user"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair("mysql", "db"));
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "tables_priv"));
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "columns_priv"));
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "procs_priv"));
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "proxies_priv"));
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "default_roles"));
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "global_grants"));
-    m_object_filter.m_tables_excluded.push_back(
-        std::make_pair("mysql", "role_edges"));
+    if (use_show_create_user) {
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "user"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "db"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "tables_priv"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "columns_priv"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "procs_priv"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "proxies_priv"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "default_roles"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "global_grants"));
+      m_object_filter.m_tables_excluded.push_back(
+          std::make_pair("mysql", "role_edges"));
+    }
   }
   if (m_object_filter.m_databases_excluded.size() > 0 ||
       m_object_filter.m_databases_included.size() == 0) {
