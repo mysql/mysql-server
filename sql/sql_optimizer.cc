@@ -7061,7 +7061,10 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
   /* If item is of type 'field op field/constant' add it to key_fields */
   if (cond->type() != Item::FUNC_ITEM) return false;
   Item_func *const cond_func = down_cast<Item_func *>(cond);
-  switch (cond_func->select_optimize(thd)) {
+  auto optimize = cond_func->select_optimize(thd);
+  // Catch errors that might be thrown during select_optimize()
+  if (thd->is_error()) return true;
+  switch (optimize) {
     case Item_func::OPTIMIZE_NONE:
       break;
     case Item_func::OPTIMIZE_KEY: {
@@ -8002,8 +8005,11 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
     keyuse->chop(i);
   }
   print_keyuse_array(&thd->opt_trace, keyuse);
-
-  return false;
+  /*
+    Number of functions here call val_x() methods, which might throw an error.
+    Catch those errors here.
+  */
+  return thd->is_error();
 }
 
 /**
