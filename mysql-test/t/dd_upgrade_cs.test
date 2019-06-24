@@ -275,6 +275,11 @@ RENAME TABLE test.t_new TO test.t;
 ALTER TABLE test.t ENGINE = InnoDB;
 SHOW CREATE TABLE test.t;
 
+--echo # Error log file must not contain following error. Patch for Bug#29440725 suppresses it.
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Table 'information_schema.TABLES' doesn't exist
+source include/search_pattern.inc;
+
 --echo # Stop the server and do cleanup.
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/$name_base.zip
