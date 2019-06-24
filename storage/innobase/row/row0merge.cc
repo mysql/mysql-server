@@ -2089,7 +2089,7 @@ corrupt:
 		file->fd, foffs0, &mrec0, offsets0);
 	b1 = row_merge_read_rec(
 		&block[srv_sort_buf_size],
-		&buf[srv_sort_buf_size], b1, dup->index,
+		&buf[1], b1, dup->index,
 		file->fd, foffs1, &mrec1, offsets1);
 	if (UNIV_UNLIKELY(!b0 && mrec0)
 	    || UNIV_UNLIKELY(!b1 && mrec1)) {
