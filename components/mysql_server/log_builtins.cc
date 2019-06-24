@@ -143,28 +143,6 @@ static bool log_builtins_inited = false;
 */
 #define LOG_SERVICES_PREFIX "log_service"
 
-/**
-  Name of internal filtering engine (so we may recognize it when the
-  user refers to it by name in log_error_services).
-*/
-#define LOG_BUILTINS_FILTER "log_filter_internal"
-
-/**
-  Name of internal log writer (so we may recognize it when the user
-  refers to it by name in log_error_services).
-*/
-#define LOG_BUILTINS_SINK "log_sink_internal"
-
-/**
-  Name of buffered log writer. This sink is used internally during
-  start-up until we know where to write and how to filter, and have
-  all the components to do so. While we don't let the DBA add this
-  sink to the logging pipeline once we're out of start-up, we have
-  a name for this to be able to correctly tag its record in the
-  service-cache.
-*/
-#define LOG_BUILTINS_BUFFER "log_sink_buffer"
-
 struct log_line_buffer {
   log_line ll;            ///< log-event we're buffering
   log_line_buffer *next;  ///< chronologically next log-event
@@ -174,25 +152,42 @@ static log_line_buffer *log_line_buffer_start = nullptr;
 /// Where to write the pointer to the newly-created tail-element of the list
 static log_line_buffer **log_line_buffer_tail = &log_line_buffer_start;
 
+/**
+  Timestamp: During buffered logging, when should we next consider flushing?
+  This variable is set to the time we'll next check whether we'll want to
+  flush buffered log events.
+  I.e. it is set to a future time (current time + window length); once
+  the value expires (turns into present/past), we check whether we need
+  to flush and update the variable to the next time we should check.
+*/
 static ulonglong log_buffering_timeout = 0;
 
 /// If after this many seconds we're still buffering, flush!
 #ifndef LOG_BUFFERING_TIMEOUT_AFTER
 #define LOG_BUFFERING_TIMEOUT_AFTER (60)
 #endif
-/// And thereafter, if after this many more seconds still buffering, flush
-/// again!
+/// Thereafter, if still buffering after this many more seconds, flush again!
 #ifndef LOG_BUFFERING_TIMEOUT_EVERY
 #define LOG_BUFFERING_TIMEOUT_EVERY (10)
 #endif
-/// Function returns microseconds, we want seconds
+/// Time function returns microseconds, we want seconds.
 #ifndef LOG_BUFFERING_TIME_SCALE
 #define LOG_BUFFERING_TIME_SCALE 1000000
 #endif
 
-/// Only flush on time-out when buffer contains errors
+/// Does buffer contain SYSTEM or ERROR prio messages? Flush early only then!
 static int log_buffering_flushworthy = false;
 
+/**
+  Timestamp of when we last flushed to traditional error-log
+  (built-in sink). Log lines with timestamps older than this
+  have already been flushed to the default log-sink, so we
+  won't do so again to prevent duplicates. (The buffered events
+  are still kept around until buffered logging ends however in
+  case we need to flush them to other log-writers then.
+  This timestamp is updated to the present and then drifts into
+  the past, in contrast to the time-out value (see there).
+*/
 static ulonglong log_sink_trad_last = 0;
 
 /**
@@ -233,6 +228,18 @@ struct log_errstream {
   FILE *file{nullptr};           ///< file to log to
   mysql_mutex_t LOCK_errstream;  ///< lock for logging
 };
+
+/// What mode is error-logging in (e.g. are loadable services available yet)?
+static enum log_error_stage log_error_stage_current =
+    LOG_ERROR_STAGE_BUFFERING_EARLY;
+
+/// Set error-logging stage hint (e.g. are loadable services available yet?).
+void log_error_stage_set(enum log_error_stage les) {
+  log_error_stage_current = les;
+}
+
+/// What mode is error-logging in (e.g. are loadable services available yet)?
+enum log_error_stage log_error_stage_get() { return log_error_stage_current; }
 
 /**
   Test whether a given log-service name refers to a built-in
@@ -1383,7 +1390,7 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
                                         that must remain a valid argument!
   @param           ll                   The log line to write,
                                         or nullptr to not add a new logline,
-                                        but to check whether the time-out
+                                        but to just check whether the time-out
                                         has been reached and if so, flush
                                         as needed.
 
@@ -1396,9 +1403,11 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
   ulonglong now = 0;
   int count = 0;
 
-  // save the time to regenerate the timestamp once we have the options
   now = my_micro_time();
 
+  /*
+    If we were actually given an event, add it to the buffer.
+  */
   if (ll != nullptr) {
     if ((llb = (log_line_buffer *)my_malloc(key_memory_log_error_stack,
                                             sizeof(log_line_buffer), MYF(0))) ==
@@ -1411,13 +1420,14 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
       Don't let the submitter free the keys/values; we'll do it later when
       the buffer is flushed and then de-allocated!
       (No lock needed for copy as the target-event is still private to this
-      function, and the source-event is alloc'd in the caller.)
+      function, and the source-event is alloc'd in the caller so will be
+      there at least until we return.)
     */
     log_line_duplicate(&llb->ll, ll);
 
     /*
-      Remember when an error event was buffered.
-      If buffered logging times out and the buffer contains an error,
+      Remember when an ERROR or SYSTEM prio event was buffered.
+      If buffered logging times out and the buffer contains such an event,
       we force a premature flush so the user will know what's going on.
     */
     {
@@ -1428,29 +1438,52 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
         log_buffering_flushworthy = true;
     }
 
+    /*
+      Save the current time so we can regenerate the textual timestamp
+      later when we have the command-line options telling us what format
+      it should be in (e.g. UTC or system time).
+    */
     if (!log_line_full(&llb->ll)) {
       log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer = now;
     }
   }
 
-  // insert the new last event into the buffer (a singly linked list of events)
+  /*
+    Insert the new last event into the buffer
+    (a singly linked list of events).
+  */
   if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
   if (ll != nullptr) {
     *log_line_buffer_tail = llb;
     log_line_buffer_tail = &(llb->next);
 
-    // Save as time-out flush may release underlying log line buffer, llb.
+    /*
+      Save the element-count now as the time-out flush below may release
+      the underlying log line buffer, llb, making that info inaccessible.
+    */
     count = llb->ll.count;
   }
 
-  // handle buffering time-out
+  /*
+    Handle buffering time-out!
+  */
+
+  // Buffering very first event; set up initial time-out ...
   if (log_buffering_timeout == 0)
-    // Buffering very first event; set up initial time-out ...
     log_buffering_timeout =
         now + (LOG_BUFFERING_TIMEOUT_AFTER * LOG_BUFFERING_TIME_SCALE);
 
-  if (now > log_buffering_timeout || ll == nullptr) {
+  if (log_error_stage_get() == LOG_ERROR_STAGE_BUFFERING_UNIPLEX) {
+    /*
+      When not multiplexing several log-writers into the same stream,
+      we need not delay.
+    */
+    log_sink_buffer_flush(LOG_BUFFER_REPORT_AND_KEEP);
+  }
+
+  // Need to flush? Check on time-out, or when explicitly asked to.
+  else if ((now > log_buffering_timeout) || (ll == nullptr)) {
     // We timed out. Flush, and set up new, possibly shorter subsequent timeout.
 
     /*
@@ -1458,23 +1491,39 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
       but as long as it does, it is extremely unlikely to happen during early
       set-up -- instead, it might happen during engine set-up ("cannot lock
       DB file, another server instance already has it", "applying large
-      binlog", etc.). The good news is that this means we've already parsed
-      the command line options; we have the timestamp format, the error log
-      file, the verbosity, and the suppression list (if any). The bad news is,
-      if the engine we're waiting for is Inno, which the component framework
-      persists its component list in, the log-writers selected by the DBA won't
-      have been loaded yet. This of course means that the time-out flushes will
-      only be available in the built-in, "traditional" format. We will however
-      flush all the messages to any external log-writers requested by the user
-      later when we have loaded them (which conversely means that if InnoDB
-      ends the server before that, we've at least got the fallback, and if the
-      server comes up as it should, we'll have the data the user wants
-      (filtering) in the format they want (writing) in the end.
+      binlog", etc.).
+
+      The good news is that this means we've already parsed the command line
+      options; we have the timestamp format, the error log file, the verbosity,
+      and the suppression list (if any).
+
+      The bad news is, if the engine we're waiting for is InnoDB, which the
+      component framework persists its component list in, the log-writers
+      selected by the DBA won't have been loaded yet. This of course means
+      that the time-out flushes will only be available in the built-in,
+      "traditional" format, but at least this way, the user gets updates
+      during long waits. Additionally if the server exits during start-up
+      (i.e. before full logging is available), we'll have log info of what
+      happened (albeit not in the preferred format).
+
+      If start-up completes and external log-services become available,
+      we will flush all buffered messages to any external log-writers
+      requested by the user (using their preferred log-filtering set-up
+      as well).
     */
+
+    // If anything of sufficient priority is in the buffer ...
     if (log_buffering_flushworthy) {
+      /*
+        ... log it now to the traditional log, but keep the buffered
+        events around in case we need to write them to loadable log-sinks
+        later.
+      */
       log_sink_buffer_flush(LOG_BUFFER_REPORT_AND_KEEP);
+      // Remember that all high-prio events so far have now been shown.
       log_buffering_flushworthy = false;
     }
+
     // Whether we've needed to flush or not, start a new window:
     log_buffering_timeout =
         now + (LOG_BUFFERING_TIMEOUT_EVERY * LOG_BUFFERING_TIME_SCALE);
@@ -2517,6 +2566,7 @@ int log_builtins_exit() {
   delete log_service_cache;
 
   log_builtins_inited = false;
+  log_error_stage_set(LOG_ERROR_STAGE_BUFFERING_EARLY);
 
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
   mysql_rwlock_destroy(&THR_LOCK_log_stack);
@@ -2551,7 +2601,7 @@ int log_builtins_init() {
 
   DBUG_ASSERT(!log_builtins_inited);
 
-  // Reset flag. This is *also* set on initialization, this is intentional.
+  // Reset flag. This is *also* set on definition, this is intentional.
   log_buffering_flushworthy = false;
 
   if (mysql_rwlock_init(0, &THR_LOCK_log_stack)) return -1;
@@ -2583,6 +2633,7 @@ int log_builtins_init() {
 
   if (rr >= 0) {
     if (log_builtins_error_stack(LOG_BUILTINS_BUFFER, false, nullptr) >= 0) {
+      log_error_stage_set(LOG_ERROR_STAGE_BUFFERING_EARLY);
       log_builtins_inited = true;
       return 0;
     } else {
@@ -3254,12 +3305,12 @@ DEFINE_METHOD(const char *, log_builtins_imp::label_from_prio, (int prio)) {
                                use this as file name in the same location as
                                @@global.log_error
 
-                             Value not contain folder separators!
+                             Value may not contain folder separators!
 
   @param[out]  my_errstream  an error log handle, or nullptr on failure
 
   @retval      0             success
-  @retval     -1             EINVAL: my_errlog
+  @retval     -1             EINVAL: my_errstream is NULL
   @retval     -2             EINVAL: invalid file name / extension
   @retval     -3             OOM: could not allocate file handle
   @retval     -4             couldn't lock lock
@@ -3286,13 +3337,14 @@ DEFINE_METHOD(int, log_builtins_imp::open_errstream,
     return -4;
   }
 
-  if ((file == nullptr) || (log_error_dest == nullptr) ||
-      (!strcmp(log_error_dest, "stderr"))) {
-    // using default stream, no file struct needed
-    les->file = nullptr;
-  } else if ((file[0] == '\0') || (strchr(file, FN_LIBCHAR) != nullptr)) {
+  if ((file == nullptr) || (file[0] == '\0') ||
+      (strchr(file, FN_LIBCHAR) != nullptr)) {
     rr = -2;
     goto fail_with_free;
+  } else if ((log_error_dest == nullptr) ||
+             (!strcmp(log_error_dest, "stderr"))) {
+    // using default stream, no file struct needed
+    les->file = nullptr;
   } else {
     char errorlog_filename_buff[FN_REFLEN];
     char path[FN_REFLEN];
