@@ -596,8 +596,12 @@ public:
    *   thread running an instance any of the threads in blocks[]
    *   will have executed a signal
    */
-  void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
-                                      const Callback&, JobBufferLevel = JBB);
+  void synchronize_threads_for_blocks(
+           Signal*,
+           const Uint32 blocks[],
+           const Callback&,
+           JobBufferLevel req_prio = JBB,
+           JobBufferLevel conf_prio = ILLEGAL_JB_LEVEL);
   
   /**
    * This method make sure that the path specified in blocks[]

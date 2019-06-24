@@ -4705,7 +4705,8 @@ void
 SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
                                                const Uint32 blocks[],
                                                const Callback & cb,
-                                               JobBufferLevel prio)
+                                               JobBufferLevel req_prio,
+                                               JobBufferLevel conf_prio)
 {
 #ifndef NDBD_MULTITHREADED
   Callback copy = cb;
@@ -4731,10 +4732,15 @@ SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
     return;
   }
 
-  ptr.p->m_next = ptr.p->m_threads.find_first();
+  if (conf_prio == ILLEGAL_JB_LEVEL)
+  {
+    conf_prio = req_prio;
+  }
   signal->theData[0] = reference();
   signal->theData[1] = ptr.i;
-  signal->theData[2] = Uint32(prio);
+  signal->theData[2] = Uint32(req_prio);
+  signal->theData[3] = Uint32(conf_prio);
+  ptr.p->m_next = ptr.p->m_threads.find_first();
   sendSYNC_THREAD_REQ(signal, ptr);
 #endif
 }
@@ -4742,7 +4748,7 @@ SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
 void
 SimulatedBlock::sendSYNC_THREAD_REQ(Signal* signal, Ptr<SyncThreadRecord> ptr)
 {
-  JobBufferLevel prio = JobBufferLevel(signal->theData[2]);
+  JobBufferLevel req_prio = JobBufferLevel(signal->theData[2]);
   Uint32 instance = ptr.p->m_next;
   constexpr Uint32 MAX_FAN_OUT = 4;
   constexpr Uint32 MAX_INFLIGHT = 50;
@@ -4753,7 +4759,7 @@ SimulatedBlock::sendSYNC_THREAD_REQ(Signal* signal, Ptr<SyncThreadRecord> ptr)
        fan_out++, instance = ptr.p->m_threads.find_next(instance + 1))
   {
     Uint32 ref = numberToRef(THRMAN, instance, 0);
-    sendSignal(ref, GSN_SYNC_THREAD_REQ, signal, 3, prio);
+    sendSignal(ref, GSN_SYNC_THREAD_REQ, signal, 4, req_prio);
     ptr.p->m_cnt++;
   }
   ptr.p->m_next = instance;
@@ -4764,9 +4770,9 @@ SimulatedBlock::execSYNC_THREAD_REQ(Signal* signal)
 {
   jamEntry();
   Uint32 ref = signal->theData[0];
-  Uint32 prio = signal->theData[2];
+  Uint32 conf_prio = signal->theData[3];
   sendSignal(ref, GSN_SYNC_THREAD_CONF, signal, signal->getLength(),
-             JobBufferLevel(prio));
+             JobBufferLevel(conf_prio));
 }
 
 void
