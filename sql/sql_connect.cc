@@ -446,9 +446,11 @@ static int check_connection(THD *thd) {
   uint connect_errors = 0;
   int auth_rc;
   NET *net = thd->get_protocol_classic()->get_net();
+#ifndef DBUG_OFF
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("New connection received on %s", desc));
+#endif  // DBUG_OFF
 
   thd->set_active_vio(net->vio);
 

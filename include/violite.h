@@ -174,9 +174,11 @@ int vio_keepalive(MYSQL_VIO vio, bool onoff);
 bool vio_should_retry(MYSQL_VIO vio);
 /* Check that operation was timed out */
 bool vio_was_timeout(MYSQL_VIO vio);
+#ifndef DBUG_OFF
 /* Short text description of the socket for those, who are curious.. */
 #define VIO_DESCRIPTION_SIZE 30 /* size of description */
 void vio_description(MYSQL_VIO vio, char *buf);
+#endif  // DBUG_OFF
 /* Return the type of the connection */
 enum enum_vio_type vio_type(const MYSQL_VIO vio);
 /* Return last error number */
