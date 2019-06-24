@@ -13465,6 +13465,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
     // Can't discover, schema distribution is not ready
     thd_ndb->push_warning("Failed to discover table '%s' from NDB, schema "
                           "distribution is not ready", name);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
     DBUG_RETURN(1);
   }
 
@@ -13477,6 +13478,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
     {
       thd_ndb->push_warning("Failed to discover table '%s' from NDB, could not "
                             "get extra metadata", name);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
       DBUG_RETURN(1);
     }
 
@@ -13493,6 +13495,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
         thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "
                               "not upgrade table with extra metadata version 1",
                               name);
+        my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
         ndbtab_g.invalidate();
         free(unpacked_data);
         DBUG_RETURN(1);
@@ -13513,6 +13516,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
           thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "
                                 "not acquire metadata lock on tablespace '%s'",
                                 name, tablespace_name.c_str());
+          my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
           ndbtab_g.invalidate();
           free(unpacked_data);
           DBUG_RETURN(1);
@@ -13529,6 +13533,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
         // Table existed in NDB but it could not be inserted into DD
         thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "
                               "not install table in DD", name);
+        my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
         ndbtab_g.invalidate();
         free(unpacked_data);
         DBUG_RETURN(1);

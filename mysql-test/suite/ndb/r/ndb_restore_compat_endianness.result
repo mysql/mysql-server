@@ -25,8 +25,6 @@ Level	Code	Message
 Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SHOW CREATE TABLE t_string_1;
 Table	Create Table
 t_string_1	CREATE TABLE `t_string_1` (
@@ -74,8 +72,6 @@ Level	Code	Message
 Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 t_pk	hex(t_bit)	t_tinyint	t_bool	t_smallint	t_mediumint	t_int	t_bigint	t_float	t_double	t_decimal
 1	AAAAAAAAAAAAAAAA	125	1	32765	8388606	2147483647	9223372036854775807	1e20	1.0000000000000002e150	331.0000000000000000
@@ -121,8 +117,6 @@ Level	Code	Message
 Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SHOW CREATE TABLE t_string_1;
 Table	Create Table
 t_string_1	CREATE TABLE `t_string_1` (
@@ -170,8 +164,6 @@ Level	Code	Message
 Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 t_pk	hex(t_bit)	t_tinyint	t_bool	t_smallint	t_mediumint	t_int	t_bigint	t_float	t_double	t_decimal
 1	AAAAAAAAAAAAAAAA	125	1	32765	8388606	2147483647	9223372036854775807	1e20	1.0000000000000002e150	331.0000000000000000
