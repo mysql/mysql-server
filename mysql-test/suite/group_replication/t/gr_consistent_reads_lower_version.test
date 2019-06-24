@@ -61,21 +61,15 @@ SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
 INSERT INTO t1 VALUES (3);
 
-SET @@SESSION.group_replication_consistency= DEFAULT;
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
-
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
-
 
 --echo
 --echo ############################################################
 --echo # 06. Validate data.
+# Wait until server1 applier handles all transactions.
+SET @@SESSION.group_replication_consistency= DEFAULT;
+INSERT INTO t1 VALUES (0);
 --source include/rpl_sync.inc
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
@@ -113,5 +107,10 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replicati
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
 
 --source include/group_replication_end.inc
