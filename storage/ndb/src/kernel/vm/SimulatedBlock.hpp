@@ -628,6 +628,7 @@ private:
     BlockThreadBitmask m_threads;
     Callback m_callback;
     Uint32 m_cnt;
+    Uint32 m_next;
     Uint32 nextPool;
   };
   typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
@@ -635,6 +636,7 @@ private:
   SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
+  void sendSYNC_THREAD_REQ(Signal*, Ptr<SimulatedBlock::SyncThreadRecord>);
 
   void execSYNC_REQ(Signal*);
 

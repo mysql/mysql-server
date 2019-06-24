@@ -4717,6 +4717,7 @@ SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
   ndbrequire(c_syncThreadPool.seize(ptr));
   ptr.p->m_threads.clear();
   ptr.p->m_cnt = 0;
+  ptr.p->m_next = 0;
   ptr.p->m_callback = cb;
 
   Uint32 cnt = mt_get_threads_for_blocks_no_proxy(blocks, ptr.p->m_threads);
@@ -4730,19 +4731,32 @@ SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
     return;
   }
 
+  ptr.p->m_next = ptr.p->m_threads.find_first();
   signal->theData[0] = reference();
   signal->theData[1] = ptr.i;
   signal->theData[2] = Uint32(prio);
-  for (Uint32 instance = ptr.p->m_threads.find_first();
+  sendSYNC_THREAD_REQ(signal, ptr);
+#endif
+}
+
+void
+SimulatedBlock::sendSYNC_THREAD_REQ(Signal* signal, Ptr<SyncThreadRecord> ptr)
+{
+  JobBufferLevel prio = JobBufferLevel(signal->theData[2]);
+  Uint32 instance = ptr.p->m_next;
+  constexpr Uint32 MAX_FAN_OUT = 4;
+  constexpr Uint32 MAX_INFLIGHT = 50;
+  for (Uint32 fan_out = 0;
+       ptr.p->m_cnt < MAX_INFLIGHT &&
+       fan_out < MAX_FAN_OUT &&
        instance != BlockThreadBitmask::NotFound;
-       instance = ptr.p->m_threads.find_next(instance + 1))
+       fan_out++, instance = ptr.p->m_threads.find_next(instance + 1))
   {
     Uint32 ref = numberToRef(THRMAN, instance, 0);
     sendSignal(ref, GSN_SYNC_THREAD_REQ, signal, 3, prio);
     ptr.p->m_cnt++;
   }
-  ndbrequire(ptr.p->m_cnt == cnt);
-#endif
+  ptr.p->m_next = instance;
 }
 
 void
@@ -4761,16 +4775,22 @@ SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
   jamEntry();
   Ptr<SyncThreadRecord> ptr;
   c_syncThreadPool.getPtr(ptr, signal->theData[1]);
-  if (ptr.p->m_cnt == 1)
+
+  ndbrequire(ptr.p->m_cnt > 0);
+  ptr.p->m_cnt--;
+
+  sendSYNC_THREAD_REQ(signal, ptr);
+
+  if (ptr.p->m_cnt > 0)
   {
     jam();
-    Callback copy = ptr.p->m_callback;
-    c_syncThreadPool.release(ptr);
-    execute(signal, copy, 0);
     return;
   }
-  ndbrequire(ptr.p->m_cnt > 1);
-  ptr.p->m_cnt--;
+
+  Callback copy = ptr.p->m_callback;
+  c_syncThreadPool.release(ptr);
+  execute(signal, copy, 0);
+  return;
 }
 
 void
