@@ -1222,10 +1222,12 @@ bool do_command(THD *thd) {
   thd->m_server_idle = false;
 
   if (rc) {
+#ifndef DBUG_OFF
     char desc[VIO_DESCRIPTION_SIZE];
     vio_description(net->vio, desc);
     DBUG_PRINT("info", ("Got error %d reading command from socket %s",
                         net->error, desc));
+#endif  // DBUG_OFF
     /* Instrument this broken statement as "statement/com/error" */
     thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
         thd->m_statement_psi, com_statement_info[COM_END].m_key);
@@ -1250,11 +1252,12 @@ bool do_command(THD *thd) {
     goto out;
   }
 
+#ifndef DBUG_OFF
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("Command on %s = %d (%s)", desc, command,
                       command_name[command].str));
-
+#endif  // DBUG_OFF
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
                       thd->get_protocol_classic()->get_packet_length(),
                       thd->get_protocol_classic()->get_raw_packet(), command));

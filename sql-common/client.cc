@@ -1153,10 +1153,12 @@ ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
   DBUG_ENTER(__func__);
 
   if (len == packet_error || len == 0) {
+#ifndef DBUG_OFF
     char desc[VIO_DESCRIPTION_SIZE];
     vio_description(net->vio, desc);
     DBUG_PRINT("error",
                ("Wrong connection or packet. fd: %s  len: %lu", desc, len));
+#endif  // DBUG_OFF
 #ifdef MYSQL_SERVER
     if (net->vio && (net->last_errno == ER_NET_READ_INTERRUPTED))
       DBUG_RETURN(packet_error);
@@ -1800,9 +1802,11 @@ void end_server(MYSQL *mysql) {
   int save_errno = errno;
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0) {
+#ifndef DBUG_OFF
     char desc[VIO_DESCRIPTION_SIZE];
     vio_description(mysql->net.vio, desc);
     DBUG_PRINT("info", ("Net: %s", desc));
+#endif  // DBUG_OFF
 #ifdef MYSQL_SERVER
     slave_io_thread_detach_vio();
 #endif

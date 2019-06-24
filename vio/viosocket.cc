@@ -490,6 +490,7 @@ int vio_shutdown(Vio *vio) {
   DBUG_RETURN(r);
 }
 
+#ifndef DBUG_OFF
 void vio_description(Vio *vio, char *buf) {
   switch (vio->type) {
     case VIO_TYPE_SOCKET:
@@ -510,6 +511,7 @@ void vio_description(Vio *vio, char *buf) {
       break;
   }
 }
+#endif  // DBUG_OFF
 
 enum enum_vio_type vio_type(const Vio *vio) { return vio->type; }
 
