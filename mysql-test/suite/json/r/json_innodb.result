@@ -269,3 +269,14 @@ SUM(col_int)	col_int
 4572643328	NULL
 DROP VIEW view1;
 DROP TABLE D;
+#
+# Bug#29669251: !THD->IS_ERROR() IN JOIN_READ_CONST_TABLE()
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2);
+WITH
+cte1 AS (SELECT STD(a) AS a1 FROM t ),
+cte2 AS (SELECT (JSON_INSERT('$.KEY3', NULL, NULL)) AS a2 FROM t)
+SELECT cte1.a1 FROM cte1,cte2 WHERE cte1.a1 LIKE cte2.a2;
+ERROR 22032: Invalid JSON text in argument 1 to function json_insert: "Invalid value." at position 0.
+DROP TABLE t;
