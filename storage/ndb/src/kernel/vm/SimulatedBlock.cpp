@@ -4713,8 +4713,9 @@ SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
 #else
   jam();
   Uint32 ref[32]; // max threads
-  Uint32 cnt = mt_get_thread_references_for_blocks(blocks, getThreadId(),
-                                                   ref, NDB_ARRAY_SIZE(ref));
+  Uint32 cnt = mt_get_thread_references_for_blocks_no_proxy(blocks,
+                                                            ref,
+                                                            NDB_ARRAY_SIZE(ref));
   if (cnt == 0)
   {
     jam();

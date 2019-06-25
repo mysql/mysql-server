@@ -118,14 +118,13 @@ bool NdbIsMultiThreaded();
 /**
  * Get list of BlockReferences so that
  *   each thread holding an instance of any block in blocks[] get "covered"
- *   (excluding ownThreadId
+ *   (excluding proxy block instances)
  *
  * eg. calling it with DBLQH, will return a block-reference to *a* block
  *     in each of the threads that has an DBLQH instance
  */
-Uint32 mt_get_thread_references_for_blocks(const Uint32 blocks[],
-                                           Uint32 ownThreadId,
-                                           Uint32 dst[], Uint32 len);
+Uint32 mt_get_thread_references_for_blocks_no_proxy(const Uint32 blocks[],
+                                                    Uint32 dst[], Uint32 len);
 
 /**
  * wakeup thread running block

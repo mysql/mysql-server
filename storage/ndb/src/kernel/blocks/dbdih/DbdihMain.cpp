@@ -24181,6 +24181,14 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
      */
     Uint32 blocks[] = { DBTC, 0 };
     Callback c = { safe_cast(&Dbdih::emptyverificbuffer_check), q };
+    /* Wait until all DIVERIFYCONF sent (from DBDIH) to any DBTC worker have
+     * been received.
+     * This function is also called from Dbdih::execUNBLOCK_COMMIT_ORD() which
+     * can be called from QMGR by EXECUTE_DIRECT (they must share thread to
+     * share the relevant state without explicit synchronization).
+     * The below synchronization depends on that signals from QMGR to any DBTC
+     * worker ends up in same signal queue as signals from DBDIH.
+     */
     synchronize_threads_for_blocks(signal, blocks, c);
     return;
   }
