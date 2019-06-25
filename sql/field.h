@@ -2282,8 +2282,8 @@ class Field_tiny : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_TINY);
     return new (*THR_MALLOC) Field_tiny(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint, bool) const final override {
-    *to = *from;
+  uchar *pack(uchar *to, const uchar *from, uint max_length, bool) const final {
+    if (max_length > 0) *to = *from;
     return to + 1;
   }
 

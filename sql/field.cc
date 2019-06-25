@@ -8634,7 +8634,7 @@ uchar *Field_enum::pack(uchar *to, const uchar *from, uint max_length,
 
   switch (packlength) {
     case 1:
-      *to = *from;
+      if (max_length > 0) *to = *from;
       return to + 1;
     case 2:
       return pack_int16(to, from, max_length, low_byte_first);
