@@ -1049,6 +1049,9 @@ struct handlerton
 // Engine supports packed keys.
 #define HTON_SUPPORTS_PACKED_KEYS    (1 << 12)
 
+// Engine supports table or tablespace encryption.
+#define HTON_SUPPORTS_TABLE_ENCRYPTION (1 << 13)
+
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 

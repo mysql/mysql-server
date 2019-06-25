@@ -203,7 +203,7 @@ DROP TABLESPACE s_alt1;
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
 ERROR HY000: This tablespace can't be encrypted.
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
-ERROR HY000: Table storage engine for 't_encrypt_myisam' doesn't have this option
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'ENCRYPTION'
 CREATE PROCEDURE tde_db.row_format_t_encrypt(row_form VARCHAR(1000))
 begin
 declare i int default 1;
