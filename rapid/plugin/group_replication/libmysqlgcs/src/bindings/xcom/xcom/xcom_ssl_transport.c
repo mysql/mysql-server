@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,15 +40,6 @@ static const char* ssl_mode_options[]=
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
 
-#ifdef HAVE_YASSL
-static const char* tls_ciphers_list="DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:"
-                                    "AES128-RMD:DES-CBC3-RMD:DHE-RSA-AES256-RMD:"
-                                    "DHE-RSA-AES128-RMD:DHE-RSA-DES-CBC3-RMD:"
-                                    "AES256-SHA:RC4-SHA:RC4-MD5:DES-CBC3-SHA:"
-                                    "DES-CBC-SHA:EDH-RSA-DES-CBC3-SHA:"
-                                    "EDH-RSA-DES-CBC-SHA:AES128-SHA:AES256-RMD";
-static const char* tls_cipher_blocked= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:";
-#else
 static const char* tls_ciphers_list= "ECDHE-ECDSA-AES128-GCM-SHA256:"
                                      "ECDHE-ECDSA-AES256-GCM-SHA384:"
                                      "ECDHE-RSA-AES128-GCM-SHA256:"
@@ -89,7 +80,6 @@ static const char* tls_cipher_blocked= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC
                                        "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
                                        "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
                                        "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
-#endif
 
 /*
   Diffie-Hellman key.
@@ -176,7 +166,6 @@ static long process_tls_version(const char *tls_version)
 {
   const char *separator= ", ";
   char *token= NULL;
-#ifndef HAVE_YASSL
   const char *tls_version_name_list[]= {
     "TLSv1", "TLSv1.1", "TLSv1.2"
   };
@@ -188,17 +177,6 @@ static long process_tls_version(const char *tls_version)
   };
   const char* ctx_flag_default= "TLSv1,TLSv1.1,TLSv1.2";
   long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
-#else
-  const char *tls_version_name_list[]= {"TLSv1", "TLSv1.1"};
-  #define TLS_VERSIONS_COUNTS \
-    (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
-  unsigned int tls_versions_count= TLS_VERSIONS_COUNTS;
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS]= {
-    SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1
-  };
-  const char* ctx_flag_default= "TLSv1,TLSv1.1";
-  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1;
-#endif
   unsigned int index= 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE]= "";
   int tls_found= 0;
@@ -266,9 +244,7 @@ static int configure_ssl_algorithms(SSL_CTX* ssl_ctx, const char* cipher,
                     SSL_OP_NO_SSLv3 |
                     SSL_OP_NO_TLSv1 |
                     SSL_OP_NO_TLSv1_1
-#ifndef HAVE_YASSL
                     | SSL_OP_NO_TLSv1_2
-#endif
                    );
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
@@ -343,7 +319,6 @@ static int configure_ssl_revocation(SSL_CTX* ssl_ctx  MY_ATTRIBUTE((unused)), co
   int retval = 0;
   if (crl_file || crl_path)
   {
-#ifndef HAVE_YASSL
     X509_STORE *store= SSL_CTX_get_cert_store(ssl_ctx);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
@@ -354,7 +329,6 @@ static int configure_ssl_revocation(SSL_CTX* ssl_ctx  MY_ATTRIBUTE((unused)), co
       G_ERROR("X509_STORE_load_locations for CRL error");
       retval = 1;
     }
-#endif
   }
   return retval;
 }
@@ -599,9 +573,7 @@ void xcom_destroy_ssl()
     client_ctx= NULL;
   }
 
-#if defined(HAVE_YASSL) && defined(WITH_SSL_STANDALONE)
-  yaSSL_CleanUp();
-#elif defined(WITH_SSL_STANDALONE)
+#if defined(WITH_SSL_STANDALONE)
   ENGINE_cleanup();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();

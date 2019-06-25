@@ -744,7 +744,7 @@ static char **remaining_argv;
 int orig_argc;
 char **orig_argv;
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
@@ -3367,7 +3367,6 @@ int warn_self_signed_ca()
     if (warn_one(opt_ssl_ca))
       return 1;
   }
-#ifndef HAVE_YASSL
   if (opt_ssl_capath && opt_ssl_capath[0])
   {
     /* We have ssl-capath. So search all files in the dir */
@@ -3405,7 +3404,6 @@ int warn_self_signed_ca()
     ca_dir= 0;
     memset(&file_path, 0, sizeof(file_path));
   }
-#endif /* HAVE_YASSL */
   return ret_val;
 }
 
@@ -3414,13 +3412,11 @@ int warn_self_signed_ca()
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   OPENSSL_malloc_init();
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
 
@@ -3432,10 +3428,8 @@ static int init_ssl()
                             "Trying to enable SSL support using them.",
                             DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
                             DEFAULT_SSL_SERVER_KEY);
-#ifndef HAVE_YASSL
     if (do_auto_cert_generation(auto_detection_status) == false)
       return 1;
-#endif
 
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
     long ssl_ctx_flags= process_tls_version(opt_tls_version);
@@ -3454,26 +3448,10 @@ static int init_ssl()
         No real need for opt_use_ssl to be enabled in bootstrap mode,
         but we want the SSL materal generation and/or validation (if supplied).
         So we keep it on.
-
-        For yaSSL (since it can't auto-generate the certs from inside the
-        server) we need to hush the warning if in bootstrap mode, as in
-        that mode the server won't be listening for connections and thus
-        the lack of SSL material makes no real difference.
-        However if the user specified any of the --ssl options we keep the
-        warning as it's showing problems with the values supplied.
-
-        For openssl, we don't hush the option since it would indicate a failure
-        in auto-generation, bad key material explicitly specified or
-        auto-generation disabled explcitly while SSL is still on.
       */
-#ifdef HAVE_YASSL
-      if (!opt_bootstrap || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
-#endif
-      {
-        sql_print_warning("Failed to set up SSL because of the"
-                          " following SSL library error: %s",
-                          sslGetErrString(error));
-      }
+      sql_print_warning("Failed to set up SSL because of the"
+                        " following SSL library error: %s",
+                        sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -3496,10 +3474,8 @@ static int init_ssl()
 #endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
-#ifndef HAVE_YASSL
   if (init_rsa_keys())
     return 1;
-#endif
 #endif /* HAVE_OPENSSL */
   return 0;
 }
@@ -3517,9 +3493,7 @@ static void end_ssl()
     ssl_acceptor_fd= 0;
   }
 #endif /* ! EMBEDDED_LIBRARY */
-#ifndef HAVE_YASSL
   deinit_rsa_keys();
-#endif
 #endif /* HAVE_OPENSSL */
 }
 
@@ -6678,16 +6652,6 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 
-#ifdef HAVE_YASSL
-
-static char *
-my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
-{
-  return yaSSL_ASN1_TIME_to_string(time, buf, len);
-}
-
-#else /* openssl */
-
 static char *
 my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
 {
@@ -6713,8 +6677,6 @@ end:
   BIO_free(bio);
   return res;
 }
-
-#endif
 
 
 /**
@@ -6954,9 +6916,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_version",              (char*) &show_ssl_get_version,                          SHOW_FUNC,              SHOW_SCOPE_ALL},
   {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before,                SHOW_FUNC,              SHOW_SCOPE_ALL},
   {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,                 SHOW_FUNC,              SHOW_SCOPE_ALL},
-#ifndef HAVE_YASSL
   {"Rsa_public_key",           (char*) &show_rsa_public_key,                           SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
-#endif
 #endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,                               SHOW_LONG,              SHOW_SCOPE_GLOBAL},
@@ -7344,11 +7304,6 @@ mysqld_get_one_option(int optid,
       One can disable SSL later by using --skip-ssl or --ssl=0.
     */
     opt_use_ssl= true;
-#ifdef HAVE_YASSL
-    /* crl has no effect in yaSSL. */
-    opt_ssl_crl= NULL;
-    opt_ssl_crlpath= NULL;
-#endif /* HAVE_YASSL */   
     break;
 #endif /* HAVE_OPENSSL */
 #ifndef EMBEDDED_LIBRARY

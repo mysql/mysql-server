@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -784,8 +784,8 @@ typedef enum ssl_artifacts_status
 
 #endif /* EMBEDDED_LIBRARY */
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 extern my_bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
-#endif /* HAVE_OPENSSL && !HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 #endif /* AUTH_COMMON_INCLUDED */

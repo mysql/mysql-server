@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -19,7 +19,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_BINARY_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${SSL_INCLUDE_DIRS})
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)

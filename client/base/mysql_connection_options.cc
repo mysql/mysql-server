@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,7 +163,6 @@ MYSQL* Mysql_connection_options::create_connection()
   mysql_options4(connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                   "program_name", this->m_program->get_name().c_str());
 
-#if !defined(HAVE_YASSL)
   if (this->m_server_public_key.has_value())
   {
     opt_server_public_key=
@@ -171,7 +170,6 @@ MYSQL* Mysql_connection_options::create_connection()
   }
 
   opt_get_server_public_key= this->m_get_server_public_key ? TRUE : FALSE;
-#endif /* !HAVE_YASSL */
 
   set_server_public_key(connection);
   set_get_server_public_key_option(connection);

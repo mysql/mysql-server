@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,12 +36,12 @@
 #include <vector>                       /* std::vector */
 #include <stdint.h>
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
-#endif /* HAVE OPENSSL && !HAVE_YASSL */
+#endif /* HAVE OPENSSL */
 
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
@@ -82,7 +82,6 @@ my_bool disconnect_on_expired_password= TRUE;
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
 #define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
-#if !defined(HAVE_YASSL)
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
@@ -100,7 +99,6 @@ my_bool auth_rsa_auto_generate_rsa_keys= TRUE;
 static bool do_auto_rsa_keys_generation();
 static Rsa_authentication_keys g_rsa_keys;
 
-#endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
 bool
@@ -120,7 +118,6 @@ Thd_charset_adapter::charset()
 }
 
 #if defined(HAVE_OPENSSL)
-#ifndef HAVE_YASSL
 
 /**
   @brief Set key file path
@@ -356,7 +353,6 @@ Rsa_authentication_keys::read_rsa_keys()
   return false;
 }
 
-#endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
 /**
@@ -997,11 +993,11 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
 */
 bool rsa_auth_status()
 {
-#if !defined(HAVE_OPENSSL) || defined(HAVE_YASSL)
+#if !defined(HAVE_OPENSSL)
   return false;
 #else
   return (!g_rsa_keys.get_private_key() || !g_rsa_keys.get_public_key());
-#endif /* !HAVE_OPENSSL || HAVE_YASSL */
+#endif /* !HAVE_OPENSSL */
 }
 
 
@@ -2805,7 +2801,6 @@ int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 }
 
 #if defined(HAVE_OPENSSL)
-#ifndef HAVE_YASSL
 
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
 { 
@@ -2848,7 +2843,6 @@ bool init_rsa_keys(void)
   return ((do_auto_rsa_keys_generation() == false) ||
           g_rsa_keys.read_rsa_keys());
 }
-#endif /* HAVE_YASSL */
 
 static MYSQL_PLUGIN plugin_info_ptr;
 
@@ -2904,12 +2898,10 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char scramble[SCRAMBLE_LENGTH + 1];
   char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
-#if !defined(HAVE_YASSL)
   int cipher_length= 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
   RSA *private_key= NULL;
   RSA *public_key= NULL;
-#endif /* HAVE_YASSL */
 
   DBUG_ENTER("sha256_password_authenticate");
 
@@ -2971,7 +2963,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
   if (!my_vio_is_encrypted(vio))
   {
- #if !defined(HAVE_YASSL)
     /*
       Since a password is being used it must be encrypted by RSA since no
       other encryption is being active.
@@ -3038,9 +3029,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
     if (pkt_len == 1)
       DBUG_RETURN(CR_ERROR);
-#else
-    DBUG_RETURN(CR_ERROR);
-#endif /* HAVE_YASSL */
   } // if(!my_vio_is_encrypter())
 
   /* Don't process the password if it is longer than maximum limit */
@@ -3092,7 +3080,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   DBUG_RETURN(CR_ERROR);
 }
 
-#if !defined(HAVE_YASSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
         PLUGIN_VAR_READONLY,
         "A fully qualified path to the private RSA key used for authentication",
@@ -4130,7 +4117,6 @@ static bool do_auto_rsa_keys_generation()
     return true;
   }
 }
-#endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
 bool MPVIO_EXT::can_authenticate()
@@ -4192,11 +4178,7 @@ mysql_declare_plugin(mysql_password)
   NULL,                                         /* Deinit function  */
   0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
-#if !defined(HAVE_YASSL)
   sha256_password_sysvars,                      /* system variables */
-#else
-  NULL,
-#endif /* HAVE_YASSL */
   NULL,                                         /* config options   */
   0                                             /* flags            */
 }
