@@ -11,14 +11,10 @@
 #   the slave has no key defined while the master has one, replication
 #   won't break.
 #
-#   Case #2, shows that before patch for BUG#47312, if defining key on
-#   slave table, and later disable it, replication would break. This
-#   has been fixed.
 # 
 
 -- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
--- source include/have_myisam.inc
 -- source include/master-slave.inc
 
 #
@@ -45,57 +41,6 @@ DELETE FROM t;
 -- connection master
 DROP TABLE t;
 
---source include/sync_slave_sql_with_master.inc
-
-#
-# Case #2: master has key, slave also has one, 
-#          but it gets disabled sometime.
-#          Replication does not break anymore.
-# 
---source include/rpl_reset.inc
--- connection master
-
-CREATE TABLE t (a int, b int, c int, key(b)) ENGINE=MyISAM;
-
---source include/sync_slave_sql_with_master.inc
-
-ALTER TABLE t DISABLE KEYS;
-
--- connection master
-
-INSERT INTO t VALUES (1,2,4);
-INSERT INTO t VALUES (4,3,4);
-DELETE FROM t;
-
---source include/sync_slave_sql_with_master.inc
-
--- connection master
-DROP TABLE t;
-
---source include/sync_slave_sql_with_master.inc
-
-#
-# BUG#53889: slaves stops with 1032; handler error HA_ERR_KEY_NOT_FOUND
-#
--- source include/rpl_reset.inc
--- connection master
-
-CREATE TABLE t2 (col4 CHAR(25) DEFAULT NULL,
-                 col1 BIGINT,
-                 col2 TINYINT NOT NULL,
-                 col5 VARCHAR(25) DEFAULT ''
-                ) ENGINE = myisam;
-
-ALTER TABLE t2 ADD INDEX idx1 ( col4 ) , ADD UNIQUE INDEX idx2 ( col5 );
-INSERT INTO t2 ( col4 , col2 ) VALUES ( 'Hello', -77 ) ;
-UPDATE t2 SET col1 = 13 WHERE col2 = -77;
---source include/sync_slave_sql_with_master.inc
-
--- let $diff_tables= master:t2, slave:t2
--- source include/diff_tables.inc
-
--- connection master
-DROP TABLE t2;
 --source include/sync_slave_sql_with_master.inc
 
 #

@@ -1,3 +1,5 @@
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/big_test.inc
 #
 # This file contains tests for WL#5096.
@@ -14,7 +16,7 @@
 
 #
 # WL#5096
-# 
+#
 
 #
 # Tests NOBLOB image against a mix of MyISAM and InnoDB engines on

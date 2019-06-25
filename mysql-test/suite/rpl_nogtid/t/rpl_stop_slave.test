@@ -3,7 +3,6 @@
 
 # Needed because test uses CREATE TEMPORARY/DROP TEMPORARY inside transaction
 source include/master-slave.inc;
-source include/have_myisam.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 # 72475 renders this case irrelevant for mixed mode as temp tables are no

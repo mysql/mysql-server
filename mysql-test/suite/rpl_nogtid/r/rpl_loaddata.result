@@ -93,10 +93,6 @@ ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
 include/wait_for_slave_sql_error.inc [errno=13113]
 drop table t1, t2;
 drop table t1, t2;
-CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
-LOAD DATA INFILE "../../std_data/words.dat" INTO TABLE t1;
-ERROR 23000: Duplicate entry 'Aarhus' for key 'PRIMARY'
-DROP TABLE t1;
 include/rpl_reset.inc
 drop database if exists b48297_db1;
 drop database if exists b42897_db2;

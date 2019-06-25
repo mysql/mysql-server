@@ -2,7 +2,6 @@
 
 source include/add_anonymous_users.inc;
 -- source include/master-slave.inc
--- source include/have_myisam.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -39,13 +38,6 @@ reset master;
 #      v) sync slave with master
 #
 #
-#    case 2: crash (SIGSEV)
-#      i) create and insert into temporary table on master (insert
-#         produces warnings)
-#     ii) sync slave with master
-#    iii) stop and restart slave
-#     iv) insert into master more values
-#      v) sync slave with master
 
 # case 1: Assertion in Field_string::store() failed because current 
 #         thread reference differed from table->in_use after slave 
@@ -71,30 +63,6 @@ source include/start_slave.inc;
 
 connection master;
 INSERT INTO t1 VALUES ('b');
---source include/sync_slave_sql_with_master.inc
-
-# case 2: crash on sp_rcontext::find_handler because it used 
-#         reference to invalid THD object after slave restart
-
-connection master;
-
-DROP TABLE t1;
-CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
-INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
-
---source include/sync_slave_sql_with_master.inc
-
-# Temporary table `t1` open when stop slave is done. So we will have a warning here.
-# But this warning is NOT generated in RBR. So the results will be different in
-# SBR and RBR if we dont disable warnings here.
---disable_warnings
-source include/stop_slave.inc;
---enable_warnings
-
-source include/start_slave.inc;
-
-connection master;
-INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
 --source include/sync_slave_sql_with_master.inc
 
 # cleanup

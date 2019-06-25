@@ -1,0 +1,30 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1_nontrans (n INT NOT NULL PRIMARY KEY) ENGINE=MYISAM;
+include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+CREATE TABLE t2_nontrans (a INT) ENGINE=MYISAM;
+INSERT INTO t1_nontrans VALUES (1);
+INSERT INTO t1_nontrans VALUES (2);
+[connection master]
+CREATE TABLE t2_nontrans (a INT);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [exec_master_log_pos should be equal to read_master_log_pos after CREATE TABLE]
+[connection master]
+INSERT INTO t1_nontrans VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [exec_master_log_pos should be equal to read_master_log_pos after INSERT]
+[connection master]
+BEGIN;
+INSERT INTO t1_nontrans VALUES (2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [exec_master_log_pos should be equal to read_master_log_pos after INSERT inside transaction]
+[connection master]
+DROP TABLE t1_nontrans, t2_nontrans;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_end.inc

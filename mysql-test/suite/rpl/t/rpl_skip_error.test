@@ -24,7 +24,6 @@
 # BUG#39393: slave-skip-errors does not work when using ROW based replication
 
 --source include/not_group_replication_plugin.inc
-source include/have_myisam.inc;
 source include/master-slave.inc;
 
 --echo ==== Test Without sql_mode=strict_trans_tables ====
@@ -128,46 +127,11 @@ echo $error;
 --echo **** We cannot execute a select as there are differences in the 
 --echo **** behavior between STMT and RBR.
 
---echo ==== Using MyIsam ====
-
-connection master;
-
-SET SQL_LOG_BIN=0;
-CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
-SHOW CREATE TABLE t2;
-SET SQL_LOG_BIN=1;
-
-connection slave;
-
-CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
-SHOW CREATE TABLE t2;
-
-connection master;
-
-INSERT INTO t2 VALUES(1, 1);
-INSERT INTO t2 VALUES(2, 1);
-INSERT INTO t2 VALUES(3, 1);
-INSERT INTO t2 VALUES(5, 1);
-
-SET SQL_LOG_BIN=0;
-DELETE FROM t2 WHERE id = 5;
-SET SQL_LOG_BIN=1;
-UPDATE t2 SET id= id + 3, data = 2;
-
---source include/sync_slave_sql_with_master.inc
-
-let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-echo $error;
-
---echo **** We cannot execute a select as there are differences in the 
---echo **** behavior between STMT and RBR.
-
 --echo ==== Clean Up ====
 
 connection master;
 
 DROP TABLE t1;
-DROP TABLE t2;
 
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

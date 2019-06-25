@@ -1,0 +1,27 @@
+#######################################################
+# Wrapper for rpl_multi_update2.test to allow multi   #
+# Engines to reuse test code. By JBM 2006-02-15       #
+# Added comments section and to skip when ndb is      #
+# Default engine.                                     #
+#######################################################
+--source include/not_ndb_default.inc
+--source include/master-slave.inc
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
+
+#
+# BUG#13236 multi-update with subquery & --replicate-ignore-table
+#
+connection master;
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (0);
+UPDATE t1, (SELECT 3 as b) AS x SET t1.a = x.b;
+select * from t1;
+
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+select * from t1;
+
+connection master;
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

@@ -20,7 +20,7 @@
 
 # Error message suppression
 call mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
-
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc

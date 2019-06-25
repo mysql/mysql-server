@@ -1,0 +1,77 @@
+# Test need anonymous user when connection are made as "zedjzlcsjhd"
+
+-- source include/master-slave.inc
+-- source include/force_myisam_default.inc
+-- source include/have_myisam.inc
+
+# Clean up old slave's binlogs.
+# The slave is started with --log-slave-updates
+# and this test does SHOW BINLOG EVENTS on the slave's
+# binlog. But previous tests can influence the current test's
+# binlog (e.g. a temporary table in the previous test has not
+# been explicitly deleted, or it has but the slave hasn't had
+# enough time to catch it before STOP SLAVE, 
+# and at the beginning of the current
+# test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
+# We wait for the slave to have written all he wants to the binlog
+# (otherwise RESET MASTER may come too early).
+save_master_pos;
+connection slave;
+
+# Add suppression for expected warning(s) in slaves error log
+call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
+
+sync_with_master;
+reset master;
+
+# ##################################################################
+# BUG#41725: slave crashes when inserting into temporary table after
+#            stop/start slave
+#
+#  This test checks that both reported issues (assertion failure and
+#  crash) go away. It is implemented as follows:
+#    
+#    case 2: crash (SIGSEV)
+#      i) create and insert into temporary table on master (insert
+#         produces warnings)
+#     ii) sync slave with master
+#    iii) stop and restart slave
+#     iv) insert into master more values
+#      v) sync slave with master
+
+connection master;
+
+--disable_query_log ONCE
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+# case 2: crash on sp_rcontext::find_handler because it used 
+#         reference to invalid THD object after slave restart
+
+connection master;
+
+CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
+INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
+
+--source include/sync_slave_sql_with_master.inc
+
+# Temporary table `t1` open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
+source include/stop_slave.inc;
+--enable_warnings
+
+source include/start_slave.inc;
+
+connection master;
+INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
+--source include/sync_slave_sql_with_master.inc
+
+# cleanup
+
+connection master;
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

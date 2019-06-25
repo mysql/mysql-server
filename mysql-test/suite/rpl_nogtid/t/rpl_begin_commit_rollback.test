@@ -18,7 +18,7 @@
 # BUG#43263 BEGIN skipped in some replicate-do-db cases
 # BUG#50407 mysqlbinlog --database=X produces bad output for SAVEPOINTs
 # BUG#55798 Slave SQL retry on transaction inserts extra data into non-transaction table
-
+source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_statement.inc;
 # UNTIL is not supported by MTS yet (TODO: support and remove the guard)

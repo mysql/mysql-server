@@ -3,6 +3,7 @@
 
 -- source include/have_debug.inc
 -- source include/master-slave.inc
+-- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 -- sync_slave_with_master

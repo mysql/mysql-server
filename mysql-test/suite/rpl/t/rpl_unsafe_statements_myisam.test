@@ -1,0 +1,48 @@
+################################################################################
+# Bug#17047208 REPLICATION DIFFERENCE FOR MULTIPLE TRIGGERS
+# Problem: If DML invokes a trigger or a stored function that inserts into an
+# AUTO_INCREMENT column, that DML has to be marked as 'unsafe' statement. If the
+# tables are locked in the transaction prior to DML statement (using LOCK
+# TABLES), then the DML statement is not marked as 'unsafe' statement.
+
+# Steps to reproduce the reported test case (BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS)
+#
+#  This test script adds test case to cover few other unsafe statements.
+#    Case-1: BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST
+################################################################################
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+# Case-1: BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST
+#  INSERT into autoincrement field which is not the first part in the
+#  composed primary key is unsafe
+#
+# Step-1.1: Create a table with auto increment column and a composed primary key
+# (second column is auto increment column). Such a definition is allowed only
+# with 'myisam' engine.
+CREATE TABLE t1(i int, id INT AUTO_INCREMENT, PRIMARY KEY (i, id)) ENGINE=MYISAM;
+
+# Step-1.2: Inserting into such a table is unsafe.
+INSERT INTO t1 (i) values (1);
+
+# Step-1.3: Repeat step 3.2, now with 'LOCK TABLES' logic.
+START TRANSACTION;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 (i) values (2);
+UNLOCK TABLES;
+COMMIT;
+
+# Step-1.4: Sync slave with master
+--sync_slave_with_master
+
+# Step-1.5: Diff master-slave tables to make sure everything is in sync.
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+# Step-1.6: Cleanup
+--connection master
+DROP TABLE t1;
+
+--source include/rpl_end.inc

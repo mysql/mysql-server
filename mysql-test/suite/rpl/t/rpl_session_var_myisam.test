@@ -1,0 +1,31 @@
+# Replication of session variables.
+# FOREIGN_KEY_CHECKS is tested in rpl_insert_id.test
+
+--source include/not_group_replication_plugin.inc
+source include/force_myisam_default.inc;
+source include/have_myisam.inc;
+source include/master-slave.inc;
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
+#
+# Bug #29878 Garbage data generation when executing SESSION_USER() on a slave. 
+#
+
+connection master;
+CREATE TABLE t1 (
+  `id` int(11) NOT NULL auto_increment,
+  `data` varchar(100),
+  PRIMARY KEY  (`id`)
+ ) ENGINE=MyISAM;
+--disable_warnings
+INSERT INTO t1(data) VALUES(SESSION_USER());
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
+SELECT length(data) < 100 FROM t1;
+connection master;
+drop table t1;
+
+--source include/rpl_end.inc

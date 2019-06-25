@@ -1,0 +1,182 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+* auto_increment_increment, auto_increment_offset *
+SET @@global.auto_increment_increment=2;
+SET @@session.auto_increment_increment=2;
+SET @@global.auto_increment_offset=10;
+SET @@session.auto_increment_offset=10;
+SET @@global.auto_increment_increment=3;
+SET @@session.auto_increment_increment=3;
+SET @@global.auto_increment_offset=20;
+SET @@session.auto_increment_offset=20;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t1 (b) VALUES ('master');
+INSERT INTO t1 (b) VALUES ('master');
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	master
+4	master
+include/sync_slave_sql_with_master.inc
+CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t1 (b) VALUES ('slave');
+INSERT INTO t1 (b) VALUES ('slave');
+INSERT INTO t2 (b) VALUES ('slave');
+INSERT INTO t2 (b) VALUES ('slave');
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	master
+4	master
+7	slave
+10	slave
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	slave
+4	slave
+DROP TABLE IF EXISTS t1,t2;
+SET @@global.auto_increment_increment=1;
+SET @@session.auto_increment_increment=1;
+SET @@global.auto_increment_offset=1;
+SET @@session.auto_increment_offset=1;
+SET @@global.auto_increment_increment=1;
+SET @@session.auto_increment_increment=1;
+SET @@global.auto_increment_offset=1;
+SET @@session.auto_increment_offset=1;
+SET auto_increment_increment=1;
+SET auto_increment_offset=1;
+
+* character_set_database, collation_server *
+[On Master]
+SET @restore_master_character_set_database=@@global.character_set_database;
+SET @restore_master_collation_server=@@global.collation_server;
+SET @@global.character_set_database=latin1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@session.character_set_database=latin1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@global.collation_server=latin1_german1_ci;
+SET @@session.collation_server=latin1_german1_ci;
+[On Slave]
+SET @restore_slave_character_set_database=@@global.character_set_database;
+SET @restore_slave_collation_server=@@global.collation_server;
+SET @@global.character_set_database=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@session.character_set_database=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@global.collation_server=utf8_bin;
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+SET @@session.collation_server=utf8_bin;
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+[On Master]
+CREATE SCHEMA s1;
+SHOW CREATE SCHEMA s1;
+Database	Create Database
+s1	CREATE DATABASE `s1` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+CREATE TABLE s1.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE s1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) COLLATE latin1_german1_ci DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+include/sync_slave_sql_with_master.inc
+[On Slave]
+CREATE SCHEMA s2;
+SHOW CREATE SCHEMA s2;
+Database	Create Database
+s2	CREATE DATABASE `s2` /*!40100 DEFAULT CHARACTER SET utf8 COLLATE utf8_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
+CREATE TABLE s1.t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+CREATE TABLE s2.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE s1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) COLLATE latin1_german1_ci DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+SHOW CREATE TABLE s1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) COLLATE latin1_german1_ci DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+SHOW CREATE TABLE s2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+DROP TABLE s2.t1;
+DROP SCHEMA s2;
+SET @@global.collation_server=latin1_swedish_ci;
+SET @@session.collation_server=latin1_swedish_ci;
+[On Master]
+SET @@global.collation_server=latin1_swedish_ci;
+SET @@session.collation_server=latin1_swedish_ci;
+DROP TABLE IF EXISTS s1.t1,s1.t2;
+DROP SCHEMA s1;
+
+* default_week_format *
+SET @@global.default_week_format=0;
+SET @@session.default_week_format=0;
+SET @@global.default_week_format=1;
+SET @@session.default_week_format=1;
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, 'master ', WEEK('2008-01-07'));
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	master 	1
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 VALUES (2, 'slave ', WEEK('2008-01-07'));
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	master 	1
+2	slave 	2
+DROP TABLE t1;
+SET @@global.default_week_format=0;
+SET @@session.default_week_format=0;
+
+* local_infile *
+SET @old_local_infile= @@global.local_infile;
+SET @@global.local_infile=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHAR(254)) ENGINE=MyISAM;
+LOAD DATA LOCAL INFILE 'FILE' INTO TABLE t1 (b);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+70
+include/sync_slave_sql_with_master.inc
+LOAD DATA LOCAL INFILE 'FILE2' INTO TABLE t1 (b);
+ERROR 42000: The used command is not allowed with this MySQL version
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+70
+SET @@global.local_infile=1;
+DROP TABLE t1;
+
+*** clean up ***
+SET @@global.character_set_database=@restore_master_character_set_database;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@global.collation_server=@restore_master_collation_server;
+include/sync_slave_sql_with_master.inc
+SET @@global.character_set_database=@restore_slave_character_set_database;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@global.collation_server=@restore_slave_collation_server;
+SET @@global.local_infile= @old_local_infile;
+
+call mtr.add_suppression("The table 't[12]' is full");
+include/rpl_end.inc

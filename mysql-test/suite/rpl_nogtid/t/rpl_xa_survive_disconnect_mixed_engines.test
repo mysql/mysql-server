@@ -4,7 +4,8 @@
 # in a case the transaction updates transactional and non-transactional tables.
 # Transactions are terminated according to specfied parameters to
 # a sourced inc-file.
-
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_master.inc

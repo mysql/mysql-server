@@ -1,0 +1,24 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t2 (c2 TEXT) ENGINE=MYISAM;
+# Adding debug point 'ensure_binlog_cache_temporary_file_is_encrypted' to @@GLOBAL.debug
+INSERT INTO t2 VALUES (REPEAT('123', 16384.0));
+# Removing debug point 'ensure_binlog_cache_temporary_file_is_encrypted' from @@GLOBAL.debug
+SET GLOBAL binlog_encryption=OFF;
+# Adding debug point 'ensure_binlog_cache_temp_file_encryption_is_disabled' to @@GLOBAL.debug
+INSERT INTO t2 VALUES (REPEAT('off', 16384.0));
+# Removing debug point 'ensure_binlog_cache_temp_file_encryption_is_disabled' from @@GLOBAL.debug
+SET GLOBAL binlog_encryption=ON;
+# Adding debug point 'ensure_binlog_cache_temporary_file_is_encrypted' to @@GLOBAL.debug
+INSERT INTO t2 VALUES (REPEAT('on1', 16384.0));
+# Removing debug point 'ensure_binlog_cache_temporary_file_is_encrypted' from @@GLOBAL.debug
+# Adding debug point 'ensure_binlog_cache_is_reset' to @@GLOBAL.debug
+INSERT INTO t2 VALUES ("567");
+# Removing debug point 'ensure_binlog_cache_is_reset' from @@GLOBAL.debug
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t2;
+include/rpl_end.inc

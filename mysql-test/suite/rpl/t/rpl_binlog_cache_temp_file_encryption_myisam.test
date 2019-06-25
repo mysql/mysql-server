@@ -1,0 +1,86 @@
+# ==== Purpose ====
+#
+# 1. Verify that the temporary file of binlog cache is encrypted when
+#    the binlog cache spills to disk if binlog_encryption is on.
+# 2. Verify that 'SET GLOBAL binlog_encryption' takes effect immediately
+#    on binlog cache temporary file encryption.
+# 3. Verify that binlog cache is reset at commit/rollback time.
+#
+# ==== Implementation ====
+#
+# 1. Start the master with binlog_encryption on.
+# 2. Create a table t2 with a TEXT column.
+# 3. Execute a trx to insert a big text into the tables to make
+#    binlog cache spill to disk and ensure that the temporary
+#    file of binlog cache is encrypted.
+# 4. SET GLOBAL binlog_encryption=OFF
+# 5. Execute a trx to ensure binlog cache temporary file encryption
+#    is disabled.
+# 6. SET GLOBAL binlog_encryption=ON
+# 7. Execute a trx to insert a big text into the tables to make
+#    binlog cache spill to disk and ensure that the temporary
+#    file of binlog cache is encrypted.
+# 8. Commit a trx ensure that binlog cache is reset at commit time.
+# 9. Verify that there is no difference on the table between
+#     master and slave.
+#
+# ==== References ====
+#
+# Wl#12079  Encrypt binary log caches at rest
+# Bug#29475234  'BINLOG_ENCRYPTION' VALUE WONT TAKE IMMEDIATE EFFECT ON ENCRYPTING BINLOG CACHES
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+# Restrict the test runs to only debug builds, since we set DEBUG point in the test.
+--source include/have_debug.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+--let $data_size= `select 0.5 * @@global.binlog_cache_size`
+
+CREATE TABLE t2 (c2 TEXT) ENGINE=MYISAM;
+
+--let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
+--source include/add_debug_point.inc
+
+eval INSERT INTO t2 VALUES (REPEAT('123', $data_size));
+
+--let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
+--source include/remove_debug_point.inc
+
+SET GLOBAL binlog_encryption=OFF;
+--let $debug_point= ensure_binlog_cache_temp_file_encryption_is_disabled
+--source include/add_debug_point.inc
+
+eval INSERT INTO t2 VALUES (REPEAT('off', $data_size));
+
+--let $debug_point= ensure_binlog_cache_temp_file_encryption_is_disabled
+--source include/remove_debug_point.inc
+
+SET GLOBAL binlog_encryption=ON;
+--let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
+--source include/add_debug_point.inc
+
+eval INSERT INTO t2 VALUES (REPEAT('on1', $data_size));
+
+--let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
+--source include/remove_debug_point.inc
+
+--let $debug_point= ensure_binlog_cache_is_reset
+--source include/add_debug_point.inc
+
+
+INSERT INTO t2 VALUES ("567");
+
+--let $debug_point= ensure_binlog_cache_is_reset
+--source include/remove_debug_point.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t2;
+
+--source include/rpl_end.inc

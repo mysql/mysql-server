@@ -13,20 +13,6 @@ include/start_slave.inc
 INSERT INTO t1 VALUES ('b');
 include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
-CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
-INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1265	Data truncated for column 'b' at row 1
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/start_slave.inc
-INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1265	Data truncated for column 'b' at row 1
-include/sync_slave_sql_with_master.inc
-DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 SET @save_select_limit=@@session.sql_select_limit;
 SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;

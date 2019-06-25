@@ -8,6 +8,8 @@
 # correctly on slave when binlog is enabled and log_slave_updates is diabled.
 #
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

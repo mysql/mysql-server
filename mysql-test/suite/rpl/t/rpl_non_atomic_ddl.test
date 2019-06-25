@@ -25,6 +25,8 @@
 # the atomic DDL classes.
 #
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/not_crashrep.inc
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc

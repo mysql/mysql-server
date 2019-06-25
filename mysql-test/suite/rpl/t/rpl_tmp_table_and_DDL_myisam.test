@@ -1,0 +1,56 @@
+#
+# Bug#49132 
+# This test verifies if executing DDL statement before trying to manipulate
+# a temporary table causes row-based replication to break with error 'table
+# does not exist' base on myisam engine.
+#
+
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_row.inc;
+source include/force_myisam_default.inc;
+source include/have_myisam.inc;
+source include/master-slave.inc;
+
+
+LET $ENGINE_TYPE= MyISAM;
+source extra/rpl_tests/rpl_tmp_table_and_DDL.test;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# BUG#20574550
+# CREATE TABLE LIKE <TEMP_TABLE> does not preserve original table storage
+# engine when using row based replication
+#
+--connection master
+
+# Define temp_t2 storage engines
+--let $engine_temp_t2= MyISAM
+
+# Create the temporary tables
+--eval CREATE TEMPORARY TABLE temp_t2 (c1 INT) ENGINE=$engine_temp_t2
+
+# Create t2 based on temporary tables
+CREATE TABLE t2 LIKE temp_t2;
+--sync_slave_with_master
+
+# On master
+--connection master
+# Assert that t2 have the same storage engines as temp_t2
+--let $engine_t2= query_get_value(SHOW TABLE STATUS WHERE Name='t2', Engine, 1)
+--let $assert_cond= "$engine_t2" = "$engine_temp_t2"
+--let $assert_text= "t2 on master and temp_t2 have the same storage engine"
+--source include/assert.inc
+
+# On slave
+--connection slave
+# Assert that t2 have the same storage engines as temp_t2
+--let $engine_t2= query_get_value(SHOW TABLE STATUS WHERE Name='t2', Engine, 1)
+--let $assert_cond= "$engine_t2" = "$engine_temp_t2"
+--let $assert_text= "t2 on slave and temp_t2 have the same storage engine"
+--source include/assert.inc
+
+# Cleanup
+--connection master
+DROP TEMPORARY TABLE temp_t2;
+DROP TABLE t2;
+--source include/rpl_end.inc

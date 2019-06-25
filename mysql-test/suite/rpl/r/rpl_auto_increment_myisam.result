@@ -7,15 +7,15 @@ create table t1 (a int not null auto_increment,b int, primary key (a)) engine=my
 insert into t1 values (NULL,1),(NULL,2),(NULL,3);
 select * from t1;
 a	b
-12	1
-22	2
-32	3
+3	1
+4	2
+5	3
 include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
-12	1
-22	2
-32	3
+3	1
+4	2
+5	3
 drop table t1;
 create table t1 (a int not null auto_increment,b int, primary key (a)) engine=myisam;
 insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
@@ -26,16 +26,16 @@ a	b
 1	1
 2	2
 3	3
-22	5
-32	6
+5	5
+6	6
 include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 1	1
 2	2
 3	3
-22	5
-32	6
+5	5
+6	6
 drop table t1;
 set @@session.auto_increment_increment=100, @@session.auto_increment_offset=10;
 show variables like "%auto_inc%";
@@ -43,41 +43,6 @@ Variable_name	Value
 auto_increment_increment	100
 auto_increment_offset	10
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
-insert into t1 values (NULL),(5),(NULL);
-insert into t1 values (250),(NULL);
-select * from t1;
-a
-5
-10
-110
-250
-310
-insert into t1 values (1000);
-set @@insert_id=400;
-insert into t1 values(NULL),(NULL);
-select * from t1;
-a
-5
-10
-110
-250
-310
-400
-410
-1000
-include/sync_slave_sql_with_master.inc
-select * from t1;
-a
-5
-10
-110
-250
-310
-400
-410
-1000
-drop table t1;
-create table t1 (a int not null auto_increment, primary key (a)) engine=innodb;
 insert into t1 values (NULL),(5),(NULL);
 insert into t1 values (250),(NULL);
 select * from t1;
@@ -241,82 +206,37 @@ a
 drop table t1,t2,t3;
 SET sql_mode = default;
 include/sync_slave_sql_with_master.inc
-set auto_increment_increment=1;
-set auto_increment_offset=1;
-CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
-INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/sync_slave_sql_with_master.inc
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-drop table t1;
 include/rpl_reset.inc
-DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
-CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
 CREATE TABLE t2 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
 SET SQL_MODE='';
-INSERT INTO t1 VALUES(NULL);
 INSERT INTO t2 VALUES(NULL);
-SELECT * FROM t1;
-id
-1
 SELECT * FROM t2;
 id
-1
-INSERT INTO t1 VALUES();
+700
 INSERT INTO t2 VALUES();
-SELECT * FROM t1;
-id
-1
-2
 SELECT * FROM t2;
 id
-1
-2
-INSERT INTO t1 VALUES(0);
+700
+1700
 INSERT INTO t2 VALUES(0);
-SELECT * FROM t1;
-id
-1
-2
-3
 SELECT * FROM t2;
 id
-1
-2
-3
+700
+1700
+2700
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-INSERT INTO t1 VALUES(0);
 INSERT INTO t2 VALUES(0);
-SELECT * FROM t1;
-id
-0
-1
-2
-3
 SELECT * FROM t2;
 id
 0
-1
-2
-3
-INSERT INTO t1 VALUES(4);
+700
+1700
+2700
 INSERT INTO t2 VALUES(4);
 FLUSH LOGS;
 include/sync_slave_sql_with_master.inc
-include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
-DROP TABLE t1;
 DROP TABLE t2;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
@@ -326,41 +246,8 @@ RESET MASTER;
 FLUSH LOGS;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
-include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
-DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
-include/sync_slave_sql_with_master.inc
-CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
-BEGIN;
-# Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
-# zero to fill the auto_increment field.
-SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-INSERT INTO t1(id,data) VALUES(0,2);
-# Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
-# affect the execution of the transaction on slave.
-SET SQL_MODE=0;
-COMMIT;
-SELECT * FROM t1;
-id	data
-0	2
-include/sync_slave_sql_with_master.inc
-SELECT * FROM t1;
-id	data
-0	2
-DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-create table t1(a int auto_increment primary key) engine=innodb;
-insert into t1 values (null),(null),(1025),(null);
-include/sync_slave_sql_with_master.inc
-select * from t1;
-a
-1
-2
-1025
-1026
-include/diff_tables.inc [master:t1, slave:t1]
-drop table t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

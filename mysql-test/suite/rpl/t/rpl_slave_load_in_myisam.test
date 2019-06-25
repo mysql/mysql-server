@@ -1,0 +1,79 @@
+##########################################################################
+# This test verifies if a slave is able to process a "LOAD DATA INFILE"
+# event while the "--secure-file-priv" option is set.
+#
+# The test is divided in two steps:
+#    1 - Creates tables and populates them through "LOAD DATA INFILE".
+#    2 - Compares the master and slave.
+#
+# === References ===
+# Bug#28541204 SECURE-FILE-PRIV BREAKS LOAD DATA INFILE REPLICATION IN
+#              STATEMENT MODE ON 5.7.23
+##########################################################################
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+# This test does not work with var being a softlink.
+--source include/not_var_link.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Bug#28541204 SECURE-FILE-PRIV BREAKS LOAD DATA INFILE REPLICATION IN
+#              STATEMENT MODE ON 5.7.23
+
+--echo # Restart the slave with a different secure path.
+--source include/rpl_connection_slave.inc
+--let $old_secure_file_path=`SELECT @@GLOBAL.secure_file_priv`
+--let $datadir=`SELECT @@GLOBAL.datadir`
+--let $include_silent=1
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--secure-file-priv=$datadir
+--source include/rpl_restart_server.inc
+--let $include_silent=0
+
+# Assert that @@GLOBAL.secure_file_priv equals @@GLOBAL.datadir
+--let $assert_text= Datadir is the new secure file path
+--let $assert_cond= "[SELECT @@GLOBAL.secure_file_priv]" = "[SELECT @@GLOBAL.datadir]"
+--source include/assert.inc
+--source include/start_slave.inc
+
+##########################################################################
+#                            Loading data
+##########################################################################
+--source include/rpl_connection_master.inc
+
+create table t1(a int not null auto_increment, b int, primary key(a)) engine=myisam;
+
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+
+##########################################################################
+#                       Checking Consistency
+##########################################################################
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Restore the old secure path on slave.
+--let $include_silent=1
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--secure-file-priv=$old_secure_file_path
+--source include/rpl_restart_server.inc
+--let $include_silent=0
+
+# Assert that @@GLOBAL.secure_file_priv is restored.
+--let $assert_text= Old secure file path is restored.
+--let $assert_cond= "[SELECT @@GLOBAL.secure_file_priv]" = "$old_secure_file_path"
+--source include/assert.inc
+
+--source include/start_slave.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+##########################################################################
+#                             Clean up
+##########################################################################
+--source include/rpl_connection_master.inc
+
+drop table t1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

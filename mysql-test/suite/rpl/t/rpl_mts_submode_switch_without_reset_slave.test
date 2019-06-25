@@ -5,7 +5,6 @@
 
 --source include/have_debug.inc
 --source include/not_group_replication_plugin.inc
---source include/have_myisam.inc
 --source include/master-slave.inc
 --let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
@@ -26,18 +25,12 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 CREATE DATABASE db1;
 CREATE TABLE db1.t (a int) engine=innodb;
 
---connection m2
-CREATE DATABASE db2;
-CREATE TABLE db2.t (a int) engine=myisam;
-
 --connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 --connection m1
  INSERT INTO db1.t values (1),(2),(3);
---connection m2
- INSERT INTO db2.t values (1),(2),(3);
 
 # DEFAULT  ========> DATABASE
 --connection slave
@@ -47,8 +40,6 @@ SET GLOBAL slave_parallel_type='DATABASE';
 --source include/sync_slave_sql_with_master.inc
 --let diff_tables= master:db1.t,slave:db1.t
 --source include/diff_tables.inc
---let diff_tables= master:db2.t, slave:db2.t
---source include/diff_tables.inc
 --source include/stop_slave.inc
 
 --connection master
@@ -57,8 +48,6 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
 --connection m1
  INSERT INTO db1.t values (1),(2),(3);
---connection m2
- INSERT INTO db2.t values (1),(2),(3);
 
 # DATABASE  ========> LOGICAL_CLOCK
 --connection slave
@@ -68,8 +57,6 @@ SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
 --source include/sync_slave_sql_with_master.inc
 --let diff_tables= master:db1.t,slave:db1.t
 --source include/diff_tables.inc
---let diff_tables= master:db2.t, slave:db2.t
---source include/diff_tables.inc
 --source include/stop_slave.inc
 
 --connection master
@@ -78,8 +65,6 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 --connection m1
  INSERT INTO db1.t values (1),(2),(3);
---connection m2
- INSERT INTO db2.t values (1),(2),(3);
 
 # LOGICAL_CLOCK  ========> DATABASE
 --connection slave
@@ -89,14 +74,11 @@ SET GLOBAL slave_parallel_type='DATABASE';
 --source include/sync_slave_sql_with_master.inc
 --let diff_tables= master:db1.t,slave:db1.t
 --source include/diff_tables.inc
---let diff_tables= master:db2.t, slave:db2.t
---source include/diff_tables.inc
 
 
 #clean up
 --connection master
 DROP DATABASE db1;
-DROP DATABASE db2;
 --source include/sync_slave_sql_with_master.inc
 
 --connection slave

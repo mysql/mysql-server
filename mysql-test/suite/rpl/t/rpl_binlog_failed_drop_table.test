@@ -37,8 +37,6 @@ CREATE DATABASE `db1`;
 
 USE `db1`;
 
-CREATE TABLE `t0` (`ID` bigint(20) primary key) ENGINE=MyISAM;
-
 CREATE TABLE `t1` (`ID` bigint(20) primary key) ENGINE=InnoDB;
 
 CREATE TABLE `t2` (`ID` bigint(20) primary key) ENGINE=InnoDB;
@@ -67,12 +65,6 @@ SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 --let $assert_text= Drop with multiple InnoDB-only tables should not be written to the binary log if the query execution fails
 --let $assert_cond= $current_master_pos = $saved_master_pos
 --source include/assert.inc
-
-# Test a multiple table drop failure involving non-InnoDB table
-SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
---error ER_UNKNOWN_ERROR
-DROP TABLE `t0`, `t1`, `t2`;
-SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 
 --let $binlog_start= $saved_master_pos
 --source include/show_binlog_events.inc

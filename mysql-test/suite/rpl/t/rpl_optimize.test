@@ -15,8 +15,8 @@
 # builds test is failing due to timeout (if InnoDB engine).
 # Hence, we will be using MyISAM engine as default until
 # that issue is sorted out.
+-- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
-
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
 

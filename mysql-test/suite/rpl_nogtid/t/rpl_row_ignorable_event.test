@@ -15,6 +15,7 @@ source include/have_binlog_format_row.inc;
 --let $rpl_skip_start_slave= 1
 source include/master-slave.inc;
 source include/have_debug.inc;
+source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 
 --echo # Test non-transaction

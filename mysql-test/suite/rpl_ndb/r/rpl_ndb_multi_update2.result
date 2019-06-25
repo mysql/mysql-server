@@ -42,18 +42,4 @@ a	b
 2	1
 drop table t1,t2;
 include/sync_slave_sql_with_master.inc
-reset master;
-RESET MASTER;
-CREATE TABLE t1 ( a INT );
-INSERT INTO t1 VALUES (0);
-UPDATE t1, (SELECT 3 as b) AS x SET t1.a = x.b;
-select * from t1;
-a
-3
-include/sync_slave_sql_with_master.inc
-select * from t1;
-a
-3
-drop table t1;
-include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
