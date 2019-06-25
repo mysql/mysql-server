@@ -749,7 +749,7 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        CMD_LINE(REQUIRED_ARG, OPT_BINLOG_MAX_FLUSH_QUEUE_TIME),
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_long Sys_binlog_group_commit_sync_delay(
        "binlog_group_commit_sync_delay",
@@ -1541,7 +1541,7 @@ static Sys_var_ulong Sys_delayed_insert_limit(
        GLOBAL_VAR(delayed_insert_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_LIMIT), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_delayed_insert_timeout(
        "delayed_insert_timeout",
@@ -1551,7 +1551,7 @@ static Sys_var_ulong Sys_delayed_insert_timeout(
        GLOBAL_VAR(delayed_insert_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(DELAYED_WAIT_TIMEOUT),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED(""));
+       ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_delayed_queue_size(
        "delayed_queue_size",
@@ -1562,7 +1562,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        GLOBAL_VAR(delayed_queue_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 #ifndef EMBEDDED_LIBRARY
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
@@ -2034,7 +2034,7 @@ static Sys_var_ulong Sys_log_warnings(
        CMD_LINE(OPT_ARG, 'W'),
        VALID_RANGE(0, 2), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_warnings),
-       DEPRECATED("log_error_verbosity"));
+       DEPRECATED_VAR("log_error_verbosity"));
 
 static bool update_log_error_verbosity(sys_var *self, THD *thd,
                                        enum_var_type type)
@@ -2368,7 +2368,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_delayed_threads(
        "max_delayed_threads",
@@ -2379,7 +2379,7 @@ static Sys_var_ulong Sys_max_delayed_threads(
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_error_count(
        "max_error_count",
@@ -2400,7 +2400,7 @@ static Sys_var_ulong Sys_metadata_locks_cache_size(
        READ_ONLY GLOBAL_VAR(mdl_locks_cache_size_unused),
        CMD_LINE(REQUIRED_ARG, OPT_MDL_CACHE_SIZE),
        VALID_RANGE(1, 1024*1024), DEFAULT(1024), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static ulong mdl_locks_hash_partitions_unused;
 static Sys_var_ulong Sys_metadata_locks_hash_instances(
@@ -2408,7 +2408,7 @@ static Sys_var_ulong Sys_metadata_locks_hash_instances(
        READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions_unused),
        CMD_LINE(REQUIRED_ARG, OPT_MDL_HASH_INSTANCES),
        VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 // relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
 static Sys_var_uint Sys_pseudo_thread_id(
@@ -2523,7 +2523,7 @@ static Sys_var_ulong Sys_max_tmp_tables(
        "Maximum number of temporary tables a client can keep open at a time",
        SESSION_VAR(max_tmp_tables), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_write_lock_count(
        "max_write_lock_count",
@@ -3223,7 +3223,7 @@ static Sys_var_ulong Sys_multi_range_count(
        SESSION_VAR(multi_range_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(256), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3367,7 +3367,7 @@ static Sys_var_ulong Sys_query_cache_size(
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024U*1024U), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_query_cache_size), DEPRECATED(""));
+       ON_UPDATE(fix_query_cache_size), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_query_cache_limit(
        "query_cache_limit",
@@ -3376,7 +3376,7 @@ static Sys_var_ulong Sys_query_cache_limit(
        GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3391,7 +3391,7 @@ static Sys_var_ulong Sys_query_cache_min_res_unit(
        GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_qcache_min_res_unit), DEPRECATED(""));
+       ON_UPDATE(fix_qcache_min_res_unit), DEPRECATED_VAR(""));
 
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
 static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
@@ -3417,7 +3417,7 @@ static Sys_var_enum Sys_query_cache_type(
        "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_type), CMD_LINE(REQUIRED_ARG),
        query_cache_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_query_cache_type), ON_UPDATE(NULL), DEPRECATED(""));
+       ON_CHECK(check_query_cache_type), ON_UPDATE(NULL), DEPRECATED_VAR(""));
 
 static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "query_cache_wlock_invalidate",
@@ -3425,7 +3425,7 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
-       ON_UPDATE(NULL), DEPRECATED(""));
+       ON_UPDATE(NULL), DEPRECATED_VAR(""));
 
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
@@ -3995,7 +3995,7 @@ static Sys_var_mybool Sys_sync_frm(
        "sync_frm", "Sync .frm files to disk on creation",
        GLOBAL_VAR(opt_sync_frm), CMD_LINE(OPT_ARG),
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(
@@ -4192,7 +4192,7 @@ static Sys_var_tx_isolation Sys_tx_isolation(
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation),
        ON_UPDATE(update_transaction_isolation),
-       DEPRECATED("'@@transaction_isolation'"));
+       DEPRECATED_VAR("'@@transaction_isolation'"));
 
 
 // NO_CMD_LINE
@@ -4316,7 +4316,7 @@ static Sys_var_tx_read_only Sys_tx_read_only(
        UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_read_only),
        ON_UPDATE(update_transaction_read_only),
-       DEPRECATED("'@@transaction_read_only'"));
+       DEPRECATED_VAR("'@@transaction_read_only'"));
 
 
 static Sys_var_tx_read_only Sys_transaction_read_only(
@@ -4421,7 +4421,7 @@ static Sys_var_charptr Sys_date_format(
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(known_date_time_formats[ISO_FORMAT].date_format),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_datetime_format(
        "datetime_format", "The DATETIME format (ignored)",
@@ -4429,7 +4429,7 @@ static Sys_var_charptr Sys_datetime_format(
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(known_date_time_formats[ISO_FORMAT].datetime_format),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_time_format(
        "time_format", "The TIME format (ignored)",
@@ -4437,7 +4437,7 @@ static Sys_var_charptr Sys_time_format(
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(known_date_time_formats[ISO_FORMAT].time_format),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4627,13 +4627,13 @@ static Sys_var_bit Sys_profiling(
        "profiling", "profiling",
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_PROFILING,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED(""));
+       ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_profiling_history_size(
        "profiling_history_size", "Limit of query profiling memory",
        SESSION_VAR(profiling_history_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 #endif
 
 static Sys_var_harows Sys_select_limit(
@@ -5040,7 +5040,7 @@ static Sys_var_have Sys_have_openssl(
 static Sys_var_have Sys_have_profiling(
        "have_profiling", "have_profiling",
        READ_ONLY GLOBAL_VAR(have_profiling), NO_CMD_LINE, NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_have Sys_have_query_cache(
        "have_query_cache",
@@ -5048,7 +5048,7 @@ static Sys_var_have Sys_have_query_cache(
        "This variable is deprecated and will be removed in a future release.",
        READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE,
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_have Sys_have_rtree_keys(
        "have_rtree_keys", "have_rtree_keys",
@@ -5910,7 +5910,7 @@ static Sys_var_mybool Sys_avoid_temporal_upgrade(
         CMD_LINE(OPT_ARG, OPT_AVOID_TEMPORAL_UPGRADE),
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(0), ON_UPDATE(0),
-        DEPRECATED(""));
+        DEPRECATED_VAR(""));
 
 static Sys_var_mybool Sys_show_old_temporals(
        "show_old_temporals",
@@ -5922,7 +5922,7 @@ static Sys_var_mybool Sys_show_old_temporals(
         CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(0), ON_UPDATE(0),
-        DEPRECATED(""));
+        DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_disabled_storage_engines(
        "disabled_storage_engines",
