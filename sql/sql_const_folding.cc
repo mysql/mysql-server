@@ -1033,10 +1033,13 @@ static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
 
                    !top_level_item        top_level_item
                 ------------------------------------------
-     nullable   |  field <> field     |   COND_FALSE     |
+     nullable   |  field <> field [*] |   COND_FALSE     |
     !nullable   |  FALSE (0)          |   COND_FALSE     |
                 ------------------------------------------
+
+  [*] for the "<=>" operator, we fold to FALSE (0) in this case.
   </pre>
+
   @param      thd         current session context
   @param      ref_or_field
                           a field (that is being being compared to a constant)
@@ -1089,7 +1092,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
       return false;
     }
 
-    if (ref_or_field->maybe_null) {
+    if (ref_or_field->maybe_null && ft != Item_func::EQUAL_FUNC) {
       i = new (thd->mem_root) Item_func_ne(ref_or_field, ref_or_field);
     } else {
       i = new (thd->mem_root) Item_func_false();
