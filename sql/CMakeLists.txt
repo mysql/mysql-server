@@ -347,6 +347,14 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   ENDIF()
 ENDIF()
 
+# MD5_Init() MD5_Update() MD5_Final() are all deprecated
+IF(SOLARIS AND CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(
+    des_key_file.cc
+    item_strfunc.cc
+    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
 # Boost source has misleading indentation
 MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
                            HAVE_MISLEADING_INDENTATION)
