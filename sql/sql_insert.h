@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,6 +215,8 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
 
  private:
   bool resolve_update_expressions(THD *thd);
+  bool prepare_values_table(THD *thd);
+  bool resolve_values_table_columns(THD *thd);
 
  public:
   /*
@@ -257,6 +259,19 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
 
   /// ON DUPLICATE KEY UPDATE data value list
   List<Item> update_value_list;
+
+  /**
+    ON DUPLICATE KEY UPDATE reference to VALUES.. as a derived table.
+  */
+  TABLE_LIST *values_table{nullptr};
+  Create_col_name_list *values_column_list{nullptr};
+
+  /**
+    Field list for VALUES derived table. If no insert_field exists (e.g. INSERT
+    INTO t0 ..), we have to create one to create Item_insert_values for ODKU
+    statements.
+  */
+  List<Item> values_field_list;
 
   const enum_duplicates duplicates;
 

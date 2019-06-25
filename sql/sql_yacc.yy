@@ -1919,6 +1919,8 @@ void warn_about_deprecated_binary(THD *thd)
 %type <num> opt_array_cast
 %type <sql_cmd_srs_attributes> srs_attributes
 
+%type <insert_update_values_reference> opt_values_reference
+
 %type <alter_tablespace_type> undo_tablespace_state
 
 
@@ -12103,12 +12105,14 @@ insert_stmt:
           table_ident                  /* #5 */
           opt_use_partition            /* #6 */
           insert_from_constructor      /* #7 */
-          opt_insert_update_list       /* #8 */
+          opt_values_reference         /* #8 */
+          opt_insert_update_list       /* #9 */
           {
             $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $7.column_list, $7.row_value_list,
                                   NULL,
-                                  $8.column_list, $8.value_list);
+                                  $8.table_alias, $8.column_list,
+                                  $9.column_list, $9.value_list);
           }
         | INSERT_SYM                   /* #1 */
           insert_lock_option           /* #2 */
@@ -12118,7 +12122,8 @@ insert_stmt:
           opt_use_partition            /* #6 */
           SET_SYM                      /* #7 */
           update_list                  /* #8 */
-          opt_insert_update_list       /* #9 */
+          opt_values_reference         /* #9 */
+          opt_insert_update_list       /* #10 */
           {
             PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list;
             if (one_row == NULL || one_row->push_back(&$8.value_list->value))
@@ -12126,7 +12131,8 @@ insert_stmt:
             $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $8.column_list, one_row,
                                   NULL,
-                                  $9.column_list, $9.value_list);
+                                  $9.table_alias, $9.column_list,
+                                  $10.column_list, $10.value_list);
           }
         | INSERT_SYM                   /* #1 */
           insert_lock_option           /* #2 */
@@ -12140,6 +12146,7 @@ insert_stmt:
             $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $7.column_list, NULL,
                                   $7.insert_query_expression,
+                                  NULL_CSTR, NULL,
                                   $8.column_list, $8.value_list);
           }
         ;
@@ -12155,6 +12162,7 @@ replace_stmt:
             $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $6.column_list, $6.row_value_list,
                                   NULL,
+                                  NULL_CSTR, NULL,
                                   NULL, NULL);
           }
         | REPLACE_SYM                   /* #1 */
@@ -12171,6 +12179,7 @@ replace_stmt:
             $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $7.column_list, one_row,
                                   NULL,
+                                  NULL_CSTR, NULL,
                                   NULL, NULL);
           }
         | REPLACE_SYM                   /* #1 */
@@ -12183,6 +12192,7 @@ replace_stmt:
             $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $6.column_list, NULL,
                                   $6.insert_query_expression,
+                                  NULL_CSTR, NULL,
                                   NULL, NULL);
           }
         ;
@@ -12347,6 +12357,24 @@ expr_or_default:
         | DEFAULT_SYM
           {
             $$= NEW_PTN Item_default_value(@$);
+          }
+        ;
+
+opt_values_reference:
+          /* empty */
+          {
+            $$.table_alias = NULL_CSTR;
+            $$.column_list = NULL;
+          }
+        | AS ident opt_derived_column_list
+          {
+            $$.table_alias = to_lex_cstring($2);
+            /* The column list object is short-lived, requiring duplication. */
+            void *column_list_raw_mem= YYTHD->memdup(&($3), sizeof($3));
+            if (!column_list_raw_mem)
+              MYSQL_YYABORT; // OOM
+            $$.column_list =
+              static_cast<Create_col_name_list *>(column_list_raw_mem);
           }
         ;
 

@@ -194,10 +194,16 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
       Perform name resolution only in the first table - 'table_list',
       which is the table that is inserted into.
     */
-    table_list->next_local = NULL;
+    TABLE_LIST *next_name_resolution_table =
+        table_list->next_name_resolution_table;
+    table_list->next_name_resolution_table = nullptr;
+    table_list->next_local = nullptr;
+
     context->resolve_in_table_list_only(table_list);
     const bool res = setup_fields(thd, Ref_item_array(), fields, INSERT_ACL,
                                   NULL, false, true);
+
+    table_list->next_name_resolution_table = next_name_resolution_table;
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
@@ -1020,6 +1026,13 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   // Setup the insert table only
   table_list->next_local = NULL;
 
+  // The VALUES table should only be available from within the update
+  // expressions (i.e. the rhs of ODKU updates). The context must be restored
+  // before resolve_update_expressions for ODKU statements.
+  TABLE_LIST *next_name_resolution_table =
+      table_list->next_name_resolution_table;
+  table_list->next_name_resolution_table = nullptr;
+
   if (select->setup_tables(thd, table_list, select_insert))
     return true; /* purecov: inspected */
 
@@ -1088,11 +1101,16 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       return true; /* purecov: inspected */
   }
 
-  // With INSERT ... VALUES () the properties of a SELECT clause are invalid
-  DBUG_ASSERT(select_insert ||
-              (first_select_table == NULL && select->where_cond() == NULL &&
-               select->group_list.elements == 0 &&
-               select->having_cond() == NULL && !select->has_limit()));
+  /*
+    INSERT ... VALUES () has no WHERE clause, HAVING clause, GROUP BY clause,
+    ORDER BY clause nor LIMIT clause. Table list is empty, except when an alias
+    name is given for VALUES, which is represented as a derived table.
+  */
+  DBUG_ASSERT(
+      select_insert ||
+      ((first_select_table == nullptr || first_select_table->is_derived()) &&
+       select->where_cond() == nullptr && select->group_list.elements == 0 &&
+       select->having_cond() == nullptr && !select->has_limit()));
 
   // Prepare the lists of columns and values in the statement.
 
@@ -1168,6 +1186,14 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   MY_BITMAP *function_default_columns = nullptr;
   get_default_columns(insert_table, &function_default_columns);
+
+  // If an alias for VALUES is specified, prepare the derived values table. This
+  // must be done after setting up the insert table to have access to insert
+  // fields. If values_field_list is not empty, the table is already set up
+  // (e.g. as part of a PREPARE statement).
+  if (values_column_list != nullptr && values_field_list.is_empty() &&
+      prepare_values_table(thd))
+    return true;
 
   if (duplicates == DUP_UPDATE) {
     // Setup the columns to be updated
@@ -1325,6 +1351,13 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
         // Restore the original name resolution context (the insert table)
         ctx_state.restore_state(context, table_list);
       }
+    } else {
+      // Resolve Item_insert_values _after_ their corresponding fields have been
+      // fixed, as their field arguments should be resolved as normal.
+      if (values_table != nullptr) resolve_values_table_columns(thd);
+
+      // Restore the derived reference table that points to VALUES.
+      table_list->next_name_resolution_table = next_name_resolution_table;
     }
 
     if (!unit->is_union() && resolve_update_expressions(thd)) return true;
@@ -1459,6 +1492,127 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
                        &used_partitions);
     }
   }
+
+  return false;
+}
+
+/**
+  Prepare the derived table created as a VALUES alias.
+
+  When an optional table alias is specified for the VALUES of an INSERT
+  statement, we create a derived table to contain its values. The field
+  translation of this derived table is pointed to the insert buffer of the table
+  we are inserting into, by means of the Item_insert_value objects we create
+  here. An Item_insert_value object will originally contain the corresponding
+  Item_field of the insert table, which is then cloned during its fix_field
+  implementation to move the underlying Field to insert_values instead.
+
+  The derived table is initialized in Sql_cmd_insert_base::make_cmd, but we have
+  to wait until after the insert table is resolved to create our field
+  translation indirection. If the table alias is not given explicit column names
+  in the query, it must take the column names of the insert table; this
+  information is not available to us until the insert table is resolved.
+
+  @param thd           Thread context.
+
+  @returns false if success, true if error.
+*/
+
+bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
+  // Insert_item_value items will be allocated for the field_translation of the
+  // VALUES table. They should be persistent for prepared statements.
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+  if (insert_field_list.elements == 0) {
+    TABLE_LIST *insert_table = lex->select_lex->table_list.first;
+    Field_iterator_table_ref it;
+    it.set(insert_table);
+
+    for (it.set(insert_table); !it.end_of_fields(); it.next()) {
+      Item *item = it.create_item(current_thd);
+      if (item == nullptr) return true;
+      if (values_field_list.push_back(down_cast<Item_field *>(item)))
+        return true;
+    }
+  } else {
+    for (Item &item : insert_field_list) {
+      values_field_list.push_back(down_cast<Item_field *>(&item));
+    }
+  }
+
+  // If no column names were specified for the values table, we fill in names
+  // corresponding to the same column of the insert table.
+  if (values_column_list->empty()) {
+    for (Item &item : values_field_list) {
+      Item_field *field = down_cast<Item_field *>(&item);
+      values_column_list->push_back(to_lex_cstring(field->field_name));
+    }
+  }
+
+  if (check_duplicate_names(values_column_list, values_field_list, false))
+    return true;
+  values_table->set_derived_column_names(values_column_list);
+
+  Field_translator *transl =
+      pointer_cast<Field_translator *>(thd->stmt_arena->alloc(
+          values_column_list->size() * sizeof(Field_translator)));
+  if (transl == nullptr) return true;
+
+  uint field_count = 0;
+  for (Item &item : values_field_list) {
+    Item_field *field_arg = down_cast<Item_field *>(&item);
+    Item_insert_value *insert_value =
+        new Item_insert_value(&thd->lex->current_select()->context, field_arg);
+    if (insert_value == nullptr) return true;
+    insert_value->context = &lex->select_lex->context;
+
+    transl[field_count].name = values_column_list->at(field_count).str;
+    transl[field_count++].item = insert_value;
+  }
+
+  values_table->field_translation = transl;
+  values_table->field_translation_end = transl + field_count;
+
+  return false;
+}
+
+/**
+  Resolve the columns of the optional VALUES table to the insert_values of the
+  table inserted into.
+
+  Field_translation of this table contains Item_insert_value objects pointing to
+  the Item_field objects of the insert table. Caller is responsible for fixing
+  these fields before calling this function.
+
+  @param thd           Thread context.
+
+  @returns false if success, true if error.
+*/
+
+bool Sql_cmd_insert_base::resolve_values_table_columns(THD *thd) {
+  // If insert_field_list is empty, we fill it by iterating over the fields of
+  // the insert table in prepare_values_table(). These new Item_field objects
+  // must be fixed as normal insert fields _before_ the Item_insert_value
+  // objects in the VALUES table alias are fixed.
+  if (insert_field_list.is_empty() &&
+      check_insert_fields(thd, thd->lex->query_tables, values_field_list))
+    return true;
+
+  Field_translator *field_translation = values_table->field_translation;
+  while (field_translation != values_table->field_translation_end) {
+    Item_insert_value *item =
+        down_cast<Item_insert_value *>(field_translation->item);
+
+    // We are specifically fixing fields for references in update clauses.
+    thd->lex->in_update_value_clause = true;
+    if (item->fix_fields(thd, nullptr)) return true;
+    thd->lex->in_update_value_clause = false;
+
+    ++field_translation;
+  }
+
+  // Signal that field_translation is valid.
+  if (!values_table->is_merged()) values_table->set_merged();
 
   return false;
 }

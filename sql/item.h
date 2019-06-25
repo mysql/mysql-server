@@ -5546,6 +5546,8 @@ class Item_insert_value final : public Item_field {
   Item *arg;
   Item_insert_value(const POS &pos, Item *a)
       : Item_field(pos, NULL, NULL, NULL), arg(a) {}
+  Item_insert_value(Name_resolution_context *context, Item *a)
+      : Item_field(context, nullptr, nullptr, nullptr), arg(a) {}
 
   bool itemize(Parse_context *pc, Item **res) override {
     if (skip_itemize(res)) return false;

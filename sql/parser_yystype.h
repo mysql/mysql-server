@@ -585,6 +585,10 @@ union YYSTYPE {
   } load_set_list;
   ts_alter_tablespace_type alter_tablespace_type;
   Sql_cmd_srs_attributes *sql_cmd_srs_attributes;
+  struct {
+    LEX_CSTRING table_alias;
+    Create_col_name_list *column_list;
+  } insert_update_values_reference;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

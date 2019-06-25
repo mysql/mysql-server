@@ -7122,7 +7122,7 @@ static Field *find_field_in_view(THD *thd, TABLE_LIST *table_list,
   field_it.set(table_list);
 
   DBUG_ASSERT(table_list->schema_table_reformed ||
-              (ref != 0 && table_list->is_merged()));
+              (ref != nullptr && table_list->is_merged()));
   for (; !field_it.end_of_fields(); field_it.next()) {
     if (!my_strcasecmp(system_charset_info, field_it.name(), name)) {
       Item *item;

@@ -811,6 +811,26 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
     lex->bulk_insert_row_cnt = row_value_list->get_many_values().elements;
   }
 
+  // Create a derived table to use as a table reference to the VALUES rows,
+  // which can be referred to from ON DUPLICATE KEY UPDATE. Naming the derived
+  // table columns is deferred to Sql_cmd_insert_base::prepare_inner, as this
+  // requires the insert table to be resolved.
+  TABLE_LIST *values_table{nullptr};
+  if (opt_values_table_alias != nullptr && opt_values_column_list != nullptr) {
+    if (!strcmp(opt_values_table_alias, table_ident->table.str)) {
+      my_error(ER_NONUNIQ_TABLE, MYF(0), opt_values_table_alias);
+      return nullptr;
+    }
+
+    Table_ident *ti =
+        new (pc.thd->mem_root) Table_ident(lex->select_lex->master_unit());
+    if (ti == nullptr) return nullptr;
+
+    values_table = pc.select->add_table_to_list(
+        pc.thd, ti, opt_values_table_alias, 0, TL_READ, MDL_SHARED_READ);
+    if (values_table == nullptr) return nullptr;
+  }
+
   if (opt_on_duplicate_column_list != NULL) {
     DBUG_ASSERT(!is_replace);
     DBUG_ASSERT(opt_on_duplicate_value_list != NULL &&
@@ -845,8 +865,11 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
         new (thd->mem_root) Sql_cmd_insert_values(is_replace, lex->duplicates);
   if (sql_cmd == NULL) return NULL;
 
-  if (!has_select())
+  if (!has_select()) {
     sql_cmd->insert_many_values = row_value_list->get_many_values();
+    sql_cmd->values_table = values_table;
+    sql_cmd->values_column_list = opt_values_column_list;
+  }
 
   sql_cmd->insert_field_list = column_list->value;
   if (opt_on_duplicate_column_list != NULL) {
