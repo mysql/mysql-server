@@ -76,6 +76,16 @@ static bool bool_variable_value;
   the service.
 */
 static mysql_service_status_t test_component_sys_var_service_init() {
+  enum_variable_value = 0;
+  str_variable_value = nullptr;
+  int_variable_value = 0;
+  uint_variable_value = 0;
+  long_variable_value = 0;
+  ulong_variable_value = 0;
+  longlong_variable_value = 0;
+  ulonglong_variable_value = 0;
+  bool_variable_value = false;
+
   char *var_value;
   size_t len;
 
@@ -331,6 +341,7 @@ static mysql_service_status_t test_component_sys_var_service_deinit() {
   WRITE_LOG("%s\n", "test_component_sys_var end of deinit:");
 
   fclose(outfile);
+  str_variable_value = nullptr;
   return false;
 }
 

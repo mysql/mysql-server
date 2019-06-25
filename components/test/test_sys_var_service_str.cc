@@ -59,6 +59,7 @@ static char *str_variable_value;
   the service.
 */
 static mysql_service_status_t test_component_sys_var_service_str_init() {
+  str_variable_value = nullptr;
   unlink(filename);
   outfile = fopen(filename, "w+");
 
@@ -167,6 +168,7 @@ static mysql_service_status_t test_component_sys_var_service_str_deinit() {
 
   delete[] var_value;
   fclose(outfile);
+  str_variable_value = nullptr;
   return false;
 }
 
