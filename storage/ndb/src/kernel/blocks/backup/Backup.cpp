@@ -97,7 +97,6 @@ static NDB_TICKS startTime;
 //#define DEBUG_REDO_CONTROL_DETAIL 1
 //#define DEBUG_LCP_DD 1
 //#define DEBUG_LCP_STAT 1
-//#define DEBUG_EXTENDED_LCP_STAT 1
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
