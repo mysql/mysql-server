@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1906,11 +1906,15 @@ Dbtup::disk_restart_undo(Signal* signal,
       tableId = ptr[1] >> 16;
       fragId = ptr[1] & 0xFFFF;
     }
-    disk_restart_undo_lcp(tableId,
-                          fragId,
-                          Fragrecord::UC_LCP,
-                          lcpId,
-                          localLcpId);
+    if (tableId != 0)
+    {
+      jam();
+      disk_restart_undo_lcp(tableId,
+                            fragId,
+                            Fragrecord::UC_LCP,
+                            lcpId,
+                            localLcpId);
+    }
     if (!isNdbMtLqh())
       disk_restart_undo_next(signal);
     
@@ -2170,8 +2174,8 @@ Dbtup::disk_restart_lcp_id(Uint32 tableId,
   if (lcpId == RNIL)
   {
     jam();
-    disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_CREATE, 0, 0);
-    DEB_UNDO(("(%u)mark_no_lcp tab(%u,%u), UC_CREATE",
+    disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_NO_LCP, 0, 0);
+    DEB_UNDO(("(%u)mark_no_lcp tab(%u,%u), UC_NO_LCP",
               instance(),
               tableId,
               fragId));
@@ -2233,6 +2237,7 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
         return;
       }
       case Fragrecord::UC_CREATE:
+      {
         /**
          * We have reached a point in the undo log record where the table
          * was created. This is not always inserted, but we don't perform
@@ -2241,6 +2246,20 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
         jam();
 	fragPtr.p->m_undo_complete = Fragrecord::UC_CREATE;
 	return;
+      }
+      case Fragrecord::UC_NO_LCP:
+      {
+        jam();
+        /**
+         * We are restoring a table that had no LCPs connected to it.
+         * We need to run the UNDO log for this table all the way back
+         * to the table creation. We don't track table creations in the
+         * UNDO log, so we have to execute the UNDO log back to the
+         * LCP before it was created.
+         */
+	fragPtr.p->m_undo_complete = Fragrecord::UC_NO_LCP;
+        return;
+      }
       case Fragrecord::UC_LCP:
 	jam();
         if (fragPtr.p->m_undo_complete == 0 &&
