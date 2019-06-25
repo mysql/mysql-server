@@ -27,10 +27,10 @@
 # WL#12475 - Protocol Changes to specify compression configuration for
 #              connections
 
-# This test case is binary log format agnostic
---source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 --source include/rpl_connection_slave.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 
 --echo ##### TEST FOR NEW CHANNEL #####
 
