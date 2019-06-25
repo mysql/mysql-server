@@ -2099,8 +2099,8 @@ EXPLAIN
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN
 -> Aggregate: min(t2.fld1), max(t2.fld1), count(0)
-    -> Filter: (rand() > 0.5)  (cost=31.70 rows=1199)
-        -> Index scan on t2 using fld1  (cost=31.70 rows=1199)
+    -> Filter: (rand() > 0.5)  (cost=151.60 rows=1199)
+        -> Index scan on t2 using fld1  (cost=151.60 rows=1199)
 
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)

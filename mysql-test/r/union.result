@@ -2052,7 +2052,7 @@ EXPLAIN
 -> Append
     -> Stream results
         -> Aggregate: sum(t2.a)
-            -> Index scan on t2 using PRIMARY  (cost=0.25 rows=1)
+            -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
     -> Stream results
         -> Zero input rows (No matching min/max row), aggregated into one output row
 

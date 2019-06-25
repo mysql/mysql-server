@@ -63,8 +63,8 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where ((`test`.`t1`.`event_date` >= DATE'1999-07-01') and (`test`.`t1`.`event_date` < DATE'1999-07-15') and ((`test`.`t1`.`type` = 100600) or (`test`.`t1`.`type` = 100100))) order by `test`.`t1`.`event_date`
 explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 EXPLAIN
--> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=266.66 rows=1)
-    -> Index scan on t1 using PRIMARY  (cost=266.66 rows=52)
+-> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=5.74 rows=1)
+    -> Index scan on t1 using PRIMARY  (cost=5.74 rows=52)
 
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -1443,8 +1443,8 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (0 not between `test`.`t1`.`b` and `test`.`t1`.`c`)
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 EXPLAIN
--> Filter: (0 not between t1.b and t1.c)  (cost=0.70 rows=9)
-    -> Table scan on t1  (cost=0.70 rows=10)
+-> Filter: (0 not between t1.b and t1.c)  (cost=1.51 rows=9)
+    -> Table scan on t1  (cost=1.51 rows=10)
 
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -2283,9 +2283,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4
 EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 EXPLAIN
--> Nested loop inner join  (cost=1.55 rows=3)
-    -> Table scan on t1  (cost=0.50 rows=3)
-    -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)  (cost=0.25 rows=1)
+-> Nested loop inner join  (cost=1.85 rows=3)
+    -> Table scan on t1  (cost=0.80 rows=3)
+    -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)  (cost=0.28 rows=1)
 
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
@@ -2618,10 +2618,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Nested loop inner join  (cost=0.95 rows=1)
-    -> Filter: (t1.col_int is not null)  (cost=0.25 rows=2)
-        -> Table scan on t1  (cost=0.25 rows=2)
-    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int), with index condition: (t2.pk < t1.pk)  (cost=0.75 rows=1)
+-> Nested loop inner join  (cost=1.55 rows=2)
+    -> Filter: (t1.col_int is not null)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
+    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int), with index condition: (t2.pk < t1.pk)  (cost=0.27 rows=1)
 
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -2640,11 +2640,11 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Filter: (t2.pk < t1.pk)  (cost=1.70 rows=4)
-    -> Inner hash join (t2.col_int_key = t1.col_int)  (cost=1.70 rows=4)
-        -> Table scan on t2  (cost=0.38 rows=6)
+-> Filter: (t2.pk < t1.pk)  (cost=1.90 rows=4)
+    -> Inner hash join (t2.col_int_key = t1.col_int)  (cost=1.90 rows=4)
+        -> Table scan on t2  (cost=0.22 rows=6)
         -> Hash
-            -> Table scan on t1  (cost=0.25 rows=2)
+            -> Table scan on t1  (cost=0.45 rows=2)
 
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.

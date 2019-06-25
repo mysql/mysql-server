@@ -47,7 +47,7 @@ EXPLAIN
     -> Materialize recursive CTE qn with deduplication
         -> Rows fetched before execution
         -> Repeat until convergence
-            -> Scan new records on qn  (cost=2.52 rows=2)
+            -> Scan new records on qn  (cost=2.73 rows=2)
 
 with recursive qn as
 (select 1 from dual union
@@ -1091,18 +1091,18 @@ EXPLAIN
 -> Sort: tree_of_a.path
     -> Table scan on tree_of_a
         -> Materialize recursive CTE tree_of_a
-            -> Filter: (t2.`name` = 'A')  (cost=16.00 rows=2)
-                -> Table scan on t2  (cost=16.00 rows=15)
+            -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
+                -> Table scan on t2  (cost=1.75 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join  (cost=3.33 rows=0)
-                    -> Scan new records on tree_of_a  (cost=2.52 rows=2)
-                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=2.50 rows=2)
-                        -> Table scan on t2  (cost=2.50 rows=15)
+                -> Nested loop inner join  (cost=6.22 rows=3)
+                    -> Scan new records on tree_of_a  (cost=2.73 rows=2)
+                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=0.33 rows=2)
+                        -> Table scan on t2  (cost=0.33 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join  (cost=4.56 rows=1)
-                    -> Scan new records on tree_of_a  (cost=2.56 rows=5)
-                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=2.50 rows=2)
-                        -> Table scan on t2  (cost=2.50 rows=15)
+                -> Nested loop inner join  (cost=11.81 rows=8)
+                    -> Scan new records on tree_of_a  (cost=3.06 rows=5)
+                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=0.28 rows=2)
+                        -> Table scan on t2  (cost=0.28 rows=15)
 
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't
@@ -1403,7 +1403,7 @@ EXPLAIN
     -> Materialize recursive CTE qn with deduplication
         -> Rows fetched before execution
         -> Repeat until convergence
-            -> Scan new records on qn  (cost=0.50 rows=2)
+            -> Scan new records on qn  (cost=0.70 rows=2)
 
 with recursive qn as
 (select 1 from dual union
@@ -2447,18 +2447,18 @@ EXPLAIN
 -> Sort: tree_of_a.path
     -> Table scan on tree_of_a
         -> Materialize recursive CTE tree_of_a
-            -> Filter: (t2.`name` = 'A')  (cost=16.00 rows=2)
-                -> Table scan on t2  (cost=16.00 rows=15)
+            -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
+                -> Table scan on t2  (cost=1.75 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join  (cost=1.30 rows=0)
-                    -> Scan new records on tree_of_a  (cost=0.50 rows=2)
-                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=2.50 rows=2)
-                        -> Table scan on t2  (cost=2.50 rows=15)
+                -> Nested loop inner join  (cost=4.20 rows=3)
+                    -> Scan new records on tree_of_a  (cost=0.70 rows=2)
+                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=0.33 rows=2)
+                        -> Table scan on t2  (cost=0.33 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join  (cost=2.50 rows=1)
-                    -> Scan new records on tree_of_a  (cost=0.50 rows=5)
-                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=2.50 rows=2)
-                        -> Table scan on t2  (cost=2.50 rows=15)
+                -> Nested loop inner join  (cost=9.75 rows=8)
+                    -> Scan new records on tree_of_a  (cost=1.00 rows=5)
+                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=0.28 rows=2)
+                        -> Table scan on t2  (cost=0.28 rows=15)
 
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't
