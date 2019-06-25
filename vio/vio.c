@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -380,9 +380,7 @@ void vio_delete(Vio* vio)
 */
 void vio_end(void)
 {
-#if defined(HAVE_YASSL)
-  yaSSL_CleanUp();
-#elif defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
   // This one is needed on the client side
   ERR_remove_state(0);
   ERR_free_strings();

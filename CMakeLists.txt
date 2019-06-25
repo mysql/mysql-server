@@ -471,7 +471,7 @@ IF(BUILD_BUNDLED_ZLIB)
     ${CMAKE_CURRENT_BINARY_DIR}/zlib
     )
 ENDIF()
-# Add bundled yassl/taocrypt or system openssl.
+# Add openssl.
 MYSQL_CHECK_SSL()
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
