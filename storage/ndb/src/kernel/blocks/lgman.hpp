@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -476,7 +476,13 @@ public:
   enum RequestFlags 
   {
   };
-  
+
+  /**
+   * Check if a logfile group exists
+   * @return true if a logfile group exists
+   *         false otherwise
+   */
+  bool exists_logfile_group();
   /**
    * Make sure a lsn is stored
    * @return -1, on error

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,6 +138,7 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_RESTORABLE_GCI_REP, &Backup::execRESTORABLE_GCI_REP);
   addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_REQ,
                &Backup::execINFORM_BACKUP_DROP_TAB_REQ);
+  addRecSignal(GSN_WAIT_LCP_IDLE_REQ, &Backup::execWAIT_LCP_IDLE_REQ);
 
   addRecSignal(GSN_LCP_STATUS_REQ, &Backup::execLCP_STATUS_REQ);
 

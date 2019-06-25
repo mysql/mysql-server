@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -723,7 +723,8 @@ struct Fragrecord {
     UC_LCP = 1,
     UC_CREATE = 2,
     UC_SET_LCP = 3,
-    UC_DROP = 4
+    UC_NO_LCP = 4,
+    UC_DROP = 5
   };
   /* Calculated average row size of the rows in the fragment */
   Uint32 m_average_row_size;
