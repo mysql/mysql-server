@@ -37,10 +37,11 @@ ERROR HY000: Can't initialize function 'group_replication_get_communication_prot
 [connection server1]
 include/gr_start_applier_sql_thread.inc
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
 Wait until server2 becomes ONLINE
+include/gr_wait_for_member_state.inc
 ###############################################################################
 #  6. Check that it is *not* possible to modify the communication_protocol value via an ONLINE member when some member is in UNREACHABLE state.
-[connection server2]
 [connection server_1]
 include/gr_wait_for_member_state.inc
 SELECT group_replication_set_communication_protocol("5.7.14");
