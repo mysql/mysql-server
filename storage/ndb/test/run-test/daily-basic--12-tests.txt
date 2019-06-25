@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -53,10 +53,6 @@ max-time: 180
 cmd: testIndex
 args: -n Bug50118 T1
 max-time: 180
-
-cmd: testNodeRestart
-args: -n Bug28717 T1
-max-time: 360
 
 cmd: testDict
 args: -n CreateMaxTables T6

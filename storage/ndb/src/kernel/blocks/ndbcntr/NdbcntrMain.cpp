@@ -3359,12 +3359,13 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   jamEntry();
 
   CRASH_INSERTION(1006);
-  if (ERROR_INSERTED(1001))
-  {
-    sendSignalWithDelay(reference(), GSN_NODE_FAILREP, signal, 100, 
-                        signal->getLength());
-    return;
-  }
+
+  /**
+   * It isn't valid to delay execution of NODE_FAILREP, quite a few
+   * measures have been made to ensure that NODE_FAILREP with perfect
+   * timing, this delay signal causes other errors, so is not a good
+   * method for testing.
+  */
   
   const NodeFailRep * nodeFail = (NodeFailRep *)&signal->theData[0];
   NdbNodeBitmask allFailed; 
