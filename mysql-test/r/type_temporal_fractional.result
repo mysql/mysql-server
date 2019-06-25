@@ -15587,11 +15587,11 @@ s1
 1000-00-01 00:00:00
 1000-00-01 00:00:00
 DROP TABLE t1;
-SELECT BINARY SYSDATE(6) LIKE '____-__-__ __:__:__.______';
-BINARY SYSDATE(6) LIKE '____-__-__ __:__:__.______'
+SELECT SYSDATE(6) LIKE '____-__-__ __:__:__.______';
+SYSDATE(6) LIKE '____-__-__ __:__:__.______'
 1
-SELECT BINARY SYSDATE(6) NOT LIKE '%.000000' || BINARY SYSDATE(6) NOT LIKE '%.000000';
-BINARY SYSDATE(6) NOT LIKE '%.000000' || BINARY SYSDATE(6) NOT LIKE '%.000000'
+SELECT SYSDATE(6) NOT LIKE '%.000000' || SYSDATE(6) NOT LIKE '%.000000';
+SYSDATE(6) NOT LIKE '%.000000' || SYSDATE(6) NOT LIKE '%.000000'
 1
 Warnings:
 Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead

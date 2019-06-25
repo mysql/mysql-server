@@ -2026,6 +2026,7 @@ class Item_func_like final : public Item_bool_func2 {
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "like"; }
   bool fix_fields(THD *thd, Item **ref) override;
+  bool resolve_type(THD *) override;
   void cleanup() override;
   /**
     @retval true non default escape char specified

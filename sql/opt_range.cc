@@ -7603,7 +7603,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     max_str = min_str + length;
     if (maybe_null) max_str[0] = min_str[0] = 0;
 
-    Item_func_like *like_func = static_cast<Item_func_like *>(param->cond);
+    Item_func_like *like_func = down_cast<Item_func_like *>(param->cond);
 
     // We can only optimize with LIKE if the escape string is known.
     if (!like_func->escape_is_evaluated()) goto end;

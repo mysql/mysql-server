@@ -639,14 +639,6 @@ bool Item_bool_func2::resolve_type(THD *thd) {
 
   args[0]->cmp_context = args[1]->cmp_context =
       item_cmp_type(args[0]->result_type(), args[1]->result_type());
-  // Make a special case of compare with fields to get nicer DATE comparisons
-
-  if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
-  {
-    if (set_cmp_func()) return true;
-
-    return false;
-  }
 
   /*
     Geometry item cannot participate in an arithmetic or string comparison or
@@ -661,6 +653,7 @@ bool Item_bool_func2::resolve_type(THD *thd) {
       reject_geometry_args(arg_count, args, this))
     return true;
 
+  // Make a special case of compare with fields to get nicer DATE comparisons
   if (!thd->lex->is_ps_or_view_context_analysis()) {
     bool cvt1, cvt2;
     if (convert_constant_arg(thd, args[0], &args[1], &cvt1) ||
@@ -668,7 +661,31 @@ bool Item_bool_func2::resolve_type(THD *thd) {
       return true;
     if (cvt1 || cvt2) return false;
   }
-  if (set_cmp_func()) return true;
+  return set_cmp_func();
+}
+
+bool Item_func_like::resolve_type(THD *) {
+  // Function returns 0 or 1
+  max_length = 1;
+
+  /*
+    See agg_item_charsets() in item.cc for comments
+    on character set and collation aggregation.
+  */
+  if (args[0]->result_type() == STRING_RESULT &&
+      args[1]->result_type() == STRING_RESULT) {
+    if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, 2))
+      return true;
+  } else if (args[1]->result_type() == STRING_RESULT) {
+    cmp.cmp_collation = args[1]->collation;
+  } else {
+    cmp.cmp_collation = args[0]->collation;
+  }
+
+  // LIKE is always carried out as string operation
+  args[0]->cmp_context = STRING_RESULT;
+  args[1]->cmp_context = STRING_RESULT;
+
   return false;
 }
 
@@ -5659,15 +5676,15 @@ longlong Item_func_like::val_int() {
 
   String *res = args[0]->val_str(&cmp.value1);
   if (args[0]->null_value) {
-    null_value = 1;
+    null_value = true;
     return 0;
   }
   String *res2 = args[1]->val_str(&cmp.value2);
   if (args[1]->null_value) {
-    null_value = 1;
+    null_value = true;
     return 0;
   }
-  null_value = 0;
+  null_value = false;
   if (current_thd->is_error()) return 0;
 
   return my_wildcmp(cmp.cmp_collation.collation, res->ptr(),
