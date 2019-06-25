@@ -2204,6 +2204,48 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
   return res;
 }
 
+static store_key::store_key_result type_conversion_status_to_store_key(
+    THD *thd, type_conversion_status ts) {
+  switch (ts) {
+    case TYPE_OK:
+      return store_key::STORE_KEY_OK;
+    case TYPE_NOTE_TRUNCATED:
+    case TYPE_WARN_TRUNCATED:
+    case TYPE_NOTE_TIME_TRUNCATED:
+      if (thd->check_for_truncated_fields)
+        return store_key::STORE_KEY_CONV;
+      else
+        return store_key::STORE_KEY_OK;
+    case TYPE_WARN_OUT_OF_RANGE:
+    case TYPE_WARN_INVALID_STRING:
+    case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
+    case TYPE_ERR_BAD_VALUE:
+    case TYPE_ERR_OOM:
+      return store_key::STORE_KEY_FATAL;
+  }
+
+  DBUG_ASSERT(false);  // not possible
+  return store_key::STORE_KEY_FATAL;
+}
+
+enum store_key::store_key_result store_key_item::copy_inner() {
+  TABLE *table = to_field->table;
+  my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
+  type_conversion_status save_res = item->save_in_field(to_field, true);
+  store_key_result res;
+  /*
+    Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
+    we need to check for errors executing it and react accordingly.
+  */
+  if (save_res != TYPE_OK && table->in_use->is_error())
+    res = STORE_KEY_FATAL;
+  else
+    res = type_conversion_status_to_store_key(table->in_use, save_res);
+  dbug_tmp_restore_column_map(table->write_set, old_map);
+  null_key = to_field->is_null() || item->null_value;
+  return (err != 0) ? STORE_KEY_FATAL : res;
+}
+
 /**
   Extend e1 by AND'ing e2 to the condition e1 points to. The resulting
   condition is fixed. Requirement: the input Items must already have
