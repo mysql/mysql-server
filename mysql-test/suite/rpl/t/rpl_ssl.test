@@ -100,8 +100,6 @@ drop table t1;
 
 # ==== BUG#18165937: HITTING CRASH WHEN SETTING SSL OPTIONS THROUGH CHANGE MASTER COMMAND ====
 #
-# The server would crash when setting SSL_CRL options using CHANGE
-# MASTER with YASSL enabled.
 
 --source include/stop_slave.inc
 --replace_column 2 ####

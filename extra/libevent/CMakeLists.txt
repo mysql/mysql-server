@@ -128,7 +128,7 @@ option(EVENT__DISABLE_MM_REPLACEMENT
 option(EVENT__DISABLE_THREAD_SUPPORT
     "Define if libevent should not be compiled with thread support" OFF)
 
-# Disable SSL, for yaSSL and OpenSSL
+# Disable SSL
 option(EVENT__DISABLE_OPENSSL
     "Define if libevent should build without support for OpenSSL encrpytion" ON)
 

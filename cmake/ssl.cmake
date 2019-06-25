@@ -14,14 +14,13 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 # We support different versions of SSL:
-# - "bundled" uses source code in <source dir>/extra/yassl
 # - "system"  (typically) uses headers/libraries in /usr/lib and /usr/lib64
 # - a custom installation of openssl can be used like this
 #     - cmake -DCMAKE_PREFIX_PATH=</path/to/custom/openssl> -DWITH_SSL="system"
 #   or
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
 #
-# The default value for WITH_SSL is "bundled"
+# The default value for WITH_SSL is "system"
 # set in cmake/build_configurations/feature_set.cmake
 #
 # WITH_SSL="system" means: use the SSL library that comes with the operating
@@ -46,8 +45,6 @@ SET(WITH_SSL_DOC
   "${WITH_SSL_DOC}, \nyes (synonym for system)")
 SET(WITH_SSL_DOC
   "${WITH_SSL_DOC}, \n</path/to/custom/openssl/installation>")
-SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, \nbundled (use yassl)")
 
 STRING(REPLACE "\n" "| " WITH_SSL_DOC_STRING "${WITH_SSL_DOC}")
 MACRO (CHANGE_SSL_SETTINGS string)
@@ -73,32 +70,6 @@ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   ENDIF()
 ENDMACRO()
 
-MACRO (MYSQL_USE_BUNDLED_SSL)
-  SET(INC_DIRS 
-    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-    ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include
-  )
-  SET(SSL_LIBRARIES  yassl taocrypt)
-  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
-  ENDIF()
-  SET(SSL_INCLUDE_DIRS ${INC_DIRS})
-  SET(SSL_INTERNAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
-  SET(SSL_DEFINES "-DHAVE_YASSL -DYASSL_PREFIX -DHAVE_OPENSSL -DMULTI_THREADED")
-  CHANGE_SSL_SETTINGS("bundled")
-  ADD_SUBDIRECTORY(extra/yassl)
-  ADD_SUBDIRECTORY(extra/yassl/taocrypt)
-  GET_TARGET_PROPERTY(src yassl SOURCES)
-  FOREACH(file ${src})
-    SET(SSL_SOURCES ${SSL_SOURCES} ${CMAKE_SOURCE_DIR}/extra/yassl/${file})
-  ENDFOREACH()
-  GET_TARGET_PROPERTY(src taocrypt SOURCES)
-  FOREACH(file ${src})
-    SET(SSL_SOURCES ${SSL_SOURCES}
-      ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/${file})
-  ENDFOREACH()
-ENDMACRO()
-
 MACRO(RESET_SSL_VARIABLES)
   UNSET(WITH_SSL_PATH)
   UNSET(WITH_SSL_PATH CACHE)
@@ -119,10 +90,10 @@ ENDMACRO()
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
-# WITH_SSL=[yes|bundled|system|<path/to/custom/installation>]
+# WITH_SSL=[yes|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
-    CHANGE_SSL_SETTINGS("bundled")
+    CHANGE_SSL_SETTINGS("system")
   ENDIF()
 
   # See if WITH_SSL is of the form </path/to/custom/installation>
@@ -133,34 +104,7 @@ MACRO (MYSQL_CHECK_SSL)
     SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
 
-  IF(WITH_SSL STREQUAL "bundled")
-    MYSQL_USE_BUNDLED_SSL()
-    # Reset some variables, in case we switch from /path/to/ssl to "bundled".
-    IF (WITH_SSL_PATH)
-      UNSET(WITH_SSL_PATH)
-      UNSET(WITH_SSL_PATH CACHE)
-    ENDIF()
-    IF (OPENSSL_ROOT_DIR)
-      UNSET(OPENSSL_ROOT_DIR)
-      UNSET(OPENSSL_ROOT_DIR CACHE)
-    ENDIF()
-    IF (OPENSSL_INCLUDE_DIR)
-      UNSET(OPENSSL_INCLUDE_DIR)
-      UNSET(OPENSSL_INCLUDE_DIR CACHE)
-    ENDIF()
-    IF (WIN32 AND OPENSSL_APPLINK_C)
-      UNSET(OPENSSL_APPLINK_C)
-      UNSET(OPENSSL_APPLINK_C CACHE)
-    ENDIF()
-    IF (OPENSSL_LIBRARY)
-      UNSET(OPENSSL_LIBRARY)
-      UNSET(OPENSSL_LIBRARY CACHE)
-    ENDIF()
-    IF (CRYPTO_LIBRARY)
-      UNSET(CRYPTO_LIBRARY)
-      UNSET(CRYPTO_LIBRARY CACHE)
-    ENDIF()
-  ELSEIF(WITH_SSL STREQUAL "system" OR
+  IF(WITH_SSL STREQUAL "system" OR
       WITH_SSL STREQUAL "yes" OR
       WITH_SSL_PATH
       )
