@@ -2703,6 +2703,18 @@ runBug28023(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+/**
+ * The test Bug28717 has been disabled. The problem is that the error insert
+ * 1001 in NDBCNTR is not a correct error inject. It delays execution of
+ * NODE_FAILREP in among other things DBTC. However other nodes proceed with
+ * node failure handling and send TAKE_OVERTCCONF to the node delaying the
+ * NODE_FAILREP. When DBTC receives this TAKE_OVERTCCONF it crashes on an
+ * ndbrequire(i != end) where this crash is caused by the fact that
+ * NODE_FAILREP wasn't received before we received TAKE_OVERTCCONF.
+ *
+ * This crash occurred roughly 1-2 times per week in execution of tests in
+ * autotest.
+ */
 int
 runBug28717(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -2754,10 +2766,10 @@ runBug28717(NDBT_Context* ctx, NDBT_Step* step)
   
   if (res.insertErrorInNode(node0, 5010))
     return NDBT_FAILED;
-  
+
   if (res.insertErrorInNode(node1, 1001))
     return NDBT_FAILED;
-  
+
   if (res.startNodes(&node0, 1))
     return NDBT_FAILED;
   
