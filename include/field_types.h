@@ -72,9 +72,9 @@ enum enum_field_types
   MYSQL_TYPE_VARCHAR,
   MYSQL_TYPE_BIT,
   MYSQL_TYPE_TIMESTAMP2,
-  MYSQL_TYPE_DATETIME2,         /**< Internal to MySQL. Not used in protocol */
-  MYSQL_TYPE_TIME2,             /**< Internal to MySQL. Not used in protocol */
-  MYSQL_TYPE_TYPED_ARRAY = 244, /** Used for replication only */
+  MYSQL_TYPE_DATETIME2,   /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_TIME2,       /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_TYPED_ARRAY, /**< Used for replication only */
   MYSQL_TYPE_JSON = 245,
   MYSQL_TYPE_NEWDECIMAL = 246,
   MYSQL_TYPE_ENUM = 247,
