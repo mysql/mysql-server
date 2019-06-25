@@ -1,7 +1,7 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,6 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
 };
 
 #if defined(HAVE_OPENSSL)
-#ifndef HAVE_YASSL
 typedef struct rsa_st RSA;
 class Rsa_authentication_keys
 {
@@ -122,7 +121,6 @@ public:
   
 };
 
-#endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
 /* Data Structures */

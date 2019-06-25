@@ -128,16 +128,6 @@ option(EVENT__DISABLE_MM_REPLACEMENT
 option(EVENT__DISABLE_THREAD_SUPPORT
     "Define if libevent should not be compiled with thread support" OFF)
 
-# Disable SSL, for yaSSL and OpenSSL
-option(EVENT__DISABLE_OPENSSL
-    "Define if libevent should build without support for OpenSSL encrpytion" ON)
-
-IF(WITH_SSL STREQUAL "wolfssl")
-  MESSAGE(STATUS "This version of libevent does not support the wolfssl  SSL library")
-  SET(EVENT__DISABLE_OPENSSL ON CACHE INTERNAL "" FORCE)
-  SET(EVENT__DISABLE_OPENSSL 1)
-ENDIF()
-
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark exectuables" ON)
 
@@ -698,21 +688,19 @@ if(EVENT__HAVE_EVENT_PORTS)
     list(APPEND SRC_CORE evport.c)
 endif()
 
-if (NOT EVENT__DISABLE_OPENSSL)
 #   SSL is configured in cmake/ssl.cmake
 #   find_package(OpenSSL REQUIRED)
 
-    set(EVENT__HAVE_OPENSSL 1)
+set(EVENT__HAVE_OPENSSL 1)
 
-    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
+message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
 
-    include_directories(${OPENSSL_INCLUDE_DIR})
+include_directories(${OPENSSL_INCLUDE_DIR})
 
-    list(APPEND SRC_CORE bufferevent_openssl.c)
-    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-    list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
-endif()
+list(APPEND SRC_CORE bufferevent_openssl.c)
+list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     if (WIN32)
@@ -899,7 +887,7 @@ endif (EVENT__BUILD_SHARED_LIBRARIES)
 ##         http-connect
 ##         time-test)
 ## 
-##     if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
+##     if (OPENSSL_LIBRARIES)
 ##         set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
 ##         CHECK_FUNCTION_EXISTS_EX(ERR_remove_thread_state EVENT__HAVE_ERR_REMOVE_THREAD_STATE)
 ##         set(CMAKE_REQUIRED_LIBRARIES "")

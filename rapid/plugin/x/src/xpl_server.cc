@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -37,10 +37,7 @@
 #include "my_thread_local.h"
 #include "mysql/service_ssl_wrapper.h"
 #include "mysqlx_version.h"
-
-#if !defined(HAVE_YASSL)
 #include <openssl/err.h>
-#endif
 
 class Session_scheduler : public ngs::Scheduler_dynamic
 {
@@ -559,9 +556,8 @@ bool xpl::Server::on_net_startup()
                                    ssl_config,
                                    xpl::Plugin_system_variables::ssl_config);
 
-    // YaSSL doesn't support CRL according to vio
-    const char *crl = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crl);
-    const char *crlpath = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crlpath);
+    const char *crl = ssl_config.ssl_crl;
+    const char *crlpath = ssl_config.ssl_crlpath;
 
     const bool ssl_setup_result = ssl_ctx->setup(tls_version, ssl_config.ssl_key,
                                                  ssl_config.ssl_ca,
@@ -573,7 +569,7 @@ bool xpl::Server::on_net_startup()
     if (ssl_setup_result)
     {
       my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
-          "Using " IS_YASSL_OR_OPENSSL("YaSSL", "OpenSSL") " for TLS connections");
+          "Using OpenSSL for TLS connections");
     }
     else
     {

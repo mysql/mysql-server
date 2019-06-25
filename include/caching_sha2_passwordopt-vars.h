@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,28 +24,18 @@
   @file include/caching_sha2_passwordopt-vars.h
 */
 
-#ifndef HAVE_YASSL
 #include "mysql.h"
 static char *opt_server_public_key= 0;
 static my_bool opt_get_server_public_key= FALSE;
-#endif /* HAVE_YASSL */
 
 inline static void set_server_public_key(MYSQL *mysql)
 {
-#ifndef HAVE_YASSL
   if (opt_server_public_key && *opt_server_public_key)
     mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
-#else
-  (void)mysql;
-#endif /* HAVE_YASSL */
 }
 
 inline static void set_get_server_public_key_option(MYSQL *mysql)
 {
-#ifndef HAVE_YASSL
   mysql_options(mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
                 &opt_get_server_public_key);
-#else
-  (void)mysql;
-#endif /* HAVE_YASSL */
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -100,11 +100,8 @@ path=`dirname $0`
 export AM_MAKEFLAGS
 AM_MAKEFLAGS="-j 6"
 
-# SSL library to use.--with-ssl will select our bundled yaSSL
-# implementation of SSL. To use openSSl you will nee too point out
-# the location of openSSL headers and lbs on your system.
-# Ex --with-ssl=/usr
-SSL_LIBRARY=--with-ssl
+# SSL library to use.
+SSL_LIBRARY=--with-ssl=system
 
 if [ "x$warning_mode" = "xpedantic" ]; then
   warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
@@ -232,11 +229,9 @@ fi
 
 # The  -fprofile-arcs and -ftest-coverage options cause GCC to instrument the
 # code with profiling information used by gcov.
-# The -DDISABLE_TAO_ASM is needed to avoid build failures in Yassl.
 # The -DHAVE_gcov enables code to write out coverage info even when crashing.
 
 gcov_compile_flags="-fprofile-arcs -ftest-coverage"
-gcov_compile_flags="$gcov_compile_flags -DDISABLE_TAO_ASM"
 gcov_compile_flags="$gcov_compile_flags -DMYSQL_SERVER_SUFFIX=-gcov -DHAVE_gcov"
 
 # GCC4 needs -fprofile-arcs -ftest-coverage on the linker command line (as well

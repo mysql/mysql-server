@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,13 +18,8 @@
  */
 
 
-#ifdef HAVE_YASSL
-#include <sha.hpp>
-#include <openssl/ssl.h>
-#else
 #include <openssl/sha.h>
 #include <openssl/rand.h>
-#endif
 
 #include <stdexcept>
 #include <cstring>
@@ -131,11 +126,7 @@ std::string Password_hasher::generate_user_salt()
   char *buffer = &result[0];
   char *end    = buffer + result.length() - 1;
 
-#ifdef HAVE_YASSL
-  yaSSL::RAND_bytes((unsigned char *) buffer, SCRAMBLE_LENGTH);
-#else
   RAND_bytes((unsigned char *) buffer, SCRAMBLE_LENGTH);
-#endif
 
   /* Sequence must be a legal UTF8 string */
   for (; buffer < end; buffer++)
