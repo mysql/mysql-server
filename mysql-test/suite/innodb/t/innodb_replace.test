@@ -24,17 +24,14 @@ connection default;
 SET DEBUG_SYNC='now WAIT_FOR insert1';
 # this should S-lock (3,1); no conflict
 SELECT * FROM t1 LOCK IN SHARE MODE;
+SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 # this should X-lock (3,1), conflicting with con1
 --send
 SELECT * FROM t1 FOR UPDATE;
 
 connection con2;
 # Check that the above SELECT is blocked
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = 'executing' and
-        info = 'SELECT * FROM t1 FOR UPDATE';
---source include/wait_condition.inc
+SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select1';
 
 connection con1;
@@ -57,17 +54,14 @@ REPLACE INTO t1 VALUES(3,4);
 
 connection default;
 SET DEBUG_SYNC='now WAIT_FOR insert2';
+SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 SELECT * FROM t1;
 --send
 SELECT * FROM t1 LOCK IN SHARE MODE;
 
 connection con2;
 # Check that the above SELECT is blocked because of X lock.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = 'executing' and
-        info = 'SELECT * FROM t1 LOCK IN SHARE MODE';
---source include/wait_condition.inc
+SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select2';
 
 connection con1;
@@ -80,16 +74,13 @@ INSERT INTO t1 VALUES(3,5) ON DUPLICATE KEY UPDATE b=b+20;
 connection default;
 reap;
 SET DEBUG_SYNC='now WAIT_FOR insert3';
+SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 --send
 SELECT b FROM t1 LOCK IN SHARE MODE;
 
 connection con2;
 # Check that the above SELECT is blocked because of X lock.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = 'executing' and
-        info = 'SELECT b FROM t1 LOCK IN SHARE MODE';
---source include/wait_condition.inc
+SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select3';
 
 connection default;
@@ -106,16 +97,13 @@ SET DEBUG_SYNC='now WAIT_FOR insert4';
 # this should S-lock (3,1); no conflict
 SELECT b FROM t1 WHERE a=3 LOCK IN SHARE MODE;
 # this should X-lock (3,1), conflicting with con1
+SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 --send
 SELECT b FROM t1 WHERE a=3 FOR UPDATE;
 
 connection con2;
 # Check that the above SELECT is blocked
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = 'statistics' and
-        info = 'SELECT b FROM t1 WHERE a=3 FOR UPDATE';
---source include/wait_condition.inc
+SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select4';
 
 connection default;
@@ -134,16 +122,13 @@ SELECT * FROM t1;
 # this should S-lock; no conflict
 SELECT * FROM t1 WHERE a=3 LOCK IN SHARE MODE;
 # this should X-lock, conflicting with the S-lock of the IGNORE in con1
+SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 --send
 SELECT * FROM t1 WHERE a=3 FOR UPDATE;
 
 connection con2;
 # Check that the above SELECT is blocked
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = 'statistics' and
-        info = 'SELECT * FROM t1 WHERE a=3 FOR UPDATE';
---source include/wait_condition.inc
+SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select5';
 
 connection con1;
@@ -160,16 +145,13 @@ connection default;
 SET DEBUG_SYNC='now WAIT_FOR insert6';
 SELECT * FROM t1;
 # this should conflict with the X-lock acquired by the REPLACE
+SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 --send
 SELECT a,b FROM t1 LOCK IN SHARE MODE;
 
 connection con2;
 # Check that the above SELECT is blocked
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = 'executing' and
-        info = 'SELECT a,b FROM t1 LOCK IN SHARE MODE';
---source include/wait_condition.inc
+SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select6';
 
 connection con1;
