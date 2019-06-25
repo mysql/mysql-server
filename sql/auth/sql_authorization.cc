@@ -4653,12 +4653,13 @@ void get_privilege_access_maps(
   @param lex_user
   @param using_roles An forward iterable container of LEX_STRING std::pair
   @param show_mandatory_roles true means mandatory roles are listed
+  @param has_using_clause true means there's a non-empty USING clause specified
 
   @return Success status
 */
 bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
                        const List_of_auth_id_refs &using_roles,
-                       bool show_mandatory_roles) {
+                       bool show_mandatory_roles, bool have_using_clause) {
   int error = 0;
   ACL_USER *acl_user = NULL;
   char buff[1024];
@@ -4675,26 +4676,39 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
     return true;
   }
 
-  std::vector<Role_id> mandatory_roles;
-  get_mandatory_roles(&mandatory_roles);
-  for (auto &role_ref : using_roles) {
+  /*
+    For a SHOW GRANTS USING one needs to check if the session has access to
+    the roles specied in the USING clause.
+    But if there's no USING clause the list of active session roles is used
+    insetad. But since this list is a copy into the thread's security context
+    the active roles might have stopped being granted into the global
+    structure.
+    Thus a check if these are still granted might fail.
+    So we skip the check if there's no explict USING knowing that the check
+    has already been perfromed for these when they were set.
+  */
+  if (have_using_clause) {
+    std::vector<Role_id> mandatory_roles;
+    get_mandatory_roles(&mandatory_roles);
     List_of_granted_roles granted_roles;
     get_granted_roles(lex_user, &granted_roles);
-    std::string authid(create_authid_str_from(role_ref));
-    if (find(granted_roles.begin(), granted_roles.end(), authid) ==
-        granted_roles.end()) {
-      if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
-                       [&](const Role_id &id) -> bool {
-                         std::string id_str, rid_str;
-                         id.auth_str(&id_str);
-                         Role_id rid(role_ref.first, role_ref.second);
-                         rid.auth_str(&rid_str);
-                         return (Role_id(role_ref.first, role_ref.second) ==
-                                 id);
-                       }) == mandatory_roles.end()) {
-        my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_ref.first.str,
-                 role_ref.second.str, lex_user->user.str, lex_user->host.str);
-        return true;
+    for (auto &role_ref : using_roles) {
+      std::string authid(create_authid_str_from(role_ref));
+      if (find(granted_roles.begin(), granted_roles.end(), authid) ==
+          granted_roles.end()) {
+        if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
+                         [&](const Role_id &id) -> bool {
+                           std::string id_str, rid_str;
+                           id.auth_str(&id_str);
+                           Role_id rid(role_ref.first, role_ref.second);
+                           rid.auth_str(&rid_str);
+                           return (Role_id(role_ref.first, role_ref.second) ==
+                                   id);
+                         }) == mandatory_roles.end()) {
+          my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_ref.first.str,
+                   role_ref.second.str, lex_user->user.str, lex_user->host.str);
+          return true;
+        }
       }
     }
   }
