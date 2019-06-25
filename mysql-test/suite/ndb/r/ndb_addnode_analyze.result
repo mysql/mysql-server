@@ -1,0 +1,70 @@
+Testing the behaviour of ANALYZE TABLE before and
+after table reorganisation, and then during subsequent
+node restarts
+
+Create initial table
+create table t_offset(a int primary key) engine=ndb;
+create table t_orig(id int PRIMARY KEY, d1 bigint, d2 int, key(d1), key(d2)) engine=ndb;
+Put some data in with different key distributions
+Analyze the indices on the table
+analyze table test.t_orig;
+Table	Op	Msg_type	Msg_text
+test.t_orig	analyze	status	OK
+Add the nodes
+Create a table with the new topology
+create table t_new(id int PRIMARY KEY, d1 bigint, d2 int, key(d1), key(d2)) engine=ndb;
+Insert data into it
+insert into t_new select * from t_orig;
+Analyze the new table
+analyze table test.t_new;
+Table	Op	Msg_type	Msg_text
+test.t_new	analyze	status	OK
+Reorganize the original table across the new set of nodes
+alter table t_orig reorganize partition;
+Check ANALYZE succeeds after table reorganization
+analyze table t_orig;
+Table	Op	Msg_type	Msg_text
+test.t_orig	analyze	status	OK
+analyze table t_new;
+Table	Op	Msg_type	Msg_text
+test.t_new	analyze	status	OK
+Restart data nodes, checking that ANALYZE TABLE
+succeeds in all intermediate states
+Restart node 1
+Restart finished
+Analyze the tables
+analyze table test.t_orig;
+Table	Op	Msg_type	Msg_text
+test.t_orig	analyze	status	OK
+analyze table test.t_new;
+Table	Op	Msg_type	Msg_text
+test.t_new	analyze	status	OK
+Restart node 2
+Restart finished
+Analyze the tables
+analyze table test.t_orig;
+Table	Op	Msg_type	Msg_text
+test.t_orig	analyze	status	OK
+analyze table test.t_new;
+Table	Op	Msg_type	Msg_text
+test.t_new	analyze	status	OK
+Restart node 3
+Restart finished
+Analyze the tables
+analyze table test.t_orig;
+Table	Op	Msg_type	Msg_text
+test.t_orig	analyze	status	OK
+analyze table test.t_new;
+Table	Op	Msg_type	Msg_text
+test.t_new	analyze	status	OK
+Restart node 4
+Restart finished
+Analyze the tables
+analyze table test.t_orig;
+Table	Op	Msg_type	Msg_text
+test.t_orig	analyze	status	OK
+analyze table test.t_new;
+Table	Op	Msg_type	Msg_text
+test.t_new	analyze	status	OK
+Cleanup
+drop table t_offset,t_orig,t_new;

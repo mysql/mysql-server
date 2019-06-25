@@ -15684,6 +15684,22 @@ Dbdict::alterIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
       return;
     }
   }
+  else if (impl_req->requestType == AlterIndxImplReq::AlterIndexAddPartition)
+  {
+    jam();
+        TableRecordPtr indexPtr;
+    bool ok = find_object(indexPtr, impl_req->indexId);
+    ndbrequire(ok);
+    if (indexPtr.p->tableType == DictTabInfo::OrderedIndex)
+    {
+      jam();
+      /**
+       * Recalculate which fragment provides index statistics,
+       * due to changed # fragments
+       */
+      set_index_stat_frag(signal, indexPtr);
+    }
+  }
 
   sendTransConf(signal, op_ptr);
 }

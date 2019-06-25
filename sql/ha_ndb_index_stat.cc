@@ -2833,6 +2833,24 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
       err= NdbIndexStat::MyAbortReq;
       break;
     }
+    if (!st->force_update ||
+        glob.wait_update == 0)
+    {
+      /**
+       * If there is somehow nothing happening and
+       * nothing to wait for, then it is an error to wait any
+       * longer.
+       */
+      fprintf(stderr,
+              "ndb_index_stat_wait_analyze idx %u st->force_update %u "
+              "glob.wait_update %u status : %s\n",
+              st->index_id,
+              st->force_update,
+              glob.wait_update,
+              g_ndb_status_index_stat_status);
+      err = NdbIndexStat::InternalError;
+      break;
+    }
     count++;
     DBUG_PRINT("index_stat", ("st %s wait_analyze count:%u",
                               st->id, count));
