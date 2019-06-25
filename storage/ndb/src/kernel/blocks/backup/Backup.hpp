@@ -194,6 +194,7 @@ protected:
   void execSYNC_EXTENT_PAGES_CONF(Signal*);
   void execEND_LCPREQ(Signal* signal);
   void execINFORM_BACKUP_DROP_TAB_REQ(Signal*);
+  void execWAIT_LCP_IDLE_REQ(Signal*);
 
   void execDBINFO_SCANREQ(Signal *signal);
 
@@ -585,6 +586,7 @@ public:
 
       {
         m_wait_end_lcp = false;
+        m_wait_empty_queue = false;
         m_initial_lcp_started = false;
         m_wait_gci_to_delete = 0;
         localLcpId = 0;
@@ -618,6 +620,12 @@ public:
     NDB_TICKS m_prev_report;
 
     bool m_wait_end_lcp;
+    /**
+     * DBLQH have requested us to report when LCP activity ceases.
+     * If this variable is true we are waiting for delete file
+     * queue to become empty to respond that LCP activity is idle.
+     */
+    bool m_wait_empty_queue;
     bool m_initial_lcp_started;
     Uint32 m_gsn;
     Uint32 m_lastSignalId;
@@ -1368,6 +1376,7 @@ public:
   void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
   void check_wait_end_lcp(Signal*, BackupRecordPtr ptr);
+  void check_empty_queue_waiters(Signal*, BackupRecordPtr ptr);
   void delete_lcp_file_processing(Signal*);
   void finished_removing_files(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);

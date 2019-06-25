@@ -724,7 +724,8 @@ struct Fragrecord {
     UC_LCP = 1,
     UC_CREATE = 2,
     UC_SET_LCP = 3,
-    UC_DROP = 4
+    UC_NO_LCP = 4,
+    UC_DROP = 5
   };
   /* Calculated average row size of the rows in the fragment */
   Uint32 m_average_row_size;

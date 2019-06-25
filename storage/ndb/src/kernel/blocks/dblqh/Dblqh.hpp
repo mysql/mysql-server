@@ -931,7 +931,8 @@ public:
     {
       LCP_QUEUED = 0,
       LCP_EXECUTING = 1,
-      LCP_EXECUTED = 2
+      LCP_EXECUTED = 2,
+      LCP_EXECUTED_BY_CREATE_TABLE = 3
     };
 
     /* 
@@ -1017,6 +1018,21 @@ public:
     };
     Uint32 lcp_frag_ord_lcp_no;
     Uint32 lcp_frag_ord_lcp_id;
+
+    /**
+     * Fragment was was inserted into LCP fragment queue by a CREATE TABLE
+     * statement. This variable is set to true only when this insertion
+     * happens when no LCP is ongoing.
+     */
+    bool m_create_table_insert_lcp;
+    /**
+     * This variable is always set when inserted into LCP fragment queue by
+     * a CREATE TABLE statement. It is cleared when a LCP_FRAG_ORD is received
+     * for the fragment. Thus by checking this variable at completion of
+     * fragment LCP we know whether to report LCP_FRAG_REP or not.
+     */
+    bool m_create_table_flag_lcp_frag_ord;
+
     LcpExecutionState lcp_frag_ord_state;
     UsageStat m_useStat;
     Uint8 m_copy_complete_flag;
@@ -1149,6 +1165,23 @@ public:
     LcpState lcpRunState;
     bool firstFragmentFlag;
     bool lastFragmentFlag;
+
+    /**
+     * This variable is set to true when starting a new LCP AND
+     * there are fragments inserted into the LCP queue already.
+     * Those have been inserted by CREATE TABLE statements and
+     * need to be executed fully before any other fragments have
+     * their LCPs executed.
+     */
+    bool m_early_lcps_need_synch;
+
+    /**
+     * This is set to true when sending WAIT_LCP_IDLE_REQ and
+     * cleared again when WAIT_LCP_IDLE_CONF is received. It ensures
+     * that we don't start any new fragment LCPs while we are waiting
+     * for the previous ones to be completed.
+     */
+    bool m_wait_early_lcp_synch;
 
     struct FragOrd {
       Uint32 fragPtrI;
@@ -2495,6 +2528,7 @@ public:
   Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dblqh();
 
+  void execLOCAL_LATEST_LCP_ID_REP(Signal*);
   void execTUPKEYCONF(Signal* signal);
   Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
 
@@ -2589,6 +2623,8 @@ private:
   void execDROP_FRAG_REF(Signal*);
   void execDROP_FRAG_CONF(Signal*);
 
+  void insert_new_fragments_into_lcp(Signal*);
+  void execWAIT_LCP_IDLE_CONF(Signal*);
   void execTAB_COMMITREQ(Signal* signal);
   void execACCSEIZECONF(Signal* signal);
   void execACCSEIZEREF(Signal* signal);
@@ -3057,7 +3093,9 @@ private:
   void lcpStartedLab(Signal* signal);
   void completed_fragment_checkpoint(Signal *signal,
                                      const LcpRecord::FragOrd & fragOrd);
-  void prepare_next_fragment_checkpoint(Signal* signal);
+  bool exec_prepare_next_fragment_checkpoint(Signal* signal,
+                                             FragrecordPtr fragptr);
+  void prepare_next_fragment_checkpoint(Signal*, bool);
   void perform_fragment_checkpoint(Signal *signal);
   void handleFirstFragment(Signal *signal);
   void startLcpRoundLab(Signal* signal);
@@ -4058,6 +4096,8 @@ public:
   void decrement_committed_mbytes(LogPartRecord*, TcConnectionrec*);
   bool is_restore_phase_done();
   bool is_full_local_lcp_running();
+  bool is_lcp_idle(LcpRecord *lcpPtrP);
+  Uint32 m_restart_local_latest_lcp_id;
 #endif
 };
 
@@ -4210,6 +4250,15 @@ bool Dblqh::is_scan_ok(ScanRecord* scanPtrP, Fragrecord::FragStatus fragstatus)
   {
     return true;
   }
+  return false;
+}
+
+inline
+bool Dblqh::is_lcp_idle(LcpRecord *lcpPtrP)
+{
+  if (lcpPtrP->lcpPrepareState == LcpRecord::LCP_IDLE &&
+      lcpPtrP->lcpRunState == LcpRecord::LCP_IDLE)
+    return true;
   return false;
 }
 #endif

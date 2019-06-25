@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1756,6 +1756,9 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
                                               signal->getDataPtrSend());
   c_start.m_lastGci = conf->latest_gci;
   c_start.m_lastLcpId = conf->latest_lcp_id;
+
+  signal->theData[0] = c_start.m_lastLcpId;
+  send_to_all_lqh(signal, GSN_LOCAL_LATEST_LCP_ID_REP, 1);
 
   /* Check for 'nothing read' values from local sysfile */
   if (unlikely((c_local_sysfile.m_restorable_flag ==

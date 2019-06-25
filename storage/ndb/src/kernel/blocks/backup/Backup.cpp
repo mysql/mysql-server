@@ -15728,6 +15728,7 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
  
   ptr.p->errorCode = 0;
   ptr.p->slaveState.forceState(DEFINED);
+  check_empty_queue_waiters(signal, ptr);
 
   BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
   conf->backupId = ptr.p->backupId;
@@ -16232,6 +16233,7 @@ Backup::finished_removing_files(Signal *signal,
     c_deleteLcpFilePool.release(deleteLcpFilePtr);
     ptr.p->currentDeleteLcpFile = RNIL;
   }
+  check_empty_queue_waiters(signal, ptr);
   if (ptr.p->m_informDropTabTableId != Uint32(~0))
   {
     jam();
@@ -16256,6 +16258,59 @@ Backup::finished_removing_files(Signal *signal,
     {
       jam();
       delete_lcp_file_processing(signal);
+    }
+  }
+}
+
+/**
+ * Wait for LCP activity to cease, in particular wait for the delete queue
+ * to become empty. When the delete queue is empty we know that all fragment
+ * LCPs have completed and are recoverable. No files will be deleted unless
+ * the fragment LCP is completed and even if no files require deletion we will
+ * insert an entry into the delete file queue if we are still waiting for the
+ * LSN of the table fragment to be flushed.
+ *
+ * See comments in Dblqh::insert_new_fragments_into_lcp for more details on
+ * the use case for this signal.
+ */
+void
+Backup::execWAIT_LCP_IDLE_REQ(Signal *signal)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, signal->theData[0]);
+  jamDebug();
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  if (queue.isEmpty() && ptr.p->slaveState.getState() == DEFINED)
+  {
+    jam();
+    signal->theData[0] = ptr.p->clientData;
+    sendSignal(ptr.p->masterRef, GSN_WAIT_LCP_IDLE_CONF,
+               signal, 1, JBB);
+  }
+  else
+  {
+    jam();
+    ptr.p->m_wait_empty_queue = true;
+  }
+}
+
+void
+Backup::check_empty_queue_waiters(Signal *signal, BackupRecordPtr ptr)
+{
+  if (ptr.p->m_wait_empty_queue)
+  {
+    jam();
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    if (queue.isEmpty() && ptr.p->slaveState.getState() == DEFINED)
+    {
+      jam();
+      ptr.p->m_wait_empty_queue = false;
+      signal->theData[0] = ptr.p->clientData;
+      sendSignal(ptr.p->masterRef, GSN_WAIT_LCP_IDLE_CONF,
+                 signal, 1, JBB);
     }
   }
 }
@@ -16339,6 +16394,7 @@ Backup::sendINFORM_BACKUP_DROP_TAB_CONF(Signal *signal,
       deleteLcpFilePtr = nextDeleteLcpFilePtr;
     }
   }
+  check_empty_queue_waiters(signal, ptr);
   check_wait_end_lcp(signal, ptr);
 
   /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,6 +190,7 @@ void Dblqh::initData()
   c_keep_gci_for_lcp = 0;
   c_max_keep_gci_in_lcp = 0;
   c_first_set_min_keep_gci = false;
+  m_restart_local_latest_lcp_id = 0;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -390,6 +391,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 {
   BLOCK_CONSTRUCTOR(Dblqh);
 
+  addRecSignal(GSN_LOCAL_LATEST_LCP_ID_REP,
+               &Dblqh::execLOCAL_LATEST_LCP_ID_REP);
   addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
   addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);
   addRecSignal(GSN_ATTRINFO, &Dblqh::execATTRINFO);
@@ -442,6 +445,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_ACCFRAGREF, &Dblqh::execACCFRAGREF);
   addRecSignal(GSN_TUPFRAGCONF, &Dblqh::execTUPFRAGCONF);
   addRecSignal(GSN_TUPFRAGREF, &Dblqh::execTUPFRAGREF);
+  addRecSignal(GSN_WAIT_LCP_IDLE_CONF, &Dblqh::execWAIT_LCP_IDLE_CONF);
   addRecSignal(GSN_TAB_COMMITREQ, &Dblqh::execTAB_COMMITREQ);
   addRecSignal(GSN_ACCSEIZECONF, &Dblqh::execACCSEIZECONF);
   addRecSignal(GSN_ACCSEIZEREF, &Dblqh::execACCSEIZEREF);

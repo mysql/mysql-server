@@ -117,6 +117,13 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_TRANSACTION_TIMEOUT 1
 //#define DEBUG_SCHEMA_VERSION 1
 #endif
+#define DEBUG_EARLY_LCP 1
+
+#ifdef DEBUG_EARLY_LCP
+#define DEB_EARLY_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_EARLY_LCP(arglist) do { } while (0)
+#endif
 
 #ifdef DEBUG_SCHEMA_VERSION
 #define DEB_SCHEMA_VERSION(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -2582,7 +2589,234 @@ Dblqh::sendAddFragReq(Signal* signal)
 /* ************************************************************************>> */
 /*  TAB_COMMITREQ: Commit the new table for use in transactions. Sender DICT. */
 /* ************************************************************************>> */
-void Dblqh::execTAB_COMMITREQ(Signal* signal) 
+void Dblqh::insert_new_fragments_into_lcp(Signal *signal)
+{
+  /**
+   * When a disk data table is recovered its recovery will start by executing
+   * the UNDO. The idea is that each fragment LCP records the LCP identity
+   * that the fragment LCP will assist to restore. This means that the UNDO
+   * log will at least be executed until the UNDO log record indicating the
+   * start of this LCP id is found in the UNDO log. If no LCP have yet been
+   * executed the UNDO log will be executed until the beginning of the UNDO
+   * log.
+   *
+   * Thus we are safe that all UNDO logs will be executed to restore exactly
+   * the page state at the moment the checkpoint was started. The LCP code in
+   * the BACKUP block ensures that for each fragment LCP this is a well
+   * defined time to ensure that the disk data record is synchronized with the
+   * in-memory records. In particular this refers to the pointers from disk
+   * data record to in-memory record and pointer from in-memory record to disk
+   * data record.
+   *
+   * When a crash occurs and there is no fragment LCP yet executed for the
+   * table we have a some what more complicated problem to handle. In this
+   * case we want to UNDO everything until the table was created.
+   *
+   * If we do nothing special we cannot trust that the UNDO log is executed
+   * to this point. As an example we could be creating the table while LCP
+   * 14 is ongoing. However since the table didn't exist when LCP 14 was
+   * started in the master DIH, there will not be any LCP_FRAG_ORD sent to
+   * execute this fragment LCP. This means that the first LCP the table will
+   * participate in is LCP 15.
+   *
+   * Now if the node crashes when all fragment LCPs from LCP 14 have completed
+   * but not all of them have completed LCP 15 we are still safe since at least
+   * one fragment LCP will require restore from LCP 14. Since the table was
+   * created after the start of LCP 14 we know that the UNDO log execution will
+   * undo all rows inserted since the table was created.
+   *
+   * However one case exists that we cannot handle. This is when all fragment
+   * LCPs have completed  LCP 15 except the fragment LCPs of the new table.
+   *
+   * This is not necessarily a rare event since the new table is likely to get
+   * the highest table id of all tables and thus its fragment LCPs are executed
+   * after all other fragment LCPs have completed.
+   *
+   * There are many ways to solve this problem. One problem would be to ensure
+   * that a fragment LCP has been executed before the API users are allowed to
+   * execute any writes to the table.
+   *
+   * Another approach would be to know that all extents belonging to the table
+   * must be returned at recovery and thus ensuring that we create an empty
+   * set of disk data records which is the desired outcome.
+   *
+   * None of those approaches are well suited to the current code in NDB, they
+   * would both require substantial changes to the LCP code and UNDO log
+   * recovery code.
+   *
+   * The approach we have followed here is to ensure that the LCP is started
+   * from LQH independent of when DIH decides to start it. This approach is
+   * well aligned with the current development that makes LCPs more and more
+   * local to LQH. LQH already maintains a queue of fragments to execute
+   * fragment LCPs on.
+   *
+   * So the basic idea of our approach is to insert the fragment into the
+   * queue of fragment LCPs. By so doing the above problem is no longer an
+   * issue since we will execute the first fragment LCP already in LCP 14
+   * and thus there is no chance that we can find ourself in the situation
+   * described above.
+   *
+   * So now we need to describe a proof that our approach works.
+   * The basis of this proof is to consider how the insert into the LCP
+   * fragment queue is handled dependent on the progress of the LCPs.
+   *
+   * Case 1:
+   * We create the table during execution of an LCP, say for example LCP 14.
+   * We will insert the table last in the LCP fragment queue in this
+   * function. This function is called from execTAB_COMMITREQ, this signal
+   * is called before any write operation can start against the table.
+   *
+   * We conclude that since we insert the fragment into the LCP queue before
+   * the LCP 14 is completed we know that the first fragment LCP of the new
+   * table will happen in LCP 14. Thus recovery after LCP 15 have started is
+   * trivial since there will a fragment LCP to restore.
+   *
+   * Thus the only case to consider is when the node crashes before the
+   * fragment LCP has been made restorable. This happens before LCP 14 is
+   * completed and thus any recovery will at least execute UNDO log records
+   * until the start of LCP 14.
+   *
+   * One exception is that some fragment LCP might even require execution of
+   * UNDO log records back to LCP 13 (or beginning of UNDO log if LCP 14 was
+   * the first LCP in the UNDO log).
+   *
+   * Another very rare exception is that during recovery the new table is the
+   * only fragment to restore (or that all fragments are new fragments
+   * without an LCP to execute). This can happen in nodes added where not
+   * even SYSTAB_0 is available.
+   *
+   * In this special case the LCP id that we will execute UNDO log unto is
+   * LCP (0,0). There is a rare case that could cause issues here. This is
+   * when we have had older tables that made us fill the UNDO log at least
+   * once. In this case we might execute the UNDO log and never find the
+   * UNDO log record referring to the end of the UNDO log and neither will
+   * we find the LCP record of the LCP (0,0).
+   *
+   * In this we get the LCP identity from DIH by using SYSFILE->latestLCP_ID.
+   * If SYSFILE->latestLCP_ID is 15 it means that LCP 14 was fully completed
+   * before the crash. It is important that we grab the SYSFILE->latestLCP_ID
+   * from the local node and not from the master DIH. This number is sent to
+   * NDBCNTR in the early phases. We make sure that this LCP id is also
+   * present in DBLQH to handle this rare special case.
+   *
+   * If NDBCNTR reports this number as 15, we know that LCP 14 was fully
+   * completed before the crash. The only reason why LCP 14 might not be fully
+   * completed is if we had a cluster restart that failed, but in that case we
+   * have completed executing the UNDO log fully before we crashed the cluster
+   * restart. Thus there will be no UNDO log execution required at all in this
+   * case for the new tables since they have already been undone.
+   *
+   * Thus we have proven that with those two extra measures, first to insert
+   * the fragment into the LCP queue before the CREATE TABLE completes and
+   * by ensuring that DBLQH receives the latest LCP id we are sure that the
+   * UNDO recovery of the new table will be performed in a correct manner.
+   *
+   * Case 2:
+   * The second option is that the table is created after an LCP has
+   * completed and before the next LCP has started.
+   *
+   * In this case we need to ensure that the fragment LCPs are not
+   * executed at the end of the LCP. This comes natural by inserting
+   * them into the LCP queue before any other fragment has been
+   * inserted into the LCP queue.
+   *
+   * However we need another step to be safe in this case. The problem
+   * here is that checkpoints are not completed one at a time, they are
+   * executed in parallel. Especially the next fragment LCP is executed
+   * while earlier fragment LCPs are still waiting for the UNDO log to
+   * be written up to a certain LSN.
+   *
+   * To handle this in a safe we introduce a synchronisation point. All
+   * fragment LCPs that are inserted when no LCP was ongoing are first
+   * in the queue of fragment scheduled to execute an LCP. We introduce
+   * a new signal that ensures that all of those fragment LCPs are
+   * completed before we start with any fragment LCPs requested by DIH.
+   *
+   * This method ensures that the fragment LCPs for new tables are not
+   * placed at the end of the LCP, rather it is placed even before any
+   * other fragment LCP is executed. Thus a stronger condition than
+   * required, but certainly strong enough.
+   *
+   * With this we are safe that if the table is created between LCP
+   * 14 and 15, then the table have been checkpointed if any normal
+   * table has its LCP executed for LCP 15. Thus we know that if
+   * the recovery has a new table without a fragment LCP, then we know
+   * that no fragment LCP has been executed in LCP 15. Thus we are
+   * certain that the UNDO log will be executed back to the start of
+   * LCP 14.
+   *
+   * Again the same reasoning as above on Case 1: also applies to
+   * Case 2: when it comes to the case of no fragment with any
+   * LCP executed on it.
+   *
+   * Thus we have proven the thesis that disk data recovery will be
+   * ok for new table fragments that haven't executed their first LCP
+   * at a node restart.
+   *
+   * A new table have been created. We must ensure that the table is
+   * inserted into the list of waiting LCPs. The
+   * m_create_table_flag_lcp_frag_ord indicates that there is no LCP_FRAG_ORD
+   * outstanding for this fragment. The fragment is new and it should not be
+   * possible for it to be part of any checkpoint yet. It will not be executed
+   * until a checkpoint is started.
+   *
+   * m_create_table_insert_lcp indicates that this checkpoint requested has
+   * been requested by a table creation. This only needs to be signalled when
+   * no LCP is ongoing at the time when it is inserted. It is used to ensure
+   * that the set of checkpoints on new tables between LCPs are executed AND
+   * completed before any other checkpoints on any other fragments are
+   * performed as described above.
+   */
+  lcpPtr.i = 0;
+  ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++)
+  {
+    FragrecordPtr curr_fragptr;
+    curr_fragptr.i = tabptr.p->fragrec[i];
+    if (curr_fragptr.i != RNIL)
+    {
+      jam();
+      c_fragment_pool.getPtr(curr_fragptr);
+      jamLine(Uint16(curr_fragptr.p->fragId));
+      ndbrequire(curr_fragptr.p->lcp_frag_ord_state ==
+                 Fragrecord::LCP_EXECUTED);
+      curr_fragptr.p->m_create_table_flag_lcp_frag_ord = true;
+      curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_QUEUED;
+
+      DEB_EARLY_LCP(("(%u)Create table tab(%u,%u), insert into LCP, "
+                     "LCP running: %u",
+                     instance(),
+                     curr_fragptr.p->tabRef,
+                     curr_fragptr.p->fragId,
+                     clcpCompletedState == LCP_RUNNING));
+
+      c_queued_lcp_frag_ord.addLast(curr_fragptr);
+      if (clcpCompletedState != LCP_RUNNING)
+      {
+        jam();
+        curr_fragptr.p->m_create_table_insert_lcp = true;
+      }
+      else
+      {
+        jam();
+        /**
+         * It is possible that we have received all LCP_FRAG_ORD except
+         * the last one containing lastFragmentFlag. Thus it is vital to
+         * ensure that we kick-start the next fragment checkpoint here if
+         * there is no LCP being neither prepared nor running.
+         */
+        if (is_lcp_idle(lcpPtr.p))
+        {
+          jam();
+          ndbrequire(lcpPtr.p->lastFragmentFlag == false);
+          prepare_next_fragment_checkpoint(signal, false);
+        }
+      }
+    }
+  }
+}
+
+void Dblqh::execTAB_COMMITREQ(Signal* signal)
 {
   jamEntry();
   Uint32 dihPtr = signal->theData[0];
@@ -2612,6 +2846,12 @@ void Dblqh::execTAB_COMMITREQ(Signal* signal)
     ndbabort();
     return;
   }//if
+  if (cstartPhase == ZNIL &&
+      !DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  {
+    jam();
+    insert_new_fragments_into_lcp(signal);
+  }
   tabptr.p->usageCountR = 0;
   tabptr.p->usageCountW = 0;
   tabptr.p->tableStatus = Tablerec::TABLE_DEFINED;
@@ -2911,8 +3151,7 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   bool lcpDone = true;
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
-  if(lcpPtr.p->lcpPrepareState != LcpRecord::LCP_IDLE ||
-     lcpPtr.p->lcpRunState != LcpRecord::LCP_IDLE)
+  if (!is_lcp_idle(lcpPtr.p))
   {
     jam();
 
@@ -2941,15 +3180,26 @@ Dblqh::dropTab_wait_usage(Signal* signal){
           jam();
           CLEAR_ERROR_INSERT_VALUE;
           c_queued_lcp_frag_ord.remove(loc_fragptr);
-
-          fragOrd.lcpFragOrd.lcpNo = loc_fragptr.p->lcp_frag_ord_lcp_no;
-          fragOrd.lcpFragOrd.lcpId = loc_fragptr.p->lcp_frag_ord_lcp_id;
-          fragOrd.lcpFragOrd.fragmentId = loc_fragptr.p->fragId;
-          fragOrd.lcpFragOrd.tableId = loc_fragptr.p->tabRef;
-
           loc_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
 
-          sendLCP_FRAG_REP(signal, fragOrd, loc_fragptr.p);
+          if (!loc_fragptr.p->m_create_table_flag_lcp_frag_ord)
+          {
+            jam();
+            fragOrd.lcpFragOrd.lcpNo = loc_fragptr.p->lcp_frag_ord_lcp_no;
+            fragOrd.lcpFragOrd.lcpId = loc_fragptr.p->lcp_frag_ord_lcp_id;
+            fragOrd.lcpFragOrd.fragmentId = loc_fragptr.p->fragId;
+            fragOrd.lcpFragOrd.tableId = loc_fragptr.p->tabRef;
+            sendLCP_FRAG_REP(signal, fragOrd, loc_fragptr.p);
+          }
+          else
+          {
+            DEB_EARLY_LCP(("(%u)Remove tab(%u,%u) with flag for lcp_frag_ord",
+                           instance(),
+                           loc_fragptr.p->tabRef,
+                           loc_fragptr.p->fragId));
+          }
+          loc_fragptr.p->m_create_table_flag_lcp_frag_ord = false;
+          loc_fragptr.p->m_create_table_insert_lcp = false;
         }
         else if (loc_fragptr.p->lcp_frag_ord_state ==
                  Fragrecord::LCP_EXECUTING)
@@ -2975,10 +3225,36 @@ Dblqh::dropTab_wait_usage(Signal* signal){
       }
     }
   }
-  else if (ERROR_INSERTED(5088) || ERROR_INSERTED(5089))
+  else
   {
-    jam();
-    CLEAR_ERROR_INSERT_VALUE;
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
+    {
+      loc_fragptr.i = tabPtr.p->fragrec[i];
+      if (loc_fragptr.i != RNIL)
+      {
+        c_fragment_pool.getPtr(loc_fragptr);
+        if (loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED)
+        {
+          jam();
+          jamLine(Uint16(loc_fragptr.p->fragId));
+          ndbrequire(loc_fragptr.p->m_create_table_flag_lcp_frag_ord == true);
+          c_queued_lcp_frag_ord.remove(loc_fragptr);
+          loc_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+          loc_fragptr.p->m_create_table_flag_lcp_frag_ord = false;
+          loc_fragptr.p->m_create_table_insert_lcp = false;
+          DEB_EARLY_LCP(("(%u)Remove tab(%u,%u) with flag for lcp_frag_ord, "
+                         "No LCP running",
+                         instance(),
+                         loc_fragptr.p->tabRef,
+                         loc_fragptr.p->fragId));
+        }
+      }
+    }
+    if (ERROR_INSERTED(5088) || ERROR_INSERTED(5089))
+    {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+    }
   }
   
   if(!lcpDone)
@@ -5793,6 +6069,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   if (isLongReq)
   {
+    jamDebug();
     /* Long LQHKEYREQ indicates Key and AttrInfo presence and
      * size via section lengths
      */
@@ -5826,6 +6103,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
   else
   {
+    jamDebug();
     /* Short LQHKEYREQ, Key and Attr sizes are in
      * signal, along with some data
      *
@@ -5862,6 +6140,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   /* Only node restart copy allowed to send no KeyInfo */
   if (unlikely(keyLenWithLQHReq == 0))
   {
+    jamDebug();
     /**
      * Only allowed use case for no primary key is DELETE by ROWID.
      */
@@ -5891,6 +6170,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->m_row_id.m_page_no = sig0;
   regTcPtr->m_row_id.m_page_idx = sig1;
   nextPos += 2 * LqhKeyReq::getRowidFlag(Treqinfo);
+
+  jamLineDebug(Uint16(nextPos));
 
   sig2 = lqhKeyReq->variableData[nextPos + 0];
   sig3 = cnewestGci;
@@ -8687,8 +8968,10 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
        * AttrInfo
        */
       ndbrequire(regTcPtr->totSendlenAi == 0);
-      ndbassert(regTcPtr->keyInfoIVal == RNIL);
-      ndbassert(regTcPtr->attrInfoIVal == RNIL);
+      ndbrequire(regTcPtr->keyInfoIVal == RNIL);
+      ndbrequire(regTcPtr->attrInfoIVal == RNIL);
+      ndbrequire(LqhKeyReq::getRowidFlag(Treqinfo));
+      ndbrequire(LqhKeyReq::getNrCopyFlag(Treqinfo));
     }
 
     sendBatchedLqhkeyreq(signal, lqhRef, LqhKeyReq::FixedSignalLength + nextPos, &handle);
@@ -18441,8 +18724,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 #endif
 
     c_lcpId = lcpFragOrd->lcpId;
-    ndbrequire(lcpPtr.p->lcpPrepareState == LcpRecord::LCP_IDLE);
-    ndbrequire(lcpPtr.p->lcpRunState == LcpRecord::LCP_IDLE);
+    ndbrequire(is_lcp_idle(lcpPtr.p));
     if (signal->getSendersBlockRef() != reference())
     {
       jam();
@@ -18492,6 +18774,30 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     lcpPtr.p->currentPrepareFragment.lcpFragOrd.tableId = RNIL;
     lcpPtr.p->currentPrepareFragment.lcpFragOrd.fragmentId = RNIL;
     lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpNo = RNIL;
+
+    if (!c_queued_lcp_frag_ord.isEmpty())
+    {
+      jam();
+      lcpPtr.p->m_early_lcps_need_synch = true;
+    }
+    else
+    {
+      jam();
+      lcpPtr.p->m_early_lcps_need_synch = false;
+    }
+    ndbrequire(lcpPtr.p->m_wait_early_lcp_synch == false);
+    {
+      Logfile_client lgman(this, c_lgman, 0);
+      if (lgman.exists_logfile_group())
+      {
+        jam();
+        LcpFragOrd *ord = (LcpFragOrd*)signal->getDataPtr();
+        ord->tableId = 0;
+        ord->fragmentId = 0;
+        ord->lcpId = c_lcpId;
+        lgman.exec_lcp_frag_ord(signal, get_current_local_lcp_id());
+      }
+    }
   }
   else
   {
@@ -18520,8 +18826,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     lcpPtr.p->lastFragmentFlag = true;
     DEB_LCP(("(%u)Received last fragment flag", instance()));
     CRASH_INSERTION(5054);
-    if (lcpPtr.p->lcpPrepareState == LcpRecord::LCP_IDLE &&
-        lcpPtr.p->lcpRunState == LcpRecord::LCP_IDLE)
+    if (is_lcp_idle(lcpPtr.p))
     {
       jam();
       /* ----------------------------------------------------------
@@ -18535,7 +18840,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   c_fragments_in_lcp++;
   tabptr.i = lcpFragOrd->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  
+ 
   if (unlikely(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED &&
                tabptr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
   {
@@ -18559,6 +18864,95 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   }
 
   ndbrequire(getFragmentrec(signal, lcpFragOrd->fragmentId));
+  bool add_to_queue = true;
+  if (fragptr.p->m_create_table_flag_lcp_frag_ord)
+  {
+    jam();
+    fragptr.p->m_create_table_flag_lcp_frag_ord = false;
+    ndbrequire(fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED ||
+               fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_EXECUTING);
+    if (!is_lcp_idle(lcpPtr.p))
+    {
+      jam();
+      /**
+       * Checkpoint has already started, we only need to record the fact that
+       * this table has received an order to execute fragment as part of LCP.
+       *
+       * LCP_QUEUED:
+       * -----------
+       * Fragment have been inserted into the LCP list already. But it is still
+       * in the queue. We will remove it from queue and insert it as for a normal
+       * fragment and also reset the variables from the CREATE TABLE insert.
+       * LCP_EXECUTING:
+       * --------------
+       * We are already in the process of executing this checkpoint.
+       * We cannot have received any LCP_FRAG_ORD previous to this
+       * since any such signal would clear the m_create_table_flag_lcp_frag_ord
+       * flag. Thus we only need to update the fragment record to ensure
+       * it contains the necessary information received in the LCP_FRAG_ORD
+       * signal.
+       */
+      jam();
+      fragptr.p->lcp_frag_ord_lcp_no = lcpFragOrd->lcpNo;
+      fragptr.p->lcp_frag_ord_lcp_id = lcpFragOrd->lcpId;
+      cnoOfFragsCheckpointed++;
+      c_fragments_in_lcp++;
+      DEB_EARLY_LCP(("(%u)LCP_FRAG_ORD for tab(%u,%u), clear flag",
+                     instance(),
+                     fragptr.p->tabRef,
+                     fragptr.p->fragId));
+      return;
+    }
+    DEB_EARLY_LCP(("(%u)LCP_FRAG_ORD for tab(%u,%u), clear flag and start",
+                   instance(),
+                   fragptr.p->tabRef,
+                   fragptr.p->fragId));
+    ndbrequire(fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED);
+    /**
+     * We will insert it into LCP queue below, so we need to remove it
+     * here to avoid inserting it twice.
+     */
+    add_to_queue = false;
+  }
+  if (fragptr.p->lcp_frag_ord_state ==
+        Fragrecord::LCP_EXECUTED_BY_CREATE_TABLE)
+  {
+    jam();
+    if (fragptr.p->lcp_frag_ord_lcp_no == lcpFragOrd->lcpNo &&
+        fragptr.p->lcp_frag_ord_lcp_id == lcpFragOrd->lcpId)
+    {
+      /**
+       * We already executed a checkpoint as part of this LCP. Send
+       * an LCP_FRAG_REP based on this information.
+       */
+      jam();
+      DEB_EARLY_LCP(("(%u)LCP_FRAG_ORD for tab(%u,%u), already executed",
+                     instance(),
+                     fragptr.p->tabRef,
+                     fragptr.p->fragId));
+      LcpRecord::FragOrd fragOrd;
+      fragOrd.lcpFragOrd.lcpNo = fragptr.p->lcp_frag_ord_lcp_no;
+      fragOrd.lcpFragOrd.lcpId = fragptr.p->lcp_frag_ord_lcp_id;
+      fragOrd.lcpFragOrd.fragmentId = fragptr.p->fragId;
+      fragOrd.lcpFragOrd.tableId = fragptr.p->tabRef;
+      fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+      sendLCP_FRAG_REP(signal, fragOrd, fragptr.p);
+      ndbrequire(lcpPtr.p->lastFragmentFlag == false);
+      c_fragments_in_lcp++;
+      return;
+    }
+    DEB_EARLY_LCP(("(%u)LCP_FRAG_ORD for tab(%u,%u), executed, new LCP",
+                   instance(),
+                   fragptr.p->tabRef,
+                   fragptr.p->fragId));
+    /**
+     * This is the next LCP, continue as normal and set the state to the
+     * expected state at this point.
+     */
+    fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+    ndbrequire(fragptr.p->m_create_table_flag_lcp_frag_ord == false);
+    ndbrequire(fragptr.p->m_create_table_insert_lcp == false);
+  }
 
   if (fragptr.p->lcp_frag_ord_lcp_id == lcpFragOrd->lcpId &&
       c_localLcpId == 0)
@@ -18599,8 +18993,11 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   fragptr.p->lcp_frag_ord_lcp_no = lcpFragOrd->lcpNo;
   fragptr.p->lcp_frag_ord_lcp_id = lcpFragOrd->lcpId;
   fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_QUEUED;
-  c_queued_lcp_frag_ord.addLast(fragptr);
-
+  if (add_to_queue)
+  {
+    jam();
+    c_queued_lcp_frag_ord.addLast(fragptr);
+  }
   cnoOfFragsCheckpointed++;
 
   if (lcpPtr.p->lcpPrepareState != LcpRecord::LCP_IDLE)
@@ -18608,7 +19005,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     jam();
     return;
   }//if
-  prepare_next_fragment_checkpoint(signal);
+  prepare_next_fragment_checkpoint(signal, false);
 }//Dblqh::execLCP_FRAGORD()
 
 void Dblqh::handleFirstFragment(Signal *signal)
@@ -18696,24 +19093,7 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
     lcpPtr.p->lcpRunState = LcpRecord::LCP_IDLE;
   }
   completed_fragment_checkpoint(signal, lcpPtr.p->currentPrepareFragment);
-  prepare_next_fragment_checkpoint(signal);
-  if (lcpPtr.p->lcpPrepareState == LcpRecord::LCP_IDLE &&
-      lcpPtr.p->lcpRunState == LcpRecord::LCP_IDLE)
-  {
-    /**
-     * We have no queued fragments waiting to be prepared. We also
-     * have no ongoing fragment executing its LCP. If we also received
-     * the last fragment then we have completed this LCP.
-     */
-    jam();
-    if (lcpPtr.p->lastFragmentFlag)
-    {
-      jam();
-      completeLcpRoundLab(signal, c_lcpId);
-      return;
-    }
-    return;
-  }
+  prepare_next_fragment_checkpoint(signal, true);
 }
 
 void Dblqh::execLCP_PREPARE_CONF(Signal* signal) 
@@ -18748,7 +19128,7 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     jam();
     lcpPtr.p->currentRunFragment = lcpPtr.p->currentPrepareFragment;
     perform_fragment_checkpoint(signal);
-    prepare_next_fragment_checkpoint(signal);
+    prepare_next_fragment_checkpoint(signal, false);
   }
   ndbrequire(lcpPtr.p->lcpRunState == LcpRecord::LCP_CHECKPOINTING);
 }
@@ -19122,7 +19502,7 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
     jam();
     lcpPtr.p->currentRunFragment = lcpPtr.p->currentPrepareFragment;
     perform_fragment_checkpoint(signal);
-    prepare_next_fragment_checkpoint(signal);
+    prepare_next_fragment_checkpoint(signal, false);
     return;
   }
   else if (lcpPtr.p->lcpPrepareState == LcpRecord::LCP_PREPARING)
@@ -19201,44 +19581,160 @@ Dblqh::completed_fragment_checkpoint(Signal *signal,
   FragrecordPtr curr_fragptr;
   curr_fragptr.i = fragOrd.fragPtrI;
   c_fragment_pool.getPtr(curr_fragptr);
-  curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
-  if (c_localLcpId == 0)
+  if (curr_fragptr.p->m_create_table_flag_lcp_frag_ord)
+  {
+    /**
+     * At this point we have accomplished the desired action of running an
+     * LCP to ensure that we can deduce how far back we need to UNDO for
+     * this table.
+     *
+     * We set state to LCP_EXECUTED_BY_CREATE_TABLE to ensure that we know
+     * that an LCP have been executed this LCP. When an LCP_FRAG_ORD is
+     * received we will send LCP_FRAG_REP immediately if it is part of
+     * the same LCP.
+     *
+     * No need to send LCP_FRAG_REP since no LCP_FRAG_ORD was requested in
+     * this case.
+     */
+    jam();
+    curr_fragptr.p->lcp_frag_ord_state =
+      Fragrecord::LCP_EXECUTED_BY_CREATE_TABLE;
+    curr_fragptr.p->m_create_table_flag_lcp_frag_ord = false;
+    DEB_EARLY_LCP(("(%u)LCP executed for tab(%u,%u), flag cleared",
+                   instance(),
+                   curr_fragptr.p->tabRef,
+                   curr_fragptr.p->fragId));
+  }
+  else
   {
     jam();
-    /* Only need to send LCP_FRAG_REP during distributed LCP. */
-    jam();
-    sendLCP_FRAG_REP(signal, fragOrd, curr_fragptr.p);
+    curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+    if (c_localLcpId == 0)
+    {
+      /* Only need to send LCP_FRAG_REP during distributed LCP. */
+      jam();
+      sendLCP_FRAG_REP(signal, fragOrd, curr_fragptr.p);
+    }
   }
 }
 
-void Dblqh::prepare_next_fragment_checkpoint(Signal* signal) 
+void Dblqh::prepare_next_fragment_checkpoint(Signal* signal,
+                                             bool complete_possible)
 {
   FragrecordPtr curr_fragptr;
-  TablerecPtr tabPtr;
 
-restart:
-  if (c_queued_lcp_frag_ord.isEmpty())
+  if (lcpPtr.p->m_wait_early_lcp_synch)
   {
     jam();
-    lcpPtr.p->lcpPrepareState = LcpRecord::LCP_IDLE;
+    /**
+     * We are waiting for a signal back from Backup block containing
+     * a signal that all outstanding fragments that was put into LCP
+     * queue by CREATE TABLE statements have been executed and have
+     * completed.
+     * We could receive the lastFragmentFlag while waiting and it is
+     * important to not be in IDLE state when this arrives since this
+     * will flag that the LCP is completed which is not the case here.
+     */
+    lcpPtr.p->lcpPrepareState = LcpRecord::LCP_PREPARING;
     return;
   }
-  jam();
-  /* ----------------------------------------------------------------------
-   *  Remove first queued fragment from queue.
-   *  Transfer the state from the queued to the active LCP.
-   * --------------------------------------------------------------------- */
-  c_queued_lcp_frag_ord.first(curr_fragptr);
-  c_queued_lcp_frag_ord.removeFirst(curr_fragptr);
+  do
+  {
+    if (c_queued_lcp_frag_ord.isEmpty())
+    {
+      jam();
+      lcpPtr.p->lcpPrepareState = LcpRecord::LCP_IDLE;
+      break;
+    }
+    jam();
+    /* ----------------------------------------------------------------------
+     *  Remove first queued fragment from queue.
+     *  Transfer the state from the queued to the active LCP.
+     * --------------------------------------------------------------------- */
+    c_queued_lcp_frag_ord.first(curr_fragptr);
+    c_queued_lcp_frag_ord.removeFirst(curr_fragptr);
+    curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTING;
+    if (exec_prepare_next_fragment_checkpoint(signal, curr_fragptr))
+    {
+      jam();
+      break;
+    }
+  } while (1);
+  if (is_lcp_idle(lcpPtr.p))
+  {
+    /**
+     * We have no queued fragments waiting to be prepared. We also
+     * have no ongoing fragment executing its LCP. If we also received
+     * the last fragment then we have completed this LCP.
+     */
+    jam();
+    if (lcpPtr.p->lastFragmentFlag)
+    {
+      jam();
+      ndbrequire(complete_possible);
+      completeLcpRoundLab(signal, c_lcpId);
+    }
+  }
+}
 
+bool
+Dblqh::exec_prepare_next_fragment_checkpoint(Signal* signal,
+                                             FragrecordPtr curr_fragptr)
+{
+  TablerecPtr tabPtr;
   tabPtr.i = curr_fragptr.p->tabRef;
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
-  curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTING;
   lcpPtr.p->currentPrepareFragment.fragPtrI = curr_fragptr.i;
+  if (curr_fragptr.p->m_create_table_flag_lcp_frag_ord)
+  {
+    jam();
+    curr_fragptr.p->lcp_frag_ord_lcp_id =
+      lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpId;
+    curr_fragptr.p->lcp_frag_ord_lcp_no = 0;
+  }
   lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpNo =
-    curr_fragptr.p->lcp_frag_ord_lcp_no;
+       curr_fragptr.p->lcp_frag_ord_lcp_no;
   lcpPtr.p->currentPrepareFragment.lcpFragOrd.fragmentId = curr_fragptr.p->fragId;
   lcpPtr.p->currentPrepareFragment.lcpFragOrd.tableId = tabPtr.i;
+
+  if (lcpPtr.p->m_early_lcps_need_synch)
+  {
+    if (curr_fragptr.p->m_create_table_insert_lcp)
+    {
+      jam();
+      ndbrequire(lcpPtr.p->m_wait_early_lcp_synch == false);
+    }
+    else
+    {
+      jam();
+      /**
+       * One or more tables were created between two LCPs.
+       * We need to ensure that those fragments complete their
+       * LCP before any other fragment is allowed to complete.
+       * This will ensure that the LCP that any table requires
+       * the UNDO log to roll back to is sufficient for these
+       * tables
+       *
+       * See comment in insert_new_fragments_into_lcp for more
+       * details.
+       */
+      DEB_EARLY_LCP(("(%u)WAIT_LCP_IDLE_REQ: tab(%u,%u)",
+                     instance(),
+                     curr_fragptr.p->tabRef,
+                     curr_fragptr.p->fragId));
+      lcpPtr.p->lcpPrepareState = LcpRecord::LCP_PREPARING;
+      lcpPtr.p->m_early_lcps_need_synch = false;
+      lcpPtr.p->m_wait_early_lcp_synch = true;
+      curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTING;
+      BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+      signal->theData[0] = m_backup_ptr;
+      sendSignal(backupRef, GSN_WAIT_LCP_IDLE_REQ,
+                 signal, 1, JBB);
+      return true;
+    }
+  }
+
+  curr_fragptr.p->m_create_table_insert_lcp = false;
 
   if (unlikely(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED &&
                tabPtr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
@@ -19250,8 +19746,7 @@ restart:
     ndbrequire(c_localLcpId == 0);
     completed_fragment_checkpoint(signal,
                                   lcpPtr.p->currentPrepareFragment);
-    goto restart; /* To avoid potential stack problems */
-    return;
+    return false;
   }
 
   /**
@@ -19290,7 +19785,56 @@ restart:
     jam();
     startLcpFragWatchdog(signal);
   }
+  return true;
 }//Dblqh::prepare_next_fragment_checkpoint()
+
+void
+Dblqh::execWAIT_LCP_IDLE_CONF(Signal *signal)
+{
+  FragrecordPtr curr_fragptr;
+  lcpPtr.i = signal->theData[0];
+  ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
+  ndbrequire(lcpPtr.p->m_wait_early_lcp_synch);
+  ndbrequire(!lcpPtr.p->m_early_lcps_need_synch);
+
+  /**
+   * No action is supposed to remove the fragment from the LCP list
+   * while we are waiting for the previous fragments to complete. Only
+   * completion of checkpoint for this fragment and an attempt to
+   * prepare the fragment could cause this fragment to be removed and
+   * none of those actions are possible while we are waiting for
+   * WAIT_LCP_IDLE_CONF to return from the Backup block.
+   *
+   * It is also possible for Drop Table to remove if the state is
+   * LCP_QUEUED, to ensure this won't happen the state of the fragment
+   * was set to LCP_EXECUTING before starting the wait.
+   *
+   * The reason to be so careful with this protection against removal
+   * is to avoid having to handle that the LCP completes while we are
+   * waiting for the other fragments to complete. If that was possible
+   * we would have to check for completion of LCP here as well. Now we
+   * can skip that since it is safe that we are not arriving here in
+   * that state.
+   *
+   * It is possible for the fragment LCP to be generated by a table
+   * creation. This table should not be removed when the table is
+   * in the state LCP_EXECUTING, so we rely on that this fragment is
+   * still here when we return here. The fragment LCP can be dropped
+   * however when we restart it again.
+   */
+  curr_fragptr.i = lcpPtr.p->currentPrepareFragment.fragPtrI;
+  c_fragment_pool.getPtr(curr_fragptr);
+  ndbrequire(curr_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_EXECUTING);
+  c_queued_lcp_frag_ord.addFirst(curr_fragptr);
+  curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_QUEUED;
+  ndbrequire(curr_fragptr.p->m_create_table_insert_lcp == false);
+  lcpPtr.p->m_wait_early_lcp_synch = false;
+  DEB_EARLY_LCP(("(%u) WAIT_LCP_IDLE_CONF, tab(%u,%u)",
+                 instance(),
+                 curr_fragptr.p->tabRef,
+                 curr_fragptr.p->fragId));
+  prepare_next_fragment_checkpoint(signal, true);
+}
 
 /* --------------------------------------------------------------------------
  *       THE LOCAL CHECKPOINT ROUND IS NOW COMPLETED. SEND COMPLETED MESSAGE
@@ -19730,8 +20274,7 @@ void Dblqh::execEMPTY_LCP_REQ(Signal* signal)
   lcpPtr.p->m_EMPTY_LCP_REQ.set(nodeId);
   lcpPtr.p->reportEmpty = true;
 
-  if (lcpPtr.p->lcpPrepareState == LcpRecord::LCP_IDLE &&
-      lcpPtr.p->lcpRunState == LcpRecord::LCP_IDLE)
+  if (is_lcp_idle(lcpPtr.p))
   { 
     jam();
     bool ok = false;
@@ -23194,6 +23737,18 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
       return;
     }
 
+    if (c_restart_lcpId == 0 &&
+        c_restart_localLcpId == 0 &&
+        m_restart_local_latest_lcp_id > 1)
+    {
+      /**
+       * Not a single fragment was restored using an LCP. This should only
+       * in nodes added in new node groups since SYSTAB_0 should be in all
+       * original nodes from the initial start.
+       */
+      jam();
+      c_restart_lcpId = m_restart_local_latest_lcp_id - 1;
+    }
     if (!isNdbMtLqh())
     {
       jam();
@@ -26560,11 +27115,29 @@ void Dblqh::deleteFragrec(Uint32 fragId)
   if (fragptr.i != RNIL) {
     jam();
     c_fragment_pool.getPtr(fragptr);
+    if (fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED)
+    {
+      jam();
+      /**
+       * We delete the fragment even before it has been checkpointed
+       * its first time. Need to remove it from LCP queue.
+       */
+      ndbrequire(fragptr.p->m_create_table_flag_lcp_frag_ord);
+      c_queued_lcp_frag_ord.remove(fragptr);
+      fragptr.p->m_create_table_flag_lcp_frag_ord = false;
+      fragptr.p->m_create_table_insert_lcp = false;
+      fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+    }
+    ndbrequire(fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_EXECUTED ||
+      fragptr.p->lcp_frag_ord_state ==
+        Fragrecord::LCP_EXECUTED_BY_CREATE_TABLE);
+    fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+    ndbrequire(fragptr.p->fragStatus != Fragrecord::FREE);
     tabptr.p->fragid[indexFound] = ZNIL;
     tabptr.p->fragrec[indexFound] = RNIL;
     fragptr.p->fragStatus = Fragrecord::FREE;
     c_fragment_pool.release(fragptr);
-  }//if
+  }
 }//Dblqh::deleteFragrec()
 
 /* ------------------------------------------------------------------------- */
@@ -26917,6 +27490,8 @@ void Dblqh::initialiseLcpRec(Signal* signal)
       lcpPtr.p->reportEmpty = false;
       lcpPtr.p->firstFragmentFlag = false;
       lcpPtr.p->lastFragmentFlag = false;
+      lcpPtr.p->m_early_lcps_need_synch = false;
+      lcpPtr.p->m_wait_early_lcp_synch = false;
     }//for
   }//if
 }//Dblqh::initialiseLcpRec()
@@ -27301,6 +27876,8 @@ void Dblqh::initFragrec(Signal* signal,
   fragptr.p->tableFragptr = RNIL;
   fragptr.p->m_copy_started_state = Fragrecord::AC_NORMAL;
   fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+  fragptr.p->m_create_table_flag_lcp_frag_ord = false;
+  fragptr.p->m_create_table_insert_lcp = false;
   fragptr.p->lcp_frag_ord_lcp_no = 0;
   fragptr.p->lcp_frag_ord_lcp_id = 0;
   fragptr.p->m_completed_gci = 0;
@@ -27487,6 +28064,7 @@ bool Dblqh::insertFragrec(Signal* signal, Uint32 fragId)
     terrorCode = ZNO_FREE_FRAGMENTREC;
     return false;
   }
+  ndbrequire(fragptr.p->fragStatus == Fragrecord::FREE);
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] == ZNIL) {
@@ -32050,4 +32628,10 @@ void Dblqh::decrement_committed_mbytes(LogPartRecord* logPartPtrP,
   logPartPtrP->m_committed_words -= (ZCOMMIT_LOG_SIZE + 1);
   ndbassert(regTcPtr->m_committed_log_space == 1);
   regTcPtr->m_committed_log_space = 0;
+}
+
+void Dblqh::execLOCAL_LATEST_LCP_ID_REP(Signal *signal)
+{
+  jamEntry();
+  m_restart_local_latest_lcp_id = signal->theData[0];
 }
