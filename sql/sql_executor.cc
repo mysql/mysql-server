@@ -147,6 +147,9 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
                                        size_t key_length, Item *having);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
+static void SetCostOnTableIterator(const Cost_model_server &cost_model,
+                                   const POSITION *pos, bool is_after_filter,
+                                   RowIterator *iterator);
 
 /**
    Evaluates HAVING condition
@@ -1184,7 +1187,7 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
   unique_ptr_destroy_only<RowIterator> filter_iterator =
       NewIterator<FilterIterator>(thd, move(iterator), condition);
 
-  // Copy costs (we don't care about filtering_effect here, even though we
+  // Copy costs (we don't care about filter_effect here, even though we
   // should).
   filter_iterator->set_expected_rows(child_iterator->expected_rows());
   filter_iterator->set_estimated_cost(child_iterator->estimated_cost());
@@ -1902,16 +1905,8 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
 
     POSITION *pos = qep_tab->position();
     if (pos != nullptr) {
-      table_iterator->set_expected_rows(pos->rows_fetched);
-
-      // Scale the estimated cost to being for one loop only, to match the
-      // measured costs.
-      if (pos->prefix_rowcount <= 0.0) {
-        table_iterator->set_estimated_cost(pos->read_cost);
-      } else {
-        table_iterator->set_estimated_cost(pos->read_cost * pos->rows_fetched /
-                                           pos->prefix_rowcount);
-      }
+      SetCostOnTableIterator(*thd->cost_model(), pos, /*is_after_filter=*/false,
+                             table_iterator.get());
     }
 
     // See if this is an information schema table that must be filled in before
@@ -1926,7 +1921,32 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
   return table_iterator;
 }
 
-void SetCostOnNestedLoopIterator(const POSITION *pos_right,
+void SetCostOnTableIterator(const Cost_model_server &cost_model,
+                            const POSITION *pos, bool is_after_filter,
+                            RowIterator *iterator) {
+  double num_rows_after_filtering = pos->rows_fetched * pos->filter_effect;
+  if (is_after_filter) {
+    iterator->set_expected_rows(num_rows_after_filtering);
+  } else {
+    iterator->set_expected_rows(pos->rows_fetched);
+  }
+
+  // Note that we don't try to adjust for the filtering here;
+  // we estimate the same cost as the table itself.
+  double cost =
+      pos->read_cost + cost_model.row_evaluate_cost(num_rows_after_filtering);
+  if (pos->prefix_rowcount <= 0.0) {
+    iterator->set_estimated_cost(cost);
+  } else {
+    // Scale the estimated cost to being for one loop only, to match the
+    // measured costs.
+    iterator->set_estimated_cost(cost * num_rows_after_filtering /
+                                 pos->prefix_rowcount);
+  }
+}
+
+void SetCostOnNestedLoopIterator(const Cost_model_server &cost_model,
+                                 const POSITION *pos_right,
                                  RowIterator *iterator) {
   if (pos_right == nullptr) {
     // No cost information.
@@ -1944,14 +1964,19 @@ void SetCostOnNestedLoopIterator(const POSITION *pos_right,
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  Server_cost_constants constants;
-  double joined_rows = left->expected_rows() * right->expected_rows();
+  double right_expected_rows_before_filter =
+      pos_right->filter_effect > 0.0
+          ? (right->expected_rows() / pos_right->filter_effect)
+          : 0.0;
+  double joined_rows =
+      left->expected_rows() * right_expected_rows_before_filter;
   iterator->set_expected_rows(joined_rows * pos_right->filter_effect);
   iterator->set_estimated_cost(left->estimated_cost() + pos_right->read_cost +
-                               joined_rows * constants.row_evaluate_cost());
+                               cost_model.row_evaluate_cost(joined_rows));
 }
 
-void SetCostOnHashJoinIterator(const POSITION *pos_right,
+void SetCostOnHashJoinIterator(const Cost_model_server &cost_model,
+                               const POSITION *pos_right,
                                RowIterator *iterator) {
   if (pos_right == nullptr) {
     // No cost information.
@@ -1969,11 +1994,10 @@ void SetCostOnHashJoinIterator(const POSITION *pos_right,
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  Server_cost_constants constants;
   double joined_rows = left->expected_rows() * right->expected_rows();
   iterator->set_expected_rows(joined_rows * pos_right->filter_effect);
   iterator->set_estimated_cost(left->estimated_cost() + pos_right->read_cost +
-                               joined_rows * constants.row_evaluate_cost());
+                               cost_model.row_evaluate_cost(joined_rows));
 }
 
 // Move all the hash join conditions from the vector "predicates" over to the
@@ -2249,7 +2273,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
               NewIterator<NestedLoopSemiJoinWithDuplicateRemovalIterator>(
                   thd, move(iterator), move(subtree_iterator),
                   prev_qep_tab->table(), key, prev_qep_tab->loosescan_key_len);
-          SetCostOnNestedLoopIterator(qep_tab->position(), iterator.get());
+          SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
+                                      iterator.get());
         } else {
           // We were originally in a semijoin, even if it didn't win in
           // FindSubstructure (LooseScan against multiple tables always puts
@@ -2264,7 +2289,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           iterator = NewIterator<NestedLoopIterator>(thd, move(iterator),
                                                      move(subtree_iterator),
                                                      join_type, pfs_batch_mode);
-          SetCostOnNestedLoopIterator(qep_tab->position(), iterator.get());
+          SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
+                                      iterator.get());
         }
       } else if (iterator == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
@@ -2273,7 +2299,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         iterator = NewIterator<NestedLoopIterator>(thd, move(iterator),
                                                    move(subtree_iterator),
                                                    join_type, pfs_batch_mode);
-        SetCostOnNestedLoopIterator(qep_tab->position(), iterator.get());
+        SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
+                                    iterator.get());
       }
 
       iterator = PossiblyAttachFilterIterator(move(iterator),
@@ -2316,7 +2343,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         iterator = NewIterator<NestedLoopIterator>(
             thd, move(iterator), move(subtree_iterator), JoinType::INNER,
             /*pfs_batch_mode=*/false);
-        SetCostOnNestedLoopIterator(qep_tab->position(), iterator.get());
+        SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
+                                    iterator.get());
       }
 
       i = substructure_end;
@@ -2369,17 +2397,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       POSITION *pos = qep_tab->position();
       if (expected_rows >= 0.0 && !predicates_below_join.empty() &&
           pos != nullptr) {
-        table_iterator->set_expected_rows(expected_rows * pos->filter_effect);
-
-        // Scale the estimated cost to being for one loop only, to match the
-        // measured costs. Note that we don't try to adjust for the filtering
-        // here; we estimate the same cost as the table itself.
-        if (pos->prefix_rowcount <= 0.0) {
-          table_iterator->set_estimated_cost(pos->read_cost);
-        } else {
-          table_iterator->set_estimated_cost(
-              pos->read_cost * pos->rows_fetched / pos->prefix_rowcount);
-        }
+        SetCostOnTableIterator(*thd->cost_model(), pos,
+                               /*is_after_filter=*/true, table_iterator.get());
       }
     }
 
@@ -2450,7 +2469,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         iterator = NewIterator<HashJoinIterator>(
             thd, move(iterator), left_tables, move(table_iterator), qep_tab,
             thd->variables.join_buff_size, hash_join_conditions);
-        SetCostOnHashJoinIterator(qep_tab->position(), iterator.get());
+        SetCostOnHashJoinIterator(*thd->cost_model(), qep_tab->position(),
+                                  iterator.get());
 
         // Attach the conditions that must be evaluated after the join, such as
         // non equi-join conditions.
@@ -2460,7 +2480,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         iterator = CreateNestedLoopIterator(
             thd, move(iterator), move(table_iterator), JoinType::INNER,
             qep_tab->pfs_batch_update(qep_tab->join()));
-        SetCostOnNestedLoopIterator(qep_tab->position(), iterator.get());
+        SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
+                                    iterator.get());
       }
     }
     ++i;

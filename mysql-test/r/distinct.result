@@ -1008,7 +1008,7 @@ EXPLAIN
     -> Filter: (count(0) > 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
-                -> Table scan on t1  (cost=2.38 rows=1536)
+                -> Table scan on t1  (cost=155.98 rows=1536)
 
 SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 c2
@@ -1203,11 +1203,11 @@ EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS 
 EXPLAIN
 -> Table scan on <temporary>
     -> Temporary table with deduplication
-        -> Filter: (table2.f1 is null)  (cost=2.91 rows=1)
-            -> Nested loop left join  (cost=2.91 rows=1)
-                -> Table scan on table1  (cost=0.50 rows=3)
-                -> Filter: (table1.f2 = table2.f3)  (cost=2.11 rows=1)
-                    -> Table scan on table2  (cost=2.11 rows=3)
+        -> Filter: (table2.f1 is null)  (cost=3.81 rows=3)
+            -> Nested loop left join  (cost=3.81 rows=3)
+                -> Table scan on table1  (cost=0.80 rows=3)
+                -> Filter: (table1.f2 = table2.f3)  (cost=0.74 rows=1)
+                    -> Table scan on table2  (cost=0.74 rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -1234,8 +1234,8 @@ EXPLAIN
 -> Limit: 1 row(s)
     -> Table scan on <temporary>
         -> Temporary table
-            -> Filter: ((t3.f2 = '3') and (t3.f3 = '4') and (t3.pk <> '12'))  (cost=1.20 rows=1)
-                -> Table scan on t3  (cost=1.20 rows=2)
+            -> Filter: ((t3.f2 = '3') and (t3.f3 = '4') and (t3.pk <> '12'))  (cost=0.70 rows=1)
+                -> Table scan on t3  (cost=0.70 rows=2)
 
 DROP TABLE t1, t2, t3;
 SET optimizer_switch=@old_optimizer_switch;
@@ -1258,7 +1258,7 @@ EXPLAIN
     -> Filter: (num = 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
-                -> Table scan on t1  (cost=3.59 rows=7224)
+                -> Table scan on t1  (cost=725.99 rows=7224)
 
 SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 num
