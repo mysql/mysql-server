@@ -33,11 +33,12 @@
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
 class NdbRecAttr;
+class Thd_ndb;
 
 // Base class used for working with tables created in NDB by the
 // ndbcluster plugin
 class Ndb_util_table {
-  class Thd_ndb* const m_thd_ndb;
+  Thd_ndb* const m_thd_ndb;
   Ndb_table_guard m_table_guard;
   const std::string m_db_name;
   const std::string m_table_name;
@@ -54,8 +55,8 @@ class Ndb_util_table {
   void push_warning(const char* fmt, ...) const
       MY_ATTRIBUTE((format(printf, 2, 3)));
 
-  Ndb_util_table(class Thd_ndb*, const std::string& db_name,
-                 const std::string& table_name, bool hidden);
+  Ndb_util_table(Thd_ndb*, std::string  db_name,
+                 std::string  table_name, bool hidden);
   ~Ndb_util_table();
 
   bool check_column_exist(const char* name) const;

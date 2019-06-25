@@ -25,6 +25,8 @@
 // Implements the interface defined in
 #include "sql/ndb_util_table.h"
 
+#include <utility>
+
 #include "my_base.h"
 #include "my_byteorder.h" // uint2korr
 #include "mysql_version.h"
@@ -49,12 +51,12 @@ class Db_name_guard {
   }
 };
 
-Ndb_util_table::Ndb_util_table(Thd_ndb* thd_ndb, const std::string &db_name,
-                               const std::string &table_name, bool hidden)
+Ndb_util_table::Ndb_util_table(Thd_ndb* thd_ndb, std::string db_name,
+                               std::string table_name, bool hidden)
     : m_thd_ndb(thd_ndb),
       m_table_guard(thd_ndb->ndb->getDictionary()),
-      m_db_name(db_name),
-      m_table_name(table_name),
+      m_db_name(std::move(db_name)),
+      m_table_name(std::move(table_name)),
       m_hidden(hidden) {}
 
 Ndb_util_table::~Ndb_util_table() {}
