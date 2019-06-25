@@ -2599,13 +2599,14 @@ ha_ndbcluster::inplace__drop_fks(THD * thd, Ndb* ndb, NDBDICT * dict,
 */
 
 int
-ha_ndbcluster::get_fk_data_for_truncate(NDBDICT* dict, const NDBTAB* table,
+ha_ndbcluster::get_fk_data_for_truncate(NdbDictionary::Dictionary* dict,
+                                        const NdbDictionary::Table* ndbtab,
                                         Ndb_fk_list& fk_list)
 {
   DBUG_ENTER("ha_ndbcluster::get_fk_data_for_truncate");
 
   NDBDICT::List obj_list;
-  if (dict->listDependentObjects(obj_list, *table) != 0)
+  if (dict->listDependentObjects(obj_list, *ndbtab) != 0)
   {
     ERR_RETURN(dict->getNdbError());
   }

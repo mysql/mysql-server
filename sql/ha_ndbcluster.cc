@@ -3715,7 +3715,7 @@ int ha_ndbcluster::fetch_next_pushed()
   {
     DBUG_ASSERT(m_next_row!=NULL);
     DBUG_PRINT("info", ("One more record found"));    
-    const int ignore = unpack_record_and_set_generated_fields(table, table->record[0],
+    const int ignore = unpack_record_and_set_generated_fields(table->record[0],
                                            m_next_row);
 //  m_thd_ndb->m_pushed_reads++;
     if (likely(!ignore))
@@ -3766,7 +3766,7 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   if (result == NdbQuery::NextResult_gotRow)
   {
     DBUG_ASSERT(m_next_row!=NULL);
-    const int ignore = unpack_record_and_set_generated_fields(table, buf, m_next_row);
+    const int ignore = unpack_record_and_set_generated_fields(buf, m_next_row);
     m_thd_ndb->m_pushed_reads++;
     if (unlikely(ignore))
     {
@@ -7091,7 +7091,6 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
 }
 
 int ha_ndbcluster::unpack_record_and_set_generated_fields(
-  TABLE *table,
   uchar *dst_row,
   const uchar *src_row)
 {
@@ -15956,7 +15955,7 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
                                                   current_range_no);
               /* Copy out data from the new row. */
               const int ignore =
-                unpack_record_and_set_generated_fields(table, table->record[0],
+                unpack_record_and_set_generated_fields(table->record[0],
                                                        m_next_row);
               /*
                 Mark that we have used this row, so we need to fetch a new
@@ -16601,13 +16600,7 @@ static MYSQL_SYSVAR_ENUM(
   &distribution_typelib              /* typelib */
 );
 
-/* Get partition row type
-@param[in] table   partition_table
-@param[in] part_id Id of partition for which row type to be retrieved
-@return Partition row type. */
-enum row_type ha_ndbcluster::get_partition_row_type(
-    const dd::Table *table MY_ATTRIBUTE((unused)),
-    uint part_id MY_ATTRIBUTE((unused))) {
+enum row_type ha_ndbcluster::get_partition_row_type(const dd::Table*, uint) {
   return table_share->real_row_type;
 }
 

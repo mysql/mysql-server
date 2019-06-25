@@ -211,7 +211,7 @@ public:
   @param[in] table   partition table
   @param[in] part_id Id of partition for which row type to be retrieved
   @return Partition row type. */
-  enum row_type get_partition_row_type(const dd::Table *table,
+  enum row_type get_partition_row_type(const dd::Table *table_def,
                                        uint part_id) override;
 
  private:
@@ -570,7 +570,7 @@ public:
   int next_result(uchar *buf); 
   int close_scan();
   int unpack_record(uchar *dst_row, const uchar *src_row);
-  int unpack_record_and_set_generated_fields(TABLE *, uchar *dst_row,
+  int unpack_record_and_set_generated_fields(uchar *dst_row,
                                              const uchar *src_row);
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
