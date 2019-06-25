@@ -112,9 +112,16 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_GCP 1
 //#define DEBUG_CUT_REDO 1
 //#define DEBUG_LOCAL_LCP 1
-//#define DEBUG_LOCAL_LCP_EXTRA
-//#define DEBUG_REDO_FLAG
-//#define DEBUG_TRANSACTION_TIMEOUT
+//#define DEBUG_LOCAL_LCP_EXTRA 1
+//#define DEBUG_REDO_FLAG 1
+//#define DEBUG_TRANSACTION_TIMEOUT 1
+//#define DEBUG_SCHEMA_VERSION 1
+#endif
+
+#ifdef DEBUG_SCHEMA_VERSION
+#define DEB_SCHEMA_VERSION(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_SCHEMA_VERSION(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_EXTRA_LCP
@@ -1795,11 +1802,18 @@ Dblqh::execCREATE_TAB_REQ(Signal* signal)
   addfragptr.p->m_createTabReq = *req;
   req = &addfragptr.p->m_createTabReq;
 
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = ADD_TABLE_ONGOING",
+                      instance(),
+                      tabptr.i));
   tabptr.p->tableStatus = Tablerec::ADD_TABLE_ONGOING;
   tabptr.p->tableType = req->tableType;
   tabptr.p->primaryTableId = (req->primaryTableId == RNIL ? tabptr.i :
                               req->primaryTableId);
   tabptr.p->schemaVersion = req->tableVersion;
+  DEB_SCHEMA_VERSION(("(%u)tab(%u): %u tableStatus = ADD_TABLE_ONGOING",
+                      instance(),
+                      tabptr.p->schemaVersion,
+                      tabptr.i));
   tabptr.p->m_disk_table= 0;
 
   addfragptr.p->addfragStatus = AddFragRecord::WAIT_TUP;
@@ -2224,14 +2238,27 @@ Uint32 Dblqh::getCreateSchemaVersion(Uint32 tableId)
   TablerecPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
-  if (tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED)
+  Uint32 schemaVersion;
+  if (tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+      tabPtr.p->tableStatus == Tablerec::TABLE_READ_ONLY)
   {
-    return (tabPtr.p->schemaVersion & 0xFFFFFF);
+    schemaVersion = (tabPtr.p->schemaVersion & 0xFFFFFF);
   }
   else
   {
-    return 0;
+    schemaVersion = 0;
   }
+#ifdef DEBUG_SCHEMA_VERSION
+  if (schemaVersion == 0)
+  {
+    g_eventLogger->info("(%u) table: %u, schemaVersion: %u, tableStatus: %u",
+                        instance(),
+                        tableId,
+                        tabPtr.p->schemaVersion,
+                        tabPtr.p->tableStatus);
+  }
+#endif
+  return schemaVersion;
 }
 
 void Dblqh::execLQHFRAGREQ(Signal* signal)
@@ -2588,6 +2615,9 @@ void Dblqh::execTAB_COMMITREQ(Signal* signal)
   tabptr.p->usageCountR = 0;
   tabptr.p->usageCountW = 0;
   tabptr.p->tableStatus = Tablerec::TABLE_DEFINED;
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = TABLE_DEFINED",
+                      instance(),
+                      tabptr.i));
   signal->theData[0] = dihPtr;
   signal->theData[1] = cownNodeid;
   signal->theData[2] = tabptr.i;
@@ -2837,6 +2867,9 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
   }
   
   tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_DONE;
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = PREP_DROP_TABLE_DONE",
+                      instance(),
+                      tabPtr.i));
   
   PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
@@ -2974,6 +3007,9 @@ Dblqh::dropTab_wait_usage(Signal* signal){
     return;
   }
   tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_DONE",
+                      instance(),
+                      tabPtr.i));
 
   DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
@@ -3024,10 +3060,16 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
   case DropTabReq::RestartDropTab:
     jam();
     tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
+    DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_DONE(2)",
+                      instance(),
+                      tabPtr.i));
     break;
   case DropTabReq::CreateTabDrop:
     jam();
     tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
+    DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_DONE(3)",
+                      instance(),
+                      tabPtr.i));
     break;
   case DropTabReq::OnlineDropTab:
     jam();
@@ -3048,6 +3090,9 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
       jam();
       tabPtr.p->m_informed_backup_drop_tab = false;
       tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
+      DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_USAGE",
+                          instance(),
+                          tabPtr.i));
       signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
       signal->theData[1] = tabPtr.i;
       signal->theData[2] = req->senderRef;
@@ -3137,12 +3182,18 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
       jam();
       ref = calcInstanceBlockRef(DBACC);
       tabPtr.p->tableStatus = Tablerec::DROP_TABLE_ACC;
+      DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_ACC",
+                          instance(),
+                          tabPtr.i));
     }
     else
     {
       jam();
       ref = calcInstanceBlockRef(DBTUP);
       tabPtr.p->tableStatus = Tablerec::DROP_TABLE_TUP;
+      DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_TUP",
+                          instance(),
+                          tabPtr.i));
     }
   }
   else if (tabPtr.p->tableStatus == Tablerec::DROP_TABLE_ACC)
@@ -3150,6 +3201,9 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
     jam();
     ref = calcInstanceBlockRef(DBTUP);
     tabPtr.p->tableStatus = Tablerec::DROP_TABLE_TUP;
+    DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_TUP(2)",
+                        instance(),
+                        tabPtr.i));
   }
   else if (tabPtr.p->tableStatus == Tablerec::DROP_TABLE_TUP)
   {
@@ -3159,6 +3213,9 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
       jam();
       ref = calcInstanceBlockRef(DBTUX);
       tabPtr.p->tableStatus = Tablerec::DROP_TABLE_TUX;
+      DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_TUX",
+                          instance(),
+                          tabPtr.i));
     }
   }
 
@@ -3178,6 +3235,9 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
 
   removeTable(tabPtr.i);
   tabPtr.p->tableStatus = Tablerec::NOT_DEFINED;
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = NOT_DEFINED",
+                       instance(),
+                       tabPtr.i));
 
   DropTabConf* conf = (DropTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -3257,6 +3317,11 @@ Dblqh::handleLCPSurfacing(Signal *signal)
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
 
   tablePtr.p->schemaVersion = newTableVersion;
+  DEB_SCHEMA_VERSION(("(%u)tab(%u): %u tableStatus = %u",
+                      instance(),
+                      tablePtr.p->schemaVersion,
+                      tablePtr.i,
+                      tablePtr.p->tableStatus));
   if (AlterTableReq::getReorgFragFlag(req->changeMask))
   {
     jam();
@@ -3310,6 +3375,11 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   case AlterTabReq::AlterTableRevert:
     jam();
     tablePtr.p->schemaVersion = tableVersion;
+    DEB_SCHEMA_VERSION(("(%u)tab(%u): %u tableStatus = %u (2)",
+                        instance(),
+                        tablePtr.p->schemaVersion,
+                        tablePtr.i,
+                        tablePtr.p->tableStatus));
     break;
   case AlterTabReq::AlterTableCommit:
     jam();
@@ -3332,6 +3402,11 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
       }
     }
     tablePtr.p->schemaVersion = newTableVersion;
+    DEB_SCHEMA_VERSION(("(%u)tab(%u): %u tableStatus = %u (3)",
+                        instance(),
+                        tablePtr.p->schemaVersion,
+                        tablePtr.i,
+                        tablePtr.p->tableStatus));
     if (AlterTableReq::getReorgFragFlag(req->changeMask))
     {
       jam();
@@ -3352,6 +3427,9 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
     jam();
     ndbrequire(tablePtr.p->tableStatus == Tablerec::TABLE_DEFINED);
     tablePtr.p->tableStatus = Tablerec::TABLE_READ_ONLY;
+    DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = TABLE_READ_ONLY",
+                        instance(),
+                        tablePtr.i));
     signal->theData[0] = ZWAIT_READONLY;
     signal->theData[1] = tablePtr.i;
     signal->theData[2] = senderRef;
@@ -3362,6 +3440,9 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
     jam();
     ndbrequire(tablePtr.p->tableStatus == Tablerec::TABLE_READ_ONLY);
     tablePtr.p->tableStatus = Tablerec::TABLE_DEFINED;
+    DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = TABLE_DEFINED(2)",
+                        instance(),
+                        tablePtr.i));
     break;
   default:
     ndbabort();
@@ -17512,7 +17593,8 @@ Dblqh::start_lcp_on_table(Signal *signal)
     jam();
     tabptr.i = c_current_local_lcp_table_id;
     ptrAss(tabptr, tablerec);
-    if (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED &&
+    if ((tabptr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+         tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY) &&
         (!DictTabInfo::isOrderedIndex(tabptr.p->tableType)))
     {
       jam();
@@ -22361,6 +22443,9 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     return;
   }//if
   tabptr.p->tableStatus = Tablerec::TABLE_DEFINED;
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = TABLE_DEFINED(3)",
+                      instance(),
+                      tabptr.i));
   
   Uint32 lcpNo = startFragReq->lcpNo;
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
