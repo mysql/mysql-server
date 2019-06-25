@@ -3559,7 +3559,8 @@ innobase_init(
 	innobase_hton->show_status = innobase_show_status;
 	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
-		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
+		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+		HTON_SUPPORTS_TABLE_ENCRYPTION;
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;

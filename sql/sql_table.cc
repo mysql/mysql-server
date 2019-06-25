@@ -10782,5 +10782,14 @@ static bool check_engine(THD *thd, const char *db_name,
     DBUG_RETURN(true);
   }
 
+  // Check if the storage engine supports encryption.
+  if ((create_info->encrypt_type.length > 0) &&
+      !((*new_engine)->flags & HTON_SUPPORTS_TABLE_ENCRYPTION))
+  {
+     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+	      ha_resolve_storage_engine_name(*new_engine), "ENCRYPTION");
+     DBUG_RETURN(true);
+  }
+
   DBUG_RETURN(false);
 }
