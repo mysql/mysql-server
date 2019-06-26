@@ -22,10 +22,13 @@
 
 #include <gtest/gtest.h>
 #include <limits>
+#include <string>
 #include "m_string.h"
+#include "my_inttypes.h"
 #include "my_systime.h"
 #include "my_time.h"
 #include "unittest/gunit/benchmark.h"
+#include "unittest/gunit/mysys_util.h"
 
 // Unit tests for mysys time functions
 
@@ -47,11 +50,7 @@ inline bool operator==(const MYSQL_TIME &a, const MYSQL_TIME &b) {
 // Envelope struct containing results from creating a datetime from
 // a string.
 struct DatetimeResult {
-  MYSQL_TIME t = {0U /* year */,         0U /* month */,
-                  0U /* day */,          0U /* hour */,
-                  0U /* minute */,       0U /* second */,
-                  0UL /* second_part */, false /* neg */,
-                  MYSQL_TIMESTAMP_NONE /* time_type */};
+  MysqlTime t;
   bool stdt{false};
   MYSQL_TIME_STATUS s;
   bool ct{false};
@@ -64,6 +63,15 @@ DatetimeResult make_datetime_from_string(const std::string &s,
   DatetimeResult r;
   r.stdt = str_to_datetime(s.c_str(), s.length(), &r.t, f, &r.s);
   r.ct = check_date(r.t, false, f, &r.was_cut);
+  return r;
+}
+
+/// Utility function for creating a MYSQL_TIME from a string.
+DatetimeResult make_time_from_string(const std::string &s) {
+  DatetimeResult r;
+  r.t.time_zone_displacement = -1;
+  r.stdt = str_to_time(s.c_str(), s.length(), &r.t, &r.s);
+  r.ct = check_date(r.t, false, 0, &r.was_cut);
   return r;
 }
 
@@ -173,6 +181,14 @@ TEST(MysysMyTime, StrToDatetime) {
   EXPECT_EQ(false, tr.ct);
   EXPECT_EQ(0, tr.was_cut);
   EXPECT_EQ(0, tr.t.second_part);
+
+  EXPECT_EQ(
+      0,
+      make_datetime_from_string("20071108181000", 0).t.time_zone_displacement);
+}
+
+TEST(MysysMyTime, StrToTime) {
+  EXPECT_EQ(0, make_time_from_string("1").t.time_zone_displacement);
 }
 
 // Different ways to specify a zero date using -
@@ -352,21 +368,19 @@ TEST(MysysMyTime, DatetimeAddInterval) {
   int warnings = 0;
   EXPECT_EQ(false,
             date_add_interval(&tr.t, INTERVAL_MICROSECOND, i, &warnings));
-  MYSQL_TIME ex = {2020, 3, 1, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME};
+  MysqlTime ex(2020, 3, 1, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
   EXPECT_EQ(true, (tr.t == ex));
 }
 
 // Test packed access functions on positive time values
 TEST(MysysMyTime, MyPackedTimeGetFracPart2) {
-  const MYSQL_TIME mt = {
-      2020U, 2U, 29U, 23U, 59U, 59U, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000);
   longlong pt = TIME_to_longlong_datetime_packed(mt);
   EXPECT_EQ(670000LL, my_packed_time_get_frac_part(pt));
 }
 
 TEST(MysysMyTime, MyPackedTimeGetIntPart) {
-  const MYSQL_TIME mt = {
-      2020U, 2U, 29U, 23U, 59U, 59U, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000UL);
   longlong pt = TIME_to_longlong_datetime_packed(mt);
 
   EXPECT_EQ(110154710779LL, DRV_my_packed_time_get_int_part(pt));
@@ -377,8 +391,7 @@ TEST(MysysMyTime, MyPackedTimeMake) {
 }
 
 TEST(MysysMyTime, MyPackedTimeMakeInt) {
-  const MYSQL_TIME mt = {
-      2020U, 2U, 29U, 23U, 59U, 59U, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000);
   longlong pt = TIME_to_longlong_datetime_packed(mt);
 
   EXPECT_EQ(9149918308668014592LL, DRV_my_packed_time_make_int(pt));
@@ -386,15 +399,15 @@ TEST(MysysMyTime, MyPackedTimeMakeInt) {
 
 // Test packed access functions on negative time values
 TEST(MysysMyTime, MyPackedTimeGetFracPartNeg) {
-  const MYSQL_TIME mt = {
-      2020U, 2U, 29U, 23U, 59U, 59U, 670000, true, MYSQL_TIMESTAMP_DATETIME};
+  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000, true,
+                     MYSQL_TIMESTAMP_DATETIME);
   longlong pt = TIME_to_longlong_datetime_packed(mt);
   EXPECT_EQ(-670000LL, my_packed_time_get_frac_part(pt));
 }
 
 TEST(MysysMyTime, MyPackedTimeGetIntPartNeg) {
-  const MYSQL_TIME mt = {
-      2020U, 2U, 29U, 23U, 59U, 59U, 670000, true, MYSQL_TIMESTAMP_DATETIME};
+  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000, true,
+                     MYSQL_TIMESTAMP_DATETIME);
   longlong pt = TIME_to_longlong_datetime_packed(mt);
 
   EXPECT_EQ(-110154710780LL, DRV_my_packed_time_get_int_part(pt));
@@ -405,11 +418,85 @@ TEST(MysysMyTime, MyPackedTimeMakeNeg) {
 }
 
 TEST(MysysMyTime, MyPackedTimeMakeIntNeg) {
-  const MYSQL_TIME mt = {
-      2020U, 2U, 29U, 23U, 59U, 59U, 670000, true, MYSQL_TIMESTAMP_DATETIME};
+  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000, true,
+                     MYSQL_TIMESTAMP_DATETIME);
   longlong pt = TIME_to_longlong_datetime_packed(mt);
 
   EXPECT_EQ(-9149918308668014592LL, DRV_my_packed_time_make_int(pt));
+}
+
+/**
+  Convenience function for an expected successful call to
+  time_zone_displacement_to_seconds().
+*/
+int TzDisplacementToSeconds(const char *s) {
+  int secs;
+  EXPECT_FALSE(time_zone_displacement_to_seconds(s, strlen(s), &secs))
+      << '"' << s << '"'
+      << " is supposed to be a valid time zone displacement.";
+  return secs;
+}
+
+/**
+  Convenience function checking the return value of
+  time_zone_displacement_to_seconds().
+*/
+bool CheckTimeZoneDisplacement(std::string s) {
+  int secs;
+  return time_zone_displacement_to_seconds(s.c_str(), s.length(), &secs);
+}
+
+TEST(MysysMyTime, TimeZoneDisplacementToSeconds) {
+  EXPECT_EQ(0, TzDisplacementToSeconds("+00:00"));
+  EXPECT_EQ(60, TzDisplacementToSeconds("+00:01"));
+  EXPECT_EQ(36000, TzDisplacementToSeconds("+10:00"));
+  EXPECT_EQ(45240, TzDisplacementToSeconds("+12:34"));
+  EXPECT_EQ(50400, TzDisplacementToSeconds("+14:00"));
+  EXPECT_EQ(-50400, TzDisplacementToSeconds("-14:00"));
+
+  int int_max = std::numeric_limits<int>::max();
+  std::cout << "int max " << int_max << std::endl;
+
+  // Various syntactical errors.
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+:00"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("00:00"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+00:"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+00::00"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+00::"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+0:0"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+0:1"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+1:1"));
+
+  // Various invalid hours.
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+15"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("-15"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement(("+" + std::to_string(int_max + 1))))
+      << "Int wrap-around in hours not caught.";
+
+  // Various invalid minutes.
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+14:01"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("-14:01"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+0:60"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+00:60"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement("+00:61"));
+  EXPECT_TRUE(CheckTimeZoneDisplacement(("+0:" + std::to_string(int_max + 1))))
+      << "Int wrap-around in minutes not caught.";
+
+  EXPECT_TRUE(CheckTimeZoneDisplacement("-00:00"));
+}
+
+std::string MyDatetimeToStr(const MysqlTime &mt) {
+  std::string res;
+  res.resize(MAX_DATE_STRING_REP_LENGTH);
+  res.resize(static_cast<size_t>(my_datetime_to_str(mt, &res.at(0), 0)));
+  return res;
+}
+
+#define EXPECT_STD_STREQ(X, Y) EXPECT_STREQ((X), (Y).c_str())
+
+TEST(MysysMyTime, MyDatetimeToStr) {
+  EXPECT_STD_STREQ("2019-06-24 15:17:33-12:34",
+                   MyDatetimeToStr({2019, 06, 24, 15, 17, 33, 123456, -45240}));
 }
 
 /*
@@ -457,8 +544,8 @@ BENCHMARK(BM_my_micro_time)
 static void BM_my_time_to_str(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  const MYSQL_TIME date = {
-      0, 0, 0, 123, 59, 59, 670000, false, MYSQL_TIMESTAMP_TIME};
+  const MysqlTime date(0, 0, 0, 123, 59, 59, 670000, false,
+                       MYSQL_TIMESTAMP_TIME);
   char buffer[MAX_DATE_STRING_REP_LENGTH];
 
   StartBenchmarkTiming();
@@ -474,8 +561,7 @@ BENCHMARK(BM_my_time_to_str)
 static void BM_my_date_to_str(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  const MYSQL_TIME date = {
-      2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
+  const MysqlTime date(2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
   char buffer[MAX_DATE_STRING_REP_LENGTH];
 
   StartBenchmarkTiming();
@@ -491,8 +577,8 @@ BENCHMARK(BM_my_date_to_str)
 static void BM_my_datetime_to_str(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  const MYSQL_TIME date = {
-      2020, 2, 29, 23, 59, 59, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  const MysqlTime date(2020, 2, 29, 23, 59, 59, 670000, false,
+                       MYSQL_TIMESTAMP_DATETIME);
   char buffer[MAX_DATE_STRING_REP_LENGTH];
 
   StartBenchmarkTiming();

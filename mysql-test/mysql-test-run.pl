@@ -3910,7 +3910,7 @@ sub mysql_install_db {
   }
 
   if (-f "include/mtr_test_data_timezone.sql") {
-    # Add the offical mysql system tables for a production system.
+    # Add the official mysql system tables in a production system.
     mtr_tofile($bootstrap_sql_file, "use mysql;\n");
 
     # Add test data for timezone - this is just a subset, on a real

@@ -54,6 +54,7 @@
 
 #include "field_types.h"     // enum_field_types
 #include "my_byteorder.h"    // int3store
+#include "my_dbug.h"         // DBUG_ASSERT
 #include "my_systime.h"      // localtime_r
 #include "myisampack.h"      // mi_int2store
 #include "template_utils.h"  // pointer_cast
@@ -269,6 +270,46 @@ bool check_datetime_range(const MYSQL_TIME &my_time) {
 #define MAX_DATE_PARTS 8
 
 /**
+  Parses a time zone displacement string on the form `{+-}HH:MM`, converting
+  to seconds.
+
+  @param[in]  str    Time zone displacement string.
+  @param[in]  length Length of said string.
+  @param[out] result Calculated displacement in seconds.
+
+  @retval false Ok.
+  @retval true  Not a valid time zone displacement string.
+*/
+bool time_zone_displacement_to_seconds(const char *str, size_t length,
+                                       int *result) {
+  if (length < 6) return true;
+
+  int sign = str[0] == '+' ? 1 : (str[0] == '-' ? -1 : 0);
+  if (sign == 0) return true;
+
+  if (!(std::isdigit(str[1]) && std::isdigit(str[2]))) return true;
+  int hours = (str[1] - '0') * 10 + str[2] - '0';
+
+  if (str[3] != ':') return true;
+
+  if (!(std::isdigit(str[4]) && std::isdigit(str[5]))) return true;
+  int minutes = (str[4] - '0') * 10 + str[5] - '0';
+  if (minutes >= MINS_PER_HOUR) return true;
+  int seconds = hours * SECS_PER_HOUR + minutes * SECS_PER_MIN;
+
+  if (seconds > MAX_TIME_ZONE_HOURS * SECS_PER_HOUR) return true;
+
+  // The SQL standard forbids -00:00.
+  if (sign == -1 && hours == 0 && minutes == 0) return true;
+
+  for (size_t i = 6; i < length; ++i)
+    if (!std::isspace(str[i])) return true;
+
+  *result = seconds * sign;
+  return false;
+}
+
+/**
    Convert a timestamp string to a MYSQL_TIME value.
 
    DESCRIPTION
@@ -279,6 +320,7 @@ bool check_datetime_range(const MYSQL_TIME &my_time) {
       Also dates where all parts are zero are allowed
 
       The second part may have an optional .###### fraction part.
+      The datetime value may be followed by a time zone displacement +/-HH:MM.
 
     NOTES
      This function should work with a format position vector as long as the
@@ -339,15 +381,17 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
   uint start_loop;
   ulong not_zero_date;
   ulong allow_space;
-  bool is_internal_format;
+  bool is_internal_format = false;
   const char *pos;
   const char *last_field_pos = nullptr;
   const char *end = str + length;
   const uchar *format_position;
-  bool found_delimitier = false;
+  bool found_delimiter = false;
   bool found_space = false;
+  bool found_displacement = false;
   uint frac_pos;
   uint frac_len;
+  int displacement = 0;
 
   assert(status->warnings == 0 && status->fractional_digits == 0 &&
          status->nanoseconds == 0);
@@ -487,9 +531,31 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
         */
         i++;
         break;
+      } else if (str[0] == '+' || str[0] == '-') {
+        if (!time_zone_displacement_to_seconds(str, end - str, &displacement)) {
+          found_displacement = true;
+          str += end - str;
+          last_field_pos = str;
+        } else {
+          status->warnings = MYSQL_TIME_WARN_TRUNCATED;
+          l_time->time_type = MYSQL_TIMESTAMP_NONE;
+          return true;
+        }
       }
       continue;
     }
+    if (i == format_position[6] && (str[0] == '+' || str[0] == '-')) {
+      if (!time_zone_displacement_to_seconds(str, end - str, &displacement)) {
+        found_displacement = true;
+        str += end - str;
+        last_field_pos = str;
+      } else {
+        status->warnings = MYSQL_TIME_WARN_TRUNCATED;
+        l_time->time_type = MYSQL_TIMESTAMP_NONE;
+        return true;
+      }
+    }
+
     while (str != end && (ispunct_char(*str) || isspace_char(*str))) {
       if (isspace_char(*str)) {
         if (!(allow_space & (1 << i))) {
@@ -500,7 +566,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
         found_space = true;
       }
       str++;
-      found_delimitier = true; /* Should be a 'normal' date */
+      found_delimiter = true; /* Should be a 'normal' date */
     }
     /* Check if next position is AM/PM */
     if (i == format_position[6]) /* Seconds, time for AM/PM */
@@ -521,7 +587,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
     }
     last_field_pos = str;
   }
-  if (found_delimitier && !found_space && (flags & TIME_DATETIME_ONLY)) {
+  if (found_delimiter && !found_space && (flags & TIME_DATETIME_ONLY)) {
     status->warnings = MYSQL_TIME_WARN_TRUNCATED;
     l_time->time_type = MYSQL_TIMESTAMP_NONE;
     return true; /* Can't be a datetime */
@@ -550,6 +616,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
     l_time->hour = date[static_cast<uint>(format_position[3])];
     l_time->minute = date[static_cast<uint>(format_position[4])];
     l_time->second = date[static_cast<uint>(format_position[5])];
+    l_time->time_zone_displacement = displacement;
 
     frac_pos = static_cast<uint>(format_position[6]);
     frac_len = date_len[frac_pos];
@@ -577,6 +644,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
       date[6] *=
           static_cast<uint>(log_10_int[DATETIME_MAX_DECIMALS - date_len[6]]);
     l_time->second_part = date[6];
+    l_time->time_zone_displacement = displacement;
     status->fractional_digits = date_len[6];
   }
   l_time->neg = false;
@@ -589,7 +657,9 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
     as the latter relies on initialized time_type value.
   */
   l_time->time_type =
-      (number_of_fields <= 3 ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
+      (number_of_fields <= 3 ? MYSQL_TIMESTAMP_DATE
+                             : (found_displacement ? MYSQL_TIMESTAMP_DATETIME_TZ
+                                                   : MYSQL_TIMESTAMP_DATETIME));
 
   if (number_of_fields < 3 || check_datetime_range(*l_time)) {
     /* Only give warning for a zero date if there is some garbage after */
@@ -620,6 +690,18 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
       status->nanoseconds = 100 * (*str++ - '0');
       for (; str != end && isdigit_char(*str); str++) {
       }
+    }
+  }
+
+  if (str[0] == '+' || str[0] == '-') {
+    if (time_zone_displacement_to_seconds(str, end - str, &displacement)) {
+      status->warnings = MYSQL_TIME_WARN_TRUNCATED;
+      l_time->time_type = MYSQL_TIMESTAMP_NONE;
+      return true;
+    } else {
+      l_time->time_type = MYSQL_TIMESTAMP_DATETIME_TZ;
+      l_time->time_zone_displacement = displacement;
+      return false;
     }
   }
 
@@ -827,6 +909,7 @@ fractional:
   l_time->second = date[3];
   l_time->second_part = date[4];
   l_time->time_type = MYSQL_TIMESTAMP_TIME;
+  l_time->time_zone_displacement = 0;
 
   if (check_time_mmssff_range(*l_time)) {
     status->warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
@@ -1314,9 +1397,12 @@ static int TIME_to_datetime_str(const MYSQL_TIME &my_time, char *to) {
 */
 int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
   int len = TIME_to_datetime_str(my_time, to);
-  if (dec)
-    len += my_useconds_to_str(to + len, my_time.second_part, dec);
-  else
+  if (dec) len += my_useconds_to_str(to + len, my_time.second_part, dec);
+  if (my_time.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+    int tzd = my_time.time_zone_displacement;
+    len += sprintf(to + len, "%+02i:%02i", tzd / SECS_PER_HOUR,
+                   std::abs(tzd) / SECS_PER_MIN % MINS_PER_HOUR);
+  } else
     to[len] = '\0';
   return len;
 }
@@ -1335,6 +1421,7 @@ int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
 int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
   switch (my_time.time_type) {
     case MYSQL_TIMESTAMP_DATETIME:
+    case MYSQL_TIMESTAMP_DATETIME_TZ:
       return my_datetime_to_str(my_time, to, dec);
     case MYSQL_TIMESTAMP_DATE:
       return my_date_to_str(my_time, to);
@@ -1863,6 +1950,7 @@ void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp) {
   ltime->hour = static_cast<uint>(hms >> 12);
 
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
+  ltime->time_zone_displacement = 0;
 }
 
 /**
@@ -2032,6 +2120,8 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
   switch (my_time.time_type) {
     case MYSQL_TIMESTAMP_DATE:
       return TIME_to_longlong_date_packed(my_time);
+    case MYSQL_TIMESTAMP_DATETIME_TZ:
+      DBUG_ASSERT(false);  // Should not be this type at this point.
     case MYSQL_TIMESTAMP_DATETIME:
       return TIME_to_longlong_datetime_packed(my_time);
     case MYSQL_TIMESTAMP_TIME:
@@ -2614,7 +2704,7 @@ void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME &my_time) {
 }
 
 /**
-   Convert a timepoint in a posix tm struct to a MSYQL_TIME struct.
+   Converts a timepoint in a posix tm struct to a MYSQL_TIME struct.
 
    @param [out] to store converted timepoint here
    @param from posix tm struct holding a valid timepoint
@@ -2628,6 +2718,7 @@ void localtime_to_TIME(MYSQL_TIME *to, const struct tm *from) {
   to->hour = from->tm_hour;
   to->minute = from->tm_min;
   to->second = from->tm_sec;
+  to->time_zone_displacement = 0;
 }
 
 /**

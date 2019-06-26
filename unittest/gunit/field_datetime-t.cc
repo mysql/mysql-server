@@ -63,7 +63,7 @@ class Mock_field_datetime : public Field_datetime {
 
 class Mock_field_datetimef : public Field_datetimef {
  public:
-  Mock_field_datetimef(uint scale)
+  explicit Mock_field_datetimef(uint scale)
       : Field_datetimef(nullptr,                    // ptr_arg
                         &Field::dummy_null_buffer,  // null_ptr_arg
                         1,                          // null_bit_arg

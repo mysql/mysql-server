@@ -25,6 +25,7 @@
 #include "decimal.h"
 #include "m_ctype.h"
 #include "mysql_time.h"
+#include "mysys_util.h"
 #include "sql/my_decimal.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
@@ -55,8 +56,7 @@ static void BM_Protocol_binary_store_date(size_t num_iterations) {
   SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
 
-  const MYSQL_TIME date = {
-      2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
+  const MysqlTime date(2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
 
   StartBenchmarkTiming();
 
@@ -79,8 +79,8 @@ static void BM_Protocol_binary_store_time(size_t num_iterations) {
   SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
 
-  const MYSQL_TIME time = {
-      0, 0, 0, 123, 59, 59, 670000, false, MYSQL_TIMESTAMP_DATE};
+  const MysqlTime time(0, 0, 0, 123, 59, 59, 670000, false,
+                       MYSQL_TIMESTAMP_DATE);
 
   StartBenchmarkTiming();
 
@@ -103,8 +103,8 @@ static void BM_Protocol_binary_store_datetime(size_t num_iterations) {
   SetupProtocolForBenchmark(protocol);
   String *const packet = protocol->get_output_packet();
 
-  const MYSQL_TIME datetime = {
-      2020, 2, 29, 23, 59, 59, 670000, false, MYSQL_TIMESTAMP_DATE};
+  const MysqlTime datetime(2020, 2, 29, 23, 59, 59, 670000, false,
+                           MYSQL_TIMESTAMP_DATE);
 
   StartBenchmarkTiming();
 

@@ -863,6 +863,7 @@ bool get_mysql_time_from_str(THD *thd, String *str,
           thd, &status.warnings,
           str_to_datetime(str, l_time, flags, &status)) &&
       (l_time->time_type == MYSQL_TIMESTAMP_DATETIME ||
+       l_time->time_type == MYSQL_TIMESTAMP_DATETIME_TZ ||
        l_time->time_type == MYSQL_TIMESTAMP_DATE))
     /*
       Do not return yet, we may still want to throw a "trailing garbage"

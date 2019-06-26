@@ -4814,6 +4814,7 @@ type_conversion_status Field_temporal_with_date::store_time(
   switch (ltime->time_type)  // TS-TODO: split into separate methods?
   {
     case MYSQL_TIMESTAMP_DATETIME:
+    case MYSQL_TIMESTAMP_DATETIME_TZ:
     case MYSQL_TIMESTAMP_DATE:
       if (check_date(*ltime, non_zero_date(*ltime), date_flags(), &warnings)) {
         DBUG_ASSERT(warnings &
@@ -5668,6 +5669,7 @@ bool Field_newdate::get_date_internal(MYSQL_TIME *ltime) const {
   ltime->time_type = MYSQL_TIMESTAMP_DATE;
   ltime->hour = ltime->minute = ltime->second = ltime->second_part =
       ltime->neg = false;
+  ltime->time_zone_displacement = 0;
   return false;
 }
 
@@ -5828,6 +5830,7 @@ bool Field_datetime::get_date_internal(MYSQL_TIME *ltime) const {
   ltime->second_part = 0;
   TIME_set_yymmdd(ltime, (uint)(tmp / 1000000LL));
   TIME_set_hhmmss(ltime, (uint)(tmp % 1000000LL));
+  ltime->time_zone_displacement = 0;
   return false;
 }
 
@@ -5969,7 +5972,15 @@ bool Field_datetimef::get_date_internal(MYSQL_TIME *ltime) const {
 
 type_conversion_status Field_datetimef::store_internal(const MYSQL_TIME *ltime,
                                                        int *) {
-  store_packed(TIME_to_longlong_datetime_packed(*ltime));
+  /*
+    If time zone displacement information is present in "ltime"
+    - adjust the value to UTC based on the time zone
+    - convert to the local time zone
+  */
+  MYSQL_TIME temp_t = *ltime;
+  adjust_time_zone_displacement(current_thd->time_zone(), &temp_t);
+  store_packed(TIME_to_longlong_datetime_packed(temp_t));
+
   return TYPE_OK;
 }
 

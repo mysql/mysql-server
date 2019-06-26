@@ -73,6 +73,9 @@
 #include "sql/sql_udf.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "sql_time.h"  // str_to_datetime
+#include "sql_udf.h"
+#include "tztime.h"  // adjust_time_zone
 
 /**
   @addtogroup GROUP_PARSER
@@ -2000,9 +2003,13 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
       if (!propagate_datetime_overflow(
               thd, &status.warnings,
               str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
-          ltime.time_type == MYSQL_TIMESTAMP_DATETIME && !status.warnings)
-        item = new (thd->mem_root)
-            Item_datetime_literal(&ltime, status.fractional_digits);
+          (ltime.time_type == MYSQL_TIMESTAMP_DATETIME ||
+           ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
+          !status.warnings) {
+        adjust_time_zone_displacement(thd->time_zone(), &ltime);
+        item = new (thd->mem_root) Item_datetime_literal(
+            &ltime, status.fractional_digits, thd->time_zone());
+      }
       break;
     case MYSQL_TYPE_TIME:
       if (!str_to_time(cs, str, length, &ltime, 0, &status) &&

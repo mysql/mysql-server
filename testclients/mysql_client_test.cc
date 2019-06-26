@@ -44,6 +44,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_time.h"  // SECS_PER_HOUR, SECS_PER_MIN
 #include "mysql_client_fw.cc"
 
 #include <list>
@@ -3158,6 +3159,81 @@ static void test_prepare_noparam() {
   rc = my_process_result_set(result);
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
+}
+
+/**
+  C++ wrapper for MYSQL_TIME. We need to zero out the bind structure because
+  mysql_stmt_bind_param() checks all its members.
+*/
+struct MysqlBind : public MYSQL_BIND {
+  MysqlBind()
+      : MYSQL_BIND{nullptr, nullptr,
+                   nullptr, nullptr,
+                   nullptr, nullptr,
+                   nullptr, nullptr,
+                   0,       0,
+                   0,       0,
+                   0,       MYSQL_TYPE_DECIMAL,
+                   false,   false,
+                   false,   false,
+                   nullptr} {}
+};
+
+/**
+  Prepares a statement and executes it with the parameter.
+  @param ps The statement to prepare.
+  @param mt The parameter, passed by-value since we need a non-const pointer to
+  it.
+*/
+static void prepare_and_execute(const char *ps, MYSQL_TIME mt) {
+  MYSQL_STMT *stmt = mysql_simple_prepare(mysql, ps);
+  check_stmt(stmt);
+
+  ulong length = 30;
+  bool is_null = false;
+
+  MysqlBind my_bind;
+  my_bind.buffer_type = MYSQL_TYPE_TIMESTAMP;
+  my_bind.buffer = &mt;
+  my_bind.is_null = &is_null;
+  my_bind.length = &length;
+  my_bind.buffer_length = 30;
+
+  int rc = mysql_stmt_bind_param(stmt, &my_bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  mysql_stmt_close(stmt);
+}
+
+static void test_time_zone() {
+  myheader("test_time_zone");
+
+  myquery(mysql_query(mysql, "SET time_zone = '+00:00';"));
+  myquery(mysql_query(mysql, "CREATE TABLE ttz ( a TIMESTAMP )"));
+  myquery(mysql_query(mysql, "CREATE TABLE tdt ( a DATETIME )"));
+
+  MYSQL_TIME mt{2011,
+                02,
+                03,
+                04,
+                05,
+                06,
+                123456,
+                false,
+                MYSQL_TIMESTAMP_DATETIME_TZ,
+                12 * SECS_PER_HOUR + 34 * SECS_PER_MIN};
+
+  prepare_and_execute("INSERT INTO ttz ( a ) VALUES ( ? )", mt);
+  prepare_and_execute("INSERT INTO tdt ( a ) VALUES ( ? )", mt);
+
+  verify_col_data("ttz", "a", "2011-02-02 15:31:06");
+  verify_col_data("tdt", "a", "2011-02-02 15:31:06");
 }
 
 /* Test simple bind result */
@@ -20533,6 +20609,7 @@ static struct my_tests_st my_tests[] = {
     {"test_set_variable", test_set_variable},
     {"test_select_show", test_select_show},
     {"test_prepare_noparam", test_prepare_noparam},
+    {"test_time_zone", test_time_zone},
     {"test_bind_result", test_bind_result},
     {"test_prepare_simple", test_prepare_simple},
     {"test_prepare", test_prepare},

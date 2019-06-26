@@ -913,8 +913,8 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
           }
           i = new (thd->mem_root) Item_date_literal(&ltime);
         } else {
-          i = new (thd->mem_root)
-              Item_datetime_literal(&ltime, actual_decimals(&ltime));
+          i = new (thd->mem_root) Item_datetime_literal(
+              &ltime, actual_decimals(&ltime), thd->time_zone());
         }
         if (i == nullptr) return true;
         thd->change_item_tree(const_val, i);

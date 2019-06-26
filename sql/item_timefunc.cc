@@ -1637,10 +1637,14 @@ void MYSQL_TIME_cache::set_date(MYSQL_TIME *ltime) {
   string_length = my_TIME_to_str(time, string_buff, decimals());
 }
 
-void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg) {
-  DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATETIME);
+void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg,
+                                    const Time_zone *tz) {
+  DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATETIME ||
+              ltime->time_type == MYSQL_TIMESTAMP_DATETIME_TZ);
   time = *ltime;
+  adjust_time_zone_displacement(tz, &time);
   time_packed = TIME_to_longlong_datetime_packed(time);
+
   dec = dec_arg;
   string_length = my_TIME_to_str(time, string_buff, decimals());
 }
@@ -2594,7 +2598,8 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
   } else  // ADDTIME function
   {
     if (args[0]->get_time(&l_time1) || args[1]->get_time(&l_time2) ||
-        l_time2.time_type == MYSQL_TIMESTAMP_DATETIME)
+        l_time2.time_type == MYSQL_TIMESTAMP_DATETIME ||
+        l_time2.time_type == MYSQL_TIMESTAMP_DATETIME_TZ)
       goto null_date;
     is_time = (l_time1.time_type == MYSQL_TIMESTAMP_TIME);
   }

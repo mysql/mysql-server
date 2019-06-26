@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -44,9 +44,26 @@
 enum enum_mysql_timestamp_type {
   MYSQL_TIMESTAMP_NONE = -2,
   MYSQL_TIMESTAMP_ERROR = -1,
+
+  /// Stores year, month and day components.
   MYSQL_TIMESTAMP_DATE = 0,
+
+  /**
+    Stores all date and time components.
+    Value is in UTC for `TIMESTAMP` type.
+    Value is in local time zone for `DATETIME` type.
+  */
   MYSQL_TIMESTAMP_DATETIME = 1,
-  MYSQL_TIMESTAMP_TIME = 2
+
+  /// Stores hour, minute, second and microsecond.
+  MYSQL_TIMESTAMP_TIME = 2,
+
+  /**
+    A temporary type for `DATETIME` or `TIMESTAMP` types equipped with time
+    zone information. After the time zone information is reconciled, the type is
+    converted to MYSQL_TIMESTAMP_DATETIME.
+  */
+  MYSQL_TIMESTAMP_DATETIME_TZ = 3
 };
 
 /*
@@ -66,6 +83,8 @@ typedef struct MYSQL_TIME {
   unsigned long second_part; /**< microseconds */
   bool neg;
   enum enum_mysql_timestamp_type time_type;
+  /// The time zone displacement, specified in seconds.
+  int time_zone_displacement;
 } MYSQL_TIME;
 
 #endif /* _mysql_time_h_ */

@@ -797,7 +797,8 @@ class MYSQL_TIME_cache {
   /**
     Set time and time_packed from a DATETIME value.
   */
-  void set_datetime(MYSQL_TIME *ltime, uint8 dec_arg);
+  void set_datetime(MYSQL_TIME *ltime, uint8 dec_arg,
+                    const Time_zone *tz = nullptr);
   /**
     Set time and time_packed according to DATE value
     in "struct timeval" representation and its time zone.
@@ -960,12 +961,14 @@ class Item_datetime_literal final : public Item_datetime_func {
  public:
   /**
     Constructor for Item_datetime_literal.
-    @param ltime    DATETIME value.
-    @param dec_arg  number of fractional digits in ltime.
+    @param ltime   DATETIME value.
+    @param dec_arg Number of fractional digits in ltime.
+    @param tz      The current time zone, used for converting literals with
+                   time zone upon storage.
   */
-  Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg) {
+  Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg, const Time_zone *tz) {
     set_data_type_datetime(MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
-    cached_time.set_datetime(ltime, decimals);
+    cached_time.set_datetime(ltime, decimals, tz);
     fixed = true;
   }
   const char *func_name() const override { return "datetime_literal"; }

@@ -544,25 +544,33 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len) {
 
 static void set_param_datetime(Item_param *param, uchar **pos, ulong len) {
   MYSQL_TIME tm;
+  enum_mysql_timestamp_type type = MYSQL_TIMESTAMP_DATETIME;
+  uchar *to = *pos;
 
-  if (len >= 4) {
-    uchar *to = *pos;
-
+  DBUG_ASSERT(len == 0 || len == 4 || len == 7 || len == 11 || len == 13);
+  if (len < 4) {
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
+  } else {
     tm.neg = false;
     tm.year = (uint)sint2korr(to);
     tm.month = (uint)to[2];
     tm.day = (uint)to[3];
-    if (len > 4) {
-      tm.hour = (uint)to[4];
-      tm.minute = (uint)to[5];
-      tm.second = (uint)to[6];
-    } else
-      tm.hour = tm.minute = tm.second = 0;
+  }
+  if (len >= 7) {
+    tm.hour = (uint)to[4];
+    tm.minute = (uint)to[5];
+    tm.second = (uint)to[6];
+  } else  // len == 4
+    tm.hour = tm.minute = tm.second = 0;
 
-    tm.second_part = (len > 7) ? (ulong)sint4korr(to + 7) : 0;
-  } else
-    set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
-  param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
+  tm.second_part =
+      (len >= 11) ? static_cast<std::uint64_t>(sint4korr(to + 7)) : 0;
+
+  if (len >= 13) {
+    tm.time_zone_displacement = sint2korr(to + 11) * SECS_PER_MIN;
+    type = MYSQL_TIMESTAMP_DATETIME_TZ;
+  }
+  param->set_time(&tm, type,
                   MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 

@@ -183,6 +183,9 @@ bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
                                      NullS))
       return true;
   }
+
+  adjust_time_zone_displacement(thd->time_zone(), l_time);
+
   return ret_val;
 }
 
@@ -544,17 +547,21 @@ bool datetime_to_timeval(THD *thd, const MYSQL_TIME *ltime, struct timeval *tm,
 bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
   MYSQL_TIME_STATUS status;
   my_time_flags_t flags = 0;
+  THD *thd = current_thd;
 
   if (current_thd->is_fsp_truncate_mode()) flags = TIME_FRAC_TRUNCATE;
 
   bool ret_val = propagate_datetime_overflow(
       current_thd, &status.warnings, str_to_time(str, l_time, flags, &status));
   if (ret_val || status.warnings) {
-    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+    if (make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                      ErrConvString(str), MYSQL_TIMESTAMP_TIME,
                                      NullS))
       return true;
   }
+
+  adjust_time_zone_displacement(thd->time_zone(), l_time);
+
   return ret_val;
 }
 
@@ -808,7 +815,7 @@ ulonglong gmt_time_to_local_time(ulonglong gmt_time) {
 MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
                        unsigned long ms, bool negative,
                        enum_mysql_timestamp_type type) {
-  return {y, m, d, h, mi, s, ms, negative, type};
+  return {y, m, d, h, mi, s, ms, negative, type, 0};
 }
 
 uint actual_decimals(const MYSQL_TIME *ts) {

@@ -1,7 +1,7 @@
 #ifndef TZFILE_INCLUDED
 #define TZFILE_INCLUDED
 
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,16 +114,6 @@ struct tzhead {
 #ifndef TZ_MAX_REV_RANGES
 #define TZ_MAX_REV_RANGES (TZ_MAX_TIMES + TZ_MAX_LEAPS + 2)
 #endif
-
-#define SECS_PER_MIN 60
-#define MINS_PER_HOUR 60
-#define HOURS_PER_DAY 24
-#define DAYS_PER_WEEK 7
-#define DAYS_PER_NYEAR 365
-#define DAYS_PER_LYEAR 366
-#define SECS_PER_HOUR (SECS_PER_MIN * MINS_PER_HOUR)
-#define SECS_PER_DAY ((long)SECS_PER_HOUR * HOURS_PER_DAY)
-#define MONS_PER_YEAR 12
 
 #define TM_YEAR_BASE 1900
 

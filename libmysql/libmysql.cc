@@ -1152,11 +1152,10 @@ static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
 */
 #define MAX_TIME_REP_LENGTH 13
 
-/*
-  1 (length) + 2 (year) + 1 (month) + 1 (day) +
-  1 (hour) + 1 (minute) + 1 (second) + 4 (microseconds)
-*/
-#define MAX_DATETIME_REP_LENGTH 12
+constexpr int MAX_DATETIME_REP_LENGTH =
+    1 /* length */ + 2 /* year */ + 1 /* month */ + 1 /* day */ + 1 /* hour */ +
+    1 /* minute */ + 1 /* second */ + 4 /* microseconds */ +
+    2 /* time zone displacement (signed) */;
 
 #define MAX_DOUBLE_STRING_REP_LENGTH 331
 
@@ -1788,28 +1787,38 @@ static void store_param_time(NET *net, MYSQL_BIND *param) {
 
 static void net_store_datetime(NET *net, MYSQL_TIME *tm) {
   uchar buff[MAX_DATETIME_REP_LENGTH], *pos;
-  uint length;
+  // The content of the buffer's length byte.
+  uchar length_byte;
 
   pos = buff + 1;
 
-  int2store(pos, tm->year);
-  pos[2] = (uchar)tm->month;
-  pos[3] = (uchar)tm->day;
-  pos[4] = (uchar)tm->hour;
-  pos[5] = (uchar)tm->minute;
-  pos[6] = (uchar)tm->second;
-  int4store(pos + 7, tm->second_part);
-  if (tm->second_part)
-    length = 11;
+  int2store(pos, static_cast<std::uint16_t>(tm->year));
+  pos[2] = static_cast<std::uint8_t>(tm->month);
+  pos[3] = static_cast<std::uint8_t>(tm->day);
+  pos[4] = static_cast<std::uint8_t>(tm->hour);
+  pos[5] = static_cast<std::uint8_t>(tm->minute);
+  pos[6] = static_cast<std::uint8_t>(tm->second);
+  int4store(pos + 7, static_cast<std::uint32_t>(tm->second_part));
+  if (tm->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+    int tzd = tm->time_zone_displacement;
+    DBUG_ASSERT(tzd % SECS_PER_MIN == 0);
+    DBUG_ASSERT(std::abs(tzd) <= MAX_TIME_ZONE_HOURS * SECS_PER_HOUR);
+    int2store(pos + 11, static_cast<std::uint16_t>(tzd / SECS_PER_MIN));
+    length_byte = 13;
+  } else if (tm->second_part)
+    length_byte = 11;
   else if (tm->hour || tm->minute || tm->second)
-    length = 7;
+    length_byte = 7;
   else if (tm->year || tm->month || tm->day)
-    length = 4;
+    length_byte = 4;
   else
-    length = 0;
-  buff[0] = (char)length++;
-  memcpy((char *)net->write_pos, buff, length);
-  net->write_pos += length;
+    length_byte = 0;
+
+  buff[0] = length_byte;
+
+  size_t buffer_length = length_byte + 1;
+  memcpy(net->write_pos, buff, buffer_length);
+  net->write_pos += buffer_length;
 }
 
 static void store_param_date(NET *net, MYSQL_BIND *param) {

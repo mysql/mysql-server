@@ -41,6 +41,7 @@
 #include "sql/tztime.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
+#include "unittest/gunit/mysys_util.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace item_unittest {
@@ -605,9 +606,9 @@ TEST_F(ItemTest, ItemFuncXor) {
 */
 TEST_F(ItemTest, MysqlTimeCache) {
   String str_buff, *str;
-  MYSQL_TIME datetime6 = {
-      2011, 11, 7, 10, 20, 30, 123456, false, MYSQL_TIMESTAMP_DATETIME};
-  MYSQL_TIME time6 = {0, 0, 0, 10, 20, 30, 123456, false, MYSQL_TIMESTAMP_TIME};
+  MysqlTime datetime6(2011, 11, 7, 10, 20, 30, 123456, false,
+                      MYSQL_TIMESTAMP_DATETIME);
+  MysqlTime time6(0, 0, 0, 10, 20, 30, 123456, false, MYSQL_TIMESTAMP_TIME);
   struct timeval tv6 = {1320661230, 123456};
   const MYSQL_TIME *ltime;
   MYSQL_TIME_cache cache;
@@ -687,8 +688,8 @@ TEST_F(ItemTest, MysqlTimeCache) {
   /*
     Testing DATETIME(5)
   */
-  MYSQL_TIME datetime5 = {
-      2011, 11, 7, 10, 20, 30, 123450, false, MYSQL_TIMESTAMP_DATETIME};
+  MysqlTime datetime5(2011, 11, 7, 10, 20, 30, 123450, false,
+                      MYSQL_TIMESTAMP_DATETIME);
   cache.set_datetime(&datetime5, 5);
   EXPECT_EQ(1840440237558456890LL, cache.val_packed());
   EXPECT_EQ(5, cache.decimals());
@@ -705,7 +706,7 @@ TEST_F(ItemTest, MysqlTimeCache) {
     Testing DATE.
     Initializing from MYSQL_TIME.
   */
-  MYSQL_TIME date = {2011, 11, 7, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
+  MysqlTime date(2011, 11, 7, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
   cache.set_date(&date);
   EXPECT_EQ(1840439528385413120LL, cache.val_packed());
   EXPECT_EQ(0, cache.decimals());

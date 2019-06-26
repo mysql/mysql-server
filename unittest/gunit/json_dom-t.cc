@@ -39,6 +39,7 @@
 #include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mysys_util.h"
 #include "unittest/gunit/test_utils.h"
 
 /**
@@ -1555,7 +1556,7 @@ static void BM_JsonDateArrayToString(size_t num_iterations) {
   initializer.SetUp();
 
   Json_array_ptr array = create_dom_ptr<Json_array>();
-  MYSQL_TIME date = {2018, 11, 20, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
+  MysqlTime date(2018, 11, 20, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
   for (size_t i = 0; i < 1000; ++i) {
     array->append_alias(create_dom_ptr<Json_datetime>(date, MYSQL_TYPE_DATE));
   }
