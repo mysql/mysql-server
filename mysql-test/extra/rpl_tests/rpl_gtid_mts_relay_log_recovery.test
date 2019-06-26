@@ -89,11 +89,30 @@ DELETE FROM d1.t1 where a=1;
 DELETE FROM d2.t1 where a=2;
 DELETE FROM d3.t1 where a=3;
 
-# Restart the salve server
+# Restart the slave server
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
 --let $rpl_server_parameters= --skip_slave_start=FALSE --relay_log_info_repository=TABLE --master_info_repository=TABLE --sync_master_info=1 --relay-log-recovery=1
 --source include/rpl_restart_server.inc
+
+# During recovery, slave would have implicitly executed START SLAVE SQL_THREAD
+# UNTIL SQL_AFTER_MTS_GAPS and would have applied all gap transactions left
+# from the previous slave session. Assert that SQL thread is not running.
+if ($auto_position == 0)
+{
+  --let $slave_param= Slave_IO_Running
+  --let $slave_param_value= Yes
+  --let $slave_param_comparison= =
+  --source include/wait_for_slave_param.inc
+
+  --let $slave_param= Slave_SQL_Running
+  --let $slave_param_value= No
+  --let $slave_param_comparison= =
+  --source include/wait_for_slave_param.inc
+
+  # Start slave SQL thread
+  --source include/start_slave_sql.inc
+}
 
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
