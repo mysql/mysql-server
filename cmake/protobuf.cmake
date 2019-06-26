@@ -92,33 +92,45 @@ MACRO(MYSQL_CHECK_PROTOBUF)
   ENDIF()
 
   IF(NOT PROTOBUF_FOUND)
-    MESSAGE(WARNING "Protobuf could not be found")
+    MESSAGE(WARNING "Protobuf libraries/headers could not be found")
   ENDIF()
 
-  IF(PROTOBUF_FOUND)
-    # Verify protobuf version number. Version information looks like:
-    # // The current version, represented as a single integer to make comparison
-    # // easier:  major * 10^6 + minor * 10^3 + micro
-    # #define GOOGLE_PROTOBUF_VERSION 2006000
-    FILE(STRINGS "${PROTOBUF_INCLUDE_DIR}/google/protobuf/stubs/common.h"
-      PROTOBUF_VERSION_NUMBER
-      REGEX "^#define[\t ]+GOOGLE_PROTOBUF_VERSION[\t ][0-9]+.*"
-      )
-    STRING(REGEX REPLACE
-      "^.*GOOGLE_PROTOBUF_VERSION[\t ]([0-9])[0-9][0-9]([0-9])[0-9][0-9].*$"
-      "\\1"
-      PROTOBUF_MAJOR_VERSION "${PROTOBUF_VERSION_NUMBER}")
-    STRING(REGEX REPLACE
-      "^.*GOOGLE_PROTOBUF_VERSION[\t ]([0-9])[0-9][0-9]([0-9])[0-9][0-9].*$"
-      "\\2"
-      PROTOBUF_MINOR_VERSION "${PROTOBUF_VERSION_NUMBER}")
-
-    MESSAGE(STATUS
-      "PROTOBUF_VERSION_NUMBER is ${PROTOBUF_VERSION_NUMBER}")
-
-    IF("${PROTOBUF_MAJOR_VERSION}.${PROTOBUF_MINOR_VERSION}" VERSION_LESS "2.5")
-      COULD_NOT_FIND_PROTOBUF()
-    ENDIF()
-    ECHO_PROTOBUF_VARIABLES()
+  IF(NOT PROTOBUF_PROTOC_EXECUTABLE)
+    MESSAGE(WARNING "The protoc executable could not be found")
   ENDIF()
+
+  IF(NOT PROTOBUF_PROTOC_LIBRARY)
+    MESSAGE(WARNING "The protoc library could not be found")
+  ENDIF()
+
+  IF(NOT PROTOBUF_FOUND OR
+      NOT PROTOBUF_PROTOC_EXECUTABLE OR
+      NOT PROTOBUF_PROTOC_LIBRARY)
+    MESSAGE(FATAL_ERROR "Use bundled protobuf, or install missing packages")
+  ENDIF()
+
+  # Verify protobuf version number. Version information looks like:
+  # // The current version, represented as a single integer to make comparison
+  # // easier:  major * 10^6 + minor * 10^3 + micro
+  # #define GOOGLE_PROTOBUF_VERSION 2006000
+  FILE(STRINGS "${PROTOBUF_INCLUDE_DIR}/google/protobuf/stubs/common.h"
+    PROTOBUF_VERSION_NUMBER
+    REGEX "^#define[\t ]+GOOGLE_PROTOBUF_VERSION[\t ][0-9]+.*"
+    )
+  STRING(REGEX REPLACE
+    "^.*GOOGLE_PROTOBUF_VERSION[\t ]([0-9])[0-9][0-9]([0-9])[0-9][0-9].*$"
+    "\\1"
+    PROTOBUF_MAJOR_VERSION "${PROTOBUF_VERSION_NUMBER}")
+  STRING(REGEX REPLACE
+    "^.*GOOGLE_PROTOBUF_VERSION[\t ]([0-9])[0-9][0-9]([0-9])[0-9][0-9].*$"
+    "\\2"
+    PROTOBUF_MINOR_VERSION "${PROTOBUF_VERSION_NUMBER}")
+
+  MESSAGE(STATUS
+    "PROTOBUF_VERSION_NUMBER is ${PROTOBUF_VERSION_NUMBER}")
+
+  IF("${PROTOBUF_MAJOR_VERSION}.${PROTOBUF_MINOR_VERSION}" VERSION_LESS "2.5")
+    COULD_NOT_FIND_PROTOBUF()
+  ENDIF()
+  ECHO_PROTOBUF_VARIABLES()
 ENDMACRO()

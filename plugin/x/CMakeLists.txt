@@ -21,10 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-IF(NOT PROTOBUF_FOUND)
-  SET(WITH_MYSQLX 0)
-  MESSAGE(WARNING "Disabling mysqlx plugin.")
-ENDIF()
+OPTION(WITH_MYSQLX "Build MySQL X plugin" ON)
 
 SET(MYSQLX_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 SET(MYSQLX_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -53,10 +50,8 @@ INCLUDE(utils.cmake)
 INCLUDE(variables.cmake)
 INCLUDE(configure.cmake)
 
-IF(PROTOBUF_FOUND)
-  ADD_SUBDIRECTORY(protocol)
-  ADD_SUBDIRECTORY(client)
-ENDIF()
+ADD_SUBDIRECTORY(protocol)
+ADD_SUBDIRECTORY(client)
 
 # MYSQL_ADD_PLUGIN may have decided *not* to build mysqlx
 IF(WITH_MYSQLX)
