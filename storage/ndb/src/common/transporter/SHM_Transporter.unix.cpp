@@ -107,7 +107,7 @@ SHM_Transporter::ndb_shm_attach()
             __LINE__,
             shmId,
             errno,
-            strerror(errno));
+            strerror(errno)));
     if (isServer)
       shmctl(shmId, IPC_RMID, 0);
     _shmSegCreated = false;
