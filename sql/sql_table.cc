@@ -210,9 +210,6 @@ static bool generate_check_constraint_name(THD *thd, const char *table_name,
 static bool push_check_constraint_mdl_request_to_list(
     THD *thd, const char *db, const char *cc_name,
     MDL_request_list &cc_mdl_request_list);
-static bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
-                                                 const char *table_name,
-                                                 Alter_info *alter_info);
 static bool prepare_check_constraints_for_create_like_table(
     THD *thd, TABLE_LIST *src_table, TABLE_LIST *table, Alter_info *alter_info);
 static bool prepare_check_constraints_for_alter(THD *thd, const TABLE *table,
@@ -17849,9 +17846,9 @@ static bool push_check_constraint_mdl_request_to_list(
   @retval           false                    Success.
   @retval           true                     Failure.
 */
-static bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
-                                                 const char *table_name,
-                                                 Alter_info *alter_info) {
+bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
+                                          const char *table_name,
+                                          Alter_info *alter_info) {
   DBUG_TRACE;
   MDL_request_list cc_mdl_request_list;
   uint cc_max_generated_number = 0;

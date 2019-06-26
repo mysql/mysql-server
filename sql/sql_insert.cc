@@ -2442,6 +2442,11 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       return NULL;
   }
 
+  // Prepare check constraints.
+  if (prepare_check_constraints_for_create(
+          thd, create_table->db, create_table->table_name, alter_info))
+    return NULL;
+
   DEBUG_SYNC(thd, "create_table_select_before_create");
 
   /*
