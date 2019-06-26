@@ -3261,7 +3261,6 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)),
 #if defined(HAVE_OPENSSL)
 
 static void mysql_ssl_free(MYSQL *mysql) {
-  struct st_VioSSLFd *ssl_fd = (struct st_VioSSLFd *)mysql->connector_fd;
   DBUG_TRACE;
 
   my_free(mysql->options.ssl_key);
@@ -3275,8 +3274,6 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->ssl_crlpath);
     my_free(mysql->options.extension->tls_ciphersuites);
   }
-  if (ssl_fd) SSL_CTX_free(ssl_fd->ssl_context);
-  my_free(mysql->connector_fd);
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
   mysql->options.ssl_ca = 0;
@@ -6831,6 +6828,14 @@ void mysql_close_free(MYSQL *mysql) {
     mysql_extension_free(static_cast<MYSQL_EXTENSION *>(mysql->extension));
 
   my_free(mysql->field_alloc);
+
+#if defined(HAVE_OPENSSL)
+  if (mysql->connector_fd)
+    free_vio_ssl_acceptor_fd(
+        reinterpret_cast<st_VioSSLFd *>(mysql->connector_fd));
+  mysql->connector_fd = nullptr;
+#endif /* HAVE_OPENSSL */
+
   mysql->field_alloc = nullptr;
 
   /* Clear pointers for better safety */
@@ -6933,8 +6938,8 @@ void STDCALL mysql_close(MYSQL *mysql) {
       mysql->reconnect = 0;
       end_server(mysql); /* Sets mysql->net.vio= 0 */
     }
-    mysql_close_free_options(mysql);
     mysql_close_free(mysql);
+    mysql_close_free_options(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
     if (mysql->free_me) {
       my_free(mysql);
