@@ -358,11 +358,6 @@ class Statement_backup {
 
     m_query_string = thd->query();
     thd->set_query(stmt->m_query_string);
-    if (thd->lex->contains_plaintext_password)
-      thd->set_query_for_display("<secret>", 8);
-    else
-      thd->set_query_for_display(stmt->m_query_string.str,
-                                 stmt->m_query_string.length);
 
     DBUG_VOID_RETURN;
   }
@@ -381,7 +376,6 @@ class Statement_backup {
 
     stmt->m_query_string = thd->query();
     thd->set_query(m_query_string);
-    thd->reset_query_for_display();
 
     DBUG_VOID_RETURN;
   }
@@ -2581,9 +2575,12 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
   rewrite_query_if_needed(thd);
 
   if (thd->rewritten_query.length()) {
+    thd->set_query_for_display(thd->rewritten_query.c_ptr_safe(),
+                               thd->rewritten_query.length());
     MYSQL_SET_PS_TEXT(m_prepared_stmt, thd->rewritten_query.c_ptr_safe(),
                       thd->rewritten_query.length());
   } else {
+    thd->set_query_for_display(thd->query().str, thd->query().length);
     MYSQL_SET_PS_TEXT(m_prepared_stmt, thd->query().str, thd->query().length);
   }
 
