@@ -65,6 +65,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   string equal("=");
   string so(".so");
   string dll(".dll");
+  const string compression_method("zlib,zstd,uncompressed");
 
   if (!source_plugin) {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
@@ -110,7 +111,15 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     ssl_start();
     /* initiate connection */
     mysql = mysql_init(NULL);
+    server_extn.m_user_data = nullptr;
+    server_extn.m_before_header = nullptr;
+    server_extn.m_after_header = nullptr;
+    server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
 
+    mysql_extension_set_server_extn(mysql, &server_extn);
+    /* set default compression method */
+    mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  compression_method.c_str());
     enum mysql_ssl_mode ssl_mode = SSL_MODE_REQUIRED;
     mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
     mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
