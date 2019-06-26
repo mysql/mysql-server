@@ -67,8 +67,8 @@ DROP TABLE t1;
 # Test upgrade of the metadata during automatic sync
 
 # Store initial counts of both detected and synchronized objects
---let $current_changes_detected = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $current_changes_synced = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 # Set low interval so changes are detected quickly
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
@@ -78,44 +78,18 @@ SET GLOBAL ndb_metadata_check_interval = 5;
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_basic_backup >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_basic_backup >> $NDB_TOOLS_OUTPUT
 
---let $initial_detected_count = $current_changes_detected
---let $changes_detected = 0
---let $expected_changes_detected = 1
---let $max_wait = 30
 # Wait until the following 1 object change is detected:
 # Table 'test.t1'
-while ($changes_detected < $expected_changes_detected)
-{
-  --sleep 1
-  --dec $max_wait
-  if ($max_wait == 0)
-  {
-    --echo $changes_detected changes detected when $expected_changes_detected changes were expected
-    --die Timed out waiting for metadata changes to be detected
-  }
-  --let $current_changes_detected = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
-  --expr $changes_detected = $current_changes_detected - $initial_detected_count
-}
+--let $expected_changes = 1
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
 
 # Changes have been detected, reset value
 SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 
 # Wait until the changes detected have been synced
---let $initial_synced_count = $current_changes_synced
---let $changes_synced = 0
 --let $max_wait = 30
-while ($changes_synced < $expected_changes_detected)
-{
-  --sleep 1
-  --dec $max_wait
-  if ($max_wait == 0)
-  {
-    --echo $changes_synced changes synced when $expected_changes_detected changes synced were expected
-    --die Timed out waiting for metadata changes to be synced
-  }
-  --let $current_changes_synced = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
-  --expr $changes_synced = $current_changes_synced - $initial_synced_count
-}
+--source wait_metadata_synced.inc
 
 --sorted_result
 SELECT * FROM t1;

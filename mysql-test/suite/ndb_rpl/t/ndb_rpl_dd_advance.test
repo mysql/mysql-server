@@ -292,18 +292,14 @@ connection slave;
 CREATE DATABASE tpcb;
 
 # Store initial counts of both detected and synchronized objects
---let $current_changes_detected = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $current_changes_synced = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 # Set low interval so changes are detected quickly
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
 SET GLOBAL ndb_metadata_check_interval = 5;
 
 --source include/ndb_restore_slave_eoption.inc
 
---let $initial_detected_count = $current_changes_detected
---let $changes_detected = 0
---let $expected_changes_detected = 7
---let $max_wait = 30
 # Wait until the following 7 object changes are detected:
 # Logfile group 'lg1'
 # Tablespace 'ts1'
@@ -312,38 +308,16 @@ SET GLOBAL ndb_metadata_check_interval = 5;
 # Table 'tpcb.history'
 # Table 'tpcb.teller'
 # Table 'tpcb.branch'
-while ($changes_detected < $expected_changes_detected)
-{
-  --sleep 1
-  --dec $max_wait
-  if ($max_wait == 0)
-  {
-    --echo $changes_detected changes detected when $expected_changes_detected changes were expected
-    --die Timed out waiting for metadata changes to be detected
-  }
-  --let $current_changes_detected = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
-  --expr $changes_detected = $current_changes_detected - $initial_detected_count
-}
+--let $expected_changes = 7
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
 
 # Changes have been detected, reset value
 SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 
 # Wait until the changes detected have been synced
---let $initial_synced_count = $current_changes_synced
---let $changes_synced = 0
 --let $max_wait = 30
-while ($changes_synced < $expected_changes_detected)
-{
-  --sleep 1
-  --dec $max_wait
-  if ($max_wait == 0)
-  {
-    --echo $changes_synced changes synced when $expected_changes_detected changes synced were expected
-    --die Timed out waiting for metadata changes to be synced
-  }
-  --let $current_changes_synced = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
-  --expr $changes_synced = $current_changes_synced - $initial_synced_count
-}
+--source wait_metadata_synced.inc
 
 --echo ***** Check a few slave restore values ***************
 connection slave;
