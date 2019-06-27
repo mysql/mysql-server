@@ -591,7 +591,7 @@ makeExternalTableName(const BaseString &internalName)
 }
 
 // Exclude the legacy list of six privilege tables from Cluster 7.x
-#include "sql/ndb_dist_priv_util.h"
+#include "storage/ndb/plugin/ndb_dist_priv_util.h"
 void
 exclude_privilege_tables()
 {

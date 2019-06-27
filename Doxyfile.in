@@ -959,6 +959,7 @@ EXCLUDE                = cmd-line-utils \
                          storage/ndb/memcache \
                          storage/ndb/ndbapi-examples \
                          storage/ndb/nodejs \
+                         storage/ndb/plugin \
                          storage/ndb/src \
                          storage/ndb/test \
                          storage/ndb/tools \
@@ -983,8 +984,6 @@ EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */include/boost*/* \
                          */include/mysql/psi/psi_abi*.h \
                          */router/src/*/tests/* \
-                         */sql/*ndb*.h \
-                         */sql/*ndb*.cc \
                          */unittest/* \
                          */build-*/*
 
