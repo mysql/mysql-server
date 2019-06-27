@@ -41,10 +41,10 @@
 static const int MAX_TRANSACTIONS = 4;
 
 Thd_ndb *Thd_ndb::seize(THD *thd) {
-  DBUG_ENTER("seize_thd_ndb");
+  DBUG_TRACE;
 
   Thd_ndb *thd_ndb = new Thd_ndb(thd);
-  if (thd_ndb == NULL) DBUG_RETURN(NULL);
+  if (thd_ndb == NULL) return NULL;
 
   if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0) {
     DBUG_PRINT("error", ("Ndb::init failed, error: %d  message: %s",
@@ -56,17 +56,16 @@ Thd_ndb *Thd_ndb::seize(THD *thd) {
   } else {
     thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
   }
-  DBUG_RETURN(thd_ndb);
+  return thd_ndb;
 }
 
 void Thd_ndb::release(Thd_ndb *thd_ndb) {
-  DBUG_ENTER("release_thd_ndb");
+  DBUG_TRACE;
   delete thd_ndb;
-  DBUG_VOID_RETURN;
 }
 
 bool Thd_ndb::recycle_ndb(void) {
-  DBUG_ENTER("recycle_ndb");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
 
   DBUG_ASSERT(global_schema_lock_trans == NULL);
@@ -75,7 +74,7 @@ bool Thd_ndb::recycle_ndb(void) {
   delete ndb;
   if ((ndb = new Ndb(connection, "")) == NULL) {
     DBUG_PRINT("error", ("failed to allocate Ndb object"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (ndb->init(MAX_TRANSACTIONS) != 0) {
@@ -83,7 +82,7 @@ bool Thd_ndb::recycle_ndb(void) {
     ndb = NULL;
     DBUG_PRINT("error", ("Ndb::init failed, %d  message: %s",
                          ndb->getNdbError().code, ndb->getNdbError().message));
-    DBUG_RETURN(false);
+    return false;
   } else {
     ndb->setCustomData64(thd_get_thread_id(m_thd));
   }
@@ -94,7 +93,7 @@ bool Thd_ndb::recycle_ndb(void) {
   /* Update m_connect_count to avoid false failures of ::valid_ndb() */
   m_connect_count = connection->get_connect_count();
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Thd_ndb::valid_ndb(void) const {

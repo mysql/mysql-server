@@ -294,7 +294,7 @@ static int ndbcluster_global_schema_lock(THD *thd,
     ndb_set_gsl_participant(thd);
     return 0;
   }
-  DBUG_ENTER("ndbcluster_global_schema_lock");
+  DBUG_TRACE;
 
   if (thd_ndb->global_schema_lock_count) {
     // Remember that GSL was locked for tablespace
@@ -307,7 +307,7 @@ static int ndbcluster_global_schema_lock(THD *thd,
     thd_ndb->global_schema_lock_count++;
     DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                         thd_ndb->global_schema_lock_count));
-    DBUG_RETURN(0);
+    return 0;
   }
   DBUG_ASSERT(thd_ndb->global_schema_lock_count == 0);
   thd_ndb->global_schema_lock_count = 1;
@@ -340,7 +340,7 @@ static int ndbcluster_global_schema_lock(THD *thd,
     // Sync point used when testing global schema lock concurrency
     DEBUG_SYNC(thd, "ndb_global_schema_lock_acquired");
 
-    DBUG_RETURN(0);
+    return 0;
   }
   // Else, didn't get GSL: Deadlock or failure from NDB
 
@@ -369,7 +369,7 @@ static int ndbcluster_global_schema_lock(THD *thd,
     }
   }
   thd_ndb->global_schema_lock_error = ndb_error.code ? ndb_error.code : -1;
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 static int ndbcluster_global_schema_unlock(THD *thd, bool is_tablespace) {
@@ -398,7 +398,7 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool is_tablespace) {
   }
 
   Ndb *ndb = thd_ndb->ndb;
-  DBUG_ENTER("ndbcluster_global_schema_unlock");
+  DBUG_TRACE;
   NdbTransaction *trans = thd_ndb->global_schema_lock_trans;
   // Don't allow decrementing from zero
   DBUG_ASSERT(thd_ndb->global_schema_lock_count > 0);
@@ -407,11 +407,11 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool is_tablespace) {
                       thd_ndb->global_schema_lock_count));
   DBUG_ASSERT(ndb != NULL);
   if (ndb == NULL) {
-    DBUG_RETURN(0);
+    return 0;
   }
   DBUG_ASSERT(trans != NULL || thd_ndb->global_schema_lock_error != 0);
   if (thd_ndb->global_schema_lock_count != 0) {
-    DBUG_RETURN(0);
+    return 0;
   }
   thd_ndb->global_schema_lock_error = 0;
 
@@ -427,34 +427,34 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool is_tablespace) {
                       ndb_error.code, ndb_error.message);
       thd_ndb->push_ndb_error_warning(ndb_error);
       thd_ndb->push_warning("Failed to release global schema lock");
-      DBUG_RETURN(-1);
+      return -1;
     }
 
     ndb_log_verbose(19, "Global schema lock release");
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool ndb_gsl_lock(THD *thd, bool lock, bool is_tablespace, bool *victimized) {
-  DBUG_ENTER("ndb_gsl_lock");
+  DBUG_TRACE;
 
   if (lock) {
     if (ndbcluster_global_schema_lock(thd, true, is_tablespace, victimized) !=
         0) {
       DBUG_PRINT("error", ("Failed to lock global schema lock"));
-      DBUG_RETURN(true);  // Error
+      return true;  // Error
     }
 
-    DBUG_RETURN(false);  // OK
+    return false;  // OK
   }
 
   *victimized = false;
   if (ndbcluster_global_schema_unlock(thd, is_tablespace) != 0) {
     DBUG_PRINT("error", ("Failed to unlock global schema lock"));
-    DBUG_RETURN(true);  // Error
+    return true;  // Error
   }
 
-  DBUG_RETURN(false);  // OK
+  return false;  // OK
 }
 
 bool Thd_ndb::has_required_global_schema_lock(const char *func) const {

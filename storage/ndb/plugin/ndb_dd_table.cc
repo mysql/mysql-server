@@ -41,53 +41,50 @@ static const char *object_version_key = "object_version";
 
 void ndb_dd_table_set_object_id_and_version(dd::Table *table_def, int object_id,
                                             int object_version) {
-  DBUG_ENTER("ndb_dd_table_set_object_id_and_version");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("object_id: %d, object_version: %d", object_id, object_version));
 
   table_def->set_se_private_id(object_id);
   table_def->se_private_data().set(object_version_key, object_version);
-  DBUG_VOID_RETURN;
 }
 
 bool ndb_dd_table_get_object_id_and_version(const dd::Table *table_def,
                                             int &object_id,
                                             int &object_version) {
-  DBUG_ENTER("ndb_dd_table_get_object_id_and_version");
+  DBUG_TRACE;
 
   if (table_def->se_private_id() == dd::INVALID_OBJECT_ID) {
     DBUG_PRINT("error", ("Table definition contained an invalid object id"));
-    DBUG_RETURN(false);
+    return false;
   }
   object_id = table_def->se_private_id();
 
   if (!table_def->se_private_data().exists(object_version_key)) {
     DBUG_PRINT("error", ("Table definition didn't contain property '%s'",
                          object_version_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (table_def->se_private_data().get(object_version_key, &object_version)) {
     DBUG_PRINT("error", ("Table definition didn't have a valid number for '%s'",
                          object_version_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   DBUG_PRINT("exit",
              ("object_id: %d, object_version: %d", object_id, object_version));
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 void ndb_dd_table_mark_as_hidden(dd::Table *table_def) {
-  DBUG_ENTER("ndb_dd_table_mark_as_hidden");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s", table_def->name().c_str()));
 
   // Mark it as hidden by SE. I.e "Table which is implicitly
   // created and dropped by SE"
   table_def->set_hidden(dd::Abstract_table::HT_HIDDEN_SE);
-
-  DBUG_VOID_RETURN;
 }
 
 dd::String_type ndb_dd_table_get_engine(const dd::Table *table_def) {
@@ -119,7 +116,7 @@ bool ndb_dd_table_check_partition_count(const dd::Table *table_def,
 
 void ndb_dd_table_fix_partition_count(dd::Table *table_def,
                                       size_t ndb_num_partitions) {
-  DBUG_ENTER("ndb_dd_table_fix_partition_count");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("ndb_num_partitions: %zu", ndb_num_partitions));
 
   const size_t dd_num_partitions = table_def->partitions()->size();
@@ -163,7 +160,6 @@ void ndb_dd_table_fix_partition_count(dd::Table *table_def,
   }
 
   DBUG_ASSERT(ndb_num_partitions == table_def->partitions()->size());
-  DBUG_VOID_RETURN;
 }
 
 // The key used to store the NDB table's previous mysql version in the
@@ -172,39 +168,37 @@ static const char *previous_mysql_version_key = "previous_mysql_version";
 
 void ndb_dd_table_set_previous_mysql_version(dd::Table *table_def,
                                              ulong previous_mysql_version) {
-  DBUG_ENTER("ndb_dd_table_set_previous_mysql_version");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("previous_mysql_version: %lu", previous_mysql_version));
 
   table_def->se_private_data().set(previous_mysql_version_key,
                                    previous_mysql_version);
-  DBUG_VOID_RETURN;
 }
 
 bool ndb_dd_table_get_previous_mysql_version(const dd::Table *table_def,
                                              ulong &previous_mysql_version) {
-  DBUG_ENTER("ndb_dd_table_get_previous_mysql_version");
+  DBUG_TRACE;
 
   if (!table_def->se_private_data().exists(previous_mysql_version_key)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (table_def->se_private_data().get(previous_mysql_version_key,
                                        &previous_mysql_version)) {
     DBUG_PRINT("error", ("Table definition didn't have a valid number for '%s'",
                          previous_mysql_version_key));
-    DBUG_RETURN(false);
+    return false;
   }
   DBUG_PRINT("exit", ("previous_mysql_version: %lu", previous_mysql_version));
-  DBUG_RETURN(true);
+  return true;
 }
 
 void ndb_dd_table_set_tablespace_id(dd::Table *table_def,
                                     dd::Object_id tablespace_id) {
-  DBUG_ENTER("ndb_dd_table_set_tablespace_id");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("tablespace_id: %llu", tablespace_id));
 
   table_def->set_tablespace_id(tablespace_id);
-  DBUG_VOID_RETURN;
 }
 
 Ndb_dd_table::Ndb_dd_table(THD *thd)

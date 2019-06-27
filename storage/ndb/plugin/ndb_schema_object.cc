@@ -148,7 +148,7 @@ NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
                                           const char *table_name, uint32 id,
                                           uint32 version, bool create) {
-  DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("db: '%s', table_name: '%s', id: %u, version: %u", db,
                        table_name, id, version));
 
@@ -168,28 +168,28 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
     ndbcluster::ndbrequire(!create);
 
     (void)ndb_schema_object->increment_use_count();
-    DBUG_RETURN(ndb_schema_object);
+    return ndb_schema_object;
   }
 
   if (!create) {
     DBUG_PRINT("info", ("does not exist"));
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   ndb_schema_object = new (std::nothrow)
       NDB_SCHEMA_OBJECT(key.c_str(), db, table_name, id, version);
   if (!ndb_schema_object) {
     DBUG_PRINT("info", ("failed to allocate"));
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   // Add to list of NDB_SCHEMA_OBJECTs
   active_schema_clients.m_hash.emplace(key, ndb_schema_object);
-  DBUG_RETURN(ndb_schema_object);
+  return ndb_schema_object;
 }
 
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(uint32 nodeid, uint32 schema_op_id) {
-  DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("nodeid: %d, schema_op_id: %u", nodeid, schema_op_id));
 
   std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
@@ -198,15 +198,15 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(uint32 nodeid, uint32 schema_op_id) {
       active_schema_clients.find(nodeid, schema_op_id);
   if (ndb_schema_object) {
     (void)ndb_schema_object->increment_use_count();
-    DBUG_RETURN(ndb_schema_object);
+    return ndb_schema_object;
   }
 
   DBUG_PRINT("info", ("No NDB_SCHEMA_OBJECT found"));
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(NDB_SCHEMA_OBJECT *schema_object) {
-  DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("schema_object: %p", schema_object));
 
   ndbcluster::ndbrequire(schema_object);
@@ -215,11 +215,11 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(NDB_SCHEMA_OBJECT *schema_object) {
   // Should already have been used before calling this function
   ndbcluster::ndbrequire(use_count > 1);
 
-  DBUG_RETURN(schema_object);
+  return schema_object;
 }
 
 void NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object) {
-  DBUG_ENTER("NDB_SCHEMA_OBJECT::release");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("key: '%s'", ndb_schema_object->m_key.c_str()));
 
   const uint use_count = ndb_schema_object->decremement_use_count();
@@ -229,14 +229,13 @@ void NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object) {
       // Only one user left, must be the Client, signal it to wakeup
       ndb_schema_object->state.m_cond.notify_one();
     }
-    DBUG_VOID_RETURN;
+    return;
   }
 
   // Last user, remove from list of NDB_SCHEMA_OBJECTS and delete instance
   std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
   active_schema_clients.m_hash.erase(ndb_schema_object->m_key);
   delete ndb_schema_object;
-  DBUG_VOID_RETURN;
 }
 
 size_t NDB_SCHEMA_OBJECT::count_active_schema_ops() {

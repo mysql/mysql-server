@@ -140,39 +140,39 @@ Ndb_rep_tab_reader::Ndb_rep_tab_reader()
 
 int Ndb_rep_tab_reader::check_schema(const NdbDictionary::Table *reptab,
                                      const char **error_str) {
-  DBUG_ENTER("check_schema");
+  DBUG_TRACE;
   *error_str = NULL;
 
   const NdbDictionary::Column *col_db, *col_table_name, *col_server_id,
       *col_binlog_type, *col_conflict_fn;
   if (reptab->getNoOfPrimaryKeys() != 3) {
     *error_str = "Wrong number of primary key parts, expected 3";
-    DBUG_RETURN(-2);
+    return -2;
   }
   col_db = reptab->getColumn(*error_str = nrt_db);
   if (col_db == NULL || !col_db->getPrimaryKey() ||
       col_db->getType() != NdbDictionary::Column::Varbinary)
-    DBUG_RETURN(-1);
+    return -1;
   col_table_name = reptab->getColumn(*error_str = nrt_table_name);
   if (col_table_name == NULL || !col_table_name->getPrimaryKey() ||
       col_table_name->getType() != NdbDictionary::Column::Varbinary)
-    DBUG_RETURN(-1);
+    return -1;
   col_server_id = reptab->getColumn(*error_str = nrt_server_id);
   if (col_server_id == NULL || !col_server_id->getPrimaryKey() ||
       col_server_id->getType() != NdbDictionary::Column::Unsigned)
-    DBUG_RETURN(-1);
+    return -1;
   col_binlog_type = reptab->getColumn(*error_str = nrt_binlog_type);
   if (col_binlog_type == NULL || col_binlog_type->getPrimaryKey() ||
       col_binlog_type->getType() != NdbDictionary::Column::Unsigned)
-    DBUG_RETURN(-1);
+    return -1;
   col_conflict_fn = reptab->getColumn(*error_str = nrt_conflict_fn);
   if (col_conflict_fn != NULL) {
     if ((col_conflict_fn->getPrimaryKey()) ||
         (col_conflict_fn->getType() != NdbDictionary::Column::Varbinary))
-      DBUG_RETURN(-1);
+      return -1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Ndb_rep_tab_reader::scan_candidates(Ndb *ndb,
@@ -335,7 +335,7 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
                                /* Keys */
                                const char *db, const char *table_name,
                                uint server_id) {
-  DBUG_ENTER("lookup");
+  DBUG_TRACE;
   int error = 0;
   NdbError ndberror;
   const char *error_str = "<none>";
@@ -356,7 +356,7 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
           dict->getNdbError().code == 4009) {
         DBUG_PRINT("info",
                    ("No %s.%s table", ndb_rep_db, ndb_replication_table));
-        DBUG_RETURN(0);
+        return 0;
       } else {
         error = 0;
         ndberror = dict->getNdbError();
@@ -447,7 +447,7 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
       ("Rc : %d Retrieved Binlog flags : %u and function spec : %s", error,
        binlog_flags, (conflict_fn_spec != NULL ? conflict_fn_spec : "NULL")));
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 Uint32 Ndb_rep_tab_reader::get_binlog_flags() const { return binlog_flags; }

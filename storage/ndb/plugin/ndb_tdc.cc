@@ -33,14 +33,14 @@
 */
 
 bool ndb_tdc_close_cached_tables(void) {
-  DBUG_ENTER("ndb_tdc_close_cached_tables");
+  DBUG_TRACE;
 
   const int res = close_cached_tables(NULL,   // No need for thd pointer
                                       NULL,   // Close all tables
                                       false,  // Don't wait
                                       0       // Timeout unused when not waiting
   );
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*
@@ -54,7 +54,7 @@ bool ndb_tdc_close_cached_tables(void) {
 
 bool ndb_tdc_close_cached_table(THD *thd, const char *dbname,
                                 const char *tabname) {
-  DBUG_ENTER("ndb_tdc_close_cached_table");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("dbname: %s, tabname: %s", dbname, tabname));
 
   // NOTE! initializes only the minimal part of TABLE_LIST
@@ -67,5 +67,5 @@ bool ndb_tdc_close_cached_table(THD *thd, const char *dbname,
                                       false,  // Don't wait
                                       0       // Timeout unused when not waiting
   );
-  DBUG_RETURN(res);
+  return res;
 }

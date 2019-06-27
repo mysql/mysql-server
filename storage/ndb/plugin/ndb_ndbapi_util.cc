@@ -94,7 +94,7 @@ void ndb_unpack_varchar(const NdbDictionary::Column *col, size_t offset,
 }
 
 Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab) {
-  DBUG_ENTER("ndb_get_extra_metadata_version");
+  DBUG_TRACE;
 
   Uint32 version;
   void *unpacked_data;
@@ -103,12 +103,12 @@ Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab) {
       ndbtab->getExtraMetadata(version, &unpacked_data, &unpacked_length);
   if (get_result != 0) {
     // Could not get extra metadata, return 0
-    DBUG_RETURN(0);
+    return 0;
   }
 
   free(unpacked_data);
 
-  DBUG_RETURN(version);
+  return version;
 }
 
 bool ndb_table_get_serialized_metadata(const NdbDictionary::Table *ndbtab,
@@ -317,12 +317,12 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
 bool ndb_get_database_names_in_dictionary(
     NdbDictionary::Dictionary *dict,
     std::unordered_set<std::string> &database_names) {
-  DBUG_ENTER("ndb_get_database_names_in_dictionary");
+  DBUG_TRACE;
 
   /* Get all the list of tables from NDB and read the database names */
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
-    DBUG_RETURN(false);
+    return false;
 
   for (uint i = 0; i < list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
@@ -339,7 +339,7 @@ bool ndb_get_database_names_in_dictionary(
 
     database_names.insert(elmt.database);
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool ndb_logfile_group_exists(NdbDictionary::Dictionary *dict,

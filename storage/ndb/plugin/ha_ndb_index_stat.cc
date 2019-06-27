@@ -245,7 +245,7 @@ static Ndb_index_stat_opt ndb_index_stat_opt(ndb_index_stat_option_buf);
 
 /* Copy option struct to string buffer */
 static void ndb_index_stat_opt2str(const Ndb_index_stat_opt &opt, char *str) {
-  DBUG_ENTER("ndb_index_stat_opt2str");
+  DBUG_TRACE;
 
   char buf[ndb_index_stat_option_sz];
   char *const end = &buf[sizeof(buf)];
@@ -312,18 +312,17 @@ static void ndb_index_stat_opt2str(const Ndb_index_stat_opt &opt, char *str) {
   memset(str, 0, ndb_index_stat_option_sz);
   strcpy(str, buf);
   DBUG_PRINT("index_stat", ("str: \"%s\"", str));
-  DBUG_VOID_RETURN;
 }
 
 static int ndb_index_stat_option_parse(char *p, Ndb_index_stat_opt &opt) {
-  DBUG_ENTER("ndb_index_stat_option_parse");
+  DBUG_TRACE;
 
   char *r = strchr(p, '=');
-  if (r == 0) DBUG_RETURN(-1);
+  if (r == 0) return -1;
   *r++ = 0;
 
   while (isspace(*r)) *r++ = 0;
-  if (*r == 0) DBUG_RETURN(-1);
+  if (*r == 0) return -1;
 
   bool found = false;
   const uint imax = Ndb_index_stat_opt::Imax;
@@ -345,12 +344,12 @@ static int ndb_index_stat_option_parse(char *p, Ndb_index_stat_opt &opt) {
                  strcmp(r, "true") == 0)
           val = 1;
         else
-          DBUG_RETURN(-1);
+          return -1;
         v.val = (uint)val;
       } break;
 
       case Ndb_index_stat_opt::Usize: {
-        if (s == r) DBUG_RETURN(-1);
+        if (s == r) return -1;
         if (strcmp(s, "") == 0)
           ;
         else if (strcmp(s, "k") == 0)
@@ -360,13 +359,13 @@ static int ndb_index_stat_option_parse(char *p, Ndb_index_stat_opt &opt) {
         else if (strcmp(s, "g") == 0)
           val *= 1024 * 1024 * 1024;
         else
-          DBUG_RETURN(-1);
-        if (val < v.minval || val > v.maxval) DBUG_RETURN(-1);
+          return -1;
+        if (val < v.minval || val > v.maxval) return -1;
         v.val = (uint)val;
       } break;
 
       case Ndb_index_stat_opt::Utime: {
-        if (s == r) DBUG_RETURN(-1);
+        if (s == r) return -1;
         if (strcmp(s, "") == 0)
           ;
         else if (strcmp(s, "s") == 0)
@@ -378,20 +377,20 @@ static int ndb_index_stat_option_parse(char *p, Ndb_index_stat_opt &opt) {
         else if (strcmp(s, "d") == 0)
           val *= 24 * 60 * 60;
         else
-          DBUG_RETURN(-1);
-        if (val < v.minval || val > v.maxval) DBUG_RETURN(-1);
+          return -1;
+        if (val < v.minval || val > v.maxval) return -1;
         v.val = (uint)val;
       } break;
 
       case Ndb_index_stat_opt::Umsec: {
-        if (s == r) DBUG_RETURN(-1);
+        if (s == r) return -1;
         if (strcmp(s, "") == 0)
           ;
         else if (strcmp(s, "ms") == 0)
           ;
         else
-          DBUG_RETURN(-1);
-        if (val < v.minval || val > v.maxval) DBUG_RETURN(-1);
+          return -1;
+        if (val < v.minval || val > v.maxval) return -1;
         v.val = (uint)val;
       } break;
 
@@ -401,19 +400,19 @@ static int ndb_index_stat_option_parse(char *p, Ndb_index_stat_opt &opt) {
     }
   }
 
-  if (!found) DBUG_RETURN(-1);
-  DBUG_RETURN(0);
+  if (!found) return -1;
+  return 0;
 }
 
 /* Copy option string to option struct */
 static int ndb_index_stat_str2opt(const char *str, Ndb_index_stat_opt &opt) {
-  DBUG_ENTER("ndb_index_stat_str2opt");
+  DBUG_TRACE;
   DBUG_PRINT("index_stat", ("str: \"%s\"", str));
 
   char buf[ndb_index_stat_option_sz];
 
   assert(str != 0);
-  if (strlen(str) >= sizeof(buf)) DBUG_RETURN(-1);
+  if (strlen(str) >= sizeof(buf)) return -1;
   strcpy(buf, str);
 
   char *p = buf;
@@ -422,18 +421,18 @@ static int ndb_index_stat_str2opt(const char *str, Ndb_index_stat_opt &opt) {
     if (*p == 0) break;
 
     char *q = strchr(p, ',');
-    if (q == p) DBUG_RETURN(-1);
+    if (q == p) return -1;
     if (q != 0) *q = 0;
 
     DBUG_PRINT("index_stat", ("parse: %s", p));
-    if (ndb_index_stat_option_parse(p, opt) == -1) DBUG_RETURN(-1);
+    if (ndb_index_stat_option_parse(p, opt) == -1) return -1;
 
     if (q == 0) break;
     p = q + 1;
   }
 
   ndb_index_stat_opt2str(opt, opt.option);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Thanks to ha_innodb.cc */
@@ -443,7 +442,7 @@ static char ndb_index_stat_option_tmp[ndb_index_stat_option_sz];
 
 int ndb_index_stat_option_check(THD *, SYS_VAR *, void *save,
                                 struct st_mysql_value *value) {
-  DBUG_ENTER("ndb_index_stat_option_check");
+  DBUG_TRACE;
   char buf[ndb_index_stat_option_sz];
   int len = sizeof(buf);
   const char *str = value->val_str(value, buf, &len);
@@ -456,22 +455,21 @@ int ndb_index_stat_option_check(THD *, SYS_VAR *, void *save,
       /* Passed to update */
       strcpy(ndb_index_stat_option_tmp, str);
       *(const char **)save = ndb_index_stat_option_tmp;
-      DBUG_RETURN(0);
+      return 0;
     }
   }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 void ndb_index_stat_option_update(THD *, SYS_VAR *, void *var_ptr,
                                   const void *save) {
-  DBUG_ENTER("ndb_index_stat_option_update");
+  DBUG_TRACE;
   const char *str = *static_cast<const char *const *>(save);
   DBUG_PRINT("index_stat", ("str: %s", str));
   Ndb_index_stat_opt &opt = ndb_index_stat_opt;
   int ret = ndb_index_stat_str2opt(str, opt);
   ndbcluster::ndbrequire(ret == 0);
   *(const char **)var_ptr = ndb_index_stat_opt.option;
-  DBUG_VOID_RETURN;
 }
 
 /* Global stuff */
@@ -983,7 +981,7 @@ static Ndb_index_stat *ndb_index_stat_get_share(NDB_SHARE *share,
 
 /* caller must hold stat_mutex */
 static void ndb_index_stat_free(Ndb_index_stat *st) {
-  DBUG_ENTER("ndb_index_stat_free");
+  DBUG_TRACE;
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   NDB_SHARE *share = st->share;
   assert(share != 0);
@@ -1018,12 +1016,11 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
   share->index_stat_list = st_head;
 
   glob.set_status();
-  DBUG_VOID_RETURN;
 }
 
 /* Interface to online drop index */
 void ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version) {
-  DBUG_ENTER("ndb_index_stat_free");
+  DBUG_TRACE;
   DBUG_PRINT("index_stat",
              ("(index_id:%d index_version:%d", index_id, index_version));
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
@@ -1046,11 +1043,10 @@ void ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version) {
 
   glob.set_status();
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  DBUG_VOID_RETURN;
 }
 
 void ndb_index_stat_free(NDB_SHARE *share) {
-  DBUG_ENTER("ndb_index_stat_free");
+  DBUG_TRACE;
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
@@ -1073,14 +1069,13 @@ void ndb_index_stat_free(NDB_SHARE *share) {
 
   glob.set_status();
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  DBUG_VOID_RETURN;
 }
 
 /* Find entry across shares */
 /* wl4124_todo mutex overkill, hash table, can we find table share */
 static Ndb_index_stat *ndb_index_stat_find_entry(int index_id,
                                                  int index_version) {
-  DBUG_ENTER("ndb_index_stat_find_entry");
+  DBUG_TRACE;
   mysql_mutex_lock(&ndbcluster_mutex);
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   DBUG_PRINT("index_stat",
@@ -1093,7 +1088,7 @@ static Ndb_index_stat *ndb_index_stat_find_entry(int index_id,
       if (st->index_id == index_id && st->index_version == index_version) {
         mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
         mysql_mutex_unlock(&ndbcluster_mutex);
-        DBUG_RETURN(st);
+        return st;
       }
       st = st->list_next;
     }
@@ -1101,7 +1096,7 @@ static Ndb_index_stat *ndb_index_stat_find_entry(int index_id,
 
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   mysql_mutex_unlock(&ndbcluster_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Statistics thread sub-routines */
@@ -1913,7 +1908,7 @@ static void ndb_index_stat_report(const Ndb_index_stat_glob &old_glob) {
 #endif
 
 static void ndb_index_stat_proc(Ndb_index_stat_proc &pr) {
-  DBUG_ENTER("ndb_index_stat_proc");
+  DBUG_TRACE;
 
   ndb_index_stat_proc_control();
 
@@ -1938,14 +1933,13 @@ static void ndb_index_stat_proc(Ndb_index_stat_proc &pr) {
   ndb_index_stat_list_verify(pr);
   ndb_index_stat_report(old_glob);
 #endif
-  DBUG_VOID_RETURN;
 }
 
 /*
   Runs after stats thread exits and needs no locks.
 */
 void ndb_index_stat_end() {
-  DBUG_ENTER("ndb_index_stat_end");
+  DBUG_TRACE;
   Ndb_index_stat_proc pr;
   pr.end = true;
 
@@ -1970,25 +1964,24 @@ void ndb_index_stat_end() {
 
   /* Real free */
   ndb_index_stat_proc_delete(pr);
-  DBUG_VOID_RETURN;
 }
 
 /* Index stats thread */
 
 int Ndb_index_stat_thread::check_or_create_systables(Ndb_index_stat_proc &pr) {
-  DBUG_ENTER("Ndb_index_stat_thread::check_or_create_systables");
+  DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
   Ndb *ndb = pr.ndb;
 
   if (is->check_systables(ndb) == 0) {
     DBUG_PRINT("index_stat", ("using existing index stats tables"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (is->create_systables(ndb) == 0) {
     DBUG_PRINT("index_stat", ("created index stats tables"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (is->getNdbError().code == 721 || is->getNdbError().code == 4244 ||
@@ -1998,28 +1991,28 @@ int Ndb_index_stat_thread::check_or_create_systables(Ndb_index_stat_proc &pr) {
     DBUG_PRINT("index_stat",
                ("create index stats tables failed: error %d line %d",
                 is->getNdbError().code, is->getNdbError().line));
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   log_info("create tables failed, error: %d, line: %d", is->getNdbError().code,
            is->getNdbError().line);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 int Ndb_index_stat_thread::check_or_create_sysevents(Ndb_index_stat_proc &pr) {
-  DBUG_ENTER("Ndb_index_stat_thread::check_or_create_sysevents");
+  DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
   Ndb *ndb = pr.ndb;
 
   if (is->check_sysevents(ndb) == 0) {
     DBUG_PRINT("index_stat", ("using existing index stats events"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (is->create_sysevents(ndb) == 0) {
     DBUG_PRINT("index_stat", ("created index stats events"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (is->getNdbError().code == 746) {
@@ -2027,17 +2020,17 @@ int Ndb_index_stat_thread::check_or_create_sysevents(Ndb_index_stat_proc &pr) {
     DBUG_PRINT("index_stat",
                ("create index stats events failed: error %d line %d",
                 is->getNdbError().code, is->getNdbError().line));
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   log_info("create events failed, error: %d, line: %d", is->getNdbError().code,
            is->getNdbError().line);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
                                       Ndb_cluster_connection *connection) {
-  DBUG_ENTER("Ndb_index_stat_thread::create_ndb");
+  DBUG_TRACE;
   assert(pr.ndb == NULL);
   assert(connection != NULL);
 
@@ -2070,15 +2063,15 @@ int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
              ndb->getReference());
 
     pr.ndb = ndb;
-    DBUG_RETURN(0);
+    return 0;
   } while (0);
 
   if (ndb != NULL) delete ndb;
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 void Ndb_index_stat_thread::drop_ndb(Ndb_index_stat_proc &pr) {
-  DBUG_ENTER("Ndb_index_stat_thread::drop_ndb");
+  DBUG_TRACE;
 
   if (pr.is_util->has_listener()) {
     stop_listener(pr);
@@ -2087,11 +2080,10 @@ void Ndb_index_stat_thread::drop_ndb(Ndb_index_stat_proc &pr) {
     delete pr.ndb;
     pr.ndb = NULL;
   }
-  DBUG_VOID_RETURN;
 }
 
 int Ndb_index_stat_thread::start_listener(Ndb_index_stat_proc &pr) {
-  DBUG_ENTER("Ndb_index_stat_thread::start_listener");
+  DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
   Ndb *ndb = pr.ndb;
@@ -2099,7 +2091,7 @@ int Ndb_index_stat_thread::start_listener(Ndb_index_stat_proc &pr) {
   if (is->create_listener(ndb) == -1) {
     log_info("create index stats listener failed: error %d line %d",
              is->getNdbError().code, is->getNdbError().line);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   if (is->execute_listener(ndb) == -1) {
@@ -2107,21 +2099,19 @@ int Ndb_index_stat_thread::start_listener(Ndb_index_stat_proc &pr) {
              is->getNdbError().code, is->getNdbError().line);
     // Drop the created listener
     (void)is->drop_listener(ndb);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Ndb_index_stat_thread::stop_listener(Ndb_index_stat_proc &pr) {
-  DBUG_ENTER("Ndb_index_stat_thread::stop_listener");
+  DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
   Ndb *ndb = pr.ndb;
 
   (void)is->drop_listener(ndb);
-
-  DBUG_VOID_RETURN;
 }
 
 /* Restart things after system restart */
@@ -2129,10 +2119,9 @@ void Ndb_index_stat_thread::stop_listener(Ndb_index_stat_proc &pr) {
 static bool ndb_index_stat_restart_flag = false;
 
 void ndb_index_stat_restart() {
-  DBUG_ENTER("ndb_index_stat_restart");
+  DBUG_TRACE;
   ndb_index_stat_restart_flag = true;
   ndb_index_stat_set_allow(false);
-  DBUG_VOID_RETURN;
 }
 
 bool Ndb_index_stat_thread::is_setup_complete() {
@@ -2145,7 +2134,7 @@ bool Ndb_index_stat_thread::is_setup_complete() {
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
 
 void Ndb_index_stat_thread::do_run() {
-  DBUG_ENTER("Ndb_index_stat_thread::do_run");
+  DBUG_TRACE;
 
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   Ndb_index_stat_proc pr;
@@ -2314,8 +2303,6 @@ ndb_index_stat_thread_end:
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));
 
   log_info("Stopped");
-
-  DBUG_VOID_RETURN;
 }
 
 /* Optimizer queries */
@@ -2336,7 +2323,7 @@ static ulonglong ndb_index_stat_round(double x) {
 
 static int ndb_index_stat_wait_query(Ndb_index_stat *st,
                                      const Ndb_index_stat_snap &snap) {
-  DBUG_ENTER("ndb_index_stat_wait_query");
+  DBUG_TRACE;
 
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
@@ -2392,16 +2379,16 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   if (err != 0) {
     DBUG_PRINT("index_stat", ("st %s wait_query error: %d", st->id, err));
-    DBUG_RETURN(err);
+    return err;
   }
   DBUG_PRINT("index_stat", ("st %s wait_query ok: sample_version %u -> %u",
                             st->id, snap.sample_version, st->sample_version));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
                                        const Ndb_index_stat_snap &snap) {
-  DBUG_ENTER("ndb_index_stat_wait_analyze");
+  DBUG_TRACE;
 
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
@@ -2466,11 +2453,11 @@ static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   if (err != 0) {
     DBUG_PRINT("index_stat", ("st %s wait_analyze error: %d", st->id, err));
-    DBUG_RETURN(err);
+    return err;
   }
   DBUG_PRINT("index_stat", ("st %s wait_analyze ok: sample_version %u -> %u",
                             st->id, snap.sample_version, st->sample_version));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void compute_index_bounds(NdbIndexScanOperation::IndexBound &bound,
@@ -2480,7 +2467,7 @@ void compute_index_bounds(NdbIndexScanOperation::IndexBound &bound,
 int ha_ndbcluster::ndb_index_stat_query(uint inx, const key_range *min_key,
                                         const key_range *max_key,
                                         NdbIndexStat::Stat &stat, int from) {
-  DBUG_ENTER("ha_ndbcluster::ndb_index_stat_query");
+  DBUG_TRACE;
 
   const KEY *key_info = table->key_info + inx;
   const NDB_INDEX_DATA &data = m_index[inx];
@@ -2497,7 +2484,7 @@ int ha_ndbcluster::ndb_index_stat_query(uint inx, const key_range *min_key,
   Ndb_index_stat_snap snap;
   Ndb_index_stat *st =
       ndb_index_stat_get_share(m_share, index, m_table, snap, err, true, false);
-  if (st == 0) DBUG_RETURN(err);
+  if (st == 0) return err;
   /* Now holding reference to st */
 
   do {
@@ -2532,13 +2519,13 @@ int ha_ndbcluster::ndb_index_stat_query(uint inx, const key_range *min_key,
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   ndb_index_stat_ref_count(st, false);
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  DBUG_RETURN(err);
+  return err;
 }
 
 int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
                                           key_range *max_key,
                                           ha_rows *rows_out) {
-  DBUG_ENTER("ha_ndbcluster::ndb_index_stat_get_rir");
+  DBUG_TRACE;
   uint8 stat_buffer[NdbIndexStat::StatBufferBytes];
   NdbIndexStat::Stat stat(stat_buffer);
   int err = ndb_index_stat_query(inx, min_key, max_key, stat, 1);
@@ -2554,13 +2541,13 @@ int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
     NdbIndexStat::get_rule(stat, rule);
 #endif
     DBUG_PRINT("index_stat", ("rir: %u rule: %s", (uint)rows, rule));
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(err);
+  return err;
 }
 
 int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
-  DBUG_ENTER("ha_ndbcluster::ndb_index_stat_set_rpk");
+  DBUG_TRACE;
 
   uint8 stat_buffer[NdbIndexStat::StatBufferBytes];
   NdbIndexStat::Stat stat(stat_buffer);
@@ -2579,13 +2566,13 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
 #endif
       DBUG_PRINT("index_stat", ("rpk[%u]: %f rule: %s", k, rpk, rule));
     }
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(err);
+  return err;
 }
 
 int ha_ndbcluster::ndb_index_stat_analyze(uint *inx_list, uint inx_count) {
-  DBUG_ENTER("ha_ndbcluster::ndb_index_stat_analyze");
+  DBUG_TRACE;
 
   struct Req {
     Ndb_index_stat *st;
@@ -2640,7 +2627,7 @@ int ha_ndbcluster::ndb_index_stat_analyze(uint *inx_list, uint inx_count) {
     }
   }
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 static SHOW_VAR ndb_status_vars_index_stat[] = {

@@ -568,7 +568,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                          const unsigned char *frm_data,
                          const unsigned int unpacked_len,
                          bool is_fix_view_cols_and_deps) {
-  DBUG_ENTER("migrate_table_to_dd");
+  DBUG_TRACE;
 
   FRM_context frm_context;
   TABLE_SHARE share;
@@ -592,7 +592,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
 
   if (frm_file < 0) {
     ndb_log_error("Could not create frm file, error: %d", frm_file);
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (mysql_file_write(frm_file, frm_data, unpacked_len,
@@ -600,7 +600,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     ndb_log_error("Could not write frm file ");
     // Delete frm file
     mysql_file_delete(key_file_frm, index_file, MYF(0));
-    DBUG_RETURN(false);
+    return false;
   }
 
   (void)mysql_file_close(frm_file, MYF(0));
@@ -613,7 +613,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                   table_name.c_str());
     // Delete frm file
     mysql_file_delete(key_file_frm, index_file, MYF(0));
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Delete frm file
@@ -632,7 +632,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                                thd->mem_root, share.db_type()))) {
     ndb_log_error("Error in creating handler object for table %s.%s",
                   schema_name.c_str(), table_name.c_str());
-    DBUG_RETURN(false);
+    return false;
   }
   table.file = file;
   table_guard.update_handler(file);
@@ -640,7 +640,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   if (table.file->set_ha_share_ref(&share.ha_share)) {
     ndb_log_error("Error in setting handler reference for table %s.%s",
                   table_name.c_str(), schema_name.c_str());
-    DBUG_RETURN(false);
+    return false;
   }
 
   /*
@@ -693,7 +693,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     thd_ndb->push_warning(
         "Table definition contains obsolete data types such "
         "as old temporal or decimal types");
-    DBUG_RETURN(false);
+    return false;
   }
 
   uint i = 0;
@@ -725,7 +725,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
 
   if (prepare_fields_and_keys(thd, nullptr, &table, &create_info, &alter_info,
                               &alter_ctx, create_info.used_fields)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Fix keys and indexes.
@@ -741,7 +741,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
           &alter_info, file, true,  // NDB tables are auto-partitoned.
           &key_info_buffer, &key_count, &dummy_fk_key_info, &dummy_fk_key_count,
           nullptr, 0, nullptr, 0, 0, false /* No FKs here. */)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   int select_field_pos = alter_info.create_list.elements;
@@ -753,7 +753,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     if (prepare_create_field(thd, &create_info, &alter_info.create_list,
                              &select_field_pos, table.file, sql_field,
                              field_no))
-      DBUG_RETURN(false);
+      return false;
   }
 
   // open_table_from_share and partition expression parsing needs a
@@ -764,7 +764,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   table_guard.update_lex(lex_saved);
 
   if (!fill_partition_info_for_upgrade(thd, &share, &frm_context, &table))
-    DBUG_RETURN(false);
+    return false;
 
   // Add name of all tablespaces used by partitions to the hash set.
   Tablespace_hash_set tablespace_name_set(PSI_INSTRUMENT_ME);
@@ -811,7 +811,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
       mdl_guard.acquire_lock_tablespace(&tablespace_name_set)) {
     ndb_log_error("Unable to acquire lock on tablespace name %s",
                   share.tablespace);
-    DBUG_RETURN(false);
+    return false;
   }
 
   /*
@@ -823,7 +823,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   bootstrap_error_handler.set_log_error(false);
   if (!fix_generated_columns_for_upgrade(thd, &table, alter_info.create_list)) {
     ndb_log_error("Error in processing generated columns");
-    DBUG_RETURN(false);
+    return false;
   }
   bootstrap_error_handler.set_log_error(true);
 
@@ -841,12 +841,12 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
 
   if (thd->dd_client()->acquire(schema_name, &sch_obj)) {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!sch_obj) {
     my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
-    DBUG_RETURN(false);
+    return false;
   }
 
   Disable_gtid_state_update_guard disabler(thd);
@@ -862,27 +862,27 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (trans_commit_stmt(thd) || trans_commit(thd)) {
     ndb_log_error("Error in Creating DD entry for %s.%s", schema_name.c_str(),
                   table_name.c_str());
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!set_se_data_for_user_tables(thd, schema_name, to_table_name, &table)) {
     ndb_log_error("Error in fixing SE data for %s.%s", schema_name.c_str(),
                   table_name.c_str());
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!fix_fk_parent_key_names(thd, schema_name, to_table_name,
                                share.db_type())) {
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 }  // namespace ndb_upgrade

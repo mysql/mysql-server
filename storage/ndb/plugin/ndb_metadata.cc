@@ -73,7 +73,7 @@ dd::String_type Ndb_metadata::partition_expression() {
 }
 
 bool Ndb_metadata::create_table_def(dd::Table *table_def) {
-  DBUG_ENTER("Ndb_metadata::create_table_def");
+  DBUG_TRACE;
 
   // name
   const char *table_name = m_ndbtab->getName();
@@ -167,11 +167,11 @@ bool Ndb_metadata::create_table_def(dd::Table *table_def) {
     // table_def->set_subpartition_expression_utf8();
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_metadata::lookup_tablespace_id(THD *thd, dd::Table *table_def) {
-  DBUG_ENTER("Ndb_metadata::lookup_tablespace_id");
+  DBUG_TRACE;
 
   Ndb_dd_client dd_client(thd);
   dd_client.disable_auto_rollback();
@@ -181,7 +181,7 @@ bool Ndb_metadata::lookup_tablespace_id(THD *thd, dd::Table *table_def) {
 
   if (!ndb_table_has_tablespace(m_ndbtab)) {
     // No tablespace
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Set magic flag telling SHOW CREATE and CREATE LIKE that tablespace
@@ -195,12 +195,12 @@ bool Ndb_metadata::lookup_tablespace_id(THD *thd, dd::Table *table_def) {
     dd::Object_id tablespace_id;
     if (!dd_client.lookup_tablespace_id(tablespace_name, &tablespace_id)) {
       // Failed
-      DBUG_RETURN(false);
+      return false;
     }
 
     table_def->set_tablespace_id(tablespace_id);
 
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Lookup tablespace_id by object id
@@ -213,16 +213,16 @@ bool Ndb_metadata::lookup_tablespace_id(THD *thd, dd::Table *table_def) {
     // in se_private_data to be able to lookup a tablespace by object id
     m_compare_tablespace_id = false;  // Skip comparing tablespace_id for now
 
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Table had tablespace but neither name or id was available -> fail
   DBUG_ASSERT(false);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
-  DBUG_ENTER("Ndb_metadata::compare_table_def");
+  DBUG_TRACE;
 
   class Compare_context {
     std::vector<std::string> diffs;
@@ -361,12 +361,12 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
                 t2->subpartition_expression_utf8());
   }
 
-  if (ctx.equal()) DBUG_RETURN(true);  // Tables are identical
-  DBUG_RETURN(false);
+  if (ctx.equal()) return true;  // Tables are identical
+  return false;
 }
 
 bool Ndb_metadata::check_partition_info(const dd::Table *table_def) {
-  DBUG_ENTER("Ndb_metadata::check_partition_info");
+  DBUG_TRACE;
 
   // Compare the partition count of the NDB table with the partition
   // count of the table definition used by the caller
@@ -376,7 +376,7 @@ bool Ndb_metadata::check_partition_info(const dd::Table *table_def) {
     std::cout << "Diff in 'partition count' detected, '"
               << std::to_string(ndb_num_partitions) << "' != '"
               << std::to_string(dd_num_partitions) << "'" << std::endl;
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Check if the engine of the partitions are as expected
@@ -402,10 +402,10 @@ bool Ndb_metadata::check_partition_info(const dd::Table *table_def) {
     for (std::string diff : diffs) {
       std::cout << diff << std::endl;
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *m_ndbtab,

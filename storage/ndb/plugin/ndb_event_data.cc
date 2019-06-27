@@ -136,7 +136,7 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
                                          const char *key,
                                          const dd::Table *table_def,
                                          THD *owner_thd) {
-  DBUG_ENTER("Ndb_event_data::open_shadow_table");
+  DBUG_TRACE;
   DBUG_ASSERT(table_def);
 
   // Allocate memory for shadow table from MEM_ROOT
@@ -155,7 +155,7 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
            false, table_def))) {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d", error));
     free_table_share(shadow_table_share);
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   mysql_mutex_lock(&LOCK_open);
@@ -175,7 +175,7 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
   shadow_table->column_bitmaps_set_no_signal(&shadow_table->s->all_set,
                                              &shadow_table->s->all_set);
 
-  DBUG_RETURN(shadow_table);
+  return shadow_table;
 }
 
 /*
@@ -188,7 +188,7 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
 Ndb_event_data *Ndb_event_data::create_event_data(
     THD *thd, NDB_SHARE *share, const char *db, const char *table_name,
     const char *key, THD *owner_thd, const dd::Table *table_def) {
-  DBUG_ENTER("Ndb_event_data::create_event_data");
+  DBUG_TRACE;
   DBUG_ASSERT(table_def);
 
   const size_t num_columns = ndb_dd_table_get_num_columns(table_def);
@@ -208,7 +208,7 @@ Ndb_event_data *Ndb_event_data::create_event_data(
     DBUG_PRINT("error", ("failed to open shadow table"));
     delete event_data;
     *root_ptr = old_root;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   // Check that number of columns from table_def match the
@@ -228,15 +228,13 @@ Ndb_event_data *Ndb_event_data::create_event_data(
   // Restore old root
   *root_ptr = old_root;
 
-  DBUG_RETURN(event_data);
+  return event_data;
 }
 
 void Ndb_event_data::destroy(const Ndb_event_data *event_data) {
-  DBUG_ENTER("Ndb_event_data::destroy");
+  DBUG_TRACE;
 
   delete event_data;
-
-  DBUG_VOID_RETURN;
 }
 
 uint32 Ndb_event_data::unpack_uint32(unsigned attr_id) const {

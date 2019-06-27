@@ -219,20 +219,18 @@ const char *NDB_SHARE::share_state_string(void) const {
 }
 
 void NDB_SHARE::free_share(NDB_SHARE **share) {
-  DBUG_ENTER("NDB_SHARE::free_share");
+  DBUG_TRACE;
   mysql_mutex_assert_owner(&ndbcluster_mutex);
 
   if (!(*share)->decrement_use_count()) {
     // Noone is using the NDB_SHARE anymore, release it
     NDB_SHARE::real_free_share(share);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 NDB_SHARE *NDB_SHARE::create_and_acquire_reference(const char *key,
                                                    const char *reference) {
-  DBUG_ENTER("create_and_acquire_reference");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("key: '%s'", key));
 
   mysql_mutex_assert_owner(&ndbcluster_mutex);
@@ -243,7 +241,7 @@ NDB_SHARE *NDB_SHARE::create_and_acquire_reference(const char *key,
   NDB_SHARE *share = NDB_SHARE::create(key);
   if (share == nullptr) {
     DBUG_PRINT("error", ("failed to create NDB_SHARE"));
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   // Insert the new share in list of open shares
@@ -257,12 +255,12 @@ NDB_SHARE *NDB_SHARE::create_and_acquire_reference(const char *key,
   share->increment_use_count();
   share->refs_insert(reference);
 
-  DBUG_RETURN(share);
+  return share;
 }
 
 NDB_SHARE *NDB_SHARE::acquire_for_handler(
     const char *key, const class ha_ndbcluster *reference) {
-  DBUG_ENTER("acquire_for_handler");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&ndbcluster_mutex);
   NDB_SHARE *share = acquire_reference_impl(key);
@@ -275,12 +273,12 @@ NDB_SHARE *NDB_SHARE::acquire_for_handler(
   }
   mysql_mutex_unlock(&ndbcluster_mutex);
 
-  DBUG_RETURN(share);
+  return share;
 }
 
 void NDB_SHARE::release_for_handler(NDB_SHARE *share,
                                     const ha_ndbcluster *reference) {
-  DBUG_ENTER("release_for_handler");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&ndbcluster_mutex);
 
@@ -291,8 +289,6 @@ void NDB_SHARE::release_for_handler(NDB_SHARE *share,
   share->refs_erase(reference);
   NDB_SHARE::free_share(&share);
   mysql_mutex_unlock(&ndbcluster_mutex);
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -486,7 +482,7 @@ void NDB_SHARE::print_remaining_open_tables(void) {
 }
 
 int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
-  DBUG_ENTER("NDB_SHARE::rename_share");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("share->key: '%s'", share->key_string()));
   DBUG_PRINT("enter",
              ("new_key: '%s'", NDB_SHARE::key_get_key(new_key).c_str()));
@@ -549,7 +545,7 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
     }
   }
   mysql_mutex_unlock(&ndbcluster_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -561,7 +557,7 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
 */
 
 NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
-  DBUG_ENTER("NDB_SHARE::acquire_reference_impl");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("key: '%s'", key));
 
   mysql_mutex_assert_owner(&ndbcluster_mutex);
@@ -569,7 +565,7 @@ NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
   auto it = ndbcluster_open_tables->find(key);
   if (it == ndbcluster_open_tables->end()) {
     DBUG_PRINT("error", ("%s does not exist", key));
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   NDB_SHARE *share = it->second;
@@ -577,7 +573,7 @@ NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
   // Add refcount for returned 'share'.
   share->increment_use_count();
 
-  DBUG_RETURN(share);
+  return share;
 }
 
 void NDB_SHARE::initialize(CHARSET_INFO *charset) {

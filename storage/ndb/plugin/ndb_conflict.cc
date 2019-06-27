@@ -112,7 +112,7 @@ bool ExceptionsTableWriter::find_column_name_ci(
 
 bool ExceptionsTableWriter::check_mandatory_columns(
     const NdbDictionary::Table *exceptionsTable) {
-  DBUG_ENTER("ExceptionsTableWriter::check_mandatory_columns");
+  DBUG_TRACE;
   if (/* server id */
       exceptionsTable->getColumn(0)->getType() == NDBCOL::Unsigned &&
       exceptionsTable->getColumn(0)->getPrimaryKey() &&
@@ -125,15 +125,15 @@ bool ExceptionsTableWriter::check_mandatory_columns(
       /* count */
       exceptionsTable->getColumn(3)->getType() == NDBCOL::Unsigned &&
       exceptionsTable->getColumn(3)->getPrimaryKey())
-    DBUG_RETURN(true);
+    return true;
   else
-    DBUG_RETURN(false);
+    return false;
 }
 
 bool ExceptionsTableWriter::check_pk_columns(
     const NdbDictionary::Table *mainTable,
     const NdbDictionary::Table *exceptionsTable, int &k) {
-  DBUG_ENTER("ExceptionsTableWriter::check_pk_columns");
+  DBUG_TRACE;
   const int fixed_cols = 4;
   int ncol = mainTable->getNoOfColumns();
   int nkey = mainTable->getNoOfPrimaryKeys();
@@ -167,7 +167,7 @@ bool ExceptionsTableWriter::check_pk_columns(
       k++;
     }
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool ExceptionsTableWriter::check_optional_columns(
@@ -175,7 +175,7 @@ bool ExceptionsTableWriter::check_optional_columns(
     const NdbDictionary::Table *exceptionsTable, char *msg_buf,
     uint msg_buf_len, const char **msg, int &k, char *error_details,
     uint error_details_len) {
-  DBUG_ENTER("ExceptionsTableWriter::check_optional_columns");
+  DBUG_TRACE;
   /*
     Check optional columns.
     Check if table has been extended by looking for
@@ -219,7 +219,7 @@ bool ExceptionsTableWriter::check_optional_columns(
                  "doesn't have the \'%s\' prefix",
                  ex_tab_name, col_name, NDB_EXCEPTIONS_TABLE_COLUMN_PREFIX);
         *msg = msg_buf;
-        DBUG_RETURN(false);
+        return false;
       }
     }
     k = i - fixed_cols;
@@ -456,14 +456,14 @@ bool ExceptionsTableWriter::check_optional_columns(
     }
   }
 
-  DBUG_RETURN(ok);
+  return ok;
 }
 
 int ExceptionsTableWriter::init(const NdbDictionary::Table *mainTable,
                                 const NdbDictionary::Table *exceptionsTable,
                                 char *msg_buf, uint msg_buf_len,
                                 const char **msg) {
-  DBUG_ENTER("ExceptionsTableWriter::init");
+  DBUG_TRACE;
   const char *ex_tab_name = exceptionsTable->getName();
   const int fixed_cols = 4;
   *msg = NULL;
@@ -513,7 +513,7 @@ int ExceptionsTableWriter::init(const NdbDictionary::Table *mainTable,
       m_cols = ncol;
       m_xcols = xncol;
       if (m_extended && strlen(msg_buf) > 0) *msg = msg_buf;
-      DBUG_RETURN(0);
+      return 0;
     } else
       snprintf(msg_buf, msg_buf_len,
                "exceptions table %s has wrong "
@@ -526,7 +526,7 @@ int ExceptionsTableWriter::init(const NdbDictionary::Table *mainTable,
              ex_tab_name, fixed_cols);
 
   *msg = msg_buf;
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 void ExceptionsTableWriter::mem_free(Ndb *ndb) {
@@ -543,7 +543,7 @@ int ExceptionsTableWriter::writeRow(
     uint64 master_epoch, const uchar *oldRowPtr, const uchar *newRowPtr,
     enum_conflicting_op_type op_type, enum_conflict_cause conflict_cause,
     uint64 orig_transid, const MY_BITMAP *write_set, NdbError &err) {
-  DBUG_ENTER("ExceptionsTableWriter::writeRow");
+  DBUG_TRACE;
   DBUG_PRINT(
       "info",
       ("op_type(pos):%u(%u), conflict_cause(pos):%u(%u), orig_transid:%" PRIu64
@@ -732,11 +732,11 @@ int ExceptionsTableWriter::writeRow(
       NdbDictionary::Dictionary *dict = trans->getNdb()->getDictionary();
       dict->removeTableGlobal(*m_ex_tab, false);
       m_ex_tab = NULL;
-      DBUG_RETURN(0);
+      return 0;
     }
-    DBUG_RETURN(-1);
+    return -1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -936,7 +936,7 @@ void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
 */
 bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                                          Uint32 master_server_id) const {
-  DBUG_ENTER("verifyNextEpoch");
+  DBUG_TRACE;
 
   /**
     WRITE_ROW to ndb_apply_status injected by MySQLD
@@ -1026,7 +1026,7 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
           ndb_mi_get_group_master_log_name(), ndb_mi_get_group_master_log_pos(),
           ndb_mi_get_slave_run_id(), sql_run_id);
       /* Stop the slave */
-      DBUG_RETURN(false);
+      return false;
     } else if (next_epoch == current_master_server_epoch) {
       /**
          This is ok if we are retrying - e.g. the
@@ -1050,7 +1050,7 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
             ndb_mi_get_group_master_log_pos(), ndb_mi_get_slave_run_id(),
             sql_run_id);
         /* Stop the slave */
-        DBUG_RETURN(false);
+        return false;
       } else {
         /* Probably a retry, no problem. */
       }
@@ -1085,7 +1085,7 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
             ndb_mi_get_group_master_log_pos(), ndb_mi_get_slave_run_id(),
             sql_run_id);
         /* Stop the slave */
-        DBUG_RETURN(false);
+        return false;
       } else {
         /* Normal case of next epoch after committing last */
       }
@@ -1093,7 +1093,7 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
   }
 
   /* Epoch looks ok */
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -1106,13 +1106,13 @@ int st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
                                            Uint32 row_server_id,
                                            Uint64 row_epoch,
                                            bool is_row_server_id_local) {
-  DBUG_ENTER("atApplyStatusWrite");
+  DBUG_TRACE;
   if (row_server_id == master_server_id) {
     /* This is an apply status write from the immediate master */
 
     if (!verifyNextEpoch(row_epoch, master_server_id)) {
       /* Problem with the next epoch, stop the slave SQL thread */
-      DBUG_RETURN(HA_ERR_ROWS_EVENT_APPLY);
+      return HA_ERR_ROWS_EVENT_APPLY;
     }
 
     /* Epoch ok, record that we're working on it now... */
@@ -1135,7 +1135,7 @@ int st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
       current_max_rep_epoch = row_epoch;
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1247,7 +1247,7 @@ bool st_ndb_slave_state::checkSlaveConflictRoleChange(
    Called when transactional conflict handling has completed.
 */
 void st_ndb_slave_state::atEndTransConflictHandling() {
-  DBUG_ENTER("atEndTransConflictHandling");
+  DBUG_TRACE;
   /* Release any conflict handling state */
   if (trans_dependency_tracker) {
     current_trans_in_conflict_count =
@@ -1255,7 +1255,6 @@ void st_ndb_slave_state::atEndTransConflictHandling() {
     trans_dependency_tracker = NULL;
     free_root(&conflict_mem_root, MY_MARK_BLOCKS_FREE);
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1265,7 +1264,7 @@ void st_ndb_slave_state::atEndTransConflictHandling() {
    Conflict handling is required
 */
 void st_ndb_slave_state::atBeginTransConflictHandling() {
-  DBUG_ENTER("atBeginTransConflictHandling");
+  DBUG_TRACE;
   /*
      Allocate and initialise Transactional Conflict
      Resolution Handling Structures
@@ -1273,7 +1272,6 @@ void st_ndb_slave_state::atBeginTransConflictHandling() {
   assert(trans_dependency_tracker == NULL);
   trans_dependency_tracker =
       DependencyTracker::newDependencyTracker(&conflict_mem_root);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1285,7 +1283,7 @@ void st_ndb_slave_state::atBeginTransConflictHandling() {
 int st_ndb_slave_state::atPrepareConflictDetection(
     const NdbDictionary::Table *table, const NdbRecord *key_rec,
     const uchar *row_data, Uint64 transaction_id, bool &handle_conflict_now) {
-  DBUG_ENTER("atPrepareConflictDetection");
+  DBUG_TRACE;
   /*
     Slave is preparing to apply an operation with conflict detection.
     If we're performing Transactional Conflict Resolution, take
@@ -1308,7 +1306,7 @@ int st_ndb_slave_state::atPrepareConflictDetection(
           table, key_rec, row_data, transaction_id);
       if (res != 0) {
         ndb_log_error("%s", trans_dependency_tracker->get_error_text());
-        DBUG_RETURN(res);
+        return res;
       }
       /* Proceed as normal */
       break;
@@ -1329,7 +1327,7 @@ int st_ndb_slave_state::atPrepareConflictDetection(
                     transaction_id));
         current_trans_row_reject_count++;
         handle_conflict_now = true;
-        DBUG_RETURN(0);
+        return 0;
       }
 
       /*
@@ -1345,7 +1343,7 @@ int st_ndb_slave_state::atPrepareConflictDetection(
       break;
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1355,7 +1353,7 @@ int st_ndb_slave_state::atPrepareConflictDetection(
    an executed operation.
 */
 int st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id) {
-  DBUG_ENTER("atTransConflictDetected");
+  DBUG_TRACE;
 
   /*
      The Slave has detected a conflict on an operation applied
@@ -1401,7 +1399,7 @@ int st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id) {
 
       if (res != 0) {
         ndb_log_error("%s", trans_dependency_tracker->get_error_text());
-        DBUG_RETURN(res);
+        return res;
       }
       break;
     }
@@ -1420,7 +1418,7 @@ int st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id) {
       break;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1516,7 +1514,7 @@ int st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id) {
 
 */
 int st_ndb_slave_state::atConflictPreCommit(bool &retry_slave_trans) {
-  DBUG_ENTER("atConflictPreCommit");
+  DBUG_TRACE;
 
   /*
     Prior to committing a Slave transaction, we check whether
@@ -1619,11 +1617,11 @@ int st_ndb_slave_state::atConflictPreCommit(bool &retry_slave_trans) {
 
   if (retry_slave_trans) {
     DBUG_PRINT("info", ("Requesting transaction restart"));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   DBUG_PRINT("info", ("Allowing commit to proceed"));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1649,7 +1647,7 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
                                const uchar *old_data, const uchar *,
                                const MY_BITMAP *bi_cols, const MY_BITMAP *,
                                NdbInterpretedCode *code) {
-  DBUG_ENTER("row_conflict_fn_old");
+  DBUG_TRACE;
   uint32 resolve_column = cfn_share->m_resolve_column;
   uint32 resolve_size = cfn_share->m_resolve_size;
   const uchar *field_ptr = (const uchar *)NdbDictionary::getValuePtr(
@@ -1660,7 +1658,7 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
   if (unlikely(!bitmap_is_set(bi_cols, resolve_column))) {
     ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
                  cfn_share->m_conflict_fn->name, resolve_column);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   const uint label_0 = 0;
@@ -1712,14 +1710,14 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
   DBUG_ASSERT(r == 0);
   r = code->finalise();
   DBUG_ASSERT(r == 0);
-  DBUG_RETURN(r);
+  return r;
 }
 
 static int row_conflict_fn_max_update_only(
     NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type,
     const NdbRecord *data_record, const uchar *, const uchar *new_data,
     const MY_BITMAP *, const MY_BITMAP *ai_cols, NdbInterpretedCode *code) {
-  DBUG_ENTER("row_conflict_fn_max_update_only");
+  DBUG_TRACE;
   uint32 resolve_column = cfn_share->m_resolve_column;
   uint32 resolve_size = cfn_share->m_resolve_size;
   const uchar *field_ptr = (const uchar *)NdbDictionary::getValuePtr(
@@ -1730,7 +1728,7 @@ static int row_conflict_fn_max_update_only(
   if (unlikely(!bitmap_is_set(ai_cols, resolve_column))) {
     ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
                  cfn_share->m_conflict_fn->name, resolve_column);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   const uint label_0 = 0;
@@ -1781,7 +1779,7 @@ static int row_conflict_fn_max_update_only(
   DBUG_ASSERT(r == 0);
   r = code->finalise();
   DBUG_ASSERT(r == 0);
-  DBUG_RETURN(r);
+  return r;
 }
 
 /**
@@ -1872,11 +1870,11 @@ static int row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE *,
                                  const NdbRecord *, const uchar *,
                                  const uchar *, const MY_BITMAP *,
                                  const MY_BITMAP *, NdbInterpretedCode *code) {
-  DBUG_ENTER("row_conflict_fn_epoch");
+  DBUG_TRACE;
   switch (op_type) {
     case WRITE_ROW:
       abort();
-      DBUG_RETURN(1);
+      return 1;
     case UPDATE_ROW:
     case DELETE_ROW:
     case READ_ROW: /* Read tracking */
@@ -1916,11 +1914,11 @@ static int row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE *,
       assert(r == 0);
       r = code->finalise();
       assert(r == 0);
-      DBUG_RETURN(r);
+      return r;
     }
     default:
       abort();
-      DBUG_RETURN(1);
+      return 1;
   }
 }
 
@@ -1933,11 +1931,11 @@ static int row_conflict_fn_epoch2_primary(
     const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
     const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
     NdbInterpretedCode *code) {
-  DBUG_ENTER("row_conflict_fn_epoch2_primary");
+  DBUG_TRACE;
 
   /* We use the normal NDB$EPOCH detection function */
-  DBUG_RETURN(row_conflict_fn_epoch(cfn_share, op_type, data_record, old_data,
-                                    new_data, bi_cols, ai_cols, code));
+  return row_conflict_fn_epoch(cfn_share, op_type, data_record, old_data,
+                               new_data, bi_cols, ai_cols, code);
 }
 
 static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
@@ -1946,7 +1944,7 @@ static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
                                             const uchar *, const MY_BITMAP *,
                                             const MY_BITMAP *,
                                             NdbInterpretedCode *code) {
-  DBUG_ENTER("row_conflict_fn_epoch2_secondary");
+  DBUG_TRACE;
 
   /* Only called for reflected update and delete operations
    * on the secondary.
@@ -1958,7 +1956,7 @@ static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
   switch (op_type) {
     case WRITE_ROW:
       abort();
-      DBUG_RETURN(1);
+      return 1;
     case UPDATE_ROW:
     case DELETE_ROW: {
       const uint label_0 = 0;
@@ -1982,11 +1980,11 @@ static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
 
       r = code->finalise();
       assert(r == 0);
-      DBUG_RETURN(r);
+      return r;
     }
     default:
       abort();
-      DBUG_RETURN(1);
+      return 1;
   }
 }
 
@@ -1997,7 +1995,7 @@ static int row_conflict_fn_epoch2(NDB_CONFLICT_FN_SHARE *cfn_share,
                                   const MY_BITMAP *bi_cols,
                                   const MY_BITMAP *ai_cols,
                                   NdbInterpretedCode *code) {
-  DBUG_ENTER("row_conflict_fn_epoch2");
+  DBUG_TRACE;
 
   /**
    * NdbEpoch2 behaviour depends on the Slave conflict role variable
@@ -2006,18 +2004,18 @@ static int row_conflict_fn_epoch2(NDB_CONFLICT_FN_SHARE *cfn_share,
   switch (opt_ndb_slave_conflict_role) {
     case SCR_NONE:
       /* This is a problem */
-      DBUG_RETURN(1);
+      return 1;
     case SCR_PRIMARY:
-      DBUG_RETURN(row_conflict_fn_epoch2_primary(
-          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
-          code));
+      return row_conflict_fn_epoch2_primary(cfn_share, op_type, data_record,
+                                            old_data, new_data, bi_cols,
+                                            ai_cols, code);
     case SCR_SECONDARY:
-      DBUG_RETURN(row_conflict_fn_epoch2_secondary(
-          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
-          code));
+      return row_conflict_fn_epoch2_secondary(cfn_share, op_type, data_record,
+                                              old_data, new_data, bi_cols,
+                                              ai_cols, code);
     case SCR_PASS:
       /* Do nothing */
-      DBUG_RETURN(0);
+      return 0;
 
     default:
       break;
@@ -2025,7 +2023,7 @@ static int row_conflict_fn_epoch2(NDB_CONFLICT_FN_SHARE *cfn_share,
 
   abort();
 
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**
@@ -2063,7 +2061,7 @@ int parse_conflict_fn_spec(const char *conflict_fn_spec,
                            const st_conflict_fn_def **conflict_fn,
                            st_conflict_fn_arg *args, Uint32 *max_args,
                            char *msg, uint msg_len) {
-  DBUG_ENTER("parse_conflict_fn_spec");
+  DBUG_TRACE;
 
   Uint32 no_args = 0;
   const char *ptr = conflict_fn_spec;
@@ -2204,17 +2202,17 @@ int parse_conflict_fn_spec(const char *conflict_fn_spec,
     *conflict_fn = &conflict_fns[i];
     *max_args = no_args;
 
-    DBUG_RETURN(0);
+    return 0;
   }
   /* parse error */
   snprintf(msg, msg_len, "%s, %s at '%s'", conflict_fn_spec, error_str, ptr);
   DBUG_PRINT("info", ("%s", msg));
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 static uint slave_check_resolve_col_type(const NDBTAB *ndbtab,
                                          uint field_index) {
-  DBUG_ENTER("slave_check_resolve_col_type");
+  DBUG_TRACE;
   const NDBCOL *c = ndbtab->getColumn(field_index);
   uint sz = 0;
   switch (c->getType()) {
@@ -2230,7 +2228,7 @@ static uint slave_check_resolve_col_type(const NDBTAB *ndbtab,
       DBUG_PRINT("info", ("resolve column %u has wrong type", field_index));
       break;
   }
-  DBUG_RETURN(sz);
+  return sz;
 }
 
 static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
@@ -2239,7 +2237,7 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
                                 uint resolve_col_sz,
                                 const st_conflict_fn_def *conflict_fn,
                                 uint8 flags) {
-  DBUG_ENTER("slave_set_resolve_fn");
+  DBUG_TRACE;
 
   NdbDictionary::Dictionary *dict = ndb->getDictionary();
   NDB_CONFLICT_FN_SHARE *cfn_share = *ppcfn_share;
@@ -2290,7 +2288,7 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
       break;
     } /* if (ex_tab) */
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool is_exceptions_table(const char *table_name) {
@@ -2311,14 +2309,14 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
                       const NdbDictionary::Table *ndbtab, char *msg,
                       uint msg_len, const st_conflict_fn_def *conflict_fn,
                       const st_conflict_fn_arg *args, const Uint32 num_args) {
-  DBUG_ENTER("setup_conflict_fn");
+  DBUG_TRACE;
 
   if (is_exceptions_table(tabName)) {
     snprintf(msg, msg_len,
              "Table %s.%s is exceptions table: not using conflict function %s",
              dbName, tabName, conflict_fn->name);
     DBUG_PRINT("info", ("%s", msg));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* setup the function */
@@ -2329,7 +2327,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
       if (num_args != 1) {
         snprintf(msg, msg_len, "Incorrect arguments to conflict function");
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       /* Now try to find the column in the table */
@@ -2350,7 +2348,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
         snprintf(msg, msg_len, "Could not find resolve column %s.",
                  resolveColName);
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       const uint resolve_col_sz = slave_check_resolve_col_type(ndbtab, colNum);
@@ -2360,7 +2358,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
         snprintf(msg, msg_len, "Column '%s' has wrong datatype",
                  resolveColName);
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       if (slave_set_resolve_fn(ndb, ppcfn_share, dbName, tabName, ndbtab,
@@ -2369,7 +2367,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
                  "Unable to setup conflict resolution using column '%s'",
                  resolveColName);
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       /* Success, update message */
@@ -2388,7 +2386,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
                  "Not suitable for %s.",
                  dbName, tabName, conflict_fn->name);
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
     }
     /* Fall through - for the rest of the EPOCH* processing... */
@@ -2397,7 +2395,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
       if (num_args > 1) {
         snprintf(msg, msg_len, "Too many arguments to conflict function");
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       /* Check that table doesn't have Blobs as we don't support that */
@@ -2405,7 +2403,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
         snprintf(msg, msg_len, "Table has Blob column(s), not suitable for %s.",
                  conflict_fn->name);
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       /* Check that table has required extra meta-columns */
@@ -2419,7 +2417,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
       if (ndbtab->getExtraRowAuthorBits() == 0) {
         snprintf(msg, msg_len, "No extra row author bits in table.");
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       if (slave_set_resolve_fn(ndb, ppcfn_share, dbName, tabName, ndbtab,
@@ -2428,7 +2426,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
                                conflict_fn, CFF_REFRESH_ROWS)) {
         snprintf(msg, msg_len, "unable to setup conflict resolution");
         DBUG_PRINT("info", ("%s", msg));
-        DBUG_RETURN(-1);
+        return -1;
       }
       /* Success, update message */
       snprintf(msg, msg_len, "Table %s.%s using conflict_fn %s.", dbName,
@@ -2440,7 +2438,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
     case CFT_NDB_UNDEF:
       abort();
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void teardown_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE *cfn_share) {

@@ -136,12 +136,12 @@ bool Ndb_schema_dist_table::check_schema() const {
 
 bool Ndb_schema_dist_table::check_column_identifier_limit(
     const char *column_name, const std::string &identifier) const {
-  DBUG_ENTER("Ndb_schema_dist_table::check_column_identifier_limit");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("column_name: '%s', identifier: '%s'", column_name,
                        identifier.c_str()));
 
   if (!check_column_exist(column_name)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   const int max_length = DBUG_EVALUATE_IF("ndb_schema_dist_63byte_limit", 63,
@@ -149,9 +149,9 @@ bool Ndb_schema_dist_table::check_column_identifier_limit(
 
   if (identifier.length() > static_cast<size_t>(max_length)) {
     push_warning("Identifier length exceeds the %d byte limit", max_length);
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_schema_dist_table::define_table_ndb(NdbDictionary::Table &new_table,

@@ -381,7 +381,7 @@ bool Ndb_util_table::upgrade() const {
 }
 
 std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
-  DBUG_ENTER("Ndb_util_table::unpack_varbinary");
+  DBUG_TRACE;
   // Function should be called only on a varbinary column
   DBUG_ASSERT(ndbRecAttr->getType() == NdbDictionary::Column::Varbinary ||
               ndbRecAttr->getType() == NdbDictionary::Column::Longvarbinary);
@@ -391,7 +391,7 @@ std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
   ndb_unpack_varchar(ndbRecAttr->getColumn(), 0, &value_start, &value_length,
                      ndbRecAttr->aRef());
 
-  DBUG_RETURN(std::string(value_start, value_length));
+  return std::string(value_start, value_length);
 }
 
 //

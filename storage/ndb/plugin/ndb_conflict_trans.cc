@@ -283,7 +283,7 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
                                        const NdbRecord *key_rec,
                                        const uchar *row,
                                        Uint64 transaction_id) {
-  DBUG_ENTER("track_operation");
+  DBUG_TRACE;
 
   Uint32 required_buff_size = determine_packed_key_size(table, key_rec, row);
   DBUG_PRINT("info", ("Required length for key : %u", required_buff_size));
@@ -295,14 +295,14 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
   if (pack_key_to_buffer(table, key_rec, row, packed_key_buff,
                          required_buff_size)) {
     if (!error_text) error_text = "track_operation : Failed packing key";
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   if (TRACK_ALL_TRANSACTIONS) {
     st_transaction *transEntry = get_or_create_transaction(transaction_id);
     if (!transEntry) {
       error_text = "track_operation : Failed to get or create transaction";
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      return HA_ERR_OUT_OF_MEM;
     }
   }
 
@@ -333,7 +333,7 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
 
       assert(res == 0 || error_text != NULL);
 
-      DBUG_RETURN(res);
+      return res;
     } else {
       /*
          How can we have two updates to the same row with the
@@ -351,27 +351,27 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
         assert(false);
         error_text =
             "Two row operations to same key sharing user transaction id";
-        DBUG_RETURN(-1);
+        return -1;
       }
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int DependencyTracker::mark_conflict(Uint64 trans_id) {
-  DBUG_ENTER("mark_conflict");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("trans_id : %llu", trans_id));
 
   st_transaction *entry = get_or_create_transaction(trans_id);
   if (!entry) {
     error_text = "mark_conflict : get_or_create_transaction() failure";
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    return HA_ERR_OUT_OF_MEM;
   }
 
   if (entry->getInConflict()) {
     /* Nothing to do here */
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* Have entry, mark it, and any dependents */
@@ -397,11 +397,11 @@ int DependencyTracker::mark_conflict(Uint64 trans_id) {
 
   assert(verify_graph());
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool DependencyTracker::in_conflict(Uint64 trans_id) {
-  DBUG_ENTER("in_conflict");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("trans_id %llu", trans_id));
   st_transaction key(trans_id);
   const st_transaction *entry = NULL;
@@ -412,15 +412,15 @@ bool DependencyTracker::in_conflict(Uint64 trans_id) {
   */
   if ((entry = trans_hash.get(&key))) {
     DBUG_PRINT("info", ("in_conflict : %u", entry->getInConflict()));
-    DBUG_RETURN(entry->getInConflict());
+    return entry->getInConflict();
   } else {
     assert(!TRACK_ALL_TRANSACTIONS);
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 st_transaction *DependencyTracker::get_or_create_transaction(Uint64 trans_id) {
-  DBUG_ENTER("get_or_create_transaction");
+  DBUG_TRACE;
   st_transaction transKey(trans_id);
   st_transaction *transEntry = NULL;
 
@@ -445,25 +445,25 @@ st_transaction *DependencyTracker::get_or_create_transaction(Uint64 trans_id) {
     }
   }
 
-  DBUG_RETURN(transEntry);
+  return transEntry;
 }
 
 int DependencyTracker::add_dependency(Uint64 trans_id,
                                       Uint64 dependent_trans_id) {
-  DBUG_ENTER("add_dependency");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("Recording dependency of %llu on %llu",
                       dependent_trans_id, trans_id));
   st_transaction *targetEntry = get_or_create_transaction(trans_id);
   if (!targetEntry) {
     error_text = "add_dependency : Failed get_or_create_transaction";
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    return HA_ERR_OUT_OF_MEM;
   }
 
   st_transaction *dependentEntry =
       get_or_create_transaction(dependent_trans_id);
   if (!dependentEntry) {
     error_text = "add_dependency : Failed get_or_create_transaction";
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    return HA_ERR_OUT_OF_MEM;
   }
 
   /* Now lookup dependency.  Add it if not already present */
@@ -486,20 +486,20 @@ int DependencyTracker::add_dependency(Uint64 trans_id,
     /* New dependency, propagate in_conflict if necessary */
     if (targetEntry->getInConflict()) {
       DBUG_PRINT("info", ("Marking new dependent as in-conflict"));
-      DBUG_RETURN(mark_conflict(dependentEntry->getTransactionId()));
+      return mark_conflict(dependentEntry->getTransactionId());
     }
   }
 
   assert(verify_graph());
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void DependencyTracker::reset_dependency_iterator() { iteratorTodo.reset(); }
 
 st_transaction *DependencyTracker::get_next_dependency(
     const st_transaction *current, bool include_dependents_of_current) {
-  DBUG_ENTER("get_next_dependency");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("node : %llu", current->getTransactionId()));
   /*
     Depth first traverse, with option to ignore sub graphs.
@@ -528,12 +528,12 @@ st_transaction *DependencyTracker::get_next_dependency(
     st_transaction key(nextId);
     st_transaction *dependent = trans_hash.get(&key);
     assert(dependent);
-    DBUG_RETURN(dependent);
+    return dependent;
   }
 
   assert(iteratorTodo.size() == 0);
   DBUG_PRINT("info", ("No more dependencies to visit"));
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 void DependencyTracker::dump_dependents(Uint64 trans_id) {

@@ -43,14 +43,14 @@ Ndb_binlog_client::~Ndb_binlog_client() {}
 
 bool Ndb_binlog_client::table_should_have_event(
     NDB_SHARE *share, const NdbDictionary::Table *ndbtab) const {
-  DBUG_ENTER("table_should_have_event");
+  DBUG_TRACE;
 
   // Never create event(or event operation) for legacy distributed
   // privilege tables, which will be seen only when upgrading from
   // an earlier version.
   if (Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, m_tabname)) {
     DBUG_PRINT("info", ("dist priv table"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Never create event(or event operation) for tables which have
@@ -62,31 +62,31 @@ bool Ndb_binlog_client::table_should_have_event(
     log_warning(ER_ILLEGAL_HA_CREATE_OPTION,
                 "Table storage engine 'ndbcluster' does not support the create "
                 "option 'Binlog of table with BLOB attribute and no PK'");
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Never create event on exceptions table
   if (is_exceptions_table(m_tabname)) {
     DBUG_PRINT("info", ("exceptions table: %s", share->table_name));
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Turn on usage of event for this table, all tables not passing
   // this point are without event
   share->set_have_event();
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 extern bool ndb_binlog_running;
 
 bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE *share) {
-  DBUG_ENTER("table_should_have_event_op");
+  DBUG_TRACE;
 
   if (!share->get_have_event()) {
     // No event -> no event op
     DBUG_PRINT("info", ("table without event"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Some tables should always have event operation
@@ -95,42 +95,42 @@ bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE *share) {
   if (Ndb_schema_dist_client::is_schema_dist_table(share->db,
                                                    share->table_name)) {
     DBUG_PRINT("exit", ("always need event op for %s", share->table_name));
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Check for schema dist result table
   if (Ndb_schema_dist_client::is_schema_dist_result_table(share->db,
                                                           share->table_name)) {
     DBUG_PRINT("exit", ("always need event op for %s", share->table_name));
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Check for mysql.ndb_apply_status
   if (Ndb_apply_status_table::is_apply_status_table(share->db,
                                                     share->table_name)) {
     DBUG_PRINT("exit", ("always need event op for %s", share->table_name));
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (!ndb_binlog_running) {
     DBUG_PRINT("exit", ("this mysqld is not binlogging"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Check if database has been filtered(with --binlog-ignore-db etc.)
   if (!binlog_filter->db_ok(share->db)) {
     DBUG_PRINT("info", ("binlog is filtered for db: %s", share->db));
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Don't create event operation if binlogging for this table
   // has been turned off
   if (share->get_binlog_nologging()) {
     DBUG_PRINT("info", ("binlogging turned off for this table"));
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 std::string Ndb_binlog_client::event_name_for_table(const char *db,
@@ -159,7 +159,7 @@ std::string Ndb_binlog_client::event_name_for_table(const char *db,
 
 bool Ndb_binlog_client::event_exists_for_table(Ndb *ndb,
                                                const NDB_SHARE *share) const {
-  DBUG_ENTER("Ndb_binlog_client::event_exists_for_table()");
+  DBUG_TRACE;
 
   // Generate event name
   std::string event_name =
@@ -176,9 +176,9 @@ bool Ndb_binlog_client::event_exists_for_table(Ndb *ndb,
     ndb_log_verbose(1, "Event '%s' for table '%s.%s' already exists",
                     event_name.c_str(), m_dbname, m_tabname);
 
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);  // Does not exist
+  return false;  // Does not exist
 }
 
 void Ndb_binlog_client::log_warning(uint code, const char *fmt, ...) const {

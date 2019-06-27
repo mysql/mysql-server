@@ -89,7 +89,7 @@ bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
 
 void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
                                         const char *proper_table_name) {
-  DBUG_ENTER("ndb_dd_fix_inplace_alter_table_def");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s", table_def->name().c_str()));
   DBUG_PRINT("enter", ("proper_table_name: %s", proper_table_name));
 
@@ -98,8 +98,6 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
 
   table_def->set_name(proper_table_name);
   table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -124,7 +122,7 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
 bool ndb_dd_update_schema_version(THD *thd, const char *schema_name,
                                   unsigned int counter, unsigned int node_id,
                                   bool skip_commit) {
-  DBUG_ENTER("ndb_dd_update_schema_version");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u", schema_name,
                        counter, node_id));
 
@@ -133,11 +131,11 @@ bool ndb_dd_update_schema_version(THD *thd, const char *schema_name,
   if (!dd_client.mdl_lock_schema(schema_name, true)) {
     DBUG_PRINT("error", ("Failed to acquire exclusive locks on Schema : '%s'",
                          schema_name));
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!dd_client.update_schema_version(schema_name, counter, node_id)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!skip_commit) {
@@ -146,12 +144,12 @@ bool ndb_dd_update_schema_version(THD *thd, const char *schema_name,
     dd_client.disable_auto_rollback();
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool ndb_dd_has_local_tables_in_schema(THD *thd, const char *schema_name,
                                        bool &tables_exist_in_database) {
-  DBUG_ENTER("ndb_dd_has_tables_in_schema");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("Checking if schema '%s' has local tables", schema_name));
 
@@ -160,7 +158,7 @@ bool ndb_dd_has_local_tables_in_schema(THD *thd, const char *schema_name,
   /* Lock the schema in DD */
   if (!dd_client.mdl_lock_schema(schema_name)) {
     DBUG_PRINT("error", ("Failed to MDL lock schema : '%s'", schema_name));
-    DBUG_RETURN(false);
+    return false;
   }
 
   /* Check if there are any local tables */
@@ -168,10 +166,10 @@ bool ndb_dd_has_local_tables_in_schema(THD *thd, const char *schema_name,
                                              &tables_exist_in_database)) {
     DBUG_PRINT("error", ("Failed to check if the Schema '%s' has any tables",
                          schema_name));
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 const std::string ndb_dd_fs_name_case(const dd::String_type &name) {

@@ -350,12 +350,12 @@ extern bool opt_ndb_metadata_check;
 extern unsigned long opt_ndb_metadata_check_interval;
 
 void Ndb_metadata_change_monitor::do_run() {
-  DBUG_ENTER("Ndb_metadata_change_monitor::do_run");
+  DBUG_TRACE;
 
   log_info("Starting...");
 
   if (!wait_for_server_started()) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   Thread_handle_guard thd_guard;
@@ -363,7 +363,7 @@ void Ndb_metadata_change_monitor::do_run() {
   if (thd == nullptr) {
     DBUG_ASSERT(false);
     log_error("Failed to allocate THD");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   for (;;) {
@@ -373,7 +373,7 @@ void Ndb_metadata_change_monitor::do_run() {
       // No connection to NDB yet. Retry until connection is established while
       // checking if stop has been requested at 1 second intervals
       if (is_stop_requested()) {
-        DBUG_VOID_RETURN;
+        return;
       }
     }
 
@@ -382,7 +382,7 @@ void Ndb_metadata_change_monitor::do_run() {
     if (thd_ndb == nullptr) {
       DBUG_ASSERT(false);
       log_error("Failed to allocate Thd_ndb");
-      DBUG_VOID_RETURN;
+      return;
     }
 
     for (;;) {
@@ -392,7 +392,7 @@ void Ndb_metadata_change_monitor::do_run() {
         // enabled or if a stop has been requested
         ndb_milli_sleep(1000);
         if (is_stop_requested()) {
-          DBUG_VOID_RETURN;
+          return;
         }
       }
 
@@ -427,7 +427,7 @@ void Ndb_metadata_change_monitor::do_run() {
       }
 
       if (is_stop_requested()) {
-        DBUG_VOID_RETURN;
+        return;
       }
 
       // Check if metadata check is still enabled even after the wait
@@ -463,7 +463,7 @@ void Ndb_metadata_change_monitor::do_run() {
       log_info("Logfile group metadata check completed");
 
       if (is_stop_requested()) {
-        DBUG_VOID_RETURN;
+        return;
       }
 
       if (!detect_tablespace_changes(thd, thd_ndb)) {
@@ -472,7 +472,7 @@ void Ndb_metadata_change_monitor::do_run() {
       log_info("Tablespace metadata check completed");
 
       if (is_stop_requested()) {
-        DBUG_VOID_RETURN;
+        return;
       }
 
       if (!detect_table_changes(thd, thd_ndb)) {

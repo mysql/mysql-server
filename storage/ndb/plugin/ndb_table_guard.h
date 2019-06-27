@@ -40,9 +40,9 @@ class Ndb_table_guard {
   Ndb_table_guard(NdbDictionary::Dictionary *dict) : m_dict(dict) {}
   Ndb_table_guard(NdbDictionary::Dictionary *dict, const char *tabname)
       : m_dict(dict) {
-    DBUG_ENTER("Ndb_table_guard");
+    DBUG_TRACE;
     init(tabname);
-    DBUG_VOID_RETURN;
+    return;
   }
   Ndb_table_guard(Ndb *ndb, const char *dbname, const char *tabname)
       : m_dict(ndb->getDictionary()) {
@@ -56,7 +56,7 @@ class Ndb_table_guard {
     (void)ndb->setDatabaseName(save_dbname.c_str());
   }
   ~Ndb_table_guard() {
-    DBUG_ENTER("~Ndb_table_guard");
+    DBUG_TRACE;
     if (m_ndbtab) {
       DBUG_PRINT("info",
                  ("m_ndbtab: %p  m_invalidate: %d", m_ndbtab, m_invalidate));
@@ -64,25 +64,25 @@ class Ndb_table_guard {
       m_ndbtab = NULL;
       m_invalidate = 0;
     }
-    DBUG_VOID_RETURN;
+    return;
   }
   void init(const char *tabname) {
-    DBUG_ENTER("Ndb_table_guard::init");
+    DBUG_TRACE;
     /* Don't allow init() if already initialized */
     DBUG_ASSERT(m_ndbtab == NULL);
     m_ndbtab = m_dict->getTableGlobal(tabname);
     m_invalidate = 0;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
-    DBUG_VOID_RETURN;
+    return;
   }
   const NdbDictionary::Table *get_table() const { return m_ndbtab; }
   void invalidate() { m_invalidate = 1; }
   const NdbDictionary::Table *release() {
-    DBUG_ENTER("Ndb_table_guard::release");
+    DBUG_TRACE;
     const NdbDictionary::Table *tmp = m_ndbtab;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     m_ndbtab = 0;
-    DBUG_RETURN(tmp);
+    return tmp;
   }
 };
 

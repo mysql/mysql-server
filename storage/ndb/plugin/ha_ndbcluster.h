@@ -271,12 +271,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
                      dd::Table *dd_table) override;
 
   row_type get_real_row_type(const HA_CREATE_INFO *create_info) const override {
-    DBUG_ENTER("ha_ndbcluster::get_real_row_type");
+    DBUG_TRACE;
     // ROW_RORMAT=FIXED -> using FIXED
-    if (create_info->row_type == ROW_TYPE_FIXED) DBUG_RETURN(ROW_TYPE_FIXED);
+    if (create_info->row_type == ROW_TYPE_FIXED) return ROW_TYPE_FIXED;
 
     // All other values uses DYNAMIC
-    DBUG_RETURN(ROW_TYPE_DYNAMIC);
+    return ROW_TYPE_DYNAMIC;
   }
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
              dd::Table *table_def) override;

@@ -240,7 +240,7 @@ static bool is_endian_sensible_type(const Field *field) {
 NdbQuery *ndb_pushed_join::make_query_instance(
     NdbTransaction *trans, const NdbQueryParamValue *keyFieldParams,
     uint paramCnt) const {
-  DBUG_ENTER("make_query_instance");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("executing chain of %d pushed joins."
                       " First table is %s, accessed as %s.",
                       get_operation_count(), get_table(0)->alias,
@@ -297,7 +297,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
       extendedParams[i].~NdbQueryParamValue();
     }
   }
-  DBUG_RETURN(query);
+  return query;
 }
 
 /////////////////////////////////////////
@@ -451,29 +451,29 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
  */
 int ndb_pushed_builder_ctx::make_pushed_join(
     const AQP::Table_access *join_root, const ndb_pushed_join *&pushed_join) {
-  DBUG_ENTER("make_pushed_join");
+  DBUG_TRACE;
   pushed_join = NULL;
 
   if (is_pushable_with_root(join_root)) {
     int error;
     error = optimize_query_plan();
-    if (unlikely(error)) DBUG_RETURN(error);
+    if (unlikely(error)) return error;
 
     error = build_query();
-    if (unlikely(error)) DBUG_RETURN(error);
+    if (unlikely(error)) return error;
 
     const NdbQueryDef *const query_def =
         m_builder->prepare(get_thd_ndb(current_thd)->ndb);
     if (unlikely(query_def == NULL))
-      DBUG_RETURN(-1);  // Get error with ::getNdbError()
+      return -1;  // Get error with ::getNdbError()
 
     pushed_join = new ndb_pushed_join(*this, query_def);
-    if (unlikely(pushed_join == NULL)) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    if (unlikely(pushed_join == NULL)) return HA_ERR_OUT_OF_MEM;
 
     DBUG_PRINT("info", ("Created pushed join with %d child operations",
                         pushed_join->get_operation_count() - 1));
   }
-  DBUG_RETURN(0);
+  return 0;
 }  // ndb_pushed_builder_ctx::make_pushed_join()
 
 /**
@@ -508,14 +508,14 @@ uint internal_operation_count(AQP::enum_access_type accessType) {
  */
 bool ndb_pushed_builder_ctx::is_pushable_with_root(
     const AQP::Table_access *root) {
-  DBUG_ENTER("is_pushable_with_root");
+  DBUG_TRACE;
 
   const uint root_no = root->get_access_no();
   if ((m_tables[root_no].m_maybe_pushable & PUSHABLE_AS_PARENT) !=
       PUSHABLE_AS_PARENT) {
     DBUG_PRINT("info",
                ("Table %d already reported 'not pushable_as_parent'", root_no));
-    DBUG_RETURN(false);
+    return false;
   }
 
   const AQP::enum_access_type access_type = root->get_access_type();
@@ -527,7 +527,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root(
         "access type 'MULTI_UNIQUE_KEY' not implemented",
         root->get_table()->alias);
     m_tables[root_no].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (root->filesort_before_join()) {
@@ -535,7 +535,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root(
         "Table '%s' is not pushable, "
         "need filesort before joining child tables",
         root->get_table()->alias);
-    DBUG_RETURN(false);
+    return false;
   }
 
   /**
@@ -558,7 +558,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root(
       push_cnt++;
     }
   }
-  DBUG_RETURN(push_cnt > 0);
+  return push_cnt > 0;
 
 }  // ndb_pushed_builder_ctx::is_pushable_with_root()
 
@@ -582,7 +582,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root(
  ****************************************************************/
 bool ndb_pushed_builder_ctx::is_pushable_as_child(
     const AQP::Table_access *table) {
-  DBUG_ENTER("is_pushable_as_child");
+  DBUG_TRACE;
   const uint root_no = m_join_root->get_access_no();
   const uint tab_no = table->get_access_no();
 
@@ -595,7 +595,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
       DBUG_PRINT("info", ("Table %s already known 'not is_pushable_as_child'",
                           table->get_table()->alias));
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
   const AQP::enum_access_type root_type = m_join_root->get_access_type();
@@ -607,7 +607,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
         "Can't push table '%s' as child, 'type' must be a 'ref' access",
         table->get_table()->alias);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Currently there is a limitation in not allowing LOOKUP - (index)SCAN
@@ -619,7 +619,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
         "with lookup-root '%s' not implemented",
         table->get_table()->alias, m_join_root->get_table()->alias);
     // 'table' may still be PUSHABLE_AS_CHILD with another parent
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS) {
@@ -629,7 +629,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
         table->get_table()->alias);
     m_tables[tab_no].m_maybe_pushable &=
         ~PUSHABLE_AS_CHILD;  // Permanently dissable
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (uint i = tab_no; i > root_no; i--) {
@@ -639,7 +639,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
           "would prevent using join buffer for table '%s'.",
           table->get_table()->alias, m_join_root->get_table()->alias,
           m_plan.get_table_access(i)->get_table()->alias);
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -651,7 +651,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
         "Cannot push table '%s' as child of '%s'. Max number"
         " of pushable tables exceeded.",
         table->get_table()->alias, m_join_root->get_table()->alias);
-    DBUG_RETURN(false);
+    return false;
   }
   m_internal_op_count += internal_ops_needed;
 
@@ -690,7 +690,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
     {
       DBUG_PRINT("info", (" Item type:%d is 'const_item'", key_item->type()));
       if (!is_const_item_pushable(key_item, key_part)) {
-        DBUG_RETURN(false);
+        return false;
       }
     } else if (key_item->type() == Item::FIELD_ITEM) {
       /**
@@ -699,7 +699,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
        */
       ndb_table_access_map field_parents;
       if (!is_field_item_pushable(table, key_item, key_part, field_parents)) {
-        DBUG_RETURN(false);
+        return false;
       }
 
       /**
@@ -735,7 +735,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
           table->get_table()->alias, key_part->field->field_name);
       m_tables[tab_no].m_maybe_pushable &=
           ~PUSHABLE_AS_CHILD;  // Permanently disable as child
-      DBUG_RETURN(false);
+      return false;
     }
   }  // for (uint key_part_no= 0 ...
 
@@ -747,13 +747,13 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
         "Can't push table '%s' as child of '%s', "
         "their dependency is 'const'",
         table->get_table()->alias, m_join_root->get_table()->alias);
-    DBUG_RETURN(false);
+    return false;
   } else if (extend_parents.is_clear_all()) {
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child of '%s', "
         "no parents found within scope",
         table->get_table()->alias, m_join_root->get_table()->alias);
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
@@ -791,7 +791,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
           "Can't push table '%s' as child of '%s', "
           "outer join of scan-child not implemented",
           table->get_table()->alias, m_join_root->get_table()->alias);
-      DBUG_RETURN(false);
+      return false;
     }
 
     /**
@@ -814,7 +814,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
           "Can't push table '%s' as child of '%s', "
           "semi join of scan-child not implemented",
           table->get_table()->alias, m_join_root->get_table()->alias);
-      DBUG_RETURN(false);
+      return false;
     }
 
     /**
@@ -828,7 +828,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
           "Can't push table '%s' as child of '%s', "
           "not members of same join 'nest'",
           table->get_table()->alias, m_join_root->get_table()->alias);
-      DBUG_RETURN(false);
+      return false;
     }
 
     /**
@@ -951,7 +951,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
             "outer joined grandparent '%s'",
             table->get_table()->alias, m_join_root->get_table()->alias,
             ancestor->get_table()->alias);
-        DBUG_RETURN(false);
+        return false;
       }
     }
 
@@ -975,7 +975,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
   m_tables[tab_no].m_maybe_pushable = 0;  // Exclude from further pushing
   m_join_scope.add(tab_no);
 
-  DBUG_RETURN(true);
+  return true;
 }  // ndb_pushed_builder_ctx::is_pushable_as_child
 
 /*********************
@@ -995,7 +995,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
 bool ndb_pushed_builder_ctx::is_field_item_pushable(
     const AQP::Table_access *table, const Item *key_item,
     const KEY_PART_INFO *key_part, ndb_table_access_map &field_parents) {
-  DBUG_ENTER("is_field_item_pushable()");
+  DBUG_TRACE;
   const uint tab_no = table->get_access_no();
   DBUG_ASSERT(key_item->type() == Item::FIELD_ITEM);
 
@@ -1016,14 +1016,14 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
         key_item_field->field->table->alias, key_item_field->field->field_name);
     m_tables[tab_no].m_maybe_pushable &=
         ~PUSHABLE_AS_CHILD;  // Permanently disable as child
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (key_item_field->field->is_virtual_gcol()) {
     EXPLAIN_NO_PUSH("Can't push condition on virtual generated column '%s.%s'",
                     key_item_field->field->table->alias,
                     key_item_field->field->field_name);
-    DBUG_RETURN(false);
+    return false;
   }
 
   /**
@@ -1076,7 +1076,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     }  // while(substitute_field != NULL)
   }
   if (!field_parents.is_clear_all()) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (m_const_scope.contain(referred_table_no)) {
@@ -1107,7 +1107,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
           table->get_table()->alias, m_join_root->get_table()->alias,
           get_referred_table_access_name(key_item_field),
           get_referred_field_name(key_item_field));
-      DBUG_RETURN(false);
+      return false;
     } else {
       /**
        * Scan queries cannot be pushed if the pushed query may refer column
@@ -1124,7 +1124,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
               table->get_table()->alias, m_join_root->get_table()->alias,
               get_referred_table_access_name(key_item_field),
               get_referred_field_name(key_item_field));
-          DBUG_RETURN(false);
+          return false;
         }
         DBUG_ASSERT(access_no > 0);
         access_no--;
@@ -1132,7 +1132,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
 
     }  // if (!ndbcluster_is_lookup_operation(root_type)
     field_parents = ndb_table_access_map(m_join_root->get_access_no());
-    DBUG_RETURN(true);
+    return true;
   } else {
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child of '%s', "
@@ -1140,13 +1140,13 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
         table->get_table()->alias, m_join_root->get_table()->alias,
         get_referred_table_access_name(key_item_field),
         get_referred_field_name(key_item_field));
-    DBUG_RETURN(false);
+    return false;
   }
 }  // ndb_pushed_builder_ctx::is_field_item_pushable()
 
 bool ndb_pushed_builder_ctx::is_const_item_pushable(
     const Item *key_item, const KEY_PART_INFO *key_part) {
-  DBUG_ENTER("is_const_item_pushable()");
+  DBUG_TRACE;
   DBUG_ASSERT(key_item->const_item());
 
   /**
@@ -1159,17 +1159,17 @@ bool ndb_pushed_builder_ctx::is_const_item_pushable(
   if (unlikely(error)) {
     DBUG_PRINT("info", ("Failed to store constant Item into Field -> not"
                         " pushable"));
-    DBUG_RETURN(false);
+    return false;
   }
   if (field->is_real_null()) {
     DBUG_PRINT("info", ("NULL constValues in key -> not pushable"));
-    DBUG_RETURN(false);  // TODO, handle gracefull -> continue?
+    return false;  // TODO, handle gracefull -> continue?
   }
-  DBUG_RETURN(true);
+  return true;
 }  // ndb_pushed_builder_ctx::is_const_item_pushable()
 
 int ndb_pushed_builder_ctx::optimize_query_plan() {
-  DBUG_ENTER("optimize_query_plan");
+  DBUG_TRACE;
   const uint root_no = m_join_root->get_access_no();
 
   for (uint tab_no = root_no; tab_no < m_plan.get_access_count(); tab_no++) {
@@ -1263,12 +1263,12 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
       DBUG_ASSERT(table.m_ancestors.contain(table.m_depend_parents));
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }  // ndb_pushed_builder_ctx::optimize_query_plan
 
 void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
                                               const Item *key_refs[]) const {
-  DBUG_ENTER("collect_key_refs");
+  DBUG_TRACE;
 
   const uint tab_no = table->get_access_no();
   const uint parent_no = m_tables[tab_no].m_parent;
@@ -1350,12 +1350,11 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
   }
 
   key_refs[table->get_no_of_key_fields()] = NULL;
-  DBUG_VOID_RETURN;
 }  // ndb_pushed_builder_ctx::collect_key_refs()
 
 int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
                                       const NdbQueryOperand *op_key[]) {
-  DBUG_ENTER("build_key");
+  DBUG_TRACE;
   DBUG_ASSERT(m_join_scope.contain(table->get_access_no()));
 
   const KEY *const key = &table->get_table()->key_info[table->get_index_no()];
@@ -1366,7 +1365,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
       for (uint i = 0; i < key->user_defined_key_parts; i++) {
         op_key[i] = m_builder->paramValue();
         if (unlikely(op_key[i] == NULL)) {
-          DBUG_RETURN(-1);
+          return -1;
         }
       }
       op_key[key->user_defined_key_parts] = NULL;
@@ -1432,7 +1431,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
           if (unlikely(m_fld_refs >= ndb_pushed_join::MAX_REFERRED_FIELDS)) {
             DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) "
                                 "encountered"));
-            DBUG_RETURN(-1);  // TODO, handle gracefull -> continue?
+            return -1;  // TODO, handle gracefull -> continue?
           }
           m_referred_fields[m_fld_refs++] = field_item->field;
           op_key[map[i]] = m_builder->paramValue();
@@ -1440,16 +1439,16 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
       }
 
       if (unlikely(op_key[map[i]] == NULL)) {
-        DBUG_RETURN(-1);
+        return -1;
       }
     }
     op_key[key_fields] = NULL;
   }
-  DBUG_RETURN(0);
+  return 0;
 }  // ndb_pushed_builder_ctx::build_key()
 
 int ndb_pushed_builder_ctx::build_query() {
-  DBUG_ENTER("build_query");
+  DBUG_TRACE;
 
   DBUG_PRINT("enter",
              ("Table %d as root is pushable", m_join_root->get_access_no()));
@@ -1461,7 +1460,7 @@ int ndb_pushed_builder_ctx::build_query() {
   if (m_builder == NULL) {
     m_builder = NdbQueryBuilder::create();
     if (unlikely(m_builder == NULL)) {
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      return HA_ERR_OUT_OF_MEM;
     }
   }
 
@@ -1476,7 +1475,7 @@ int ndb_pushed_builder_ctx::build_query() {
     const NdbQueryOperand *op_key[ndb_pushed_join::MAX_KEY_PART + 1];
     if (table->get_index_no() >= 0) {
       const int error = build_key(table, op_key);
-      if (unlikely(error)) DBUG_RETURN(error);
+      if (unlikely(error)) return error;
     }
 
     NdbQueryOptions options;
@@ -1540,13 +1539,13 @@ int ndb_pushed_builder_ctx::build_query() {
       DBUG_ASSERT(false);
     }
 
-    if (unlikely(!query_op)) DBUG_RETURN(-1);
+    if (unlikely(!query_op)) return -1;
 
     m_tables[tab_no].m_op = query_op;
   }  // for (join_cnt= m_join_root->get_access_no();
      // join_cnt<plan.get_access_count(); join_cnt++)
 
-  DBUG_RETURN(0);
+  return 0;
 }  // ndb_pushed_builder_ctx::build_query()
 
 /**

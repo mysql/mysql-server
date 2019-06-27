@@ -36,7 +36,7 @@ static const char *ndb_node_id_key = "ndb_node_id";
 bool ndb_dd_schema_get_counter_and_nodeid(const dd::Schema *schema,
                                           unsigned int &counter,
                                           unsigned int &node_id) {
-  DBUG_ENTER("ndb_dd_schema_get_counter_and_nodeid");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("Reading se_private_data of schema '%s'",
                        schema->name().c_str()));
 
@@ -46,7 +46,7 @@ bool ndb_dd_schema_get_counter_and_nodeid(const dd::Schema *schema,
     DBUG_PRINT("error", ("Schema definition has an invalid value for '%s'",
                          ndb_counter_key));
     DBUG_ASSERT(false);
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (schema->se_private_data().exists(ndb_node_id_key) &&
@@ -54,22 +54,20 @@ bool ndb_dd_schema_get_counter_and_nodeid(const dd::Schema *schema,
     DBUG_PRINT("error", ("Schema definition has an invalid value for '%s'",
                          ndb_node_id_key));
     DBUG_ASSERT(false);
-    DBUG_RETURN(false);
+    return false;
   }
 
   DBUG_PRINT("exit", ("counter: %u, node id: %u", counter, node_id));
-  DBUG_RETURN(true);
+  return true;
 }
 
 void ndb_dd_schema_set_counter_and_nodeid(dd::Schema *schema,
                                           unsigned int counter,
                                           unsigned int node_id) {
-  DBUG_ENTER("ndb_dd_schema_set_counter_and_nodeid");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u",
                        schema->name().c_str(), counter, node_id));
 
   schema->se_private_data().set(ndb_counter_key, counter);
   schema->se_private_data().set(ndb_node_id_key, node_id);
-
-  DBUG_VOID_RETURN;
 }

@@ -107,12 +107,12 @@ static MYSQL_SYSVAR_UINT(version,             /* name */
 static bool opt_ndbinfo_offline;
 
 static void offline_update(THD *, SYS_VAR *, void *, const void *save) {
-  DBUG_ENTER("offline_update");
+  DBUG_TRACE;
 
   const bool new_offline = (*(static_cast<const bool *>(save)) != 0);
   if (new_offline == opt_ndbinfo_offline) {
     // No change
-    DBUG_VOID_RETURN;
+    return;
   }
 
   // Set offline mode, any tables opened from here on will
@@ -121,8 +121,6 @@ static void offline_update(THD *, SYS_VAR *, void *, const void *save) {
 
   // Close any open tables which may be in the old mode
   (void)ndb_tdc_close_cached_tables();
-
-  DBUG_VOID_RETURN;
 }
 
 static MYSQL_SYSVAR_BOOL(offline,             /* name */
@@ -199,15 +197,15 @@ static const char *find_error_message(int error) {
 }
 
 static int err2mysql(int error) {
-  DBUG_ENTER("err2mysql");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d", error));
   assert(error != 0);
   switch (error) {
     case NdbInfo::ERR_ClusterFailure:
-      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+      return HA_ERR_NO_CONNECTION;
       break;
     case NdbInfo::ERR_OutOfMemory:
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      return HA_ERR_OUT_OF_MEM;
       break;
     default:
       break;
@@ -218,19 +216,19 @@ static int err2mysql(int error) {
                         ER_THD(current_thd, ER_GET_ERRNO), error,
                         my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
   }
-  DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+  return HA_ERR_INTERNAL_ERROR;
 }
 
 bool ha_ndbinfo::get_error_message(int error, String *buf) {
-  DBUG_ENTER("ha_ndbinfo::get_error_message");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d", error));
 
   const char *message = find_error_message(error);
-  if (!message) DBUG_RETURN(false);
+  if (!message) return false;
 
   buf->set(message, (uint32)strlen(message), &my_charset_bin);
   DBUG_PRINT("exit", ("message: %s", buf->ptr()));
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void generate_sql(const NdbInfo::Table *ndb_tab, BaseString &sql) {
@@ -277,7 +275,7 @@ static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
 static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
                               const char *format, ...) {
   BaseString msg;
-  DBUG_ENTER("warn_incompatible");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s, fatal: %d", ndb_tab->getName(), fatal));
   DBUG_ASSERT(format != NULL);
 
@@ -296,13 +294,11 @@ static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
   const Sql_condition::enum_severity_level level =
       (fatal ? Sql_condition::SL_WARNING : Sql_condition::SL_NOTE);
   push_warning(current_thd, level, ERR_INCOMPAT_TABLE_DEF, msg.c_str());
-
-  DBUG_VOID_RETURN;
 }
 
 int ha_ndbinfo::create(const char *, TABLE *, HA_CREATE_INFO *, dd::Table *) {
-  DBUG_ENTER("ha_ndbinfo::create");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 bool ha_ndbinfo::is_open(void) const { return m_impl.m_table != NULL; }
@@ -310,7 +306,7 @@ bool ha_ndbinfo::is_open(void) const { return m_impl.m_table != NULL; }
 bool ha_ndbinfo::is_offline(void) const { return m_impl.m_offline; }
 
 int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
-  DBUG_ENTER("ha_ndbinfo::open");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
 
   assert(is_closed());
@@ -319,7 +315,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   if (mode == O_RDWR) {
     if (table->db_stat & HA_TRY_READ_ONLY) {
       DBUG_PRINT("info", ("Telling server to use readonly mode"));
-      DBUG_RETURN(EROFS);  // Read only fs
+      return EROFS;  // Read only fs
     }
     // Find any commands that does not allow open readonly
     DBUG_ASSERT(false);
@@ -328,14 +324,14 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   if (opt_ndbinfo_offline || ndbcluster_is_disabled()) {
     // Mark table as being offline and allow it to be opened
     m_impl.m_offline = true;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err) {
     assert(m_impl.m_table == 0);
-    if (err == NdbInfo::ERR_NoSuchTable) DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    DBUG_RETURN(err2mysql(err));
+    if (err == NdbInfo::ERR_NoSuchTable) return HA_ERR_NO_SUCH_TABLE;
+    return err2mysql(err);
   }
 
   /*
@@ -355,7 +351,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
                         field->field_name);
       delete m_impl.m_table;
       m_impl.m_table = 0;
-      DBUG_RETURN(ERR_INCOMPAT_TABLE_DEF);
+      return ERR_INCOMPAT_TABLE_DEF;
     }
 
     // Check if column exist in NDB
@@ -387,7 +383,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
                         field->field_name);
       delete m_impl.m_table;
       m_impl.m_table = 0;
-      DBUG_RETURN(ERR_INCOMPAT_TABLE_DEF);
+      return ERR_INCOMPAT_TABLE_DEF;
     }
   }
 
@@ -397,24 +393,24 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     ref_length += table->field[i]->pack_length();
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_ndbinfo::close(void) {
-  DBUG_ENTER("ha_ndbinfo::close");
+  DBUG_TRACE;
 
-  if (is_offline()) DBUG_RETURN(0);
+  if (is_offline()) return 0;
 
   assert(is_open());
   if (m_impl.m_table) {
     g_ndbinfo->closeTable(m_impl.m_table);
     m_impl.m_table = NULL;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_ndbinfo::rnd_init(bool scan) {
-  DBUG_ENTER("ha_ndbinfo::rnd_init");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("scan: %d", scan));
 
   if (is_offline()) {
@@ -423,7 +419,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
                  "since the 'NDBCLUSTER' engine is disabled "
                  "or @@global.ndbinfo_offline is turned on "
                  "- no rows can be returned");
-    DBUG_RETURN(0);
+    return 0;
   }
 
   assert(is_open());
@@ -488,7 +484,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
   if (!scan) {
     // Just an init to read using 'rnd_pos'
     DBUG_PRINT("info", ("not scan"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   THD *thd = current_thd;
@@ -497,12 +493,12 @@ int ha_ndbinfo::rnd_init(bool scan) {
   if ((err = g_ndbinfo->createScanOperation(m_impl.m_table, &scan_op,
                                             THDVAR(thd, max_rows),
                                             THDVAR(thd, max_bytes))) != 0)
-    DBUG_RETURN(err2mysql(err));
+    return err2mysql(err);
 
   if ((err = scan_op->readTuples()) != 0) {
     // Release the scan operation
     g_ndbinfo->releaseScanOperation(scan_op);
-    DBUG_RETURN(err2mysql(err));
+    return err2mysql(err);
   }
 
   /* Read all columns specified in read_set */
@@ -519,17 +515,17 @@ int ha_ndbinfo::rnd_init(bool scan) {
     m_impl.m_columns.clear();
     // Release the scan operation
     g_ndbinfo->releaseScanOperation(scan_op);
-    DBUG_RETURN(err2mysql(err));
+    return err2mysql(err);
   }
 
   m_impl.m_scan_op = scan_op;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_ndbinfo::rnd_end() {
-  DBUG_ENTER("ha_ndbinfo::rnd_end");
+  DBUG_TRACE;
 
-  if (is_offline()) DBUG_RETURN(0);
+  if (is_offline()) return 0;
 
   assert(is_open());
 
@@ -539,14 +535,14 @@ int ha_ndbinfo::rnd_end() {
   }
   m_impl.m_columns.clear();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_ndbinfo::rnd_next(uchar *buf) {
   int err;
-  DBUG_ENTER("ha_ndbinfo::rnd_next");
+  DBUG_TRACE;
 
-  if (is_offline()) DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if (is_offline()) return HA_ERR_END_OF_FILE;
 
   assert(is_open());
 
@@ -557,21 +553,20 @@ int ha_ndbinfo::rnd_next(uchar *buf) {
      called even though rnd_init() returned an error. Thus double check
      that the scan operation exists and bail out in case it doesn't.
     */
-    DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+    return HA_ERR_INTERNAL_ERROR;
   }
 
-  if ((err = m_impl.m_scan_op->nextResult()) == 0)
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if ((err = m_impl.m_scan_op->nextResult()) == 0) return HA_ERR_END_OF_FILE;
 
-  if (err != 1) DBUG_RETURN(err2mysql(err));
+  if (err != 1) return err2mysql(err);
 
   unpack_record(buf);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_ndbinfo::rnd_pos(uchar *buf, uchar *pos) {
-  DBUG_ENTER("ha_ndbinfo::rnd_pos");
+  DBUG_TRACE;
   assert(is_open());
   assert(m_impl.m_scan_op == NULL);  // No scan started
 
@@ -579,27 +574,25 @@ int ha_ndbinfo::rnd_pos(uchar *buf, uchar *pos) {
   memcpy(buf, pos, ref_length);
   for (uint i = 0; i < table->s->fields; i++) table->field[i]->set_notnull();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void ha_ndbinfo::position(const uchar *record) {
-  DBUG_ENTER("ha_ndbinfo::position");
+  DBUG_TRACE;
   assert(is_open());
   assert(m_impl.m_scan_op);
 
   /* Save away the whole row in "ref" */
   memcpy(ref, record, ref_length);
-
-  DBUG_VOID_RETURN;
 }
 
 int ha_ndbinfo::info(uint) {
-  DBUG_ENTER("ha_ndbinfo::info");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 void ha_ndbinfo::unpack_record(uchar *dst_row) {
-  DBUG_ENTER("ha_ndbinfo::unpack_record");
+  DBUG_TRACE;
   ptrdiff_t dst_offset = dst_row - table->record[0];
 
   for (uint i = 0; i < table->s->fields; i++) {
@@ -642,21 +635,20 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
       field->set_null();
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
                               const char *, const char *, bool dir,
                               List<LEX_STRING> *files) {
-  DBUG_ENTER("ndbinfo_find_files");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("db: '%s', dir: %d", db, dir));
 
   const bool show_hidden = THDVAR(thd, show_hidden);
 
-  if (show_hidden) DBUG_RETURN(0);  // Don't filter out anything
+  if (show_hidden) return 0;  // Don't filter out anything
 
   if (dir) {
-    if (!ndbcluster_is_disabled()) DBUG_RETURN(0);
+    if (!ndbcluster_is_disabled()) return 0;
 
     // Hide our database when ndbcluster is disabled
     LEX_STRING *dir_name;
@@ -668,12 +660,11 @@ static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
       it.remove();
     }
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
   DBUG_ASSERT(db);
-  if (strcmp(db, opt_ndbinfo_dbname))
-    DBUG_RETURN(0);  // Only hide files in "our" db
+  if (strcmp(db, opt_ndbinfo_dbname)) return 0;  // Only hide files in "our" db
 
   /* Hide all files that start with "our" prefix */
   LEX_STRING *file_name;
@@ -685,11 +676,11 @@ static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int ndbinfo_init(void *plugin) {
-  DBUG_ENTER("ndbinfo_init");
+  DBUG_TRACE;
 
   handlerton *hton = (handlerton *)plugin;
   hton->create = create_handler;
@@ -710,7 +701,7 @@ static int ndbinfo_init(void *plugin) {
 
   if (ndbcluster_is_disabled()) {
     // Starting in limited mode since ndbcluster is disabled
-    DBUG_RETURN(0);
+    return 0;
   }
 
   char prefix[FN_REFLEN];
@@ -723,7 +714,7 @@ static int ndbinfo_init(void *plugin) {
                                  opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
   if (!g_ndbinfo) {
     ndb_log_error("Failed to create NdbInfo");
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (!g_ndbinfo->init()) {
@@ -732,21 +723,21 @@ static int ndbinfo_init(void *plugin) {
     delete g_ndbinfo;
     g_ndbinfo = NULL;
 
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int ndbinfo_deinit(void *) {
-  DBUG_ENTER("ndbinfo_deinit");
+  DBUG_TRACE;
 
   if (g_ndbinfo) {
     delete g_ndbinfo;
     g_ndbinfo = NULL;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 SYS_VAR *ndbinfo_system_variables[] = {MYSQL_SYSVAR(max_rows),

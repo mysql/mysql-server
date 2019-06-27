@@ -25,44 +25,44 @@
 #include "storage/ndb/plugin/ndb_schema_trans_guard.h"
 
 bool Ndb_schema_trans_guard::begin_trans() {
-  DBUG_ENTER("Ndb_schema_trans_guard::begin_trans");
+  DBUG_TRACE;
 
   if (m_dict->beginSchemaTrans() != 0 ||
       DBUG_EVALUATE_IF("ndb_schema_trans_start_fail", true, false)) {
     DBUG_PRINT("info", ("Failed to start NDB schema transaction"));
     m_thd_ndb->push_ndb_error_warning(m_dict->getNdbError());
     m_thd_ndb->push_warning("Failed to start NDB schema transaction");
-    DBUG_RETURN(false);  // Failed
+    return false;  // Failed
   }
   DBUG_PRINT("info", ("Started NDB schema transaction"));
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_schema_trans_guard::commit_trans() {
-  DBUG_ENTER("Ndb_schema_trans_guard::commit_trans");
+  DBUG_TRACE;
 
   if (DBUG_EVALUATE_IF("ndb_schema_trans_commit_fail", true, false) ||
       m_dict->endSchemaTrans() != 0) {
     DBUG_PRINT("info", ("Failed to commit NDB schema transaction"));
     m_thd_ndb->push_ndb_error_warning(m_dict->getNdbError());
     m_thd_ndb->push_warning("Failed to commit NDB schema transaction");
-    DBUG_RETURN(false);  // Failed
+    return false;  // Failed
   }
   DBUG_PRINT("info", ("Comitted NDB schema transaction"));
   m_comitted = true;
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_schema_trans_guard::abort_trans() {
-  DBUG_ENTER("Ndb_schema_trans_guard::abort_trans");
+  DBUG_TRACE;
 
   const bool abort_flags = NdbDictionary::Dictionary::SchemaTransAbort;
   if (m_dict->endSchemaTrans(abort_flags) != 0) {
     DBUG_PRINT("info", ("Failed to abort NDB schema transaction"));
     m_thd_ndb->push_ndb_error_warning(m_dict->getNdbError());
     m_thd_ndb->push_warning("Failed to abort NDB schema transaction");
-    DBUG_RETURN(false);  // Failed
+    return false;  // Failed
   }
   DBUG_PRINT("info", ("Aborted NDB schema transaction"));
-  DBUG_RETURN(true);
+  return true;
 }

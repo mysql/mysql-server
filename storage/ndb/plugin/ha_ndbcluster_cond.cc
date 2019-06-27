@@ -181,10 +181,10 @@ class Ndb_item {
   }
 
   int save_in_field(const Ndb_item *field_item) const {
-    DBUG_ENTER("save_in_field");
+    DBUG_TRACE;
     Field *field = field_item->get_field();
     const Item *item = get_item();
-    if (unlikely(item == nullptr || field == nullptr)) DBUG_RETURN(-1);
+    if (unlikely(item == nullptr || field == nullptr)) return -1;
 
     my_bitmap_map *old_map =
         dbug_tmp_use_all_columns(field->table, field->table->write_set);
@@ -192,9 +192,9 @@ class Ndb_item {
         const_cast<Item *>(item)->save_in_field(field, false);
     dbug_tmp_restore_column_map(field->table->write_set, old_map);
 
-    if (unlikely(status != TYPE_OK)) DBUG_RETURN(-1);
+    if (unlikely(status != TYPE_OK)) return -1;
 
-    DBUG_RETURN(0);  // OK
+    return 0;  // OK
   }
 
   static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun) {
@@ -559,7 +559,7 @@ static uint operand_count(const Item *item) {
 */
 static void ndb_serialize_cond(const Item *item, void *arg) {
   Ndb_cond_traverse_context *context = (Ndb_cond_traverse_context *)arg;
-  DBUG_ENTER("ndb_serialize_cond");
+  DBUG_TRACE;
 
   // Check if we are skipping arguments to a function to be evaluated
   if (context->skip) {
@@ -568,7 +568,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
     if (item != nullptr) {
       context->skip += operand_count(item);
     }
-    DBUG_VOID_RETURN;
+    return;
   }
 
   if (context->supported) {
@@ -609,7 +609,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
               // Illegal BETWEEN expression
               DBUG_PRINT("info", ("Illegal BETWEEN expression"));
               context->supported = false;
-              DBUG_VOID_RETURN;
+              return;
             }
             break;
           }
@@ -631,7 +631,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
             // above
             DBUG_ASSERT(false);
             context->supported = false;
-            DBUG_VOID_RETURN;
+            return;
         }
         cmp_func->fix_fields(current_thd, &cmp_func);
         cmp_func->update_used_tables();
@@ -658,7 +658,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
       DBUG_PRINT("info",
                  ("Skip 'item' (to be) handled in rewritten predicate"));
       context->skip = operand_count(item);
-      DBUG_VOID_RETURN;
+      return;
     } else  // not in a 'rewrite_context'
     {
       const Ndb_item *ndb_item = nullptr;
@@ -835,7 +835,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
           context->skip = operand_count(item);
           DBUG_PRINT("info", ("Skip until end of arguments marker, operands:%d",
                               context->skip));
-          DBUG_VOID_RETURN;
+          return;
         }
 
         switch (item->type()) {
@@ -1241,7 +1241,6 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
       }
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 ha_ndbcluster_cond::ha_ndbcluster_cond()
@@ -1253,11 +1252,10 @@ ha_ndbcluster_cond::~ha_ndbcluster_cond() { m_ndb_cond.destroy_elements(); }
   Clear the condition stack
 */
 void ha_ndbcluster_cond::cond_clear() {
-  DBUG_ENTER("cond_clear");
+  DBUG_TRACE;
   m_ndb_cond.destroy_elements();
   m_scan_filter_code.reset();
   m_unpushed_cond = nullptr;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1386,7 +1384,7 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
                                                    Item *&remainder_cond)
 
 {
-  DBUG_ENTER("ha_ndbcluster::cond_push_boolean_term");
+  DBUG_TRACE;
   static const List<const Ndb_item> empty_list;
 
   if (term->type() == Item::COND_ITEM) {
@@ -1420,7 +1418,7 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
         pushed_cond = nullptr;
         remainder_cond = cond;
         code.destroy_elements();
-        DBUG_RETURN(empty_list);
+        return empty_list;
       }
       // Serialized code has to be embedded in an AND-group
       if (!code.is_empty()) {
@@ -1447,7 +1445,7 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
           pushed_cond = nullptr;
           remainder_cond = cond;
           code.destroy_elements();
-          DBUG_RETURN(empty_list);
+          return empty_list;
         }
 
         // Collect all bits we pushed, and its leftovers.
@@ -1464,7 +1462,7 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
         pushed_cond = nullptr;
         remainder_cond = cond;
         code.destroy_elements();
-        DBUG_RETURN(empty_list);
+        return empty_list;
       }
       // Serialized code has to be embedded in an OR-group
       if (!code.is_empty()) {
@@ -1474,7 +1472,7 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
       }
       DBUG_PRINT("info", ("COND_OR_FUNC, end"));
     }
-    DBUG_RETURN(code);
+    return code;
   } else if (term->type() == Item::FUNC_ITEM) {
     const Item_func *item_func = static_cast<const Item_func *>(term);
     if (item_func->functype() == Item_func::TRIG_COND_FUNC) {
@@ -1492,7 +1490,7 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
           item_func->arguments()[0] = remainder;
           remainder_cond = term;
         }
-        DBUG_RETURN(code);
+        return code;
       }
     }
   }
@@ -1519,14 +1517,14 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
       pushed_cond = term;
       remainder_cond = nullptr;
       DBUG_ASSERT(!context.items.is_empty());
-      DBUG_RETURN(context.items);
+      return context.items;
     }
     context.items.destroy_elements();
   }
   // Failed to push
   pushed_cond = nullptr;
   remainder_cond = term;
-  DBUG_RETURN(empty_list);  // Discard any generated Ndb_cond's
+  return empty_list;  // Discard any generated Ndb_cond's
 }
 
 /*
@@ -1536,7 +1534,7 @@ const Item *ha_ndbcluster_cond::cond_push(const Item *cond, TABLE *table,
                                           const NDBTAB *ndb_table,
                                           bool other_tbls_ok,
                                           Item *&pushed_cond) {
-  DBUG_ENTER("ha_ndbcluster_cond::cond_push");
+  DBUG_TRACE;
 
   // Build lists of the boolean terms either 'pushed', or being a 'remainder'
   Item *item = const_cast<Item *>(cond);
@@ -1568,13 +1566,13 @@ const Item *ha_ndbcluster_cond::cond_push(const Item *cond, TABLE *table,
       m_scan_filter_code.copy(code);
     }
   }
-  DBUG_RETURN(remainder);
+  return remainder;
 }
 
 int ha_ndbcluster_cond::build_scan_filter_predicate(
     List_iterator<const Ndb_item> &cond, NdbScanFilter *filter,
     bool negated) const {
-  DBUG_ENTER("build_scan_filter_predicate");
+  DBUG_TRACE;
   const Ndb_item *ndb_item = *cond.ref();
   switch (ndb_item->type) {
     case NDB_FUNCTION: {
@@ -1612,11 +1610,11 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
           break;
         default:
           DBUG_PRINT("info", ("condition had unexpected number of arguments"));
-          DBUG_RETURN(1);
+          return 1;
       }
       if (field1 == nullptr) {
         DBUG_PRINT("info", ("condition missing 'field' argument"));
-        DBUG_RETURN(1);
+        return 1;
       }
 
       if (value != nullptr) {
@@ -1651,8 +1649,8 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
           */
           if (filter->begin() == -1 || filter->isfalse() == -1 ||
               filter->end() == -1)
-            DBUG_RETURN(1);
-          DBUG_RETURN(0);
+            return 1;
+          return 0;
         }
       }
 
@@ -1692,7 +1690,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
               DBUG_PRINT("info", ("Appending extra field1 ISNOTNULL check"));
               if (filter->begin(NdbScanFilter::AND) == -1 ||
                   filter->isnotnull(field1->get_field_no()) == -1)
-                DBUG_RETURN(1);
+                return 1;
               added_null_check = true;
             }
             break;
@@ -1712,7 +1710,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
               DBUG_PRINT("info", ("Appending extra field2 ISNOTNULL check"));
               if (filter->begin(NdbScanFilter::AND) == -1 ||
                   filter->isnotnull(field2->get_field_no()) == -1)
-                DBUG_RETURN(1);
+                return 1;
               added_null_check = true;
             }
             break;
@@ -1727,7 +1725,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
                  filter->isnotnull(field1->get_field_no()) == -1) ||
                 (field2_maybe_null &&
                  filter->isnotnull(field2->get_field_no()) == -1))
-              DBUG_RETURN(1);
+              return 1;
             added_null_check = true;
             break;
 
@@ -1780,33 +1778,33 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
         }
         case NDB_ISNULL_FUNC: {
           DBUG_PRINT("info", ("Generating ISNULL filter"));
-          if (filter->isnull(field1->get_field_no()) == -1) DBUG_RETURN(1);
-          DBUG_RETURN(0);
+          if (filter->isnull(field1->get_field_no()) == -1) return 1;
+          return 0;
         }
         case NDB_ISNOTNULL_FUNC: {
           DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
-          if (filter->isnotnull(field1->get_field_no()) == -1) DBUG_RETURN(1);
-          DBUG_RETURN(0);
+          if (filter->isnotnull(field1->get_field_no()) == -1) return 1;
+          return 0;
         }
         default:
           DBUG_ASSERT(false);
-          DBUG_RETURN(1);
+          return 1;
       }
 
       if (cond <= NdbScanFilter::COND_NE) {
         if (value != nullptr) {
           // Save value in right format for the field type
-          if (unlikely(value->save_in_field(field1) == -1)) DBUG_RETURN(1);
+          if (unlikely(value->save_in_field(field1) == -1)) return 1;
           if (filter->cmp(cond, field1->get_field_no(), field1->get_val(),
                           field1->pack_length()) == -1)
-            DBUG_RETURN(1);
+            return 1;
         } else {
           DBUG_ASSERT(field2 != nullptr);
           DBUG_ASSERT(ndbd_support_column_cmp(
               get_thd_ndb(current_thd)->ndb->getMinDbNodeVersion()));
           if (filter->cmp(cond, field1->get_field_no(),
                           field2->get_field_no()) == -1)
-            DBUG_RETURN(1);
+            return 1;
         }
       } else  // [NOT] LIKE
       {
@@ -1821,29 +1819,29 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
 
         if (filter->cmp(cond, field1->get_field_no(), pattern->ptr(),
                         pattern->length()) == -1)
-          DBUG_RETURN(1);
+          return 1;
       }
 
       if (added_null_check && filter->end() == -1)  // Local AND group
-        DBUG_RETURN(1);
-      DBUG_RETURN(0);
+        return 1;
+      return 0;
     }
     default:
       break;
   }
   DBUG_PRINT("info", ("Found illegal condition"));
-  DBUG_RETURN(1);
+  return 1;
 }
 
 int ha_ndbcluster_cond::build_scan_filter_group(
     List_iterator<const Ndb_item> &cond, NdbScanFilter *filter,
     const bool negated) const {
   uint level = 0;
-  DBUG_ENTER("build_scan_filter_group");
+  DBUG_TRACE;
 
   do {
     const Ndb_item *ndb_item = cond++;
-    if (ndb_item == nullptr) DBUG_RETURN(1);
+    if (ndb_item == nullptr) return 1;
     switch (ndb_item->type) {
       case NDB_FUNCTION: {
         switch (ndb_item->get_func_type()) {
@@ -1853,7 +1851,7 @@ int ha_ndbcluster_cond::build_scan_filter_group(
                                 (negated) ? "OR" : "AND", level));
             if ((negated) ? filter->begin(NdbScanFilter::OR)
                           : filter->begin(NdbScanFilter::AND) == -1)
-              DBUG_RETURN(1);
+              return 1;
             break;
           }
           case NDB_COND_OR_FUNC: {
@@ -1862,17 +1860,16 @@ int ha_ndbcluster_cond::build_scan_filter_group(
                                 (negated) ? "AND" : "OR", level));
             if ((negated) ? filter->begin(NdbScanFilter::AND)
                           : filter->begin(NdbScanFilter::OR) == -1)
-              DBUG_RETURN(1);
+              return 1;
             break;
           }
           case NDB_NOT_FUNC: {
             DBUG_PRINT("info", ("Generating negated query"));
-            if (build_scan_filter_group(cond, filter, !negated)) DBUG_RETURN(1);
+            if (build_scan_filter_group(cond, filter, !negated)) return 1;
             break;
           }
           default:
-            if (build_scan_filter_predicate(cond, filter, negated))
-              DBUG_RETURN(1);
+            if (build_scan_filter_predicate(cond, filter, negated)) return 1;
             break;
         }
         break;
@@ -1890,41 +1887,41 @@ int ha_ndbcluster_cond::build_scan_filter_group(
                               str.c_ptr_safe()));
           if (filter->begin(NdbScanFilter::AND) == -1 ||
               filter->isfalse() == -1 || filter->end() == -1)
-            DBUG_RETURN(1);
+            return 1;
         } else if (const_cast<Item *>(item)->val_bool() == !negated) {
           DBUG_PRINT("info", ("BOOLEAN value 'TRUE', expression '%s'",
                               str.c_ptr_safe()));
           if (filter->begin(NdbScanFilter::OR) == -1 ||
               filter->istrue() == -1 || filter->end() == -1)
-            DBUG_RETURN(1);
+            return 1;
         } else {
           DBUG_PRINT("info", ("BOOLEAN value 'FALSE', expression '%s'",
                               str.c_ptr_safe()));
           if (filter->begin(NdbScanFilter::AND) == -1 ||
               filter->isfalse() == -1 || filter->end() == -1)
-            DBUG_RETURN(1);
+            return 1;
         }
         break;
       }
       case NDB_END_COND:
         DBUG_PRINT("info", ("End of group %u", level));
         level--;
-        if (filter->end() == -1) DBUG_RETURN(1);
+        if (filter->end() == -1) return 1;
         break;
       default: {
         DBUG_PRINT("info", ("Illegal scan filter"));
         DBUG_ASSERT(false);
-        DBUG_RETURN(1);
+        return 1;
       }
     }
   } while (level > 0);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter &filter) {
   bool need_group = true;
-  DBUG_ENTER("generate_scan_filter_from_cond");
+  DBUG_TRACE;
 
   // Determine if we need to wrap an AND group around condition(s)
   const Ndb_item *ndb_item = m_ndb_cond.head();
@@ -1941,7 +1938,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter &filter) {
     }
   }
 
-  if (need_group && filter.begin() == -1) DBUG_RETURN(1);
+  if (need_group && filter.begin() == -1) return 1;
 
   List_iterator<const Ndb_item> cond(m_ndb_cond);
   if (build_scan_filter_group(cond, &filter, false)) {
@@ -1953,11 +1950,11 @@ int ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter &filter) {
       push_warning(current_thd, Sql_condition::SL_WARNING, err.code,
                    err.message);
     }
-    DBUG_RETURN(1);
+    return 1;
   }
-  if (need_group && filter.end() == -1) DBUG_RETURN(1);
+  if (need_group && filter.end() == -1) return 1;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -1970,7 +1967,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter &filter) {
 int ha_ndbcluster_cond::generate_scan_filter_from_key(
     NdbScanFilter &filter, const KEY *key_info, const key_range *start_key,
     const key_range *end_key) {
-  DBUG_ENTER("generate_scan_filter_from_key");
+  DBUG_TRACE;
 
 #ifndef DBUG_OFF
   {
@@ -2026,7 +2023,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
         {
           DBUG_PRINT("info", ("Generating ISNOTNULL filter for nullable %s",
                               key_part->field->field_name));
-          if (filter.isnotnull(key_part->fieldnr - 1) == -1) DBUG_RETURN(1);
+          if (filter.isnotnull(key_part->fieldnr - 1) == -1) return 1;
           break;
         }
       }
@@ -2054,21 +2051,21 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
           {
             DBUG_PRINT("info", ("Generating ISNULL filter for nullable %s",
                                 field->field_name));
-            if (filter.isnull(key_part->fieldnr - 1) == -1) DBUG_RETURN(1);
+            if (filter.isnull(key_part->fieldnr - 1) == -1) return 1;
           } else {
             DBUG_PRINT("info", ("Generating EQ filter for nullable %s",
                                 field->field_name));
             if (filter.cmp(NdbScanFilter::COND_EQ, key_part->fieldnr - 1,
                            ptr + 1,  // skip null-indicator byte
                            field->pack_length()) == -1)
-              DBUG_RETURN(1);
+              return 1;
           }
         } else {
           DBUG_PRINT("info", ("Generating EQ filter for non-nullable %s",
                               field->field_name));
           if (filter.cmp(NdbScanFilter::COND_EQ, key_part->fieldnr - 1, ptr,
                          field->pack_length()) == -1)
-            DBUG_RETURN(1);
+            return 1;
         }
         ptr += key_part->store_length;
         if (ptr - start_key->key >= (ptrdiff_t)start_key->length) {
@@ -2084,7 +2081,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
     DBUG_ASSERT(false);
   } while (0);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -2127,11 +2124,11 @@ void ha_ndbcluster_cond::add_read_set(TABLE *table, const Item *cond) {
 */
 void ha_ndbcluster::generate_scan_filter(
     NdbInterpretedCode *code, NdbScanOperation::ScanOptions *options) {
-  DBUG_ENTER("generate_scan_filter");
+  DBUG_TRACE;
 
   if (pushed_cond == nullptr) {
     DBUG_PRINT("info", ("Empty stack"));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   if (m_cond.get_interpreter_code().getWordsUsed() > 0) {
@@ -2145,7 +2142,7 @@ void ha_ndbcluster::generate_scan_filter(
     } else {
       code->copy(m_cond.get_interpreter_code());
     }
-    DBUG_VOID_RETURN;
+    return;
   }
 
   // Generate the scan_filter from previously 'serialized' condition code
@@ -2161,16 +2158,15 @@ void ha_ndbcluster::generate_scan_filter(
     options->interpretedCode = code;
     options->optionsPresent |= NdbScanOperation::ScanOptions::SO_INTERPRETED;
   }
-  DBUG_VOID_RETURN;
 }
 
 int ha_ndbcluster::generate_scan_filter_with_key(
     NdbInterpretedCode *code, NdbScanOperation::ScanOptions *options,
     const KEY *key_info, const key_range *start_key, const key_range *end_key) {
-  DBUG_ENTER("generate_scan_filter_with_key");
+  DBUG_TRACE;
 
   NdbScanFilter filter(code);
-  if (filter.begin(NdbScanFilter::AND) == -1) DBUG_RETURN(1);
+  if (filter.begin(NdbScanFilter::AND) == -1) return 1;
 
   // Generate a scanFilter from a prepared pushed conditions
   if (pushed_cond != nullptr) {
@@ -2188,7 +2184,7 @@ int ha_ndbcluster::generate_scan_filter_with_key(
 
       // Discard the failed scanFilter and prepare for 'key'
       filter.reset();
-      if (filter.begin(NdbScanFilter::AND) == -1) DBUG_RETURN(1);
+      if (filter.begin(NdbScanFilter::AND) == -1) return 1;
     }
   }
 
@@ -2196,15 +2192,15 @@ int ha_ndbcluster::generate_scan_filter_with_key(
   if (key_info != nullptr) {
     const int ret = ha_ndbcluster_cond::generate_scan_filter_from_key(
         filter, key_info, start_key, end_key);
-    if (unlikely(ret != 0)) DBUG_RETURN(ret);
+    if (unlikely(ret != 0)) return ret;
   }
 
-  if (filter.end() == -1) DBUG_RETURN(1);
+  if (filter.end() == -1) return 1;
 
   if (options != nullptr) {
     options->interpretedCode = code;
     options->optionsPresent |= NdbScanOperation::ScanOptions::SO_INTERPRETED;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }

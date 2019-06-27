@@ -245,7 +245,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
                        uint data_node_neighbour) {
   const char mysqld_name[] = "mysqld";
   int res;
-  DBUG_ENTER("ndbcluster_connect");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d", connect_string,
                        force_nodeid));
 
@@ -266,7 +266,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
   if (!parse_pool_nodeids(connection_pool_nodeids_str, connection_pool_size,
                           force_nodeid, nodeids)) {
     // Error message already printed
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   // Find specified nodeid for first connection and let it override
@@ -284,7 +284,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
   if (g_ndb_cluster_connection == nullptr) {
     ndb_log_error("failed to allocate global ndb cluster connection");
     DBUG_PRINT("error", ("Ndb_cluster_connection(%s)", connect_string));
-    DBUG_RETURN(-1);
+    return -1;
   }
   {
     char buf[128];
@@ -304,12 +304,12 @@ int ndbcluster_connect(int (*connect_callback)(void),
   if (g_ndb == nullptr) {
     ndb_log_error("failed to allocate global ndb object");
     DBUG_PRINT("error", ("failed to create global ndb object"));
-    DBUG_RETURN(-1);
+    return -1;
   }
   if (g_ndb->init() != 0) {
     DBUG_PRINT("error", ("%d  message: %s", g_ndb->getNdbError().code,
                          g_ndb->getNdbError().message));
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   /* Connect to management server */
@@ -320,7 +320,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
     const NDB_TICKS now = NdbTick_getCurrentTicks();
     if (NdbTick_Elapsed(start, now).seconds() > wait_connected) break;
     ndb_retry_sleep(100);
-    if (connection_events_loop_aborted()) DBUG_RETURN(-1);
+    if (connection_events_loop_aborted()) return -1;
   }
 
   {
@@ -344,7 +344,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
         ndb_log_error("connection[%u], failed to allocate connect object", i);
         DBUG_PRINT("error",
                    ("Ndb_cluster_connection[%u](%s)", i, connect_string));
-        DBUG_RETURN(-1);
+        return -1;
       }
       {
         char buf[128];
@@ -405,7 +405,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
         ndb_log_error("connection[%u], failed to start connect thread", i);
         DBUG_PRINT("error",
                    ("g_ndb_cluster_connection->start_connect_thread()"));
-        DBUG_RETURN(-1);
+        return -1;
       }
     }
 #ifndef DBUG_OFF
@@ -422,13 +422,13 @@ int ndbcluster_connect(int (*connect_callback)(void),
     DBUG_PRINT("error", ("permanent error"));
     ndb_log_error("error (%u) %s", g_ndb_cluster_connection->get_latest_error(),
                   g_ndb_cluster_connection->get_latest_error_msg());
-    DBUG_RETURN(-1);
+    return -1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void ndbcluster_disconnect(void) {
-  DBUG_ENTER("ndbcluster_disconnect");
+  DBUG_TRACE;
   if (g_ndb) delete g_ndb;
   g_ndb = NULL;
   {
@@ -446,7 +446,6 @@ void ndbcluster_disconnect(void) {
   }
   if (g_ndb_cluster_connection) delete g_ndb_cluster_connection;
   g_ndb_cluster_connection = NULL;
-  DBUG_VOID_RETURN;
 }
 
 Ndb_cluster_connection *ndb_get_cluster_connection() {
@@ -543,7 +542,7 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] = {
 static int ndb_transid_mysql_connection_map_fill_table(THD *thd,
                                                        TABLE_LIST *tables,
                                                        Item *) {
-  DBUG_ENTER("ndb_transid_mysql_connection_map_fill_table");
+  DBUG_TRACE;
 
   const bool all = (check_global_access(thd, PROCESS_ACL) == 0);
   const ulonglong self = thd_get_thread_id(thd);
@@ -570,15 +569,15 @@ static int ndb_transid_mysql_connection_map_fill_table(THD *thd,
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int ndb_transid_mysql_connection_map_init(void *p) {
-  DBUG_ENTER("ndb_transid_mysql_connection_map_init");
+  DBUG_TRACE;
   ST_SCHEMA_TABLE *schema = reinterpret_cast<ST_SCHEMA_TABLE *>(p);
   schema->fields_info = ndb_transid_mysql_connection_map_fields_info;
   schema->fill_table = ndb_transid_mysql_connection_map_fill_table;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static struct st_mysql_information_schema i_s_info = {

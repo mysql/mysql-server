@@ -51,7 +51,7 @@ int Ndb_binlog_thread::do_deinit() {
   @return 0 on sucess
 */
 int Ndb_binlog_thread::do_after_reset_master(void *) {
-  DBUG_ENTER("Ndb_binlog_thread::do_after_reset_master");
+  DBUG_TRACE;
 
   // Truncate the mysql.ndb_binlog_index table
   // - if table does not exist ignore the error as it is a
@@ -61,7 +61,7 @@ int Ndb_binlog_thread::do_after_reset_master(void *) {
   if (mysqld.truncate_table("mysql", "ndb_binlog_index",
                             ignore_no_such_table)) {
     // Failed to truncate table
-    DBUG_RETURN(1);
+    return 1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }

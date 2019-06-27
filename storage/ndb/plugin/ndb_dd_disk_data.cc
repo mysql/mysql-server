@@ -38,54 +38,53 @@ static const char *object_type_key = "object_type";
 void ndb_dd_disk_data_set_object_id_and_version(dd::Tablespace *object_def,
                                                 int object_id,
                                                 int object_version) {
-  DBUG_ENTER("ndb_dd_disk_data_set_object_id_and_version");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("object_id: %d, object_version: %d", object_id, object_version));
 
   object_def->se_private_data().set(object_id_key, object_id);
   object_def->se_private_data().set(object_version_key, object_version);
-  DBUG_VOID_RETURN;
 }
 
 bool ndb_dd_disk_data_get_object_id_and_version(
     const dd::Tablespace *object_def, int &object_id, int &object_version) {
-  DBUG_ENTER("ndb_dd_disk_data_get_object_id_and_version");
+  DBUG_TRACE;
 
   if (!object_def->se_private_data().exists(object_id_key)) {
     DBUG_PRINT("error", ("Disk data definition didn't contain property '%s'",
                          object_id_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (object_def->se_private_data().get(object_id_key, &object_id)) {
     DBUG_PRINT("error", ("Disk data definition didn't have a valid number "
                          "for '%s'",
                          object_id_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!object_def->se_private_data().exists(object_version_key)) {
     DBUG_PRINT("error", ("Disk data definition didn't contain property '%s'",
                          object_version_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (object_def->se_private_data().get(object_version_key, &object_version)) {
     DBUG_PRINT("error", ("Disk data definition didn't have a valid number "
                          "for '%s'",
                          object_version_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   DBUG_PRINT("exit",
              ("object_id: %d, object_version: %d", object_id, object_version));
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 void ndb_dd_disk_data_set_object_type(dd::Properties &se_private_data,
                                       const enum object_type type) {
-  DBUG_ENTER("ndb_dd_disk_data_set_object_type");
+  DBUG_TRACE;
 
   dd::String_type type_str;
   if (type == object_type::TABLESPACE) {
@@ -100,7 +99,6 @@ void ndb_dd_disk_data_set_object_type(dd::Properties &se_private_data,
   DBUG_PRINT("enter", ("object_type: %s", type_str.c_str()));
 
   se_private_data.set(object_type_key, type_str.c_str());
-  DBUG_VOID_RETURN;
 }
 
 void ndb_dd_disk_data_set_object_type(dd::Tablespace *object_def,
@@ -110,12 +108,12 @@ void ndb_dd_disk_data_set_object_type(dd::Tablespace *object_def,
 
 bool ndb_dd_disk_data_get_object_type(const dd::Properties &se_private_data,
                                       enum object_type &type) {
-  DBUG_ENTER("ndb_dd_disk_data_get_object_type");
+  DBUG_TRACE;
 
   if (!se_private_data.exists(object_type_key)) {
     DBUG_PRINT("error", ("Disk data definition didn't contain property '%s'",
                          object_type_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   dd::String_type type_str;
@@ -123,7 +121,7 @@ bool ndb_dd_disk_data_get_object_type(const dd::Properties &se_private_data,
     DBUG_PRINT("error", ("Disk data definition didn't have a valid value for"
                          " '%s'",
                          object_type_key));
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (type_str == "tablespace") {
@@ -133,12 +131,12 @@ bool ndb_dd_disk_data_get_object_type(const dd::Properties &se_private_data,
   } else {
     // Should never reach here
     DBUG_ASSERT(false);
-    DBUG_RETURN(false);
+    return false;
   }
 
   DBUG_PRINT("exit", ("object_type: %s", type_str.c_str()));
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 void ndb_dd_disk_data_add_file(dd::Tablespace *object_def,

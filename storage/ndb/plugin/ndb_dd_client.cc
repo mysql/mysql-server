@@ -437,24 +437,24 @@ bool Ndb_dd_client::remove_table(const char *schema_name,
                                  Ndb_referenced_tables_invalidator *invalidator)
 
 {
-  DBUG_ENTER("Ndb_dd_client::remove_table");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("schema_name: '%s', table_name: '%s'", schema_name, table_name));
 
   const dd::Table *existing = nullptr;
   if (m_client->acquire(schema_name, table_name, &existing)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (existing == nullptr) {
     // Table does not exist
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (invalidator != nullptr &&
       !invalidator->fetch_referenced_tables_to_invalidate(
           schema_name, table_name, existing, true)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -466,17 +466,17 @@ bool Ndb_dd_client::remove_table(const char *schema_name,
   if (m_client->drop(existing)) {
     // Failed to remove existing
     DBUG_ASSERT(false);  // Catch in debug, unexpected error
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
-  DBUG_ENTER("Ndb_dd_client::store_table");
+  DBUG_TRACE;
 
   if (!m_client->store(install_table)) {
-    DBUG_RETURN(true);  // OK
+    return true;  // OK
   }
 
   DBUG_PRINT("error", ("Failed to store table, error: '%d %s'",
@@ -502,24 +502,24 @@ bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
     if (m_client->acquire_uncached_table_by_se_private_id(
             "ndbcluster", ndb_table_id, &old_table_def)) {
       // There was no old table
-      DBUG_RETURN(false);
+      return false;
     }
 
     // Double check that old table is in NDB
     if (old_table_def->engine() != "ndbcluster") {
       DBUG_ASSERT(false);
-      DBUG_RETURN(false);
+      return false;
     }
 
     // Lookup schema name of old table
     dd::Schema *old_schema;
     if (m_client->acquire_uncached(old_table_def->schema_id(), &old_schema)) {
-      DBUG_RETURN(false);
+      return false;
     }
 
     if (old_schema == nullptr) {
       DBUG_ASSERT(false);  // Database does not exist
-      DBUG_RETURN(false);
+      return false;
     }
 
     const char *old_schema_name = old_schema->name().c_str();
@@ -530,12 +530,12 @@ bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
     // Take exclusive locks on old table
     if (!mdl_locks_acquire_exclusive(old_schema_name, old_table_name)) {
       // Failed to MDL lock old table
-      DBUG_RETURN(false);
+      return false;
     }
 
     if (!remove_table(old_schema_name, old_table_name)) {
       // Failed to remove old table from DD
-      DBUG_RETURN(false);
+      return false;
     }
 
     // Try to store the new table again
@@ -543,15 +543,15 @@ bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
       DBUG_PRINT("error", ("Failed to store table, error: '%d %s'",
                            m_thd->get_stmt_da()->mysql_errno(),
                            m_thd->get_stmt_da()->message_text()));
-      DBUG_RETURN(false);
+      return false;
     }
 
     // Removed old table and stored the new, return OK
     DBUG_ASSERT(!m_thd->is_error());
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Ndb_dd_client::install_table(
@@ -773,52 +773,52 @@ bool Ndb_dd_client::set_object_id_and_version_in_table(const char *schema_name,
 
 bool Ndb_dd_client::fetch_all_schemas(
     std::map<std::string, const dd::Schema *> &schemas) {
-  DBUG_ENTER("Ndb_dd_client::fetch_all_schemas");
+  DBUG_TRACE;
 
   std::vector<const dd::Schema *> schemas_list;
   if (m_client->fetch_global_components(&schemas_list)) {
     DBUG_PRINT("error", ("Failed to fetch all schemas"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (const dd::Schema *schema : schemas_list) {
     schemas.insert(std::make_pair(schema->name().c_str(), schema));
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::fetch_schema_names(std::vector<std::string> *names) {
-  DBUG_ENTER("Ndb_dd_client::fetch_schema_names");
+  DBUG_TRACE;
 
   std::vector<const dd::Schema *> schemas;
   if (m_client->fetch_global_components(&schemas)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (const dd::Schema *schema : schemas) {
     names->push_back(schema->name().c_str());
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::get_ndb_table_names_in_schema(
     const char *schema_name, std::unordered_set<std::string> *names) {
-  DBUG_ENTER("Ndb_dd_client::get_ndb_table_names_in_schema");
+  DBUG_TRACE;
 
   const dd::Schema *schema;
   if (m_client->acquire(schema_name, &schema)) {
     // Failed to open the requested Schema object
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (schema == nullptr) {
     // Database does not exist
-    DBUG_RETURN(false);
+    return false;
   }
 
   std::vector<const dd::Table *> tables;
   if (m_client->fetch_schema_components(schema, &tables)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (const dd::Table *table : tables) {
@@ -830,7 +830,7 @@ bool Ndb_dd_client::get_ndb_table_names_in_schema(
     // Lock the table in DD
     if (!mdl_lock_table(schema_name, table->name().c_str())) {
       // Failed to MDL lock table
-      DBUG_RETURN(false);
+      return false;
     }
 
     // Convert the table name to lower case on platforms that have
@@ -838,35 +838,35 @@ bool Ndb_dd_client::get_ndb_table_names_in_schema(
     const std::string table_name = ndb_dd_fs_name_case(table->name());
     names->insert(table_name);
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::get_table_names_in_schema(
     const char *schema_name, std::unordered_set<std::string> *ndb_tables,
     std::unordered_set<std::string> *local_tables) {
-  DBUG_ENTER("Ndb_dd_client::get_table_names_in_schema");
+  DBUG_TRACE;
 
   const dd::Schema *schema;
   if (m_client->acquire(schema_name, &schema)) {
     // Failed to open the requested Schema object
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (schema == nullptr) {
     // Database does not exist
-    DBUG_RETURN(false);
+    return false;
   }
 
   std::vector<const dd::Table *> tables;
   if (m_client->fetch_schema_components(schema, &tables)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (const dd::Table *table : tables) {
     // Lock the table in DD
     if (!mdl_lock_table(schema_name, table->name().c_str())) {
       // Failed to acquire MDL
-      DBUG_RETURN(false);
+      return false;
     }
     // Convert the table name to lower case on platforms that have
     // lower_case_table_names set to 2
@@ -877,7 +877,7 @@ bool Ndb_dd_client::get_table_names_in_schema(
       local_tables->insert(table_name);
     }
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -893,23 +893,23 @@ bool Ndb_dd_client::get_table_names_in_schema(
 
 bool Ndb_dd_client::have_local_tables_in_schema(const char *schema_name,
                                                 bool *found_local_tables) {
-  DBUG_ENTER("Ndb_dd_client::have_local_tables_in_schema");
+  DBUG_TRACE;
 
   const dd::Schema *schema;
   if (m_client->acquire(schema_name, &schema)) {
     // Failed to open the requested schema
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (schema == nullptr) {
     // The schema didn't exist, thus it can't have any local tables
     *found_local_tables = false;
-    DBUG_RETURN(true);
+    return true;
   }
 
   std::vector<const dd::Table *> tables;
   if (m_client->fetch_schema_components(schema, &tables)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Assume no local table will be found, the loop below will
@@ -924,7 +924,7 @@ bool Ndb_dd_client::have_local_tables_in_schema(const char *schema_name,
     }
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::is_local_table(const char *schema_name,
@@ -945,29 +945,29 @@ bool Ndb_dd_client::is_local_table(const char *schema_name,
 
 bool Ndb_dd_client::schema_exists(const char *schema_name,
                                   bool *schema_exists) {
-  DBUG_ENTER("Ndb_dd_client::schema_exists");
+  DBUG_TRACE;
 
   const dd::Schema *schema;
   if (m_client->acquire(schema_name, &schema)) {
     // Failed to open the requested schema
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (schema == nullptr) {
     // The schema didn't exist
     *schema_exists = false;
-    DBUG_RETURN(true);
+    return true;
   }
 
   // The schema exists
   *schema_exists = true;
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::update_schema_version(const char *schema_name,
                                           unsigned int counter,
                                           unsigned int node_id) {
-  DBUG_ENTER("Ndb_dd_client::update_schema_version");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u", schema_name,
                        counter, node_id));
 
@@ -979,7 +979,7 @@ bool Ndb_dd_client::update_schema_version(const char *schema_name,
   if (m_client->acquire_for_modification(schema_name, &schema) ||
       schema == nullptr) {
     DBUG_PRINT("error", ("Failed to fetch the Schema object"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Set the values
@@ -988,15 +988,15 @@ bool Ndb_dd_client::update_schema_version(const char *schema_name,
   // Update Schema in DD
   if (m_client->update(schema)) {
     DBUG_PRINT("error", ("Failed to update the Schema in DD"));
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::lookup_tablespace_id(const char *tablespace_name,
                                          dd::Object_id *tablespace_id) {
-  DBUG_ENTER("lookup_tablespace_id");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("tablespace_name: %s", tablespace_name));
 
   DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
@@ -1006,18 +1006,18 @@ bool Ndb_dd_client::lookup_tablespace_id(const char *tablespace_name,
   const dd::Tablespace *ts_obj = NULL;
   if (m_client->acquire(tablespace_name, &ts_obj)) {
     // acquire() always fails with an error being reported.
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!ts_obj) {
     my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), tablespace_name);
-    DBUG_RETURN(false);
+    return false;
   }
 
   *tablespace_id = ts_obj->id();
   DBUG_PRINT("exit", ("tablespace_id: %llu", *tablespace_id));
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::get_tablespace(const char *tablespace_name,
@@ -1049,11 +1049,11 @@ bool Ndb_dd_client::tablespace_exists(const char *tablespace_name,
 
 bool Ndb_dd_client::fetch_ndb_tablespace_names(
     std::unordered_set<std::string> &names) {
-  DBUG_ENTER("Ndb_dd_client::fetch_ndb_tablespace_names");
+  DBUG_TRACE;
 
   std::vector<const dd::Tablespace *> tablespaces;
   if (m_client->fetch_global_components<dd::Tablespace>(&tablespaces)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (const dd::Tablespace *tablespace : tablespaces) {
@@ -1076,36 +1076,36 @@ bool Ndb_dd_client::fetch_ndb_tablespace_names(
     if (!mdl_lock_tablespace(tablespace->name().c_str(),
                              false /* intention_exclusive */)) {
       // Failed to acquire MDL lock
-      DBUG_RETURN(false);
+      return false;
     }
 
     names.insert(tablespace->name().c_str());
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::install_tablespace(
     const char *tablespace_name,
     const std::vector<std::string> &data_file_names, int tablespace_id,
     int tablespace_version, bool force_overwrite) {
-  DBUG_ENTER("Ndb_dd_client::install_tablespace");
+  DBUG_TRACE;
 
   bool exists;
   if (!tablespace_exists(tablespace_name, exists)) {
     // Could not detect if the tablespace exists or not
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (exists) {
     if (force_overwrite) {
       if (!drop_tablespace(tablespace_name)) {
         // Failed to drop tablespace
-        DBUG_RETURN(false);
+        return false;
       }
     } else {
       // Error since tablespace exists but force_overwrite not set by caller
       // No point continuing since the subsequent store() will fail
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -1133,36 +1133,36 @@ bool Ndb_dd_client::install_tablespace(
 
   // Write changes to dictionary.
   if (m_client->store(tablespace.get())) {
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::drop_tablespace(const char *tablespace_name,
                                     bool fail_if_not_exists)
 
 {
-  DBUG_ENTER("Ndb_dd_client::drop_tablespace");
+  DBUG_TRACE;
 
   const dd::Tablespace *existing = nullptr;
   if (m_client->acquire(tablespace_name, &existing)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (existing == nullptr) {
     // Tablespace does not exist
     if (fail_if_not_exists) {
-      DBUG_RETURN(false);
+      return false;
     }
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (m_client->drop(existing)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::get_logfile_group(
@@ -1194,11 +1194,11 @@ bool Ndb_dd_client::logfile_group_exists(const char *logfile_group_name,
 
 bool Ndb_dd_client::fetch_ndb_logfile_group_names(
     std::unordered_set<std::string> &names) {
-  DBUG_ENTER("Ndb_dd_client::fetch_ndb_logfile_group_names");
+  DBUG_TRACE;
 
   std::vector<const dd::Tablespace *> tablespaces;
   if (m_client->fetch_global_components<dd::Tablespace>(&tablespaces)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (const dd::Tablespace *tablespace : tablespaces) {
@@ -1221,19 +1221,19 @@ bool Ndb_dd_client::fetch_ndb_logfile_group_names(
     if (!mdl_lock_logfile_group(tablespace->name().c_str(),
                                 false /* intention_exclusive */)) {
       // Failed to acquire MDL lock
-      DBUG_RETURN(false);
+      return false;
     }
 
     names.insert(tablespace->name().c_str());
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::install_logfile_group(
     const char *logfile_group_name,
     const std::vector<std::string> &undo_file_names, int logfile_group_id,
     int logfile_group_version, bool force_overwrite) {
-  DBUG_ENTER("Ndb_dd_client::install_logfile_group");
+  DBUG_TRACE;
 
   /*
    * Logfile groups are stored as tablespaces in the DD.
@@ -1247,19 +1247,19 @@ bool Ndb_dd_client::install_logfile_group(
   bool exists;
   if (!logfile_group_exists(logfile_group_name, exists)) {
     // Could not detect if the logfile group exists or not
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (exists) {
     if (force_overwrite) {
       if (!drop_logfile_group(logfile_group_name)) {
         // Failed to drop logfile group
-        DBUG_RETURN(false);
+        return false;
       }
     } else {
       // Error since logfile group exists but force_overwrite not set to true by
       // caller. No point continuing since the subsequent store() will fail
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -1287,37 +1287,37 @@ bool Ndb_dd_client::install_logfile_group(
 
   // Write changes to dictionary.
   if (m_client->store(logfile_group.get())) {
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::install_undo_file(const char *logfile_group_name,
                                       const char *undo_file_name) {
-  DBUG_ENTER("Ndb_dd_client::install_undo_file");
+  DBUG_TRACE;
 
   // Read logfile group from DD
   dd::Tablespace *new_logfile_group_def = nullptr;
   if (m_client->acquire_for_modification(logfile_group_name,
                                          &new_logfile_group_def))
-    DBUG_RETURN(false);
+    return false;
 
-  if (!new_logfile_group_def) DBUG_RETURN(false);
+  if (!new_logfile_group_def) return false;
 
   ndb_dd_disk_data_add_file(new_logfile_group_def, undo_file_name);
 
   // Write changes to dictionary.
   if (m_client->update(new_logfile_group_def)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Ndb_dd_client::drop_logfile_group(const char *logfile_group_name,
                                        bool fail_if_not_exists) {
-  DBUG_ENTER("Ndb_dd_client::drop_logfile_group");
+  DBUG_TRACE;
 
   /*
    * Logfile groups are stored as tablespaces in the DD.
@@ -1330,22 +1330,22 @@ bool Ndb_dd_client::drop_logfile_group(const char *logfile_group_name,
 
   const dd::Tablespace *existing = nullptr;
   if (m_client->acquire(logfile_group_name, &existing)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (existing == nullptr) {
     // Logfile group does not exist
     if (fail_if_not_exists) {
-      DBUG_RETURN(false);
+      return false;
     }
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (m_client->drop(existing)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -1397,7 +1397,7 @@ bool Ndb_referenced_tables_invalidator::add_and_lock_referenced_table(
 bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
     const char *schema_name, const char *table_name, const dd::Table *table_def,
     bool skip_ndb_dict_fetch) {
-  DBUG_ENTER("Ndb_dd_client::fetch_referenced_tables_to_invalidate");
+  DBUG_TRACE;
 
   DBUG_PRINT("info",
              ("Collecting parent tables of '%s.%s' that are to be invalidated",
@@ -1414,7 +1414,7 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
         continue;
       }
       if (!add_and_lock_referenced_table(parent_db, parent_table)) {
-        DBUG_RETURN(false);
+        return false;
       }
     }
   }
@@ -1425,19 +1425,19 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
     /* fetch the foreign key definitions from NDB dictionary */
     if (!fetch_referenced_tables_from_ndb_dictionary(
             m_thd, schema_name, table_name, referenced_tables)) {
-      DBUG_RETURN(false);
+      return false;
     }
 
     /* lock and add any missing parents */
     for (auto const &parent_name : referenced_tables) {
       if (!add_and_lock_referenced_table(parent_name.first.c_str(),
                                          parent_name.second.c_str())) {
-        DBUG_RETURN(false);
+        return false;
       }
     }
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -1449,7 +1449,7 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
   @return false       Invalidation failed.
 */
 bool Ndb_referenced_tables_invalidator::invalidate() const {
-  DBUG_ENTER("Ndb_foreign_key_parents_invalidator::invalidate");
+  DBUG_TRACE;
   for (auto parent_it : m_referenced_tables) {
     // Invalidate Table and Table Definition Caches too.
     const char *schema_name = parent_it.first.c_str();
@@ -1460,8 +1460,8 @@ bool Ndb_referenced_tables_invalidator::invalidate() const {
         m_thd->dd_client()->invalidate(schema_name, table_name) != 0) {
       DBUG_PRINT("error", ("Unable to invalidate table '%s.%s'", schema_name,
                            table_name));
-      DBUG_RETURN(false);
+      return false;
     }
   }
-  DBUG_RETURN(true);
+  return true;
 }
