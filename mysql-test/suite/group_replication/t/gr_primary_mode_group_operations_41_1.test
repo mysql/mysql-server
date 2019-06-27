@@ -351,7 +351,8 @@ INSERT INTO t2 VALUES (2);
 SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch:%" and work_estimated=2
+# The SELECT from this wait_condition can be accounted thence the work_estimated=3
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch:%" and (work_estimated=2 or work_estimated=3)
 --source include/wait_condition.inc
 
 --let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch:%";`
