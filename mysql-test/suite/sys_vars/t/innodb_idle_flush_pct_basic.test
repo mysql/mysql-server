@@ -1,0 +1,64 @@
+#
+# Basic test for innodb_idle_flush_pct
+#
+
+SET @start_global_value = @@global.innodb_idle_flush_pct;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are between 0 and 100
+select @@global.innodb_idle_flush_pct between 0 and 100;
+select @@global.innodb_idle_flush_pct;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_idle_flush_pct;
+show global variables like 'innodb_idle_flush_pct';
+show session variables like 'innodb_idle_flush_pct';
+select * from performance_schema.global_variables where variable_name='innodb_idle_flush_pct';
+select * from performance_schema.session_variables where variable_name='innodb_idle_flush_pct';
+
+#
+# show that it's writable
+#
+set global innodb_idle_flush_pct=10;
+select @@global.innodb_idle_flush_pct;
+select * from performance_schema.global_variables where variable_name='innodb_idle_flush_pct';
+select * from performance_schema.session_variables where variable_name='innodb_idle_flush_pct';
+--error ER_GLOBAL_VARIABLE
+set session innodb_idle_flush_pct=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_idle_flush_pct=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_idle_flush_pct=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_idle_flush_pct="bar";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_idle_flush_pct=ON;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_idle_flush_pct=OFF;
+
+set global innodb_idle_flush_pct=-7;
+select @@global.innodb_idle_flush_pct;
+select * from performance_schema.global_variables where variable_name='innodb_idle_flush_pct';
+set global innodb_idle_flush_pct=101;
+select @@global.innodb_idle_flush_pct;
+select * from performance_schema.global_variables where variable_name='innodb_idle_flush_pct';
+
+#
+# min/max/DEFAULT values
+#
+set global innodb_idle_flush_pct=0;
+select @@global.innodb_idle_flush_pct;
+set global innodb_idle_flush_pct=100;
+select @@global.innodb_idle_flush_pct;
+set global innodb_idle_flush_pct=DEFAULT;
+select @@global.innodb_idle_flush_pct;
+
+# Cleanup
+SET @@global.innodb_idle_flush_pct = @start_global_value;
+SELECT @@global.innodb_idle_flush_pct;

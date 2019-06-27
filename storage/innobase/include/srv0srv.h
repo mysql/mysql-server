@@ -566,6 +566,11 @@ extern ulong srv_n_write_io_threads;
 
 extern uint srv_change_buffer_max_size;
 
+/** Default value of srv_idle_flush_pct */
+extern const ulong srv_idle_flush_pct_default;
+/** How much flush to be done in case of server is idle */
+extern ulong srv_idle_flush_pct;
+
 /* Number of IO operations per second the server can do */
 extern ulong srv_io_capacity;
 

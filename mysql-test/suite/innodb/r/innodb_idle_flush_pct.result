@@ -1,0 +1,57 @@
+#########
+# Setup #
+#########
+CREATE TABLE t1 (c INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SET @innodb_io_capacity_saved = @@global.innodb_io_capacity;
+SET @innodb_idle_flush_pct_saved = @@global.innodb_idle_flush_pct;
+SET GLOBAL innodb_io_capacity = 200;
+SHOW VARIABLES LIKE "%innodb_io_capacity%";
+Variable_name	Value
+innodb_io_capacity	200
+innodb_io_capacity_max	2000
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+set global innodb_idle_flush_pct=0;
+SET GLOBAL innodb_monitor_enable = all;
+SELECT COUNT=0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME='buffer_flush_batch_total_pages';
+COUNT=0
+1
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+SELECT COUNT>0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME='buffer_pool_pages_dirty';
+COUNT>0
+1
+SELECT COUNT=0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME='buffer_flush_batch_total_pages';
+COUNT=0
+1
+SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
+SET GLOBAL innodb_idle_flush_pct=25;
+# Waiting for buffer pool pages to get flushed
+SELECT COUNT>0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME='buffer_flush_background_total_pages';
+COUNT>0
+1
+###########
+# Cleanup #
+###########
+SET GLOBAL innodb_io_capacity = @innodb_io_capacity_saved;
+SET GLOBAL innodb_idle_flush_pct = @innodb_idle_flush_pct_saved;
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+SET GLOBAL innodb_monitor_disable = all;
+SET GLOBAL innodb_monitor_reset_all = all;
+SELECT COUNT>0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME='buffer_flush_background_total_pages';
+COUNT>0
+0
+SET GLOBAL innodb_monitor_disable = default;
+SET GLOBAL innodb_monitor_enable = default;
+SET GLOBAL innodb_monitor_reset_all = default;
+DROP TABLE t1;

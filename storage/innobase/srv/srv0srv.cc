@@ -405,6 +405,9 @@ ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 ulint srv_lock_table_size = ULINT_MAX;
 
+const ulong srv_idle_flush_pct_default = 100;
+ulong srv_idle_flush_pct = srv_idle_flush_pct_default;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 ulong srv_n_read_io_threads;

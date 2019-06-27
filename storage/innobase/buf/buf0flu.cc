@@ -3199,9 +3199,9 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
             MONITOR_FLUSH_ADAPTIVE_PAGES, n_flushed_list);
       }
 
-    } else if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
+    } else if (ret_sleep == OS_SYNC_TIME_EXCEEDED && srv_idle_flush_pct) {
       /* no activity, slept enough */
-      buf_flush_lists(PCT_IO(100), LSN_MAX, &n_flushed);
+      buf_flush_lists(PCT_IO(srv_idle_flush_pct), LSN_MAX, &n_flushed);
 
       n_flushed_last += n_flushed;
 

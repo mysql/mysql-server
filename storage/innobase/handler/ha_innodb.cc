@@ -21442,6 +21442,12 @@ static MYSQL_SYSVAR_ULONG(
     "Dump only the hottest N% of each buffer pool, defaults to 25", NULL, NULL,
     25, 1, 100, 0);
 
+static MYSQL_SYSVAR_ULONG(
+    idle_flush_pct, srv_idle_flush_pct, PLUGIN_VAR_RQCMDARG,
+    "Up to what percentage of dirty pages to be flushed when server is found"
+    " idle.",
+    NULL, NULL, srv_idle_flush_pct_default, 0, 100, 0);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
                         PLUGIN_VAR_RQCMDARG, "Evict pages from the buffer pool",
@@ -22340,6 +22346,7 @@ static SYS_VAR *innobase_system_variables[] = {
 
     MYSQL_SYSVAR(io_capacity),
     MYSQL_SYSVAR(io_capacity_max),
+    MYSQL_SYSVAR(idle_flush_pct),
     MYSQL_SYSVAR(page_cleaners),
     MYSQL_SYSVAR(monitor_enable),
     MYSQL_SYSVAR(monitor_disable),
