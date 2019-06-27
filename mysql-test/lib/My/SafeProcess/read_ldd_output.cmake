@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@ STRING(REPLACE "\n" ";" LDD_FILE_LINES ${LDD_FILE_CONTENTS})
 
 SET(ASAN_LIBRARY_NAME)
 FOREACH(LINE ${LDD_FILE_LINES})
-  STRING(REGEX MATCH "^[\t ]*(libasan.so.[0-9]) => ([/a-z0-9.]+)" XXX ${LINE})
+  STRING(REGEX MATCH "^[\t ]*(libasan.so.[0-9]) => ([/a-zA-Z0-9._-]+)" XXX ${LINE})
   IF(CMAKE_MATCH_1)
 #    MESSAGE(STATUS "LINE ${LINE}")
 #    MESSAGE(STATUS "XXX ${XXX}")
@@ -33,6 +33,15 @@ FOREACH(LINE ${LDD_FILE_LINES})
 #    MESSAGE(STATUS "CMAKE_MATCH_2 ${CMAKE_MATCH_2}")
     SET(ASAN_LIBRARY_NAME ${CMAKE_MATCH_2})
   ENDIF()
+  STRING(REGEX MATCH "^[\t ]*(libtirpc.so.[0-9]) => ([/a-zA-Z0-9._-]+)" XXX ${LINE})
+  IF(CMAKE_MATCH_1)
+#    MESSAGE(STATUS "LINE ${LINE}")
+#    MESSAGE(STATUS "XXX ${XXX}")
+#    MESSAGE(STATUS "CMAKE_MATCH_1 ${CMAKE_MATCH_1}")
+#    MESSAGE(STATUS "CMAKE_MATCH_2 ${CMAKE_MATCH_2}")
+    SET(TIRPC_LIBRARY_NAME ${CMAKE_MATCH_2})
+  ENDIF()
 ENDFOREACH()
 FILE(WRITE ${OUTFILE}
-  "const char *asan_library_name=\"${ASAN_LIBRARY_NAME}\";")
+  "const char *asan_library_name=\"${ASAN_LIBRARY_NAME}\";"
+  "const char *tirpc_library_name=\"${TIRPC_LIBRARY_NAME}\";")

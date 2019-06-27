@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -267,12 +267,21 @@ int main(int argc, char *const argv[]) {
 #if defined(HAVE_ASAN) && defined(HAVE_TIRPC)
 #include "asan_library_name.h"
     std::string ld_preload = "LD_PRELOAD=";
+    int lib_count = 0;
     if (strlen(asan_library_name) > 0) {
       ld_preload.append(asan_library_name);
-      ld_preload.append(":");
+      lib_count++;
     }
-    ld_preload.append("/lib64/libtirpc.so");
-    putenv(strdup(ld_preload.c_str()));
+    if (strlen(tirpc_library_name) > 0) {
+      if (lib_count > 0) {
+        ld_preload.append(":");
+      }
+      ld_preload.append(tirpc_library_name);
+      lib_count++;
+    }
+    if (lib_count > 0) {
+      putenv(strdup(ld_preload.c_str()));
+    }
 #endif
     if (execvp(child_argv[0], child_argv) < 0) die("Failed to exec child");
   }
