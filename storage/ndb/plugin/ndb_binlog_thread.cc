@@ -50,8 +50,7 @@ int Ndb_binlog_thread::do_deinit() {
 
   @return 0 on sucess
 */
-int Ndb_binlog_thread::do_after_reset_master(void*)
-{
+int Ndb_binlog_thread::do_after_reset_master(void *) {
   DBUG_ENTER("Ndb_binlog_thread::do_after_reset_master");
 
   // Truncate the mysql.ndb_binlog_index table
@@ -60,8 +59,7 @@ int Ndb_binlog_thread::do_after_reset_master(void*)
   Ndb_local_connection mysqld(current_thd);
   const bool ignore_no_such_table = true;
   if (mysqld.truncate_table("mysql", "ndb_binlog_index",
-                            ignore_no_such_table))
-  {
+                            ignore_no_such_table)) {
     // Failed to truncate table
     DBUG_RETURN(1);
   }

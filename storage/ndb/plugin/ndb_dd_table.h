@@ -30,52 +30,51 @@
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Table;
-  typedef String_type sdi_t;
-  typedef unsigned long long Object_id;
-}
+class Table;
+typedef String_type sdi_t;
+typedef unsigned long long Object_id;
+}  // namespace dd
 
 /* Functions operating on dd::Table*, prefixed with ndb_dd_table_ */
 
 /*
    Save the tables object id and version in table definition
 */
-void ndb_dd_table_set_object_id_and_version(dd::Table* table_def,
-                                            int object_id, int object_version);
+void ndb_dd_table_set_object_id_and_version(dd::Table *table_def, int object_id,
+                                            int object_version);
 
 /*
   Return table definitions object id and version
 */
-bool
-ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
-                                       int& object_id, int& object_version);
+bool ndb_dd_table_get_object_id_and_version(const dd::Table *table_def,
+                                            int &object_id,
+                                            int &object_version);
 
 /*
   Return engine of table definition
 */
-dd::String_type ndb_dd_table_get_engine(const dd::Table* table_def);
-
+dd::String_type ndb_dd_table_get_engine(const dd::Table *table_def);
 
 /*
    Mark the table as being hidden, thus avoiding that it shows
    up in SHOW TABLES and information_schema queries.
 */
-void ndb_dd_table_mark_as_hidden(dd::Table* table_def);
+void ndb_dd_table_mark_as_hidden(dd::Table *table_def);
 
 /*
    Return number of columns in the table definition
 */
-size_t ndb_dd_table_get_num_columns(const dd::Table* table_def);
+size_t ndb_dd_table_get_num_columns(const dd::Table *table_def);
 
 /*
   Return true if table is using fixed row format
 */
-bool ndb_dd_table_is_using_fixed_row_format(const dd::Table* table_def);
+bool ndb_dd_table_is_using_fixed_row_format(const dd::Table *table_def);
 
 /*
   Set the row format of the table
 */
-void ndb_dd_table_set_row_format(dd::Table* table_def,
+void ndb_dd_table_set_row_format(dd::Table *table_def,
                                  const bool force_var_part);
 
 /*
@@ -83,7 +82,7 @@ void ndb_dd_table_set_row_format(dd::Table* table_def,
   partitions in NDB Dictionary. Return true if they are equal,
   false if not
 */
-bool ndb_dd_table_check_partition_count(const dd::Table* table_def,
+bool ndb_dd_table_check_partition_count(const dd::Table *table_def,
                                         size_t ndb_num_partitions);
 
 /*
@@ -95,22 +94,22 @@ bool ndb_dd_table_check_partition_count(const dd::Table* table_def,
   NOTE: Whether the number of partitions should be decided upstream
         at all is another question
 */
-void ndb_dd_table_fix_partition_count(dd::Table* table_def,
+void ndb_dd_table_fix_partition_count(dd::Table *table_def,
                                       size_t ndb_num_partitions);
 
 /*
   Save the previous mysql version of the table. Applicable only for tables that
   have been upgraded
 */
-void ndb_dd_table_set_previous_mysql_version(dd::Table* table_def,
+void ndb_dd_table_set_previous_mysql_version(dd::Table *table_def,
                                              ulong previous_mysql_version);
 
 /*
   Return the previous mysql version of the table. Returns false if
   previous_mysql_version is not set or invalid, true on success
 */
-bool ndb_dd_table_get_previous_mysql_version(const dd::Table* table_def,
-                                             ulong& previous_mysql_version);
+bool ndb_dd_table_get_previous_mysql_version(const dd::Table *table_def,
+                                             ulong &previous_mysql_version);
 
 /*
   Set tablespace id for the table
@@ -118,15 +117,15 @@ bool ndb_dd_table_get_previous_mysql_version(const dd::Table* table_def,
 void ndb_dd_table_set_tablespace_id(dd::Table *table_def,
                                     dd::Object_id tablespace_id);
 
-
 /* interface for working with opaque dd::Table RAII-style */
 class Ndb_dd_table {
-  class THD * const m_thd;
-  dd::Table* m_table_def;
-public:
+  class THD *const m_thd;
+  dd::Table *m_table_def;
+
+ public:
   Ndb_dd_table() = delete;
-  Ndb_dd_table(const Ndb_dd_table&) = delete;
-  Ndb_dd_table(THD* thd);
+  Ndb_dd_table(const Ndb_dd_table &) = delete;
+  Ndb_dd_table(THD *thd);
 
   ~Ndb_dd_table();
 
@@ -134,6 +133,5 @@ public:
 
   dd::Table *get_table_def() { return m_table_def; }
 };
-
 
 #endif

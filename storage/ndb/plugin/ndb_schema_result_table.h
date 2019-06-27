@@ -33,23 +33,24 @@
 // RAII style class for working with the schema result table in NDB
 class Ndb_schema_result_table : public Ndb_util_table {
   Ndb_schema_result_table() = delete;
-  Ndb_schema_result_table(const Ndb_schema_result_table&) = delete;
+  Ndb_schema_result_table(const Ndb_schema_result_table &) = delete;
 
   bool define_table_ndb(NdbDictionary::Table &table,
                         unsigned mysql_version) const override;
 
   bool drop_events_in_NDB() const override;
+
  public:
   static const std::string DB_NAME;
   static const std::string TABLE_NAME;
 
-  static const char* COL_NODEID;
-  static const char* COL_SCHEMA_OP_ID;
-  static const char* COL_PARTICIPANT_NODEID;
-  static const char* COL_RESULT;
-  static const char* COL_MESSAGE;
+  static const char *COL_NODEID;
+  static const char *COL_SCHEMA_OP_ID;
+  static const char *COL_PARTICIPANT_NODEID;
+  static const char *COL_RESULT;
+  static const char *COL_MESSAGE;
 
-  Ndb_schema_result_table(class Thd_ndb*);
+  Ndb_schema_result_table(class Thd_ndb *);
   virtual ~Ndb_schema_result_table();
 
   bool check_schema() const override;

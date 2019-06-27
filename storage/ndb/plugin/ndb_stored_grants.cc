@@ -24,7 +24,7 @@
 
 #include "storage/ndb/plugin/ndb_stored_grants.h"
 
-#include <algorithm>     // std::find()
+#include <algorithm>  // std::find()
 #include <mutex>
 #include <unordered_set>
 
@@ -534,7 +534,7 @@ bool ThreadContext::write_snapshot() {
 
 void ThreadContext::update_user(std::string user) {
   int ngrants = get_grants_for_user(user);
-  if(ngrants) {
+  if (ngrants) {
     get_create_user(user, ngrants);
     if (local_granted_users.count(user)) {
       m_read_keys.push_back(Key(TYPE_USER, user, 0));
@@ -763,11 +763,11 @@ Ndb_stored_grants::Strategy ThreadContext::handle_change(ChangeNotice *notice) {
   } else if (operation == SQLCOM_DROP_USER) {
     /* DROP user or role. DROP ROLE can have a cascading effect upon the grants
        of other users, so this requires a full snapshot update. */
-    if(m_intersection.size()) {
+    if (m_intersection.size()) {
       drop_list = &m_intersection;
       m_statement_users.clear();
-      for(std::string user : local_granted_users)
-        if(! std::find(drop_list->begin(), drop_list->end(), user))
+      for (std::string user : local_granted_users)
+        if (!std::find(drop_list->begin(), drop_list->end(), user))
           m_statement_users.push_back(user);
       update_list = &m_statement_users;
     }
@@ -777,8 +777,7 @@ Ndb_stored_grants::Strategy ThreadContext::handle_change(ChangeNotice *notice) {
     update_list = &m_intersection;
     /* Distribute ALTER USER and SET PASSWORD as snapshot refreshes
        in order to avoid transmitting plaintext passwords. */
-    if (operation == SQLCOM_ALTER_USER ||
-        operation == SQLCOM_SET_PASSWORD)
+    if (operation == SQLCOM_ALTER_USER || operation == SQLCOM_SET_PASSWORD)
       dist_as_snapshot = true;
   }
 
@@ -853,8 +852,8 @@ bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
 }
 
 Ndb_stored_grants::Strategy Ndb_stored_grants::handle_local_acl_change(
-    THD *thd, const Acl_change_notification *notice,
-    std::string *user_list, bool *schema_dist_use_db, bool *must_refresh) {
+    THD *thd, const Acl_change_notification *notice, std::string *user_list,
+    bool *schema_dist_use_db, bool *must_refresh) {
   if (!metadata_table.isInitialized()) {
     ndb_log_error("stored grants: initialization has failed.");
     return Strategy::ERROR;

@@ -25,7 +25,7 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 #include "my_dbug.h"
-#include "mysql/plugin.h"          // thd_get_thread_id
+#include "mysql/plugin.h"  // thd_get_thread_id
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/sql_error.h"
@@ -38,47 +38,34 @@
   the handler. Should really be 2 but there is a transaction to much allocated
   when lock table is used, and one extra to used for global schema lock.
 */
-static const int MAX_TRANSACTIONS= 4;
+static const int MAX_TRANSACTIONS = 4;
 
-
-Thd_ndb*
-Thd_ndb::seize(THD* thd)
-{
+Thd_ndb *Thd_ndb::seize(THD *thd) {
   DBUG_ENTER("seize_thd_ndb");
 
-  Thd_ndb* thd_ndb= new Thd_ndb(thd);
-  if (thd_ndb == NULL)
-    DBUG_RETURN(NULL);
+  Thd_ndb *thd_ndb = new Thd_ndb(thd);
+  if (thd_ndb == NULL) DBUG_RETURN(NULL);
 
-  if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0)
-  {
+  if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0) {
     DBUG_PRINT("error", ("Ndb::init failed, error: %d  message: %s",
                          thd_ndb->ndb->getNdbError().code,
                          thd_ndb->ndb->getNdbError().message));
-    
+
     delete thd_ndb;
-    thd_ndb= NULL;
-  }
-  else
-  {
+    thd_ndb = NULL;
+  } else {
     thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
   }
   DBUG_RETURN(thd_ndb);
 }
 
-
-void
-Thd_ndb::release(Thd_ndb* thd_ndb)
-{
+void Thd_ndb::release(Thd_ndb *thd_ndb) {
   DBUG_ENTER("release_thd_ndb");
   delete thd_ndb;
   DBUG_VOID_RETURN;
 }
 
-
-bool
-Thd_ndb::recycle_ndb(void)
-{
+bool Thd_ndb::recycle_ndb(void) {
   DBUG_ENTER("recycle_ndb");
   DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
 
@@ -86,23 +73,18 @@ Thd_ndb::recycle_ndb(void)
   DBUG_ASSERT(trans == NULL);
 
   delete ndb;
-  if ((ndb= new Ndb(connection, "")) == NULL)
-  {
-    DBUG_PRINT("error",("failed to allocate Ndb object"));
+  if ((ndb = new Ndb(connection, "")) == NULL) {
+    DBUG_PRINT("error", ("failed to allocate Ndb object"));
     DBUG_RETURN(false);
   }
 
-  if (ndb->init(MAX_TRANSACTIONS) != 0)
-  {
+  if (ndb->init(MAX_TRANSACTIONS) != 0) {
     delete ndb;
-    ndb= NULL;
+    ndb = NULL;
     DBUG_PRINT("error", ("Ndb::init failed, %d  message: %s",
-                         ndb->getNdbError().code,
-                         ndb->getNdbError().message));
+                         ndb->getNdbError().code, ndb->getNdbError().message));
     DBUG_RETURN(false);
-  }
-  else
-  {
+  } else {
     ndb->setCustomData64(thd_get_thread_id(m_thd));
   }
 
@@ -110,24 +92,19 @@ Thd_ndb::recycle_ndb(void)
   m_last_commit_epoch_session = 0;
 
   /* Update m_connect_count to avoid false failures of ::valid_ndb() */
-  m_connect_count= connection->get_connect_count();
+  m_connect_count = connection->get_connect_count();
 
   DBUG_RETURN(true);
 }
 
-
-bool
-Thd_ndb::valid_ndb(void) const
-{
+bool Thd_ndb::valid_ndb(void) const {
   // The ndb object should be valid as long as a
   // global schema lock transaction is ongoing
-  if (global_schema_lock_trans)
-    return true;
+  if (global_schema_lock_trans) return true;
 
   // The ndb object should be valid as long as a
   // transaction is ongoing
-  if (trans)
-    return true;
+  if (trans) return true;
 
   if (unlikely(m_connect_count != connection->get_connect_count()))
     return false;
@@ -135,58 +112,35 @@ Thd_ndb::valid_ndb(void) const
   return true;
 }
 
-
-void
-Thd_ndb::init_open_tables()
-{
-  count= 0;
-  m_error= false;
+void Thd_ndb::init_open_tables() {
+  count = 0;
+  m_error = false;
   open_tables.clear();
 }
 
+bool Thd_ndb::check_option(Options option) const { return (options & option); }
 
-bool
-Thd_ndb::check_option(Options option) const
-{
-  return (options & option);
-}
-
-
-void
-Thd_ndb::set_option(Options option)
-{
-  options |= option;
-}
-
+void Thd_ndb::set_option(Options option) { options |= option; }
 
 /*
   Used for every additional row operation, to update the guesstimate
   of pending bytes to send, and to check if it is now time to flush a batch.
 */
 
-bool
-Thd_ndb::add_row_check_if_batch_full(uint size)
-{
-  if (m_unsent_bytes == 0)
-    free_root(&m_batch_mem_root, MY_MARK_BLOCKS_FREE);
+bool Thd_ndb::add_row_check_if_batch_full(uint size) {
+  if (m_unsent_bytes == 0) free_root(&m_batch_mem_root, MY_MARK_BLOCKS_FREE);
 
-  uint unsent= m_unsent_bytes;
-  unsent+= size;
-  m_unsent_bytes= unsent;
+  uint unsent = m_unsent_bytes;
+  unsent += size;
+  m_unsent_bytes = unsent;
   return unsent >= m_batch_size;
 }
 
-
-bool
-Thd_ndb::check_trans_option(Trans_options option) const
-{
+bool Thd_ndb::check_trans_option(Trans_options option) const {
   return (trans_options & option);
 }
 
-
-void
-Thd_ndb::set_trans_option(Trans_options option)
-{
+void Thd_ndb::set_trans_option(Trans_options option) {
 #ifndef DBUG_OFF
   if (check_trans_option(TRANS_TRANSACTIONS_OFF))
     DBUG_PRINT("info", ("Disabling transactions"));
@@ -198,14 +152,10 @@ Thd_ndb::set_trans_option(Trans_options option)
   trans_options |= option;
 }
 
-
-void
-Thd_ndb::reset_trans_options(void)
-{
+void Thd_ndb::reset_trans_options(void) {
   DBUG_PRINT("info", ("Resetting trans_options"));
   trans_options = 0;
 }
-
 
 /*
   Push to THD's condition stack
@@ -215,14 +165,14 @@ Thd_ndb::reset_trans_options(void)
   @param[in]  fmt    printf-like format string
   @param[in]  args   Arguments
 */
-static void push_condition(THD* thd,
+static void push_condition(THD *thd,
                            Sql_condition::enum_severity_level severity,
-                           uint code, const char* fmt, va_list args)
-  MY_ATTRIBUTE((format(printf, 4, 0)));
+                           uint code, const char *fmt, va_list args)
+    MY_ATTRIBUTE((format(printf, 4, 0)));
 
-static void push_condition(THD* thd,
+static void push_condition(THD *thd,
                            Sql_condition::enum_severity_level severity,
-                           uint code, const char* fmt, va_list args) {
+                           uint code, const char *fmt, va_list args) {
   DBUG_ASSERT(fmt);
 
   // Assemble the message
@@ -242,7 +192,7 @@ static void push_condition(THD* thd,
   }
 }
 
-void Thd_ndb::push_warning(const char* fmt, ...) const {
+void Thd_ndb::push_warning(const char *fmt, ...) const {
   const uint code = ER_GET_ERRMSG;
   va_list args;
   va_start(args, fmt);
@@ -250,14 +200,14 @@ void Thd_ndb::push_warning(const char* fmt, ...) const {
   va_end(args);
 }
 
-void Thd_ndb::push_warning(uint code, const char* fmt, ...) const {
+void Thd_ndb::push_warning(uint code, const char *fmt, ...) const {
   va_list args;
   va_start(args, fmt);
   push_condition(m_thd, Sql_condition::SL_WARNING, code, fmt, args);
   va_end(args);
 }
 
-void Thd_ndb::push_ndb_error_warning(const NdbError& ndberr) const {
+void Thd_ndb::push_ndb_error_warning(const NdbError &ndberr) const {
   if (ndberr.status == NdbError::TemporaryError) {
     push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                         ER_GET_TEMPORARY_ERRMSG,
@@ -270,8 +220,7 @@ void Thd_ndb::push_ndb_error_warning(const NdbError& ndberr) const {
   }
 }
 
-void Thd_ndb::set_ndb_error(const NdbError& ndberr,
-                            const char* message) const {
+void Thd_ndb::set_ndb_error(const NdbError &ndberr, const char *message) const {
   push_ndb_error_warning(ndberr);
   my_printf_error(ER_GET_ERRMSG, "%s", MYF(0), message);
 }

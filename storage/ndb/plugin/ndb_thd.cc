@@ -28,7 +28,7 @@
 #include "mysql/thread_type.h"
 #include "sql/handler.h"
 #include "sql/sql_class.h"
-#include "storage/ndb/plugin/ndb_log.h"           // ndb_log_*
+#include "storage/ndb/plugin/ndb_log.h"  // ndb_log_*
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 /*
@@ -37,20 +37,15 @@
   - validate_ndb, check if the Ndb object need to be recycled
 */
 
-Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
-{
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  if (!thd_ndb)
-  {
-    if (!(thd_ndb= Thd_ndb::seize(thd)))
-      return NULL;
+Ndb *check_ndb_in_thd(THD *thd, bool validate_ndb) {
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  if (!thd_ndb) {
+    if (!(thd_ndb = Thd_ndb::seize(thd))) return NULL;
     thd_set_thd_ndb(thd, thd_ndb);
   }
 
-  else if (validate_ndb && !thd_ndb->valid_ndb())
-  {
-    if (!thd_ndb->recycle_ndb())
-      return NULL;
+  else if (validate_ndb && !thd_ndb->valid_ndb()) {
+    if (!thd_ndb->recycle_ndb()) return NULL;
   }
 
   DBUG_ASSERT(thd_ndb->is_slave_thread() == thd->slave_thread);
@@ -58,18 +53,13 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
   return thd_ndb->ndb;
 }
 
-
-bool
-applying_binlog(const THD* thd)
-{
-  if (thd->slave_thread)
-  {
+bool applying_binlog(const THD *thd) {
+  if (thd->slave_thread) {
     DBUG_PRINT("info", ("THD is slave thread"));
     return true;
   }
 
-  if (thd->rli_fake)
-  {
+  if (thd->rli_fake) {
     /*
       Thread is in "pseudo_slave_mode" which is entered implicitly when the
       first BINLOG statement is executed (see 'mysql_client_binlog_statement')
@@ -84,30 +74,25 @@ applying_binlog(const THD* thd)
 
 extern ulong opt_server_id_mask;
 
-uint32
-thd_unmasked_server_id(const THD* thd)
-{
+uint32 thd_unmasked_server_id(const THD *thd) {
   const uint32 unmasked_server_id = thd->unmasked_server_id;
   assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
   return unmasked_server_id;
 }
 
-const char* ndb_thd_query(const THD* thd) { return thd->query().str; }
+const char *ndb_thd_query(const THD *thd) { return thd->query().str; }
 
-size_t ndb_thd_query_length(const THD* thd) { return thd->query().length; }
+size_t ndb_thd_query_length(const THD *thd) { return thd->query().length; }
 
-bool ndb_thd_is_binlog_thread(const THD* thd)
-{
+bool ndb_thd_is_binlog_thread(const THD *thd) {
   return thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 }
 
-bool ndb_thd_is_background_thread(const THD* thd)
-{
+bool ndb_thd_is_background_thread(const THD *thd) {
   return thd->system_thread == SYSTEM_THREAD_BACKGROUND;
 }
 
-void ndb_thd_register_trans(THD *thd, bool register_trans)
-{
+void ndb_thd_register_trans(THD *thd, bool register_trans) {
   // Always register for the statement
   trans_register_ha(thd, false, ndbcluster_hton, nullptr);
 
@@ -124,11 +109,11 @@ void clear_thd_conditions(THD *thd) {
   thd->get_stmt_da()->reset_condition_info(thd);
 }
 
-void log_and_clear_thd_conditions(
-  THD *thd, condition_logging_level logging_level) {
+void log_and_clear_thd_conditions(THD *thd,
+                                  condition_logging_level logging_level) {
   // Print THD's list of conditions to error log
   Diagnostics_area::Sql_condition_iterator it(
-    thd->get_stmt_da()->sql_conditions());
+      thd->get_stmt_da()->sql_conditions());
   const Sql_condition *err;
   while ((err = it++)) {
     switch (logging_level) {

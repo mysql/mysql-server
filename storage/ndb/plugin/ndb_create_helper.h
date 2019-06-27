@@ -57,7 +57,7 @@ class Ndb_create_helper {
    * and message will be pushed as warning before setting
    * the "Can't create table" error.
    * @return error code to be returned as command result
-  */
+   */
   int failed(uint code, const char *message) const;
 
  public:
@@ -69,7 +69,7 @@ class Ndb_create_helper {
    * should already have been pushed. The "Can't create table" error
    * will be set
    * @return error code to be returned as command result
-  */
+   */
   int failed_warning_already_pushed() const;
 
   /**
@@ -77,15 +77,15 @@ class Ndb_create_helper {
    * error will be pushed as warning before setting the
    * "Can't create table" error.
    * @return error code to be returned as command result
-  */
-  int failed_in_NDB(const NdbError& ndb_err) const;
+   */
+  int failed_in_NDB(const NdbError &ndb_err) const;
 
   /**
    * @brief Failed to create the table due to some internal error.
    * The internal error code and message will be pushed as
    * warning before setting the "Can't create table" error.
    * @return error code to be returned as command result
-  */
+   */
   int failed_internal_error(const char *message) const;
 
   /**
@@ -93,7 +93,7 @@ class Ndb_create_helper {
    * The out of memory error code and message will be pushed as
    * warning before setting the "Can't create table" error.
    * @return error code to be returned as command result
-  */
+   */
   int failed_oom(const char *message) const;
 
   /**
@@ -107,7 +107,7 @@ class Ndb_create_helper {
    * longer, simply push a warning before calling his method.
    *
    * @return error code to be returned as command result
-  */
+   */
   int failed_illegal_create_option(const char *reason) const;
 
   /**
@@ -119,7 +119,7 @@ class Ndb_create_helper {
    * @description Describes which create option is missing.
    *
    * @return error code to be returned as command result
-  */
+   */
   int failed_missing_create_option(const char *description) const;
 
   /**
@@ -128,7 +128,6 @@ class Ndb_create_helper {
    * @return error code to be returned as command result
    */
   int succeeded();
-
 };
 
 #endif

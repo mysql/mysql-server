@@ -33,7 +33,7 @@
 // RAII style class for working with the schema distribution table in NDB
 class Ndb_schema_dist_table : public Ndb_util_table {
   Ndb_schema_dist_table() = delete;
-  Ndb_schema_dist_table(const Ndb_schema_dist_table&) = delete;
+  Ndb_schema_dist_table(const Ndb_schema_dist_table &) = delete;
 
   bool define_table_ndb(NdbDictionary::Table &table,
                         unsigned mysql_version) const override;
@@ -44,19 +44,19 @@ class Ndb_schema_dist_table : public Ndb_util_table {
   static const std::string DB_NAME;
   static const std::string TABLE_NAME;
 
-  static const char* COL_DB;
-  static const char* COL_NAME;
-  static const char* COL_QUERY;
-  static const char* COL_ID;
-  static const char* COL_VERSION;
+  static const char *COL_DB;
+  static const char *COL_NAME;
+  static const char *COL_QUERY;
+  static const char *COL_ID;
+  static const char *COL_VERSION;
 
-  Ndb_schema_dist_table(class Thd_ndb*);
+  Ndb_schema_dist_table(class Thd_ndb *);
   virtual ~Ndb_schema_dist_table();
 
   bool check_schema() const override;
 
-  bool check_column_identifier_limit(const char* column_name,
-                                     const std::string& identifier) const;
+  bool check_column_identifier_limit(const char *column_name,
+                                     const std::string &identifier) const;
 
   bool need_upgrade() const override;
 

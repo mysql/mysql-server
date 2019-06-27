@@ -30,7 +30,7 @@
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
 namespace dd {
-  class Table;
+class Table;
 }
 
 /*
@@ -38,9 +38,9 @@ namespace dd {
 */
 class Ndb_metadata {
   bool m_compare_tablespace_id{true};
-  const NdbDictionary::Table* m_ndbtab;
+  const NdbDictionary::Table *m_ndbtab;
 
-  Ndb_metadata(const NdbDictionary::Table* ndbtab) : m_ndbtab(ndbtab) {}
+  Ndb_metadata(const NdbDictionary::Table *ndbtab) : m_ndbtab(ndbtab) {}
 
   /*
 
@@ -58,7 +58,7 @@ class Ndb_metadata {
     @return ?
 
   */
-  bool create_table_def(dd::Table* table_def);
+  bool create_table_def(dd::Table *table_def);
 
   /*
     @brief lookup tablespace_id from DD
@@ -66,8 +66,7 @@ class Ndb_metadata {
     @thd                Thread context
     @table_def[out]     DD table definition
   */
-  bool lookup_tablespace_id(class THD* thd, dd::Table* table_def);
-
+  bool lookup_tablespace_id(class THD *thd, dd::Table *table_def);
 
   /*
     @brief Compare two DD table definitions
@@ -79,8 +78,7 @@ class Ndb_metadata {
 
     @note Only compares the properties which can be stored in NDB dictionary
   */
-  bool compare_table_def(const dd::Table* t1, const dd::Table* t2);
-
+  bool compare_table_def(const dd::Table *t1, const dd::Table *t2);
 
   /*
     @brief Check partition information in DD table definition
@@ -90,9 +88,9 @@ class Ndb_metadata {
     @return true if the table's partition information is as expected
 
   */
-  bool check_partition_info(const dd::Table* t1);
+  bool check_partition_info(const dd::Table *t1);
 
-public:
+ public:
   /*
     @brief Compare the NdbApi table with the DD table definition
 
@@ -102,9 +100,8 @@ public:
 
     @return true if the NdbApi table is identical to the DD table def.
   */
-  static bool compare(class THD* thd,
-                      const NdbDictionary::Table* ndbtab,
-                      const dd::Table* table_def);
+  static bool compare(class THD *thd, const NdbDictionary::Table *ndbtab,
+                      const dd::Table *table_def);
 };
 
 #endif

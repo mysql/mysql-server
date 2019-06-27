@@ -31,39 +31,24 @@
 // Using
 #include "sql/sql_plugin.h"
 
+Ndb_plugin_reference::Ndb_plugin_reference() : plugin(nullptr) {}
 
-Ndb_plugin_reference::Ndb_plugin_reference() :
-    plugin(nullptr)
-{
-}
-
-
-bool Ndb_plugin_reference::lock()
-{
-  const LEX_CSTRING plugin_name = { STRING_WITH_LEN("ndbcluster") };
+bool Ndb_plugin_reference::lock() {
+  const LEX_CSTRING plugin_name = {STRING_WITH_LEN("ndbcluster")};
 
   // Resolve reference to "ndbcluster plugin"
-  plugin = plugin_lock_by_name(NULL,
-                               plugin_name,
-                               MYSQL_STORAGE_ENGINE_PLUGIN);
-  if (!plugin)
-    return false;
+  plugin = plugin_lock_by_name(NULL, plugin_name, MYSQL_STORAGE_ENGINE_PLUGIN);
+  if (!plugin) return false;
 
   return true;
 }
 
-
-st_plugin_int*
-Ndb_plugin_reference::handle() const {
-
+st_plugin_int *Ndb_plugin_reference::handle() const {
   return plugin_ref_to_int(plugin);
 }
 
-
-Ndb_plugin_reference::~Ndb_plugin_reference()
-{
-  if (plugin)
-  {
+Ndb_plugin_reference::~Ndb_plugin_reference() {
+  if (plugin) {
     // Unlock the "ndbcluster_plugin" reference
     plugin_unlock(NULL, plugin);
   }

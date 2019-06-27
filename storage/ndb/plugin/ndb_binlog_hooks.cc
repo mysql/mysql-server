@@ -32,7 +32,7 @@
 #include "storage/ndb/plugin/ndb_plugin_reference.h"
 
 bool Ndb_binlog_hooks::register_hooks(
-    after_reset_master_hook_t* after_reset_master) {
+    after_reset_master_hook_t *after_reset_master) {
   // Only allow hooks to be installed once
   DBUG_ASSERT(!m_binlog_transmit_observer);
 
@@ -45,11 +45,11 @@ bool Ndb_binlog_hooks::register_hooks(
   m_binlog_transmit_observer = new Binlog_transmit_observer{
       sizeof(Binlog_transmit_observer),
 
-      nullptr,                     // transmit_start
-      nullptr,                     // transmit_stop
-      nullptr,                     // reserve_header
-      nullptr,                     // before_send_event
-      nullptr,                     // after_send_event
+      nullptr,                                   // transmit_start
+      nullptr,                                   // transmit_stop
+      nullptr,                                   // reserve_header
+      nullptr,                                   // before_send_event
+      nullptr,                                   // after_send_event
       (after_reset_master_t)after_reset_master,  // after_reset_master
   };
 

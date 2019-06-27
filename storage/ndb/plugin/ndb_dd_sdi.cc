@@ -26,12 +26,12 @@
 #include "storage/ndb/plugin/ndb_dd_sdi.h"
 
 // Using
-#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <rapidjson/document.h>     // rapidjson::Document
-#include <rapidjson/writer.h>       // rapidjson::Writer
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
+#include <rapidjson/document.h>      // rapidjson::Document
+#include <rapidjson/prettywriter.h>  // rapidjson::PrettyWriter
 #include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>  // rapidjson::Writer
 
 #include "sql/dd/impl/sdi.h"
 #include "sql/dd/sdi_fwd.h"
@@ -57,20 +57,17 @@ typedef rapidjson::PrettyWriter<dd::RJ_StringBuffer, dd::RJ_Encoding,
   @return minified JSON string or empty string on failure.
 */
 
-static dd::sdi_t minify(dd::sdi_t sdi)
-{
+static dd::sdi_t minify(dd::sdi_t sdi) {
   dd::RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
 
-  if (doc.HasParseError())
-  {
+  if (doc.HasParseError()) {
     return "";
   }
 
   dd::RJ_StringBuffer buf;
   MinifyWriter w(buf);
-  if (!doc.Accept(w))
-  {
+  if (!doc.Accept(w)) {
     return "";
   }
 
@@ -95,17 +92,12 @@ dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi) {
   return buf.GetString();
 }
 
-bool
-ndb_dd_sdi_deserialize(THD* thd, const dd::sdi_t& sdi, dd::Table* table)
-{
+bool ndb_dd_sdi_deserialize(THD *thd, const dd::sdi_t &sdi, dd::Table *table) {
   return dd::deserialize(thd, sdi, table);
 }
 
-
-dd::sdi_t
-ndb_dd_sdi_serialize(THD* thd, const dd::Table& table,
-                     const dd::String_type& schema_name)
-{
+dd::sdi_t ndb_dd_sdi_serialize(THD *thd, const dd::Table &table,
+                               const dd::String_type &schema_name) {
 #ifndef DBUG_OFF
   // Verify that dd::serialize generates SDI in minimzed format
   dd::sdi_t sdi = dd::serialize(thd, table, schema_name);

@@ -38,44 +38,43 @@ class Thd_ndb;
 // Base class used for working with tables created in NDB by the
 // ndbcluster plugin
 class Ndb_util_table {
-  Thd_ndb* const m_thd_ndb;
+  Thd_ndb *const m_thd_ndb;
   Ndb_table_guard m_table_guard;
   const std::string m_db_name;
   const std::string m_table_name;
   const bool m_hidden;
   const bool m_create_events;
 
-  bool check_column_type(const NdbDictionary::Column*,
+  bool check_column_type(const NdbDictionary::Column *,
                          NdbDictionary::Column::Type type,
-                         const char* type_name) const;
+                         const char *type_name) const;
 
-  void push_ndb_error_warning(const NdbError& ndb_err) const;
+  void push_ndb_error_warning(const NdbError &ndb_err) const;
 
  protected:
-  const NdbDictionary::Column* get_column(const char* name) const;
-  void push_warning(const char* fmt, ...) const
+  const NdbDictionary::Column *get_column(const char *name) const;
+  void push_warning(const char *fmt, ...) const
       MY_ATTRIBUTE((format(printf, 2, 3)));
 
-  Ndb_util_table(class Thd_ndb*, std::string db_name,
-                 std::string table_name, bool hidden,
-                 bool create_events = true);
+  Ndb_util_table(class Thd_ndb *, std::string db_name, std::string table_name,
+                 bool hidden, bool create_events = true);
   ~Ndb_util_table();
 
-  bool check_column_exist(const char* name) const;
+  bool check_column_exist(const char *name) const;
 
-  bool check_column_varbinary(const char* name) const;
-  bool check_column_binary(const char* name) const;
-  bool check_column_unsigned(const char* name) const;
-  bool check_column_bigunsigned(const char* name) const;
-  bool check_column_blob(const char* name) const;
+  bool check_column_varbinary(const char *name) const;
+  bool check_column_binary(const char *name) const;
+  bool check_column_unsigned(const char *name) const;
+  bool check_column_bigunsigned(const char *name) const;
+  bool check_column_blob(const char *name) const;
 
-  bool check_column_nullable(const char* name, bool nullable) const;
+  bool check_column_nullable(const char *name, bool nullable) const;
 
-  bool check_column_minlength(const char* name, int min_length) const;
+  bool check_column_minlength(const char *name, int min_length) const;
 
-  bool check_primary_key(const std::vector<const char*> columns) const;
+  bool check_primary_key(const std::vector<const char *> columns) const;
 
-  int get_column_max_length(const char* name) const;
+  int get_column_max_length(const char *name) const;
 
   /**
      @brief Define the NdbApi table definition
@@ -108,10 +107,10 @@ class Ndb_util_table {
     @brief Drop one event from NDB
     @return true if events was dropped successfully
     */
-  bool drop_event_in_NDB(const char* event_name) const;
+  bool drop_event_in_NDB(const char *event_name) const;
 
  public:
-  /** 
+  /**
     @brief Create or upgrade the table in NDB, and in the local Data Dictionary,
            and setup NDB binlog events if enabled
     @return true on success
@@ -137,19 +136,19 @@ class Ndb_util_table {
      functionality which does not exist after or during an upgrade.
      @return true if table definition fulfills minimal functionality.
    */
-  virtual bool check_schema() const  = 0;
+  virtual bool check_schema() const = 0;
 
   /**
     @brief Get name of the table
     @return name of the table
   */
-  const char* table_name() const { return m_table_name.c_str(); }
+  const char *table_name() const { return m_table_name.c_str(); }
 
   /**
     @brief Get database of the table
     @return database of the table
   */
-  const char* db_name() const { return m_db_name.c_str(); }
+  const char *db_name() const { return m_db_name.c_str(); }
 
   /**
     @brief Get hidden status of table
@@ -192,7 +191,7 @@ class Ndb_util_table {
      @brief Unpack the varbinary column value
      @return the value stored in the varbinary column
    */
-  static std::string unpack_varbinary(NdbRecAttr* ndbRecAttr);
+  static std::string unpack_varbinary(NdbRecAttr *ndbRecAttr);
 };
 
 #endif

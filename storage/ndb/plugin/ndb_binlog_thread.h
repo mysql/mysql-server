@@ -35,12 +35,12 @@
 
 class Ndb;
 
-class Ndb_binlog_thread : public Ndb_component
-{
+class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
-  static int do_after_reset_master(void*);
+  static int do_after_reset_master(void *);
   Ndb_metadata_sync metadata_sync;
-public:
+
+ public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
 
@@ -97,7 +97,8 @@ public:
   */
   bool add_table_to_check(const std::string &db_name,
                           const std::string &table_name);
-private:
+
+ private:
   virtual int do_init();
   virtual void do_run();
   virtual int do_deinit();
@@ -119,7 +120,7 @@ private:
     // from the cluster
     CLUSTER_DISCONNECT
   };
-  bool check_reconnect_incident(THD* thd, class injector* inj,
+  bool check_reconnect_incident(THD *thd, class injector *inj,
                                 Reconnect_type incident_id) const;
 
   /**
@@ -128,8 +129,8 @@ private:
     @param thd Thread handle
   */
   void recall_pending_purges(THD *thd);
-  std::mutex m_purge_mutex; // Protects m_pending_purges
-  std::vector<std::string> m_pending_purges; // List of pending purges
+  std::mutex m_purge_mutex;                   // Protects m_pending_purges
+  std::vector<std::string> m_pending_purges;  // List of pending purges
 
   /**
      @brief Remove event operations belonging to one Ndb object
@@ -159,7 +160,6 @@ private:
      @return void
   */
   void synchronize_detected_object(THD *thd);
-
 };
 
 #endif

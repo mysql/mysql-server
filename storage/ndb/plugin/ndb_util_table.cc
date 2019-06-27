@@ -28,10 +28,10 @@
 #include <utility>
 
 #include "my_base.h"
-#include "my_byteorder.h" // uint2korr
+#include "my_byteorder.h"  // uint2korr
 #include "mysql_version.h"
-#include "ndbapi/NdbRecAttr.hpp" // NdbRecAttr
-#include "sql/sql_class.h"      // THD
+#include "ndbapi/NdbRecAttr.hpp"  // NdbRecAttr
+#include "sql/sql_class.h"        // THD
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
 #include "storage/ndb/plugin/ndb_dd_table.h"
@@ -42,7 +42,7 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 class Db_name_guard {
-  Ndb * const m_ndb;
+  Ndb *const m_ndb;
   const std::string m_save_old_dbname;
   Db_name_guard() = delete;
   Db_name_guard(const Db_name_guard &) = delete;
@@ -68,7 +68,7 @@ class Util_table_creator {
   const char *db_name() const { return m_util_table.db_name(); }
   const char *table_name() const { return m_util_table.table_name(); }
 
-  bool create_or_upgrade_in_NDB(bool upgrade_allowed, bool& reinstall) const;
+  bool create_or_upgrade_in_NDB(bool upgrade_allowed, bool &reinstall) const;
 
   bool install_in_DD(bool reinstall);
 
@@ -82,10 +82,8 @@ class Util_table_creator {
   bool create_or_upgrade(bool upgrade_allowed, bool create_events);
 };
 
-
-Ndb_util_table::Ndb_util_table(Thd_ndb* thd_ndb, std::string db_name,
-                               std::string table_name, bool hidden,
-                               bool events)
+Ndb_util_table::Ndb_util_table(Thd_ndb *thd_ndb, std::string db_name,
+                               std::string table_name, bool hidden, bool events)
     : m_thd_ndb(thd_ndb),
       m_table_guard(thd_ndb->ndb->getDictionary()),
       m_db_name(std::move(db_name)),
@@ -100,7 +98,7 @@ bool Ndb_util_table::create_or_upgrade(THD *thd, bool upgrade_flag) {
   return creator.create_or_upgrade(upgrade_flag, m_create_events);
 }
 
-void Ndb_util_table::push_warning(const char* fmt, ...) const {
+void Ndb_util_table::push_warning(const char *fmt, ...) const {
   // Assemble the message
   char message[512];
   va_list args;
@@ -135,7 +133,7 @@ bool Ndb_util_table::exists() const {
 }
 
 bool Ndb_util_table::open() {
-  Ndb* ndb = m_thd_ndb->ndb;
+  Ndb *ndb = m_thd_ndb->ndb;
 
   // Set correct database name on the Ndb object
   Db_name_guard db_guard(ndb, m_db_name.c_str());
@@ -143,7 +141,7 @@ bool Ndb_util_table::open() {
   // Load up the table definition from NDB dictionary
   m_table_guard.init(m_table_name.c_str());
 
-  const NdbDictionary::Table* tab = m_table_guard.get_table();
+  const NdbDictionary::Table *tab = m_table_guard.get_table();
   if (!tab) {
     push_warning("Failed to open table from NDB");
     return false;
@@ -152,17 +150,16 @@ bool Ndb_util_table::open() {
   return true;
 }
 
-const NdbDictionary::Table* Ndb_util_table::get_table() const {
+const NdbDictionary::Table *Ndb_util_table::get_table() const {
   return m_table_guard.get_table();
 }
 
-const NdbDictionary::Column* Ndb_util_table::get_column(
-    const char* name) const {
+const NdbDictionary::Column *Ndb_util_table::get_column(
+    const char *name) const {
   return get_table()->getColumn(name);
 }
 
-
-bool Ndb_util_table::check_column_exist(const char* name) const {
+bool Ndb_util_table::check_column_exist(const char *name) const {
   if (get_column(name) == nullptr) {
     push_warning("Could not find expected column '%s'", name);
     return false;
@@ -171,33 +168,30 @@ bool Ndb_util_table::check_column_exist(const char* name) const {
 }
 
 bool Ndb_util_table::check_primary_key(
-    const std::vector<const char*> columns) const {
+    const std::vector<const char *> columns) const {
   // Check that the primary key of the table matches the given columns
   int keys = 0;
-  for (const char* name : columns) {
-    if (!get_column(name)->getPrimaryKey())
-    {
+  for (const char *name : columns) {
+    if (!get_column(name)->getPrimaryKey()) {
       push_warning("Column '%s' is not part of primary key", name);
       return false;
     }
     keys++;
   }
-  if (keys != get_table()->getNoOfPrimaryKeys())
-  {
+  if (keys != get_table()->getNoOfPrimaryKeys()) {
     push_warning("Invalid primary key");
     return false;
   }
   return true;
 }
 
-int Ndb_util_table::get_column_max_length(const char* name) const
-{
+int Ndb_util_table::get_column_max_length(const char *name) const {
   return get_column(name)->getLength();
 }
 
-bool Ndb_util_table::check_column_type(const NdbDictionary::Column* col,
+bool Ndb_util_table::check_column_type(const NdbDictionary::Column *col,
                                        NdbDictionary::Column::Type type,
-                                       const char* type_name) const {
+                                       const char *type_name) const {
   if (col->getType() != type) {
     push_warning("Column '%s' must be defined as '%s'", col->getName(),
                  type_name);
@@ -206,7 +200,7 @@ bool Ndb_util_table::check_column_type(const NdbDictionary::Column* col,
   return true;
 }
 
-bool Ndb_util_table::check_column_minlength(const char* name,
+bool Ndb_util_table::check_column_minlength(const char *name,
                                             int min_length) const {
   if (get_column(name)->getLength() < min_length) {
     push_warning("Column '%s' is too short, need at least %d bytes", name,
@@ -216,32 +210,33 @@ bool Ndb_util_table::check_column_minlength(const char* name,
   return true;
 }
 
-bool Ndb_util_table::check_column_varbinary(const char* name) const {
+bool Ndb_util_table::check_column_varbinary(const char *name) const {
   return check_column_type(get_column(name), NdbDictionary::Column::Varbinary,
                            "VARBINARY");
 }
 
-bool Ndb_util_table::check_column_binary(const char* name) const {
+bool Ndb_util_table::check_column_binary(const char *name) const {
   return check_column_type(get_column(name), NdbDictionary::Column::Binary,
                            "BINARY");
 }
 
-bool Ndb_util_table::check_column_unsigned(const char* name) const {
+bool Ndb_util_table::check_column_unsigned(const char *name) const {
   return check_column_type(get_column(name), NdbDictionary::Column::Unsigned,
                            "INT UNSIGNED ");
 }
 
-bool Ndb_util_table::check_column_bigunsigned(const char* name) const {
+bool Ndb_util_table::check_column_bigunsigned(const char *name) const {
   return check_column_type(get_column(name), NdbDictionary::Column::Bigunsigned,
                            "BIGINT UNSIGNED");
 }
 
-bool Ndb_util_table::check_column_blob(const char* name) const {
+bool Ndb_util_table::check_column_blob(const char *name) const {
   return check_column_type(get_column(name), NdbDictionary::Column::Blob,
                            "BLOB");
 }
 
-bool Ndb_util_table::check_column_nullable(const char* name, bool nullable) const {
+bool Ndb_util_table::check_column_nullable(const char *name,
+                                           bool nullable) const {
   if (get_column(name)->getNullable() != nullable) {
     push_warning("Column '%s' must be defined to %sallow NULL values", name,
                  nullable ? "" : "not ");
@@ -266,8 +261,8 @@ bool Ndb_util_table::define_indexes(const NdbDictionary::Table &,
   return true;
 }
 
-bool Ndb_util_table::create_index(const NdbDictionary::Table & table,
-                                  const NdbDictionary::Index & idx) const {
+bool Ndb_util_table::create_index(const NdbDictionary::Table &table,
+                                  const NdbDictionary::Index &idx) const {
   Db_name_guard db_guard(m_thd_ndb->ndb, m_db_name.c_str());
 
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
@@ -280,13 +275,13 @@ bool Ndb_util_table::create_index(const NdbDictionary::Table & table,
 }
 
 bool Ndb_util_table::create_primary_ordered_index(
-    const NdbDictionary::Table & table) const {
+    const NdbDictionary::Table &table) const {
   NdbDictionary::Index index("PRIMARY");
 
   index.setType(NdbDictionary::Index::OrderedIndex);
   index.setLogging(false);
 
-  for(int i = 0 ; i < table.getNoOfPrimaryKeys() ; i++) {
+  for (int i = 0; i < table.getNoOfPrimaryKeys(); i++) {
     index.addColumnName(table.getPrimaryKey(i));
   }
   return create_index(table, index);
@@ -312,10 +307,8 @@ bool Ndb_util_table::drop_table_in_NDB(
   Db_name_guard db_guard(m_thd_ndb->ndb, m_db_name.c_str());
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
 
-  if (!drop_events_in_NDB())
-  {
-    push_warning("Failed to drop events for table '%s'",
-                 m_table_name.c_str());
+  if (!drop_events_in_NDB()) {
+    push_warning("Failed to drop events for table '%s'", m_table_name.c_str());
     return false;
   }
 
@@ -354,18 +347,14 @@ bool Ndb_util_table::create() const {
     mysql_version = 50725;
   }
 #endif
-  if (!define_table_ndb(new_table, mysql_version))
-    return false;
+  if (!define_table_ndb(new_table, mysql_version)) return false;
 
-  if (!create_table_in_NDB(new_table))
-    return false;
+  if (!create_table_in_NDB(new_table)) return false;
 
-  if(! define_indexes(new_table, mysql_version))
-    return false;
+  if (!define_indexes(new_table, mysql_version)) return false;
 
   return true;
 }
-
 
 // Upgrade table
 bool Ndb_util_table::upgrade() const {
@@ -391,9 +380,7 @@ bool Ndb_util_table::upgrade() const {
   return true;
 }
 
-
-std::string
-Ndb_util_table::unpack_varbinary(NdbRecAttr* ndbRecAttr) {
+std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
   DBUG_ENTER("Ndb_util_table::unpack_varbinary");
   // Function should be called only on a varbinary column
   DBUG_ASSERT(ndbRecAttr->getType() == NdbDictionary::Column::Varbinary ||
@@ -402,7 +389,7 @@ Ndb_util_table::unpack_varbinary(NdbRecAttr* ndbRecAttr) {
   const char *value_start;
   size_t value_length;
   ndb_unpack_varchar(ndbRecAttr->getColumn(), 0, &value_start, &value_length,
-                      ndbRecAttr->aRef());
+                     ndbRecAttr->aRef());
 
   DBUG_RETURN(std::string(value_start, value_length));
 }
@@ -411,18 +398,14 @@ Ndb_util_table::unpack_varbinary(NdbRecAttr* ndbRecAttr) {
 //  Util_table_creator
 //
 
-Util_table_creator::Util_table_creator(THD *thd,
-                                       Thd_ndb *thd_ndb,
-                                       Ndb_util_table &util_table) :
-  m_thd(thd),
-  m_thd_ndb(thd_ndb),
-  m_util_table(util_table)
-{
+Util_table_creator::Util_table_creator(THD *thd, Thd_ndb *thd_ndb,
+                                       Ndb_util_table &util_table)
+    : m_thd(thd), m_thd_ndb(thd_ndb), m_util_table(util_table) {
   m_name.append(db_name()).append(".").append(table_name());
 }
 
 bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
-                                                  bool& reinstall) const {
+                                                  bool &reinstall) const {
   ndb_log_verbose(50, "Checking '%s' table", m_name.c_str());
 
   if (!m_util_table.exists()) {
@@ -459,7 +442,7 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
       ndb_log_error("Upgrade of '%s' table failed!", m_name.c_str());
       return false;
     }
-    reinstall= true;
+    reinstall = true;
     ndb_log_info("Upgrade of '%s' table completed", m_name.c_str());
   }
 
@@ -542,8 +525,7 @@ bool Util_table_creator::setup_table_for_binlog() const {
   // Acquire exclusive MDL lock on schema and table
   Ndb_dd_client dd_client(m_thd);
   if (!dd_client.mdl_locks_acquire_exclusive(db_name(), table_name())) {
-    ndb_log_error("Failed to acquire MDL lock for '%s' table",
-                  m_name.c_str());
+    ndb_log_error("Failed to acquire MDL lock for '%s' table", m_name.c_str());
     m_thd->clear_error();
     return false;
   }
@@ -576,7 +558,7 @@ bool Util_table_creator::create_or_upgrade(bool upgrade_allowed,
     return false;
   }
 
-  if(create_events) {
+  if (create_events) {
     if (!setup_table_for_binlog()) {
       return false;
     }

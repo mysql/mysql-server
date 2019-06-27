@@ -25,20 +25,20 @@
 // Implements
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
-#include "sql/sql_class.h"         // THD
-#include "sql/sql_table.h"         // build_table_filename
-#include "storage/ndb/include/ndbapi/Ndb.hpp"  // Ndb
+#include "sql/sql_class.h"                            // THD
+#include "sql/sql_table.h"                            // build_table_filename
+#include "storage/ndb/include/ndbapi/Ndb.hpp"         // Ndb
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_setup_table
 #include "storage/ndb/plugin/ndb_dd_client.h"         // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"  // ndb_dd_disk_data_get_object_id_and_version
-#include "storage/ndb/plugin/ndb_dd_table.h"      // ndb_dd_table_get_object_id_and_version
-#include "storage/ndb/plugin/ndb_log.h"           // ndb_log_*
-#include "storage/ndb/plugin/ndb_ndbapi_util.h"   // ndb_logfile_group_exists
-#include "storage/ndb/plugin/ndb_schema_dist.h"   // Ndb_schema_dist
-#include "storage/ndb/plugin/ndb_table_guard.h"   // Ndb_table_guard
-#include "storage/ndb/plugin/ndb_tdc.h"           // ndb_tdc_close_cached_table
-#include "storage/ndb/plugin/ndb_thd.h"           // get_thd_ndb
-#include "storage/ndb/plugin/ndb_thd_ndb.h"       // Thd_ndb
+#include "storage/ndb/plugin/ndb_dd_table.h"  // ndb_dd_table_get_object_id_and_version
+#include "storage/ndb/plugin/ndb_log.h"          // ndb_log_*
+#include "storage/ndb/plugin/ndb_ndbapi_util.h"  // ndb_logfile_group_exists
+#include "storage/ndb/plugin/ndb_schema_dist.h"  // Ndb_schema_dist
+#include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
+#include "storage/ndb/plugin/ndb_tdc.h"          // ndb_tdc_close_cached_table
+#include "storage/ndb/plugin/ndb_thd.h"          // get_thd_ndb
+#include "storage/ndb/plugin/ndb_thd_ndb.h"      // Thd_ndb
 
 const char *Ndb_metadata_sync::object_type_str(
     object_detected_type type) const {

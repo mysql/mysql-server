@@ -25,10 +25,10 @@
 #ifndef NDB_DDL_DEFINITIONS_H
 #define NDB_DDL_DEFINITIONS_H
 
-#include "ndbapi/NdbDictionary.hpp" // Required for NdbDictionary::Table
+#include "ndbapi/NdbDictionary.hpp"  // Required for NdbDictionary::Table
 
 namespace dd {
-  class Table;
+class Table;
 }
 
 int rename_table_impl(class THD *thd, class Ndb *ndb,

@@ -27,19 +27,17 @@
 
 class THD;
 
-class Ndb_global_schema_lock_guard
-{
-public:
+class Ndb_global_schema_lock_guard {
+ public:
   Ndb_global_schema_lock_guard(THD *thd);
   ~Ndb_global_schema_lock_guard();
   int lock(void);
   bool try_lock(void);
-  bool unlock(); // Should be called only in conjunction with try_lock()
-private:
-  THD* const m_thd;
+  bool unlock();  // Should be called only in conjunction with try_lock()
+ private:
+  THD *const m_thd;
   bool m_locked;
   bool m_try_locked;
 };
 
 #endif
-

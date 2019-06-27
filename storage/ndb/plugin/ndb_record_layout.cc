@@ -113,10 +113,9 @@ void Ndb_record_layout::setValue(int idx, unsigned int *value,
 
 void Ndb_record_layout::packValue(int idx, std::string value,
                                   char *data) const {
-  ndb_pack_varchar(record_specs[idx].column, 0,
-                   value.c_str(), value.length(), data);
+  ndb_pack_varchar(record_specs[idx].column, 0, value.c_str(), value.length(),
+                   data);
 }
-
 
 bool Ndb_record_layout::getValue(const char *data, int idx,
                                  unsigned short *value) const {

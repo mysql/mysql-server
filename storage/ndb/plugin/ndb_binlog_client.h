@@ -51,7 +51,7 @@ class Ndb_binlog_client {
    * @param fmt
    */
   void log_warning(uint code, const char *fmt, ...) const
-    MY_ATTRIBUTE((format(printf, 3, 4)));
+      MY_ATTRIBUTE((format(printf, 3, 4)));
 
   /**
    * @brief event_name_for_table, generate name for the event for this table

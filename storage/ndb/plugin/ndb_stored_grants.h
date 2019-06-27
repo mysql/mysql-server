@@ -36,24 +36,23 @@ class Acl_change_notification;
 */
 namespace Ndb_stored_grants {
 
-  bool initialize(THD *, Thd_ndb *);
+bool initialize(THD *, Thd_ndb *);
 
-  void shutdown(Thd_ndb *);
+void shutdown(Thd_ndb *);
 
-  bool apply_stored_grants(THD *);
+bool apply_stored_grants(THD *);
 
-  enum class Strategy { ERROR, NONE, STATEMENT, SNAPSHOT };
+enum class Strategy { ERROR, NONE, STATEMENT, SNAPSHOT };
 
-  Strategy handle_local_acl_change(THD *,
-                                   const class Acl_change_notification *,
-                                   std::string * user_list,
-                                   bool * schema_dist_use_db,
-                                   bool * particpants_must_refresh);
+Strategy handle_local_acl_change(THD *, const class Acl_change_notification *,
+                                 std::string *user_list,
+                                 bool *schema_dist_use_db,
+                                 bool *particpants_must_refresh);
 
-  bool update_users_from_snapshot(THD *, std::string user_list);
+bool update_users_from_snapshot(THD *, std::string user_list);
 
-  void maintain_cache(THD *);
+void maintain_cache(THD *);
 
-} // namespace
+}  // namespace Ndb_stored_grants
 
 #endif

@@ -34,11 +34,11 @@
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Table;
-  typedef String_type sdi_t;
-}
+class Table;
+typedef String_type sdi_t;
+}  // namespace dd
 
-bool ndb_dd_sdi_deserialize(class THD* thd, const dd::sdi_t &sdi,
+bool ndb_dd_sdi_deserialize(class THD *thd, const dd::sdi_t &sdi,
                             dd::Table *table);
 
 dd::sdi_t ndb_dd_sdi_serialize(class THD *thd, const dd::Table &table,

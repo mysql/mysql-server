@@ -32,12 +32,12 @@
 #include <vector>
 
 #include "my_dbug.h"
-#include "mysql/psi/mysql_cond.h"          // mysql_cond_t
-#include "mysql/psi/mysql_mutex.h"         // mysql_mutex_t
-#include "sql/sql_class.h"                 // THD
-#include "sql/table.h"  // is_infoschema_db() / is_perfschema_db()
-#include "storage/ndb/include/ndbapi/NdbError.hpp"  // NdbError
-#include "storage/ndb/plugin/ha_ndbcluster_binlog.h"      // ndb_binlog_is_read_only
+#include "mysql/psi/mysql_cond.h"   // mysql_cond_t
+#include "mysql/psi/mysql_mutex.h"  // mysql_mutex_t
+#include "sql/sql_class.h"          // THD
+#include "sql/table.h"              // is_infoschema_db() / is_perfschema_db()
+#include "storage/ndb/include/ndbapi/NdbError.hpp"    // NdbError
+#include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndb_binlog_is_read_only
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"  // ndbcluster_is_connected
 #include "storage/ndb/plugin/ndb_dd_client.h"             // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"           // ndb_get_*_names

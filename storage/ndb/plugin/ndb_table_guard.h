@@ -31,27 +31,23 @@
 #include "storage/ndb/include/ndbapi/Ndb.hpp"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
-class Ndb_table_guard
-{
+class Ndb_table_guard {
   NdbDictionary::Dictionary *const m_dict;
   const NdbDictionary::Table *m_ndbtab{nullptr};
   int m_invalidate{0};
-public:
-  Ndb_table_guard(NdbDictionary::Dictionary *dict)
-    : m_dict(dict)
-  {}
+
+ public:
+  Ndb_table_guard(NdbDictionary::Dictionary *dict) : m_dict(dict) {}
   Ndb_table_guard(NdbDictionary::Dictionary *dict, const char *tabname)
-    : m_dict(dict)
-  {
+      : m_dict(dict) {
     DBUG_ENTER("Ndb_table_guard");
     init(tabname);
     DBUG_VOID_RETURN;
   }
-  Ndb_table_guard(Ndb* ndb, const char* dbname, const char *tabname)
-    : m_dict(ndb->getDictionary())
-  {
+  Ndb_table_guard(Ndb *ndb, const char *dbname, const char *tabname)
+      : m_dict(ndb->getDictionary()) {
     const std::string save_dbname(ndb->getDatabaseName());
-    if (ndb->setDatabaseName(dbname) != 0){
+    if (ndb->setDatabaseName(dbname) != 0) {
       // Failed to set databasname, indicate error by returning
       // without initializing the table pointer
       return;
@@ -59,35 +55,31 @@ public:
     init(tabname);
     (void)ndb->setDatabaseName(save_dbname.c_str());
   }
-  ~Ndb_table_guard()
-  {
+  ~Ndb_table_guard() {
     DBUG_ENTER("~Ndb_table_guard");
-    if (m_ndbtab)
-    {
-      DBUG_PRINT("info", ("m_ndbtab: %p  m_invalidate: %d",
-                          m_ndbtab, m_invalidate));
+    if (m_ndbtab) {
+      DBUG_PRINT("info",
+                 ("m_ndbtab: %p  m_invalidate: %d", m_ndbtab, m_invalidate));
       m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
-      m_ndbtab= NULL;
-      m_invalidate= 0;
+      m_ndbtab = NULL;
+      m_invalidate = 0;
     }
     DBUG_VOID_RETURN;
   }
-  void init(const char *tabname)
-  {
+  void init(const char *tabname) {
     DBUG_ENTER("Ndb_table_guard::init");
     /* Don't allow init() if already initialized */
     DBUG_ASSERT(m_ndbtab == NULL);
-    m_ndbtab= m_dict->getTableGlobal(tabname);
-    m_invalidate= 0;
+    m_ndbtab = m_dict->getTableGlobal(tabname);
+    m_invalidate = 0;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     DBUG_VOID_RETURN;
   }
   const NdbDictionary::Table *get_table() const { return m_ndbtab; }
-  void invalidate() { m_invalidate= 1; }
-  const NdbDictionary::Table *release()
-  {
+  void invalidate() { m_invalidate = 1; }
+  const NdbDictionary::Table *release() {
     DBUG_ENTER("Ndb_table_guard::release");
-    const NdbDictionary::Table *tmp= m_ndbtab;
+    const NdbDictionary::Table *tmp = m_ndbtab;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     m_ndbtab = 0;
     DBUG_RETURN(tmp);

@@ -32,19 +32,19 @@
 const std::string Ndb_schema_result_table::DB_NAME = "mysql";
 const std::string Ndb_schema_result_table::TABLE_NAME = "ndb_schema_result";
 
-const char* Ndb_schema_result_table::COL_NODEID = "nodeid";
-const char* Ndb_schema_result_table::COL_SCHEMA_OP_ID = "schema_op_id";
-const char* Ndb_schema_result_table::COL_PARTICIPANT_NODEID = "participant_nodeid";
-const char* Ndb_schema_result_table::COL_RESULT = "result";
-const char* Ndb_schema_result_table::COL_MESSAGE = "message";
+const char *Ndb_schema_result_table::COL_NODEID = "nodeid";
+const char *Ndb_schema_result_table::COL_SCHEMA_OP_ID = "schema_op_id";
+const char *Ndb_schema_result_table::COL_PARTICIPANT_NODEID =
+    "participant_nodeid";
+const char *Ndb_schema_result_table::COL_RESULT = "result";
+const char *Ndb_schema_result_table::COL_MESSAGE = "message";
 
-Ndb_schema_result_table::Ndb_schema_result_table(Thd_ndb* thd_ndb)
+Ndb_schema_result_table::Ndb_schema_result_table(Thd_ndb *thd_ndb)
     : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, true) {}
 
 Ndb_schema_result_table::~Ndb_schema_result_table() {}
 
 bool Ndb_schema_result_table::check_schema() const {
-
   // nodeid
   // unsigned int
   if (!(check_column_exist(COL_NODEID) && check_column_unsigned(COL_NODEID))) {
@@ -73,14 +73,14 @@ bool Ndb_schema_result_table::check_schema() const {
 
   // result
   // unsigned int
-  if (!(check_column_exist(COL_RESULT) &&
-        check_column_unsigned(COL_RESULT))) {
+  if (!(check_column_exist(COL_RESULT) && check_column_unsigned(COL_RESULT))) {
     return false;
   }
 
   // message
   // varbinary, at least 255 bytes long
-  if (!(check_column_exist(COL_MESSAGE) && check_column_varbinary(COL_MESSAGE) &&
+  if (!(check_column_exist(COL_MESSAGE) &&
+        check_column_varbinary(COL_MESSAGE) &&
         check_column_minlength(COL_MESSAGE, 255))) {
     return false;
   }
@@ -89,7 +89,7 @@ bool Ndb_schema_result_table::check_schema() const {
 }
 
 bool Ndb_schema_result_table::define_table_ndb(NdbDictionary::Table &new_table,
-                                             unsigned mysql_version) const {
+                                               unsigned mysql_version) const {
   // Allow later online add column
   new_table.setForceVarPart(true);
 
@@ -120,7 +120,8 @@ bool Ndb_schema_result_table::define_table_ndb(NdbDictionary::Table &new_table,
     col_participant_nodeid.setType(NdbDictionary::Column::Unsigned);
     col_participant_nodeid.setNullable(false);
     col_participant_nodeid.setPrimaryKey(true);
-    if (!define_table_add_column(new_table, col_participant_nodeid)) return false;
+    if (!define_table_add_column(new_table, col_participant_nodeid))
+      return false;
   }
 
   {
@@ -140,7 +141,7 @@ bool Ndb_schema_result_table::define_table_ndb(NdbDictionary::Table &new_table,
     if (!define_table_add_column(new_table, col_message)) return false;
   }
 
-  (void)mysql_version; // Only one version can be created
+  (void)mysql_version;  // Only one version can be created
 
   return true;
 }
@@ -160,11 +161,9 @@ std::string Ndb_schema_result_table::define_table_dd() const {
   return ss.str();
 }
 
-bool Ndb_schema_result_table::drop_events_in_NDB() const
-{
+bool Ndb_schema_result_table::drop_events_in_NDB() const {
   // Drop the default event
-  if (!drop_event_in_NDB("REPL$mysql/ndb_schema_result"))
-    return false;
+  if (!drop_event_in_NDB("REPL$mysql/ndb_schema_result")) return false;
 
   return true;
 }

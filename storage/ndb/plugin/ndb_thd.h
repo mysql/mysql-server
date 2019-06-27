@@ -27,70 +27,59 @@
 
 #include "mysql/plugin.h"
 
-extern handlerton* ndbcluster_hton;
+extern handlerton *ndbcluster_hton;
 
-  
 /* Get Thd_ndb pointer from THD */
-static inline
-class Thd_ndb*
-get_thd_ndb(THD* thd)
-{
-  return (class Thd_ndb *) thd_get_ha_data(thd, ndbcluster_hton);
+static inline class Thd_ndb *get_thd_ndb(THD *thd) {
+  return (class Thd_ndb *)thd_get_ha_data(thd, ndbcluster_hton);
 }
 
-
 /* Set Thd_ndb pointer for THD */
-static inline
-void
-thd_set_thd_ndb(THD *thd, class Thd_ndb *thd_ndb)
-{
+static inline void thd_set_thd_ndb(THD *thd, class Thd_ndb *thd_ndb) {
   thd_set_ha_data(thd, ndbcluster_hton, thd_ndb);
 }
 
-
 /* Make sure THD has a Thd_ndb struct assigned */
-class Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb= false);
+class Ndb *check_ndb_in_thd(THD *thd, bool validate_ndb = false);
 
 /*
   Determine if THD is applying binlog. ie. either marked as
   slave thread or being in "pseudo slave mode"
 */
-bool
-applying_binlog(const THD* thd);
-
+bool applying_binlog(const THD *thd);
 
 /*
   Return the THD's unmasked server id
 */
-uint32 thd_unmasked_server_id(const THD* thd);
+uint32 thd_unmasked_server_id(const THD *thd);
 
 /*
  @brief Return the THD's current query string
 
  @note It's safe for own thread to read it's query string
 */
-const char* ndb_thd_query(const THD* thd);
+const char *ndb_thd_query(const THD *thd);
 
 /*
  @brief Return the length of THD's current query
 
  @note It's safe for own thread to read it's query string length
 */
-size_t ndb_thd_query_length(const THD* thd);
+size_t ndb_thd_query_length(const THD *thd);
 
 /*
  @brief Check if THD is the "binlog injector thread"
 
  @return true if thread matches condition
 */
-bool ndb_thd_is_binlog_thread(const THD* thd);
+bool ndb_thd_is_binlog_thread(const THD *thd);
 
 /*
  @brief Check if THD is a "background thread"
 
  @return true if thread matches condition
 */
-bool ndb_thd_is_background_thread(const THD* thd);
+bool ndb_thd_is_background_thread(const THD *thd);
 
 /*
  @brief Register ndbcluster for a statement and optionally a transaction.
@@ -118,7 +107,7 @@ enum condition_logging_level { INFO, WARNING, ERROR };
   @param thd            Thread handle
   @param logging_level  Level of the log messages i.e. info, warning, or error
 */
-void log_and_clear_thd_conditions(
-  THD *thd, condition_logging_level logging_level);
+void log_and_clear_thd_conditions(THD *thd,
+                                  condition_logging_level logging_level);
 
 #endif

@@ -36,14 +36,14 @@
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  typedef String_type sdi_t;
-  namespace cache {
-    class Dictionary_client;
-  }
-  class Schema;
-  class Table;
-  class Tablespace;
+typedef String_type sdi_t;
+namespace cache {
+class Dictionary_client;
 }
+class Schema;
+class Table;
+class Tablespace;
+}  // namespace dd
 
 /*
  * Helper class to Ndb_dd_client to fetch and
@@ -52,21 +52,22 @@ namespace dd {
  */
 class Ndb_referenced_tables_invalidator {
   std::set<std::pair<std::string, std::string>> m_referenced_tables;
-  class THD* const m_thd;
-  class Ndb_dd_client& m_dd_client;
+  class THD *const m_thd;
+  class Ndb_dd_client &m_dd_client;
 
-  bool add_and_lock_referenced_table(const char* schema_name,
-                                     const char* table_name);
-public:
-  Ndb_referenced_tables_invalidator(class THD* thd,
-                                      class Ndb_dd_client& dd_client)
-    :m_thd(thd), m_dd_client(dd_client) {}
-  bool fetch_referenced_tables_to_invalidate(
-      const char* schema_name, const char* table_name,
-      const dd::Table* table_def, bool skip_ndb_dict_fetch = false);
+  bool add_and_lock_referenced_table(const char *schema_name,
+                                     const char *table_name);
+
+ public:
+  Ndb_referenced_tables_invalidator(class THD *thd,
+                                    class Ndb_dd_client &dd_client)
+      : m_thd(thd), m_dd_client(dd_client) {}
+  bool fetch_referenced_tables_to_invalidate(const char *schema_name,
+                                             const char *table_name,
+                                             const dd::Table *table_def,
+                                             bool skip_ndb_dict_fetch = false);
   bool invalidate() const;
 };
-
 
 /*
   Class encapculating the code for accessing the DD
@@ -81,38 +82,38 @@ public:
 */
 
 class Ndb_dd_client {
-  class THD* const m_thd;
-  dd::cache::Dictionary_client* m_client;
-  void* m_auto_releaser; // Opaque pointer
-  std::vector<class MDL_ticket*> m_acquired_mdl_tickets;
+  class THD *const m_thd;
+  dd::cache::Dictionary_client *m_client;
+  void *m_auto_releaser;  // Opaque pointer
+  std::vector<class MDL_ticket *> m_acquired_mdl_tickets;
   ulonglong m_save_option_bits{0};
   bool m_comitted{false};
   bool m_auto_rollback{true};
 
   void disable_autocommit();
 
-  bool store_table(dd::Table* install_table, int ndb_table_id);
+  bool store_table(dd::Table *install_table, int ndb_table_id);
 
-public:
-  Ndb_dd_client(class THD* thd);
+ public:
+  Ndb_dd_client(class THD *thd);
 
   ~Ndb_dd_client();
 
   // Metadata lock functions
-  bool mdl_lock_schema(const char* schema_name, bool exclusive_lock = false);
-  bool mdl_lock_table(const char* schema_name, const char* table_name);
-  bool mdl_locks_acquire_exclusive(const char* schema_name,
-                                   const char* table_name,
+  bool mdl_lock_schema(const char *schema_name, bool exclusive_lock = false);
+  bool mdl_lock_table(const char *schema_name, const char *table_name);
+  bool mdl_locks_acquire_exclusive(const char *schema_name,
+                                   const char *table_name,
                                    bool custom_lock_wait = false,
                                    ulong lock_wait_timeout = 0);
-  bool mdl_lock_logfile_group(const char* logfile_group_name,
+  bool mdl_lock_logfile_group(const char *logfile_group_name,
                               bool intention_exclusive);
-  bool mdl_lock_logfile_group_exclusive(const char* logfile_group_name,
+  bool mdl_lock_logfile_group_exclusive(const char *logfile_group_name,
                                         bool custom_lock_wait = false,
                                         ulong lock_wait_timeout = 0);
-  bool mdl_lock_tablespace(const char* tablespace_name,
+  bool mdl_lock_tablespace(const char *tablespace_name,
                            bool intention_exclusive);
-  bool mdl_lock_tablespace_exclusive(const char* tablespace_name,
+  bool mdl_lock_tablespace_exclusive(const char *tablespace_name,
                                      bool custom_lock_wait = false,
                                      ulong lock_wait_timeout = 0);
   void mdl_locks_release();
@@ -130,26 +131,24 @@ public:
   */
   void disable_auto_rollback() { m_auto_rollback = false; }
 
-  bool get_engine(const char* schema_name, const char* table_name,
-                  dd::String_type* engine);
+  bool get_engine(const char *schema_name, const char *table_name,
+                  dd::String_type *engine);
 
   bool rename_table(const char *old_schema_name, const char *old_table_name,
                     const char *new_schema_name, const char *new_table_name,
                     int new_table_id, int new_table_version,
-                    Ndb_referenced_tables_invalidator *invalidator= nullptr);
-  bool remove_table(const char* schema_name, const char* table_name,
-                    Ndb_referenced_tables_invalidator *invalidator= nullptr);
-  bool install_table(const char* schema_name, const char* table_name,
-                     const dd::sdi_t &sdi,
-                     int ndb_table_id, int ndb_table_version,
-                     size_t ndb_num_partitions,
+                    Ndb_referenced_tables_invalidator *invalidator = nullptr);
+  bool remove_table(const char *schema_name, const char *table_name,
+                    Ndb_referenced_tables_invalidator *invalidator = nullptr);
+  bool install_table(const char *schema_name, const char *table_name,
+                     const dd::sdi_t &sdi, int ndb_table_id,
+                     int ndb_table_version, size_t ndb_num_partitions,
                      const std::string &tablespace_name, bool force_overwrite,
-                     Ndb_referenced_tables_invalidator *invalidator= nullptr);
-  bool migrate_table(const char* schema_name, const char* table_name,
-                     const unsigned char* frm_data,
-                     unsigned int unpacked_len,
+                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
+  bool migrate_table(const char *schema_name, const char *table_name,
+                     const unsigned char *frm_data, unsigned int unpacked_len,
                      bool force_overwrite);
-  bool get_table(const char* schema_name, const char* table_name,
+  bool get_table(const char *schema_name, const char *table_name,
                  const dd::Table **table_def);
   bool table_exists(const char *schema_name, const char *table_name,
                     bool &exists);
@@ -157,23 +156,23 @@ public:
                                   const char *table_name,
                                   dd::Object_id tablespace_id);
   bool set_object_id_and_version_in_table(const char *schema_name,
-                                          const char *table_name,
-                                          int object_id, int object_version);
+                                          const char *table_name, int object_id,
+                                          int object_version);
 
-  bool fetch_all_schemas(std::map<std::string, const dd::Schema*>&);
-  bool fetch_schema_names(std::vector<std::string>*);
-  bool get_ndb_table_names_in_schema(const char* schema_name,
+  bool fetch_all_schemas(std::map<std::string, const dd::Schema *> &);
+  bool fetch_schema_names(std::vector<std::string> *);
+  bool get_ndb_table_names_in_schema(const char *schema_name,
                                      std::unordered_set<std::string> *names);
-  bool get_table_names_in_schema(const char* schema_name,
+  bool get_table_names_in_schema(const char *schema_name,
                                  std::unordered_set<std::string> *ndb_tables,
                                  std::unordered_set<std::string> *local_tables);
-  bool have_local_tables_in_schema(const char* schema_name,
-                                   bool* found_local_tables);
-  bool is_local_table(const char* schema_name, const char* table_name,
+  bool have_local_tables_in_schema(const char *schema_name,
+                                   bool *found_local_tables);
+  bool is_local_table(const char *schema_name, const char *table_name,
                       bool &local_table);
-  bool schema_exists(const char* schema_name, bool* schema_exists);
-  bool update_schema_version(const char* schema_name,
-                             unsigned int counter, unsigned int node_id);
+  bool schema_exists(const char *schema_name, bool *schema_exists);
+  bool update_schema_version(const char *schema_name, unsigned int counter,
+                             unsigned int node_id);
 
   /*
      @brief Lookup tablespace id from tablespace name
@@ -183,35 +182,30 @@ public:
 
      @return true if tablespace found
   */
-  bool lookup_tablespace_id(const char* tablespace_name,
-                            dd::Object_id* tablespace_id);
-  bool get_tablespace(const char* tablespace_name,
+  bool lookup_tablespace_id(const char *tablespace_name,
+                            dd::Object_id *tablespace_id);
+  bool get_tablespace(const char *tablespace_name,
                       const dd::Tablespace **tablespace_def);
-  bool tablespace_exists(const char* tablespace_name, bool& exists);
-  bool fetch_ndb_tablespace_names(std::unordered_set<std::string>& names);
-  bool install_tablespace(const char* tablespace_name,
-                          const std::vector<std::string>& data_file_names,
-                          int tablespace_id,
-                          int tablespace_version,
+  bool tablespace_exists(const char *tablespace_name, bool &exists);
+  bool fetch_ndb_tablespace_names(std::unordered_set<std::string> &names);
+  bool install_tablespace(const char *tablespace_name,
+                          const std::vector<std::string> &data_file_names,
+                          int tablespace_id, int tablespace_version,
                           bool force_overwrite);
-  bool drop_tablespace(const char* tablespace_name,
+  bool drop_tablespace(const char *tablespace_name,
                        bool fail_if_not_exists = true);
-  bool get_logfile_group(const char* logfile_group_name,
+  bool get_logfile_group(const char *logfile_group_name,
                          const dd::Tablespace **logfile_group_def);
-  bool logfile_group_exists(const char* logfile_group_name, bool& exists);
-  bool fetch_ndb_logfile_group_names(std::unordered_set<std::string>& names);
-  bool install_logfile_group(const char* logfile_group_name,
-                             const std::vector<std::string>& undo_file_names,
-                             int logfile_group_id,
-                             int logfile_group_version,
+  bool logfile_group_exists(const char *logfile_group_name, bool &exists);
+  bool fetch_ndb_logfile_group_names(std::unordered_set<std::string> &names);
+  bool install_logfile_group(const char *logfile_group_name,
+                             const std::vector<std::string> &undo_file_names,
+                             int logfile_group_id, int logfile_group_version,
                              bool force_overwrite);
-  bool install_undo_file(const char* logfile_group_name,
-                         const char* undo_file_name);
-  bool drop_logfile_group(const char* logfile_group_name,
+  bool install_undo_file(const char *logfile_group_name,
+                         const char *undo_file_name);
+  bool drop_logfile_group(const char *logfile_group_name,
                           bool fail_if_not_exists = true);
 };
-
-
-
 
 #endif

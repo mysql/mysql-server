@@ -30,27 +30,23 @@
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Table;
-  typedef String_type sdi_t;
-}
+class Table;
+typedef String_type sdi_t;
+}  // namespace dd
 
 class THD;
 
-bool ndb_sdi_serialize(THD *thd,
-                       const dd::Table *table_def,
-                       const char* schema_name,
-                       dd::sdi_t& sdi);
-
+bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
+                       const char *schema_name, dd::sdi_t &sdi);
 
 void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
-                                        const char* proper_table_name);
+                                        const char *proper_table_name);
 
-bool ndb_dd_update_schema_version(THD *thd, const char* schema_name,
+bool ndb_dd_update_schema_version(THD *thd, const char *schema_name,
                                   unsigned int counter, unsigned int node_id,
                                   bool skip_commit = false);
 
-bool ndb_dd_has_local_tables_in_schema(THD *thd,
-                                       const char* schema_name,
+bool ndb_dd_has_local_tables_in_schema(THD *thd, const char *schema_name,
                                        bool &tables_exist_in_database);
 
 const std::string ndb_dd_fs_name_case(const dd::String_type &name);

@@ -30,24 +30,24 @@
 bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue);
 
 bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue);
-void ndbcluster_anyvalue_set_nologging(Uint32& anyValue);
+void ndbcluster_anyvalue_set_nologging(Uint32 &anyValue);
 
 bool ndbcluster_anyvalue_is_refresh_op(Uint32 anyValue);
-void ndbcluster_anyvalue_set_refresh_op(Uint32& anyValue);
+void ndbcluster_anyvalue_set_refresh_op(Uint32 &anyValue);
 
 bool ndbcluster_anyvalue_is_reflect_op(Uint32 anyValue);
-void ndbcluster_anyvalue_set_reflect_op(Uint32& anyValue);
+void ndbcluster_anyvalue_set_reflect_op(Uint32 &anyValue);
 
 bool ndbcluster_anyvalue_is_read_op(Uint32 anyValue);
-void ndbcluster_anyvalue_set_read_op(Uint32& anyValue);
+void ndbcluster_anyvalue_set_read_op(Uint32 &anyValue);
 
 bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId);
-void ndbcluster_anyvalue_set_normal(Uint32& anyValue);
+void ndbcluster_anyvalue_set_normal(Uint32 &anyValue);
 Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue);
-void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId);
+void ndbcluster_anyvalue_set_serverid(Uint32 &anyValue, Uint32 serverId);
 
 #ifndef DBUG_OFF
-void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue);
+void dbug_ndbcluster_anyvalue_set_userbits(Uint32 &anyValue);
 #endif
 
 #endif

@@ -34,11 +34,8 @@
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
 
-
-Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns) :
-  shadow_table(nullptr),
-  share(the_share)
-{
+Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns)
+    : shadow_table(nullptr), share(the_share) {
   ndb_value[0] = nullptr;
   ndb_value[1] = nullptr;
 
@@ -50,11 +47,8 @@ Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns) :
   init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 1024, 0);
 }
 
-
-Ndb_event_data::~Ndb_event_data()
-{
-  if (shadow_table)
-    closefrm(shadow_table, 1);
+Ndb_event_data::~Ndb_event_data() {
+  if (shadow_table) closefrm(shadow_table, 1);
   shadow_table = nullptr;
 
   bitmap_free(&stored_columns);
@@ -68,7 +62,6 @@ Ndb_event_data::~Ndb_event_data()
   */
   my_free(ndb_value[0]);
 }
-
 
 /*
  * While writing an UPDATE_ROW event to the binlog, a bitmap is
@@ -85,24 +78,20 @@ Ndb_event_data::~Ndb_event_data()
  * columns from the After Image. A bitmap of primary key columns is
  * created for this purpose.
  */
-void Ndb_event_data::init_pk_bitmap()
-{
-  if (shadow_table->s->primary_key == MAX_KEY)
-  {
+void Ndb_event_data::init_pk_bitmap() {
+  if (shadow_table->s->primary_key == MAX_KEY) {
     // Table without pk, no need for pk_bitmap since minimal is full
     return;
   }
 
-  KEY* key = shadow_table->key_info + shadow_table->s->primary_key;
-  KEY_PART_INFO* key_part_info = key->key_part;
+  KEY *key = shadow_table->key_info + shadow_table->s->primary_key;
+  KEY_PART_INFO *key_part_info = key->key_part;
   const uint key_parts = key->user_defined_key_parts;
-  for (uint i = 0; i < key_parts; i++, key_part_info++)
-  {
+  for (uint i = 0; i < key_parts; i++, key_part_info++) {
     bitmap_set_bit(&pk_bitmap, key_part_info->fieldnr - 1);
   }
   assert(!bitmap_is_clear_all(&pk_bitmap));
 }
-
 
 /*
  * Modify the column bitmaps generated for UPDATE_ROW as per
@@ -117,10 +106,8 @@ void Ndb_event_data::init_pk_bitmap()
  *  - bitmaps contain all/updated cols as per ndb_log_updated_only
  */
 void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before,
-                                             MY_BITMAP *after) const
-{
-  if (shadow_table->s->primary_key == MAX_KEY)
-  {
+                                             MY_BITMAP *after) const {
+  if (shadow_table->s->primary_key == MAX_KEY) {
     // no usable PK bitmap, set Before Image = After Image
     bitmap_copy(before, after);
     return;
@@ -133,37 +120,29 @@ void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before,
   bitmap_subtract(after, &pk_bitmap);
 }
 
-
-
-void Ndb_event_data::init_stored_columns()
-{
-  if (Ndb_table_map::has_virtual_gcol(shadow_table))
-  {
-    for(uint i = 0 ; i < shadow_table->s->fields; i++)
-    {
-      Field * field = shadow_table->field[i];
-      if (field->stored_in_db)
-        bitmap_set_bit(&stored_columns, i);
+void Ndb_event_data::init_stored_columns() {
+  if (Ndb_table_map::has_virtual_gcol(shadow_table)) {
+    for (uint i = 0; i < shadow_table->s->fields; i++) {
+      Field *field = shadow_table->field[i];
+      if (field->stored_in_db) bitmap_set_bit(&stored_columns, i);
     }
-  }
-  else
-  {
+  } else {
     bitmap_set_all(&stored_columns);  // all columns are stored
   }
 }
 
-TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
-                                         const char* table_name,
-                                         const char* key,
-                                         const dd::Table* table_def,
-                                         THD* owner_thd) {
+TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
+                                         const char *table_name,
+                                         const char *key,
+                                         const dd::Table *table_def,
+                                         THD *owner_thd) {
   DBUG_ENTER("Ndb_event_data::open_shadow_table");
   DBUG_ASSERT(table_def);
 
   // Allocate memory for shadow table from MEM_ROOT
-  TABLE_SHARE* shadow_table_share =
-      (TABLE_SHARE*)mem_root.Alloc(sizeof(TABLE_SHARE));
-  TABLE* shadow_table = (TABLE*)mem_root.Alloc(sizeof(TABLE));
+  TABLE_SHARE *shadow_table_share =
+      (TABLE_SHARE *)mem_root.Alloc(sizeof(TABLE_SHARE));
+  TABLE *shadow_table = (TABLE *)mem_root.Alloc(sizeof(TABLE));
 
   init_tmp_table_share(thd, shadow_table_share, db, 0, table_name, key,
                        nullptr);
@@ -172,8 +151,8 @@ TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
   if ((error = open_table_def(thd, shadow_table_share, *table_def)) ||
       (error = open_table_from_share(
            thd, shadow_table_share, "", 0,
-           (uint)(SKIP_NEW_HANDLER | DELAYED_OPEN | READ_ALL), 0,
-           shadow_table, false, table_def))) {
+           (uint)(SKIP_NEW_HANDLER | DELAYED_OPEN | READ_ALL), 0, shadow_table,
+           false, table_def))) {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d", error));
     free_table_share(shadow_table_share);
     DBUG_RETURN(nullptr);
@@ -186,7 +165,8 @@ TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
   // Allocate strings for db and table_name for shadow_table
   // in event_data's MEM_ROOT(where the shadow_table itself is allocated)
   lex_string_strmake(&mem_root, &shadow_table->s->db, db, strlen(db));
-  lex_string_strmake(&mem_root, &shadow_table->s->table_name, table_name, strlen(table_name));
+  lex_string_strmake(&mem_root, &shadow_table->s->table_name, table_name,
+                     strlen(table_name));
 
   shadow_table->in_use = owner_thd;
 
@@ -205,24 +185,24 @@ TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
   to the binlog injector.
 */
 
-Ndb_event_data* Ndb_event_data::create_event_data(
-    THD* thd, NDB_SHARE* share, const char* db, const char* table_name,
-    const char* key, THD* owner_thd, const dd::Table* table_def) {
+Ndb_event_data *Ndb_event_data::create_event_data(
+    THD *thd, NDB_SHARE *share, const char *db, const char *table_name,
+    const char *key, THD *owner_thd, const dd::Table *table_def) {
   DBUG_ENTER("Ndb_event_data::create_event_data");
   DBUG_ASSERT(table_def);
 
   const size_t num_columns = ndb_dd_table_get_num_columns(table_def);
 
-  Ndb_event_data* event_data = new Ndb_event_data(share, num_columns);
+  Ndb_event_data *event_data = new Ndb_event_data(share, num_columns);
 
   // Setup THR_MALLOC to allocate memory from the MEM_ROOT in the
   // newly created Ndb_event_data
-  MEM_ROOT** root_ptr = THR_MALLOC;
-  MEM_ROOT* old_root = *root_ptr;
+  MEM_ROOT **root_ptr = THR_MALLOC;
+  MEM_ROOT *old_root = *root_ptr;
   *root_ptr = &event_data->mem_root;
 
   // Create the shadow table
-  TABLE* shadow_table = event_data->open_shadow_table(thd, db, table_name, key,
+  TABLE *shadow_table = event_data->open_shadow_table(thd, db, table_name, key,
                                                       table_def, owner_thd);
   if (!shadow_table) {
     DBUG_PRINT("error", ("failed to open shadow table"));
@@ -251,8 +231,7 @@ Ndb_event_data* Ndb_event_data::create_event_data(
   DBUG_RETURN(event_data);
 }
 
-void Ndb_event_data::destroy(const Ndb_event_data* event_data)
-{
+void Ndb_event_data::destroy(const Ndb_event_data *event_data) {
   DBUG_ENTER("Ndb_event_data::destroy");
 
   delete event_data;
@@ -264,6 +243,6 @@ uint32 Ndb_event_data::unpack_uint32(unsigned attr_id) const {
   return ndb_value[0][attr_id].rec->u_32_value();
 }
 
-const char* Ndb_event_data::unpack_string(unsigned attr_id) const {
+const char *Ndb_event_data::unpack_string(unsigned attr_id) const {
   return ndb_value[0][attr_id].rec->aRef();
 }

@@ -25,11 +25,11 @@
 #ifndef NDB_EVENT_DATA_H
 #define NDB_EVENT_DATA_H
 
-#include "my_alloc.h" // MEM_ROOT
+#include "my_alloc.h"  // MEM_ROOT
 #include "storage/ndb/plugin/ndb_bitmap.h"
 
 namespace dd {
-  class Table;
+class Table;
 }
 
 struct NDB_SHARE;
@@ -43,21 +43,20 @@ union NdbValue;
   distribution.
 */
 
-class Ndb_event_data
-{
+class Ndb_event_data {
   Ndb_event_data() = delete;
-  Ndb_event_data(const Ndb_event_data&) = delete;
+  Ndb_event_data(const Ndb_event_data &) = delete;
 
-  Ndb_event_data(NDB_SHARE* the_share, size_t num_columns);
+  Ndb_event_data(NDB_SHARE *the_share, size_t num_columns);
   ~Ndb_event_data();
 
   void init_stored_columns();
   void init_pk_bitmap();
-  TABLE *open_shadow_table(class THD* thd,
-                           const char *db, const char *table_name,
-                           const char *key, const dd::Table *table_def,
-                           class THD *owner_thd);
-public:
+  TABLE *open_shadow_table(class THD *thd, const char *db,
+                           const char *table_name, const char *key,
+                           const dd::Table *table_def, class THD *owner_thd);
+
+ public:
   MEM_ROOT mem_root;
   TABLE *shadow_table;
   NDB_SHARE *share;
@@ -74,19 +73,15 @@ public:
 
   // Factory function to create Ndb_event_data, open the shadow_table and
   // initialize bitmaps.
-  static Ndb_event_data* create_event_data(class THD* thd,
-                                           NDB_SHARE *share,
-                                           const char *db,
-                                           const char *table_name,
-                                           const char *key,
-                                           class THD* owner_thd,
-                                           const dd::Table *table_def);
-  static void destroy(const Ndb_event_data*);
+  static Ndb_event_data *create_event_data(
+      class THD *thd, NDB_SHARE *share, const char *db, const char *table_name,
+      const char *key, class THD *owner_thd, const dd::Table *table_def);
+  static void destroy(const Ndb_event_data *);
 
   // Read uint32 value directly from NdbRecAttr in received event
   uint32 unpack_uint32(unsigned attr_id) const;
   // Read string value directly from NdbRecAttr in received event
-  const char* unpack_string(unsigned attr_id) const;
+  const char *unpack_string(unsigned attr_id) const;
 };
 
 #endif

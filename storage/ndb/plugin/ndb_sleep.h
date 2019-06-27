@@ -34,31 +34,25 @@
 #include <stdlib.h>
 
 /* Wait a given number of milliseconds */
-static inline
-void ndb_milli_sleep(time_t milliseconds)
-{
+static inline void ndb_milli_sleep(time_t milliseconds) {
 #if defined(_WIN32)
-  Sleep((DWORD)milliseconds+1);      /* Sleep() has millisecond arg */
+  Sleep((DWORD)milliseconds + 1); /* Sleep() has millisecond arg */
 #else
   struct timeval t;
-  t.tv_sec=  milliseconds / 1000L;
-  t.tv_usec= milliseconds % 1000L;
-  select(0,0,0,0,&t); /* sleep */
+  t.tv_sec = milliseconds / 1000L;
+  t.tv_usec = milliseconds % 1000L;
+  select(0, 0, 0, 0, &t); /* sleep */
 #endif
 }
 
-
 /* perform random sleep in the range milli_sleep to 5*milli_sleep */
-static inline
-void ndb_retry_sleep(unsigned milli_sleep)
-{
-  ndb_milli_sleep(milli_sleep + 5*(rand()%(milli_sleep/5)));
+static inline void ndb_retry_sleep(unsigned milli_sleep) {
+  ndb_milli_sleep(milli_sleep + 5 * (rand() % (milli_sleep / 5)));
 }
 
 /* perform random sleep while processing transaction */
-static inline
-void ndb_trans_retry_sleep() {
-  ndb_retry_sleep(30); // milliseconds
+static inline void ndb_trans_retry_sleep() {
+  ndb_retry_sleep(30);  // milliseconds
 }
 
 #endif

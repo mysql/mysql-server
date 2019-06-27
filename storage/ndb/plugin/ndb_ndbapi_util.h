@@ -34,13 +34,11 @@
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/NdbRecAttr.hpp"
 
-union NdbValue
-{
+union NdbValue {
   const NdbRecAttr *rec;
   NdbBlob *blob;
   void *ptr;
 };
-
 
 /**
  * @brief ndb_pack_varchar, pack the given string using "MySQL Server varchar
@@ -53,8 +51,8 @@ union NdbValue
  * @note The hardcoded value 512 is the current size of FN_REFLEN, only buffers
  *       of that size is currently supported by this function
  */
-void ndb_pack_varchar(const NdbDictionary::Table* ndbtab, unsigned column_index,
-                      char (&buf)[512], const char* str, size_t str_length);
+void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,
+                      char (&buf)[512], const char *str, size_t str_length);
 
 /**
  * @brief ndb_pack_varchar, pack the given string using "MySQL Server varchar
@@ -65,8 +63,8 @@ void ndb_pack_varchar(const NdbDictionary::Table* ndbtab, unsigned column_index,
  * @param str_length     length of string to pack
  * @param buf            pointer to data buffer of any size
  */
-void ndb_pack_varchar(const NdbDictionary::Column* column, size_t offset,
-                      const char* str, size_t str_length, char *buf);
+void ndb_pack_varchar(const NdbDictionary::Column *column, size_t offset,
+                      const char *str, size_t str_length, char *buf);
 
 /**
  * @brief ndb_unpack_varchar, retrieve a pointer and string length from
@@ -78,9 +76,8 @@ void ndb_pack_varchar(const NdbDictionary::Column* column, size_t offset,
  * @param str_length     string length destination (out)
  * @param buf            pointer to filled data buffer
  */
-void ndb_unpack_varchar(const NdbDictionary::Column* column, size_t offset,
-                        const char ** str, size_t * str_length, const char *buf);
-
+void ndb_unpack_varchar(const NdbDictionary::Column *column, size_t offset,
+                        const char **str, size_t *str_length, const char *buf);
 
 /**
    @brief ndb_get_extra_metadata_version, returns the version of the
@@ -88,7 +85,7 @@ void ndb_unpack_varchar(const NdbDictionary::Column* column, size_t offset,
    @param ndbtab
    @return version of extra metadata or 0 if none
  */
-Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table* ndbtab);
+Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab);
 
 /**
    @brief returns serialized metadata attached to the
@@ -107,8 +104,7 @@ bool ndb_table_get_serialized_metadata(const NdbDictionary::Table *ndbtab,
  * @param ndbtab
  * @return true if the table have blobs
  */
-bool ndb_table_has_blobs(const NdbDictionary::Table* ndbtab);
-
+bool ndb_table_has_blobs(const NdbDictionary::Table *ndbtab);
 
 /**
  * @brief ndb_table_has_hidden_pk, check if the NDB table has a hidden
@@ -117,8 +113,7 @@ bool ndb_table_has_blobs(const NdbDictionary::Table* ndbtab);
  * @param ndbtab
  * @return true if the table has a hidden primary key
  */
-bool ndb_table_has_hidden_pk(const NdbDictionary::Table* ndbtab);
-
+bool ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab);
 
 /**
  * @brief check if the NDB table has tablespace
@@ -128,8 +123,7 @@ bool ndb_table_has_hidden_pk(const NdbDictionary::Table* ndbtab);
  * @note This is indicated either by the table having a tablespace name
  *       or id+version of the tablespace
  */
-bool ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab);
-
+bool ndb_table_has_tablespace(const NdbDictionary::Table *ndbtab);
 
 /**
  * @brief check if the NDB table has tablespace name indicating
@@ -143,8 +137,7 @@ bool ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab);
  *       from a function returning "const char*"
  *
  */
-const char* ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab);
-
+const char *ndb_table_tablespace_name(const NdbDictionary::Table *ndbtab);
 
 /**
  * @brief Return the tablespace name of an NDB table
@@ -155,14 +148,12 @@ const char* ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab);
 std::string ndb_table_tablespace_name(NdbDictionary::Dictionary *dict,
                                       const NdbDictionary::Table *ndbtab);
 
-
 /**
  * @brief Checks if an error has occurred in a ndbapi call
  * @param dict  NDB Dictionary
  * @return true if error has occurred, false if not
  */
-bool ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict);
-
+bool ndb_dict_check_NDB_error(NdbDictionary::Dictionary *dict);
 
 /**
  * @brief Retrieves list of logfile group names from NDB Dictionary
@@ -170,9 +161,8 @@ bool ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict);
  * @param lfg_names [out] List of logfile group names
  * @return true on success, false on failure
  */
-bool ndb_get_logfile_group_names(const NdbDictionary::Dictionary* dict,
-                                 std::unordered_set<std::string>& lfg_names);
-
+bool ndb_get_logfile_group_names(const NdbDictionary::Dictionary *dict,
+                                 std::unordered_set<std::string> &lfg_names);
 
 /**
  * @brief Retrieves list of tablespace names from NDB Dictionary
@@ -180,10 +170,9 @@ bool ndb_get_logfile_group_names(const NdbDictionary::Dictionary* dict,
  * @param tablespace_names [out] List of tablespace names
  * @return true on success, false on failure
  */
-bool
-ndb_get_tablespace_names(const NdbDictionary::Dictionary* dict,
-                         std::unordered_set<std::string>& tablespace_names);
-
+bool ndb_get_tablespace_names(
+    const NdbDictionary::Dictionary *dict,
+    std::unordered_set<std::string> &tablespace_names);
 
 /**
  * @brief Retrieves list of table names in the given schema from NDB Dictionary
@@ -192,11 +181,9 @@ ndb_get_tablespace_names(const NdbDictionary::Dictionary* dict,
  * @param table_names [out] List of table names
  * @return true on success, false on failure
  */
-bool
-ndb_get_table_names_in_schema(NdbDictionary::Dictionary* dict,
-                              const std::string &schema_name,
-                              std::unordered_set<std::string>& table_names);
-
+bool ndb_get_table_names_in_schema(
+    NdbDictionary::Dictionary *dict, const std::string &schema_name,
+    std::unordered_set<std::string> &table_names);
 
 /**
  * @brief Retrieves list of undofile names assigned to a logfile group from NDB
@@ -210,7 +197,6 @@ bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
                             const std::string &logfile_group_name,
                             std::vector<std::string> &undofile_names);
 
-
 /**
  * @brief Retrieves list of datafile names assigned to a tablespace from NDB
  *        Dictionary
@@ -219,10 +205,9 @@ bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
  * @param datafile_names [out] Datafile names
  * @return true on success, false on failure
  */
-bool ndb_get_datafile_names(NdbDictionary::Dictionary* dict,
+bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
                             const std::string &tablespace_name,
                             std::vector<std::string> &datafile_names);
-
 
 /**
  * @brief Retrieves list of database names in NDB Dictionary
@@ -230,10 +215,9 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary* dict,
  * @param database_names [out] List of database names in Dictionary
  * @return true on success, false on failure
  */
-bool
-ndb_get_database_names_in_dictionary(NdbDictionary::Dictionary* dict,
-    std::unordered_set<std::string>& database_names);
-
+bool ndb_get_database_names_in_dictionary(
+    NdbDictionary::Dictionary *dict,
+    std::unordered_set<std::string> &database_names);
 
 /**
  * @brief Check if a logfile group exists in NDB Dictionary
@@ -247,7 +231,6 @@ bool ndb_logfile_group_exists(NdbDictionary::Dictionary *dict,
                               const std::string &logfile_group_name,
                               bool &exists);
 
-
 /**
  * @brief Check if a tablespace exists in NDB Dictionary
  * @param dict              NDB Dictionary
@@ -259,7 +242,6 @@ bool ndb_logfile_group_exists(NdbDictionary::Dictionary *dict,
 bool ndb_tablespace_exists(NdbDictionary::Dictionary *dict,
                            const std::string &tablespace_name, bool &exists);
 
-
 /**
  * @brief Check if a table exists in NDB Dictionary
  * @param dict          NDB Dictionary
@@ -270,9 +252,8 @@ bool ndb_tablespace_exists(NdbDictionary::Dictionary *dict,
  * @return true on success, false on failure
  */
 bool ndb_table_exists(NdbDictionary::Dictionary *dict,
-                      const std::string &db_name,
-                      const std::string &table_name, bool &exists);
-
+                      const std::string &db_name, const std::string &table_name,
+                      bool &exists);
 
 /**
  * @brief Retrieve the id and version of the logfile group definition in the NDB
@@ -286,7 +267,6 @@ bool ndb_table_exists(NdbDictionary::Dictionary *dict,
 bool ndb_get_logfile_group_id_and_version(NdbDictionary::Dictionary *dict,
                                           const std::string &logfile_group_name,
                                           int &id, int &version);
-
 
 /**
  * @brief Retrieve the id and version of the tablespace definition in the NDB

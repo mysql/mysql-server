@@ -29,15 +29,15 @@
    Bits from opt_server_id_bits to 30 may carry other data
    so we ignore them when reading/setting AnyValue.
 
-   The idea with supporting 'other data' is to allow NdbApi 
+   The idea with supporting 'other data' is to allow NdbApi
    users to tag their NdbApi operations in some way that can
    be picked up at NdbApi event receivers, *without* interacting
    badly with / disabling normal binlogging and replication.
-   
+
    To achieve this, we have a variable sized mask of bits in the
    *middle* of the AnyValue word which can be used to mask out
    the user data for the purpose of the MySQL Server.
-   
+
    A better future approach would be to support > 1 tag word
    per operation.
 
@@ -57,12 +57,12 @@
        At least 7 bits will be available
        for serverid or reserved codes
 
-   Implications : 
+   Implications :
      Reserved codes can use values between
      0x80000000 and 0x8000007f inclusive
      (256 values).
      0x8000007f was always the 'nologging'
-     code, so the others have started 
+     code, so the others have started
      'counting' down from there
 
    Examples :
@@ -75,10 +75,10 @@
      opt_server_id_bits= 7
       - ServerIds can be up to 2^7-1
       - User specific data can be up to 2^24-1
-      - ServerIds have 0 top bit, 24 user bits, then 
+      - ServerIds have 0 top bit, 24 user bits, then
         the serverid
       - Reserved codes have 1 top bit, 24 user bits (prob
-        not used much), then the bottom lsbs of the 
+        not used much), then the bottom lsbs of the
         reserved code.
 */
 
@@ -88,106 +88,89 @@
 
 extern ulong opt_server_id_mask;
 
-#define NDB_ANYVALUE_RESERVED_BIT   0x80000000
-#define NDB_ANYVALUE_RESERVED_MASK  0x8000007f
+#define NDB_ANYVALUE_RESERVED_BIT 0x80000000
+#define NDB_ANYVALUE_RESERVED_MASK 0x8000007f
 
 #define NDB_ANYVALUE_NOLOGGING_CODE 0x8000007f
 
 #define NDB_ANYVALUE_REFRESH_OP_CODE 0x8000007e
 #define NDB_ANYVALUE_REFLECT_OP_CODE 0x8000007d
-#define NDB_ANYVALUE_READ_OP_CODE    0x8000007c
+#define NDB_ANYVALUE_READ_OP_CODE 0x8000007c
 
 /* Next reserved code : 0x8000007c */
 
-
 #ifndef DBUG_OFF
-void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue)
-{
+void dbug_ndbcluster_anyvalue_set_userbits(Uint32 &anyValue) {
   /*
      Set userData part of AnyValue (if there is one) to
      all 1s to test that it is ignored
   */
-  const Uint32 userDataMask = ~(opt_server_id_mask |
-                                NDB_ANYVALUE_RESERVED_BIT);
+  const Uint32 userDataMask = ~(opt_server_id_mask | NDB_ANYVALUE_RESERVED_BIT);
 
   anyValue |= userDataMask;
 }
 #endif
 
-bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue)
-{
+bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue) {
   return ((anyValue & NDB_ANYVALUE_RESERVED_BIT) != 0);
 }
 
-bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue)
-{
+bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue) {
   return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
           NDB_ANYVALUE_NOLOGGING_CODE);
 }
 
-void ndbcluster_anyvalue_set_nologging(Uint32& anyValue)
-{
+void ndbcluster_anyvalue_set_nologging(Uint32 &anyValue) {
   anyValue |= NDB_ANYVALUE_NOLOGGING_CODE;
 }
 
-bool ndbcluster_anyvalue_is_refresh_op(Uint32 anyValue)
-{
+bool ndbcluster_anyvalue_is_refresh_op(Uint32 anyValue) {
   return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
           NDB_ANYVALUE_REFRESH_OP_CODE);
 }
 
-void ndbcluster_anyvalue_set_refresh_op(Uint32& anyValue)
-{
+void ndbcluster_anyvalue_set_refresh_op(Uint32 &anyValue) {
   anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
   anyValue |= NDB_ANYVALUE_REFRESH_OP_CODE;
 }
 
-bool ndbcluster_anyvalue_is_read_op(Uint32 anyValue)
-{
-  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
-          NDB_ANYVALUE_READ_OP_CODE);
+bool ndbcluster_anyvalue_is_read_op(Uint32 anyValue) {
+  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) == NDB_ANYVALUE_READ_OP_CODE);
 }
 
-void ndbcluster_anyvalue_set_read_op(Uint32& anyValue)
-{
+void ndbcluster_anyvalue_set_read_op(Uint32 &anyValue) {
   anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
   anyValue |= NDB_ANYVALUE_READ_OP_CODE;
 }
 
-bool ndbcluster_anyvalue_is_reflect_op(Uint32 anyValue)
-{
+bool ndbcluster_anyvalue_is_reflect_op(Uint32 anyValue) {
   return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
           NDB_ANYVALUE_REFLECT_OP_CODE);
 }
 
-void ndbcluster_anyvalue_set_reflect_op(Uint32& anyValue)
-{
+void ndbcluster_anyvalue_set_reflect_op(Uint32 &anyValue) {
   anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
   anyValue |= NDB_ANYVALUE_REFLECT_OP_CODE;
 }
 
-void ndbcluster_anyvalue_set_normal(Uint32& anyValue)
-{
+void ndbcluster_anyvalue_set_normal(Uint32 &anyValue) {
   /* Clear reserved bit and serverid bits */
   anyValue &= ~(NDB_ANYVALUE_RESERVED_BIT);
   anyValue &= ~(opt_server_id_mask);
 }
 
-bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId)
-{
+bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId) {
   return ((serverId & ~opt_server_id_mask) == 0);
 }
 
-Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue)
-{
-  assert(! (anyValue & NDB_ANYVALUE_RESERVED_BIT) );
+Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue) {
+  assert(!(anyValue & NDB_ANYVALUE_RESERVED_BIT));
 
   return (anyValue & opt_server_id_mask);
 }
 
-void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId)
-{
-  assert(! (anyValue & NDB_ANYVALUE_RESERVED_BIT) );
+void ndbcluster_anyvalue_set_serverid(Uint32 &anyValue, Uint32 serverId) {
+  assert(!(anyValue & NDB_ANYVALUE_RESERVED_BIT));
   anyValue &= ~(opt_server_id_mask);
   anyValue |= (serverId & opt_server_id_mask);
 }

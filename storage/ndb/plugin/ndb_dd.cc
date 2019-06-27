@@ -42,11 +42,8 @@
 #include "storage/ndb/plugin/ndb_dd_table.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
 
-bool ndb_sdi_serialize(THD *thd,
-                       const dd::Table *table_def,
-                       const char* schema_name_str,
-                       dd::sdi_t& sdi)
-{
+bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
+                       const char *schema_name_str, dd::sdi_t &sdi) {
   const dd::String_type schema_name(schema_name_str);
   // Require the table to be visible, hidden by SE(like mysql.ndb_schema)
   // or else have temporary name
@@ -74,9 +71,8 @@ bool ndb_sdi_serialize(THD *thd,
   if (sdi.empty()) {
     return false;  // Failed to serialize
   }
-  return true; // OK
+  return true;  // OK
 }
-
 
 /*
   Workaround for BUG#25657041
@@ -91,9 +87,8 @@ bool ndb_sdi_serialize(THD *thd,
   visible table and restoring the original table name
 */
 
-void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
-                                        const char* proper_table_name)
-{
+void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
+                                        const char *proper_table_name) {
   DBUG_ENTER("ndb_dd_fix_inplace_alter_table_def");
   DBUG_PRINT("enter", ("table_name: %s", table_def->name().c_str()));
   DBUG_PRINT("enter", ("proper_table_name: %s", proper_table_name));
@@ -106,7 +101,6 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
 
   DBUG_VOID_RETURN;
 }
-
 
 /**
   Update the version of the Schema object in DD. All the DDLs
@@ -127,14 +121,12 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
   @return true        On success.
   @return false       On failure
 */
-bool
-ndb_dd_update_schema_version(THD *thd, const char* schema_name,
-                             unsigned int counter, unsigned int node_id,
-                             bool skip_commit)
-{
+bool ndb_dd_update_schema_version(THD *thd, const char *schema_name,
+                                  unsigned int counter, unsigned int node_id,
+                                  bool skip_commit) {
   DBUG_ENTER("ndb_dd_update_schema_version");
-  DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u",
-                        schema_name, counter, node_id));
+  DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u", schema_name,
+                       counter, node_id));
 
   Ndb_dd_client dd_client(thd);
 
@@ -157,27 +149,23 @@ ndb_dd_update_schema_version(THD *thd, const char* schema_name,
   DBUG_RETURN(true);
 }
 
-
-bool ndb_dd_has_local_tables_in_schema(THD *thd, const char* schema_name,
-                                       bool &tables_exist_in_database)
-{
+bool ndb_dd_has_local_tables_in_schema(THD *thd, const char *schema_name,
+                                       bool &tables_exist_in_database) {
   DBUG_ENTER("ndb_dd_has_tables_in_schema");
-  DBUG_PRINT("enter", ("Checking if schema '%s' has local tables",
-                       schema_name));
+  DBUG_PRINT("enter",
+             ("Checking if schema '%s' has local tables", schema_name));
 
   Ndb_dd_client dd_client(thd);
 
   /* Lock the schema in DD */
-  if (!dd_client.mdl_lock_schema(schema_name))
-  {
+  if (!dd_client.mdl_lock_schema(schema_name)) {
     DBUG_PRINT("error", ("Failed to MDL lock schema : '%s'", schema_name));
     DBUG_RETURN(false);
   }
 
   /* Check if there are any local tables */
   if (!dd_client.have_local_tables_in_schema(schema_name,
-                                             &tables_exist_in_database))
-  {
+                                             &tables_exist_in_database)) {
     DBUG_PRINT("error", ("Failed to check if the Schema '%s' has any tables",
                          schema_name));
     DBUG_RETURN(false);
@@ -186,11 +174,9 @@ bool ndb_dd_has_local_tables_in_schema(THD *thd, const char* schema_name,
   DBUG_RETURN(true);
 }
 
-
-const std::string ndb_dd_fs_name_case(const dd::String_type &name)
-{
+const std::string ndb_dd_fs_name_case(const dd::String_type &name) {
   char name_buf[NAME_LEN + 1];
-  const std::string lc_name = dd::Object_table_definition_impl::fs_name_case(
-    name, name_buf);
+  const std::string lc_name =
+      dd::Object_table_definition_impl::fs_name_case(name, name_buf);
   return lc_name;
 }

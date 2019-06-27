@@ -25,7 +25,7 @@
 #include "storage/ndb/plugin/ndb_log.h"
 
 #include <mysql/components/services/log_builtins.h>
-#include <stdio.h>    // vfprintf, stderr
+#include <stdio.h>  // vfprintf, stderr
 
 #include "my_dbug.h"
 #include "mysqld_error.h"
@@ -48,10 +48,8 @@
 
 */
 
-void
-ndb_log_print(enum ndb_log_loglevel loglevel,
-              const char* prefix, const char* fmt, va_list args)
-{
+void ndb_log_print(enum ndb_log_loglevel loglevel, const char *prefix,
+                   const char *fmt, va_list args) {
   DBUG_ASSERT(fmt);
 
   int prio;
@@ -61,16 +59,15 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
   (void)vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
 
   // Print message to MySQL error log
-  switch (loglevel)
-  {
+  switch (loglevel) {
     case NDB_LOG_ERROR_LEVEL:
-      prio= ERROR_LEVEL;
+      prio = ERROR_LEVEL;
       break;
     case NDB_LOG_WARNING_LEVEL:
-      prio= WARNING_LEVEL;
+      prio = WARNING_LEVEL;
       break;
     case NDB_LOG_INFORMATION_LEVEL:
-      prio= INFORMATION_LEVEL;
+      prio = INFORMATION_LEVEL;
       break;
     default:
       // Should never happen, crash in debug
@@ -84,9 +81,6 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
   else
     LogErr(prio, ER_NDB_LOG_ENTRY, msg_buf);
 }
-
-
-
 
 /*
   Automatically detect any log message prefix used by the caller, these
@@ -114,39 +108,29 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
         of Ndb_component where the prefix will be automatically set correct.
 */
 
-static
-void
-ndb_log_detect_prefix(const char* fmt,
-                      const char** prefix, const char** fmt_start)
-{
+static void ndb_log_detect_prefix(const char *fmt, const char **prefix,
+                                  const char **fmt_start) {
   // Check if string starts with "NDB <subsystem>:" by reading
   // at most 15 chars whithout colon, then a colon and space
   char subsystem[16], colon[2];
-  if (sscanf(fmt, "NDB %15[^:]%1[:] ", subsystem, colon) == 2)
-  {
-    static
-    const char* allowed_prefixes[] =
-    {
-      "Binlog", // "NDB Binlog: "
-      "Slave"   // "NDB Slave: "
+  if (sscanf(fmt, "NDB %15[^:]%1[:] ", subsystem, colon) == 2) {
+    static const char *allowed_prefixes[] = {
+        "Binlog",  // "NDB Binlog: "
+        "Slave"    // "NDB Slave: "
     };
     const size_t num_allowed_prefixes =
-        sizeof(allowed_prefixes)/sizeof(allowed_prefixes[0]);
+        sizeof(allowed_prefixes) / sizeof(allowed_prefixes[0]);
 
     // Check if subsystem is in the list of allowed subsystem
-    for (size_t i = 0; i < num_allowed_prefixes; i++)
-    {
-      const char* allowed_prefix = allowed_prefixes[i];
+    for (size_t i = 0; i < num_allowed_prefixes; i++) {
+      const char *allowed_prefix = allowed_prefixes[i];
 
-      if (strncmp(subsystem, allowed_prefix, strlen(allowed_prefix)) == 0)
-      {
+      if (strncmp(subsystem, allowed_prefix, strlen(allowed_prefix)) == 0) {
         // String started with an allowed subsystem prefix, return
         // pointer to prefix and new start of format string
         *prefix = allowed_prefix;
-        *fmt_start = fmt +
-                     4 + /* "NDB " */
-                     strlen(allowed_prefix) +
-                     2; /* ": " */
+        *fmt_start = fmt + 4 +                   /* "NDB " */
+                     strlen(allowed_prefix) + 2; /* ": " */
         return;
       }
     }
@@ -170,11 +154,9 @@ ndb_log_detect_prefix(const char* fmt,
   return;
 }
 
-void
-ndb_log_info(const char* fmt, ...)
-{
-  const char* prefix;
-  const char* fmt_start;
+void ndb_log_info(const char *fmt, ...) {
+  const char *prefix;
+  const char *fmt_start;
   ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
 
   va_list args;
@@ -183,12 +165,9 @@ ndb_log_info(const char* fmt, ...)
   va_end(args);
 }
 
-
-void
-ndb_log_warning(const char* fmt, ...)
-{
-  const char* prefix;
-  const char* fmt_start;
+void ndb_log_warning(const char *fmt, ...) {
+  const char *prefix;
+  const char *fmt_start;
   ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
 
   va_list args;
@@ -197,12 +176,9 @@ ndb_log_warning(const char* fmt, ...)
   va_end(args);
 }
 
-
-void
-ndb_log_error(const char* fmt, ...)
-{
-  const char* prefix;
-  const char* fmt_start;
+void ndb_log_error(const char *fmt, ...) {
+  const char *prefix;
+  const char *fmt_start;
   ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
 
   va_list args;
@@ -214,22 +190,14 @@ ndb_log_error(const char* fmt, ...)
 // the verbose level is currently controlled by "ndb_extra_logging"
 extern ulong opt_ndb_extra_logging;
 
-unsigned
-ndb_log_get_verbose_level(void)
-{
-  return opt_ndb_extra_logging;
-}
+unsigned ndb_log_get_verbose_level(void) { return opt_ndb_extra_logging; }
 
-
-void
-ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
-{
+void ndb_log_verbose(unsigned verbose_level, const char *fmt, ...) {
   // Print message only if verbose level is set high enough
-  if (ndb_log_get_verbose_level() < verbose_level)
-    return;
+  if (ndb_log_get_verbose_level() < verbose_level) return;
 
-  const char* prefix;
-  const char* fmt_start;
+  const char *prefix;
+  const char *fmt_start;
   ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
 
   va_list args;
@@ -238,9 +206,7 @@ ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
   va_end(args);
 }
 
-void
-ndb_log_error_dump(const char* fmt, ...)
-{
+void ndb_log_error_dump(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   // Dump the message verbatim to stderr
@@ -249,8 +215,4 @@ ndb_log_error_dump(const char* fmt, ...)
   fprintf(stderr, "\n");
 }
 
-void
-ndb_log_flush_buffered_messages()
-{
-  flush_error_log_messages();
-}
+void ndb_log_flush_buffered_messages() { flush_error_log_messages(); }

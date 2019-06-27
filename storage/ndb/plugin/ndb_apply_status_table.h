@@ -60,7 +60,7 @@ class Ndb_apply_status_table : public Ndb_util_table {
      @param table_name table name
      @return true if table is the apply status table
    */
-  static bool is_apply_status_table(const char* db, const char* table_name);
+  static bool is_apply_status_table(const char *db, const char *table_name);
 };
 
 #endif

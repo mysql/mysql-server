@@ -25,7 +25,6 @@
 #ifndef NDB_NAME_UTIL_H
 #define NDB_NAME_UTIL_H
 
-
 void ndb_set_dbname(const char *pathname, char *dbname);
 void ndb_set_tabname(const char *pathname, char *tabname);
 
@@ -33,7 +32,7 @@ void ndb_set_tabname(const char *pathname, char *tabname);
   Return true if name starts with the prefix used for temporary name
   (normally this is "#sql")
 */
-bool ndb_name_is_temp(const char* name);
+bool ndb_name_is_temp(const char *name);
 
 /*
   Return true if name starts with the prefix used for NDB blob
@@ -42,7 +41,7 @@ bool ndb_name_is_temp(const char* name);
   NOTE! Those tables are internal but still returned in the public
   parts of NdbApi so they may need to be filtered in various places.
 */
-bool ndb_name_is_blob_prefix(const char* name);
+bool ndb_name_is_blob_prefix(const char *name);
 
 /*
   Return true if name starts with the prefix used for Index
@@ -51,6 +50,6 @@ bool ndb_name_is_blob_prefix(const char* name);
   NOTE! These tables are not installed in DD at this point
   of time so they need to be filtered out
 */
-bool ndb_name_is_index_stat(const char* name);
+bool ndb_name_is_index_stat(const char *name);
 
 #endif

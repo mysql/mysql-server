@@ -36,37 +36,36 @@
   protocol. Changes would break compatibility between versions.
   Add new numbers to the end.
 */
-enum SCHEMA_OP_TYPE
-{
-  SOT_DROP_TABLE= 0,
-  SOT_CREATE_TABLE= 1,
-  SOT_RENAME_TABLE_NEW= 2, // Unused, but still reserved
-  SOT_ALTER_TABLE_COMMIT= 3,
-  SOT_DROP_DB= 4,
-  SOT_CREATE_DB= 5,
-  SOT_ALTER_DB= 6,
-  SOT_CLEAR_SLOCK= 7,
-  SOT_TABLESPACE= 8,
-  SOT_LOGFILE_GROUP= 9,
-  SOT_RENAME_TABLE= 10,
-  SOT_TRUNCATE_TABLE= 11,
-  SOT_RENAME_TABLE_PREPARE= 12,
-  SOT_ONLINE_ALTER_TABLE_PREPARE= 13,
-  SOT_ONLINE_ALTER_TABLE_COMMIT= 14,
-  SOT_CREATE_USER= 15,
-  SOT_DROP_USER= 16,
-  SOT_RENAME_USER= 17,
-  SOT_GRANT= 18,
-  SOT_REVOKE= 19,
-  SOT_CREATE_TABLESPACE= 20,
-  SOT_ALTER_TABLESPACE= 21,
-  SOT_DROP_TABLESPACE= 22,
-  SOT_CREATE_LOGFILE_GROUP= 23,
-  SOT_ALTER_LOGFILE_GROUP= 24,
-  SOT_DROP_LOGFILE_GROUP= 25,
-  SOT_ACL_SNAPSHOT= 26,
-  SOT_ACL_STATEMENT= 27,
-  SOT_ACL_STATEMENT_REFRESH= 28,
+enum SCHEMA_OP_TYPE {
+  SOT_DROP_TABLE = 0,
+  SOT_CREATE_TABLE = 1,
+  SOT_RENAME_TABLE_NEW = 2,  // Unused, but still reserved
+  SOT_ALTER_TABLE_COMMIT = 3,
+  SOT_DROP_DB = 4,
+  SOT_CREATE_DB = 5,
+  SOT_ALTER_DB = 6,
+  SOT_CLEAR_SLOCK = 7,
+  SOT_TABLESPACE = 8,
+  SOT_LOGFILE_GROUP = 9,
+  SOT_RENAME_TABLE = 10,
+  SOT_TRUNCATE_TABLE = 11,
+  SOT_RENAME_TABLE_PREPARE = 12,
+  SOT_ONLINE_ALTER_TABLE_PREPARE = 13,
+  SOT_ONLINE_ALTER_TABLE_COMMIT = 14,
+  SOT_CREATE_USER = 15,
+  SOT_DROP_USER = 16,
+  SOT_RENAME_USER = 17,
+  SOT_GRANT = 18,
+  SOT_REVOKE = 19,
+  SOT_CREATE_TABLESPACE = 20,
+  SOT_ALTER_TABLESPACE = 21,
+  SOT_DROP_TABLESPACE = 22,
+  SOT_CREATE_LOGFILE_GROUP = 23,
+  SOT_ALTER_LOGFILE_GROUP = 24,
+  SOT_DROP_LOGFILE_GROUP = 25,
+  SOT_ACL_SNAPSHOT = 26,
+  SOT_ACL_STATEMENT = 27,
+  SOT_ACL_STATEMENT_REFRESH = 28,
 };
 
 namespace Ndb_schema_dist {
@@ -89,7 +88,7 @@ enum Schema_op_result_code {
 
   @return true schema distribution is ready
 */
-bool is_ready(void* requestor);
+bool is_ready(void *requestor);
 
 }  // namespace Ndb_schema_dist
 
@@ -124,17 +123,16 @@ class Ndb;
 */
 class Ndb_schema_dist_client {
   class THD *const m_thd;
-  class Thd_ndb* const m_thd_ndb;
+  class Thd_ndb *const m_thd_ndb;
   struct NDB_SHARE *m_share{nullptr};
   class Prepared_keys {
     using Key = std::pair<std::string, std::string>;
     std::vector<Key> m_keys;
+
    public:
-    const std::vector<Key>& keys() {
-      return m_keys;
-    }
-    void add_key(const char* db, const char* tabname);
-    bool check_key(const char* db, const char* tabname) const;
+    const std::vector<Key> &keys() { return m_keys; }
+    void add_key(const char *db, const char *tabname);
+    bool check_key(const char *db, const char *tabname) const;
   } m_prepared_keys;
   bool m_holding_acl_mutex;
 
@@ -147,11 +145,10 @@ class Ndb_schema_dist_client {
   };
   std::vector<Schema_op_result> m_schema_op_results;
 
-  int log_schema_op_impl(Ndb* ndb, const char *query, int query_length,
+  int log_schema_op_impl(Ndb *ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,
-                         SCHEMA_OP_TYPE type,
-                         uint32 anyvalue);
+                         SCHEMA_OP_TYPE type, uint32 anyvalue);
 
   /**
      @brief Write row to ndb_schema to initiate the schema operation
@@ -170,8 +167,7 @@ class Ndb_schema_dist_client {
    */
   bool log_schema_op(const char *query, size_t query_length, const char *db,
                      const char *table_name, uint32 id, uint32 version,
-                     SCHEMA_OP_TYPE type,
-                     bool log_query_on_participant = true);
+                     SCHEMA_OP_TYPE type, bool log_query_on_participant = true);
 
   /**
      @brief Calculate the anyvalue to use for this schema change. The anyvalue
@@ -219,7 +215,7 @@ class Ndb_schema_dist_client {
           hard to rollback at a later stage.
     @return true if prepare succeed
   */
-  bool prepare(const char* db, const char* tabname);
+  bool prepare(const char *db, const char *tabname);
 
   /**
     @brief Prepare client for rename schema operation, check that
@@ -257,7 +253,7 @@ class Ndb_schema_dist_client {
     @param invalid_identifer The name of the identifier that failed the check
     @return true if check succeed
   */
-  bool check_identifier_limits(std::string& invalid_identifier);
+  bool check_identifier_limits(std::string &invalid_identifier);
 
   /**
    * @brief Check if given name is the schema distribution table, special
@@ -266,7 +262,7 @@ class Ndb_schema_dist_client {
      @param table_name table name
      @return true if table is the schema distribution table
    */
-  static bool is_schema_dist_table(const char* db, const char* table_name);
+  static bool is_schema_dist_table(const char *db, const char *table_name);
 
   /**
    * @brief Check if given name is the schema distribution result table, special
@@ -283,7 +279,7 @@ class Ndb_schema_dist_client {
    * @param type
    * @return string describing the type
    */
-  static const char* type_name(SCHEMA_OP_TYPE type);
+  static const char *type_name(SCHEMA_OP_TYPE type);
 
   bool create_table(const char *db, const char *table_name, int id,
                     int version);
@@ -316,14 +312,14 @@ class Ndb_schema_dist_client {
   bool tablespace_changed(const char *tablespace_name, int id, int version);
   bool logfilegroup_changed(const char *logfilegroup_name, int id, int version);
 
-  bool create_tablespace(const char* tablespace_name, int id, int version);
-  bool alter_tablespace(const char* tablespace_name, int id, int version);
-  bool drop_tablespace(const char* tablespace_name, int id, int version);
+  bool create_tablespace(const char *tablespace_name, int id, int version);
+  bool alter_tablespace(const char *tablespace_name, int id, int version);
+  bool drop_tablespace(const char *tablespace_name, int id, int version);
 
-  bool create_logfile_group(const char* logfile_group_name, int id,
+  bool create_logfile_group(const char *logfile_group_name, int id,
                             int version);
-  bool alter_logfile_group(const char* logfile_group_name, int id, int version);
-  bool drop_logfile_group(const char* logfile_group_name, int id, int version);
+  bool alter_logfile_group(const char *logfile_group_name, int id, int version);
+  bool drop_logfile_group(const char *logfile_group_name, int id, int version);
 };
 
 #endif

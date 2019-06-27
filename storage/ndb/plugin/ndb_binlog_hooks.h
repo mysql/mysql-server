@@ -26,14 +26,14 @@
 #define NDB_BINLOG_HOOKS_H
 
 class Ndb_binlog_hooks {
+  using after_reset_master_hook_t = int(void *);
 
-  using after_reset_master_hook_t = int(void*);
+  struct Binlog_transmit_observer *m_binlog_transmit_observer = nullptr;
 
-  struct Binlog_transmit_observer* m_binlog_transmit_observer = nullptr;
  public:
   ~Ndb_binlog_hooks();
 
-  bool register_hooks(after_reset_master_hook_t* after_reset_master);
+  bool register_hooks(after_reset_master_hook_t *after_reset_master);
   void unregister_all(void);
 };
 

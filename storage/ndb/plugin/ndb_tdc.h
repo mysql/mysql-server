@@ -33,7 +33,7 @@
 bool ndb_tdc_close_cached_tables(void);
 
 // Close one named table
-bool ndb_tdc_close_cached_table(class THD* thd,
-                                const char* dbname, const char* tabname);
+bool ndb_tdc_close_cached_table(class THD *thd, const char *dbname,
+                                const char *tabname);
 
 #endif

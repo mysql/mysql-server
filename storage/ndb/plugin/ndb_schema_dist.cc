@@ -30,7 +30,7 @@
 
 #include "my_dbug.h"
 #include "ndbapi/ndb_cluster_connection.hpp"
-#include "sql/query_options.h"          // OPTION_BIN_LOG
+#include "sql/query_options.h"  // OPTION_BIN_LOG
 #include "sql/sql_thd_internal_api.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
@@ -46,38 +46,33 @@
 // be removed when a NDB_SHARE can be acquired using db+table_name and the
 // key is formatted behind the curtains in NDB_SHARE without using
 // build_table_filename() etc.
-static constexpr const char* NDB_SCHEMA_TABLE_KEY =
+static constexpr const char *NDB_SCHEMA_TABLE_KEY =
     IF_WIN(".\\mysql\\ndb_schema", "./mysql/ndb_schema");
 
-bool Ndb_schema_dist::is_ready(void* requestor) {
+bool Ndb_schema_dist::is_ready(void *requestor) {
   DBUG_TRACE;
 
   std::stringstream ss;
   ss << "is_ready_" << std::hex << requestor;
   const std::string reference = ss.str();
 
-  NDB_SHARE* schema_share =
-      NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
-                                          reference.c_str());
-  if (schema_share == nullptr)
-    return false; // Not ready
+  NDB_SHARE *schema_share = NDB_SHARE::acquire_reference_by_key(
+      NDB_SCHEMA_TABLE_KEY, reference.c_str());
+  if (schema_share == nullptr) return false;  // Not ready
 
   if (!schema_share->have_event_operation()) {
     NDB_SHARE::release_reference(schema_share, reference.c_str());
-    return false; // Not ready
+    return false;  // Not ready
   }
 
   NDB_SHARE::release_reference(schema_share, reference.c_str());
   return true;
 }
 
-
-bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
-                                                  const char* table_name)
-{
+bool Ndb_schema_dist_client::is_schema_dist_table(const char *db,
+                                                  const char *table_name) {
   if (db == Ndb_schema_dist_table::DB_NAME &&
-      table_name == Ndb_schema_dist_table::TABLE_NAME)
-  {
+      table_name == Ndb_schema_dist_table::TABLE_NAME) {
     // This is the NDB table used for schema distribution
     return true;
   }
@@ -85,7 +80,7 @@ bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
 }
 
 bool Ndb_schema_dist_client::is_schema_dist_result_table(
-    const char* db, const char* table_name) {
+    const char *db, const char *table_name) {
   if (db == Ndb_schema_result_table::DB_NAME &&
       table_name == Ndb_schema_result_table::TABLE_NAME) {
     // This is the NDB table used for schema distribution results
@@ -101,29 +96,24 @@ bool Ndb_schema_dist_client::is_schema_dist_result_table(
 */
 static std::mutex acl_change_mutex;
 
-void Ndb_schema_dist_client::acquire_acl_lock()
-{
+void Ndb_schema_dist_client::acquire_acl_lock() {
   acl_change_mutex.lock();
   m_holding_acl_mutex = true;
 }
 
-Ndb_schema_dist_client::Ndb_schema_dist_client(THD* thd)
+Ndb_schema_dist_client::Ndb_schema_dist_client(THD *thd)
     : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)), m_holding_acl_mutex(false) {}
 
-bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
-{
+bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
   DBUG_ENTER("Ndb_schema_dist_client::prepare");
 
   // Acquire reference on mysql.ndb_schema
   // NOTE! Using fixed "reference", assuming only one Ndb_schema_dist_client
   // is started at a time since it requires GSL. This may have to be revisited
-  m_share =
-      NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
-                                          "ndb_schema_dist_client");
-  if (m_share == nullptr ||
-      m_share->have_event_operation() == false ||
-      DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false))
-  {
+  m_share = NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
+                                                "ndb_schema_dist_client");
+  if (m_share == nullptr || m_share->have_event_operation() == false ||
+      DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false)) {
     // The NDB_SHARE for mysql.ndb_schema hasn't been created or not setup
     // yet -> schema distribution is not ready
     m_thd_ndb->push_warning("Schema distribution is not ready");
@@ -158,14 +148,13 @@ bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
   DBUG_RETURN(true);
 }
 
-bool Ndb_schema_dist_client::prepare_rename(const char* db, const char* tabname,
-                                            const char* new_db,
-                                            const char* new_tabname) {
+bool Ndb_schema_dist_client::prepare_rename(const char *db, const char *tabname,
+                                            const char *new_db,
+                                            const char *new_tabname) {
   DBUG_ENTER("Ndb_schema_dist_client::prepare_rename");
 
   // Normal prepare first
-  if (!prepare(db, tabname))
-  {
+  if (!prepare(db, tabname)) {
     DBUG_RETURN(false);
   }
 
@@ -180,7 +169,7 @@ bool Ndb_schema_dist_client::prepare_rename(const char* db, const char* tabname,
 
 bool Ndb_schema_dist_client::prepare_acl_change(uint node_id) {
   /* Acquire the ACL change mutex. It will be released by the destructor.
-  */
+   */
   acquire_acl_lock();
 
   /*
@@ -200,7 +189,7 @@ bool Ndb_schema_dist_client::prepare_acl_change(uint node_id) {
 }
 
 bool Ndb_schema_dist_client::check_identifier_limits(
-    std::string& invalid_identifier) {
+    std::string &invalid_identifier) {
   DBUG_ENTER("Ndb_schema_dist_client::check_identifier_limits");
 
   Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
@@ -211,8 +200,7 @@ bool Ndb_schema_dist_client::check_identifier_limits(
 
   // Check that identifiers does not exceed the limits imposed
   // by the ndb_schema table layout
-  for (auto key: m_prepared_keys.keys())
-  {
+  for (auto key : m_prepared_keys.keys()) {
     // db
     if (!schema_dist_table.check_column_identifier_limit(
             Ndb_schema_dist_table::COL_DB, key.first)) {
@@ -229,13 +217,13 @@ bool Ndb_schema_dist_client::check_identifier_limits(
   DBUG_RETURN(true);
 }
 
-void Ndb_schema_dist_client::Prepared_keys::add_key(const char* db,
-                                                    const char* tabname) {
+void Ndb_schema_dist_client::Prepared_keys::add_key(const char *db,
+                                                    const char *tabname) {
   m_keys.emplace_back(db, tabname);
 }
 
 bool Ndb_schema_dist_client::Prepared_keys::check_key(
-    const char* db, const char* tabname) const {
+    const char *db, const char *tabname) const {
   for (auto key : m_keys) {
     if (key.first == db && key.second == tabname) {
       return true;  // OK, key has been prepared
@@ -244,18 +232,15 @@ bool Ndb_schema_dist_client::Prepared_keys::check_key(
   return false;
 }
 
-extern void update_slave_api_stats(const Ndb*);
+extern void update_slave_api_stats(const Ndb *);
 
-Ndb_schema_dist_client::~Ndb_schema_dist_client()
-{
-  if (m_share)
-  {
+Ndb_schema_dist_client::~Ndb_schema_dist_client() {
+  if (m_share) {
     // Release the reference to mysql.ndb_schema table
     NDB_SHARE::release_reference(m_share, "ndb_schema_dist_client");
   }
 
-  if (m_thd_ndb->is_slave_thread())
-  {
+  if (m_thd_ndb->is_slave_thread()) {
     // Copy-out slave thread statistics
     // NOTE! This is just a "convenient place" to call this
     // function, it could be moved to "end of statement"(if there
@@ -263,8 +248,7 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client()
     update_slave_api_stats(m_thd_ndb->ndb);
   }
 
-  if(m_holding_acl_mutex)
-  {
+  if (m_holding_acl_mutex) {
     acl_change_mutex.unlock();
   }
 }
@@ -296,9 +280,9 @@ uint32 Ndb_schema_dist_client::unique_version() const {
   return ver;
 }
 
-bool Ndb_schema_dist_client::log_schema_op(const char* query,
-                                           size_t query_length, const char* db,
-                                           const char* table_name, uint32 id,
+bool Ndb_schema_dist_client::log_schema_op(const char *query,
+                                           size_t query_length, const char *db,
+                                           const char *table_name, uint32 id,
                                            uint32 version, SCHEMA_OP_TYPE type,
                                            bool log_query_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op");
@@ -307,8 +291,7 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   DBUG_ASSERT(m_thd_ndb);
 
   // Never allow temporary names when communicating with participant
-  if (ndb_name_is_temp(db) || ndb_name_is_temp(table_name))
-  {
+  if (ndb_name_is_temp(db) || ndb_name_is_temp(table_name)) {
     DBUG_ASSERT(false);
     DBUG_RETURN(false);
   }
@@ -318,8 +301,7 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   ndbcluster::ndbrequire(m_share);
 
   // Check that prepared keys match
-  if (!m_prepared_keys.check_key(db, table_name))
-  {
+  if (!m_prepared_keys.check_key(db, table_name)) {
     m_thd_ndb->push_warning("INTERNAL ERROR: prepared keys didn't match");
     DBUG_ASSERT(false);  // Catch in debug
     DBUG_RETURN(false);
@@ -328,16 +310,15 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   // Don't distribute if thread has turned off schema distribution
   if (m_thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP)) {
     DBUG_PRINT("info", ("NO_LOG_SCHEMA_OP set - > skip schema distribution"));
-    DBUG_RETURN(true); // Ok, skipped
+    DBUG_RETURN(true);  // Ok, skipped
   }
 
   // Verify identifier limits, this should already have been caught earlier
   {
     std::string invalid_identifier;
-    if (!check_identifier_limits(invalid_identifier))
-    {
+    if (!check_identifier_limits(invalid_identifier)) {
       m_thd_ndb->push_warning("INTERNAL ERROR: identifier limits exceeded");
-      DBUG_ASSERT(false); // Catch in debug
+      DBUG_ASSERT(false);  // Catch in debug
       DBUG_RETURN(false);
     }
   }
@@ -345,9 +326,9 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   // Calculate anyvalue
   const Uint32 anyvalue = calculate_anyvalue(log_query_on_participant);
 
-  const int result = log_schema_op_impl(
-      m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name, id,
-      version, type, anyvalue);
+  const int result =
+      log_schema_op_impl(m_thd_ndb->ndb, query, static_cast<int>(query_length),
+                         db, table_name, id, version, type, anyvalue);
   if (result != 0) {
     // Schema distribution failed
     m_thd_ndb->push_warning("Schema distribution failed!");
@@ -356,13 +337,12 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   DBUG_RETURN(true);
 }
 
-bool Ndb_schema_dist_client::create_table(const char* db,
-                                          const char* table_name, int id,
+bool Ndb_schema_dist_client::create_table(const char *db,
+                                          const char *table_name, int id,
                                           int version) {
   DBUG_ENTER("Ndb_schema_dist_client::create_table");
 
-  if (is_schema_dist_table(db, table_name))
-  {
+  if (is_schema_dist_table(db, table_name)) {
     // Create of the schema distribution table is not distributed. Instead,
     // every MySQL Server have special handling to create it if not
     // exists and then open it as first step of connecting to the cluster
@@ -373,17 +353,15 @@ bool Ndb_schema_dist_client::create_table(const char* db,
                             db, table_name, id, version, SOT_CREATE_TABLE));
 }
 
-bool Ndb_schema_dist_client::truncate_table(const char* db,
-                                            const char* table_name, int id,
+bool Ndb_schema_dist_client::truncate_table(const char *db,
+                                            const char *table_name, int id,
                                             int version) {
   DBUG_ENTER("Ndb_schema_dist_client::truncate_table");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             db, table_name, id, version, SOT_TRUNCATE_TABLE));
 }
 
-
-
-bool Ndb_schema_dist_client::alter_table(const char* db, const char* table_name,
+bool Ndb_schema_dist_client::alter_table(const char *db, const char *table_name,
                                          int id, int version,
                                          bool log_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_table");
@@ -392,8 +370,8 @@ bool Ndb_schema_dist_client::alter_table(const char* db, const char* table_name,
                             log_on_participant));
 }
 
-bool Ndb_schema_dist_client::alter_table_inplace_prepare(const char* db,
-                                                         const char* table_name,
+bool Ndb_schema_dist_client::alter_table_inplace_prepare(const char *db,
+                                                         const char *table_name,
                                                          int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_table_inplace_prepare");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
@@ -401,8 +379,8 @@ bool Ndb_schema_dist_client::alter_table_inplace_prepare(const char* db,
                             SOT_ONLINE_ALTER_TABLE_PREPARE));
 }
 
-bool Ndb_schema_dist_client::alter_table_inplace_commit(const char* db,
-                                                        const char* table_name,
+bool Ndb_schema_dist_client::alter_table_inplace_commit(const char *db,
+                                                        const char *table_name,
                                                         int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_table_inplace_commit");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
@@ -411,8 +389,8 @@ bool Ndb_schema_dist_client::alter_table_inplace_commit(const char* db,
 }
 
 bool Ndb_schema_dist_client::rename_table_prepare(
-    const char* db, const char* table_name, int id, int version,
-    const char* new_key_for_table) {
+    const char *db, const char *table_name, int id, int version,
+    const char *new_key_for_table) {
   DBUG_ENTER("Ndb_schema_dist_client::rename_table_prepare");
   // NOTE! The rename table prepare phase is primarily done in order to
   // pass the "new key"(i.e db/table_name) for the table to be renamed,
@@ -422,10 +400,10 @@ bool Ndb_schema_dist_client::rename_table_prepare(
                             table_name, id, version, SOT_RENAME_TABLE_PREPARE));
 }
 
-bool Ndb_schema_dist_client::rename_table(const char* db,
-                                          const char* table_name, int id,
-                                          int version, const char* new_dbname,
-                                          const char* new_tabname,
+bool Ndb_schema_dist_client::rename_table(const char *db,
+                                          const char *table_name, int id,
+                                          int version, const char *new_dbname,
+                                          const char *new_tabname,
                                           bool log_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::rename_table");
 
@@ -494,54 +472,51 @@ bool Ndb_schema_dist_client::drop_table(const char *db, const char *table_name,
                             log_on_participant));
 }
 
-bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
-                                       const char* db, unsigned int id,
+bool Ndb_schema_dist_client::create_db(const char *query, uint query_length,
+                                       const char *db, unsigned int id,
                                        unsigned int version) {
   DBUG_ENTER("Ndb_schema_dist_client::create_db");
 
   // Checking identifier limits "late", there is no way to return
   // an error to fail the CREATE DATABASE command
   std::string invalid_identifier;
-  if (!check_identifier_limits(invalid_identifier))
-  {
+  if (!check_identifier_limits(invalid_identifier)) {
     // Check of db name limit failed
     m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
                             invalid_identifier.c_str());
     DBUG_RETURN(false);
   }
 
-  DBUG_RETURN(log_schema_op(query, query_length, db, "",
-                            id, version, SOT_CREATE_DB));
+  DBUG_RETURN(
+      log_schema_op(query, query_length, db, "", id, version, SOT_CREATE_DB));
 }
 
-bool Ndb_schema_dist_client::alter_db(const char* query, uint query_length,
-                                      const char* db, unsigned int id,
+bool Ndb_schema_dist_client::alter_db(const char *query, uint query_length,
+                                      const char *db, unsigned int id,
                                       unsigned int version) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_db");
 
   // Checking identifier limits "late", there is no way to return
   // an error to fail the ALTER DATABASE command
   std::string invalid_identifier;
-  if (!check_identifier_limits(invalid_identifier))
-  {
+  if (!check_identifier_limits(invalid_identifier)) {
     // Check of db name limit failed
     m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
                             invalid_identifier.c_str());
     DBUG_RETURN(false);
   }
 
-  DBUG_RETURN(log_schema_op(query, query_length, db, "",
-                            id, version, SOT_ALTER_DB));
+  DBUG_RETURN(
+      log_schema_op(query, query_length, db, "", id, version, SOT_ALTER_DB));
 }
 
-bool Ndb_schema_dist_client::drop_db(const char* db) {
+bool Ndb_schema_dist_client::drop_db(const char *db) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_db");
 
   // Checking identifier limits "late", there is no way to return
   // an error to fail the DROP DATABASE command
   std::string invalid_identifier;
-  if (!check_identifier_limits(invalid_identifier))
-  {
+  if (!check_identifier_limits(invalid_identifier)) {
     // Check of db name limit failed
     m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
                             invalid_identifier.c_str());
@@ -554,23 +529,23 @@ bool Ndb_schema_dist_client::drop_db(const char* db) {
 }
 
 /* STATEMENT-style ACL change distribution */
-bool Ndb_schema_dist_client::acl_notify(const char *database,
-                                        const char* query, uint query_length,
+bool Ndb_schema_dist_client::acl_notify(const char *database, const char *query,
+                                        uint query_length,
                                         bool participant_refresh) {
   DBUG_ENTER("Ndb_schema_dist_client::acl_notify");
   DBUG_ASSERT(m_holding_acl_mutex);
   auto key = m_prepared_keys.keys()[0];
   std::string new_query("use ");
-  if(database != nullptr && strcmp(database, "mysql")) {
+  if (database != nullptr && strcmp(database, "mysql")) {
     new_query.append(database).append(";").append(query, query_length);
     query = new_query.c_str();
     query_length = new_query.size();
   }
   SCHEMA_OP_TYPE type =
-    participant_refresh ? SOT_ACL_STATEMENT : SOT_ACL_STATEMENT_REFRESH;
-  DBUG_RETURN(log_schema_op(query, query_length,
-                            key.first.c_str(), key.second.c_str(),
-                            unique_id(), unique_version(), type));
+      participant_refresh ? SOT_ACL_STATEMENT : SOT_ACL_STATEMENT_REFRESH;
+  DBUG_RETURN(log_schema_op(query, query_length, key.first.c_str(),
+                            key.second.c_str(), unique_id(), unique_version(),
+                            type));
 }
 
 /* SNAPSHOT-style ACL change distribution */
@@ -580,18 +555,18 @@ bool Ndb_schema_dist_client::acl_notify(std::string user_list) {
   auto key = m_prepared_keys.keys()[0];
 
   DBUG_RETURN(log_schema_op(user_list.c_str(), user_list.length(),
-                            key.first.c_str(), key.second.c_str(),
-                            unique_id(), unique_version(), SOT_ACL_SNAPSHOT));
+                            key.first.c_str(), key.second.c_str(), unique_id(),
+                            unique_version(), SOT_ACL_SNAPSHOT));
 }
 
-bool Ndb_schema_dist_client::tablespace_changed(const char* tablespace_name,
+bool Ndb_schema_dist_client::tablespace_changed(const char *tablespace_name,
                                                 int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::tablespace_changed");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             "", tablespace_name, id, version, SOT_TABLESPACE));
 }
 
-bool Ndb_schema_dist_client::logfilegroup_changed(const char* logfilegroup_name,
+bool Ndb_schema_dist_client::logfilegroup_changed(const char *logfilegroup_name,
                                                   int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::logfilegroup_changed");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
@@ -599,7 +574,7 @@ bool Ndb_schema_dist_client::logfilegroup_changed(const char* logfilegroup_name,
                             SOT_LOGFILE_GROUP));
 }
 
-bool Ndb_schema_dist_client::create_tablespace(const char* tablespace_name,
+bool Ndb_schema_dist_client::create_tablespace(const char *tablespace_name,
                                                int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::create_tablespace");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
@@ -607,7 +582,7 @@ bool Ndb_schema_dist_client::create_tablespace(const char* tablespace_name,
                             SOT_CREATE_TABLESPACE));
 }
 
-bool Ndb_schema_dist_client::alter_tablespace(const char* tablespace_name,
+bool Ndb_schema_dist_client::alter_tablespace(const char *tablespace_name,
                                               int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_tablespace");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
@@ -615,7 +590,7 @@ bool Ndb_schema_dist_client::alter_tablespace(const char* tablespace_name,
                             SOT_ALTER_TABLESPACE));
 }
 
-bool Ndb_schema_dist_client::drop_tablespace(const char* tablespace_name,
+bool Ndb_schema_dist_client::drop_tablespace(const char *tablespace_name,
                                              int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_tablespace");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
@@ -623,95 +598,90 @@ bool Ndb_schema_dist_client::drop_tablespace(const char* tablespace_name,
                             SOT_DROP_TABLESPACE));
 }
 
-bool
-Ndb_schema_dist_client::create_logfile_group(const char* logfile_group_name,
-                                             int id, int version) {
+bool Ndb_schema_dist_client::create_logfile_group(
+    const char *logfile_group_name, int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::create_logfile_group");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             "", logfile_group_name, id, version,
                             SOT_CREATE_LOGFILE_GROUP));
 }
 
-bool
-Ndb_schema_dist_client::alter_logfile_group(const char* logfile_group_name,
-                                            int id, int version) {
+bool Ndb_schema_dist_client::alter_logfile_group(const char *logfile_group_name,
+                                                 int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_logfile_group");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             "", logfile_group_name, id, version,
                             SOT_ALTER_LOGFILE_GROUP));
 }
 
-bool
-Ndb_schema_dist_client::drop_logfile_group(const char* logfile_group_name,
-                                           int id, int version) {
+bool Ndb_schema_dist_client::drop_logfile_group(const char *logfile_group_name,
+                                                int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_logfile_group");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             "", logfile_group_name, id, version,
                             SOT_DROP_LOGFILE_GROUP));
 }
 
-const char*
-Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type)
-{
-  switch(type){
-  case SOT_DROP_TABLE:
-    return "DROP_TABLE";
-  case SOT_CREATE_TABLE:
-    return "CREATE_TABLE";
-  case SOT_ALTER_TABLE_COMMIT:
-    return "ALTER_TABLE_COMMIT";
-  case SOT_DROP_DB:
-    return "DROP_DB";
-  case SOT_CREATE_DB:
-    return "CREATE_DB";
-  case SOT_ALTER_DB:
-    return "ALTER_DB";
-  case SOT_CLEAR_SLOCK:
-    return "CLEAR_SLOCK";
-  case SOT_TABLESPACE:
-    return "TABLESPACE";
-  case SOT_LOGFILE_GROUP:
-    return "LOGFILE_GROUP";
-  case SOT_RENAME_TABLE:
-    return "RENAME_TABLE";
-  case SOT_TRUNCATE_TABLE:
-    return "TRUNCATE_TABLE";
-  case SOT_RENAME_TABLE_PREPARE:
-    return "RENAME_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_PREPARE:
-    return "ONLINE_ALTER_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_COMMIT:
-    return "ONLINE_ALTER_TABLE_COMMIT";
-  case SOT_CREATE_USER:
-    return "CREATE_USER";
-  case SOT_DROP_USER:
-    return "DROP_USER";
-  case SOT_RENAME_USER:
-    return "RENAME_USER";
-  case SOT_GRANT:
-    return "GRANT";
-  case SOT_REVOKE:
-    return "REVOKE";
-  case SOT_CREATE_TABLESPACE:
-    return "CREATE_TABLESPACE";
-  case SOT_ALTER_TABLESPACE:
-    return "ALTER_TABLESPACE";
-  case SOT_DROP_TABLESPACE:
-    return "DROP_TABLESPACE";
-  case SOT_CREATE_LOGFILE_GROUP:
-    return "CREATE_LOGFILE_GROUP";
-  case SOT_ALTER_LOGFILE_GROUP:
-    return "ALTER_LOGFILE_GROUP";
-  case SOT_DROP_LOGFILE_GROUP:
-    return "DROP_LOGFILE_GROUP";
-  case SOT_ACL_SNAPSHOT:
-    return "ACL_SNAPSHOT";
-  case SOT_ACL_STATEMENT:
-    return "ACL_STATEMENT";
-  case SOT_ACL_STATEMENT_REFRESH:
-    return "ACL_STATEMENT_REFRESH";
-  default:
-    break;
+const char *Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type) {
+  switch (type) {
+    case SOT_DROP_TABLE:
+      return "DROP_TABLE";
+    case SOT_CREATE_TABLE:
+      return "CREATE_TABLE";
+    case SOT_ALTER_TABLE_COMMIT:
+      return "ALTER_TABLE_COMMIT";
+    case SOT_DROP_DB:
+      return "DROP_DB";
+    case SOT_CREATE_DB:
+      return "CREATE_DB";
+    case SOT_ALTER_DB:
+      return "ALTER_DB";
+    case SOT_CLEAR_SLOCK:
+      return "CLEAR_SLOCK";
+    case SOT_TABLESPACE:
+      return "TABLESPACE";
+    case SOT_LOGFILE_GROUP:
+      return "LOGFILE_GROUP";
+    case SOT_RENAME_TABLE:
+      return "RENAME_TABLE";
+    case SOT_TRUNCATE_TABLE:
+      return "TRUNCATE_TABLE";
+    case SOT_RENAME_TABLE_PREPARE:
+      return "RENAME_TABLE_PREPARE";
+    case SOT_ONLINE_ALTER_TABLE_PREPARE:
+      return "ONLINE_ALTER_TABLE_PREPARE";
+    case SOT_ONLINE_ALTER_TABLE_COMMIT:
+      return "ONLINE_ALTER_TABLE_COMMIT";
+    case SOT_CREATE_USER:
+      return "CREATE_USER";
+    case SOT_DROP_USER:
+      return "DROP_USER";
+    case SOT_RENAME_USER:
+      return "RENAME_USER";
+    case SOT_GRANT:
+      return "GRANT";
+    case SOT_REVOKE:
+      return "REVOKE";
+    case SOT_CREATE_TABLESPACE:
+      return "CREATE_TABLESPACE";
+    case SOT_ALTER_TABLESPACE:
+      return "ALTER_TABLESPACE";
+    case SOT_DROP_TABLESPACE:
+      return "DROP_TABLESPACE";
+    case SOT_CREATE_LOGFILE_GROUP:
+      return "CREATE_LOGFILE_GROUP";
+    case SOT_ALTER_LOGFILE_GROUP:
+      return "ALTER_LOGFILE_GROUP";
+    case SOT_DROP_LOGFILE_GROUP:
+      return "DROP_LOGFILE_GROUP";
+    case SOT_ACL_SNAPSHOT:
+      return "ACL_SNAPSHOT";
+    case SOT_ACL_STATEMENT:
+      return "ACL_STATEMENT";
+    case SOT_ACL_STATEMENT_REFRESH:
+      return "ACL_STATEMENT_REFRESH";
+    default:
+      break;
   }
   DBUG_ASSERT(false);
   return "<unknown>";

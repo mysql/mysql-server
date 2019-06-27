@@ -34,20 +34,20 @@ class THD;
 /*
   Class for ndbcluster thread specific data
 */
-class Thd_ndb
-{
-  THD* const m_thd;
+class Thd_ndb {
+  THD *const m_thd;
 
-  Thd_ndb(THD*);
+  Thd_ndb(THD *);
   ~Thd_ndb();
-  const bool m_slave_thread; // cached value of thd->slave_thread
+  const bool m_slave_thread;  // cached value of thd->slave_thread
 
   uint32 options;
   uint32 trans_options;
   class Ndb_DDL_transaction_ctx *m_ddl_ctx;
-public:
-  static Thd_ndb* seize(THD*);
-  static void release(Thd_ndb* thd_ndb);
+
+ public:
+  static Thd_ndb *seize(THD *);
+  static void release(Thd_ndb *thd_ndb);
 
   void init_open_tables();
 
@@ -63,14 +63,13 @@ public:
   bool m_slow_path;
   bool m_force_send;
 
-  enum Options
-  {
+  enum Options {
     /*
       Don't distribute schema operations for this thread.
       NOTE! Flag is _only_ set by the binlog injector thread and thus
       any DDL operations it performs are not distributed.
     */
-    NO_LOG_SCHEMA_OP=  1 << 0,
+    NO_LOG_SCHEMA_OP = 1 << 0,
     /*
       This Thd_ndb is a participant in a global schema distribution.
       Whenver a GSL lock is required, it is acquired by the coordinator.
@@ -78,12 +77,12 @@ public:
       for the schema operation it is part of. Thus it should not take
       any GSL locks itself.
     */
-    IS_SCHEMA_DIST_PARTICIPANT= 1 << 1,
+    IS_SCHEMA_DIST_PARTICIPANT = 1 << 1,
 
     /*
       Allow Thd_ndb to setup schema distribution and apply status
      */
-    ALLOW_BINLOG_SETUP= 1 << 2,
+    ALLOW_BINLOG_SETUP = 1 << 2,
 
     /*
        Create a ndbcluster util table in DD. The table already exists
@@ -107,30 +106,23 @@ public:
 
   // Guard class for automatically restoring the state of
   // Thd_ndb::options when the guard goes out of scope
-  class Options_guard
-  {
-    Thd_ndb* const m_thd_ndb;
+  class Options_guard {
+    Thd_ndb *const m_thd_ndb;
     const uint32 m_save_options;
-  public:
-    Options_guard(Thd_ndb* thd_ndb)
-      : m_thd_ndb(thd_ndb),
-        m_save_options(thd_ndb->options)
-    {
+
+   public:
+    Options_guard(Thd_ndb *thd_ndb)
+        : m_thd_ndb(thd_ndb), m_save_options(thd_ndb->options) {
       assert(sizeof(m_save_options) == sizeof(thd_ndb->options));
     }
-    ~Options_guard()
-    {
+    ~Options_guard() {
       // Restore the saved options
-      m_thd_ndb->options= m_save_options;
+      m_thd_ndb->options = m_save_options;
     }
-    void set(Options option)
-    {
-      m_thd_ndb->set_option(option);
-    }
+    void set(Options option) { m_thd_ndb->set_option(option); }
   };
 
-  enum Trans_options
-  {
+  enum Trans_options {
     /*
        Remember that statement has written to ndb_apply_status and subsequent
        writes need to do updates
@@ -141,13 +133,13 @@ public:
        Indicator that no looging is performd by this MySQL Server ans thus
        the anyvalue should have the nologging bit turned on
     */
-    TRANS_NO_LOGGING =            1 << 1,
+    TRANS_NO_LOGGING = 1 << 1,
 
     /*
        Turn off transactional behaviour for the duration
        of this transaction/statement
     */
-    TRANS_TRANSACTIONS_OFF =      1 << 2
+    TRANS_TRANSACTIONS_OFF = 1 << 2
   };
 
   // Check if given trans option is set
@@ -160,8 +152,8 @@ public:
   // Start of transaction check, to automatically detect which
   // trans options should be enabled
   void transaction_checks(void);
-  malloc_unordered_map<const void *, THD_NDB_SHARE *>
-    open_tables{PSI_INSTRUMENT_ME};
+  malloc_unordered_map<const void *, THD_NDB_SHARE *> open_tables{
+      PSI_INSTRUMENT_ME};
   /*
     This is a memroot used to buffer rows for batched execution.
     It is reset after every execute().
@@ -221,8 +213,8 @@ public:
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;
-  uint schema_locks_count; // Number of global schema locks taken by thread
-  bool has_required_global_schema_lock(const char* func) const;
+  uint schema_locks_count;  // Number of global schema locks taken by thread
+  bool has_required_global_schema_lock(const char *func) const;
 
   /**
      Epoch of last committed transaction in this session, 0 if none so far
@@ -242,8 +234,8 @@ public:
     @param[in]  fmt    printf-like format string
     @param[in]  ...    Variable arguments matching format string
   */
-  void push_warning(const char* fmt, ...) const
-    MY_ATTRIBUTE((format(printf, 2, 3)));
+  void push_warning(const char *fmt, ...) const
+      MY_ATTRIBUTE((format(printf, 2, 3)));
 
   /*
     @brief Push a warning message onto THD's condition stack.
@@ -253,8 +245,8 @@ public:
     @param[in]  fmt    printf-like format string
     @param[in]  ...    Variable arguments matching format string
   */
-  void push_warning(uint code, const char* fmt, ...) const
-    MY_ATTRIBUTE((format(printf, 3, 4)));
+  void push_warning(uint code, const char *fmt, ...) const
+      MY_ATTRIBUTE((format(printf, 3, 4)));
 
   /*
     @brief Push an error from NDB as warning message onto THD's condition stack.

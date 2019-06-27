@@ -35,14 +35,14 @@
 #include "storage/ndb/plugin/ndb_schema_dist.h"
 #include "storage/ndb/plugin/ndb_share.h"
 
-Ndb_binlog_client::Ndb_binlog_client(THD* thd, const char* dbname,
-                                     const char* tabname)
+Ndb_binlog_client::Ndb_binlog_client(THD *thd, const char *dbname,
+                                     const char *tabname)
     : m_thd(thd), m_dbname(dbname), m_tabname(tabname) {}
 
 Ndb_binlog_client::~Ndb_binlog_client() {}
 
 bool Ndb_binlog_client::table_should_have_event(
-    NDB_SHARE* share, const NdbDictionary::Table* ndbtab) const {
+    NDB_SHARE *share, const NdbDictionary::Table *ndbtab) const {
   DBUG_ENTER("table_should_have_event");
 
   // Never create event(or event operation) for legacy distributed
@@ -80,7 +80,7 @@ bool Ndb_binlog_client::table_should_have_event(
 
 extern bool ndb_binlog_running;
 
-bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE* share) {
+bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE *share) {
   DBUG_ENTER("table_should_have_event_op");
 
   if (!share->get_have_event()) {
@@ -133,8 +133,8 @@ bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE* share) {
   DBUG_RETURN(true);
 }
 
-std::string Ndb_binlog_client::event_name_for_table(const char* db,
-                                                    const char* table_name,
+std::string Ndb_binlog_client::event_name_for_table(const char *db,
+                                                    const char *table_name,
                                                     bool full) {
   if (Ndb_schema_dist_client::is_schema_dist_table(db, table_name) ||
       Ndb_schema_dist_client::is_schema_dist_result_table(db, table_name)) {
@@ -157,8 +157,8 @@ std::string Ndb_binlog_client::event_name_for_table(const char* db,
   return name;
 }
 
-bool Ndb_binlog_client::event_exists_for_table(Ndb* ndb,
-                                               const NDB_SHARE* share) const {
+bool Ndb_binlog_client::event_exists_for_table(Ndb *ndb,
+                                               const NDB_SHARE *share) const {
   DBUG_ENTER("Ndb_binlog_client::event_exists_for_table()");
 
   // Generate event name
@@ -166,8 +166,8 @@ bool Ndb_binlog_client::event_exists_for_table(Ndb* ndb,
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
 
   // Get event from NDB
-  NdbDictionary::Dictionary* dict = ndb->getDictionary();
-  const NdbDictionary::Event* existing_event =
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  const NdbDictionary::Event *existing_event =
       dict->getEvent(event_name.c_str());
   if (existing_event) {
     // The event exist
@@ -181,7 +181,7 @@ bool Ndb_binlog_client::event_exists_for_table(Ndb* ndb,
   DBUG_RETURN(false);  // Does not exist
 }
 
-void Ndb_binlog_client::log_warning(uint code, const char* fmt, ...) const {
+void Ndb_binlog_client::log_warning(uint code, const char *fmt, ...) const {
   char buf[1024];
   va_list args;
   va_start(args, fmt);

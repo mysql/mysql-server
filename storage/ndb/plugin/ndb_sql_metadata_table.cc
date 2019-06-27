@@ -29,8 +29,7 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 Ndb_sql_metadata_table::Ndb_sql_metadata_table(Thd_ndb *thd_ndb)
-    : Ndb_util_table(thd_ndb, "mysql", "ndb_sql_metadata", true, false)
-    {}
+    : Ndb_util_table(thd_ndb, "mysql", "ndb_sql_metadata", true, false) {}
 
 bool Ndb_sql_metadata_table::define_table_ndb(NdbDictionary::Table &new_table,
                                               unsigned) const {
@@ -117,7 +116,6 @@ std::string Ndb_sql_metadata_table::define_table_dd() const {
 
 Ndb_sql_metadata_table::~Ndb_sql_metadata_table() {}
 
-
 // Ndb_sql_metadata_api
 
 /*  Map the table.
@@ -141,12 +139,12 @@ void Ndb_sql_metadata_api::setup(NdbDictionary::Dictionary *dict,
   m_record_layout.addColumn(table->getColumn("sql_ddl_text"));
   m_full_record_size = m_record_layout.record_size;
 
-  m_row_rec      = dict->createRecord(table, m_record_layout.record_specs,
-                                      5,  // ALL FIVE COLUMNS
-                                      sizeof(m_record_layout.record_specs[0]));
-  m_note_rec     = dict->createRecord(table, m_record_layout.record_specs,
-                                      4,  // FIRST FOUR COLUMNS
-                                      sizeof(m_record_layout.record_specs[0]));
+  m_row_rec = dict->createRecord(table, m_record_layout.record_specs,
+                                 5,  // ALL FIVE COLUMNS
+                                 sizeof(m_record_layout.record_specs[0]));
+  m_note_rec = dict->createRecord(table, m_record_layout.record_specs,
+                                  4,  // FIRST FOUR COLUMNS
+                                  sizeof(m_record_layout.record_specs[0]));
   m_hash_key_rec = dict->createRecord(table, m_record_layout.record_specs,
                                       3,  // FIRST THREE COLUMNS
                                       sizeof(m_record_layout.record_specs[0]));
@@ -158,18 +156,17 @@ void Ndb_sql_metadata_api::setup(NdbDictionary::Dictionary *dict,
      the index is not. Do not handle those conditions here. They are detected
      later, when isInitialized() returns false.
   */
-  if(primary) {
-    m_ordered_index_rec
-                 = dict->createRecord(primary,
-                                      table, m_record_layout.record_specs,
-                                      3,  // FIRST THREE COLUMNS
-                                      sizeof(m_record_layout.record_specs[0]));
+  if (primary) {
+    m_ordered_index_rec =
+        dict->createRecord(primary, table, m_record_layout.record_specs,
+                           3,  // FIRST THREE COLUMNS
+                           sizeof(m_record_layout.record_specs[0]));
     dict->removeIndexGlobal(*primary, false);
   }
 }
 
 void Ndb_sql_metadata_api::clear(NdbDictionary::Dictionary *dict) {
-  if(m_full_record_size) {
+  if (m_full_record_size) {
     dict->releaseRecord(m_row_rec);
     m_row_rec = nullptr;
     dict->releaseRecord(m_note_rec);
@@ -181,7 +178,7 @@ void Ndb_sql_metadata_api::clear(NdbDictionary::Dictionary *dict) {
     m_full_record_size = 0;
   }
 
-  if(m_ordered_index_rec) {
+  if (m_ordered_index_rec) {
     dict->releaseRecord(m_ordered_index_rec);
     m_ordered_index_rec = nullptr;
   }

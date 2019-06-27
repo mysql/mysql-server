@@ -32,18 +32,18 @@
 const std::string Ndb_schema_dist_table::DB_NAME = "mysql";
 const std::string Ndb_schema_dist_table::TABLE_NAME = "ndb_schema";
 
-const char* Ndb_schema_dist_table::COL_DB = "db";
-const char* Ndb_schema_dist_table::COL_NAME = "name";
-const char* Ndb_schema_dist_table::COL_QUERY = "query";
-const char* Ndb_schema_dist_table::COL_ID = "id";
-const char* Ndb_schema_dist_table::COL_VERSION = "version";
-static const char* COL_SLOCK = "slock";
-static const char* COL_NODEID = "node_id";
-static const char* COL_EPOCH = "epoch";
-static const char* COL_TYPE = "type";
-static const char* COL_SCHEMA_OP_ID = "schema_op_id";
+const char *Ndb_schema_dist_table::COL_DB = "db";
+const char *Ndb_schema_dist_table::COL_NAME = "name";
+const char *Ndb_schema_dist_table::COL_QUERY = "query";
+const char *Ndb_schema_dist_table::COL_ID = "id";
+const char *Ndb_schema_dist_table::COL_VERSION = "version";
+static const char *COL_SLOCK = "slock";
+static const char *COL_NODEID = "node_id";
+static const char *COL_EPOCH = "epoch";
+static const char *COL_TYPE = "type";
+static const char *COL_SCHEMA_OP_ID = "schema_op_id";
 
-Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb* thd_ndb)
+Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb *thd_ndb)
     : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, true) {}
 
 Ndb_schema_dist_table::~Ndb_schema_dist_table() {}
@@ -290,7 +290,7 @@ bool Ndb_schema_dist_table::define_table_ndb(NdbDictionary::Table &new_table,
     // schema_op_id INT UNSIGNED NULL
     NdbDictionary::Column col_schema_op_id(COL_SCHEMA_OP_ID);
     col_schema_op_id.setType(NdbDictionary::Column::Unsigned);
-    col_schema_op_id.setNullable(true); // NULL!
+    col_schema_op_id.setNullable(true);  // NULL!
     if (!define_table_add_column(new_table, col_schema_op_id)) return false;
   }
 
@@ -307,16 +307,13 @@ bool Ndb_schema_dist_table::need_upgrade() const {
   return false;
 }
 
-bool Ndb_schema_dist_table::drop_events_in_NDB() const
-{
+bool Ndb_schema_dist_table::drop_events_in_NDB() const {
   // Drop the default event on ndb_schema table
-  if (!drop_event_in_NDB("REPL$mysql/ndb_schema"))
-    return false;
+  if (!drop_event_in_NDB("REPL$mysql/ndb_schema")) return false;
 
   // Legacy event on ndb_schema table, drop since it might
   // have been created(although ages ago)
-  if (!drop_event_in_NDB("REPLF$mysql/ndb_schema"))
-    return false;
+  if (!drop_event_in_NDB("REPLF$mysql/ndb_schema")) return false;
 
   return true;
 }

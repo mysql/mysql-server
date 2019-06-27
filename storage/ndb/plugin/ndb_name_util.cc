@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include "storage/ndb/plugin/ndb_name_util.h"
 
 #include "m_string.h"       // strend()
@@ -32,66 +31,56 @@
   Set a given location from full pathname to database name.
 */
 
-void ndb_set_dbname(const char *path_name, char *dbname)
-{
+void ndb_set_dbname(const char *path_name, char *dbname) {
   const char *end, *ptr;
   char tmp_buff[FN_REFLEN + 1];
 
-  char *tmp_name= tmp_buff;
+  char *tmp_name = tmp_buff;
   /* Scan name from the end */
-  ptr= strend(path_name)-1;
+  ptr = strend(path_name) - 1;
   while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
     ptr--;
   }
   ptr--;
-  end= ptr;
+  end = ptr;
   while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
     ptr--;
   }
-  uint name_len= (uint)(end - ptr);
+  uint name_len = (uint)(end - ptr);
   memcpy(tmp_name, ptr + 1, name_len);
-  tmp_name[name_len]= '\0';
+  tmp_name[name_len] = '\0';
   filename_to_tablename(tmp_name, dbname, sizeof(tmp_buff) - 1);
 }
-
-
 
 /**
   Set a given location from full pathname to table file.
 */
 
-void
-ndb_set_tabname(const char *path_name, char * tabname)
-{
+void ndb_set_tabname(const char *path_name, char *tabname) {
   const char *end, *ptr;
   char tmp_buff[FN_REFLEN + 1];
 
-  char *tmp_name= tmp_buff;
+  char *tmp_name = tmp_buff;
   /* Scan name from the end */
-  end= strend(path_name)-1;
-  ptr= end;
+  end = strend(path_name) - 1;
+  ptr = end;
   while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
     ptr--;
   }
-  uint name_len= (uint)(end - ptr);
+  uint name_len = (uint)(end - ptr);
   memcpy(tmp_name, ptr + 1, end - ptr);
-  tmp_name[name_len]= '\0';
+  tmp_name[name_len] = '\0';
   filename_to_tablename(tmp_name, tabname, sizeof(tmp_buff) - 1);
 }
 
-bool ndb_name_is_temp(const char *name)
-{
+bool ndb_name_is_temp(const char *name) {
   return is_prefix(name, tmp_file_prefix) == 1;
 }
 
-
-bool ndb_name_is_blob_prefix(const char* name)
-{
+bool ndb_name_is_blob_prefix(const char *name) {
   return is_prefix(name, "NDB$BLOB");
 }
 
-
-bool ndb_name_is_index_stat(const char* name)
-{
+bool ndb_name_is_index_stat(const char *name) {
   return is_prefix(name, "ndb_index_stat");
 }

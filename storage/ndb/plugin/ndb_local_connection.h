@@ -47,50 +47,48 @@ class THD;
 */
 
 class Ndb_local_connection {
-public:
-  Ndb_local_connection(THD* thd);
+ public:
+  Ndb_local_connection(THD *thd);
   ~Ndb_local_connection();
 
-  bool truncate_table(const char* db, const char* table,
+  bool truncate_table(const char *db, const char *table,
                       bool ignore_no_such_table);
 
   bool delete_rows(const std::string &db, const std::string &table,
                    int ignore_no_such_table, const std::string &where);
 
-  bool create_util_table(const std::string& table_def_sql);
+  bool create_util_table(const std::string &table_def_sql);
 
-  bool create_database(const std::string& database_name);
+  bool create_database(const std::string &database_name);
 
-  bool drop_database(const std::string& database_name);
+  bool drop_database(const std::string &database_name);
 
-  bool execute_database_ddl(const std::string& ddl_query);
+  bool execute_database_ddl(const std::string &ddl_query);
 
   bool run_acl_statement(const std::string &acl_sql);
 
   /* Don't use this function for new implementation, backward compat. only */
-  bool raw_run_query(const char* query, size_t query_length,
-                     const int* suppress_errors);
+  bool raw_run_query(const char *query, size_t query_length,
+                     const int *suppress_errors);
 
-protected:
+ protected:
   bool execute_query_iso(MYSQL_LEX_STRING sql_text,
-                         const uint* ignore_mysql_errors,
-                         const class Suppressor* suppressor = NULL);
+                         const uint *ignore_mysql_errors,
+                         const class Suppressor *suppressor = NULL);
 
-  class Ed_result_set * get_results();
+  class Ed_result_set *get_results();
 
-private:
-  bool execute_query(MYSQL_LEX_STRING sql_text,
-                     const uint* ignore_mysql_errors,
-                     const class Suppressor* suppressor = NULL);
+ private:
+  bool execute_query(MYSQL_LEX_STRING sql_text, const uint *ignore_mysql_errors,
+                     const class Suppressor *suppressor = NULL);
 
-protected:
-  THD* m_thd;
+ protected:
+  THD *m_thd;
 
-private:
+ private:
   class Impl;
   std::unique_ptr<class Impl> impl;
   bool m_push_warnings;
 };
-
 
 #endif

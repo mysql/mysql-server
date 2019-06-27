@@ -37,103 +37,86 @@
 
 namespace ndb_dummy_ts {
 
-  /**
-    Create SDI in a tablespace. This API should be used when
-    upgrading a tablespace with no SDI.
-    @param[in,out]	tablespace	tablespace object
-    @retval		false		success
-    @retval		true		failure
-  */
-  static
-  bool sdi_create(dd::Tablespace*)
-  {
-    DBUG_ASSERT(false); // Never called
-    return false; // Success
-  }
-
-
-  /**
-    Drop SDI in a tablespace. This API should be used only
-    when SDI is corrupted.
-    @param[in,out]	tablespace	tablespace object
-    @retval		false		success
-    @retval		true		failure
-  */
-  static
-  bool sdi_drop(dd::Tablespace*)
-  {
-    DBUG_ASSERT(false); // Never called
-    return false; // Success
-  }
-
-
-  /**
-    Get the SDI keys in a tablespace into the vector provided.
-    @param[in]	tablespace	tablespace object
-    @param[in,out]	vector		vector to hold SDI keys
-    @retval		false		success
-    @retval		true		failure
-  */
-  static
-  bool sdi_get_keys(const dd::Tablespace&, sdi_vector_t&)
-  {
-    DBUG_ASSERT(false); // Never called
-    return false; // Success
-  }
-
-
-  /** Retrieve SDI from tablespace
-    @param[in]	tablespace	tablespace object
-    @param[in]	sdi_key		SDI key
-    @param[in,out]	sdi		SDI retrieved from tablespace
-    @param[in,out]	sdi_len		in:  size of memory allocated
-                                out: actual length of SDI
-    @retval		false		success
-    @retval		true		failure
-  */
-  static
-  bool sdi_get(const dd::Tablespace&, const sdi_key_t*,
-               void*, uint64*)
-  {
-    DBUG_ASSERT(false); // Never called
-    return false; // Success
-  }
-
-
-  /** Insert/Update SDI in tablespace
-    @param[in]	hton		handlerton object
-    @param[in]	tablespace	tablespace object
-    @param[in]	table		table object
-    @param[in]	sdi_key		SDI key to uniquely identify the tablespace
-                                object
-    @param[in]	sdi		SDI to be stored in tablespace
-    @param[in]	sdi_len		SDI length
-    @retval		false		success
-    @retval		true		failure
-  */
-  static
-  bool sdi_set(handlerton *, const dd::Tablespace&, const dd::Table*,
-               const sdi_key_t*, const void*, uint64)
-  {
-    return false; // Success
-  }
-
-
-  /**
-    Delete SDI from tablespace
-    @param[in]	tablespace	tablespace object
-    @param[in]	table		table object
-    @param[in]	sdi_key		SDI key to uniquely identify the tablespace
-                                  object
-    @retval		false		success
-    @retval		true		failure
-  */
-  static
-  bool sdi_delete(const dd::Tablespace&, const dd::Table*,
-                  const sdi_key_t*)
-  {
-    return false; // Success
-  }
+/**
+  Create SDI in a tablespace. This API should be used when
+  upgrading a tablespace with no SDI.
+  @param[in,out]	tablespace	tablespace object
+  @retval		false		success
+  @retval		true		failure
+*/
+static bool sdi_create(dd::Tablespace *) {
+  DBUG_ASSERT(false);  // Never called
+  return false;        // Success
 }
+
+/**
+  Drop SDI in a tablespace. This API should be used only
+  when SDI is corrupted.
+  @param[in,out]	tablespace	tablespace object
+  @retval		false		success
+  @retval		true		failure
+*/
+static bool sdi_drop(dd::Tablespace *) {
+  DBUG_ASSERT(false);  // Never called
+  return false;        // Success
+}
+
+/**
+  Get the SDI keys in a tablespace into the vector provided.
+  @param[in]	tablespace	tablespace object
+  @param[in,out]	vector		vector to hold SDI keys
+  @retval		false		success
+  @retval		true		failure
+*/
+static bool sdi_get_keys(const dd::Tablespace &, sdi_vector_t &) {
+  DBUG_ASSERT(false);  // Never called
+  return false;        // Success
+}
+
+/** Retrieve SDI from tablespace
+  @param[in]	tablespace	tablespace object
+  @param[in]	sdi_key		SDI key
+  @param[in,out]	sdi		SDI retrieved from tablespace
+  @param[in,out]	sdi_len		in:  size of memory allocated
+                              out: actual length of SDI
+  @retval		false		success
+  @retval		true		failure
+*/
+static bool sdi_get(const dd::Tablespace &, const sdi_key_t *, void *,
+                    uint64 *) {
+  DBUG_ASSERT(false);  // Never called
+  return false;        // Success
+}
+
+/** Insert/Update SDI in tablespace
+  @param[in]	hton		handlerton object
+  @param[in]	tablespace	tablespace object
+  @param[in]	table		table object
+  @param[in]	sdi_key		SDI key to uniquely identify the tablespace
+                              object
+  @param[in]	sdi		SDI to be stored in tablespace
+  @param[in]	sdi_len		SDI length
+  @retval		false		success
+  @retval		true		failure
+*/
+static bool sdi_set(handlerton *, const dd::Tablespace &, const dd::Table *,
+                    const sdi_key_t *, const void *, uint64) {
+  return false;  // Success
+}
+
+/**
+  Delete SDI from tablespace
+  @param[in]	tablespace	tablespace object
+  @param[in]	table		table object
+  @param[in]	sdi_key		SDI key to uniquely identify the tablespace
+                                object
+  @retval		false		success
+  @retval		true		failure
+*/
+static bool sdi_delete(const dd::Tablespace &, const dd::Table *,
+                       const sdi_key_t *) {
+  return false;  // Success
+}
+}  // namespace ndb_dummy_ts
 
 #endif

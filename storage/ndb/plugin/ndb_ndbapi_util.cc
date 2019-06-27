@@ -24,29 +24,26 @@
 
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 
-#include <string.h>           // memcpy
+#include <string.h>  // memcpy
 
 #include "my_byteorder.h"
-#include "storage/ndb/plugin/ndb_name_util.h" // ndb_name_is_temp
-
+#include "storage/ndb/plugin/ndb_name_util.h"  // ndb_name_is_temp
 
 void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,
-                      char (&buf)[512], const char *str, size_t sz)
-{
+                      char (&buf)[512], const char *str, size_t sz) {
   // Get the column, cast to int to help compiler choose
   // the "const int" overload rather than "const char*"
-  const NdbDictionary::Column* col =
+  const NdbDictionary::Column *col =
       ndbtab->getColumn(static_cast<int>(column_index));
 
   assert(col->getLength() <= (int)sizeof(buf));
 
-  switch (col->getArrayType())
-  {
+  switch (col->getArrayType()) {
     case NdbDictionary::Column::ArrayTypeFixed:
       memcpy(buf, str, sz);
       break;
     case NdbDictionary::Column::ArrayTypeShortVar:
-      *(uchar*)buf= (uchar)sz;
+      *(uchar *)buf = (uchar)sz;
       memcpy(buf + 1, str, sz);
       break;
     case NdbDictionary::Column::ArrayTypeMediumVar:
@@ -56,18 +53,15 @@ void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,
   }
 }
 
-void
-ndb_pack_varchar(const NdbDictionary::Column* col, size_t offset,
-                 const char* str, size_t str_length, char *buf)
-{
+void ndb_pack_varchar(const NdbDictionary::Column *col, size_t offset,
+                      const char *str, size_t str_length, char *buf) {
   buf += offset;
-  switch (col->getArrayType())
-  {
+  switch (col->getArrayType()) {
     case NdbDictionary::Column::ArrayTypeFixed:
       memcpy(buf, str, str_length);
       break;
     case NdbDictionary::Column::ArrayTypeShortVar:
-      *(uchar*)buf= (uchar)str_length;
+      *(uchar *)buf = (uchar)str_length;
       memcpy(buf + 1, str, str_length);
       break;
     case NdbDictionary::Column::ArrayTypeMediumVar:
@@ -77,10 +71,8 @@ ndb_pack_varchar(const NdbDictionary::Column* col, size_t offset,
   }
 }
 
-void
-ndb_unpack_varchar(const NdbDictionary::Column* col, size_t offset,
-                   const char ** str, size_t * str_length, const char *buf)
-{
+void ndb_unpack_varchar(const NdbDictionary::Column *col, size_t offset,
+                        const char **str, size_t *str_length, const char *buf) {
   buf += offset;
 
   switch (col->getArrayType()) {
@@ -101,19 +93,15 @@ ndb_unpack_varchar(const NdbDictionary::Column* col, size_t offset,
   }
 }
 
-Uint32
-ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab)
-{
+Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab) {
   DBUG_ENTER("ndb_get_extra_metadata_version");
 
   Uint32 version;
-  void* unpacked_data;
+  void *unpacked_data;
   Uint32 unpacked_length;
   const int get_result =
-      ndbtab->getExtraMetadata(version,
-                               &unpacked_data, &unpacked_length);
-  if (get_result != 0)
-  {
+      ndbtab->getExtraMetadata(version, &unpacked_data, &unpacked_length);
+  if (get_result != 0) {
     // Could not get extra metadata, return 0
     DBUG_RETURN(0);
   }
@@ -121,7 +109,6 @@ ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab)
   free(unpacked_data);
 
   DBUG_RETURN(version);
-
 }
 
 bool ndb_table_get_serialized_metadata(const NdbDictionary::Table *ndbtab,
@@ -144,17 +131,13 @@ bool ndb_table_get_serialized_metadata(const NdbDictionary::Table *ndbtab,
   return true;
 }
 
-bool
-ndb_table_has_blobs(const NdbDictionary::Table *ndbtab)
-{
+bool ndb_table_has_blobs(const NdbDictionary::Table *ndbtab) {
   const int num_columns = ndbtab->getNoOfColumns();
-  for (int i = 0; i < num_columns; i++)
-  {
+  for (int i = 0; i < num_columns; i++) {
     const NdbDictionary::Column::Type column_type =
         ndbtab->getColumn(i)->getType();
     if (column_type == NdbDictionary::Column::Blob ||
-        column_type == NdbDictionary::Column::Text)
-    {
+        column_type == NdbDictionary::Column::Text) {
       // Found at least one blob column, the table has blobs
       return true;
     }
@@ -162,46 +145,32 @@ ndb_table_has_blobs(const NdbDictionary::Table *ndbtab)
   return false;
 }
 
-
-bool
-ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab)
-{
-  const char* hidden_pk_name = "$PK";
-  if (ndbtab->getNoOfPrimaryKeys() == 1)
-  {
-    const NdbDictionary::Column* ndbcol = ndbtab->getColumn(hidden_pk_name);
-    if (ndbcol &&
-        ndbcol->getType() == NdbDictionary::Column::Bigunsigned &&
-        ndbcol->getLength() == 1 &&
-        ndbcol->getNullable() == false &&
-        ndbcol->getPrimaryKey() == true &&
-        ndbcol->getAutoIncrement() == true &&
-        ndbcol->getDefaultValue() == nullptr)
-    {
+bool ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab) {
+  const char *hidden_pk_name = "$PK";
+  if (ndbtab->getNoOfPrimaryKeys() == 1) {
+    const NdbDictionary::Column *ndbcol = ndbtab->getColumn(hidden_pk_name);
+    if (ndbcol && ndbcol->getType() == NdbDictionary::Column::Bigunsigned &&
+        ndbcol->getLength() == 1 && ndbcol->getNullable() == false &&
+        ndbcol->getPrimaryKey() == true && ndbcol->getAutoIncrement() == true &&
+        ndbcol->getDefaultValue() == nullptr) {
       return true;
     }
   }
   return false;
 }
 
-
-
-bool
-ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab)
-{
+bool ndb_table_has_tablespace(const NdbDictionary::Table *ndbtab) {
   // NOTE! There is a slight ambiguity in the NdbDictionary::Table.
   // Depending on wheter it has been retrieved from NDB or created
   // by user as part of defining a new table in NDB, different methods
   // need to be used for determining if table has tablespace
 
-  if (ndb_table_tablespace_name(ndbtab) != nullptr)
-  {
+  if (ndb_table_tablespace_name(ndbtab) != nullptr) {
     // Has tablespace
     return true;
   }
 
-  if (ndbtab->getTablespace())
-  {
+  if (ndbtab->getTablespace()) {
     // Retrieved from NDB, the tablespace id and version
     // are avaliable in the table definition -> has tablespace.
     // NOTE! Fetching the name would require another roundtrip to NDB
@@ -210,42 +179,31 @@ ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab)
 
   // Neither name or id of tablespace is set -> no tablespace
   return false;
-
 }
 
-
-const char*
-ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab)
-{
+const char *ndb_table_tablespace_name(const NdbDictionary::Table *ndbtab) {
   // NOTE! The getTablespaceName() returns zero length string
   // to indicate no tablespace
-  const char* tablespace_name = ndbtab->getTablespaceName();
-  if (strlen(tablespace_name) == 0)
-  {
+  const char *tablespace_name = ndbtab->getTablespaceName();
+  if (strlen(tablespace_name) == 0) {
     // Just the zero length name, no tablespace name
     return nullptr;
   }
   return tablespace_name;
 }
 
-
-std::string
-ndb_table_tablespace_name(NdbDictionary::Dictionary *dict,
-                          const NdbDictionary::Table *ndbtab)
-{
+std::string ndb_table_tablespace_name(NdbDictionary::Dictionary *dict,
+                                      const NdbDictionary::Table *ndbtab) {
   // NOTE! The getTablespaceName() returns zero length string
   // to indicate no tablespace
   std::string tablespace_name = ndbtab->getTablespaceName();
-  if (tablespace_name.empty())
-  {
+  if (tablespace_name.empty()) {
     // Just the zero length name, no tablespace name
     // Try and retrieve it using the id as a fallback mechanism
     Uint32 tablespace_id;
-    if (ndbtab->getTablespace(&tablespace_id))
-    {
+    if (ndbtab->getTablespace(&tablespace_id)) {
       const NdbDictionary::Tablespace ts = dict->getTablespace(tablespace_id);
-      if (!ndb_dict_check_NDB_error(dict))
-      {
+      if (!ndb_dict_check_NDB_error(dict)) {
         tablespace_name = ts.getName();
       }
     }
@@ -253,82 +211,64 @@ ndb_table_tablespace_name(NdbDictionary::Dictionary *dict,
   return tablespace_name;
 }
 
-
-bool
-ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict)
-{
+bool ndb_dict_check_NDB_error(NdbDictionary::Dictionary *dict) {
   return (dict->getNdbError().code != 0);
 }
 
-
-bool ndb_get_logfile_group_names(const NdbDictionary::Dictionary* dict,
-                                 std::unordered_set<std::string>& lfg_names)
-{
+bool ndb_get_logfile_group_names(const NdbDictionary::Dictionary *dict,
+                                 std::unordered_set<std::string> &lfg_names) {
   NdbDictionary::Dictionary::List lfg_list;
-  if (dict->listObjects(lfg_list, NdbDictionary::Object::LogfileGroup) != 0)
-  {
+  if (dict->listObjects(lfg_list, NdbDictionary::Object::LogfileGroup) != 0) {
     return false;
   }
 
-  for (uint i = 0; i < lfg_list.count; i++)
-  {
+  for (uint i = 0; i < lfg_list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt = lfg_list.elements[i];
     lfg_names.insert(elmt.name);
   }
   return true;
 }
 
-
-bool ndb_get_tablespace_names(const NdbDictionary::Dictionary* dict,
-                              std::unordered_set<std::string>& tablespace_names)
-{
+bool ndb_get_tablespace_names(
+    const NdbDictionary::Dictionary *dict,
+    std::unordered_set<std::string> &tablespace_names) {
   NdbDictionary::Dictionary::List tablespace_list;
-  if (dict->listObjects(tablespace_list, NdbDictionary::Object::Tablespace)
-      != 0)
-  {
+  if (dict->listObjects(tablespace_list, NdbDictionary::Object::Tablespace) !=
+      0) {
     return false;
   }
 
-  for (uint i = 0; i < tablespace_list.count; i++)
-  {
+  for (uint i = 0; i < tablespace_list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt =
-      tablespace_list.elements[i];
+        tablespace_list.elements[i];
     tablespace_names.insert(elmt.name);
   }
   return true;
 }
 
-
-bool ndb_get_table_names_in_schema(NdbDictionary::Dictionary* dict,
-                                   const std::string &schema_name,
-                                   std::unordered_set<std::string>& table_names)
-{
+bool ndb_get_table_names_in_schema(
+    NdbDictionary::Dictionary *dict, const std::string &schema_name,
+    std::unordered_set<std::string> &table_names) {
   NdbDictionary::Dictionary::List list;
-  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
-  {
+  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
     return false;
   }
 
-  for (uint i = 0; i < list.count; i++)
-  {
+  for (uint i = 0; i < list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
 
-    if (schema_name != elmt.database)
-    {
+    if (schema_name != elmt.database) {
       continue;
     }
 
-    if (ndb_name_is_temp(elmt.name) ||
-        ndb_name_is_blob_prefix(elmt.name) ||
-        ndb_name_is_index_stat(elmt.name))
-    {
+    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_index_stat(elmt.name)) {
       continue;
     }
 
     if (elmt.state == NdbDictionary::Object::StateOnline ||
         elmt.state == NdbDictionary::Object::ObsoleteStateBackup ||
-        elmt.state == NdbDictionary::Object::StateBuilding)
-    {
+        elmt.state == NdbDictionary::Object::StateBuilding) {
       // Only return the table if they're already usable i.e. StateOnline or
       // StateBackup or if they're expected to be usable soon which is denoted
       // by StateBuilding
@@ -338,56 +278,45 @@ bool ndb_get_table_names_in_schema(NdbDictionary::Dictionary* dict,
   return true;
 }
 
-
 bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
                             const std::string &logfile_group_name,
-                            std::vector<std::string> &undofile_names)
-{
+                            std::vector<std::string> &undofile_names) {
   NdbDictionary::Dictionary::List undofile_list;
-  if (dict->listObjects(undofile_list, NdbDictionary::Object::Undofile) != 0)
-  {
+  if (dict->listObjects(undofile_list, NdbDictionary::Object::Undofile) != 0) {
     return false;
   }
 
-  for (uint i = 0; i < undofile_list.count; i++)
-  {
+  for (uint i = 0; i < undofile_list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt = undofile_list.elements[i];
     NdbDictionary::Undofile uf = dict->getUndofile(-1, elmt.name);
-    if (logfile_group_name.compare(uf.getLogfileGroup()) == 0)
-    {
+    if (logfile_group_name.compare(uf.getLogfileGroup()) == 0) {
       undofile_names.push_back(elmt.name);
     }
   }
   return true;
 }
 
-
 bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
                             const std::string &tablespace_name,
-                            std::vector<std::string> &datafile_names)
-{
+                            std::vector<std::string> &datafile_names) {
   NdbDictionary::Dictionary::List datafile_list;
-  if (dict->listObjects(datafile_list, NdbDictionary::Object::Datafile) != 0)
-  {
+  if (dict->listObjects(datafile_list, NdbDictionary::Object::Datafile) != 0) {
     return false;
   }
 
-  for (uint i = 0; i < datafile_list.count; i++)
-  {
+  for (uint i = 0; i < datafile_list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt = datafile_list.elements[i];
     NdbDictionary::Datafile df = dict->getDatafile(-1, elmt.name);
-    if (tablespace_name.compare(df.getTablespace()) == 0)
-    {
+    if (tablespace_name.compare(df.getTablespace()) == 0) {
       datafile_names.push_back(elmt.name);
     }
   }
   return true;
 }
 
-bool
-ndb_get_database_names_in_dictionary(
-    NdbDictionary::Dictionary* dict,
-    std::unordered_set<std::string>& database_names) {
+bool ndb_get_database_names_in_dictionary(
+    NdbDictionary::Dictionary *dict,
+    std::unordered_set<std::string> &database_names) {
   DBUG_ENTER("ndb_get_database_names_in_dictionary");
 
   /* Get all the list of tables from NDB and read the database names */
@@ -395,86 +324,71 @@ ndb_get_database_names_in_dictionary(
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
     DBUG_RETURN(false);
 
-  for (uint i= 0 ; i < list.count ; i++) {
-    NdbDictionary::Dictionary::List::Element& elmt= list.elements[i];
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
 
     /* Skip the table if it is not in an expected state
        or if it is a temporary or blob table.*/
     if ((elmt.state != NdbDictionary::Object::StateOnline &&
          elmt.state != NdbDictionary::Object::StateBuilding) ||
         ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name)) {
-      DBUG_PRINT("debug",
-                 ("Skipping table %s.%s", elmt.database, elmt.name));
+      DBUG_PRINT("debug", ("Skipping table %s.%s", elmt.database, elmt.name));
       continue;
     }
-    DBUG_PRINT("debug",
-               ("Found %s.%s in NDB", elmt.database, elmt.name));
+    DBUG_PRINT("debug", ("Found %s.%s in NDB", elmt.database, elmt.name));
 
     database_names.insert(elmt.database);
   }
   DBUG_RETURN(true);
 }
 
-
 bool ndb_logfile_group_exists(NdbDictionary::Dictionary *dict,
                               const std::string &logfile_group_name,
-                              bool &exists)
-{
+                              bool &exists) {
   NdbDictionary::LogfileGroup lfg =
-    dict->getLogfileGroup(logfile_group_name.c_str());
+      dict->getLogfileGroup(logfile_group_name.c_str());
   const int dict_error_code = dict->getNdbError().code;
-  if (dict_error_code == 0)
-  {
+  if (dict_error_code == 0) {
     exists = true;
     return true;
   }
-  if (dict_error_code == 723)
-  {
+  if (dict_error_code == 723) {
     exists = false;
     return true;
   }
   return false;
 }
-
 
 bool ndb_tablespace_exists(NdbDictionary::Dictionary *dict,
-                           const std::string &tablespace_name, bool &exists)
-{
+                           const std::string &tablespace_name, bool &exists) {
   NdbDictionary::Tablespace tablespace =
-    dict->getTablespace(tablespace_name.c_str());
+      dict->getTablespace(tablespace_name.c_str());
   const int dict_error_code = dict->getNdbError().code;
-  if (dict_error_code == 0)
-  {
+  if (dict_error_code == 0) {
     exists = true;
     return true;
   }
-  if (dict_error_code == 723)
-  {
+  if (dict_error_code == 723) {
     exists = false;
     return true;
   }
   return false;
 }
 
-
 bool ndb_table_exists(NdbDictionary::Dictionary *dict,
-                      const std::string &db_name,
-                      const std::string &table_name, bool &exists)
-{
+                      const std::string &db_name, const std::string &table_name,
+                      bool &exists) {
   NdbDictionary::Dictionary::List list;
-  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
-  {
+  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
     // List objects failed
     return false;
   }
-  for (unsigned int i = 0; i < list.count; i++)
-  {
+  for (unsigned int i = 0; i < list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
     if (db_name == elmt.database && table_name == elmt.name &&
         (elmt.state == NdbDictionary::Object::StateOnline ||
          elmt.state == NdbDictionary::Object::ObsoleteStateBackup ||
-         elmt.state == NdbDictionary::Object::StateBuilding))
-    {
+         elmt.state == NdbDictionary::Object::StateBuilding)) {
       exists = true;
       return true;
     }
@@ -483,15 +397,12 @@ bool ndb_table_exists(NdbDictionary::Dictionary *dict,
   return true;
 }
 
-
 bool ndb_get_logfile_group_id_and_version(NdbDictionary::Dictionary *dict,
                                           const std::string &logfile_group_name,
-                                          int &id, int &version)
-{
+                                          int &id, int &version) {
   NdbDictionary::LogfileGroup lfg =
-    dict->getLogfileGroup(logfile_group_name.c_str());
-  if (dict->getNdbError().code != 0)
-  {
+      dict->getLogfileGroup(logfile_group_name.c_str());
+  if (dict->getNdbError().code != 0) {
     return false;
   }
   id = lfg.getObjectId();
@@ -499,15 +410,11 @@ bool ndb_get_logfile_group_id_and_version(NdbDictionary::Dictionary *dict,
   return true;
 }
 
-
 bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
                                        const std::string &tablespace_name,
-                                       int &id, int &version)
-{
-  NdbDictionary::Tablespace ts =
-    dict->getTablespace(tablespace_name.c_str());
-  if (dict->getNdbError().code != 0)
-  {
+                                       int &id, int &version) {
+  NdbDictionary::Tablespace ts = dict->getTablespace(tablespace_name.c_str());
+  if (dict->getNdbError().code != 0) {
     return false;
   }
   id = ts.getObjectId();

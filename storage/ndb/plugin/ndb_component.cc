@@ -26,63 +26,46 @@
 
 #include <stdarg.h>
 
-#include "my_systime.h" // set_timespec
+#include "my_systime.h"  // set_timespec
 
 Ndb_component::Ndb_component(const char *name)
-  : m_thread_state(TS_UNINIT),
-    m_server_started(false),
-    m_name(name)
-{
-}
+    : m_thread_state(TS_UNINIT), m_server_started(false), m_name(name) {}
 
-Ndb_component::~Ndb_component()
-{
+Ndb_component::~Ndb_component() {}
 
-}
-
-int
-Ndb_component::init()
-{
+int Ndb_component::init() {
   assert(m_thread_state == TS_UNINIT);
 
-  mysql_mutex_init(PSI_INSTRUMENT_ME, &m_start_stop_mutex,
-                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &m_start_stop_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(PSI_INSTRUMENT_ME, &m_start_stop_cond);
 
-  int res= do_init();
-  if (res == 0)
-  {
-    m_thread_state= TS_INIT;
+  int res = do_init();
+  if (res == 0) {
+    m_thread_state = TS_INIT;
   }
   return res;
 }
 
-extern "C" void *
-Ndb_component_run_C(void * arg)
-{
+extern "C" void *Ndb_component_run_C(void *arg) {
   my_thread_init();
-  Ndb_component * self = reinterpret_cast<Ndb_component*>(arg);
+  Ndb_component *self = reinterpret_cast<Ndb_component *>(arg);
   self->run_impl();
   my_thread_end();
   my_thread_exit(0);
-  return NULL;                              // Avoid compiler warnings
+  return NULL;  // Avoid compiler warnings
 }
 
-extern my_thread_attr_t connection_attrib; // mysql global pthread attr
+extern my_thread_attr_t connection_attrib;  // mysql global pthread attr
 
-int
-Ndb_component::start()
-{
+int Ndb_component::start() {
   assert(m_thread_state == TS_INIT);
   mysql_mutex_lock(&m_start_stop_mutex);
-  m_thread_state= TS_STARTING;
-  int res= my_thread_create(&m_thread, &connection_attrib, Ndb_component_run_C,
-                            this);
+  m_thread_state = TS_STARTING;
+  int res = my_thread_create(&m_thread, &connection_attrib, Ndb_component_run_C,
+                             this);
 
-  if (res == 0)
-  {
-    while (m_thread_state == TS_STARTING)
-    {
+  if (res == 0) {
+    while (m_thread_state == TS_STARTING) {
       mysql_cond_wait(&m_start_stop_cond, &m_start_stop_mutex);
     }
     mysql_mutex_unlock(&m_start_stop_mutex);
@@ -93,13 +76,10 @@ Ndb_component::start()
   return res;
 }
 
-void
-Ndb_component::run_impl()
-{
+void Ndb_component::run_impl() {
   mysql_mutex_lock(&m_start_stop_mutex);
-  if (m_thread_state == TS_STARTING)
-  {
-    m_thread_state= TS_RUNNING;
+  if (m_thread_state == TS_STARTING) {
+    m_thread_state = TS_RUNNING;
     mysql_cond_signal(&m_start_stop_cond);
     mysql_mutex_unlock(&m_start_stop_mutex);
     do_run();
@@ -110,9 +90,7 @@ Ndb_component::run_impl()
   mysql_mutex_unlock(&m_start_stop_mutex);
 }
 
-bool
-Ndb_component::is_stop_requested()
-{
+bool Ndb_component::is_stop_requested() {
   bool res = false;
   mysql_mutex_lock(&m_start_stop_mutex);
   res = m_thread_state != TS_RUNNING;
@@ -120,18 +98,14 @@ Ndb_component::is_stop_requested()
   return res;
 }
 
-int
-Ndb_component::stop()
-{
+int Ndb_component::stop() {
   log_info("Stop");
   mysql_mutex_lock(&m_start_stop_mutex);
-  assert(m_thread_state == TS_RUNNING ||
-         m_thread_state == TS_STOPPING ||
+  assert(m_thread_state == TS_RUNNING || m_thread_state == TS_STOPPING ||
          m_thread_state == TS_STOPPED);
 
-  if (m_thread_state == TS_RUNNING)
-  {
-    m_thread_state= TS_STOPPING;
+  if (m_thread_state == TS_RUNNING) {
+    m_thread_state = TS_STOPPING;
   }
 
   // Give subclass a call, should wake itself up to quickly
@@ -143,10 +117,8 @@ Ndb_component::stop()
   do_wakeup();
   mysql_mutex_lock(&m_start_stop_mutex);
 
-  if (m_thread_state == TS_STOPPING)
-  {
-    while (m_thread_state != TS_STOPPED)
-    {
+  if (m_thread_state == TS_STOPPING) {
+    while (m_thread_state != TS_STOPPED) {
       mysql_cond_signal(&m_start_stop_cond);
       mysql_cond_wait(&m_start_stop_cond, &m_start_stop_mutex);
     }
@@ -157,18 +129,14 @@ Ndb_component::stop()
   return 0;
 }
 
-int
-Ndb_component::deinit()
-{
+int Ndb_component::deinit() {
   assert(m_thread_state == TS_STOPPED);
   mysql_mutex_destroy(&m_start_stop_mutex);
   mysql_cond_destroy(&m_start_stop_cond);
   return do_deinit();
 }
 
-
-void Ndb_component::set_server_started()
-{
+void Ndb_component::set_server_started() {
   mysql_mutex_lock(&m_start_stop_mutex);
 
   // Can only transition to "server started" once
@@ -179,8 +147,7 @@ void Ndb_component::set_server_started()
   mysql_mutex_unlock(&m_start_stop_mutex);
 }
 
-bool Ndb_component::is_server_started()
-{
+bool Ndb_component::is_server_started() {
   bool server_started;
   mysql_mutex_lock(&m_start_stop_mutex);
   server_started = m_server_started;
@@ -188,23 +155,19 @@ bool Ndb_component::is_server_started()
   return server_started;
 }
 
-bool Ndb_component::wait_for_server_started(void)
-{
+bool Ndb_component::wait_for_server_started(void) {
   log_verbose(1, "Wait for server start");
 
   mysql_mutex_lock(&m_start_stop_mutex);
-  while (!m_server_started)
-  {
+  while (!m_server_started) {
     // Wait max one second before checking again if server has been
     // started or shutdown has been requested
     struct timespec abstime;
     set_timespec(&abstime, 1);
-    mysql_cond_timedwait(&m_start_stop_cond, &m_start_stop_mutex,
-                         &abstime);
+    mysql_cond_timedwait(&m_start_stop_cond, &m_start_stop_mutex, &abstime);
 
     // Has shutdown been requested
-    if (m_thread_state != TS_RUNNING)
-    {
+    if (m_thread_state != TS_RUNNING) {
       mysql_mutex_unlock(&m_start_stop_mutex);
       return false;
     }
@@ -216,16 +179,12 @@ bool Ndb_component::wait_for_server_started(void)
   return true;
 }
 
-
 #include "storage/ndb/plugin/ndb_log.h"
 
-
-void Ndb_component::log_verbose(unsigned verbose_level,
-                                const char *fmt, ...) const
-{
+void Ndb_component::log_verbose(unsigned verbose_level, const char *fmt,
+                                ...) const {
   // Print message only if verbose level is set high enough
-  if (ndb_log_get_verbose_level() < verbose_level)
-    return;
+  if (ndb_log_get_verbose_level() < verbose_level) return;
 
   va_list args;
   va_start(args, fmt);
@@ -233,27 +192,21 @@ void Ndb_component::log_verbose(unsigned verbose_level,
   va_end(args);
 }
 
-
-void Ndb_component::log_error(const char *fmt, ...) const
-{
+void Ndb_component::log_error(const char *fmt, ...) const {
   va_list args;
   va_start(args, fmt);
   ndb_log_print(NDB_LOG_ERROR_LEVEL, m_name, fmt, args);
   va_end(args);
 }
 
-
-void Ndb_component::log_warning(const char *fmt, ...) const
-{
+void Ndb_component::log_warning(const char *fmt, ...) const {
   va_list args;
   va_start(args, fmt);
   ndb_log_print(NDB_LOG_WARNING_LEVEL, m_name, fmt, args);
   va_end(args);
 }
 
-
-void Ndb_component::log_info(const char *fmt, ...) const
-{
+void Ndb_component::log_info(const char *fmt, ...) const {
   va_list args;
   va_start(args, fmt);
   ndb_log_print(NDB_LOG_INFORMATION_LEVEL, m_name, fmt, args);

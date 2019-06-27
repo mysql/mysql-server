@@ -66,8 +66,8 @@
 #include "sql/lock.h"  // Tablespace_hash_set
 #include "sql/log.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"  // mysql_real_data_home
-#include "sql/parse_file.h"   // File_option
+#include "sql/mysqld.h"      // mysql_real_data_home
+#include "sql/parse_file.h"  // File_option
 #include "sql/partition_element.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/psi_memory_key.h"  // key_memory_TABLE

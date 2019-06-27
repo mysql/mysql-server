@@ -32,13 +32,13 @@
 const std::string Ndb_apply_status_table::DB_NAME = "mysql";
 const std::string Ndb_apply_status_table::TABLE_NAME = "ndb_apply_status";
 
-static const char* COL_SERVER_ID = "server_id";
-static const char* COL_EPOCH = "epoch";
-static const char* COL_LOG_NAME = "log_name";
-static const char* COL_START_POS = "start_pos";
-static const char* COL_END_POS = "end_pos";
+static const char *COL_SERVER_ID = "server_id";
+static const char *COL_EPOCH = "epoch";
+static const char *COL_LOG_NAME = "log_name";
+static const char *COL_START_POS = "start_pos";
+static const char *COL_END_POS = "end_pos";
 
-Ndb_apply_status_table::Ndb_apply_status_table(Thd_ndb* thd_ndb)
+Ndb_apply_status_table::Ndb_apply_status_table(Thd_ndb *thd_ndb)
     : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, false) {}
 
 Ndb_apply_status_table::~Ndb_apply_status_table() {}
@@ -173,23 +173,20 @@ bool Ndb_apply_status_table::define_table_ndb(NdbDictionary::Table &new_table,
     if (!define_table_add_column(new_table, col_end_pos)) return false;
   }
 
-  (void)mysql_version; // Only one version can be created
+  (void)mysql_version;  // Only one version can be created
 
   return true;
 }
 
-bool Ndb_apply_status_table::drop_events_in_NDB() const
-{
+bool Ndb_apply_status_table::drop_events_in_NDB() const {
   // Drop the default event
-  if (!drop_event_in_NDB("REPL$mysql/ndb_apply_status"))
-    return false;
+  if (!drop_event_in_NDB("REPL$mysql/ndb_apply_status")) return false;
   return true;
 }
 
 bool Ndb_apply_status_table::need_upgrade() const { return false; }
 
-std::string Ndb_apply_status_table::define_table_dd() const
-{
+std::string Ndb_apply_status_table::define_table_dd() const {
   std::stringstream ss;
   ss << "CREATE TABLE " << db_name() << "." << table_name() << "(\n";
   ss << "server_id INT UNSIGNED NOT NULL,"
@@ -202,8 +199,8 @@ std::string Ndb_apply_status_table::define_table_dd() const
   return ss.str();
 }
 
-bool Ndb_apply_status_table::is_apply_status_table(const char* db,
-                                                   const char* table_name) {
+bool Ndb_apply_status_table::is_apply_status_table(const char *db,
+                                                   const char *table_name) {
   if (db == Ndb_apply_status_table::DB_NAME &&
       table_name == Ndb_apply_status_table::TABLE_NAME) {
     // This is the NDB table used for apply status information

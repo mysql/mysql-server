@@ -30,14 +30,14 @@
 #include "NdbApi.hpp"
 
 class Ndb_record_layout {
-public:
-  NdbDictionary::RecordSpecification * const record_specs;
+ public:
+  NdbDictionary::RecordSpecification *const record_specs;
   unsigned int record_size;
 
   Ndb_record_layout(int number_of_columns);
   ~Ndb_record_layout();
 
-  void clear();  /* Reset object, allowing it to be reused */
+  void clear(); /* Reset object, allowing it to be reused */
 
   void addColumn(const NdbDictionary::Column *);
 
@@ -54,25 +54,22 @@ public:
 
   /* Getters for nullable columns return false if the stored value is null. */
   bool getValue(const char *data, int idx, unsigned short *value) const;
-  bool getValue(const char *data, int idx,
-                size_t *length, const char **str) const;
+  bool getValue(const char *data, int idx, size_t *length,
+                const char **str) const;
   bool getValue(const char *data, int idx, unsigned int *value) const;
 
-private:
+ private:
   unsigned int m_columns, m_seq;
 };
 
-inline void
-Ndb_record_layout::setNull(int idx, char * data) const {
+inline void Ndb_record_layout::setNull(int idx, char *data) const {
   *(data + record_specs[idx].nullbit_byte_offset) |=
-    (char) (1 << record_specs[idx].nullbit_bit_in_byte);
+      (char)(1 << record_specs[idx].nullbit_bit_in_byte);
 }
 
-inline void
-Ndb_record_layout::setNotNull(int idx, char * data) const {
-  *(data +record_specs[idx].nullbit_byte_offset) &=
-    (char) (0xFF ^ (1 << record_specs[idx].nullbit_bit_in_byte));
+inline void Ndb_record_layout::setNotNull(int idx, char *data) const {
+  *(data + record_specs[idx].nullbit_byte_offset) &=
+      (char)(0xFF ^ (1 << record_specs[idx].nullbit_bit_in_byte));
 }
-
 
 #endif

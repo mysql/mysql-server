@@ -44,15 +44,13 @@ namespace ndb_upgrade {
   @retval true   ON SUCCESS
   @retval false  ON FAILURE
 */
-bool migrate_table_to_dd(THD *thd,
-                         const String_type &schema_name,
+bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                          const String_type &table_name,
-                         const unsigned char* frm_data,
+                         const unsigned char *frm_data,
                          const unsigned int unpacked_len,
                          bool is_fix_view_cols_and_deps);
 
+}  // namespace ndb_upgrade
+}  // namespace dd
 
-} // namespace ndb_upgrade
-} // namespace dd
-
-#endif // NDB_DD_UPGRADE_TABLE_H_INCLUDED
+#endif  // NDB_DD_UPGRADE_TABLE_H_INCLUDED

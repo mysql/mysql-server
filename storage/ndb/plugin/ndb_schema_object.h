@@ -100,7 +100,7 @@ class NDB_SCHEMA_OBJECT {
       std::string m_message;
       Participant() = default;
       Participant(const Participant &) = delete;
-      Participant& operator=(const Participant&) = delete;
+      Participant &operator=(const Participant &) = delete;
     };
     std::unordered_map<uint32, Participant> m_participants;
 
@@ -113,7 +113,7 @@ class NDB_SCHEMA_OBJECT {
   uint decremement_use_count() const;
 
   NDB_SCHEMA_OBJECT() = delete;
-  NDB_SCHEMA_OBJECT(const NDB_SCHEMA_OBJECT&) = delete;
+  NDB_SCHEMA_OBJECT(const NDB_SCHEMA_OBJECT &) = delete;
   NDB_SCHEMA_OBJECT(const char *key, const char *db, const char *name,
                     uint32 id, uint32 version);
   ~NDB_SCHEMA_OBJECT();
@@ -122,10 +122,10 @@ class NDB_SCHEMA_OBJECT {
                                      uint32 result, const char *message) const;
 
   size_t count_completed_participants() const;
- public:
 
-  const char * db() const { return m_db.c_str(); }
-  const char * name() const { return m_name.c_str(); }
+ public:
+  const char *db() const { return m_db.c_str(); }
+  const char *name() const { return m_name.c_str(); }
   uint32 id() const { return m_id; }
   uint32 version() const { return m_version; }
 
@@ -135,7 +135,7 @@ class NDB_SCHEMA_OBJECT {
   // Return current list of waiting participants as human readable string
   std::string waiting_participants_to_string() const;
 
-  std::string to_string(const char* line_separator = "\n") const;
+  std::string to_string(const char *line_separator = "\n") const;
 
   /**
      @brief Initialize the NDB_SCHEMA_OBJECT facility
@@ -172,8 +172,7 @@ class NDB_SCHEMA_OBJECT {
     @return nullptr if NDB_SCHEMA_OBJECT didn't exist
   */
   static NDB_SCHEMA_OBJECT *get(const char *db, const char *table_name,
-                                uint32 id, uint32 version,
-                                bool create = false);
+                                uint32 id, uint32 version, bool create = false);
 
   /**
     @brief Get NDB_SCHEMA_OBJECT by schema operation id
@@ -198,8 +197,7 @@ class NDB_SCHEMA_OBJECT {
 
     @return pointer to existing NDB_SCHEMA_OBJECT
   */
-  static NDB_SCHEMA_OBJECT *get(NDB_SCHEMA_OBJECT* schema_object);
-
+  static NDB_SCHEMA_OBJECT *get(NDB_SCHEMA_OBJECT *schema_object);
 
   /**
      @brief Release NDB_SCHEMA_OBJECT which has been acquired with get()
@@ -219,8 +217,7 @@ class NDB_SCHEMA_OBJECT {
      @brief Add list of nodes to participants
      @param nodes List of nodes to add
    */
-  void register_participants(const std::unordered_set<uint32>& nodes) const;
-
+  void register_participants(const std::unordered_set<uint32> &nodes) const;
 
   /**
      @brief Save the result received from a node
@@ -290,7 +287,7 @@ class NDB_SCHEMA_OBJECT {
      @param result The result to set on the participant
      @param message The message to set on the participant
    */
-  static void fail_all_schema_ops(uint32 result, const char* message);
+  static void fail_all_schema_ops(uint32 result, const char *message);
 
   /**
      @brief Wait until coordinator indicates that all participants has completed

@@ -24,25 +24,21 @@
 
 #include <cstdlib>
 
-
 namespace ndbcluster {
 
-  /**
-   * @brief ndbrequire() aborts the process, when the condition passed evaluates to
-   * false. Unlike assert(), it fails in both debug and release libraries. "ndbrequire"
-   * is contained inside the "ndbcluster" namespace and is supposed to be used only
-   * within ndbcluster code.
-   *
-   * @parma expr the condition to be evaluated.
-   */
-  static inline
-  void ndbrequire(bool expr)
-  {
-    if (unlikely(!expr))
-    {
-      std::abort();
-    }
+/**
+ * @brief ndbrequire() aborts the process, when the condition passed evaluates
+ * to false. Unlike assert(), it fails in both debug and release libraries.
+ * "ndbrequire" is contained inside the "ndbcluster" namespace and is supposed
+ * to be used only within ndbcluster code.
+ *
+ * @parma expr the condition to be evaluated.
+ */
+static inline void ndbrequire(bool expr) {
+  if (unlikely(!expr)) {
+    std::abort();
   }
 }
+}  // namespace ndbcluster
 
 #endif

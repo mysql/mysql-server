@@ -31,28 +31,24 @@
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 // Database name guard for Ndb objects
-struct Ndb_db_guard
-{
-  Ndb_db_guard(class Ndb* ndb) {
+struct Ndb_db_guard {
+  Ndb_db_guard(class Ndb *ndb) {
     this->ndb = ndb;
-    save_db= ndb->getDatabaseName();
+    save_db = ndb->getDatabaseName();
   }
 
-  void restore() {
-    ndb->setDatabaseName(save_db.c_str());
-  }
+  void restore() { ndb->setDatabaseName(save_db.c_str()); }
 
-  ~Ndb_db_guard() {
-    ndb->setDatabaseName(save_db.c_str());
-  }
-private:
-  Ndb* ndb;
+  ~Ndb_db_guard() { ndb->setDatabaseName(save_db.c_str()); }
+
+ private:
+  Ndb *ndb;
   std::string save_db;
 };
 
-const char* fk_split_name(char dst[], const char * src, bool index= false);
+const char *fk_split_name(char dst[], const char *src, bool index = false);
 bool fetch_referenced_tables_from_ndb_dictionary(
-    class THD* thd, const char* schema_name, const char* table_name,
+    class THD *thd, const char *schema_name, const char *table_name,
     std::set<std::pair<std::string, std::string>> &referenced_tables);
 
 #endif

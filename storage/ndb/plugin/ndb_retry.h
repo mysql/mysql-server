@@ -27,9 +27,9 @@
 
 #include <functional>  // std::function
 
-#include "ndbapi/NdbApi.hpp"  // NdbError
-#include "sql/sql_class.h"    // THD
-#include "storage/ndb/plugin/ndb_sleep.h"    // ndb_retry_sleep
+#include "ndbapi/NdbApi.hpp"               // NdbError
+#include "sql/sql_class.h"                 // THD
+#include "storage/ndb/plugin/ndb_sleep.h"  // ndb_retry_sleep
 
 /**
   A wrapper to execute the given std::function instance that uses NdbTransaction
@@ -64,7 +64,7 @@
 */
 template <typename... FunctionArgTypes, typename... FunctionArgs>
 bool ndb_execute_and_retry(
-    Ndb *ndb, const THD *thd, unsigned int retry_sleep, NdbError& last_ndb_err,
+    Ndb *ndb, const THD *thd, unsigned int retry_sleep, NdbError &last_ndb_err,
     std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
         ndb_func,
     FunctionArgs... args) {
@@ -127,7 +127,8 @@ bool ndb_trans_retry(
         ndb_func,
     FunctionArgs... args) {
   return ndb_execute_and_retry<FunctionArgTypes...>(
-      ndb, thd, 30, last_ndb_err, ndb_func, std::forward<FunctionArgs>(args)...);
+      ndb, thd, 30, last_ndb_err, ndb_func,
+      std::forward<FunctionArgs>(args)...);
 }
 
 #endif /* NDB_RETRY_H */

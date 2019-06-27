@@ -29,7 +29,6 @@
 
 #include "my_bitmap.h"
 
-
 /**
   Initialize bitmap using provided buffer.
   @param bitmap     The MY_BITMAP to initialize
@@ -45,12 +44,9 @@
 
 */
 
-template<size_t sz>
-static inline
-void ndb_bitmap_init(MY_BITMAP& bitmap,
-                     my_bitmap_map (&buf)[sz],
-                     uint num_bits)
-{
+template <size_t sz>
+static inline void ndb_bitmap_init(MY_BITMAP &bitmap, my_bitmap_map (&buf)[sz],
+                                   uint num_bits) {
   assert(num_bits > 0);
   assert(bitmap_buffer_size(num_bits) <= (sz * sizeof(my_bitmap_map)));
 
@@ -63,6 +59,6 @@ void ndb_bitmap_init(MY_BITMAP& bitmap,
  * @param bitmap The bitmap to format
  * @return string representation of the bitmap
  */
-std::string ndb_bitmap_to_hex_string(const MY_BITMAP* bitmap);
+std::string ndb_bitmap_to_hex_string(const MY_BITMAP *bitmap);
 
 #endif

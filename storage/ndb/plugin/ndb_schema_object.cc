@@ -37,9 +37,8 @@
 // List keeping track of active NDB_SCHEMA_OBJECTs. The list is used
 // by the schema distribution coordinator to find the correct NDB_SCHEMA_OBJECT
 // in order to communicate with the schema dist client.
-class Ndb_schema_objects
-{
-public:
+class Ndb_schema_objects {
+ public:
   // Nodeid of this node
   uint32 m_own_nodeid{0};
 
@@ -77,10 +76,9 @@ public:
       return nullptr;
     }
 
-    for (const auto entry : m_hash){
-      NDB_SCHEMA_OBJECT* schema_object = entry.second;
-      if (schema_object->schema_op_id() == schema_op_id)
-        return schema_object;
+    for (const auto entry : m_hash) {
+      NDB_SCHEMA_OBJECT *schema_object = entry.second;
+      if (schema_object->schema_op_id() == schema_op_id) return schema_object;
     }
     return nullptr;
   }
@@ -94,11 +92,10 @@ void NDB_SCHEMA_OBJECT::init(uint32 nodeid) {
   active_schema_clients.m_own_nodeid = nodeid;
 }
 
-void NDB_SCHEMA_OBJECT::get_schema_op_ids(std::vector<uint32>& ids)
-{
+void NDB_SCHEMA_OBJECT::get_schema_op_ids(std::vector<uint32> &ids) {
   std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
-  for (const auto entry : active_schema_clients.m_hash){
-    NDB_SCHEMA_OBJECT* schema_object = entry.second;
+  for (const auto entry : active_schema_clients.m_hash) {
+    NDB_SCHEMA_OBJECT *schema_object = entry.second;
     ids.push_back(schema_object->schema_op_id());
   }
 }
@@ -152,8 +149,8 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
                                           const char *table_name, uint32 id,
                                           uint32 version, bool create) {
   DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
-  DBUG_PRINT("enter", ("db: '%s', table_name: '%s', id: %u, version: %u",
-                       db, table_name, id, version));
+  DBUG_PRINT("enter", ("db: '%s', table_name: '%s', id: %u, version: %u", db,
+                       table_name, id, version));
 
   // Build a key on the form "./<db>/<name>_<id>_<version>"
   const std::string key = std::string("./") + db + "/" + table_name + "_" +
@@ -163,8 +160,7 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
   std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
 
   NDB_SCHEMA_OBJECT *ndb_schema_object = active_schema_clients.find(key);
-  if (ndb_schema_object)
-  {
+  if (ndb_schema_object) {
     // Don't allow reuse of existing NDB_SCHEMA_OBJECT when requesting to
     // create, only the Ndb_schema_dist_client will create NDB_SCHEMA_OBJECT
     // and it should wait until previous schema operation with
@@ -192,7 +188,7 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
   DBUG_RETURN(ndb_schema_object);
 }
 
-NDB_SCHEMA_OBJECT* NDB_SCHEMA_OBJECT::get(uint32 nodeid, uint32 schema_op_id) {
+NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(uint32 nodeid, uint32 schema_op_id) {
   DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
   DBUG_PRINT("enter", ("nodeid: %d, schema_op_id: %u", nodeid, schema_op_id));
 
@@ -222,9 +218,7 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(NDB_SCHEMA_OBJECT *schema_object) {
   DBUG_RETURN(schema_object);
 }
 
-void
-NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object)
-{
+void NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object) {
   DBUG_ENTER("NDB_SCHEMA_OBJECT::release");
   DBUG_PRINT("enter", ("key: '%s'", ndb_schema_object->m_key.c_str()));
 
@@ -252,11 +246,10 @@ size_t NDB_SCHEMA_OBJECT::count_active_schema_ops() {
 
 std::string NDB_SCHEMA_OBJECT::waiting_participants_to_string() const {
   std::lock_guard<std::mutex> lock_state(state.m_lock);
-  const char* separator = "";
+  const char *separator = "";
   std::string participants("[");
-  for (const auto& it: state.m_participants){
-    if (it.second.m_completed == true)
-      continue; // Don't show completed
+  for (const auto &it : state.m_participants) {
+    if (it.second.m_completed == true) continue;  // Don't show completed
     participants.append(separator).append(std::to_string(it.first));
     separator = ",";
   }
@@ -264,18 +257,17 @@ std::string NDB_SCHEMA_OBJECT::waiting_participants_to_string() const {
   return participants;
 }
 
-std::string NDB_SCHEMA_OBJECT::to_string(const char* line_separator) const
-{
+std::string NDB_SCHEMA_OBJECT::to_string(const char *line_separator) const {
   std::stringstream ss;
-  ss << "NDB_SCHEMA_OBJECT { " << line_separator
-     << "  '" << m_db <<  "'.'" << m_name << "', " << line_separator
-     << "  id: " << m_id << ", version: " << m_version << ", " << line_separator
+  ss << "NDB_SCHEMA_OBJECT { " << line_separator << "  '" << m_db << "'.'"
+     << m_name << "', " << line_separator << "  id: " << m_id
+     << ", version: " << m_version << ", " << line_separator
      << "  schema_op_id: " << m_schema_op_id << ", " << line_separator;
 
   // Dump state
   std::lock_guard<std::mutex> lock_state(state.m_lock);
   {
-    ss << "  use_count: " <<  state.m_use_count << ", " << line_separator;
+    ss << "  use_count: " << state.m_use_count << ", " << line_separator;
     // Print the participant list
     ss << "  participants: " << state.m_participants.size() << " [ "
        << line_separator;
@@ -298,7 +290,7 @@ std::string NDB_SCHEMA_OBJECT::to_string(const char* line_separator) const
 
 size_t NDB_SCHEMA_OBJECT::count_completed_participants() const {
   size_t count = 0;
-  for (const auto& it : state.m_participants) {
+  for (const auto &it : state.m_participants) {
     const State::Participant &participant = it.second;
     if (participant.m_completed) count++;
   }
@@ -315,8 +307,7 @@ void NDB_SCHEMA_OBJECT::register_participants(
   ndbcluster::ndbrequire(!state.m_coordinator_completed);
 
   // Insert new participants as specified by nodes list
-  for (const uint32 node: nodes)
-    state.m_participants[node];
+  for (const uint32 node : nodes) state.m_participants[node];
 
   // Double check that there are as many participants as nodes
   ndbcluster::ndbrequire(nodes.size() == state.m_participants.size());
@@ -336,7 +327,7 @@ void NDB_SCHEMA_OBJECT::result_received_from_node(
   }
 
   // Mark participant as completed and save result
-  State::Participant& participant = it->second;
+  State::Participant &participant = it->second;
   participant.m_completed = true;
   participant.m_result = result;
   participant.m_message = message;
@@ -347,7 +338,7 @@ void NDB_SCHEMA_OBJECT::result_received_from_nodes(
   std::unique_lock<std::mutex> lock_state(state.m_lock);
 
   // Mark the listed nodes as completed
-  for(auto node : nodes) {
+  for (auto node : nodes) {
     const auto it = state.m_participants.find(node);
     if (it == state.m_participants.end()) {
       // Received reply from node not registered as participant, may happen
@@ -357,7 +348,7 @@ void NDB_SCHEMA_OBJECT::result_received_from_nodes(
     }
 
     // Participant is not in list, mark it as failed
-    State::Participant& participant = it->second;
+    State::Participant &participant = it->second;
     participant.m_completed = true;
     // No result or message provided in old protocol
   }
@@ -371,14 +362,14 @@ bool NDB_SCHEMA_OBJECT::check_all_participants_completed() const {
 void NDB_SCHEMA_OBJECT::fail_participants_not_in_list(
     const std::unordered_set<uint32> &nodes, uint32 result,
     const char *message) const {
-  for (auto& it : state.m_participants) {
+  for (auto &it : state.m_participants) {
     if (nodes.find(it.first) != nodes.end()) {
       // Participant still exist in list
       continue;
     }
 
     // Participant is not in list, mark it as failed
-    State::Participant& participant = it.second;
+    State::Participant &participant = it.second;
     participant.m_completed = true;
     participant.m_result = result;
     participant.m_message = message;
@@ -411,8 +402,8 @@ bool NDB_SCHEMA_OBJECT::check_timeout(int timeout_seconds, uint32 result,
     return false;  // Timeout has not occured
 
   // Mark all participants who hasn't already completed as timedout
-  for (auto& it : state.m_participants) {
-    State::Participant& participant = it.second;
+  for (auto &it : state.m_participants) {
+    State::Participant &participant = it.second;
     if (participant.m_completed) continue;
 
     participant.m_completed = true;
@@ -426,8 +417,8 @@ bool NDB_SCHEMA_OBJECT::check_timeout(int timeout_seconds, uint32 result,
   return true;
 }
 
-void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result, const char* message) const
-{
+void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result,
+                                       const char *message) const {
   std::unique_lock<std::mutex> lock_state(state.m_lock);
 
   if (state.m_participants.size() == 0) {
@@ -437,8 +428,8 @@ void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result, const char* message) const
   }
 
   // Mark all participants who hasn't already completed as failed
-  for (auto& it : state.m_participants) {
-    State::Participant& participant = it.second;
+  for (auto &it : state.m_participants) {
+    State::Participant &participant = it.second;
     if (participant.m_completed) continue;
 
     participant.m_completed = true;
@@ -453,11 +444,11 @@ void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result, const char* message) const
   state.m_coordinator_completed = true;
 }
 
-void NDB_SCHEMA_OBJECT::fail_all_schema_ops(uint32 result, const char* message)
-{
+void NDB_SCHEMA_OBJECT::fail_all_schema_ops(uint32 result,
+                                            const char *message) {
   std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
-  for (const auto entry : active_schema_clients.m_hash){
-    const NDB_SCHEMA_OBJECT* schema_object = entry.second;
+  for (const auto entry : active_schema_clients.m_hash) {
+    const NDB_SCHEMA_OBJECT *schema_object = entry.second;
     schema_object->fail_schema_op(result, message);
   }
 }
@@ -492,7 +483,7 @@ void NDB_SCHEMA_OBJECT::client_get_schema_op_results(
   // Make sure that coordinator has completed
   ndbcluster::ndbrequire(state.m_coordinator_completed);
 
-  for (const auto& it : state.m_participants) {
+  for (const auto &it : state.m_participants) {
     const State::Participant &participant = it.second;
     if (participant.m_result)
       results.push_back({

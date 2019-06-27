@@ -32,14 +32,14 @@
   it's handle
 */
 
-class Ndb_plugin_reference
-{
+class Ndb_plugin_reference {
   plugin_ref plugin;
-public:
+
+ public:
   Ndb_plugin_reference();
 
   bool lock();
-  st_plugin_int* handle() const;
+  st_plugin_int *handle() const;
   ~Ndb_plugin_reference();
 };
 

@@ -34,14 +34,13 @@ class Table;
 /*
   Initialize the binlog part of the ndbcluster plugin
 */
-void ndbcluster_binlog_init(struct handlerton* hton);
+void ndbcluster_binlog_init(struct handlerton *hton);
 
-int ndbcluster_binlog_setup_table(THD* thd, class Ndb* ndb,
-                                  const char* db, const char* table_name,
-                                  const dd::Table* table_def);
+int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
+                                  const char *table_name,
+                                  const dd::Table *table_def);
 
-int ndbcluster_binlog_wait_synch_drop_table(THD* thd,
-                                            struct NDB_SHARE* share);
+int ndbcluster_binlog_wait_synch_drop_table(THD *thd, struct NDB_SHARE *share);
 
 int ndbcluster_binlog_start();
 
@@ -58,14 +57,13 @@ int ndbcluster_binlog_end();
 bool ndb_binlog_is_read_only(void);
 
 /* Prints ndb binlog status string in buf */
-size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
+size_t ndbcluster_show_status_binlog(char *buf, size_t buf_size);
 
 /*
   Called as part of SHOW STATUS or performance_schema
   queries. Returns injector related status variables.
 */
 int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
-
 
 /**
  @brief Validate the blacklist of objects
@@ -97,8 +95,8 @@ bool ndbcluster_binlog_check_logfile_group_async(const std::string &lfg_name);
  @param tablespace_name  The name of tablespace to check. This cannot be empty
  @return true if the workitem was accepted, false if not
 */
-bool
-ndbcluster_binlog_check_tablespace_async(const std::string &tablespace_name);
+bool ndbcluster_binlog_check_tablespace_async(
+    const std::string &tablespace_name);
 
 /*
   Called as part of SHOW STATUS or performance_schema queries. Returns

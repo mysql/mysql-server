@@ -38,7 +38,7 @@
   Accessors
 */
 uint32 ndb_mi_get_master_server_id();
-const char* ndb_mi_get_group_master_log_name();
+const char *ndb_mi_get_group_master_log_name();
 uint64 ndb_mi_get_group_master_log_pos();
 uint64 ndb_mi_get_future_event_relay_log_pos();
 uint64 ndb_mi_get_group_relay_log_pos();

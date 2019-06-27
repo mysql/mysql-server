@@ -25,9 +25,8 @@
 
 #include "sql/handler.h"
 
-class ha_ndbinfo: public handler
-{
-public:
+class ha_ndbinfo : public handler {
+ public:
   ha_ndbinfo(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_ndbinfo() override;
 
@@ -35,12 +34,9 @@ public:
   ulonglong table_flags() const override {
     return HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
   }
-  ulong index_flags(uint, uint, bool) const override {
-    return 0;
-  }
+  ulong index_flags(uint, uint, bool) const override { return 0; }
 
-  int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info,
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
 
   int open(const char *name, int mode, uint test_if_locked,
@@ -78,16 +74,15 @@ public:
     return HA_POS_ERROR;
   }
 
-private:
+ private:
   void unpack_record(uchar *dst_row);
 
   bool is_open(void) const;
-  bool is_closed(void) const { return ! is_open(); }
+  bool is_closed(void) const { return !is_open(); }
 
   bool is_offline(void) const;
 
-  struct ha_ndbinfo_impl& m_impl;
-
+  struct ha_ndbinfo_impl &m_impl;
 };
 
 #endif

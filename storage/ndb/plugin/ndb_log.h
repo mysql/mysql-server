@@ -38,27 +38,23 @@ unsigned ndb_log_get_verbose_level(void);
   NOTE! Messages will always be prefixed with "NDB:" and
   "NDB <prefix>:" if one of the prefix functions are used
 */
-void ndb_log_info(const char* fmt, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+void ndb_log_info(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
-void ndb_log_warning(const char* fmt, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+void ndb_log_warning(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
-void ndb_log_error(const char* fmt, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+void ndb_log_error(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
-void ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
-  MY_ATTRIBUTE((format(printf, 2, 3)));
-
+void ndb_log_verbose(unsigned verbose_level, const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
 enum ndb_log_loglevel {
-   NDB_LOG_ERROR_LEVEL=       0,
-   NDB_LOG_WARNING_LEVEL=     1,
-   NDB_LOG_INFORMATION_LEVEL= 2
+  NDB_LOG_ERROR_LEVEL = 0,
+  NDB_LOG_WARNING_LEVEL = 1,
+  NDB_LOG_INFORMATION_LEVEL = 2
 };
-void ndb_log_print(enum ndb_log_loglevel loglevel,
-                   const char* prefix, const char* fmt, va_list va_args)
-  MY_ATTRIBUTE((format(printf, 3, 0)));
+void ndb_log_print(enum ndb_log_loglevel loglevel, const char *prefix,
+                   const char *fmt, va_list va_args)
+    MY_ATTRIBUTE((format(printf, 3, 0)));
 
 /*
   @brief Write potentially long message to standard error.
@@ -71,7 +67,7 @@ void ndb_log_print(enum ndb_log_loglevel loglevel,
   @param[in]  fmt    printf-like format string
   @param[in]  ...    Variable arguments matching format string
 */
-void ndb_log_error_dump(const char* fmt, ...)
+void ndb_log_error_dump(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /*

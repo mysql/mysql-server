@@ -199,12 +199,9 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
  * Determine if a specific column type is represented in a format which is
  * sensitive to the endian format of the underlying platform.
  */
-static bool
-is_endian_sensible_type(const Field *field)
-{
+static bool is_endian_sensible_type(const Field *field) {
   const enum_field_types type = field->real_type();
-  switch(type)
-  {
+  switch (type) {
     // Most numerics are endian sensible, note the int24 though.
     // Note: Enum dont have its own type, represented as an int.
     case MYSQL_TYPE_SHORT:
@@ -272,21 +269,20 @@ NdbQuery *ndb_pushed_join::make_query_instance(
     for (uint i = 0; i < outer_fields; i++) {
       Field *field = m_referred_fields[i];
       DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
-      uchar* raw = field->ptr;
+      uchar *raw = field->ptr;
 
 #ifdef WORDS_BIGENDIAN
-      if (field->table->s->db_low_byte_first && is_endian_sensible_type(field))
-      {
+      if (field->table->s->db_low_byte_first &&
+          is_endian_sensible_type(field)) {
         const uint32 field_length = field->pack_length();
-        raw = static_cast<uchar*>(my_alloca(field_length));
+        raw = static_cast<uchar *>(my_alloca(field_length));
 
         // Byte order is swapped to get the correct endian format.
-        const uchar *last = field->ptr+field_length;
-        for (uint pos = 0; pos < field_length; pos++)
-          raw[pos] = *(--last);
+        const uchar *last = field->ptr + field_length;
+        for (uint pos = 0; pos < field_length; pos++) raw[pos] = *(--last);
       }
 #else
-      //Little endian platforms are expected to be only 'low_byte_first'
+      // Little endian platforms are expected to be only 'low_byte_first'
       DBUG_ASSERT(field->table->s->db_low_byte_first);
 #endif
 

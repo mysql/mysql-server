@@ -25,19 +25,17 @@
 #ifndef NDB_SERVER_HOOKS_H
 #define NDB_SERVER_HOOKS_H
 
+class Ndb_server_hooks {
+  using hook_t = int(void *);
 
-class Ndb_server_hooks
-{
-  using hook_t = int (void*);
+  struct Server_state_observer *m_server_state_observer = nullptr;
+  struct Binlog_relay_IO_observer *m_binlog_relay_io_observer = nullptr;
 
-  struct Server_state_observer* m_server_state_observer = nullptr;
-  struct Binlog_relay_IO_observer* m_binlog_relay_io_observer = nullptr;
-
-public:
+ public:
   ~Ndb_server_hooks();
 
-  bool register_server_started(hook_t*);
-  bool register_applier_start(hook_t*);
+  bool register_server_started(hook_t *);
+  bool register_applier_start(hook_t *);
   void unregister_all(void);
 };
 

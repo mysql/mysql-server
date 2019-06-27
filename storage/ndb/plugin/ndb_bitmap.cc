@@ -31,7 +31,7 @@ std::string ndb_bitmap_to_hex_string(const MY_BITMAP *bitmap) {
   std::ostringstream os;
   os << "{";
 
-  const char* separator = "";
+  const char *separator = "";
   // The MY_BITMAP buffer size is always rounded up to 32 bit words, print
   // word by word
   for (size_t i = no_words_in_map(bitmap); i-- > 0;) {

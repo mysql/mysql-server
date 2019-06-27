@@ -38,51 +38,41 @@ struct key_range;
 struct TABLE;
 class Ndb_item;
 
-class ha_ndbcluster_cond
-{
-public:
+class ha_ndbcluster_cond {
+ public:
   ha_ndbcluster_cond();
   ~ha_ndbcluster_cond();
 
-  const Item *cond_push(const Item *cond, 
-                        TABLE *table, const NdbDictionary::Table *ndb_table,
-                        bool other_tbls_ok,
-                        Item *&pushed_cond);
+  const Item *cond_push(const Item *cond, TABLE *table,
+                        const NdbDictionary::Table *ndb_table,
+                        bool other_tbls_ok, Item *&pushed_cond);
 
   void cond_clear();
-  int generate_scan_filter_from_cond(NdbScanFilter& filter);
+  int generate_scan_filter_from_cond(NdbScanFilter &filter);
 
-  static
-  int generate_scan_filter_from_key(NdbScanFilter& filter,
-                                    const class KEY* key_info,
-                                    const key_range *start_key,
-                                    const key_range *end_key);
+  static int generate_scan_filter_from_key(NdbScanFilter &filter,
+                                           const class KEY *key_info,
+                                           const key_range *start_key,
+                                           const key_range *end_key);
 
   // Get a possibly pre-generated Interpreter code for the pushed condition
-  const NdbInterpretedCode& get_interpreter_code()
-  {
+  const NdbInterpretedCode &get_interpreter_code() {
     return m_scan_filter_code;
   }
 
   void set_condition(const Item *cond);
-  bool check_condition() const
-  {
+  bool check_condition() const {
     return (m_unpushed_cond == nullptr || eval_condition());
   }
 
   static void add_read_set(TABLE *table, const Item *cond);
-  void add_read_set(TABLE *table)
-  {
-    add_read_set(table, m_unpushed_cond);
-  }
+  void add_read_set(TABLE *table) { add_read_set(table, m_unpushed_cond); }
 
-private:
+ private:
   int build_scan_filter_predicate(List_iterator<const Ndb_item> &cond,
-                                  NdbScanFilter* filter,
-                                  bool negated) const;
+                                  NdbScanFilter *filter, bool negated) const;
   int build_scan_filter_group(List_iterator<const Ndb_item> &cond,
-                              NdbScanFilter* filter,
-                              bool negated) const;
+                              NdbScanFilter *filter, bool negated) const;
 
   bool eval_condition() const;
 

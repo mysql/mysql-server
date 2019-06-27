@@ -29,7 +29,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
 
-extern "C" void * Ndb_component_run_C(void *);
+extern "C" void *Ndb_component_run_C(void *);
 
 /**
  * Baseclass encapsulating the different components
@@ -40,9 +40,8 @@ extern "C" void * Ndb_component_run_C(void *);
  * component.
  */
 
-class Ndb_component
-{
-public:
+class Ndb_component {
+ public:
   virtual int init();
   virtual int start();
   virtual int stop();
@@ -55,7 +54,7 @@ public:
   */
   void set_server_started();
 
-protected:
+ protected:
   /*
     Check if the server has started. This checks if the Ndb_component
     has been informed that the server has started.
@@ -65,7 +64,7 @@ protected:
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own
    */
-  Ndb_component(const char* name);
+  Ndb_component(const char *name);
   virtual ~Ndb_component();
 
   /**
@@ -95,15 +94,15 @@ protected:
    */
   bool is_stop_requested();
 
-protected:
-  void log_verbose(unsigned verbose_level, const char* fmt, ...)
-    const MY_ATTRIBUTE((format(printf, 3, 4)));
+ protected:
+  void log_verbose(unsigned verbose_level, const char *fmt, ...) const
+      MY_ATTRIBUTE((format(printf, 3, 4)));
   void log_error(const char *fmt, ...) const
-    MY_ATTRIBUTE((format(printf, 2, 3)));
+      MY_ATTRIBUTE((format(printf, 2, 3)));
   void log_warning(const char *fmt, ...) const
-    MY_ATTRIBUTE((format(printf, 2, 3)));
+      MY_ATTRIBUTE((format(printf, 2, 3)));
   void log_info(const char *fmt, ...) const
-    MY_ATTRIBUTE((format(printf, 2, 3)));
+      MY_ATTRIBUTE((format(printf, 2, 3)));
 
   /*
     Wait for the server started. The Ndb_component(and its thread(s))
@@ -114,28 +113,26 @@ protected:
    */
   bool wait_for_server_started(void);
 
-private:
-
-  enum ThreadState
-  {
-    TS_UNINIT   = 0,
-    TS_INIT     = 1,
+ private:
+  enum ThreadState {
+    TS_UNINIT = 0,
+    TS_INIT = 1,
     TS_STARTING = 2,
-    TS_RUNNING  = 3,
+    TS_RUNNING = 3,
     TS_STOPPING = 4,
-    TS_STOPPED  = 5
+    TS_STOPPED = 5
   };
 
   ThreadState m_thread_state;
   my_thread_handle m_thread;
   mysql_mutex_t m_start_stop_mutex;
   mysql_cond_t m_start_stop_cond;
-  bool m_server_started; // Protected by m_start_stop_mutex
+  bool m_server_started;  // Protected by m_start_stop_mutex
 
-  const char* m_name;
+  const char *m_name;
 
   void run_impl();
-  friend void * Ndb_component_run_C(void *);
+  friend void *Ndb_component_run_C(void *);
 };
 
 #endif

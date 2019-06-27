@@ -28,7 +28,6 @@
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
-
 /**
   Split the given internal ndb object name into usable format.
   The object maybe a table, index or a foreign key.
@@ -43,9 +42,7 @@
   @return               On success, the actual name of the table, index or
                         the FK is returned.
 */
-const char *
-fk_split_name(char dst[], const char * src, bool index)
-{
+const char *fk_split_name(char dst[], const char *src, bool index) {
   DBUG_PRINT("info", ("fk_split_name: %s index=%d", src, index));
 
   /**
@@ -53,17 +50,15 @@ fk_split_name(char dst[], const char * src, bool index)
    *
    * Store result in dst
    */
-  char * dstptr = dst;
-  const char * save = src;
-  while (src[0] != 0 && src[0] != '/')
-  {
-    * dstptr = * src;
+  char *dstptr = dst;
+  const char *save = src;
+  while (src[0] != 0 && src[0] != '/') {
+    *dstptr = *src;
     dstptr++;
     src++;
   }
 
-  if (src[0] == 0)
-  {
+  if (src[0] == 0) {
     /**
      * No '/' found
      *  set db to ''
@@ -79,12 +74,11 @@ fk_split_name(char dst[], const char * src, bool index)
 
   assert(src[0] == '/');
   src++;
-  * dstptr = 0;
+  *dstptr = 0;
   dstptr++;
 
   // Skip over catalog (not implemented)
-  while (src[0] != '/')
-  {
+  while (src[0] != '/') {
     src++;
   }
 
@@ -94,10 +88,8 @@ fk_split_name(char dst[], const char * src, bool index)
   /**
    * Indexes contains an extra /
    */
-  if (index)
-  {
-    while (src[0] != '/')
-    {
+  if (index) {
+    while (src[0] != '/') {
       src++;
     }
     assert(src[0] == '/');
@@ -107,7 +99,6 @@ fk_split_name(char dst[], const char * src, bool index)
   DBUG_PRINT("info", ("fk_split_name: %s,%s", dst, dstptr));
   return dstptr;
 }
-
 
 /**
   Fetch all tables that are referenced by the given table as a part of a
@@ -123,62 +114,51 @@ fk_split_name(char dst[], const char * src, bool index)
   @return      true               On success
                false              On failure
 */
-bool
-fetch_referenced_tables_from_ndb_dictionary(
-    THD* thd, const char* schema_name, const char* table_name,
-    std::set<std::pair<std::string, std::string>> &referenced_tables)
-{
+bool fetch_referenced_tables_from_ndb_dictionary(
+    THD *thd, const char *schema_name, const char *table_name,
+    std::set<std::pair<std::string, std::string>> &referenced_tables) {
   DBUG_ENTER("fetch_referenced_tables_from_ndb_dictionary");
-  Thd_ndb* thd_ndb = get_thd_ndb(thd);
-  Ndb* ndb = thd_ndb->ndb;
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  Ndb *ndb = thd_ndb->ndb;
 
   // save db
   Ndb_db_guard db_guard(ndb);
-  if (ndb->setDatabaseName(schema_name) != 0)
-  {
-    DBUG_PRINT("error", ("Error setting database '%s'. Error : %s",
-                         schema_name, ndb->getNdbError().message));
+  if (ndb->setDatabaseName(schema_name) != 0) {
+    DBUG_PRINT("error", ("Error setting database '%s'. Error : %s", schema_name,
+                         ndb->getNdbError().message));
     DBUG_RETURN(false);
   }
 
-  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
   Ndb_table_guard tab_guard(dict, table_name);
-  const NdbDictionary::Table *table= tab_guard.get_table();
-  if (table == NULL)
-  {
+  const NdbDictionary::Table *table = tab_guard.get_table();
+  if (table == NULL) {
     DBUG_PRINT("error", ("Unable to load table '%s.%s' from ndb. Error : %s",
-                         schema_name, table_name,
-                         dict->getNdbError().message));
+                         schema_name, table_name, dict->getNdbError().message));
     DBUG_RETURN(false);
   }
 
   NdbDictionary::Dictionary::List obj_list;
-  if (dict->listDependentObjects(obj_list, *table) != 0)
-  {
+  if (dict->listDependentObjects(obj_list, *table) != 0) {
     DBUG_PRINT("error", ("Unable to list dependents of '%s.%s'. Error : %s",
-                         schema_name, table_name,
-                         dict->getNdbError().message));
+                         schema_name, table_name, dict->getNdbError().message));
     DBUG_RETURN(false);
   }
   DBUG_PRINT("info", ("found %u dependent objects", obj_list.count));
 
-  for (unsigned i = 0; i < obj_list.count; i++)
-  {
-    const NdbDictionary::Dictionary::List::Element &element=
+  for (unsigned i = 0; i < obj_list.count; i++) {
+    const NdbDictionary::Dictionary::List::Element &element =
         obj_list.elements[i];
-    if (element.type != NdbDictionary::Object::ForeignKey)
-    {
-      DBUG_PRINT("info", ("skip non-FK '%s' type %d",
-                          element.name, element.type));
+    if (element.type != NdbDictionary::Object::ForeignKey) {
+      DBUG_PRINT("info",
+                 ("skip non-FK '%s' type %d", element.name, element.type));
       continue;
     }
 
     NdbDictionary::ForeignKey fk;
-    if (dict->getForeignKey(fk, element.name) != 0)
-    {
+    if (dict->getForeignKey(fk, element.name) != 0) {
       DBUG_PRINT("error", ("Unable to fetch foreign key '%s'. Error : %s",
-                           element.name,
-                           dict->getNdbError().message));
+                           element.name, dict->getNdbError().message));
       DBUG_RETURN(false);
     }
 
@@ -186,15 +166,14 @@ fetch_referenced_tables_from_ndb_dictionary(
     const char *parent_name = fk_split_name(parent_db, fk.getParentTable());
 
     if (strcmp(parent_db, schema_name) == 0 &&
-        strcmp(parent_name, table_name) == 0)
-    {
+        strcmp(parent_name, table_name) == 0) {
       // Given table is the parent of this FK. Skip adding.
       DBUG_PRINT("info", ("skip FK '%s'", element.name));
       continue;
     }
 
-    DBUG_PRINT("info", ("Adding referenced tables '%s.%s'",
-                        parent_db, parent_name));
+    DBUG_PRINT("info",
+               ("Adding referenced tables '%s.%s'", parent_db, parent_name));
     referenced_tables.insert(
         std::pair<std::string, std::string>(parent_db, parent_name));
   }
