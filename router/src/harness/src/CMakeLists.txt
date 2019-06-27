@@ -192,6 +192,7 @@ IF(WIN32)
    )
 ENDIF()
 
+ADD_INSTALL_RPATH_FOR_OPENSSL(harness-library)
 SET_PATH_TO_SSL(harness-library ${CMAKE_BINARY_DIR}/library_output_directory)
 
 # don't install headers until a) a final destination is found and b) API is stable

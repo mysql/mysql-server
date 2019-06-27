@@ -55,6 +55,7 @@ SET_TARGET_PROPERTIES(http_common PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 
 ## the rpath for the bundled openssl
+ADD_INSTALL_RPATH_FOR_OPENSSL(http_common)
 SET_PATH_TO_SSL(http_common ${CMAKE_BINARY_DIR}/library_output_directory)
 
 INSTALL(TARGETS http_common

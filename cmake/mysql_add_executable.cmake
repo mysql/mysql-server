@@ -41,34 +41,6 @@
 
 INCLUDE(cmake_parse_arguments)
 
-FUNCTION(SET_PATH_TO_SSL target target_out_dir)
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    IF(BUILD_IS_SINGLE_CONFIG)
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-              "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-              "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${target_out_dir}
-      )
-    ELSE()
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-            "${CRYPTO_VERSION}"
-            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-            "${OPENSSL_VERSION}"
-            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${target_out_dir}/${CMAKE_CFG_INTDIR}
-      )
-    ENDIF()
-  ENDIF()
-ENDFUNCTION()
-
 FUNCTION (MYSQL_ADD_EXECUTABLE)
   # Pass-through arguments for ADD_EXECUTABLE
   MYSQL_PARSE_ARGUMENTS(ARG
@@ -128,9 +100,7 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
     ELSE()
       SET(COMP COMPONENT Client)
     ENDIF()
-    IF(LINUX_INSTALL_RPATH_ORIGIN)
-      ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
-    ENDIF()
+    ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${ARG_DESTINATION} ${COMP})
 #   MESSAGE(STATUS "INSTALL ${target} ${ARG_DESTINATION}")
   ENDIF()

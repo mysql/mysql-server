@@ -312,6 +312,27 @@ MACRO(ADD_INSTALL_RPATH TARGET VALUE)
 ENDMACRO()
 
 
+# For standalone Linux build and -DWITH_SSL=</path/to/custom/openssl>
+# SSL libraries are installed in lib/private
+# We need to extend INSTALL_RPATH with location of SSL libraries:
+# executable  in bin        rpath $ORIGIN/../lib/private
+# plugins     in lib/plugin rpath $ORIGIN/../private
+# shared libs in lib        rpath $ORIGIN/private
+MACRO(ADD_INSTALL_RPATH_FOR_OPENSSL TARGET)
+  IF(LINUX_INSTALL_RPATH_ORIGIN)
+    GET_TARGET_PROPERTY(TARGET_TYPE_${TARGET} ${TARGET} TYPE)
+    IF(TARGET_TYPE_${TARGET} STREQUAL "EXECUTABLE")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "MODULE_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../private")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "SHARED_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/private")
+    ELSE()
+      MESSAGE(FATAL_ERROR "unknown type ${TARGET_TYPE_${TARGET}} for ${TARGET}")
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
 # For APPLE: set INSTALL_RPATH, and adjust path dependecy for libprotobuf.
 # Use 'otool -L' to inspect results.
 # For UNIX: extend INSTALL_RPATH with libprotobuf location.
@@ -335,3 +356,32 @@ MACRO(ADD_INSTALL_RPATH_FOR_PROTOBUF TARGET)
     ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
   ENDIF()
 ENDMACRO()
+
+# For APPLE: adjust path dependecy for SSL shared libraries.
+FUNCTION(SET_PATH_TO_SSL target target_out_dir)
+  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+    IF(BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+              "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
+              $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+              "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
+              $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY ${target_out_dir}
+      )
+    ELSE()
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+            "${CRYPTO_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+            "${OPENSSL_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY ${target_out_dir}/${CMAKE_CFG_INTDIR}
+      )
+    ENDIF()
+  ENDIF()
+ENDFUNCTION()

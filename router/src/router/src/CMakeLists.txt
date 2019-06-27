@@ -101,6 +101,7 @@ ELSE()
   )
 ENDIF()
 
+ADD_INSTALL_RPATH_FOR_OPENSSL(router_lib)
 SET_PATH_TO_SSL(router_lib ${CMAKE_BINARY_DIR}/library_output_directory)
 
 MYSQL_ADD_EXECUTABLE(${MYSQL_ROUTER_TARGET} ${source_files} COMPONENT Router)

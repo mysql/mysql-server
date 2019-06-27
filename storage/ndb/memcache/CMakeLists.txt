@@ -307,9 +307,9 @@ ENDIF()
 SET_TARGET_PROPERTIES(ndb_engine PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 
-IF(LINUX_INSTALL_RPATH_ORIGIN)
-  SET_PROPERTY(TARGET ndb_engine PROPERTY INSTALL_RPATH "\$ORIGIN/")
-ENDIF()
+# ndb_engine is a MODULE (plugin) but has DESTINATION lib ??
+# ADD_INSTALL_RPATH_FOR_OPENSSL(ndb_engine)
+ADD_INSTALL_RPATH(ndb_engine "\$ORIGIN/private")
 
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Turn off array-bounds warning in ndb_engine.c wich occurs
