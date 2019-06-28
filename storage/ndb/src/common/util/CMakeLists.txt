@@ -83,6 +83,6 @@ ENDFOREACH(tests)
 NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 
 FOREACH(tests
-        NdbPack mysql_utils_test NdbSqlUtil LogBuffer testSimpleProperties)
+        NdbPack mysql_utils_test NdbSqlUtil LogBuffer testSimpleProperties testProp)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral ndbportlib)
 ENDFOREACH(tests)

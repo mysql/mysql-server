@@ -34,7 +34,8 @@
 #include <ndb_opts.h>
 #include <ndb_version.h>
 #include <ConfigObject.hpp>
-
+#include <unordered_map>
+#include <string>
 
 #include <portlib/ndb_localtime.h>
 
@@ -5696,14 +5697,38 @@ checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * host;
   struct in_addr addr;
-  if(ctx.m_currentSection->get(data, &host) && strlen(host) && 
-     Ndb_getInAddr(&addr, host)){
-    ctx.reportError("Unable to lookup/illegal hostname %s"
-		    " - [%s] starting at line: %d",
-		    host, ctx.fname, ctx.m_sectionLineno);
-    return false;
+  static std::unordered_map<std::string, bool> host_map;
+  bool ret = true;
+
+  if (ctx.m_currentSection->get(data, &host) && (strlen(host) > 0))
+  {
+    /**
+     * First an attempt is made to look into the hash table for a hostname and
+     * only if it's not found, we call Ndb_getInAddr().
+     */
+    auto ent = host_map.find(host);
+    if (ent != host_map.end())
+    {
+      const bool valid_host = ent->second;
+      ret = valid_host;
+    }
+    else if (Ndb_getInAddr(&addr, host) == 0)
+    {
+      host_map[host] = true;
+    }
+    else
+    {
+      host_map[host] = false;
+      ret = false;
+    }
   }
-  return true;
+  if (!ret)
+  {
+    ctx.reportError("Unable to lookup/illegal hostname %s"
+              " - [%s] starting at line: %d",
+              host, ctx.fname, ctx.m_sectionLineno);
+  }
+  return ret;
 }
 
 static
