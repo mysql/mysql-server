@@ -612,8 +612,13 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
     # We disable inlining for stack trace readability.
     # With optimization we may get some warnings, so we switch off -Werror
     IF(${ADD_OPTIMIZATION})
-      STRING_APPEND(CMAKE_C_FLAGS   " -O1 -fno-inline")
-      STRING_APPEND(CMAKE_CXX_FLAGS " -O1 -fno-inline")
+      IF(MSVC)
+        STRING_APPEND(CMAKE_C_FLAGS   " -O1 /Ob0")
+        STRING_APPEND(CMAKE_CXX_FLAGS " -O1 /Ob0")
+      ELSE()
+        STRING_APPEND(CMAKE_C_FLAGS   " -O1 -fno-inline")
+        STRING_APPEND(CMAKE_CXX_FLAGS " -O1 -fno-inline")
+      ENDIF()
       IF(NOT SANITIZE_MAINTAINER_MODE)
         SET(MYSQL_MAINTAINER_MODE OFF CACHE BOOL
           "MySQL maintainer-specific development environment" FORCE)
