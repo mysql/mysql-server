@@ -4455,7 +4455,14 @@ int RefIterator<false>::Read() {  // Forward read.
   if (m_first_record_since_init) {
     m_first_record_since_init = false;
 
-    /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
+    /*
+      a = b can never return true if a or b is NULL, so if we're asked
+      to do such a lookup, we can say there won't be a match without even
+      checking the index. This is “late NULLs filtering” (as opposed to
+      “early NULLs filtering”, which propagates the IS NOT NULL constraint
+      further back to the other table so we don't even get the request).
+      See the internals manual for more details.
+     */
     if (m_ref->impossible_null_ref()) {
       DBUG_PRINT("info", ("RefIterator null_rejected"));
       table()->set_no_row();
@@ -4493,6 +4500,19 @@ int RefIterator<true>::Read() {  // Reverse read.
   if (m_first_record_since_init) {
     m_first_record_since_init = false;
 
+    /*
+      a = b can never return true if a or b is NULL, so if we're asked
+      to do such a lookup, we can say there won't be a match without even
+      checking the index. This is “late NULLs filtering” (as opposed to
+      “early NULLs filtering”, which propagates the IS NOT NULL constraint
+      further back to the other table so we don't even get the request).
+      See the internals manual for more details.
+     */
+    if (m_ref->impossible_null_ref()) {
+      DBUG_PRINT("info", ("RefIterator null_rejected"));
+      table()->set_no_row();
+      return -1;
+    }
     if (cp_buffer_from_ref(thd(), table(), m_ref)) {
       table()->set_no_row();
       return -1;
