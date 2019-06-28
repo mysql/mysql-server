@@ -179,7 +179,7 @@ ENDIF()
 # Same with SLES 12, look for gcc 7 there.
 # We need to look for gcc before calling PROJECT below.
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
-MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
+MARK_AS_ADVANCED(WITHOUT_SERVER FORCE_UNSUPPORTED_COMPILER)
 
 # Use 'uname -r' and 'rpm -qf /' to figure out host system.
 # For Docker images we cannot trust uname, so use rpm instead.
@@ -507,11 +507,6 @@ IF(WITH_JEMALLOC)
   STRING_APPEND(CMAKE_CXX_FLAGS " -fno-builtin-realloc -fno-builtin-free")
 ENDIF()
 
-OPTION(DISABLE_SHARED 
- "Don't build shared libraries, compile code as position-dependent" OFF)
-IF(DISABLE_SHARED)
-  MESSAGE("Dynamic plugins are disabled.")
-ENDIF()
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
 OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)

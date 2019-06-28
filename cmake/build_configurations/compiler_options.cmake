@@ -30,7 +30,9 @@ ENDIF()
 IF(SIZEOF_VOIDP EQUAL 8)
   SET(64BIT 1)
 ENDIF()
- 
+
+SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Compiler options
 IF(UNIX)  
 
@@ -51,9 +53,6 @@ IF(UNIX)
     IF(HAVE_C_FLOATING_POINT_FUSED_MADD)
       SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -ffp-contract=off")
     ENDIF()
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
-    ENDIF()
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
     SET(COMMON_CXX_FLAGS               "-std=c++14 -fno-omit-frame-pointer")
@@ -65,23 +64,14 @@ IF(UNIX)
     IF(HAVE_CXX_FLOATING_POINT_FUSED_MADD)
       STRING_APPEND(COMMON_CXX_FLAGS " -ffp-contract=off")
     ENDIF()
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_CXX_FLAGS "-fPIC ")
-    ENDIF()
   ENDIF()
 
   # Default Clang flags
   IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
-    ENDIF()
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     SET(COMMON_CXX_FLAGS               "-std=c++14 -fno-omit-frame-pointer")
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_CXX_FLAGS  "-fPIC ")
-    ENDIF()
   ENDIF()
 
   # Solaris flags
@@ -97,9 +87,7 @@ IF(UNIX)
 
       # Show tags for warnings, so that they can be added to suppression list
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -errtags")
-      IF(NOT DISABLE_SHARED)
-        SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -KPIC")
-      ENDIF()
+
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -nofstore")
       ENDIF()
