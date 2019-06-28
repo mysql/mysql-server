@@ -64,9 +64,9 @@
 /*#########*/
 /* GENERAL */
 /*#########*/
-#define ZVAR_NO_WORD 1
-#define ZVAR_NO_CRESTART_INFO 20
-#define ZVAR_NO_CRESTART_INFO_TO_FILE 21
+#define ZVAR_NO_WORD 0
+#define ZVAR_NO_CRESTART_INFO 1
+#define ZVAR_NO_CRESTART_INFO_TO_FILE 2
 #define ZVALID 1
 #define ZINVALID 2
 
@@ -1486,6 +1486,14 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
+  void unpack_sysfile_format_v1(bool set_max_node_id);
+  void pack_sysfile_format_v1();
+  void unpack_sysfile_format_v2(bool set_max_node_id);
+  void pack_sysfile_format_v2();
+  void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
+  void send_COPY_GCIREQ_data_v2(Signal*, Uint32);
+  void send_START_MECONF_data_v1(Signal*, Uint32);
+  void send_START_MECONF_data_v2(Signal*, Uint32);
   void selectMasterCandidateAndSend(Signal *);
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
@@ -2612,10 +2620,11 @@ private:
 
   void checkStopMe(Signal *, NodeRecordPtr failedNodePtr);
   
-#define DIH_CDATA_SIZE 128
+#define DIH_CDATA_SIZE _SYSFILE_FILE_SIZE
   /**
-   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32
+   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32_v2
    */
+  Uint32 cdata_size_in_words;
   Uint32 cdata[DIH_CDATA_SIZE];       /* TEMPORARY ARRAY VARIABLE */
 
   /**
@@ -2770,9 +2779,12 @@ private:
   RedoStateRep::RedoAlertState get_global_redo_alert_state();
   void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
   bool m_master_lcp_req_lcp_already_completed;
+
+  /* The highest data node id in the cluster. */
+  Uint32 m_max_node_id;
 };
 
-#if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
+#if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)
 #error "cdata is to small compared to Sysfile size"
 #endif
 

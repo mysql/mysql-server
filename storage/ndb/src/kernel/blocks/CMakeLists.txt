@@ -39,7 +39,7 @@ ADD_LIBRARY(ndbblocks STATIC
     cmvmi/Cmvmi.cpp
     dbacc/DbaccInit.cpp dbacc/DbaccMain.cpp
     dbdict/Dbdict.cpp
-    dbdih/DbdihInit.cpp dbdih/DbdihMain.cpp
+    dbdih/DbdihInit.cpp dbdih/DbdihMain.cpp dbdih/Sysfile.cpp
     dblqh/DblqhInit.cpp dblqh/DblqhMain.cpp
     dbtc/DbtcInit.cpp dbtc/DbtcMain.cpp
     dbgdm/DbgdmProxy.cpp

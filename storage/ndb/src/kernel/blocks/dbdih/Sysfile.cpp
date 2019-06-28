@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,57 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef START_ME_HPP
-#define START_ME_HPP
+#include "Sysfile.hpp"
 
-#define JAM_FILE_ID 152
+#define JAM_FILE_ID 512
 
-
-/**
- * This signal is sent...
- *
- * It also contains the Sysfile.
- * Since the Sysfile can be larger than on StartMeConf signal,
- *   there might be more than on of these signals sent before
- *   the entire sysfile is transfered
- *
- */
-class StartMeReq {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdih;
-  
-public:
-  STATIC_CONST( SignalLength = 2 );
-private:
-  
-  Uint32 startingRef;
-  Uint32 startingVersion;
-};
-
-class StartMeConf {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdih;
-  
-public:
-  STATIC_CONST( SignalLength_v1 = 25 );
-  STATIC_CONST( SignalLength_v2 = 2 );
-private:
-  
-  Uint32 startingNodeId;
-  Uint32 startWord;
-  
-  /**
-   * No of free words to carry data
-   */
-  STATIC_CONST( DATA_SIZE = 23 );
-  
-  Uint32 data[DATA_SIZE];
-};
-
-#undef JAM_FILE_ID
-
-#endif
+const char Sysfile::MAGIC_v2[8] = {'N', 'D', 'B', 'S', 'Y', 'S', 'F', '2'};
