@@ -43,9 +43,7 @@ printPREPFAILREQREF(FILE * output,
   if (len == cc->SignalLength_v1)
   {
     fprintf(output, " Nodes: ");
-    static_assert(NODE_ARRAY_SIZE(MAX_NDB_NODES, 1) <= NdbNodeBitmask48::Size,
-                  "");
-    for(int i = 0; i < MAX_NDB_NODES; i++){
+    for(int i = 0; i < MAX_NDB_NODES_v1; i++){
       if(NdbNodeBitmask48::get(cc->theNodes, i)){
         hits++;
         fprintf(output, " %d", i);

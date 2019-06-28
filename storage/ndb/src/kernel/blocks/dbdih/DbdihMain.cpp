@@ -4165,6 +4165,7 @@ void Dbdih::check_for_pause_action(Signal *signal,
     else
     {
       bool found = false;
+      bool found_high_node_id = false;
       NdbNodeBitmask participatingLQH;
       ndbrequire(pauseStart == StartLcpReq::PauseLcpStartSecond);
       ndbrequire(c_pause_lcp_master_state == PAUSE_IN_LCP_COPY_META_DATA);
@@ -4176,8 +4177,9 @@ void Dbdih::check_for_pause_action(Signal *signal,
         {
           jamLine(nodeId);
           participatingLQH.set(nodeId);
-          req->participatingLQH_v1.set(nodeId);
           found = true;
+          if (nodeId >= MAX_NDB_NODES_v1)
+            found_high_node_id = true;
         }
       }
       /**
@@ -4193,6 +4195,7 @@ void Dbdih::check_for_pause_action(Signal *signal,
         lsptr[0].p = participatingLQH.rep.data;
         lsptr[0].sz = participatingLQH.getPackedLengthInWords();
         req->participatingLQH_v1.clear();
+        req->participatingDIH_v1.clear();
         sendSignal(ref, GSN_START_LCP_REQ, signal,
                    StartLcpReq::SignalLength, JBB, lsptr, 1);
       }
@@ -4201,6 +4204,7 @@ void Dbdih::check_for_pause_action(Signal *signal,
         jam();
         req->participatingLQH_v1 = participatingLQH;
         req->participatingDIH_v1.clear();
+        ndbrequire(!found_high_node_id);
         sendSignal(ref, GSN_START_LCP_REQ, signal,
                    StartLcpReq::SignalLength, JBB);
       }

@@ -69,8 +69,6 @@
 #define ndb_master_failure 1
 #define NO_NODE_GROUP int(-1)
 #define FREE_NODE_GROUP 65535
-#define MAX_NDB_NODES 49
-#define MAX_NDB_NODE_GROUPS 48
 
 #define TEST_FRM_DATA_SIZE 14000
 

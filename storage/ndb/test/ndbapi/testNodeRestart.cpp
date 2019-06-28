@@ -962,8 +962,6 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 #define NO_NODE_GROUP int(-1)
-#define MAX_NDB_NODES 49
-#define MAX_NDB_NODE_GROUPS 48
 
 static int numNodeGroups;
 static int numNoNodeGroups;

@@ -4,9 +4,9 @@
 
 --echo "Create nodegroup with out-of-range node ID"
 --error 255
---exec $NDB_MGM --verbose=0 -e "create nodegroup 112,113"
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 147,148"
 --error 255
---exec $NDB_MGM --verbose=0 -e "create nodegroup 4,112"
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 4,147"
 
 --echo "Create nodegroup with in-range but inactive node ID"
 --error 255

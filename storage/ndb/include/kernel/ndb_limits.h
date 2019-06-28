@@ -33,8 +33,9 @@
  * Note that actual value = MAX_NODES - 1,
  *  since NodeId = 0 can not be used
  */
-#define MAX_NDB_NODES 49
-#define MAX_NDB_NODE_GROUPS 48
+#define MAX_NDB_NODES 145
+#define MAX_NDB_NODES_v1 49
+#define MAX_NDB_NODE_GROUPS 72
 #define MAX_NODES     256
 #define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF
@@ -43,7 +44,7 @@
  * IT SHOULD BE (MAX_NDB_NODES - 1).
  * WHEN MAX_NDB_NODE IS CHANGED, IT SHOULD BE CHANGED ALSO
  **************************************************************************/
-#define MAX_DATA_NODE_ID 48
+#define MAX_DATA_NODE_ID 144
 /**************************************************************************
  * IT SHOULD BE (MAX_NODES - 1).
  * WHEN MAX_NODES IS CHANGED, IT SHOULD BE CHANGED ALSO
@@ -131,8 +132,10 @@
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define MAX_NDB_PARTITIONS 240
-#else
+#elif NDB_VERSION_D < NDB_MAKE_VERSION(7,6,8)
 #define MAX_NDB_PARTITIONS 2048
+#else
+#define MAX_NDB_PARTITIONS 8160
 #endif
 
 #define NDB_PARTITION_BITS 16
@@ -257,6 +260,7 @@
  */
 
 #define NDB_MAX_HASHMAP_BUCKETS (3840 * 2 * 3)
+#define NDB_DEFAULT_HASHMAP_MAX_FRAGMENTS 1536
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
@@ -300,7 +304,7 @@
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_FS_RW_PAGES 32
 #else
-#define NDB_FS_RW_PAGES 268
+#define NDB_FS_RW_PAGES 268 * 4
 #endif
 
 /**
@@ -396,7 +400,7 @@ static inline void ndb_limits_constraints()
   NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= MAX_NDB_PARTITIONS);
 
   // The default hashmap should atleast support the maximum default partitioning
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_DEFAULT_HASHMAP_BUCKETS);
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_MAX_HASHMAP_BUCKETS);
 }
 
 #endif

@@ -6101,8 +6101,13 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
                CreateTableRef::TooManyFragments);
 
     char buf[MAX_TAB_NAME_SIZE+1];
+    Uint32 buckets = c_default_hashmap_size;
+    if (partitions > NDB_DEFAULT_HASHMAP_MAX_FRAGMENTS)
+    {
+      buckets = NDB_MAX_HASHMAP_BUCKETS;
+    }
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
-                         c_default_hashmap_size,
+                         buckets,
                          partitions);
     DictObject* dictObj = get_object(buf);
     tabRequire(dictObj && dictObj->m_type == DictTabInfo::HashMap,
@@ -26138,6 +26143,10 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
                                              NDB_DEFAULT_PARTITION_BALANCE,
                                              1);
     char buf[MAX_TAB_NAME_SIZE+1];
+    if (fragments > NDB_DEFAULT_HASHMAP_MAX_FRAGMENTS)
+    {
+      buckets = NDB_MAX_HASHMAP_BUCKETS;
+    }
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
                          buckets,
                          fragments);
@@ -34074,6 +34083,11 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
       return;
     }
 
+    if (impl_req->requestType & CreateHashMapReq::CreateDefault &&
+        fragments > NDB_DEFAULT_HASHMAP_MAX_FRAGMENTS)
+    {
+      buckets = NDB_MAX_HASHMAP_BUCKETS;
+    }
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
                          "DEFAULT-HASHMAP-%u-%u",
                          buckets,

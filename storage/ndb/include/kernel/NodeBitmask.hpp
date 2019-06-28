@@ -59,7 +59,7 @@
  *
  * Note that this is used in a lot of signals
  */
-#define _NDB_NODE_BITMASK_SIZE 2
+#define _NDB_NODE_BITMASK_SIZE 5
 
 /**
  * No of 32 bits words needed to store a node bitmask

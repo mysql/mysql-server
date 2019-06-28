@@ -39,6 +39,7 @@
 #include <NdbTest.hpp>
 #include <NDBT_Stats.hpp>
 #include <NdbLockCpuUtil.h>
+#include <ndb_limits.h>
 
 #define MAX_PARTS 4 
 #define MAX_SEEK 16 
@@ -50,7 +51,7 @@
 #define MAX_EXECUTOR_THREADS 384
 #define MAX_DEFINER_THREADS 32
 #define MAX_REAL_THREADS 416
-#define NDB_MAX_NODES 48
+#define NDB_MAX_NODES (MAX_NDB_NODES - 1)
 #define NDB_MAX_RECEIVE_CPUS 128
 /*
   NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a

@@ -49,8 +49,8 @@ ERROR: node 3 is not a NDB node!
 Request memoryusage from non existing node 17
 ERROR: node 17 is not a NDB node!
 
-Request memoryusage from illegal nodeid 49
-ERROR: illegal nodeid 49!
+Request memoryusage from illegal nodeid 145
+ERROR: illegal nodeid 145!
 
 For the following, we want to be running ndbmtd with multiple
 LQH threads

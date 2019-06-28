@@ -1169,8 +1169,8 @@ private:
    * 1) Bitmask with used nodes
    * 2) Bitmask with nodes failed during op
    */
-  Uint32 m_db_nodes[2];
-  Uint32 m_failed_db_nodes[2];
+  Uint32 m_db_nodes[5];
+  Uint32 m_failed_db_nodes[5];
   
   int report_node_failure(Uint32 id);
 
