@@ -819,6 +819,13 @@ void THD::init(void) {
 
   // This will clear the writeset session history.
   rpl_thd_ctx.dependency_tracker_ctx().set_last_session_sequence_number(0);
+
+  /*
+    This variable is used to temporarily disable the password validation plugin
+    when a RANDOM PASSWORD is generated during SET PASSWORD,CREATE USER or
+    ALTER USER statements.
+  */
+  m_disable_password_validation = false;
 }
 
 void THD::init_query_mem_roots() {

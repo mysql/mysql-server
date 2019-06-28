@@ -38,6 +38,7 @@
 #include <sanitizer/lsan_interface.h>
 #endif
 
+#include "auth/auth_internal.h"
 #include "dur_prop.h"
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
@@ -3510,9 +3511,24 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
       DBUG_ASSERT(lex_var_list->elements == 1);
       DBUG_ASSERT(all_tables == NULL);
-
+      Userhostpassword_list generated_passwords;
       if (!(res = sql_set_variables(thd, lex_var_list, false))) {
-        my_ok(thd);
+        List_iterator_fast<set_var_base> it(*lex_var_list);
+        set_var_base *var;
+        while ((var = it++)) {
+          set_var_password *setpasswd = static_cast<set_var_password *>(var);
+          if (setpasswd->has_generated_password()) {
+            const LEX_USER *user = setpasswd->get_user();
+            generated_passwords.push_back(
+                {std::string(user->user.str, user->user.length),
+                 std::string(user->host.str, user->host.length),
+                 setpasswd->get_generated_password()});
+          }
+        }
+        if (generated_passwords.size() > 0) {
+          if (send_password_result_set(thd, generated_passwords)) goto error;
+        }  // end if generated_passwords
+        if (generated_passwords.size() == 0) my_ok(thd);
       } else {
         // We encountered some sort of error, but no message was sent.
         if (!thd->is_error())
@@ -3708,8 +3724,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
       HA_CREATE_INFO create_info(*lex->create_info);
       if (!(res = mysql_create_user(
                 thd, lex->users_list,
-                create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS, false)))
-        my_ok(thd);
+                create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS, false))) {
+        // OK or result set was already sent.
+      }
+
       break;
     }
     case SQLCOM_DROP_USER: {
@@ -4524,8 +4542,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
 
       /* Conditionally writes to binlog */
-      if (!(res = mysql_alter_user(thd, lex->users_list, lex->drop_if_exists)))
-        my_ok(thd);
+      res = mysql_alter_user(thd, lex->users_list, lex->drop_if_exists);
       break;
     }
     default:
@@ -6687,6 +6704,7 @@ void get_default_definer(THD *thd, LEX_USER *definer) {
   definer->alter_status.account_locked = false;
   definer->alter_status.update_password_require_current =
       Lex_acl_attrib_udyn::DEFAULT;
+  definer->has_password_generator = false;
 }
 
 /**
@@ -6749,7 +6767,7 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user) {
       default_definer->auth.str = user->auth.str;
       default_definer->auth.length = user->auth.length;
       default_definer->alter_status = user->alter_status;
-
+      default_definer->has_password_generator = user->has_password_generator;
       return default_definer;
     }
   }

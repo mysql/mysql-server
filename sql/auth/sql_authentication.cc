@@ -3632,7 +3632,10 @@ bool is_secure_transport(int vio_type) {
 
 static int generate_native_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen) {
-  if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  THD *thd = current_thd;
+  if (!thd->m_disable_password_validation) {
+    if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  }
   /* for empty passwords */
   if (inbuflen == 0) {
     *buflen = 0;
@@ -3690,9 +3693,12 @@ static int generate_sha256_password(char *outbuf, unsigned int *buflen,
       Cached_authentication_plugins::get_plugin_name(PLUGIN_SHA256_PASSWORD),
       Cached_authentication_plugins::get_plugin_name(
           PLUGIN_CACHING_SHA2_PASSWORD));
-  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
-      my_validate_password_policy(inbuf, inbuflen))
-    return 1;
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH) return 1;
+
+  THD *thd = current_thd;
+  if (!thd->m_disable_password_validation) {
+    if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  }
   if (inbuflen == 0) {
     *buflen = 0;
     return 0;

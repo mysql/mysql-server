@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <functional>
+#include <list>
 #include <memory>
 #include <set>
 #include <utility>
@@ -1033,4 +1034,8 @@ using Role_id = Auth_id;
 static constexpr int USER_HOST_BUFF_SIZE =
     HOSTNAME_LENGTH + USERNAME_LENGTH + 2;
 
+void generate_random_password(std::string *password, uint32_t);
+typedef std::list<std::vector<std::string>> Userhostpassword_list;
+bool send_password_result_set(THD *thd,
+                              const Userhostpassword_list &generated_passwords);
 #endif /* AUTH_COMMON_INCLUDED */

@@ -95,6 +95,7 @@
 #include "sql/mysqld.h"
 #include "sql/sql_rewrite.h"
 
+#include <openssl/rand.h>  // RAND_bytes
 /**
   Auxiliary function for constructing a  user list string.
   This function is used for error reporting and logging.
@@ -358,7 +359,8 @@ err:
   return error;
 }
 
-#include "sql/tztime.h"  // Time_zone
+#include "sql/query_result.h"  // Time_zone
+#include "sql/tztime.h"
 
 /**
   Perform credentials history check and update the password history table
@@ -795,15 +797,93 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
   return (0);
 }
 
+char translate_byte_to_password_char(unsigned char c) {
+  static const std::string translation = std::string(
+      "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY"
+      "Z,.-;:_+*!%&/(){}[]<>@");
+  int index = round(((float)c * ((float)(translation.length() - 1) / 255.0)));
+  return translation[index];
+}
+
 /**
-   This function does following:
+  Generates a random password of the length decided by the system variable
+  generated_random_password_length.
+
+  @param[out] password The generated password.
+  @param length The length of the generated password.
+
+*/
+
+void generate_random_password(std::string *password, uint32_t length) {
+  unsigned char buffer[256];
+  if (length > 255) length = 255;
+  RAND_bytes((unsigned char *)&buffer[0], length);
+  password->reserve(length + 1);
+  for (uint32_t i = 0; i < length; ++i) {
+    password->append(1, translate_byte_to_password_char(buffer[i]));
+  }
+}
+
+/**
+  Sends the result set of generated passwords to the client.
+  @param thd The thread handler
+  @param generated_passwords A list of 3-tuple strings containing user, host
+    and plaintext password.
+  @return success state
+    @retval true An error occurred (DA is set)
+    @retval false Success (my_eof)
+*/
+
+bool send_password_result_set(
+    THD *thd, const Userhostpassword_list &generated_passwords) {
+  List<Item> meta_data;
+  meta_data.push_back(new Item_string("user", 4, system_charset_info));
+  meta_data.push_back(new Item_string("host", 4, system_charset_info));
+  meta_data.push_back(
+      new Item_string("generated password", 18, system_charset_info));
+  List<Item> item_list;
+  Query_result_send output;
+  if (output.send_result_set_metadata(
+          thd, meta_data, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    return true;
+  for (auto password : generated_passwords) {
+    Item *item = new Item_string(password[0].c_str(), password[0].length(),
+                                 system_charset_info);
+    item_list.push_back(item);
+    item = new Item_string(password[1].c_str(), password[1].length(),
+                           system_charset_info);
+    item_list.push_back(item);
+    item = new Item_string(password[2].c_str(), password[2].length(),
+                           system_charset_info);
+    item_list.push_back(item);
+    if (output.send_data(thd, item_list)) {
+      item_list.empty();
+      return true;
+    }
+    // items clean themselves up when THD dies.
+    item_list.empty();
+  }
+  my_eof(thd);
+  return false;
+}
+
+/**
+  This function does following:
    1. Convert plain text password to hash and update the same in
       user definition.
    2. Validate hash string if specified in user definition.
    3. Identify what all fields needs to be updated in mysql.user
       table based on user definition.
 
-   If the is_role flag is set, the password validation is not used.
+  If the is_role flag is set, the password validation is not used.
+
+  The function perform some semantic parsing of the original statement
+  by investigating the syntactic elements found in the LEX_USER object
+  not-so-appropriately named Str.
+
+  The code fits the purpose as a helper function to mysql_create_user()
+  but it is used from mysql_alter_user(), mysql_grant(), change_password() and
+  mysql_routine_grant() with a slightly varying semantic meaning.
 
   @param thd          Thread context
   @param Str          user on which attributes has to be applied
@@ -814,6 +894,8 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
   @param history_table          The table to verify history against.
   @param[out] history_check_done  Set to on if the history table is updated
   @param cmd          Command information
+  @param[out] generated_passwords A list of generated random passwords. Depends
+  on LEX_USER.
 
   @retval 0 ok
   @retval 1 ERROR;
@@ -822,7 +904,8 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
 bool set_and_validate_user_attributes(
     THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
     bool is_privileged_user, bool is_role, TABLE_LIST *history_table,
-    bool *history_check_done, const char *cmd) {
+    bool *history_check_done, const char *cmd,
+    Userhostpassword_list &generated_passwords) {
   bool user_exists = false;
   ACL_USER *acl_user;
   plugin_ref plugin = NULL;
@@ -1142,6 +1225,16 @@ bool set_and_validate_user_attributes(
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
     inbuf = Str->auth.str;
     inbuflen = (unsigned)Str->auth.length;
+    std::string gen_password;
+    if (Str->has_password_generator) {
+      thd->m_disable_password_validation = true;
+      generate_random_password(&gen_password,
+                               thd->variables.generated_random_password_length);
+      inbuf = gen_password.c_str();
+      inbuflen = gen_password.length();
+      generated_passwords.push_back({std::string(Str->user.str),
+                                     std::string(Str->host.str), gen_password});
+    }
     if (auth->generate_authentication_string(outbuf, &buflen, inbuf,
                                              inbuflen) ||
         auth_verify_password_history(thd, &Str->user, &Str->host,
@@ -1162,12 +1255,17 @@ bool set_and_validate_user_attributes(
       }
       return (1);
     }
+    /* Allow for password validation in case it was disabled before */
+    thd->m_disable_password_validation = false;
     if (history_check_done) *history_check_done = true;
     if (buflen) {
       password = strmake_root(thd->mem_root, outbuf, buflen);
     } else
-      password = "";
-    /* erase in memory copy of plain text password */
+      password = const_cast<char *>("");
+    /*
+       Erase in memory copy of plain text password, unless we need it
+       later to send to client as a result set.
+    */
     if (Str->auth.length > 0)
       memset(const_cast<char *>(Str->auth.str), 0, Str->auth.length);
     /* Use the authentication_string field as password */
@@ -1390,6 +1488,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
     combo->uses_replace_clause = (current_password) ? true : false;
     combo->retain_current_password = retain_current_password;
     combo->discard_old_password = false;
+    combo->has_password_generator = false;
 
     /* set default values */
     thd->lex->ssl_type = SSL_TYPE_NOT_SPECIFIED;
@@ -1397,17 +1496,30 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
     thd->lex->alter_password.cleanup();
 
     bool is_privileged_user = is_privileged_user_for_credential_change(thd);
-
+    /*
+      Change_password() only sets the password for one user at a time and
+      it does not support the generation of random passwords. Instead it's
+      called from set_var_password which might have generated the password.
+      Since we're falling back on code used by mysql_create_user() we still
+      supply a list for storing generated password, although password
+      generation never will happen at this stage.
+      Calling this function has the side effect that combo->auth is rewritten
+      into a hash.
+    */
+    Userhostpassword_list dummy;
     if (set_and_validate_user_attributes(
             thd, combo, what_to_set, is_privileged_user, false,
             &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], nullptr,
-            "SET PASSWORD")) {
+            "SET PASSWORD", dummy)) {
       authentication_plugin.assign(combo->plugin.str);
       result = 1;
       goto end;
     }
 
     // We must not have user with plain text password at this point
+    // unless the password was randomly generated in which case the
+    // plain text password will live on in the calling function for the
+    // purpose of returning it to the client.
     thd->lex->contains_plaintext_password = false;
     authentication_plugin.assign(combo->plugin.str);
     thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
@@ -1894,6 +2006,8 @@ end:
 /*
   Create a list of users.
 
+  On successful completion the function emits my_ok() or my_eof().
+
   SYNOPSIS
     mysql_create_user()
     thd                         The current thread.
@@ -1916,6 +2030,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   bool is_anonymous_user = false;
   std::set<LEX_USER *> extra_users;
   std::set<LEX_USER *> reset_users;
+  Userhostpassword_list generated_passwords;
   DBUG_TRACE;
 
   /*
@@ -1956,7 +2071,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       if (set_and_validate_user_attributes(
               thd, user_name, what_to_update, true, is_role,
               &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], &history_check_done,
-              "CREATE USER")) {
+              "CREATE USER", generated_passwords)) {
         result = 1;
         log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
         continue;
@@ -2102,6 +2217,19 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
     acl_notify_htons(thd, SQLCOM_CREATE_USER, &list);
   }
 
+  if (result == 0) {
+    if (generated_passwords.size() == 0) {
+      my_ok(thd);
+    } else if (send_password_result_set(thd, generated_passwords)) {
+      result = 1;
+    }
+  }  // end if
+
+  /*
+    If this is a slave thread we should never have generated random passwords
+  */
+  DBUG_ASSERT(!thd->slave_thread ||
+              (thd->slave_thread && generated_passwords.size() == 0));
   return result;
 }
 
@@ -2456,7 +2584,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   bool password_expire_undo = false;
   std::set<LEX_USER *> audit_users;
   std::set<LEX_USER *> reset_users;
-
+  Userhostpassword_list generated_passwords;
   DBUG_TRACE;
 
   /*
@@ -2506,7 +2634,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       if (set_and_validate_user_attributes(
               thd, user_from, what_to_alter, is_privileged_user, false,
               &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], &history_check_done,
-              "ALTER USER")) {
+              "ALTER USER", generated_passwords)) {
         result = 1;
         continue;
       }
@@ -2668,5 +2796,12 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
     acl_notify_htons(thd, SQLCOM_ALTER_USER, &list);
   }
 
+  if (result == 0) {
+    if (generated_passwords.size() == 0) {
+      my_ok(thd);
+    } else if (send_password_result_set(thd, generated_passwords)) {
+      result = 1;
+    }
+  }  // end if
   return result;
 }

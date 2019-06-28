@@ -369,6 +369,9 @@ The following options may be given as the first argument:
  --log-output=TABLE is used, to a table mysql.general_log.
  --general-log-file=name 
  Log connections and queries to given file
+ --generated-random-password-length=# 
+ Determines the length randomly generated passwords in
+ CREATE USER-,SET PASSWORD- or ALTER USER statements
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
@@ -1490,6 +1493,7 @@ ft-query-expansion-limit 20
 ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
+generated-random-password-length 20
 group-concat-max-len 1024
 group-replication-consistency EVENTUAL
 gtid-executed-compression-period 1000

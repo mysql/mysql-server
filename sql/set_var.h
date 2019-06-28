@@ -439,22 +439,27 @@ class set_var_user : public set_var_base {
   void print(const THD *thd, String *str); /* To self-print */
 };
 
-/* For SET PASSWORD */
-
 class set_var_password : public set_var_base {
   LEX_USER *user;
-  const char *password;
+  char *password;
   const char *current_password;
   bool retain_current_password;
+  bool generate_password;
+  char *str_generated_password;
 
  public:
-  set_var_password(LEX_USER *user_arg, const char *password_arg,
-                   const char *current_password_arg, bool retain_current);
+  set_var_password(LEX_USER *user_arg, char *password_arg,
+                   char *current_password_arg, bool retain_current,
+                   bool generate_password);
 
+  const LEX_USER *get_user(void) { return user; }
+  bool has_generated_password(void) { return generate_password; }
+  const char *get_generated_password(void) { return str_generated_password; }
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
   void print(const THD *thd, String *str); /* To self-print */
+  virtual ~set_var_password();
 };
 
 /* For SET NAMES and SET CHARACTER SET */

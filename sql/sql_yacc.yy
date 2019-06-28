@@ -1241,9 +1241,9 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> ENFORCED_SYM                  /* SQL-2015-N */
 %token<lexer.keyword> OJ_SYM                        /* ODBC */
 %token<lexer.keyword> NETWORK_NAMESPACE_SYM         /* MYSQL */
+%token<lexer.keyword> RANDOM_SYM                    /* MYSQL */
 %token<lexer.keyword> MASTER_COMPRESSION_ALGORITHM_SYM /* MYSQL */
 %token<lexer.keyword> MASTER_ZSTD_COMPRESSION_LEVEL_SYM  /* MYSQL */
-
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
   simple "UNIQUE" and "KEY" attributes:
@@ -7609,6 +7609,21 @@ alter_server_stmt:
 alter_user_stmt:
           alter_user_command alter_user_list require_clause
           connect_options opt_account_lock_password_expire_options
+        | alter_user_command user_func IDENTIFIED_SYM BY RANDOM_SYM PASSWORD
+          opt_replace_password opt_retain_current_password
+          {
+            $2->auth.str= nullptr;
+            $2->auth.length= 0;
+            $2->has_password_generator= true;
+            $2->uses_identified_by_clause= true;
+            if ($7.str != nullptr) {
+              $2->current_auth= $7;
+              $2->uses_replace_clause= true;
+            }
+            Lex->contains_plaintext_password= true;
+            $2->discard_old_password= false;
+            $2->retain_current_password= $8;
+          }
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
           opt_replace_password opt_retain_current_password
           {
@@ -14385,6 +14400,7 @@ ident_keywords_unambiguous:
         | QUARTER_SYM
         | QUERY_SYM
         | QUICK
+        | RANDOM_SYM
         | READ_ONLY_SYM
         | REBUILD_SYM
         | RECOVER_SYM
@@ -14587,6 +14603,15 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
                                                                 $5,
+                                                                false,
+                                                                @4);
+          }
+        | PASSWORD TO_SYM RANDOM_SYM opt_replace_password opt_retain_current_password
+          {
+            // RANDOM PASSWORD GENERATION AND RETURN RESULT SET...
+            $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
+                                                                $5,
+                                                                true,
                                                                 @4);
           }
         | PASSWORD FOR_SYM user equal TEXT_STRING_password opt_replace_password opt_retain_current_password
@@ -14594,6 +14619,16 @@ start_option_value_list:
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
                                                                     $6.str,
                                                                     $7,
+                                                                    false,
+                                                                    @6);
+          }
+        | PASSWORD FOR_SYM user TO_SYM RANDOM_SYM opt_replace_password opt_retain_current_password
+          {
+            // RANDOM PASSWORD GENERATION AND RETURN RESULT SET...
+            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
+                                                                    $6.str,
+                                                                    $7,
+                                                                    true,
                                                                     @6);
           }
         ;
@@ -15498,7 +15533,19 @@ create_user:
             $$=$1;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
+            $1->has_password_generator= false;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM BY RANDOM_SYM PASSWORD
+          {
+            $$= $1;
+            $1->has_password_generator= true;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_by_clause= true;
+            $1->uses_identified_with_clause= false;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
@@ -15512,6 +15559,7 @@ create_user:
             $1->uses_identified_with_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
           {
@@ -15524,6 +15572,7 @@ create_user:
             $1->uses_authentication_string_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
           {
@@ -15537,6 +15586,19 @@ create_user:
             $1->discard_old_password= false;
             $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
+            $1->has_password_generator= false;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text BY RANDOM_SYM PASSWORD
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
+            Lex->contains_plaintext_password= true;
+            $1->has_password_generator= true;
           }
         | user
           {
@@ -15544,6 +15606,7 @@ create_user:
             $1->auth= NULL_CSTR;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         ;
 
@@ -15551,6 +15614,7 @@ alter_user:
          user IDENTIFIED_SYM BY TEXT_STRING REPLACE_SYM TEXT_STRING_password opt_retain_current_password
           {
             $$=$1;
+            $1->has_password_generator= false;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
@@ -15565,6 +15629,7 @@ alter_user:
           opt_retain_current_password
           {
             $$= $1;
+            $1->has_password_generator= false;
             $1->plugin.str= $4.str;
             $1->plugin.length= $4.length;
             $1->auth.str= $6.str;
@@ -15581,11 +15646,37 @@ alter_user:
         | user IDENTIFIED_SYM BY TEXT_STRING_password opt_retain_current_password
           {
             $$=$1;
+            $1->has_password_generator= false;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= $5;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM BY RANDOM_SYM PASSWORD opt_retain_current_password
+          {
+            $$= $1;
+            $1->has_password_generator= true;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_by_clause= true;
+            $1->uses_identified_with_clause= false;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $6;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM BY RANDOM_SYM PASSWORD REPLACE_SYM TEXT_STRING_password opt_retain_current_password
+          {
+            $$= $1;
+            $1->has_password_generator= true;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_by_clause= true;
+            $1->uses_identified_with_clause= false;
+            $1->uses_replace_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $8;
+            $1->current_auth.str= $7.str;
+            $1->current_auth.length= $7.length;
             Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM WITH ident_or_text
@@ -15597,6 +15688,7 @@ alter_user:
             $1->uses_identified_with_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
           opt_retain_current_password
@@ -15610,6 +15702,7 @@ alter_user:
             $1->uses_authentication_string_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= $7;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
           opt_retain_current_password
@@ -15624,6 +15717,20 @@ alter_user:
             $1->discard_old_password= false;
             $1->retain_current_password= $7;
             Lex->contains_plaintext_password= true;
+            $1->has_password_generator= false;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text BY RANDOM_SYM PASSWORD
+          opt_retain_current_password
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $8;
+            Lex->contains_plaintext_password= true;
+            $1->has_password_generator= true;
           }
         | user opt_discard_old_password
           {
@@ -15631,6 +15738,7 @@ alter_user:
             $1->discard_old_password= $2;
             $1->retain_current_password= false;
             $1->auth= NULL_CSTR;
+            $1->has_password_generator= false;
           }
         ;
 

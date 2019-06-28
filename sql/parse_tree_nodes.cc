@@ -25,6 +25,7 @@
 #include <string.h>
 #include <algorithm>
 
+#include "auth/auth_common.h"  // generate_random_password
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -403,8 +404,11 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   // Current password is specified through the REPLACE clause hence set the flag
   if (current_password != nullptr) user->uses_replace_clause = true;
 
-  var = new (thd->mem_root) set_var_password(user, password, current_password,
-                                             retain_current_password);
+  if (random_password_generator) password = nullptr;
+
+  var = new (thd->mem_root) set_var_password(
+      user, const_cast<char *>(password), const_cast<char *>(current_password),
+      retain_current_password, random_password_generator);
 
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of memory
@@ -438,8 +442,12 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
                                    (LEX_STRING *)&sctx_priv_host);
   if (!user) return true;
 
+  if (random_password_generator) password = nullptr;
+
   set_var_password *var = new (thd->mem_root) set_var_password(
-      user, password, current_password, retain_current_password);
+      user, const_cast<char *>(password), const_cast<char *>(current_password),
+      retain_current_password, random_password_generator);
+
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of Memory
   }

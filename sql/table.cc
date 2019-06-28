@@ -7262,6 +7262,7 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
   ret->uses_identified_by_clause = false;
   ret->uses_identified_with_clause = false;
   ret->uses_authentication_string_clause = false;
+  ret->has_password_generator = false;
   ret->retain_current_password = false;
   ret->discard_old_password = false;
   ret->alter_status.account_locked = false;

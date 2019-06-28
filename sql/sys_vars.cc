@@ -6673,6 +6673,14 @@ static Sys_var_bool Sys_var_show_create_table_skip_secondary_engine(
     SESSION_ONLY(show_create_table_skip_secondary_engine), NO_CMD_LINE,
     DEFAULT(false));
 
+static Sys_var_uint Sys_generated_random_password_length(
+    "generated_random_password_length",
+    "Determines the length randomly generated passwords in CREATE USER-,"
+    "SET PASSWORD- or ALTER USER statements",
+    SESSION_VAR(generated_random_password_length), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(5, 255), DEFAULT(20), BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(0));
+
 static bool check_set_protocol_compression_algorithms(sys_var *, THD *,
                                                       set_var *var) {
   if (!(var->save_result.string_value.str)) return true;

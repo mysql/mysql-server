@@ -42,7 +42,7 @@
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"  // SUPER_ACL
+#include "sql/auth/auth_common.h"  // SUPER_ACL, generate_password
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/enum_query_type.h"
@@ -1225,19 +1225,26 @@ void set_var_user::print(const THD *thd, String *str) {
   Functions to handle SET PASSWORD
 *****************************************************************************/
 
-set_var_password::set_var_password(LEX_USER *user_arg, const char *password_arg,
-                                   const char *current_password_arg,
-                                   bool retain_current)
+set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
+                                   char *current_password_arg,
+                                   bool retain_current, bool gen_pass)
     : user(user_arg),
       password(password_arg),
       current_password(current_password_arg),
-      retain_current_password(retain_current) {
+      retain_current_password(retain_current),
+      generate_password(gen_pass) {
   if (current_password != nullptr) {
     user_arg->uses_replace_clause = true;
     user_arg->current_auth.str = current_password_arg;
     user_arg->current_auth.length = strlen(current_password_arg);
   }
   user_arg->retain_current_password = retain_current_password;
+}
+
+set_var_password::~set_var_password() {
+  // We copied the generated password buffer to circumvent
+  // the password nullification code in change_password()
+  if (generate_password) my_free(password);
 }
 
 /**
@@ -1257,11 +1264,27 @@ int set_var_password::check(THD *thd) {
 }
 
 int set_var_password::update(THD *thd) {
+  if (generate_password) {
+    thd->m_disable_password_validation = true;
+    std::string generated_password;
+    generate_random_password(&generated_password,
+                             thd->variables.generated_random_password_length);
+    /*
+      We need to copy the password buffer here because it will be set to \0
+      later by change_password() and since we're generated a random password
+      we need to retain it until it can be sent to the client.
+      Because set_var_password never will get its destructor called we also
+      need to move the string allocated memory to the THD mem root.
+    */
+    password = thd->mem_strdup(generated_password.c_str());
+    str_generated_password = thd->mem_strdup(generated_password.c_str());
+  }
   /* Returns 1 as the function sends error to client */
-  return change_password(thd, user, password, current_password,
-                         retain_current_password)
-             ? 1
-             : 0;
+  auto res = change_password(thd, user, password, current_password,
+                             retain_current_password)
+                 ? 1
+                 : 0;
+  return res;
 }
 
 void set_var_password::print(const THD *thd, String *str) {

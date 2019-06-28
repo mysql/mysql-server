@@ -1081,6 +1081,19 @@ class THD : public MDL_context_owner,
   void set_security_context(Security_context *sctx) { m_security_ctx = sctx; }
   List<Security_context> m_view_ctx_list;
 
+  /**
+    @note
+    The optional password validation plugin doesn't have any API for
+    temporally disable its functionality for a particular session.
+    To get around this issue we introduce a boolean variable in the THD
+    which we check before each call to the password validation plugin.
+    Password validation is invoked from within the authentication plugin
+    in the generate_authentication_string() method.
+
+    @see generate_authentication_string
+  */
+  bool m_disable_password_validation;
+
   /*
     Points to info-string that we show in SHOW PROCESSLIST
     You are supposed to update thd->proc_info only if you have coded

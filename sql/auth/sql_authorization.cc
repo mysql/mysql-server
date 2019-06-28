@@ -2747,10 +2747,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         continue;
       }
 
+      Userhostpassword_list password_list;
       if (set_and_validate_user_attributes(
               thd, Str, what_to_set, false, false,
               &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
-              revoke_grant ? "REVOKE" : "GRANT")) {
+              revoke_grant ? "REVOKE" : "GRANT", password_list)) {
         result = true;
         continue;
       }
@@ -2952,10 +2953,11 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
         continue;
       }
 
+      Userhostpassword_list password_list;
       if (set_and_validate_user_attributes(
               thd, Str, what_to_set, false, false,
               &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
-              revoke_grant ? "REVOKE" : "GRANT")) {
+              revoke_grant ? "REVOKE" : "GRANT", password_list)) {
         result = true;
         continue;
       }
@@ -3376,10 +3378,11 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
         continue;
       }
 
+      Userhostpassword_list password_list;
       if (set_and_validate_user_attributes(
               thd, user, what_to_set, false, false,
               &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
-              revoke_grant ? "REVOKE" : "GRANT")) {
+              revoke_grant ? "REVOKE" : "GRANT", password_list)) {
         error = true;
         continue;
       }

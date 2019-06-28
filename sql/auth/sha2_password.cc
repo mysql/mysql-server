@@ -1142,9 +1142,13 @@ static int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
   std::string random;
   std::string serialized_string;
 
-  if (inbuflen > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH ||
-      my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
     return 1;
+
+  THD *thd = current_thd;
+  if (!thd->m_disable_password_validation) {
+    if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  }
 
   if (inbuflen == 0) {
     *buflen = 0;

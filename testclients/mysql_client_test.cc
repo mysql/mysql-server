@@ -46,6 +46,10 @@
 #include "my_macros.h"
 #include "mysql_client_fw.cc"
 
+#include <list>
+#include <string>
+#include <vector>
+
 static void mct_log(const char *format, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
 
@@ -20363,6 +20367,80 @@ static void test_wl11381_qa() {
   mysql_close(mysql_con2);
 }
 
+static void test_wl11772() {
+  MYSQL *mysql_con1;
+  int rc;
+  myheader("test_wl11772");
+
+  if (mysql_query(mysql,
+                  "CREATE USER u1 IDENTIFIED BY RANDOM PASSWORD,"
+                  "u2 IDENTIFIED BY RANDOM PASSWORD,"
+                  "u3 IDENTIFIED BY RANDOM PASSWORD")) {
+    fprintf(stderr, "\n Create user failed with error %s ", mysql_error(mysql));
+    exit(1);
+  }
+  MYSQL_RES *result = mysql_store_result(mysql);
+  DIE_IF(result == NULL);
+
+  typedef struct {
+    char user[32];
+    char host[255];
+    char password[255];
+  } Userhostpass;
+
+  Userhostpass userhostpass[3];
+  int i = 0;
+  MYSQL_ROW row;
+  while ((row = mysql_fetch_row(result)) != NULL) {
+    strcpy(userhostpass[i].user, row[0]);
+    strcpy(userhostpass[i].host, row[1]);
+    strcpy(userhostpass[i].password, row[2]);
+    ++i;
+  }
+  mysql_free_result(result);
+  rc = mysql_query(mysql, "GRANT SELECT ON test.* TO u1,u2,u3");
+  myquery(rc);
+  for (int i = 0; i < 3; ++i) {
+    fprintf(stdout, "%d . Connecting to user %s@%s...", i, userhostpass[i].user,
+            userhostpass[i].host);
+    mysql_con1 = mysql_client_init(NULL);
+    DIE_IF(!(mysql_real_connect(mysql_con1, opt_host, userhostpass[i].user,
+                                userhostpass[i].password, "test", opt_port,
+                                opt_unix_socket, 0)));
+    mysql_close(mysql_con1);
+    fprintf(stdout, "OK\n");
+  }
+
+  if (mysql_query(mysql, "SET PASSWORD FOR u1 TO RANDOM")) {
+    fprintf(stderr, "\n SET PASSWORD failed with error %s ",
+            mysql_error(mysql));
+    exit(1);
+  }
+  result = mysql_store_result(mysql);
+  DIE_IF(result == NULL);
+  i = 0;
+  while ((row = mysql_fetch_row(result)) != NULL) {
+    strcpy(userhostpass[i].user, row[0]);
+    strcpy(userhostpass[i].host, row[1]);
+    strcpy(userhostpass[i].password, row[2]);
+    ++i;
+  }
+  mysql_free_result(result);
+
+  for (int i = 0; i < 1; ++i) {
+    fprintf(stdout, "%d . Connecting to user %s@%s...", i, userhostpass[i].user,
+            userhostpass[i].host);
+    mysql_con1 = mysql_client_init(NULL);
+    DIE_IF(!(mysql_real_connect(mysql_con1, opt_host, userhostpass[i].user,
+                                userhostpass[i].password, "test", opt_port,
+                                opt_unix_socket, 0)));
+    mysql_close(mysql_con1);
+    fprintf(stdout, "OK\n");
+  }
+  rc = mysql_query(mysql, "DROP USER u1,u2,u3");
+  myquery(rc);
+}
+
 static void test_wl12475() {
   MYSQL *mysql_local;
   char compress_method[] = "zstd";
@@ -20695,6 +20773,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug27443252", test_bug27443252},
     {"test_wl11381", test_wl11381},
     {"test_wl11381_qa", test_wl11381_qa},
+    {"test_wl11772", test_wl11772},
     {"test_wl12475", test_wl12475},
     {0, 0}};
 

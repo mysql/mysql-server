@@ -2369,12 +2369,13 @@ struct LEX_USER {
   bool uses_replace_clause;
   bool retain_current_password;
   bool discard_old_password;
+  bool has_password_generator;
   LEX_ALTER alter_status;
   /*
     Allocates the memory in the THD mem pool and initialize the members of
-    this struct. It is prefererable to use this method to create a LEX_USER
-    rather allocating the memory in the THD and initilizing the members
-    explicitiyly.
+    this struct. It is preferable to use this method to create a LEX_USER
+    rather allocating the memory in the THD and initializing the members
+    explicitly.
   */
   static LEX_USER *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
 };

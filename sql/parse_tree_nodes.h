@@ -1188,16 +1188,19 @@ class PT_option_value_no_option_type_password
   const char *password;
   const char *current_password;
   bool retain_current_password;
+  bool random_password_generator;
   POS expr_pos;
 
  public:
   PT_option_value_no_option_type_password(const char *password_arg,
                                           const char *current_password_arg,
                                           bool retain_current,
+                                          bool random_password,
                                           const POS &expr_pos_arg)
       : password(password_arg),
         current_password(current_password_arg),
         retain_current_password(retain_current),
+        random_password_generator(random_password),
         expr_pos(expr_pos_arg) {}
 
   bool contextualize(Parse_context *pc) override;
@@ -1211,6 +1214,7 @@ class PT_option_value_no_option_type_password_for
   const char *password;
   const char *current_password;
   bool retain_current_password;
+  bool random_password_generator;
   POS expr_pos;
 
  public:
@@ -1218,11 +1222,13 @@ class PT_option_value_no_option_type_password_for
                                               const char *password_arg,
                                               const char *current_password_arg,
                                               bool retain_current,
+                                              bool random_pass,
                                               const POS &expr_pos_arg)
       : user(user_arg),
         password(password_arg),
         current_password(current_password_arg),
         retain_current_password(retain_current),
+        random_password_generator(random_pass),
         expr_pos(expr_pos_arg) {}
 
   bool contextualize(Parse_context *pc) override;
