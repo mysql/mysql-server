@@ -179,6 +179,11 @@ Message *get_client_message_from_text(
   std::string find_by = name;
   Message *message;
 
+  if (find_by.empty()) {
+    *out_error = "Message name is empty";
+    return nullptr;
+  }
+
   while (true) {
     auto msg = client_msgs_by_name.find(find_by);
 

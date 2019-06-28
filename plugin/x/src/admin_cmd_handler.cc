@@ -25,11 +25,16 @@
 #include "plugin/x/src/admin_cmd_handler.h"
 
 #include <algorithm>
+#include <set>
+
+#include "my_dbug.h"
 
 #include "plugin/x/ngs/include/ngs/interface/notice_configuration_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/admin_cmd_index.h"
+#include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
@@ -75,11 +80,6 @@ class Notice_configuration_commiter {
   std::set<Notice_type> m_marked_notices;
 };
 
-inline std::string to_lower(std::string src) {
-  std::transform(src.begin(), src.end(), src.begin(), ::tolower);
-  return src;
-}
-
 }  // namespace details
 
 const Admin_command_handler::Command_handler
@@ -111,7 +111,7 @@ ngs::Error_code Admin_command_handler::Command_handler::execute(
                       name_space.c_str(), command.c_str());
 
   try {
-    return (admin->*(iter->second))(details::to_lower(name_space), args);
+    return (admin->*(iter->second))(to_lower(name_space), args);
   } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAILED_TO_EXECUTE_ADMIN_CMD, command.c_str(),
               e.what());
@@ -135,8 +135,7 @@ ngs::Error_code Admin_command_handler::execute(const std::string &name_space,
     return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
   }
 
-  return m_command_handler.execute(this, name_space, details::to_lower(command),
-                                   args);
+  return m_command_handler.execute(this, name_space, to_lower(command), args);
 }
 
 /* Stmt: ping
@@ -206,6 +205,7 @@ void get_client_data(std::vector<Client_data_> *clients_data,
  */
 ngs::Error_code Admin_command_handler::list_clients(
     const std::string & /*name_space*/, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(&ngs::Common_status_variables::m_stmt_list_clients);
 
   ngs::Error_code error = args->end();
@@ -236,30 +236,30 @@ ngs::Error_code Admin_command_handler::list_clients(
       {Mysqlx::Resultset::ColumnMetaData::BYTES, "host"},
       {Mysqlx::Resultset::ColumnMetaData::UINT, "sql_session"}};
 
-  proto.send_column_metadata(&column[0].get());
-  proto.send_column_metadata(&column[1].get());
-  proto.send_column_metadata(&column[2].get());
-  proto.send_column_metadata(&column[3].get());
+  proto.send_column_metadata(column[0].get());
+  proto.send_column_metadata(column[1].get());
+  proto.send_column_metadata(column[2].get());
+  proto.send_column_metadata(column[3].get());
 
   for (std::vector<Client_data_>::const_iterator it = clients.begin();
        it != clients.end(); ++it) {
     proto.start_row();
-    proto.row_builder().add_longlong_field(it->id, true);
+    proto.row_builder()->field_unsigned_longlong(it->id);
 
     if (it->user.empty())
-      proto.row_builder().add_null_field();
+      proto.row_builder()->field_null();
     else
-      proto.row_builder().add_string_field(it->user.c_str(), it->user.length());
+      proto.row_builder()->field_string(it->user.c_str(), it->user.length());
 
     if (it->host.empty())
-      proto.row_builder().add_null_field();
+      proto.row_builder()->field_null();
     else
-      proto.row_builder().add_string_field(it->host.c_str(), it->host.length());
+      proto.row_builder()->field_string(it->host.c_str(), it->host.length());
 
     if (!it->has_session)
-      proto.row_builder().add_null_field();
+      proto.row_builder()->field_null();
     else
-      proto.row_builder().add_longlong_field(it->session, true);
+      proto.row_builder()->field_unsigned_longlong(it->session);
     proto.send_row();
   }
 
@@ -323,6 +323,7 @@ ngs::Error_code create_collection_impl(ngs::Sql_session_interface *da,
  */
 ngs::Error_code Admin_command_handler::create_collection(
     const std::string & /*name_space*/, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(
       &ngs::Common_status_variables::m_stmt_create_collection);
 
@@ -353,6 +354,7 @@ ngs::Error_code Admin_command_handler::create_collection(
  */
 ngs::Error_code Admin_command_handler::drop_collection(
     const std::string & /*name_space*/, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(
       &ngs::Common_status_variables::m_stmt_drop_collection);
 
@@ -412,6 +414,7 @@ ngs::Error_code Admin_command_handler::drop_collection(
  */
 ngs::Error_code Admin_command_handler::create_collection_index(
     const std::string &name_space, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(
       &ngs::Common_status_variables::m_stmt_create_collection_index);
   return Admin_command_index(m_session).create(name_space, args);
@@ -425,6 +428,7 @@ ngs::Error_code Admin_command_handler::create_collection_index(
  */
 ngs::Error_code Admin_command_handler::drop_collection_index(
     const std::string &name_space, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(
       &ngs::Common_status_variables::m_stmt_drop_collection_index);
   return Admin_command_index(m_session).drop(name_space, args);
@@ -447,8 +451,8 @@ inline bool is_fixed_notice_name(const std::string &notice) {
 inline void add_notice_row(ngs::Protocol_encoder_interface *proto,
                            const std::string &notice, longlong status) {
   proto->start_row();
-  proto->row_builder().add_string_field(notice.c_str(), notice.length());
-  proto->row_builder().add_longlong_field(status, 0);
+  proto->row_builder()->field_string(notice.c_str(), notice.length());
+  proto->row_builder()->field_signed_longlong(status);
   proto->send_row();
 }
 
@@ -460,6 +464,7 @@ inline void add_notice_row(ngs::Protocol_encoder_interface *proto,
  */
 ngs::Error_code Admin_command_handler::enable_notices(
     const std::string & /*name_space*/, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(
       &ngs::Common_status_variables::m_stmt_enable_notices);
 
@@ -495,6 +500,7 @@ ngs::Error_code Admin_command_handler::enable_notices(
  */
 ngs::Error_code Admin_command_handler::disable_notices(
     const std::string & /*name_space*/, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(
       &ngs::Common_status_variables::m_stmt_disable_notices);
 
@@ -531,6 +537,7 @@ ngs::Error_code Admin_command_handler::disable_notices(
  */
 ngs::Error_code Admin_command_handler::list_notices(
     const std::string & /*name_space*/, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(&ngs::Common_status_variables::m_stmt_list_notices);
   const auto &notice_config = m_session->get_notice_configuration();
 
@@ -544,8 +551,8 @@ ngs::Error_code Admin_command_handler::list_notices(
       {Mysqlx::Resultset::ColumnMetaData::BYTES, "notice"},
       {Mysqlx::Resultset::ColumnMetaData::SINT, "enabled"}};
 
-  proto.send_column_metadata(&column[0].get());
-  proto.send_column_metadata(&column[1].get());
+  proto.send_column_metadata(column[0].get());
+  proto.send_column_metadata(column[1].get());
 
   const auto last_notice_value =
       static_cast<int>(ngs::Notice_type::k_last_element);
@@ -627,6 +634,7 @@ const char *const COUNT_GEN = COUNT_WHEN(
  */
 ngs::Error_code Admin_command_handler::list_objects(
     const std::string & /*name_space*/, Command_arguments *args) {
+  DBUG_TRACE;
   m_session->update_status(&ngs::Common_status_variables::m_stmt_list_objects);
 
   static const bool is_table_names_case_sensitive =
@@ -647,7 +655,7 @@ ngs::Error_code Admin_command_handler::list_objects(
           .end();
   if (error) return error;
 
-  if (!is_table_names_case_sensitive) schema = details::to_lower(schema);
+  if (!is_table_names_case_sensitive) schema = to_lower(schema);
 
   error = is_schema_selected_and_exists(&m_session->data_context(), schema);
   if (error) return error;

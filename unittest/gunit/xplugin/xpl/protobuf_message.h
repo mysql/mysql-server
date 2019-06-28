@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,63 +23,26 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_PROTOBUF_MESSAGE_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_PROTOBUF_MESSAGE_H_
 
+#include <string>
+#include <utility>
+#include <vector>
+
 namespace xpl {
 
 namespace test {
-
-template <typename T>
-class Push_back_visitor : public ngs::Page_visitor {
- public:
-  Push_back_visitor(T *t) : m_t(t) {}
-
-  bool visit(const char *p, ssize_t s) override {
-    m_t->push_back(std::make_pair(p, s));
-    return true;
-  }
-
- private:
-  T *m_t;
-};
-
-using Page = std::pair<const char *, ssize_t>;
-using Pages = std::vector<Page>;
-
-static Pages get_pages_from_stream(ngs::Page_output_stream *stream) {
-  Pages result;
-  Push_back_visitor<Pages> visitor(&result);
-
-  stream->visit_buffers(&visitor);
-
-  return result;
-}
-
-template <class Msg>
-Msg *message_from_buffer(ngs::Page_output_stream *stream) {
-  Pages pages = get_pages_from_stream(stream);
-
-  std::string str_buff;
-  bool first = true;
-  for (const auto &p : pages) {
-    // skip the header (size+type) from the first page
-    size_t offset = (first) ? 5 : 0;
-    first = false;
-
-    str_buff.append(p.first + offset, p.second - offset);
-  }
-  Msg *result = new Msg();
-
-  result->ParseFromString(str_buff);
-
-  return result;
-}
 
 template <class Msg>
 Msg *message_from_buffer(const std::string &buffer) {
   Msg *result = new Msg();
 
-  result->ParseFromString(buffer.substr(5));
+  result->ParseFromString(buffer);
 
   return result;
+}
+
+template <class Msg>
+Msg *message_with_header_from_buffer(const std::string &buffer) {
+  return message_from_buffer<Msg>(buffer.substr(5));
 }
 
 }  // namespace test

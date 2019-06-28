@@ -1,6 +1,7 @@
 # * Wait_for_status_variable
 # * Assert_status_variable
 # * Assert_received_notices
+# * Assert_client_message_count
 
 -->macro Wait_for_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 quiet;
@@ -34,3 +35,11 @@ noquiet;
 -->callmacro Assert_status_variable	Mysqlx_notice_other_sent	%MYSQLXTEST_NO_OF_OTHER%
 -->endmacro
 
+
+-->macro Assert_client_message_count	%NAME%	%OP%	%COUNT%
+noquery_result;
+echo Verify [Client handled %NAME% message count is "%OP%" %COUNT%];
+-->received %NAME%	%MYSQLXTEST_NO_OF_MESSAGES%
+-->assert %MYSQLXTEST_NO_OF_MESSAGES%	%OP%	%COUNT%
+query_result;
+-->endmacro

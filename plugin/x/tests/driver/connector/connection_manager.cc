@@ -29,7 +29,11 @@
 #include <utility>
 #include <vector>
 
+#include "my_dbug.h"
+
 #include "plugin/x/tests/driver/processor/variable_names.h"
+
+google::protobuf::LogHandler *g_lh = nullptr;
 
 Connection_manager::Connection_manager(const Connection_options &co,
                                        Variable_container *variables,
@@ -37,6 +41,14 @@ Connection_manager::Connection_manager(const Connection_options &co,
     : m_default_connection_options(co),
       m_variables(variables),
       m_console(console) {
+  g_lh = google::protobuf::SetLogHandler([](google::protobuf::LogLevel level,
+                                            const char *filename, int line,
+                                            const std::string &message) {
+    if (g_lh) g_lh(level, filename, line, message);
+    DBUG_LOG("debug",
+             "Protobuf error (level:" << level << ", filename:" << filename
+                                      << ":" << line << ", text:" << message);
+  });
   m_variables->make_special_variable(
       k_variable_option_user,
       new Variable_dynamic_string(m_default_connection_options.user));
@@ -72,6 +84,21 @@ Connection_manager::Connection_manager(const Connection_options &co,
   m_variables->make_special_variable(
       k_variable_option_tls_version,
       new Variable_dynamic_string(m_default_connection_options.allowed_tls));
+
+  m_variables->make_special_variable(
+      k_variable_option_compression_algorithm,
+      new Variable_dynamic_array_of_strings(
+          m_default_connection_options.compression_algorithm));
+
+  m_variables->make_special_variable(
+      k_variable_option_compression_server_style,
+      new Variable_dynamic_array_of_strings(
+          m_default_connection_options.compression_server_style));
+
+  m_variables->make_special_variable(
+      k_variable_option_compression_client_style,
+      new Variable_dynamic_array_of_strings(
+          m_default_connection_options.compression_client_style));
 
   m_active_holder.reset(new Session_holder(xcl::create_session(), m_console,
                                            m_default_connection_options));
@@ -136,7 +163,7 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
     auto attrs = session->get_connect_attrs();
     attrs.emplace_back("program_name", xcl::Argument_value{"mysqlxtest"});
     session->set_capability(xcl::XSession::Capability_session_connect_attrs,
-                            attrs);
+                            attrs, false);
   }
 
   xcl::XError error = m_active_holder->connect(no_auth);

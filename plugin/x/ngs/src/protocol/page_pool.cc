@@ -33,63 +33,51 @@
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
-using namespace ngs;
+namespace ngs {
 
-Page_pool::Page_pool(const Pool_config &pool_config)
-    : m_pages_max(pool_config.pages_max),
-      m_pages_cache_max(pool_config.pages_cache_max),
-      m_pages_cached(0),
-      m_page_size(pool_config.page_size),
-      m_mutex(KEY_mutex_x_page_pool),
-      m_pages_allocated(0) {}
+Memory_block_pool::Memory_block_pool(const Pool_config &config)
+    : m_mutex(KEY_mutex_x_page_pool), m_config(config) {}
 
-Page_pool::~Page_pool() {
+Memory_block_pool::~Memory_block_pool() {
   MUTEX_LOCK(lock, m_mutex);
-  std::for_each(m_pages_list.begin(), m_pages_list.end(),
-                ngs::free_array<char>);
-  m_pages_list.clear();
+
+  while (m_page_cache) {
+    auto to_delete = reinterpret_cast<char *>(m_page_cache);
+    m_page_cache = m_page_cache->m_next;
+
+    ngs::free_array<char>(to_delete);
+  }
 }
 
-Resource<Page> Page_pool::allocate() {
-  // The code is valid only in case when the method is called only by one thread
-  // at a time
-  if (m_pages_max != 0 && (++m_pages_allocated > m_pages_max - 1)) {
-    --m_pages_allocated;
-    throw No_more_pages_exception();
-  }
+char *Memory_block_pool::allocate() {
+  ++m_pages_allocated;
+  char *object_data = get_page_from_cache();
 
-  char *object_data = pop_page();
-
-  if (NULL == object_data) {
-    size_t memory_to_allocate = m_page_size + sizeof(Page_memory_managed);
+  if (nullptr == object_data) {
+    size_t memory_to_allocate = m_config.m_page_size;
 
     ngs::allocate_array(object_data, memory_to_allocate,
                         KEY_memory_x_send_buffer);
   }
 
-  return Resource<Page>(new (object_data) Page_memory_managed(
-      *this, m_page_size, object_data + sizeof(Page_memory_managed)));
+  return object_data;
 }
 
-void Page_pool::deallocate(Page *page) {
-  // multiple threads
-  if (m_pages_max != 0) --m_pages_allocated;
+void Memory_block_pool::deallocate(char *page) {
+  --m_pages_allocated;
+  if (try_to_cache_page(page)) return;
 
-  page->~Page();
-
-  if (!push_page((char *)page)) {
-    ngs::free_array((char *)page);
-  }
+  ngs::free_array(page);
 }
 
-bool Page_pool::push_page(char *page_data) {
-  if (m_pages_cache_max != 0) {
+bool Memory_block_pool::try_to_cache_page(char *page_data) {
+  if (m_config.m_pages_cache_max != 0) {
     MUTEX_LOCK(lock, m_mutex);
 
-    if (m_pages_cached >= m_pages_cache_max) return false;
+    if (m_number_of_cached_pages >= m_config.m_pages_cache_max) return false;
 
-    ++m_pages_cached;
-    m_pages_list.push_back(page_data);
+    ++m_number_of_cached_pages;
+    m_page_cache = new (page_data) Node_linked_list(m_page_cache);
 
     return true;
   }
@@ -97,19 +85,24 @@ bool Page_pool::push_page(char *page_data) {
   return false;
 }
 
-char *Page_pool::pop_page() {
-  if (m_pages_cache_max != 0) {
+char *Memory_block_pool::get_page_from_cache() {
+  if (m_config.m_pages_cache_max != 0) {
     MUTEX_LOCK(lock, m_mutex);
 
-    if (!m_pages_list.empty()) {
-      --m_pages_cached;
-      char *result = m_pages_list.front();
+    if (m_page_cache) {
+      --m_number_of_cached_pages;
+      auto result = m_page_cache;
 
-      m_pages_list.pop_front();
+      m_page_cache = m_page_cache->m_next;
+      result->~Node_linked_list();
 
-      return result;
+      return reinterpret_cast<char *>(result);
     }
   }
 
-  return NULL;
+  return nullptr;
 }
+
+const Pool_config *Memory_block_pool::get_config() const { return &m_config; }
+
+}  // namespace ngs

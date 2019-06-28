@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,8 @@ class Session : public ngs::Session {
   ngs::Notice_configuration_interface &get_notice_configuration() override {
     return m_notice_configuration;
   }
+
+  void set_proto(ngs::Protocol_encoder_interface *encoder) override;
 
  public:
   using Variable =

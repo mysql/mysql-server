@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,9 @@
 #include "errmsg.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "plugin/x/client/xconnection_config.h"
+#include "plugin/x/client/context/xconnection_config.h"
+#include "plugin/x/client/context/xssl_config.h"
 #include "plugin/x/client/xprotocol_impl.h"
-#include "plugin/x/client/xssl_config.h"
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/connection.h"
 #include "unittest/gunit/xplugin/xcl/mock/connection_state.h"

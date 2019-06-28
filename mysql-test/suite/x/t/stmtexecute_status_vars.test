@@ -357,15 +357,10 @@ CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_s
 
 --write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
 
--->sql
 SHOW STATUS like 'Mysqlx_stmt_create_collection';
 SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
 SHOW STATUS like 'Mysqlx_rows_sent%';
-SHOW STATUS like 'Mysqlx_bytes_sent%';
-#SHOW STATUS like 'Mysqlx_bytes_received%';
-
-
--->endsql
+SHOW STATUS like 'Mysqlx_bytes_sent';
 
 #-- "Create table table2 in xplugintest "
 Mysqlx.Sql.StmtExecute {
@@ -651,7 +646,7 @@ Mysqlx.Sql.StmtExecute {
   }  
 }
 -->recvresult
--->sql
+
 USE xplugintest;
 SHOW STATUS like 'Mysqlx_stmt_create_collection';
 
@@ -663,13 +658,7 @@ ALTER TABLE xplugintest.table4 ADD FULLTEXT INDEX `fulltext_idx_1` (value_string
 SHOW STATUS like 'Mysqlx_stmt_create_collection';
 SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
 SHOW STATUS like 'Mysqlx_rows_sent%';
-SHOW STATUS like 'Mysqlx_bytes_sent%';
-#SHOW STATUS like 'Mysqlx_bytes_received%';
-
-
--->endsql
-
-
+SHOW STATUS like 'Mysqlx_bytes_sent';
 
 -->echo Filter data by unsigned int
 Mysqlx.Sql.StmtExecute {
@@ -697,19 +686,15 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvresult
 
--->sql
+
 SHOW STATUS like 'Mysqlx_stmt_create_collection';
 SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
 SHOW STATUS like 'Mysqlx_rows_sent%';
-SHOW STATUS like 'Mysqlx_bytes_sent%';
-#SHOW STATUS like 'Mysqlx_bytes_received%';
-
+SHOW STATUS like 'Mysqlx_bytes_sent';
 
 SHOW STATUS like 'Mysqlx_stmt_drop_collection';
 SHOW STATUS like 'Mysqlx_stmt_drop_collection_index%';
 SHOW STATUS like 'Mysqlx_stmt_ping%';
--->endsql
-
 
 -->echo # drop index counted in status variable
 Mysqlx.Sql.StmtExecute {

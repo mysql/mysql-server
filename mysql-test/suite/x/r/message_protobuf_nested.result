@@ -1,3 +1,5 @@
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
 
 command ok
 connecting...
@@ -10,7 +12,7 @@ doc
 command ok
 Try to send number of object more than the X Protocol limit 101 (2 * 51)
 Got expected error: X Protocol message recursion limit (100) exceeded (code 5000)
-aborting session test_different_messages1
+closing session test_different_messages1
 switched to session default
 Mysqlx.Ok {
   msg: "bye!"
@@ -21,4 +23,6 @@ command ok
 Try to send number of object more than the X Protocol limit 101 (2 * 51)
 Got expected error: X Protocol message recursion limit (100) exceeded (code 5000)
 ok
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 DROP TABLE IF EXISTS coll;

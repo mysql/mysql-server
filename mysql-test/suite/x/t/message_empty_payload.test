@@ -4,19 +4,21 @@
 
 ## TEST STARTS HERE
 --write_file $MYSQL_TMP_DIR/validate_empty_message.tmp
+-->import wait_until_disconnect.macro
 -->hexsend 00000000
 -->expecterror 5000
 -->recvtype Mysqlx.Error
--->peerdisc 2000 2000
+-->callmacro Wait_until_disconnect
 EOF
 
 --write_file $MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp
 -->import connection.macro
+-->import wait_until_disconnect.macro
 -->callmacro Verify_its_xprotocol_connection
 -->hexsend 00000000
 -->expecterror 5000
 -->recvtype Mysqlx.Error
--->peerdisc 2000 2000
+-->callmacro Wait_until_disconnect
 EOF
 
 
@@ -37,6 +39,7 @@ EOF
 # Set the timeout for connection to 300 seconds
 # which is must be greater than the peerdisc/timeout
 SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
 
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp 2>&1
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp --no-auth 2>&1
@@ -47,6 +50,7 @@ SET GLOBAL mysqlx_connect_timeout = 300;
 
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 --remove_file $MYSQL_TMP_DIR/validate_empty_message.tmp
 --remove_file $MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp
 --remove_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp

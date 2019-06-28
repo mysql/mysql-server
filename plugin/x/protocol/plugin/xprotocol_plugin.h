@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,15 @@
 
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/descriptor.h>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "plugin/x/protocol/plugin/chain_file_output.h"
+#include "plugin/x/protocol/plugin/encoder_file_output.h"
 #include "plugin/x/protocol/plugin/message_field_chain.h"
+#include "plugin/x/protocol/plugin/messages_used_by_server.h"
 
 class XProtocol_plugin : public google::protobuf::compiler::CodeGenerator {
  public:
@@ -39,26 +43,46 @@ class XProtocol_plugin : public google::protobuf::compiler::CodeGenerator {
   using FileDescriptor = google::protobuf::FileDescriptor;
 
  public:
-  explicit XProtocol_plugin(Chain_file_output *xcontext)
-      : m_xcontext(*xcontext) {}
+  explicit XProtocol_plugin(Chain_file_output *chain_file,
+                            Encoder_file_output *encoder_file)
+      : m_chain_file(chain_file), m_encoder_file(encoder_file) {}
 
   bool Generate(const FileDescriptor *file, const std::string & /* parameter */,
                 GeneratorContext *generator_context,
                 std::string * /* error */) const override {
     ++m_count;
 
-    bool result = Message_field_chain(*file, generator_context, &m_xcontext)
-                      .generate_chain_for_each_client_message();
-    std::vector<const FileDescriptor *> v;
-    generator_context->ListParsedFiles(&v);
+    Message_field_chain filed_chain_generator(generator_context, m_chain_file);
 
-    if (m_count == v.size()) m_xcontext.close();
+    for (int i = 0; i < file->message_type_count(); ++i) {
+      auto message = file->message_type(i);
 
-    return result;
+      // Output generated data to m_chain_file
+      filed_chain_generator.indeep_search(message);
+
+      m_server_only_generator.indeep_search_with_context(generator_context,
+                                                         message);
+    }
+
+    if (processed_all_from(generator_context)) {
+      m_chain_file->close();
+      m_encoder_file->close();
+    }
+
+    return true;
   }
 
  private:
-  Chain_file_output &m_xcontext;
+  bool processed_all_from(GeneratorContext *generator_context) const {
+    std::vector<const FileDescriptor *> v;
+    generator_context->ListParsedFiles(&v);
+
+    return m_count == v.size();
+  }
+
+  Chain_file_output *m_chain_file;
+  Encoder_file_output *m_encoder_file;
+  mutable Messages_used_by_server m_server_only_generator{m_encoder_file};
   mutable size_t m_count{0};
 };
 

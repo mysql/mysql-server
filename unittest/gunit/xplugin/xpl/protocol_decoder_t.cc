@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@ const uint32 k_max_read_timeout_in_sec = 2;
 
 class Protocol_decoder_test_suite : public ::testing::Test {
  public:
+  using Strict_mock_client = StrictMock<xpl::test::Mock_client>;
   using Strict_mock_vio = StrictMock<Mock_vio>;
   using Strict_mock_pmonitor = StrictMock<Mock_protocol_monitor>;
   using Strict_Mock_wait_for_io = Mock_wait_for_io;
@@ -71,11 +72,17 @@ class Protocol_decoder_test_suite : public ::testing::Test {
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
   std::shared_ptr<Strict_mock_vio> m_mock_vio{new Strict_mock_vio()};
-  std::shared_ptr<Protocol_config> m_config{new Protocol_config()};
+  std::shared_ptr<Protocol_global_config> m_config_global{
+      new Protocol_global_config()};
+  std::shared_ptr<Protocol_config> m_config{
+      new Protocol_config(m_config_global)};
+
   Strict_mock_pmonitor m_mock_protocol_monitor;
   Strict_Mock_wait_for_io m_mock_wait_for_io;
+  Mock_message_dispatcher m_mock_dispatcher;
 
-  Protocol_decoder m_sut{m_mock_vio, &m_mock_protocol_monitor, m_config,
+  Protocol_decoder m_sut{&m_mock_dispatcher,        m_mock_vio,
+                         &m_mock_protocol_monitor,  m_config,
                          k_max_wait_timeout_in_sec, k_max_read_timeout_in_sec};
 };
 
@@ -84,8 +91,6 @@ class Protocol_decoder_test_suite : public ::testing::Test {
  * in case when reporting is forbidden.
  */
 TEST_F(Protocol_decoder_test_suite, no_need_for_idle_reporting_read_msg) {
-  Message_request mr;
-
   {
     InSequence s;
     EXPECT_CALL(m_mock_wait_for_io, has_to_report_idle_waiting())
@@ -94,10 +99,11 @@ TEST_F(Protocol_decoder_test_suite, no_need_for_idle_reporting_read_msg) {
     EXPECT_CALL(*m_mock_vio, read(_, _))
         .WillOnce(DoAll(SetArrayArgument<0>(m_msg.begin(), m_msg.end()),
                         Return(m_msg.size())));
+    EXPECT_CALL(m_mock_dispatcher, handle(_));
     EXPECT_CALL(m_mock_protocol_monitor, on_receive(_));
   }
 
-  m_sut.read_and_decode(&mr, &m_mock_wait_for_io);
+  m_sut.read_and_decode(&m_mock_wait_for_io);
 }
 
 /*
@@ -105,8 +111,6 @@ TEST_F(Protocol_decoder_test_suite, no_need_for_idle_reporting_read_msg) {
  * in case when reporting is required.
  */
 TEST_F(Protocol_decoder_test_suite, need_idle_reporting_read_msg) {
-  Message_request mr;
-
   {
     InSequence s;
     EXPECT_CALL(m_mock_wait_for_io, has_to_report_idle_waiting())
@@ -115,10 +119,11 @@ TEST_F(Protocol_decoder_test_suite, need_idle_reporting_read_msg) {
     EXPECT_CALL(*m_mock_vio, read(_, _))
         .WillOnce(DoAll(SetArrayArgument<0>(m_msg.begin(), m_msg.end()),
                         Return(m_msg.size())));
+    EXPECT_CALL(m_mock_dispatcher, handle(_));
     EXPECT_CALL(m_mock_protocol_monitor, on_receive(_));
   }
 
-  m_sut.read_and_decode(&mr, &m_mock_wait_for_io);
+  m_sut.read_and_decode(&m_mock_wait_for_io);
 }
 
 /*
@@ -128,8 +133,6 @@ TEST_F(Protocol_decoder_test_suite, need_idle_reporting_read_msg) {
  */
 TEST_F(Protocol_decoder_test_suite,
        need_idle_reporting_mutiple_idle_timeouts_exceeds_wait_timeout) {
-  Message_request mr;
-
   {
     InSequence s;
     EXPECT_CALL(m_mock_wait_for_io, has_to_report_idle_waiting())
@@ -154,7 +157,7 @@ TEST_F(Protocol_decoder_test_suite,
         .RetiresOnSaturation();
   }
 
-  m_sut.read_and_decode(&mr, &m_mock_wait_for_io);
+  m_sut.read_and_decode(&m_mock_wait_for_io);
 }
 
 }  // namespace test

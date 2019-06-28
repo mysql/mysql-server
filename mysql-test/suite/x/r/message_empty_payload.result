@@ -1,4 +1,5 @@
 SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
 Sending 4 bytes raw data...
 Mysqlx.Error {
   severity: FATAL
@@ -23,3 +24,4 @@ Mysqlx.Ok {
 }
 ok
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;

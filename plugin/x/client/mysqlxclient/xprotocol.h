@@ -32,11 +32,14 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
+
+#include "mysqlxclient/xmessage.h"
 
 #include "mysqlxclient/xargument.h"
+#include "mysqlxclient/xcompression.h"
 #include "mysqlxclient/xconnection.h"
 #include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xmessage.h"
 #include "mysqlxclient/xquery_result.h"
 
 #ifdef USE_MYSQLX_FULL_PROTO
@@ -377,6 +380,62 @@ class XProtocol {
   */
   virtual XError send(const Header_message_type_id mid, const uint8_t *buffer,
                       const std::size_t length) = 0;
+
+  /**
+    Serialize, compress and send protobuf message.
+
+    This method builds message payload by serializing 'message', compressing
+    it and prepending with a 'header' holding the COMPRESSION SINGLE message
+    identifier, compressed-payload size, actual message identifier, uncompressed
+    size. Such construction is send using XConnection interface.
+
+    @param message_id   message identifier
+    @param message      to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error or timeout error occurred
+  */
+  virtual XError send_compressed_frame(const Client_message_type_id message_id,
+                                       const Message &message) = 0;
+
+  /**
+    Serialize, compress and send multiple protobuf messages of the same type.
+
+    This method builds message payload by serializing 'messages' with their
+    sizes, compressing those and prepending with a 'header' holding the
+    COMPRESSION MULTIPLE message identifier, compressed-payload size, actual
+    message identifier, uncompressed size. Such construction is send using
+    XConnection interface.
+
+    @param message_id  message identifier
+    @param messages      message to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error or timeout error occurred
+  */
+  virtual XError send_compressed_frames(
+      const Client_message_type_id message_id,
+      const std::vector<Message *> &messages) = 0;
+
+  /**
+    Serialize, compress and send multiple protobuf message of different type.
+
+    This method builds message payload by serializing 'messages' with their ids
+    and sizes, compressing those and prepending with a 'header' holding the
+    COMPRESSION GROUP message identifier, compressed-payload size, uncompressed
+    size. Such construction is send using XConnection interface.
+
+    @param messages     messages to be serialized, compressed and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error or timeout error occurred
+  */
+  virtual XError send_compressed_group_of_frames(
+      const std::vector<std::pair<Client_message_type_id, Message *>>
+          &messages) = 0;
 
   /**
     Serialize and send protobuf message.
@@ -875,6 +934,8 @@ class XProtocol {
                                       const std::string &pass,
                                       const std::string &schema,
                                       const std::string &method = "") = 0;
+
+  virtual void use_compression(const Compression_algorithm algo) = 0;
 };
 
 }  // namespace xcl

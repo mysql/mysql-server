@@ -30,6 +30,7 @@
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/prepared_statement_builder.h"
 #include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
@@ -252,6 +253,7 @@ Prepare_command_handler::get_notice_level_flags(
 void Prepare_command_handler::send_notices(
     const Prepared_stmt_info *stmt_info,
     const ngs::Resultset_interface::Info &info, const bool is_eof) const {
+  DBUG_TRACE;
   const auto &notice_config = m_session->get_notice_configuration();
   if (info.num_warnings > 0 &&
       notice_config.is_notice_enabled(ngs::Notice_type::k_warning))
@@ -260,20 +262,18 @@ void Prepare_command_handler::send_notices(
   if (!is_eof) return;
 
   if (!info.message.empty())
-    notices::send_message(m_session->proto(), info.message);
+    m_session->proto().send_notice_txt_message(info.message);
 
   if (stmt_info->m_type != Prepare::OneOfMessage::FIND)
-    notices::send_rows_affected(m_session->proto(), info.affected_rows);
+    m_session->proto().send_notice_rows_affected(info.affected_rows);
 
   if (stmt_info->m_type == Prepare::OneOfMessage::INSERT ||
       stmt_info->m_type == Prepare::OneOfMessage::STMT) {
     if (stmt_info->m_is_table_model) {
       if (info.last_insert_id > 0)
-        notices::send_generated_insert_id(m_session->proto(),
-                                          info.last_insert_id);
+        m_session->proto().send_notice_last_insert_id(info.last_insert_id);
     } else
-      notices::send_generated_document_ids(
-          m_session->proto(),
+      m_session->proto().send_notice_generated_document_ids(
           m_session->get_document_id_aggregator().get_ids());
   }
 }

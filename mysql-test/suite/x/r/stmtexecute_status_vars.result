@@ -331,7 +331,7 @@ RUN SHOW STATUS like 'Mysqlx_rows_sent%'
 Variable_name	Value
 Mysqlx_rows_sent	2
 0 rows affected
-RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
+RUN SHOW STATUS like 'Mysqlx_bytes_sent'
 Variable_name	Value
 Mysqlx_bytes_sent	720
 0 rows affected
@@ -668,9 +668,9 @@ RUN SHOW STATUS like 'Mysqlx_rows_sent%'
 Variable_name	Value
 Mysqlx_rows_sent	7
 0 rows affected
-RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
+RUN SHOW STATUS like 'Mysqlx_bytes_sent'
 Variable_name	Value
-Mysqlx_bytes_sent	2751
+Mysqlx_bytes_sent	2787
 0 rows affected
 Filter data by unsigned int
 send Mysqlx.Sql.StmtExecute {
@@ -716,9 +716,9 @@ RUN SHOW STATUS like 'Mysqlx_rows_sent%'
 Variable_name	Value
 Mysqlx_rows_sent	15
 0 rows affected
-RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
+RUN SHOW STATUS like 'Mysqlx_bytes_sent'
 Variable_name	Value
-Mysqlx_bytes_sent	5056
+Mysqlx_bytes_sent	5092
 0 rows affected
 RUN SHOW STATUS like 'Mysqlx_stmt_drop_collection'
 Variable_name	Value

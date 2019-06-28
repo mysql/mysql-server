@@ -30,8 +30,8 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/xpl_error.h"
 
 namespace ngs {
 
@@ -39,7 +39,8 @@ class Getter_any {
  public:
   template <typename Value_type>
   static Value_type get_numeric_value(const ::Mysqlx::Datatypes::Any &any) {
-    using namespace ::Mysqlx::Datatypes;
+    using ::Mysqlx::Datatypes::Any;
+    using ::Mysqlx::Datatypes::Scalar;
 
     if (Any::SCALAR != any.type())
       throw Error_code(ER_X_INVALID_PROTOCOL_DATA,
@@ -66,6 +67,46 @@ class Getter_any {
       default:
         throw Error_code(ER_X_INVALID_PROTOCOL_DATA,
                          "Invalid data, expected numeric type");
+    }
+  }
+
+  static std::string get_string_value(const ::Mysqlx::Datatypes::Any &any,
+                                      ngs::Error_code *out_error = nullptr) {
+    using ::Mysqlx::Datatypes::Any;
+    using ::Mysqlx::Datatypes::Scalar;
+
+    if (Any::SCALAR != any.type()) {
+      ngs::Error_code error(ER_X_INVALID_PROTOCOL_DATA,
+                            "Invalid data, expecting scalar");
+
+      if (out_error) {
+        *out_error = error;
+        return {};
+      }
+
+      throw error;
+    }
+
+    const Scalar &scalar = any.scalar();
+
+    switch (scalar.type()) {
+      case Scalar::V_STRING:
+        return scalar.v_string().value();
+
+      case Scalar::V_OCTETS:
+        return scalar.v_octets().value();
+
+      default: {
+        ngs::Error_code error(ER_X_INVALID_PROTOCOL_DATA,
+                              "Invalid data, expected string type");
+
+        if (out_error) {
+          *out_error = error;
+          return {};
+        }
+
+        throw error;
+      }
     }
   }
 

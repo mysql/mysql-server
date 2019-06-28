@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include <unordered_set>
 
 #include "plugin/x/ngs/include/ngs/log.h"
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
 
@@ -62,7 +62,7 @@ Capabilities *Capabilities_configurator::get() {
 
       c->set_name(handler->name());
 
-      handler->get(*c->mutable_value());
+      handler->get(c->mutable_value());
     }
 
     ++i;

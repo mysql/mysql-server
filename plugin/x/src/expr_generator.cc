@@ -29,6 +29,7 @@
 #include <string>
 #include <utility>
 
+#include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/src/json_utils.h"
 #include "plugin/x/src/mysql_function_names.h"

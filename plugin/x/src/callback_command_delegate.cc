@@ -24,6 +24,8 @@
 
 #include "plugin/x/src/callback_command_delegate.h"
 
+#include <string>
+
 #include <stddef.h>
 
 #include "plugin/x/ngs/include/ngs/memory.h"
@@ -40,28 +42,6 @@ Callback_command_delegate::Field_value::Field_value(const Field_value &other)
       is_string(other.is_string) {
   if (other.is_string) value.v_string = new std::string(*other.value.v_string);
 }
-
-/*
-NOTE: Commented for coverage. Uncomment when needed.
-
-Callback_command_delegate::Field_value&
-Callback_command_delegate::Field_value::operator = (const Field_value& other)
-{
-  if (&other != this)
-  {
-    this->~Field_value();
-
-    value = other.value;
-    is_unsigned = other.is_unsigned;
-    is_string = other.is_string;
-
-    if (other.is_string)
-      value.v_string = new std::string(*other.value.v_string);
-  }
-
-  return *this;
-}
-*/
 
 Callback_command_delegate::Field_value::Field_value(const longlong &num,
                                                     bool unsign) {
@@ -102,9 +82,7 @@ Callback_command_delegate::Field_value::~Field_value() {
 Callback_command_delegate::Row_data::~Row_data() { clear(); }
 
 void Callback_command_delegate::Row_data::clear() {
-  std::vector<Field_value *>::iterator i = fields.begin();
-
-  for (; i != fields.end(); ++i) ngs::free_object(*i);
+  for (auto f : fields) ngs::free_object(f);
 
   fields.clear();
 }
@@ -125,10 +103,9 @@ operator=(const Row_data &other) {
 
 void Callback_command_delegate::Row_data::clone_fields(const Row_data &other) {
   fields.reserve(other.fields.size());
-  std::vector<Field_value *>::const_iterator i = other.fields.begin();
-  for (; i != other.fields.end(); ++i) {
-    this->fields.push_back((*i) ? ngs::allocate_object<Field_value>(**i)
-                                : NULL);
+
+  for (auto f : other.fields) {
+    this->fields.push_back(f ? ngs::allocate_object<Field_value>(*f) : nullptr);
   }
 }
 
@@ -153,8 +130,9 @@ int Callback_command_delegate::start_row() {
   if (m_start_row) {
     m_current_row = m_start_row();
     if (!m_current_row) return true;
-  } else
+  } else {
     m_current_row = nullptr;
+  }
   return false;
 }
 

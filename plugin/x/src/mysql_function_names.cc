@@ -26,6 +26,8 @@
 
 #include <vector>
 
+#include "plugin/x/src/helper/string_case.h"
+
 namespace xpl {
 
 namespace {

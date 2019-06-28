@@ -33,7 +33,7 @@ namespace test {
 
 TEST_F(Xcl_session_impl_tests, xsession_set_capability_successful) {
   const bool value_bool = true;
-  const Argument_object value_object;
+  const Argument_uobject value_object;
 
   ASSERT_FALSE(m_sut->set_capability(
       XSession::Capability_can_handle_expired_password, value_bool));
@@ -46,7 +46,7 @@ TEST_F(Xcl_session_impl_tests, xsession_set_capability_unsuccessful) {
   const char *value_pchar = "pchar";
   const std::string value_string = "std::string";
   const int64_t value_int = 10;
-  const Argument_object value_object;
+  const Argument_uobject value_object;
   const bool value_bool = true;
 
   ASSERT_TRUE(m_sut->set_capability(

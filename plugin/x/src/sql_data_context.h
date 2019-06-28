@@ -49,14 +49,8 @@ class Account_verification_handler;
 
 class Sql_data_context : public ngs::Sql_session_interface {
  public:
-  Sql_data_context(ngs::Protocol_encoder_interface *proto,
-                   const bool query_without_authentication = false)
-      : m_proto(proto),
-        m_mysql_session(NULL),
-        m_last_sql_errno(0),
-        m_auth_ok(false),
-        m_query_without_authentication(query_without_authentication),
-        m_password_expired(false) {}
+  Sql_data_context()
+      : m_mysql_session(NULL), m_last_sql_errno(0), m_password_expired(false) {}
 
   ~Sql_data_context() override;
 
@@ -148,8 +142,6 @@ class Sql_data_context : public ngs::Sql_session_interface {
   int m_last_sql_errno;
   std::string m_last_sql_error;
 
-  bool m_auth_ok;
-  bool m_query_without_authentication;
   bool m_password_expired;
 };
 

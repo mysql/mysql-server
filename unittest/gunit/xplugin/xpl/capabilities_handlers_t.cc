@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ TEST_F(CapabilityHanderTlsTestSuite,
   EXPECT_CALL(mock_connection, get_type())
       .WillOnce(Return(xpl::Connection_type::Connection_tls));
 
-  sut.get(any);
+  sut.get(&any);
 
   ASSERT_EQ(::Mysqlx::Datatypes::Any::SCALAR, any.type());
   ASSERT_EQ(::Mysqlx::Datatypes::Scalar::V_BOOL, any.scalar().type());
@@ -250,7 +250,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive) {
               get_authentication_mechanisms_void(_, Ref(mock_client)))
       .WillOnce(DoAll(SetArgReferee<0>(names), Return(true)));
 
-  sut.get(any);
+  sut.get(&any);
 
   ASSERT_EQ(::Mysqlx::Datatypes::Any::ARRAY, any.type());
   EXPECT_EQ(0, any.array().value_size());
@@ -268,7 +268,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite,
               get_authentication_mechanisms_void(_, Ref(mock_client)))
       .WillOnce(DoAll(SetArgReferee<0>(names), Return(true)));
 
-  sut.get(any);
+  sut.get(&any);
 
   ASSERT_EQ(::Mysqlx::Datatypes::Any::ARRAY, any.type());
   ASSERT_EQ(static_cast<int>(names.size()), any.array().value_size());
@@ -313,7 +313,7 @@ TEST_F(Capability_hander_client_interactive_test_suite,
   const bool expected_result = true;
   ::Mysqlx::Datatypes::Any any;
 
-  sut->get(any);
+  sut->get(&any);
 
   ASSERT_EQ(::Mysqlx::Datatypes::Any::SCALAR, any.type());
   ASSERT_EQ(::Mysqlx::Datatypes::Scalar::V_BOOL, any.scalar().type());
@@ -328,7 +328,7 @@ TEST_F(Capability_hander_client_interactive_test_suite,
   const bool expected_result = false;
   ::Mysqlx::Datatypes::Any any;
 
-  sut->get(any);
+  sut->get(&any);
 
   ASSERT_EQ(::Mysqlx::Datatypes::Any::SCALAR, any.type());
   ASSERT_EQ(::Mysqlx::Datatypes::Scalar::V_BOOL, any.scalar().type());

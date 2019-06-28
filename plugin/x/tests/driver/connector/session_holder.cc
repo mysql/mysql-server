@@ -24,6 +24,10 @@
 
 #include "plugin/x/tests/driver/connector/session_holder.h"
 
+#include "my_dbug.h"
+
+#include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
+
 namespace details {
 
 std::string get_ip_mode_to_text(const xcl::Internet_protocol ip) {
@@ -50,6 +54,9 @@ Session_holder::Session_holder(std::unique_ptr<xcl::XSession> session,
 xcl::XSession *Session_holder::get_session() { return m_session.get(); }
 
 xcl::XError Session_holder::connect(const bool is_raw_connection) {
+  DBUG_TRACE;
+  setup_compression();
+
   setup_ssl();
   setup_msg_callbacks();
   setup_other_options();
@@ -80,6 +87,7 @@ bool Session_holder::try_get_number_of_received_messages(
 }
 
 xcl::XError Session_holder::setup_session() {
+  DBUG_TRACE;
   xcl::XError error;
 
   if (m_options.socket.empty()) {
@@ -114,25 +122,63 @@ xcl::XError Session_holder::setup_connection() {
 }
 
 void Session_holder::setup_other_options() {
+  DBUG_TRACE;
+  using Mysqlx_option = xcl::XSession::Mysqlx_option;
   const auto text_ip_mode = details::get_ip_mode_to_text(m_options.ip_mode);
 
   if (m_options.compatible) {
-    m_session->set_mysql_option(
-        xcl::XSession::Mysqlx_option::Authentication_method, "FALLBACK");
+    m_session->set_mysql_option(Mysqlx_option::Authentication_method,
+                                "FALLBACK");
   }
 
   m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Hostname_resolve_to,
                               text_ip_mode);
 
   if (!m_options.auth_methods.empty())
-    m_session->set_mysql_option(
-        xcl::XSession::Mysqlx_option::Authentication_method,
-        m_options.auth_methods);
+    m_session->set_mysql_option(Mysqlx_option::Authentication_method,
+                                m_options.auth_methods);
+}
+
+void Session_holder::setup_compression() {
+  DBUG_TRACE;
+  using Mysqlx_option = xcl::XSession::Mysqlx_option;
+
+  if (m_options.compression_mode.empty()) return;
+
+  xcl::XError error;
+  error = m_session->set_mysql_option(
+      Mysqlx_option::Compression_negotiation_mode, m_options.compression_mode);
+  if (error)
+    throw xcl::XError{CR_X_UNSUPPORTED_OPTION_VALUE,
+                      "Unsupported value for \"compression-mode\" option"};
+
+  error = m_session->set_mysql_option(Mysqlx_option::Compression_algorithms,
+                                      m_options.compression_algorithm);
+  if (error)
+    throw xcl::XError{CR_X_UNSUPPORTED_OPTION_VALUE,
+                      "Unsupported value for \"compression-algorithm\" option"};
+
+  error = m_session->set_mysql_option(Mysqlx_option::Compression_client_style,
+                                      m_options.compression_client_style);
+  if (error)
+    throw xcl::XError{
+        CR_X_UNSUPPORTED_OPTION_VALUE,
+        "Unsupported value for \"compression-client-style\" option"};
+
+  error = m_session->set_mysql_option(Mysqlx_option::Compression_server_style,
+                                      m_options.compression_server_style);
+  if (error)
+    throw xcl::XError{
+        CR_X_UNSUPPORTED_OPTION_VALUE,
+        "Unsupported value for \"compression-server-style\" option"};
 }
 
 void Session_holder::setup_ssl() {
+  DBUG_TRACE;
+
   auto error = m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_fips_mode, m_options.ssl_fips_mode);
+      xcl::XSession::Mysqlx_option::Ssl_fips_mode,
+      m_options.ssl_fips_mode.empty() ? "off" : m_options.ssl_fips_mode);
 
   if (error) throw error;
 
@@ -247,7 +293,14 @@ xcl::Handler_result Session_holder::count_received_messages(
     xcl::XProtocol *protocol,
     const xcl::XProtocol::Server_message_type_id msg_id,
     const xcl::XProtocol::Message &msg) {
-  const std::string &msg_name = msg.GetDescriptor()->full_name();
+  const auto protobuf_message_name = msg.GetDescriptor()->full_name();
+  const auto server_message_name =
+      Mysqlx::ServerMessages::descriptor()->full_name();
+  const bool is_empty_message = (protobuf_message_name == server_message_name);
+  const std::string &msg_name = !is_empty_message
+                                    ? msg.GetDescriptor()->full_name()
+                                    : server_msgs_by_id[msg_id].second;
+
   ++m_received_msg_counters[msg_name];
 
   if (msg_name != Mysqlx::Notice::Frame::descriptor()->full_name())

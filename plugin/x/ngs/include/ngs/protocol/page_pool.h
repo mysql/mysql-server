@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -18,173 +18,112 @@
  * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ * along with this program; if not, write to the Free Softwa re * Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_POOL_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_POOL_H_
 
+#include <stddef.h>
 #include <stdint.h>
+#include <algorithm>
 #include <atomic>
 #include <list>
+#include <new>
 
-#include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 
-#define BUFFER_PAGE_SIZE 4096
+#define k_minimum_page_size 4096
 
 namespace ngs {
 
-class Page_pool;
-
-// 4KB aligned buffer to be used for reading data from sockets.
-class Page {
- public:
-  Page(uint32_t pcapacity, char *pdata) {
-    capacity = pcapacity;
-    data = pdata;
-    data_length = 0;
-    references = 0;
-  }
-
-  Page(uint32_t pcapacity = BUFFER_PAGE_SIZE) {
-    capacity = pcapacity;
-    ngs::allocate_array(data, capacity, KEY_memory_x_recv_buffer);
-    data_length = 0;
-    references = 0;
-  }
-
-  virtual ~Page() { ngs::free_array(data); }
-
-  void aquire() { ++references; }
-  void release() {
-    if (0 == --references) destroy();
-  }
-
-  uint32_t get_free_bytes() const { return capacity - data_length; }
-
-  uint8_t *get_free_ptr() const {
-    return reinterpret_cast<uint8_t *>(data) + data_length;
-  }
-
-  char *data;
-  uint32_t capacity;
-  uint32_t data_length;
-
- protected:
-  virtual void destroy() {}
-
- private:
-  Page(const Page &);
-  void operator=(const Page &);
-
-  uint16_t references;
-};
-
-template <typename ResType>
-class Resource {
- public:
-  Resource();
-  Resource(ResType *res);
-  Resource(const Resource<ResType> &resource);
-
-  ~Resource();
-
-  ResType *operator->();
-  ResType *operator->() const;
-
-  ResType *get() const;
-
- private:
-  ResType *m_res;
-};
-
 struct Pool_config {
-  int32_t pages_max;
-  int32_t pages_cache_max;
-  int32_t page_size;
+  int32_t m_pages_cache_max;
+  int32_t m_page_size;
 };
 
+class Memory_block_pool {
+ public:
+  explicit Memory_block_pool(const Pool_config &config);
+  ~Memory_block_pool();
+
+  char *allocate();
+  void deallocate(char *page);
+  const Pool_config *get_config() const;
+
+ private:
+  bool try_to_cache_page(char *page_data);
+  char *get_page_from_cache();
+
+  struct Node_linked_list {
+    explicit Node_linked_list(Node_linked_list *next = nullptr)
+        : m_next(next) {}
+
+    Node_linked_list *m_next;
+  };
+
+  xpl::Mutex m_mutex;
+  const Pool_config m_config;
+  std::atomic<int32_t> m_pages_allocated{0};
+  int32_t m_number_of_cached_pages{0};
+
+  Node_linked_list *m_page_cache{nullptr};
+};
+
+/**
+  Manager for memory pages
+
+  In context of this class, page is a application allocated memory block of
+  predefined size. This class caches some number of pages for later reuse.
+
+  Memory block is represented by "Page" type (template argument). The manager,
+  allocates a memory block and passes is to the object in its constructor.
+  Such "Page" object is either cached or returned to the user.
+
+  "Page" must have following constructor:
+
+  ``` C++
+    class Page {
+     public:
+      Page(uint32_t pcapacity, char *pdata) {
+    };
+  ```
+
+  There is additional goal except caching, the class allocates "Page" object
+  and the memory region in single memory call. Application should not depend
+  on this behavior.
+*/
+template <typename Page>
 class Page_pool {
  public:
-  Page_pool(const Pool_config &pool_config);
-  ~Page_pool();
+  using Pool = Page_pool<Page>;
+  explicit Page_pool(Memory_block_pool *memory_pool)
+      : m_internal_pool(memory_pool) {}
 
-  Resource<Page> allocate();
+  Page *allocate() {
+    auto object_data = m_internal_pool->allocate();
+    return new (object_data)
+        Page(m_internal_pool->get_config()->m_page_size - sizeof(Page),
+             object_data + sizeof(Page));
+  }
 
-  class No_more_pages_exception : public std::exception {
-   public:
-    virtual const char *what() const noexcept {
-      return "No more memory pages available";
-    }
-  };
+  void deallocate(Page *page) {
+    page->~Page();
+
+    m_internal_pool->deallocate(reinterpret_cast<char *>(page));
+  }
+
+  const Pool_config *get_config() const {
+    return m_internal_pool->get_config();
+  }
 
  private:
   Page_pool(const Page_pool &) = delete;
   Page_pool &operator=(const Page_pool &) = delete;
 
-  class Page_memory_managed : public Page {
-   public:
-    Page_memory_managed(Page_pool &pool, uint32_t pcapacity, char *pdata)
-        : Page(pcapacity, pdata), m_pool(pool) {}
-
-    ~Page_memory_managed() { data = NULL; }
-
-   private:
-    virtual void destroy() { m_pool.deallocate(this); }
-
-    Page_pool &m_pool;
-  };
-
-  void deallocate(Page *page);
-
-  bool push_page(char *page_data);
-  char *pop_page();
-
-  std::list<char *> m_pages_list;
-  int32_t m_pages_max;
-  int32_t m_pages_cache_max;
-  int32_t m_pages_cached;
-  const int32_t m_page_size;
-  xpl::Mutex m_mutex;
-  std::atomic<int32_t> m_pages_allocated;
+  Memory_block_pool *m_internal_pool;
 };
-
-template <typename ResType>
-Resource<ResType>::Resource() : m_res(NULL) {}
-
-template <typename ResType>
-Resource<ResType>::Resource(ResType *res) : m_res(res) {
-  m_res->aquire();
-}
-
-template <typename ResType>
-Resource<ResType>::Resource(const Resource<ResType> &resource)
-    : m_res(resource.m_res) {
-  if (NULL != m_res) m_res->aquire();
-}
-
-template <typename ResType>
-Resource<ResType>::~Resource() {
-  if (NULL != m_res) m_res->release();
-}
-
-template <typename ResType>
-ResType *Resource<ResType>::operator->() {
-  return m_res;
-}
-
-template <typename ResType>
-ResType *Resource<ResType>::operator->() const {
-  return m_res;
-}
-
-template <typename ResType>
-ResType *Resource<ResType>::get() const {
-  return m_res;
-}
 
 }  // namespace ngs
 

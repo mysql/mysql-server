@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class Capability_client_interactive : public Capability_handler {
   void commit() override;
 
  private:
-  void get_impl(::Mysqlx::Datatypes::Any &any) override;
+  void get_impl(::Mysqlx::Datatypes::Any *any) override;
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override { return true; }
 

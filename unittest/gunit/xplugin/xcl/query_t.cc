@@ -25,8 +25,8 @@
 #include <memory>
 #include <stdexcept>
 
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
-#include "plugin/x/client/xcontext.h"
 #include "plugin/x/client/xquery_result_impl.h"
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/protocol.h"

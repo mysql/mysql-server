@@ -1,0 +1,71 @@
+ ## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/validate_not_parsed_data.tmp
+-->import wait_until_disconnect.macro
+
+#
+# Binary form of message StmtExecute(SELECT 1) message:
+-->varlet %MSG_LENGTH% \x0b\x00\x00\x00
+-->varlet %MSG_TYPE% \x0c
+-->varlet %MSG_BODY% \x0a\x08SELECT\x201
+
+
+#
+# Silent varification of %MSG_LENGTH% %MSG_TYPE% %MSG_BODY%
+-->binparse %MSG% Mysqlx.Sql.StmtExecute {
+    stmt: "SELECT 1"
+}
+
+# Verification of correctness binary form of message
+-->assert_eq %MSG%	%MSG_LENGTH%%MSG_TYPE%%MSG_BODY%
+
+## Test case description:
+-->echo
+-->echo
+-->echo ## I. Handling of unparsable 
+-->echo #
+-->echo # 1. Send message with not-parsable data and verify that parsable part was properly handled
+-->echo # 2. Send message normal query to verify that data from previous call was properly discarded 
+
+
+-->echo
+-->echo #
+-->echo # I.1
+
+-->varlet %MSG_LENGTH_FIVE_BYTES_LONGER% \x10\x00\x00\x00
+
+## Additional description:
+echo # Protobuf uses tags to mark its message fields,;
+echo # in general \x00 is not a valid tag, still in this test its;
+echo # used as end-of-message tag:;
+echo #;
+echo #          ===================PROPER MESSAGE================>EOM==>not-parsed=>;
+echo #           MSG_LENGTH_FIVE_BYTES_LONGER MSG_TYPE MSG_BODY   \x00  MSG_LENGTH; 
+echo #;
+echo # Where last MSG_LENGTH is not parsed garbage.;
+echo;
+echo # Sending message with not-parsable data, and receive an error:; 
+-->binsend %MSG_LENGTH_FIVE_BYTES_LONGER%%MSG_TYPE%%MSG_BODY%\x00%MSG_LENGTH%
+-->recverror ER_X_BAD_MESSAGE
+echo # Wait until server disconnects because of the error;
+-->callmacro Wait_until_disconnect
+EOF
+
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_not_parsed_data.tmp 2>&1
+
+--let $wait_condition= SELECT variable_value = 1 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
+--source include/wait_condition_or_abort.inc
+
+## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+--remove_file $MYSQL_TMP_DIR/validate_not_parsed_data.tmp
+--source include/xplugin_drop_user.inc

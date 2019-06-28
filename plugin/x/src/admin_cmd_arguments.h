@@ -28,6 +28,7 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/admin_cmd_handler.h"
 
 namespace xpl {

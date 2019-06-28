@@ -33,6 +33,7 @@
 
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
@@ -142,7 +143,7 @@ std::atomic<bool> Server::exiting{false};
 Server::Server(
     std::shared_ptr<ngs::Socket_acceptors_task> acceptors,
     std::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-    std::shared_ptr<ngs::Protocol_config> config,
+    std::shared_ptr<ngs::Protocol_global_config> config,
     std::shared_ptr<ngs::Timeout_callback_interface> timeout_callback)
     : m_client_id(0),
       m_num_of_connections(0),
@@ -347,7 +348,7 @@ int Server::plugin_main(MYSQL_PLUGIN p) {
         Plugin_system_variables::socket, "MYSQLX_UNIX_PORT", MYSQLX_UNIX_ADDR);
 
     Listener_factory listener_factory;
-    auto config(ngs::allocate_shared<ngs::Protocol_config>());
+    auto config(ngs::allocate_shared<ngs::Protocol_global_config>());
     auto events(ngs::allocate_shared<ngs::Socket_events>());
     auto timeout_callback(ngs::allocate_shared<ngs::Timeout_callback>(events));
 
@@ -591,7 +592,7 @@ bool Server::on_net_startup() {
     // Ensure to call the start method only once
     if (server().is_running()) return true;
 
-    Sql_data_context sql_context(NULL, true);
+    Sql_data_context sql_context;
 
     if (!sql_context.wait_api_ready(&is_exiting))
       throw ngs::Error_code(ER_X_SERVICE_ERROR,
@@ -686,7 +687,7 @@ ngs::Error_code Server::kill_client(uint64_t client_id,
   // of Clients will be released in its thread (Scheduler, Client::run).
 
   if (found_client &&
-      ngs::Client_interface::Client_closed != found_client->get_state()) {
+      ngs::Client_interface::State::k_closed != found_client->get_state()) {
     Client_ptr xpl_client = std::static_pointer_cast<Client>(found_client);
 
     if (client_id == requester.client().client_id_num()) {

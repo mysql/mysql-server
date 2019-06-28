@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -285,6 +285,8 @@ TEST_P(Split_sasl_message_test, Split_sasl_message_on_given_param) {
     EXPECT_CALL(mock_client, client_address());
     EXPECT_CALL(mock_client, client_hostname());
     EXPECT_CALL(mock_client, supports_expired_passwords());
+    EXPECT_CALL(mock_sql_data_context, password_expired())
+        .WillOnce(Return(false));
     EXPECT_CALL(mock_session, data_context())
         .WillOnce(ReturnRef(mock_sql_data_context));
     EXPECT_CALL(

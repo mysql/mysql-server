@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 
+#include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/mysql_function_names.h"
 
 namespace xpl {

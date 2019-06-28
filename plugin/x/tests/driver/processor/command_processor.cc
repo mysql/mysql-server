@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019,  Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #include "plugin/x/tests/driver/processor/command_processor.h"
 
+#include "my_dbug.h"
+
 #include "plugin/x/tests/driver/processor/commands/command.h"
 #include "plugin/x/tests/driver/processor/execution_context.h"
 
@@ -42,6 +44,9 @@ Block_processor::Result Command_processor::feed(std::istream &input,
 
 Block_processor::Result Command_processor::execute(std::istream &input,
                                                    const char *command_line) {
+  DBUG_TRACE;
+  DBUG_LOG("debug", "executing following cmd \"" << command_line << "\"");
+
   const auto execution_result =
       m_command.process(input, m_context, command_line);
 

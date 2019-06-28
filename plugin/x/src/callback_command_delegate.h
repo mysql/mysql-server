@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,9 @@
 #define PLUGIN_X_SRC_CALLBACK_COMMAND_DELEGATE_H_
 
 #include <sys/types.h>
+#include <functional>
 
 #include "plugin/x/ngs/include/ngs/command_delegate.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 
 namespace xpl {
 class Callback_command_delegate : public ngs::Command_delegate {

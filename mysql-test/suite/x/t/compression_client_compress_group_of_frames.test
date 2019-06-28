@@ -1,0 +1,112 @@
+## Compression done on client side
+#
+# client->server: CompressGroup
+#
+# Client compresses multiple X protocol messages and
+# sends it in single X Protocol frame of following type:
+# * COMPRESSION_GROUP (id-dec: 48, id-hex: 0x30)
+#
+# The test checks if the server correctly interpreted the compressed
+# block by looking at its responces (if correct result-sets were generated)
+#
+#
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/resultset.tmp
+
+-->begin_compress GROUP
+Mysqlx.Expect.Open {
+}
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1"
+  namespace: "sql"
+}
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "mysqlx"
+}
+-->end_compress
+
+recvok;
+recvresult;
+recvresult;
+EOF
+
+
+--write_file $MYSQL_TMP_DIR/other_compression_style_used.tmp
+-->import wait_until_disconnect.macro
+
+-->begin_compress GROUP
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1"
+  namespace: "sql"
+}
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 2"
+  namespace: "sql"
+}
+-->end_compress
+
+expecterror ER_X_FRAME_COMPRESSION_DISABLED;
+recvresult;
+callmacro Wait_until_disconnect;
+EOF
+
+
+--echo
+--echo ## A. Execute the test using valid compression: deflate/group
+--echo #
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=preferred
+  --compression-algorithm=deflate
+  --compression-server-style=
+  --compression-client-style=group
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+--echo
+--echo ## B. Execute the test using valid compression: lz4/group
+--echo #
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=preferred
+  --compression-algorithm=lz4
+  --compression-server-style=
+  --compression-client-style=group
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+--echo
+--echo ## C. Execute the test using invalid compression: deflate/multiple
+--echo #
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=preferred
+  --compression-algorithm=deflate
+  --compression-server-style=
+  --compression-client-style=multiple
+  --file=$MYSQL_TMP_DIR/other_compression_style_used.tmp 2>&1;
+
+
+--echo
+--echo ## D. Execute the test using invalid compression: lz4/multiple
+--echo #
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=preferred
+  --compression-algorithm=lz4
+  --compression-server-style=
+  --compression-client-style=multiple
+  --file=$MYSQL_TMP_DIR/other_compression_style_used.tmp 2>&1;
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/resultset.tmp
+--remove_file $MYSQL_TMP_DIR/other_compression_style_used.tmp
+--source include/xplugin_drop_user.inc

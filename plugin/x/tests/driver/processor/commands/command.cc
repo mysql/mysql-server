@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -106,6 +107,19 @@ class Backup_and_restore {
   T m_value;
 };
 
+template <typename Operator>
+class Numeric_values {
+ public:
+  bool operator()(const std::string &lhs, const std::string &rhs) const {
+    char *end;
+    const auto lhs_numeric = std::strtoll(lhs.c_str(), &end, 10);
+    const auto rhs_numeric = std::strtoll(rhs.c_str(), &end, 10);
+    return m_operator(lhs_numeric, rhs_numeric);
+  }
+
+  Operator m_operator;
+};
+
 }  // namespace
 
 xpl::chrono::Time_point Command::m_start_measure;
@@ -131,6 +145,7 @@ Command::Command() {
   m_commands["endrepeat"] = &Command::cmd_endrepeat;
   m_commands["system"] = &Command::cmd_system;
   m_commands["peerdisc"] = &Command::cmd_peerdisc;
+  m_commands["enable_compression"] = &Command::cmd_enable_compression;
   m_commands["recv"] = &Command::cmd_recv;
   m_commands["exit"] = &Command::cmd_exit;
   m_commands["abort"] = &Command::cmd_abort;
@@ -181,6 +196,7 @@ Command::Command() {
   m_commands["recv_with_stored_metadata"] =
       &Command::cmd_recv_with_stored_metadata;
   m_commands["clear_stored_metadata"] = &Command::cmd_clear_stored_metadata;
+  m_commands["assert"] = &Command::cmd_assert;
 }
 
 bool Command::is_command_registred(const std::string &command_line,
@@ -217,17 +233,17 @@ Command::Result Command::process(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  context->print_verbose("Execute ", command_line, "\n");
-
-  context->m_command_name = out_command_name;
-
   const char *arguments = command_line.c_str() + out_command_name.length();
 
   if (out_has_prefix) arguments += CMD_PREFIX.length();
-
   if (' ' == *arguments) arguments++;
 
-  return (this->*m_commands[out_command_name])(input, context, arguments);
+  context->print_verbose("Execute ", command_line, "\n");
+  context->m_command_name = out_command_name;
+  context->m_command_arguments = arguments;
+
+  return (this->*m_commands[out_command_name])(input, context,
+                                               context->m_command_arguments);
 }
 
 Command::Result Command::cmd_echo(std::istream &input,
@@ -259,8 +275,11 @@ Command::Result Command::cmd_title(std::istream &input,
 Command::Result Command::cmd_recvtype(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args) {
+  std::string s = args;
+  context->m_variables->replace(&s);
+
   std::vector<std::string> vargs;
-  aux::split(vargs, args, " ", true);
+  aux::split(vargs, s, " ", true);
 
   if (1 != vargs.size() && 2 != vargs.size() && 3 != vargs.size()) {
     std::stringstream error_message;
@@ -271,8 +290,36 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   bool be_quiet = false;
   xcl::XProtocol::Server_message_type_id msgid;
   xcl::XError error;
-  Message_ptr msg(
-      context->session()->get_protocol().recv_single_message(&msgid, &error));
+  const std::string expected_message_name = vargs[0];
+  const bool is_msgid = server_msgs_by_name.count(expected_message_name);
+  const bool is_msgtype = server_msgs_by_full_name.count(expected_message_name);
+
+  if (!is_msgid && !is_msgtype) {
+    context->print_error(
+        "'recvtype' command, invalid message name/id specified as command "
+        "argument:",
+        expected_message_name, "\n");
+    return Result::Stop_with_failure;
+  }
+
+  Message_ptr msg;
+
+  if (is_msgtype) {
+    msg =
+        context->session()->get_protocol().recv_single_message(&msgid, &error);
+  } else {
+    xcl::XProtocol::Header_message_type_id message_type_id;
+    uint8_t *buffer = nullptr;
+    size_t buffer_size;
+
+    error = context->session()->get_protocol().recv(&message_type_id, &buffer,
+                                                    &buffer_size);
+
+    msgid =
+        static_cast<xcl::XProtocol::Server_message_type_id>(message_type_id);
+
+    if (buffer) delete[] buffer;
+  }
 
   int number_of_arguments = static_cast<int>(vargs.size()) - 1;
   if (1 < vargs.size()) {
@@ -282,49 +329,74 @@ Command::Result Command::cmd_recvtype(std::istream &input,
     }
   }
 
-  if (nullptr == msg.get())
+  if (nullptr == msg.get() && is_msgtype) {
     return context->m_options.m_fatal_errors ? Result::Stop_with_failure
                                              : Result::Continue;
+  }
+
+  if (error) {
+    context->print_error("'recvtype' command, failed with I/O error: ", error,
+                         "\n");
+    return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                             : Result::Continue;
+  }
 
   try {
-    const std::string expected_message_name = vargs[0];
-    const std::string field_filter = number_of_arguments > 0 ? vargs[1] : "";
-    const std::string expected_field_value =
-        number_of_arguments > 1 ? vargs[2] : "";
-    bool is_ok = msg->GetDescriptor()->full_name() == expected_message_name;
+    std::string command_output;
+    if (is_msgtype) {
+      const std::string field_filter = number_of_arguments > 0 ? vargs[1] : "";
+      const std::string expected_field_value =
+          number_of_arguments > 1 ? vargs[2] : "";
+      bool is_ok = msg->GetDescriptor()->full_name() == expected_message_name;
 
-    if (!expected_field_value.empty()) {
-      const bool k_dont_show_message_name = false;
-      const std::string field_value =
-          context->m_variables->unreplace(formatter::message_to_text(
-              *msg, field_filter, k_dont_show_message_name));
+      if (!expected_field_value.empty()) {
+        const bool k_dont_show_message_name = false;
+        const std::string field_value =
+            context->m_variables->unreplace(formatter::message_to_text(
+                *msg, field_filter, k_dont_show_message_name));
 
-      if (field_value != expected_field_value) {
-        is_ok = false;
+        if (field_value != expected_field_value) {
+          is_ok = false;
+        }
+      }
+
+      if (!is_ok) {
+        const std::string message_in_text = formatter::message_to_text(*msg);
+        std::string expected_message = expected_message_name;
+
+        if (!field_filter.empty()) expected_message += "(" + field_filter + ")";
+        if (!expected_field_value.empty())
+          expected_message += " = " + expected_field_value;
+
+        context->m_variables->clear_unreplace();
+
+        context->print("Received unexpected message type. Was expecting:\n    ",
+                       expected_message, "\nbut got:\n");
+        context->print(message_in_text, "\n");
+
+        return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                                 : Result::Continue;
+      }
+
+      command_output = formatter::message_to_text(*msg, field_filter);
+    } else {
+      const auto received_message_id_name = server_msgs_by_id[msgid].second;
+
+      if (received_message_id_name != expected_message_name) {
+        context->m_variables->clear_unreplace();
+
+        context->print("Received unexpected message type. Was expecting:\n    ",
+                       expected_message_name, "\nbut got:\n");
+        context->print(received_message_id_name, "\n");
+
+        return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                                 : Result::Continue;
       }
     }
 
-    if (!is_ok) {
-      const std::string message_in_text = formatter::message_to_text(*msg);
-      std::string expected_message = expected_message_name;
-
-      if (!field_filter.empty()) expected_message += "(" + field_filter + ")";
-      if (!expected_field_value.empty())
-        expected_message += " = " + expected_field_value;
-
-      context->m_variables->clear_unreplace();
-
-      context->print("Received unexpected message. Was expecting:\n    ",
-                     expected_message, "\nbut got:\n");
-      context->print(message_in_text, "\n");
-
-      return context->m_options.m_fatal_errors ? Result::Stop_with_failure
-                                               : Result::Continue;
-    }
-
     if (context->m_options.m_show_query_result && !be_quiet) {
-      const std::string message_in_text = context->m_variables->unreplace(
-          formatter::message_to_text(*msg, field_filter));
+      const std::string message_in_text =
+          context->m_variables->unreplace(command_output);
       context->print(message_in_text, "\n");
     }
 
@@ -686,6 +758,11 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
     xcl::XError error;
     Message_ptr msg(
         context->session()->get_protocol().recv_single_message(&msgid, &error));
+
+    if (error) {
+      context->print_error_red(context->m_script_stack, error, '\n');
+      return Result::Stop_with_failure;
+    }
 
     if (msg.get()) {
       if (msg->GetDescriptor()->full_name() == argl[0] ||
@@ -1057,6 +1134,25 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
 
   context->m_connection->close_active(false);
 
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_enable_compression(std::istream &input,
+                                                Execution_context *context,
+                                                const std::string &args) {
+  const static std::map<std::string, xcl::Compression_algorithm> algo{
+      {"deflate", xcl::Compression_algorithm::k_deflate},
+      {"lz4", xcl::Compression_algorithm::k_lz4}};
+
+  std::string arg = args;
+  context->m_variables->replace(&arg);
+  if (0 == algo.count(arg)) {
+    context->print_error("ERROR: Invalid algorithm used: \"", arg, "\"\n");
+
+    return Result::Stop_with_failure;
+  }
+
+  context->m_connection->active_xprotocol()->use_compression(algo.at(arg));
   return Result::Continue;
 }
 
@@ -1858,109 +1954,80 @@ Command::Result Command::cmd_macro_delimiter_compress(
 Command::Result Command::cmd_assert_eq(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  std::vector<std::string> vargs;
-
-  aux::split(vargs, args, "\t", true);
-
-  if (2 != vargs.size()) {
-    context->print_error(
-        "Specified invalid number of arguments for command assert_eq:",
-        vargs.size(), " expecting 2\n");
-    return Result::Stop_with_failure;
-  }
-
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
-
-  if (vargs[0] != vargs[1]) {
-    context->print_error("Execution of '", args, "', resulted in an error:\n");
-    context->print_error("Expecting '", vargs[0], "', but received '", vargs[1],
-                         "'\n");
-    return Result::Stop_with_failure;
-  }
-
-  return Result::Continue;
+  return cmd_assert_generic<std::equal_to<>>(input, context, args);
 }
 
 Command::Result Command::cmd_assert_ne(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  std::vector<std::string> vargs;
-
-  aux::split(vargs, args, "\t", true);
-
-  if (2 != vargs.size()) {
-    context->print_error(
-        "Specified invalid number of arguments for command assert_eq:",
-        vargs.size(), " expecting 2\n");
-    return Result::Stop_with_failure;
-  }
-
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
-
-  if (vargs[0] == vargs[1]) {
-    context->print_error("Expecting '", vargs[0], "', to be different from '",
-                         vargs[1], "'\n");
-    return Result::Stop_with_failure;
-  }
-
-  return Result::Continue;
+  return cmd_assert_generic<std::not_equal_to<>>(input, context, args);
 }
 
 Command::Result Command::cmd_assert_gt(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  std::vector<std::string> vargs;
+  return cmd_assert_generic<Numeric_values<std::greater<>>>(input, context,
+                                                            args);
+}
 
-  aux::split(vargs, args, "\t", true);
+Command::Result Command::cmd_assert_le(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
+  return cmd_assert_generic<Numeric_values<std::less_equal<>>>(input, context,
+                                                               args);
+}
 
-  if (2 != vargs.size()) {
-    context->print_error(
-        "Specified invalid number of arguments for command assert_gt:",
-        vargs.size(), " expecting 2\n");
-    return Result::Stop_with_failure;
-  }
-
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
-
-  if (std::stoi(vargs[0]) <= std::stoi(vargs[1])) {
-    context->print_error("Expecting '", vargs[0], "' to be greater than '",
-                         vargs[1], "'\n");
-    return Result::Stop_with_failure;
-  }
-
-  return Result::Continue;
+Command::Result Command::cmd_assert_lt(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
+  return cmd_assert_generic<Numeric_values<std::less<>>>(input, context, args);
 }
 
 Command::Result Command::cmd_assert_ge(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
+  return cmd_assert_generic<Numeric_values<std::greater_equal<>>>(
+      input, context, args);
+}
+
+Command::Result Command::cmd_assert(std::istream &input,
+                                    Execution_context *context,
+                                    const std::string &args) {
   std::vector<std::string> vargs;
-  char *end_string = nullptr;
 
   aux::split(vargs, args, "\t", true);
 
-  if (2 != vargs.size()) {
+  if (3 != vargs.size()) {
     context->print_error(
-        "Specified invalid number of arguments for command assert_gt:",
-        vargs.size(), " expecting 2\n");
+        context->m_script_stack,
+        "Specified invalid number of arguments for command assert:",
+        vargs.size(), " expecting 3\n");
     return Result::Stop_with_failure;
   }
 
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
+  static std::map<std::string, Command_method> assert_methods{
+      {"!=", &Command::cmd_assert_ne}, {"==", &Command::cmd_assert_eq},
+      {"=", &Command::cmd_assert_eq},  {">", &Command::cmd_assert_gt},
+      {">=", &Command::cmd_assert_ge}, {"<", &Command::cmd_assert_lt},
+      {"<=", &Command::cmd_assert_le}};
 
-  if (strtoll(vargs[0].c_str(), &end_string, 10) <
-      strtoll(vargs[1].c_str(), &end_string, 10)) {
-    context->print_error("assert_gt(", args, ") failed!\n", "Expecting '",
-                         vargs[0], "' to be greater or equal to '", vargs[1],
-                         "'\n");
+  if (0 == assert_methods.count(vargs[1])) {
+    std::string ops;
+    for (const auto &kv : assert_methods) {
+      if (!ops.empty()) ops += ", ";
+
+      ops += kv.first;
+    }
+
+    context->print_error(context->m_script_stack,
+                         "Used invalid operator in second argument:", vargs[1],
+                         " expecting one of: ", ops, "\n");
     return Result::Stop_with_failure;
   }
 
-  return Result::Continue;
+  auto method = assert_methods[vargs[1]];
+
+  return (this->*method)(input, context, vargs[0] + "\t" + vargs[2]);
 }
 
 Command::Result Command::cmd_query(std::istream &input,
@@ -2298,6 +2365,8 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
+  std::cout << "-->enable_compression [deflate|lz4]\n";
+  std::cout << "  Enable compression\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";
   std::cout
@@ -2319,11 +2388,20 @@ void print_help_commands() {
   std::cout << "-->recverror <errno>\n";
   std::cout << "  Read a message and ensure that it's an error of the "
                "expected type\n";
-  std::cout << "-->recvtype <msgtype> (<msg_fied>|" << CMD_ARG_BE_QUIET
-            << "|<msg_fied> " << CMD_ARG_BE_QUIET
-            << "|<msg_fied> <expected_field_value>|)\n";
-  std::cout << "  Read one message and print it, checking that its type is "
-               "the specified one\n";
+  std::cout << "-->recvtype (<msgtype> [<msg_fied>] [<expected_field_value>] ["
+            << CMD_ARG_BE_QUIET << "])|<msgid>"
+            << "\n";
+  std::cout << "  - In case when user specified <msgtype> - read one message "
+               "and print it,\n"
+               "    checks if its type is <msgtype>, additionally its fields "
+               "may be matched.\n"
+               "    Compressed messages are decompressed, thus user will "
+               "receive inner X Protocol messages.\n";
+  std::cout << "  - In case when user specified <msgid> - read one message and "
+               "print the ID,\n"
+               "    checks the RAW message ID if its match <msgid>.\n"
+               "    Compressed messages are not decompressed, thus their IDs "
+               "may be matched against <msgid>.\n";
   std::cout << "-->recvok\n";
   std::cout << "  Expect to receive 'Mysqlx.Ok' message. Works with "
                "'expecterror' command.\n";
@@ -2415,6 +2493,25 @@ void print_help_commands() {
   std::cout << "-->wait_for <VALUE_EXPECTED>\t<SQL QUERY>\n";
   std::cout << "  Wait until SQL query returns value matches expected value "
                "(time limit 30 second)\n";
+  std::cout << "-->assert <VALUE_EXPECTED>\t<OP>\t<VALUE_TESTED>\n";
+  std::cout << "  Ensure that expression described by argument parameters "
+               "is true\n";
+  std::cout << "  <OP> can take following values:\n"
+               "  \"==\" ensures that expected value and tested value "
+               "are equal\n";
+  std::cout << "  \"!=\" ensures that expected value and tested value "
+               "are not equal\n";
+  std::cout << "  \">=\" ensures that expected value is greater or equal "
+               "to tested value\n";
+  std::cout << "  \"<=\" ensures that expected value is less or equal "
+               "to tested value\n";
+  std::cout << "  \"<\" ensures that expected value is less than"
+               " tested value\n";
+  std::cout << "  \">\" ensures that expected value is grater than"
+               " tested value\n";
+  std::cout << "\n";
+  std::cout << "  For example: -->assert 1 < %SOME_VARIABLE%\n";
+  std::cout << "               -->assert %V1% == %V2%\n";
   std::cout << "-->assert_eq <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
   std::cout << "  Ensure that 'TESTED' value equals 'EXPECTED' by comparing "
                "strings lexicographically\n";

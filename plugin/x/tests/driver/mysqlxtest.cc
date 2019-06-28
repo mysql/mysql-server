@@ -28,9 +28,10 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "violite.h"
+
 #include "plugin/x/tests/driver/driver_command_line_options.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
-#include "violite.h"
 
 static void ignore_traces_from_libraries(enum loglevel ll, uint ecode,
                                          va_list args) {}

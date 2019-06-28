@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 
 #include <string>
 #include <vector>
+
+#include "my_dbug.h"
 
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 
@@ -55,6 +57,7 @@ Block_processor::Result Dump_message_block_processor::feed(
 int Dump_message_block_processor::process(
     const xcl::XProtocol::Client_message_type_id msg_id,
     const xcl::XProtocol::Message &message) {
+  DBUG_TRACE;
   std::string bin_message = message_to_bindump(message);
 
   m_context->m_variables->set(m_variable_name, bin_message);

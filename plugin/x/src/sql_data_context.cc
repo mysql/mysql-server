@@ -184,6 +184,8 @@ ngs::Error_code Sql_data_context::authenticate(
     const std::string &passwd,
     const ngs::Authentication_interface &account_verification,
     bool allow_expired_passwords) {
+  m_password_expired = false;
+
   ngs::Error_code error = switch_to_user(user, host, ip, db);
 
   if (error) return ngs::SQLError_access_denied();
@@ -211,10 +213,6 @@ ngs::Error_code Sql_data_context::authenticate(
     // disconnect these users
     if (error.severity == ngs::Error_code::FATAL && !allow_expired_passwords)
       return error;
-
-    // if client supports expired password mode, then pwd expired is not fatal
-    // we send a notice and move on
-    notices::send_account_expired(*m_proto);
   } else if (error)
     return error;
 
@@ -335,7 +333,6 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
                                                  const char *address,
                                                  const char *db) {
   MYSQL_SECURITY_CONTEXT scontext;
-  m_auth_ok = false;
 
   if (thd_get_security_context(get_thd(), &scontext))
     return ngs::Fatal(ER_X_SERVICE_ERROR,
@@ -360,8 +357,6 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
                       username);
   }
 
-  m_auth_ok = true;
-
   return ngs::Success();
 }
 
@@ -375,10 +370,6 @@ ngs::Error_code Sql_data_context::execute_kill_sql_session(
 
 ngs::Error_code Sql_data_context::execute_sql(const char *sql, size_t length,
                                               ngs::Command_delegate *deleg) {
-  if (!m_auth_ok && !m_query_without_authentication)
-    throw std::logic_error(
-        "Attempt to execute query in non-authenticated session");
-
   COM_DATA data;
 
   data.com_query.query = sql;

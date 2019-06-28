@@ -34,7 +34,7 @@
 
 namespace xpl {
 
-void Capability_connection_attributes::get_impl(::Mysqlx::Datatypes::Any &any) {
+void Capability_connection_attributes::get_impl(::Mysqlx::Datatypes::Any *any) {
   DBUG_ASSERT(false && "This method should not be used with CapGet");
 }
 

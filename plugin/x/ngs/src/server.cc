@@ -49,7 +49,7 @@ namespace ngs {
 Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
                std::shared_ptr<Scheduler_dynamic> work_scheduler,
                Server_delegate *delegate,
-               std::shared_ptr<Protocol_config> config,
+               std::shared_ptr<Protocol_global_config> config,
                Server_properties *properties, const Server_task_vector &tasks,
                std::shared_ptr<Timeout_callback_interface> timeout_callback)
     : m_timer_running(false),
@@ -169,7 +169,7 @@ struct Copy_client_not_closed {
       : m_client_list(client_list) {}
 
   bool operator()(Client_ptr &client) {
-    if (Client_interface::Client_closed != client->get_state())
+    if (ngs::Client_interface::State::k_closed != client->get_state())
       m_client_list.push_back(client);
 
     // Continue enumerating

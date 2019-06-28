@@ -33,8 +33,23 @@
 
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/src/helper/to_string.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
 #include "plugin/x/tests/driver/processor/commands/command.h"
 #include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
+
+namespace {
+
+std::vector<std::string> multivalue_argument(const std::string &value) {
+  if (value.empty()) return {};
+
+  std::vector<std::string> result;
+
+  aux::split(result, value, ",", false);
+
+  return result;
+}
+
+}  // namespace
 
 void Driver_command_line_options::print_version() { ::print_version(); }
 
@@ -95,6 +110,35 @@ void Driver_command_line_options::print_help() {
   std::cout << "                      --use-socket* options take precedence "
                "before options like: uri, user,\n";
   std::cout << "                      host, password, port\n";
+  std::cout << "--compression-mode=<mode>  Enable/disable compression "
+               "negotiation algorithm (default: \"DISABLED\")\n";
+  std::cout << "                      \"DISABLED\" - do not negotiate "
+               "compression\n";
+  std::cout << "                      \"PREFERRED\" - if server doesn't "
+               "support selected compression, continue without compression.\n";
+  std::cout << "                      \"REQUIRED\" - if server doesn't support "
+               "selected compression, fail the connection.\n";
+  std::cout
+      << "--compression-algorithm=<algo[,algo...]>  Try to negotiate specified"
+         " compression algorithm with the server (default:\"DEFLATE,LZ4\")\n";
+  std::cout << "                      \"\" - compression not enabled\n";
+  std::cout << "                      \"DEFLATE\" - zlib compression enabled\n";
+  std::cout << "                      \"LZ4\" - lz4f compression enabled\n";
+  std::cout << "--compression-server-style   Set compression server style"
+               " (default: \"GROUP,MULTIPLE,SINGLE\")\n";
+  std::cout << "                      \"\" - compression style not enabled\n";
+  std::cout << "                      \"SINGLE\" - one "
+               "compressed frame contain only one X Protocol message\n";
+  std::cout << "                      \"MULTIPLE\" - one "
+               "compressed frame may contain multiple X Protocol messages"
+               " of the same type.\n";
+  std::cout << "                      \"GROUP\" - one"
+               " compressed frame may contain multiple X Protocol messages"
+               " of different type.\n";
+  std::cout << "--compression-client-style   Set compression client style"
+               " (default: \"SINGLE,MULTIPLE,GROUP\");\n"
+               "                      Accept the same values as"
+               " --compression-server-style\n";
   std::cout << "--ssl-mode            SSL configuration (default: ";
   std::cout << "\"\")\n";
   std::cout << "                      \"\" - require encryption when at last "
@@ -176,6 +220,20 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;
+    } else if (check_arg_with_value(argv, i, "--compression-mode", nullptr,
+                                    value)) {
+      m_connection_options.compression_mode = value;
+    } else if (check_arg_with_value(argv, i, "--compression-algorithm", nullptr,
+                                    value)) {
+      m_connection_options.compression_algorithm = multivalue_argument(value);
+    } else if (check_arg_with_value(argv, i, "--compression-server-style",
+                                    nullptr, value)) {
+      m_connection_options.compression_server_style =
+          multivalue_argument(value);
+    } else if (check_arg_with_value(argv, i, "--compression-client-style",
+                                    nullptr, value)) {
+      m_connection_options.compression_client_style =
+          multivalue_argument(value);
     } else if (check_arg_with_value(argv, i, "--ssl-mode", nullptr, value)) {
       m_connection_options.ssl_mode = value;
     } else if (check_arg_with_value(argv, i, "--ssl-key", nullptr, value)) {

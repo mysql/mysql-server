@@ -26,6 +26,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
 #include <stdexcept>
 
 // needed for ip_to_hostname(), should probably be turned into a service
@@ -94,7 +95,7 @@ This can be called from any thread, so care must be taken to not call
 anything that's not thread safe from here.
  */
 void Client::kill() {
-  if (m_state == Client_accepted) {
+  if (m_state == ngs::Client_interface::State::k_accepted) {
     disconnect_and_trigger_close();
     return;
   }
@@ -173,6 +174,7 @@ bool Client::is_localhost(const char *hostname) {
 void Protocol_monitor::init(Client *client) { m_client = client; }
 
 namespace {
+
 template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
               *variable>
 inline void update_status(ngs::Session_interface *session) {
@@ -182,10 +184,12 @@ inline void update_status(ngs::Session_interface *session) {
 
 template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
               *variable>
-inline void update_status(ngs::Session_interface *session, long param) {
-  if (session) (session->get_status_variables().*variable) += param;
-  (Global_status_variables::instance().*variable) += param;
+inline void update_status(ngs::Session_interface *session,
+                          const uint32_t value) {
+  if (session) (session->get_status_variables().*variable) += value;
+  (Global_status_variables::instance().*variable) += value;
 }
+
 }  // namespace
 
 void Protocol_monitor::on_notice_warning_send() {
@@ -221,19 +225,48 @@ void Protocol_monitor::on_row_send() {
       m_client->session());
 }
 
-void Protocol_monitor::on_send(long bytes_transferred) {
+void Protocol_monitor::on_send(const uint32_t bytes_transferred) {
   update_status<&ngs::Common_status_variables::m_bytes_sent>(
       m_client->session(), bytes_transferred);
 }
 
-void Protocol_monitor::on_receive(long bytes_transferred) {
+void Protocol_monitor::on_send_compressed(const uint32_t bytes_transferred) {
+  update_status<&ngs::Common_status_variables::m_bytes_sent_compressed_payload>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_send_before_compression(
+    const uint32_t bytes_transferred) {
+  update_status<&ngs::Common_status_variables::m_bytes_sent_uncompressed_frame>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_receive(const uint32_t bytes_transferred) {
   update_status<&ngs::Common_status_variables::m_bytes_received>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_receive_compressed(const uint32_t bytes_transferred) {
+  update_status<
+      &ngs::Common_status_variables::m_bytes_received_compressed_payload>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_receive_after_decompression(
+    const uint32_t bytes_transferred) {
+  update_status<
+      &ngs::Common_status_variables::m_bytes_received_uncompressed_frame>(
       m_client->session(), bytes_transferred);
 }
 
 void Protocol_monitor::on_error_unknown_msg_type() {
   update_status<&ngs::Common_status_variables::m_errors_unknown_message_type>(
       m_client->session());
+}
+
+void Protocol_monitor::on_messages_sent(const uint32_t messages) {
+  update_status<&ngs::Common_status_variables::m_messages_sent>(
+      m_client->session(), messages);
 }
 
 }  // namespace xpl

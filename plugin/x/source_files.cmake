@@ -39,6 +39,7 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/helper/chrono.h"
   "${MYSQLX_PROJECT_DIR}/src/helper/string_formatter.h"
   "${MYSQLX_PROJECT_DIR}/src/helper/to_string.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/string_case.h"
   "${MYSQLX_PROJECT_DIR}/src/io/connection_type.h"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.h"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.h"
@@ -120,6 +121,9 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_readonly_value.h"
   "${MYSQLX_PROJECT_DIR}/src/index_field.h"
   "${MYSQLX_PROJECT_DIR}/src/index_array_field.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/set_variable_adaptor.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/capability_compression.h"
+  "${MYSQLX_PROJECT_DIR}/src/set_variable.h"
   ${ngs_HDRS}
 )
 
@@ -208,6 +212,7 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_tls.cc"
   "${MYSQLX_PROJECT_DIR}/src/index_field.cc"
   "${MYSQLX_PROJECT_DIR}/src/index_array_field.cc"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/capability_compression.cc"
   ${ngs_SRC}
 )
 

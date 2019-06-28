@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,6 @@
 #include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/timeout_callback_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/ngs/include/ngs/socket_events.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
@@ -77,7 +76,8 @@ class Server : public Server_interface {
  public:
   Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
          std::shared_ptr<Scheduler_dynamic> work_scheduler,
-         Server_delegate *delegate, std::shared_ptr<Protocol_config> config,
+         Server_delegate *delegate,
+         std::shared_ptr<Protocol_global_config> config,
          Server_properties *properties, const Server_task_vector &tasks,
          std::shared_ptr<Timeout_callback_interface> timeout_callback);
 
@@ -97,7 +97,7 @@ class Server : public Server_interface {
   bool is_terminating();
   bool is_running() override;
 
-  virtual std::shared_ptr<Protocol_config> get_config() const override {
+  virtual std::shared_ptr<Protocol_global_config> get_config() const override {
     return m_config;
   }
   std::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const override {
@@ -179,7 +179,7 @@ class Server : public Server_interface {
   std::shared_ptr<Socket_acceptors_task> m_acceptors;
   std::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
   std::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
-  std::shared_ptr<Protocol_config> m_config;
+  std::shared_ptr<Protocol_global_config> m_config;
   std::unique_ptr<Document_id_generator_interface> m_id_generator;
 
   std::unique_ptr<Ssl_context_interface> m_ssl_context;

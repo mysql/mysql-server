@@ -30,6 +30,7 @@
 #include <mysql/psi/mysql_mutex.h>
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_socket.h>
+#include <mysql/psi/mysql_statement.h>
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_psi_config.h"

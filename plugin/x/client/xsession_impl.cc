@@ -36,12 +36,19 @@
 #include "errmsg.h"
 #include "my_compiler.h"
 #include "my_config.h"
+#include "my_dbug.h"
 #include "my_macros.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 
-#include "plugin/x/client/any_filler.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/validator/capability_compression_validator.h"
+#include "plugin/x/client/validator/descriptor.h"
+#include "plugin/x/client/validator/option_compression_validator.h"
+#include "plugin/x/client/validator/option_connection_validator.h"
+#include "plugin/x/client/validator/option_context_validator.h"
+#include "plugin/x/client/validator/option_ssl_validator.h"
+#include "plugin/x/client/visitor/any_filler.h"
 #include "plugin/x/client/xcapability_builder.h"
 #include "plugin/x/client/xconnection_impl.h"
 #include "plugin/x/client/xprotocol_factory.h"
@@ -52,31 +59,33 @@
 
 namespace xcl {
 
-const char *const ER_TEXT_OPTION_VALUE_IS_SCALAR =
-    "Value requires to be set through non array function";
-const char *const ER_TEXT_INVALID_SSL_MODE = "Invalid value for SSL mode";
-const char *const ER_TEXT_INVALID_SSL_FIPS_MODE =
-    "Invalid value for SSL fips mode";
-const char *const ER_TEXT_OPTION_NOT_SUPPORTED = "Option not supported";
 const char *const ER_TEXT_CAPABILITY_NOT_SUPPORTED = "Capability not supported";
+const char *const ER_TEXT_CAPABILITY_VALUE_INVALID =
+    "Invalid value for capability";
+const char *const ER_TEXT_OPTION_NOT_SUPPORTED = "Option not supported";
+const char *const ER_TEXT_OPTION_VALUE_INVALID = "Invalid value for option";
 const char *const ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING =
     "Operation not supported after connecting";
 const char *const ER_TEXT_NOT_CONNECTED = "Not connected";
 const char *const ER_TEXT_ALREADY_CONNECTED = "Already connected";
 const char *const ER_TEXT_CA_IS_REQUIRED =
     "TLS was marked that requires \"CA\", but it was not configured";
-const char *const ER_TEXT_INVALID_IP_MODE =
-    "Invalid value for host-IP resolver";
 const char *const ER_TEXT_INVALID_AUTHENTICATION_CONFIGURED =
     "Ambiguous authentication methods given";
 
 namespace details {
 
-enum class Capability_datatype { String, Int, Bool, Object };
+/** Check error code, if its client side error */
+bool is_client_error(const XError &e) {
+  const auto error_code = e.error();
 
-/** This class implemented the default behavior of the factory.
- *  Still it implements
- */
+  return (CR_X_ERROR_FIRST <= error_code && CR_X_ERROR_LAST >= error_code) ||
+         (CR_ERROR_FIRST <= error_code && CR_ERROR_LAST >= error_code);
+}
+
+/**
+  This class implemented the default behavior of the factory.
+*/
 class Protocol_factory_default : public Protocol_factory {
  public:
   std::shared_ptr<XProtocol> create_protocol(
@@ -142,69 +151,184 @@ bool get_array_of_strings_from_any(const Mysqlx::Datatypes::Any &any,
   return true;
 }
 
-std::pair<std::string, Capability_datatype> get_capability_type(
+std::string to_upper(const std::string &value) {
+  std::string result;
+
+  result.reserve(value.length() + 1);
+  for (const auto c : value) {
+    result.push_back(toupper(c));
+  }
+
+  return result;
+}
+
+std::string to_lower(const std::string &value) {
+  std::string result;
+
+  result.reserve(value.length() + 1);
+  for (const auto c : value) {
+    result.push_back(tolower(c));
+  }
+
+  return result;
+}
+
+class Capability_descriptor : public Descriptor {
+ public:
+  Capability_descriptor() = default;
+  Capability_descriptor(const std::string name, Validator *validator)
+      : Descriptor(validator), m_name(name) {}
+
+  std::string get_name() const { return m_name; }
+
+  XError get_supported_error() const override {
+    return XError{CR_X_UNSUPPORTED_CAPABILITY_VALUE,
+                  ER_TEXT_CAPABILITY_NOT_SUPPORTED};
+  }
+
+  XError get_wrong_value_error(const Argument_value &) const override {
+    return XError{CR_X_UNSUPPORTED_CAPABILITY_VALUE,
+                  ER_TEXT_CAPABILITY_VALUE_INVALID};
+  }
+
+ private:
+  const std::string m_name;
+};
+
+Capability_descriptor get_capability_descriptor(
     const XSession::Mysqlx_capability capability) {
   switch (capability) {
     case XSession::Capability_can_handle_expired_password:
-      return {"client.pwd_expire_ok", Capability_datatype::Bool};
+      return {"client.pwd_expire_ok", new Bool_validator()};
 
     case XSession::Capability_client_interactive:
-      return {"client.interactive", Capability_datatype::Bool};
+      return {"client.interactive", new Bool_validator()};
 
     case XSession::Capability_session_connect_attrs:
-      return {"session_connect_attrs", Capability_datatype::Object};
+      return {"session_connect_attrs", new Object_validator()};
 
-    default: {
-    }
+    case XSession::Capability_compression:
+      return {"compression", new Capability_compression_validator()};
+
+    default:
+      return {};
   }
-  return {};
 }
 
-template <typename Container_type>
-XError translate_texts_into_auth_types(
-    const std::vector<std::string> &values_list, Container_type *out_auths_list,
-    const bool ignore_not_found = false) {
-  auto to_upper = [](std::string str) {
-    for (auto &c : str) c = toupper(c);
-    return str;
-  };
-  std::vector<std::string> auth_strings;
-  std::transform(std::begin(values_list), std::end(values_list),
-                 std::back_inserter(auth_strings), to_upper);
+class Option_descriptor : public Descriptor {
+ public:
+  using Descriptor::Descriptor;
 
-  const std::set<Session_impl::Auth> scalar_values{
-      Session_impl::Auth::Auto, Session_impl::Auth::Auto_from_capabilities};
+  XError get_supported_error() const override {
+    return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
+  }
 
-  const std::map<std::string, Session_impl::Auth> modes{
-      {"AUTO", Session_impl::Auth::Auto},
-      {"FROM_CAPABILITIES", Session_impl::Auth::Auto_from_capabilities},
-      {"FALLBACK", Session_impl::Auth::Auto_fallback},
-      {"MYSQL41", Session_impl::Auth::Mysql41},
-      {"PLAIN", Session_impl::Auth::Plain},
-      {"SHA256_MEMORY", Session_impl::Auth::Sha256_memory}};
+  XError get_wrong_value_error(const Argument_value &) const override {
+    return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_OPTION_VALUE_INVALID};
+  }
+};
+
+Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
+  using Mysqlx_option = XSession::Mysqlx_option;
+  using Con_conf = Connection_config;
+  using Ctxt = Context;
+
+  switch (option) {
+    case Mysqlx_option::Hostname_resolve_to:
+      return Option_descriptor{new Contex_ip_validator()};
+
+    case Mysqlx_option::Connect_timeout:
+      return Option_descriptor{
+          new Con_int_store<&Con_conf::m_timeout_connect>()};
+
+    case Mysqlx_option::Session_connect_timeout:
+      return Option_descriptor{
+          new Con_int_store<&Con_conf::m_timeout_session_connect>()};
+
+    case Mysqlx_option::Read_timeout:
+      return Option_descriptor{new Con_int_store<&Con_conf::m_timeout_read>()};
+
+    case Mysqlx_option::Write_timeout:
+      return Option_descriptor{new Con_int_store<&Con_conf::m_timeout_write>()};
+
+    case Mysqlx_option::Allowed_tls:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_tls_version>()};
+
+    case Mysqlx_option::Ssl_mode:
+      return Option_descriptor{new Ssl_mode_validator()};
+
+    case Mysqlx_option::Ssl_fips_mode:
+      return Option_descriptor{new Ssl_fips_validator()};
+
+    case Mysqlx_option::Ssl_key:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_key>()};
+
+    case Mysqlx_option::Ssl_ca:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_ca>()};
+
+    case Mysqlx_option::Ssl_ca_path:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_ca_path>()};
+
+    case Mysqlx_option::Ssl_cert:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_cert>()};
+
+    case Mysqlx_option::Ssl_cipher:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_cipher>()};
+
+    case Mysqlx_option::Ssl_crl:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_crl>()};
+
+    case Mysqlx_option::Ssl_crl_path:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_crl_path>()};
+
+    case Mysqlx_option::Authentication_method:
+      return Option_descriptor{new Contex_auth_validator()};
+
+    case Mysqlx_option::Consume_all_notices:
+      return Option_descriptor{
+          new Ctxt_bool_store<&Ctxt::m_consume_all_notices>()};
+
+    case Mysqlx_option::Datetime_length_discriminator:
+      return Option_descriptor{
+          new Ctxt_uint32_store<&Ctxt::m_datetime_length_discriminator>()};
+
+    case Mysqlx_option::Network_namespace:
+      return Option_descriptor{
+          new Con_str_store<&Con_conf::m_network_namespace>()};
+
+    case Mysqlx_option::Compression_negotiation_mode:
+      return Option_descriptor{new Compression_negotiation_validator()};
+
+    case Mysqlx_option::Compression_algorithms:
+      return Option_descriptor{new Compression_algorithms_validator()};
+
+    case Mysqlx_option::Compression_client_style:
+      return Option_descriptor{new Compression_client_styles_validator()};
+
+    case Mysqlx_option::Compression_server_style:
+      return Option_descriptor{new Compression_server_styles_validator()};
+
+    default:
+      return {};
+  }
+}
+
+void translate_texts_into_auth_types(
+    const std::vector<std::string> &values_list,
+    std::set<Auth> *out_auths_list) {
+  static const std::map<std::string, Auth> modes{
+      {"MYSQL41", Auth::k_mysql41},
+      {"PLAIN", Auth::k_plain},
+      {"SHA256_MEMORY", Auth::k_sha256_memory}};
 
   out_auths_list->clear();
-  for (const auto &mode_text : auth_strings) {
-    auto mode_value = modes.find(mode_text);
+  for (const auto &mode_text : values_list) {
+    auto mode_value = modes.find(details::to_upper(mode_text));
 
-    if (modes.end() == mode_value) {
-      if (ignore_not_found) continue;
-
-      out_auths_list->clear();
-      return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_INVALID_SSL_MODE};
-    }
-
-    if (1 < auth_strings.size() &&
-        0 < scalar_values.count(mode_value->second)) {
-      out_auths_list->clear();
-      return XError{CR_X_UNSUPPORTED_OPTION_VALUE,
-                    ER_TEXT_OPTION_VALUE_IS_SCALAR};
-    }
+    if (modes.end() == mode_value) continue;
 
     out_auths_list->insert(out_auths_list->end(), mode_value->second);
   }
-
-  return {};
 }
 
 const char *value_or_empty_string(const char *value) {
@@ -212,6 +336,7 @@ const char *value_or_empty_string(const char *value) {
 
   return value;
 }
+
 const char *value_or_default_string(const char *value,
                                     const char *value_default) {
   if (nullptr == value) return value_default;
@@ -223,10 +348,10 @@ const char *value_or_default_string(const char *value,
 
 class Notice_server_hello_ignore {
  public:
-  Notice_server_hello_ignore(XProtocol *protocol) : m_protocol(protocol) {
+  explicit Notice_server_hello_ignore(XProtocol *protocol)
+      : m_protocol(protocol) {
     m_handler_id = m_protocol->add_notice_handler(
-        *this, Handler_position::Begin,
-        Handler_priority_low);  // TODO(lkotula): end ?
+        *this, Handler_position::Begin, Handler_priority_low);
   }
 
   ~Notice_server_hello_ignore() {
@@ -258,6 +383,22 @@ class Notice_server_hello_ignore {
   XProtocol *m_protocol;
 };
 
+template <typename Value>
+XError set_object_capability(Context *context, Argument_object *capabilities,
+                             const XSession::Mysqlx_capability capability,
+                             const Value &value) {
+  DBUG_TRACE;
+  auto capability_type = details::get_capability_descriptor(capability);
+
+  auto error = capability_type.is_valid(context, value);
+
+  if (error) return error;
+
+  (*capabilities)[capability_type.get_name()] = value;
+
+  return {};
+}
+
 }  // namespace details
 
 Session_impl::Session_impl(std::unique_ptr<Protocol_factory> factory)
@@ -280,25 +421,21 @@ Session_impl::~Session_impl() {
 XProtocol &Session_impl::get_protocol() { return *m_protocol; }
 
 XError Session_impl::set_mysql_option(const Mysqlx_option option,
-                                      const bool value MY_ATTRIBUTE((unused))) {
+                                      const bool value) {
+  DBUG_TRACE;
   if (is_connected()) {
     return XError{CR_ALREADY_CONNECTED,
                   ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING};
   }
 
-  switch (option) {
-    case XSession::Mysqlx_option::Consume_all_notices:
-      m_context->m_consume_all_notices = value;
-      break;
-    default:
-      return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
-  }
+  auto option_type = details::get_option_descriptor(option);
 
-  return {};
+  return option_type.is_valid(m_context.get(), value);
 }
 
 XError Session_impl::set_mysql_option(const Mysqlx_option option,
                                       const char *value) {
+  DBUG_TRACE;
   const std::string value_str = nullptr == value ? "" : value;
 
   return set_mysql_option(option, value_str);
@@ -306,180 +443,142 @@ XError Session_impl::set_mysql_option(const Mysqlx_option option,
 
 XError Session_impl::set_mysql_option(const Mysqlx_option option,
                                       const std::string &value) {
+  DBUG_TRACE;
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED,
                   ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING};
 
-  switch (option) {
-    case Mysqlx_option::Hostname_resolve_to:
-      return setup_ip_mode_from_text(value);
-    case Mysqlx_option::Allowed_tls:
-      m_context->m_ssl_config.m_tls_version = value;
-      break;
-    case Mysqlx_option::Ssl_mode:
-      return setup_ssl_mode_from_text(value);
-    case Mysqlx_option::Ssl_fips_mode:
-      return setup_ssl_fips_mode_from_text(value);
-    case Mysqlx_option::Ssl_key:
-      m_context->m_ssl_config.m_key = value;
-      break;
-    case Mysqlx_option::Ssl_ca:
-      m_context->m_ssl_config.m_ca = value;
-      break;
-    case Mysqlx_option::Ssl_ca_path:
-      m_context->m_ssl_config.m_ca_path = value;
-      break;
-    case Mysqlx_option::Ssl_cert:
-      m_context->m_ssl_config.m_cert = value;
-      break;
-    case Mysqlx_option::Ssl_cipher:
-      m_context->m_ssl_config.m_cipher = value;
-      break;
-    case Mysqlx_option::Ssl_crl:
-      m_context->m_ssl_config.m_crl = value;
-      break;
-    case Mysqlx_option::Ssl_crl_path:
-      m_context->m_ssl_config.m_crl_path = value;
-      break;
-    case Mysqlx_option::Network_namespace:
-      m_context->m_connection_config.m_network_namespace = value;
-      break;
+  auto option_type = details::get_option_descriptor(option);
 
-    case Mysqlx_option::Authentication_method:
-      return details::translate_texts_into_auth_types({value},
-                                                      &m_use_auth_methods);
-    default:
-      return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
-  }
-
-  return {};
+  return option_type.is_valid(m_context.get(), value);
 }
 
 XError Session_impl::set_mysql_option(
     const Mysqlx_option option, const std::vector<std::string> &values_list) {
+  DBUG_TRACE;
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED,
                   ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING};
 
-  switch (option) {
-    case Mysqlx_option::Authentication_method:
-      return details::translate_texts_into_auth_types(values_list,
-                                                      &m_use_auth_methods);
-    default:
-      return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
+  Argument_array array;
+  for (const auto value : values_list) {
+    array.push_back(Argument_value{value});
   }
+
+  auto option_type = details::get_option_descriptor(option);
+
+  return option_type.is_valid(m_context.get(), array);
 }
 
 XError Session_impl::set_mysql_option(const Mysqlx_option option,
                                       const int64_t value) {
+  DBUG_TRACE;
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED,
                   ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING};
 
-  switch (option) {
-    case Mysqlx_option::Read_timeout:
-      m_context->m_connection_config.m_timeout_read = value;
-      break;
+  auto option_type = details::get_option_descriptor(option);
 
-    case Mysqlx_option::Write_timeout:
-      m_context->m_connection_config.m_timeout_write = value;
-      break;
+  return option_type.is_valid(m_context.get(), value);
+}
 
-    case Mysqlx_option::Connect_timeout:
-      m_context->m_connection_config.m_timeout_connect = value;
-      break;
+Argument_object &Session_impl::get_capabilites(const bool required) {
+  DBUG_TRACE;
+  if (required) return m_required_capabilities;
 
-    case Mysqlx_option::Session_connect_timeout:
-      m_context->m_connection_config.m_timeout_session_connect = value;
-      break;
-
-    case Mysqlx_option::Datetime_length_discriminator:
-      m_context->m_datetime_length_discriminator = value;
-      break;
-
-    default:
-      return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
-  }
-
-  return {};
+  DBUG_LOG("debug", "Returning optional set");
+  return m_optional_capabilities;
 }
 
 XError Session_impl::set_capability(const Mysqlx_capability capability,
-                                    const bool value) {
-  auto capability_type = details::get_capability_type(capability);
+                                    const bool value, const bool required) {
+  DBUG_TRACE;
+  auto capability_type = details::get_capability_descriptor(capability);
 
-  if (details::Capability_datatype::Bool != capability_type.second)
-    return XError{CR_X_UNSUPPORTED_CAPABILITY_VALUE,
-                  ER_TEXT_CAPABILITY_NOT_SUPPORTED};
+  auto error = capability_type.is_valid(m_context.get(), value);
 
-  m_capabilities[capability_type.first] = value;
+  if (error) return error;
+
+  get_capabilites(required)[capability_type.get_name()] = value;
 
   return XError();
 }
 
 XError Session_impl::set_capability(const Mysqlx_capability capability,
-                                    const std::string &value) {
-  auto capability_type = details::get_capability_type(capability);
+                                    const std::string &value,
+                                    const bool required) {
+  DBUG_TRACE;
+  auto capability_type = details::get_capability_descriptor(capability);
 
-  if (details::Capability_datatype::String != capability_type.second)
-    return XError{CR_X_UNSUPPORTED_CAPABILITY_VALUE,
-                  ER_TEXT_CAPABILITY_NOT_SUPPORTED};
+  auto error = capability_type.is_valid(m_context.get(), value);
 
-  m_capabilities[capability_type.first] = value;
+  if (error) return error;
 
-  return {};
-}
-
-XError Session_impl::set_capability(const Mysqlx_capability capability,
-                                    const char *value) {
-  auto capability_type = details::get_capability_type(capability);
-
-  if (details::Capability_datatype::String != capability_type.second)
-    return XError{CR_X_UNSUPPORTED_CAPABILITY_VALUE,
-                  ER_TEXT_CAPABILITY_NOT_SUPPORTED};
-
-  m_capabilities[capability_type.first] = value;
+  get_capabilites(required)[capability_type.get_name()] = value;
 
   return {};
 }
 
 XError Session_impl::set_capability(const Mysqlx_capability capability,
-                                    const int64_t value) {
-  auto capability_type = details::get_capability_type(capability);
+                                    const char *value, const bool required) {
+  DBUG_TRACE;
+  auto capability_type = details::get_capability_descriptor(capability);
 
-  if (details::Capability_datatype::String != capability_type.second)
-    return XError{CR_X_UNSUPPORTED_CAPABILITY_VALUE,
-                  ER_TEXT_CAPABILITY_NOT_SUPPORTED};
+  auto error = capability_type.is_valid(m_context.get(), value);
 
-  m_capabilities[capability_type.first] = value;
+  if (error) return error;
+
+  get_capabilites(required)[capability_type.get_name()] =
+      Argument_value{value, Argument_value::String_type::k_string};
 
   return {};
 }
 
 XError Session_impl::set_capability(const Mysqlx_capability capability,
-                                    const Argument_object &value) {
-  auto capability_type = details::get_capability_type(capability);
+                                    const int64_t value, const bool required) {
+  DBUG_TRACE;
+  auto capability_type = details::get_capability_descriptor(capability);
 
-  if (details::Capability_datatype::Object != capability_type.second)
-    return XError{CR_X_UNSUPPORTED_CAPABILITY_VALUE,
-                  ER_TEXT_CAPABILITY_NOT_SUPPORTED};
+  auto error = capability_type.is_valid(m_context.get(), value);
 
-  m_capabilities[capability_type.first] = value;
+  if (error) return error;
+
+  get_capabilites(required)[capability_type.get_name()] = value;
 
   return {};
+}
+
+XError Session_impl::set_capability(const Mysqlx_capability capability,
+                                    const Argument_object &value,
+                                    const bool required) {
+  DBUG_TRACE;
+
+  return details::set_object_capability(
+      m_context.get(), &get_capabilites(required), capability, value);
+}
+
+XError Session_impl::set_capability(const Mysqlx_capability capability,
+                                    const Argument_uobject &value,
+                                    const bool required) {
+  DBUG_TRACE;
+
+  return details::set_object_capability(
+      m_context.get(), &get_capabilites(required), capability, value);
 }
 
 XError Session_impl::connect(const char *host, const uint16_t port,
                              const char *user, const char *pass,
                              const char *schema) {
+  DBUG_TRACE;
+
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED, ER_TEXT_ALREADY_CONNECTED};
 
   Session_connect_timeout_scope_guard timeout_guard{this};
   auto &connection = get_protocol().get_connection();
-  const auto result =
-      connection.connect(details::value_or_empty_string(host),
-                         port ? port : MYSQLX_TCP_PORT, m_internet_protocol);
+  const auto result = connection.connect(details::value_or_empty_string(host),
+                                         port ? port : MYSQLX_TCP_PORT,
+                                         m_context->m_internet_protocol);
   if (result) return result;
 
   const auto connection_type = connection.state().get_connection_type();
@@ -490,6 +589,8 @@ XError Session_impl::connect(const char *host, const uint16_t port,
 
 XError Session_impl::connect(const char *socket_file, const char *user,
                              const char *pass, const char *schema) {
+  DBUG_TRACE;
+
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED, ER_TEXT_ALREADY_CONNECTED};
 
@@ -508,6 +609,8 @@ XError Session_impl::connect(const char *socket_file, const char *user,
 
 XError Session_impl::reauthenticate(const char *user, const char *pass,
                                     const char *schema) {
+  DBUG_TRACE;
+
   if (!is_connected())
     return XError{CR_CONNECTION_ERROR, ER_TEXT_NOT_CONNECTED};
 
@@ -528,6 +631,7 @@ XError Session_impl::reauthenticate(const char *user, const char *pass,
 
 std::unique_ptr<XQuery_result> Session_impl::execute_sql(const std::string &sql,
                                                          XError *out_error) {
+  DBUG_TRACE;
   if (!is_connected()) {
     *out_error = XError{CR_CONNECTION_ERROR, ER_TEXT_NOT_CONNECTED};
 
@@ -541,8 +645,9 @@ std::unique_ptr<XQuery_result> Session_impl::execute_sql(const std::string &sql,
 }
 
 std::unique_ptr<XQuery_result> Session_impl::execute_stmt(
-    const std::string &ns, const std::string &sql, const Arguments &arguments,
-    XError *out_error) {
+    const std::string &ns, const std::string &sql,
+    const Argument_array &arguments, XError *out_error) {
+  DBUG_TRACE;
   if (!is_connected()) {
     *out_error = XError{CR_CONNECTION_ERROR, ER_TEXT_NOT_CONNECTED};
 
@@ -564,6 +669,7 @@ std::unique_ptr<XQuery_result> Session_impl::execute_stmt(
 }
 
 void Session_impl::close() {
+  DBUG_TRACE;
   if (is_connected()) {
     m_protocol->execute_close();
 
@@ -572,12 +678,14 @@ void Session_impl::close() {
 }
 
 void Session_impl::setup_protocol() {
+  DBUG_TRACE;
   m_protocol = m_factory->create_protocol(m_context);
   setup_session_notices_handler();
   setup_general_notices_handler();
 }
 
 void Session_impl::setup_general_notices_handler() {
+  DBUG_TRACE;
   auto context = m_context;
 
   m_protocol->add_notice_handler(
@@ -594,6 +702,7 @@ void Session_impl::setup_general_notices_handler() {
 }
 
 void Session_impl::setup_session_notices_handler() {
+  DBUG_TRACE;
   auto context = m_context;
 
   m_protocol->add_notice_handler(
@@ -606,9 +715,25 @@ void Session_impl::setup_session_notices_handler() {
       Handler_position::End, Handler_priority_high);
 }
 
+void Session_impl::setup_server_supported_compression(
+    const Mysqlx::Datatypes::Object_ObjectField *field) {
+  std::vector<std::string> text_values;
+
+  details::get_array_of_strings_from_any(field->value(), &text_values);
+  auto &negotiator = m_context->m_compression_config.m_negotiator;
+
+  if ("algorithm" == field->key()) {
+    negotiator.server_supports_algorithms(text_values);
+  } else if ("client_style" == field->key()) {
+    negotiator.server_supports_client_styles(text_values);
+  } else if ("server_style" == field->key()) {
+    negotiator.server_supports_server_styles(text_values);
+  }
+}
+
 void Session_impl::setup_server_supported_features(
     const Mysqlx::Connection::Capabilities *capabilities) {
-  const bool ignore_unknows_mechanisms = true;
+  DBUG_TRACE;
 
   for (const auto &capability : capabilities->capabilities()) {
     if ("authentication.mechanisms" == capability.name()) {
@@ -617,14 +742,22 @@ void Session_impl::setup_server_supported_features(
 
       details::get_array_of_strings_from_any(any, &names_of_auth_methods);
 
-      details::translate_texts_into_auth_types(names_of_auth_methods,
-                                               &m_server_supported_auth_methods,
-                                               ignore_unknows_mechanisms);
+      details::translate_texts_into_auth_types(
+          names_of_auth_methods, &m_server_supported_auth_methods);
+    }
+    if ("compression" == capability.name()) {
+      const auto &value = capability.value();
+      if (value.type() == Mysqlx::Datatypes::Any_Type_OBJECT) {
+        for (const auto &fld : value.obj().fld()) {
+          setup_server_supported_compression(&fld);
+        }
+      }
     }
   }
 }
 
 bool Session_impl::is_connected() {
+  DBUG_TRACE;
   if (!m_protocol) return false;
 
   return m_protocol->get_connection().state().is_connected();
@@ -633,17 +766,35 @@ bool Session_impl::is_connected() {
 XError Session_impl::authenticate(const char *user, const char *pass,
                                   const char *schema,
                                   Connection_type connection_type) {
+  DBUG_TRACE;
   auto &protocol = get_protocol();
   auto &connection = protocol.get_connection();
 
-  if (!m_capabilities.empty()) {
+  // After adding pipelining to mysqlxclient, all requests below should
+  // be merged into single send operation, followed by a read operation/s
+  if (!m_required_capabilities.empty()) {
     Capabilities_builder builder;
 
-    auto capabilities_set =
-        builder.add_capabilities_from_object(m_capabilities).get_result();
-    auto error = protocol.execute_set_capability(capabilities_set);
+    auto required_capabilities_set =
+        builder.clear()
+            .add_capabilities_from_object(m_required_capabilities)
+            .get_result();
+    auto error = protocol.execute_set_capability(required_capabilities_set);
 
     if (error) return error;
+  }
+
+  for (const auto &capability : m_optional_capabilities) {
+    Capabilities_builder builder;
+    auto optional_capabilities_set =
+        builder.clear()
+            .add_capability(capability.first, capability.second)
+            .get_result();
+    const auto error =
+        protocol.execute_set_capability(optional_capabilities_set);
+
+    // Optional capabilities might fail
+    if (error.is_fatal() || details::is_client_error(error)) return error;
   }
 
   if (!connection.state().is_ssl_activated()) {
@@ -675,13 +826,35 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     if (out_error) return out_error;
 
     setup_server_supported_features(capabilities.get());
+
+    XError error;
+    auto &config = m_context->m_compression_config;
+    Capabilities_builder capability_builder;
+
+    if (config.m_negotiator.update_compression_options(
+            &config.m_use_algorithm, &config.m_use_client_style,
+            &config.m_use_server_style, &capability_builder, &error)) {
+      error = protocol.execute_set_capability(capability_builder.get_result());
+
+      // We shouldn't fail here, server supports needed capability
+      if (error) return error;
+    }
+
+    // Server doesn't support given compression configuration
+    // and client didn't mark it as optional (its "required").
+    if (error) return error;
   }
+
+  if (Compression_algorithm::k_none !=
+      m_context->m_compression_config.m_use_algorithm)
+    m_protocol->use_compression(
+        m_context->m_compression_config.m_use_algorithm);
 
   const auto is_secure_connection =
       connection.state().is_ssl_activated() ||
       (connection_type == Connection_type::Unix_socket);
   const auto &optional_auth_methods = validate_and_adjust_auth_methods(
-      m_use_auth_methods, is_secure_connection);
+      m_context->m_use_auth_methods, is_secure_connection);
   const auto &error = optional_auth_methods.first;
   if (error) return error;
 
@@ -769,8 +942,9 @@ XError Session_impl::authenticate(const char *user, const char *pass,
   return reported_error;
 }
 
-std::vector<Session_impl::Auth> Session_impl::get_methods_sequence_from_auto(
+std::vector<Auth> Session_impl::get_methods_sequence_from_auto(
     const Auth auto_authentication, const bool can_use_plain) {
+  DBUG_TRACE;
   // Check all automatic methods and return possible sequences for them
   // This means that the corresponding auth sequences will be used:
   //   FALLBACK - MySQL 5.7 compatible automatic method:
@@ -780,17 +954,17 @@ std::vector<Session_impl::Auth> Session_impl::get_methods_sequence_from_auto(
 
   // Sequence like PLAIN, SHA256 or PLAIN, MYSQL41 will always fail
   // in case when PLAIN is going to fail still it may be used in future.
-  const Auth plain_or_mysql41 = can_use_plain ? Auth::Plain : Auth::Mysql41;
+  const Auth plain_or_mysql41 = can_use_plain ? Auth::k_plain : Auth::k_mysql41;
 
   switch (auto_authentication) {
-    case Auth::Auto_fallback:
-      return {plain_or_mysql41, Auth::Sha256_memory};
+    case Auth::k_auto_fallback:
+      return {plain_or_mysql41, Auth::k_sha256_memory};
 
-    case Auth::Auto_from_capabilities:  // fall-through
-    case Auth::Auto:
+    case Auth::k_auto_from_capabilities:  // fall-through
+    case Auth::k_auto:
       if (can_use_plain)
-        return {Auth::Sha256_memory, Auth::Plain, Auth::Mysql41};
-      return {Auth::Sha256_memory, Auth::Mysql41};
+        return {Auth::k_sha256_memory, Auth::k_plain, Auth::k_mysql41};
+      return {Auth::k_sha256_memory, Auth::k_mysql41};
 
     default:
       return {};
@@ -798,10 +972,11 @@ std::vector<Session_impl::Auth> Session_impl::get_methods_sequence_from_auto(
 }
 
 bool Session_impl::is_auto_method(const Auth auto_authentication) {
+  DBUG_TRACE;
   switch (auto_authentication) {
-    case Auth::Auto:                    // fall-through
-    case Auth::Auto_fallback:           // fall-through
-    case Auth::Auto_from_capabilities:  // fall-through
+    case Auth::k_auto:                    // fall-through
+    case Auth::k_auto_fallback:           // fall-through
+    case Auth::k_auto_from_capabilities:  // fall-through
       return true;
 
     default:
@@ -812,9 +987,10 @@ bool Session_impl::is_auto_method(const Auth auto_authentication) {
 std::pair<XError, std::vector<std::string>>
 Session_impl::validate_and_adjust_auth_methods(std::vector<Auth> auth_methods,
                                                const bool can_use_plain) {
+  DBUG_TRACE;
   const auto auth_methods_count = auth_methods.size();
   const Auth first_method =
-      auth_methods_count == 0 ? Auth::Auto : auth_methods[0];
+      auth_methods_count == 0 ? Auth::k_auto : auth_methods[0];
 
   const auto auto_sequence =
       get_methods_sequence_from_auto(first_method, can_use_plain);
@@ -847,6 +1023,8 @@ Session_impl::validate_and_adjust_auth_methods(std::vector<Auth> auth_methods,
 Handler_result Session_impl::handle_notices(
     std::shared_ptr<Context> context, const Mysqlx::Notice::Frame::Type type,
     const char *payload, const uint32_t payload_size) {
+  DBUG_TRACE;
+
   if (Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED == type) {
     Mysqlx::Notice::SessionStateChanged session_changed;
 
@@ -865,97 +1043,19 @@ Handler_result Session_impl::handle_notices(
   return Handler_result::Continue;
 }
 
-XError Session_impl::setup_ssl_mode_from_text(const std::string &value) {
-  const std::size_t mode_text_max_lenght = 20;
-  std::string mode_text;
-
-  mode_text.reserve(mode_text_max_lenght);
-  for (const auto c : value) {
-    mode_text.push_back(toupper(c));
-  }
-
-  const std::map<std::string, Ssl_config::Mode> modes{
-      {"PREFERRED", Ssl_config::Mode::Ssl_preferred},
-      {"DISABLED", Ssl_config::Mode::Ssl_disabled},
-      {"REQUIRED", Ssl_config::Mode::Ssl_required},
-      {"VERIFY_CA", Ssl_config::Mode::Ssl_verify_ca},
-      {"VERIFY_IDENTITY", Ssl_config::Mode::Ssl_verify_identity}};
-
-  auto mode_value = modes.find(mode_text);
-
-  if (modes.end() == mode_value)
-    return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_INVALID_SSL_MODE};
-
-  m_context->m_ssl_config.m_mode = mode_value->second;
-
-  return {};
-}
-
-XError Session_impl::setup_ssl_fips_mode_from_text(const std::string &value) {
-  if (value == "") {
-    m_context->m_ssl_config.m_ssl_fips_mode =
-        Ssl_config::Mode_ssl_fips::Ssl_fips_mode_off;
-    return {};
-  }
-
-  const std::size_t mode_text_max_lenght = 20;
-  std::string mode_text;
-
-  mode_text.reserve(mode_text_max_lenght);
-  for (const auto c : value) {
-    mode_text.push_back(toupper(c));
-  }
-
-  static std::map<std::string, Ssl_config::Mode_ssl_fips> modes{
-      {"OFF", Ssl_config::Mode_ssl_fips::Ssl_fips_mode_off},
-      {"ON", Ssl_config::Mode_ssl_fips::Ssl_fips_mode_on},
-      {"STRICT", Ssl_config::Mode_ssl_fips::Ssl_fips_mode_strict}};
-
-  auto mode_value = modes.find(mode_text);
-
-  if (modes.end() == mode_value)
-    return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_INVALID_SSL_FIPS_MODE};
-
-  m_context->m_ssl_config.m_ssl_fips_mode = mode_value->second;
-
-  return {};
-}
-
-XError Session_impl::setup_ip_mode_from_text(const std::string &value) {
-  std::string mode_text;
-
-  for (const auto c : value) {
-    mode_text.push_back(toupper(c));
-  }
-
-  static std::map<std::string, Internet_protocol> modes{
-      {"ANY", Internet_protocol::Any},
-      {"IP4", Internet_protocol::V4},
-      {"IP6", Internet_protocol::V6}};
-
-  auto mode_value = modes.find(mode_text);
-
-  if (modes.end() == mode_value)
-    return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_INVALID_IP_MODE};
-
-  m_internet_protocol = mode_value->second;
-
-  return {};
-}
-
 std::string Session_impl::get_method_from_auth(const Auth auth) {
   switch (auth) {
-    case Auth::Auto:
+    case Auth::k_auto:
       return "AUTO";
-    case Auth::Mysql41:
+    case Auth::k_mysql41:
       return "MYSQL41";
-    case Auth::Sha256_memory:
+    case Auth::k_sha256_memory:
       return "SHA256_MEMORY";
-    case Auth::Auto_from_capabilities:
+    case Auth::k_auto_from_capabilities:
       return "FROM_CAPABILITIES";
-    case Auth::Auto_fallback:
+    case Auth::k_auto_fallback:
       return "FALLBACK";
-    case Auth::Plain:
+    case Auth::k_plain:
       return "PLAIN";
     default:
       return "UNKNOWN";
@@ -963,11 +1063,17 @@ std::string Session_impl::get_method_from_auth(const Auth auth) {
 }
 
 bool Session_impl::needs_servers_capabilities() const {
-  return m_use_auth_methods.size() == 1 &&
-         m_use_auth_methods[0] == Auth::Auto_from_capabilities;
+  if (m_context->m_use_auth_methods.size() == 1 &&
+      m_context->m_use_auth_methods[0] == Auth::k_auto_from_capabilities)
+    return true;
+
+  const auto &negotiator = m_context->m_compression_config.m_negotiator;
+  if (negotiator.is_negotiation_needed()) return true;
+
+  return false;
 }
 
-Argument_object Session_impl::get_connect_attrs() const {
+Argument_uobject Session_impl::get_connect_attrs() const {
   return {
       {"_client_name", Argument_value{HAVE_MYSQLX_FULL_PROTO(
                            "libmysqlxclient", "libmysqlxclient_lite")}},

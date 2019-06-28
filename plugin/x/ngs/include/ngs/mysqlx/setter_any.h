@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,72 +34,91 @@ namespace ngs {
 
 class Setter_any {
  public:
-  static void set_scalar(::Mysqlx::Datatypes::Scalar &scalar,
+  static void set_scalar(::Mysqlx::Datatypes::Scalar *scalar,
                          const bool value) {
-    scalar.set_type(::Mysqlx::Datatypes::Scalar::V_BOOL);
-    scalar.set_v_bool(value);
+    scalar->set_type(::Mysqlx::Datatypes::Scalar::V_BOOL);
+    scalar->set_v_bool(value);
   }
 
-  static void set_scalar(::Mysqlx::Datatypes::Scalar &scalar,
+  static void set_scalar(::Mysqlx::Datatypes::Scalar *scalar,
                          const int64_t value) {
-    scalar.set_type(::Mysqlx::Datatypes::Scalar::V_SINT);
-    scalar.set_v_signed_int(value);
+    scalar->set_type(::Mysqlx::Datatypes::Scalar::V_SINT);
+    scalar->set_v_signed_int(value);
   }
 
-  static void set_scalar(::Mysqlx::Datatypes::Scalar &scalar,
+  static void set_scalar(::Mysqlx::Datatypes::Scalar *scalar,
                          const uint64_t value) {
-    scalar.set_type(::Mysqlx::Datatypes::Scalar::V_UINT);
-    scalar.set_v_unsigned_int(value);
+    scalar->set_type(::Mysqlx::Datatypes::Scalar::V_UINT);
+    scalar->set_v_unsigned_int(value);
   }
 
-  static void set_scalar(::Mysqlx::Datatypes::Scalar &scalar,
+  static void set_scalar(::Mysqlx::Datatypes::Scalar *scalar,
                          const float value) {
-    scalar.set_type(::Mysqlx::Datatypes::Scalar::V_FLOAT);
-    scalar.set_v_float(value);
+    scalar->set_type(::Mysqlx::Datatypes::Scalar::V_FLOAT);
+    scalar->set_v_float(value);
   }
 
-  static void set_scalar(::Mysqlx::Datatypes::Scalar &scalar,
+  static void set_scalar(::Mysqlx::Datatypes::Scalar *scalar,
                          const double value) {
-    scalar.set_type(::Mysqlx::Datatypes::Scalar::V_DOUBLE);
-    scalar.set_v_double(value);
+    scalar->set_type(::Mysqlx::Datatypes::Scalar::V_DOUBLE);
+    scalar->set_v_double(value);
   }
 
-  static void set_scalar(::Mysqlx::Datatypes::Scalar &scalar,
+  static void set_scalar(::Mysqlx::Datatypes::Scalar *scalar,
                          const char *value) {
-    scalar.set_type(::Mysqlx::Datatypes::Scalar::V_STRING);
-
-    scalar.set_allocated_v_string(new ::Mysqlx::Datatypes::Scalar_String());
-
-    scalar.mutable_v_string()->set_value(value);
+    scalar->set_type(::Mysqlx::Datatypes::Scalar::V_STRING);
+    scalar->mutable_v_string()->set_value(value);
   }
 
-  static void set_scalar(::Mysqlx::Datatypes::Scalar &scalar,
+  static void set_scalar(::Mysqlx::Datatypes::Scalar *scalar,
                          const std::string &value) {
-    scalar.set_type(::Mysqlx::Datatypes::Scalar::V_STRING);
-    scalar.set_allocated_v_string(new ::Mysqlx::Datatypes::Scalar_String());
-
-    scalar.mutable_v_string()->set_value(value);
+    scalar->set_type(::Mysqlx::Datatypes::Scalar::V_STRING);
+    scalar->mutable_v_string()->set_value(value);
   }
 
-  template <typename ValueType>
-  static void set_scalar(::Mysqlx::Datatypes::Any &any, const ValueType value) {
-    any.set_type(::Mysqlx::Datatypes::Any::SCALAR);
-
-    set_scalar(*any.mutable_scalar(), value);
+  template <typename Value_type>
+  static void set_scalar(::Mysqlx::Datatypes::Any *any,
+                         const Value_type &value) {
+    any->set_type(::Mysqlx::Datatypes::Any::SCALAR);
+    set_scalar(any->mutable_scalar(), value);
   }
 
-  template <typename ValueType>
-  static void set_array(::Mysqlx::Datatypes::Any &any,
-                        const std::vector<ValueType> &values) {
-    ::Mysqlx::Datatypes::Array &array = *any.mutable_array();
+  template <typename Value_type>
+  static void set_array(::Mysqlx::Datatypes::Any *any,
+                        const std::vector<Value_type> &values) {
+    ::Mysqlx::Datatypes::Array &array = *any->mutable_array();
 
-    any.set_type(::Mysqlx::Datatypes::Any::ARRAY);
+    any->set_type(::Mysqlx::Datatypes::Any::ARRAY);
 
-    typename std::vector<ValueType>::const_iterator i = values.begin();
+    typename std::vector<Value_type>::const_iterator i = values.begin();
 
     for (; i != values.end(); ++i) {
-      set_scalar(*array.add_value(), *i);
+      set_scalar(array.add_value(), *i);
     }
+  }
+
+  static ::Mysqlx::Datatypes::Object *set_object(
+      ::Mysqlx::Datatypes::Any *any) {
+    any->set_type(::Mysqlx::Datatypes::Any::OBJECT);
+    return any->mutable_obj();
+  }
+
+  template <typename Value_type>
+  static void set_object_field(::Mysqlx::Datatypes::Object *obj,
+                               const std::string &key,
+                               const Value_type &value) {
+    auto field = obj->mutable_fld()->Add();
+    field->set_key(key);
+    set_scalar(field->mutable_value(), value);
+  }
+
+  template <typename Value_type>
+  static void set_object_field(::Mysqlx::Datatypes::Object *obj,
+                               const std::string &key,
+                               const std::vector<Value_type> &value) {
+    auto field = obj->mutable_fld()->Add();
+    field->set_key(key);
+    set_array(field->mutable_value(), value);
   }
 };
 

@@ -32,6 +32,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "my_macros.h"
 #include "plugin/x/client/mysqlxclient/xconnection.h"
@@ -63,6 +64,12 @@ struct Connection_options {
   xcl::Internet_protocol ip_mode{xcl::Internet_protocol::V4};
   std::vector<std::string> auth_methods;
   bool compatible{false};
+  std::vector<std::string> compression_server_style{"GROUP", "MULTIPLE",
+                                                    "SINGLE"};
+  std::vector<std::string> compression_client_style{"SINGLE", "MULTIPLE",
+                                                    "GROUP"};
+  std::vector<std::string> compression_algorithm{"DEFLATE", "LZ4"};
+  std::string compression_mode{"DISABLED"};
 
   bool is_ssl_set() const {
     return !ssl_ca.empty() || !ssl_ca_path.empty() || !ssl_cert.empty() ||
@@ -91,6 +98,7 @@ class Session_holder {
  private:
   xcl::XError setup_session();
   xcl::XError setup_connection();
+  void setup_compression();
   void setup_ssl();
   void setup_other_options();
   void setup_msg_callbacks();

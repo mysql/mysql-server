@@ -1,0 +1,42 @@
+# Variable: mysqlx_compression_client_style
+# Default : SINGLE,MULTIPLE,GROUP
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_compression_client_style_sav= @@global.mysqlx_compression_client_style;
+
+## Valid cases
+SET GLOBAL mysqlx_compression_client_style="";
+show variables like 'mysqlx_compression_client_style';
+
+SET @@global.mysqlx_compression_client_style="SINGLE";
+show variables like 'mysqlx_compression_client_style';
+SET @@global.mysqlx_compression_client_style="MULTIPLE,GROUP";
+show variables like 'mysqlx_compression_client_style';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_compression_client_style="SINGLE";
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_compression_client_style="SINGLE";
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_compression_client_style="SINGLE";
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_compression_client_style="SINGLE";
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_compression_client_style="SINGLE";
+
+SET GLOBAL mysqlx_compression_client_style=1;
+show variables like 'mysqlx_compression_client_style';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_compression_client_style=-848;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_compression_client_style=848;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_compression_client_style='%45*#in';
+show variables like 'mysqlx_compression_client_style';
+
+SET @@global.mysqlx_compression_client_style= @mysqlx_compression_client_style_sav;

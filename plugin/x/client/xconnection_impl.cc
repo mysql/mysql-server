@@ -48,8 +48,8 @@
 #include "my_macros.h"
 #include "scope_guard.h"
 
-#include "plugin/x/client/xconnection_config.h"
-#include "plugin/x/client/xssl_config.h"
+#include "plugin/x/client/context/xconnection_config.h"
+#include "plugin/x/client/context/xssl_config.h"
 #include "plugin/x/generated/mysqlx_error.h"
 #include "plugin/x/src/config/config.h"
 #include "sql/net_ns.h"
@@ -163,12 +163,13 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
   SSL *ssl = reinterpret_cast<SSL *>(vio->ssl_arg);
 
   if (nullptr == ssl) {
-    return XError{CR_SSL_CONNECTION_ERROR, "No SSL pointer found"};
+    return XError{CR_SSL_CONNECTION_ERROR, "No SSL pointer found", true};
   }
 
   X509 *server_cert = SSL_get_peer_certificate(ssl);
   if (nullptr == server_cert) {
-    return XError{CR_SSL_CONNECTION_ERROR, "Could not get server certificate"};
+    return XError{CR_SSL_CONNECTION_ERROR, "Could not get server certificate",
+                  true};
   }
 
   auto free_cert =
@@ -176,7 +177,7 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
 
   if (X509_V_OK != SSL_get_verify_result(ssl)) {
     return XError{CR_SSL_CONNECTION_ERROR,
-                  "Failed to verify the server certificate"};
+                  "Failed to verify the server certificate", true};
   }
 
   /*
@@ -192,7 +193,8 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     return XError{
         CR_SSL_CONNECTION_ERROR,
         "Failed to verify the server certificate via X509 certificate "
-        "matching functions"};
+        "matching functions",
+        true};
   }
 #else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
   /*
@@ -205,20 +207,21 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
 
   if (cn_loc < 0) {
     return XError{CR_SSL_CONNECTION_ERROR,
-                  "Failed to get CN location in the certificate subject"};
+                  "Failed to get CN location in the certificate subject", true};
   }
 
   // Get the CN entry for given location
   X509_NAME_ENTRY *cn_entry = X509_NAME_get_entry(subject, cn_loc);
   if (nullptr == cn_entry) {
     return XError{CR_SSL_CONNECTION_ERROR,
-                  "Failed to get CN entry using CN location"};
+                  "Failed to get CN entry using CN location", true};
   }
 
   // Get CN from common name entry
   ASN1_STRING *cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
   if (nullptr == cn_asn1) {
-    return XError{CR_SSL_CONNECTION_ERROR, "Failed to get CN from CN entry"};
+    return XError{CR_SSL_CONNECTION_ERROR, "Failed to get CN from CN entry",
+                  true};
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -232,12 +235,12 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
   // There should not be any NULL embedded in the CN
   if (cn_len != strlen(cn)) {
     return XError{CR_SSL_CONNECTION_ERROR,
-                  "NULL embedded in the certificate CN"};
+                  "NULL embedded in the certificate CN", true};
   }
 
   if (server_hostname != cn) {
-    return XError{CR_SSL_CONNECTION_ERROR,
-                  "SSL certificate validation failure"};
+    return XError{CR_SSL_CONNECTION_ERROR, "SSL certificate validation failure",
+                  true};
   }
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
@@ -276,14 +279,14 @@ XError Connection_impl::connect_to_localhost(const std::string &unix_socket) {
   sockaddr_un addr;
 
   if (unix_socket.empty())
-    return XError(CR_UNKNOWN_HOST, ER_TEXT_UN_SOCKET_FILE_NOT_SET);
+    return XError(CR_UNKNOWN_HOST, ER_TEXT_UN_SOCKET_FILE_NOT_SET, true);
 
   if (unix_socket.length() > (sizeof(addr.sun_path) - 1)) {
     std::stringstream stream;
 
     stream << "UNIX Socket file name too long, size should be less or equal "
            << sizeof(addr.sun_path) - 1;
-    return XError(CR_UNKNOWN_HOST, stream.str());
+    return XError(CR_UNKNOWN_HOST, stream.str(), true);
   }
 
   memset(&addr, 0, sizeof(addr));
@@ -296,13 +299,14 @@ XError Connection_impl::connect_to_localhost(const std::string &unix_socket) {
   if (error) {
     return XError(
         CR_CONNECTION_ERROR,
-        std::string(error.what()) + ", while connecting to " + unix_socket);
+        std::string(error.what()) + ", while connecting to " + unix_socket,
+        true);
   }
 
   m_connected = true;
   return {};
 #else
-  return XError(CR_SOCKET_CREATE_ERROR, ER_TEXT_UN_SOCKET_NOT_SUPPORTED);
+  return XError(CR_SOCKET_CREATE_ERROR, ER_TEXT_UN_SOCKET_NOT_SUPPORTED, true);
 #endif  // defined(HAVE_SYS_UN_H)
 }
 
@@ -343,12 +347,13 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
       timeout > 0 ? timeout : std::numeric_limits<std::int32_t>::max());
   if (addr_future.wait_for(delay) == std::future_status::timeout) {
     return XError(CR_X_SESSION_CONNECT_TIMEOUT,
-                  "Session_connect_timeout limit exceeded");
+                  "Session_connect_timeout limit exceeded", true);
   }
 
   auto resolved_addr_list_ptr = addr_future.get();
   if (!resolved_addr_list_ptr)
-    return XError(CR_UNKNOWN_HOST, "No such host is known '" + host + "'");
+    return XError(CR_UNKNOWN_HOST, "No such host is known '" + host + "'",
+                  true);
 
   XError error;
   const auto &ns = m_context->m_connection_config.m_network_namespace;
@@ -356,11 +361,11 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
 #ifdef HAVE_SETNS
     if (set_network_namespace(ns)) {
       return XError(CR_SOCKET_CREATE_ERROR,
-                    "Failed to set active network namespace " + ns);
+                    "Failed to set active network namespace " + ns, true);
     }
 #else
     return XError(CR_SOCKET_CREATE_ERROR,
-                  "Network namespace not supported by the platform");
+                  "Network namespace not supported by the platform", true);
 #endif
   }
   for (const auto *t_res = resolved_addr_list_ptr.get(); t_res;
@@ -380,14 +385,15 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
       has higher priority.
     */
     return XError(CR_SOCKET_CREATE_ERROR,
-                  "Fails to restore original network namespace " + ns);
+                  "Fails to restore original network namespace " + ns, true);
   }
 #endif
 
   if (error) {
     std::string error_description = error.what();
-    return XError(CR_CONNECTION_ERROR, error_description + " connecting to " +
-                                           host + ":" + port_buf);
+    return XError(CR_CONNECTION_ERROR,
+                  error_description + " connecting to " + host + ":" + port_buf,
+                  true);
   }
 
   m_connected = true;
@@ -474,7 +480,7 @@ std::string Connection_impl::get_socket_error_description(const int error_id) {
 
 XError Connection_impl::get_ssl_init_error(const int init_error_id) {
   return XError(CR_SSL_CONNECTION_ERROR,
-                sslGetErrString((enum_ssl_init_error)init_error_id));
+                sslGetErrString((enum_ssl_init_error)init_error_id), true);
 }
 
 #define SOCKET_EPIPE IF_WIN(ERROR_BROKEN_PIPE, EPIPE)
@@ -492,10 +498,14 @@ XError Connection_impl::get_socket_error(const int error_id) {
 
     case SOCKET_ECONNABORTED:
     case SOCKET_ECONNRESET:
+      return XError(CR_SERVER_GONE_ERROR, ER_TEXT_SERVER_GONE, true);
+    // For now pipe is not fatal, still in future this might change
+    // in some cases
     case SOCKET_EPIPE:
       return XError(CR_SERVER_GONE_ERROR, ER_TEXT_SERVER_GONE);
     default:
-      return XError(CR_UNKNOWN_ERROR, get_socket_error_description(error_id));
+      return XError(CR_UNKNOWN_ERROR, get_socket_error_description(error_id),
+                    true);
   }
 }
 
@@ -554,15 +564,15 @@ XError Connection_impl::activate_tls() {
   if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
 
   if (nullptr != m_vioSslFd)
-    return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_ALREADY_ACTIVATED};
+    return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_ALREADY_ACTIVATED, true};
 
   if (!m_context->m_ssl_config.is_configured())
-    return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_NOT_CONFIGURATED};
+    return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_NOT_CONFIGURATED, true};
 
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  if (set_fips_mode((int)m_context->m_ssl_config.m_ssl_fips_mode, err_string) !=
-      1) {
-    return XError{CR_SSL_CONNECTION_ERROR, err_string};
+  if (set_fips_mode(static_cast<int>(m_context->m_ssl_config.m_ssl_fips_mode),
+                    err_string) != 1) {
+    return XError{CR_SSL_CONNECTION_ERROR, err_string, true};
   }
   auto ssl_ctx_flags = process_tls_version(
       details::null_when_empty(m_context->m_ssl_config.m_tls_version));
@@ -675,7 +685,7 @@ XError Connection_impl::read(uint8_t *data_head,
 XError Connection_impl::set_read_timeout(const int deadline_seconds) {
   if (nullptr == m_vio) {
     return XError{CR_INVALID_CONN_HANDLE,
-                  ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED};
+                  ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED, true};
   }
 
   vio_timeout(m_vio, 0, deadline_seconds);
@@ -685,7 +695,7 @@ XError Connection_impl::set_read_timeout(const int deadline_seconds) {
 XError Connection_impl::set_write_timeout(const int deadline_seconds) {
   if (nullptr == m_vio) {
     return XError{CR_INVALID_CONN_HANDLE,
-                  ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED};
+                  ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED, true};
   }
 
   vio_timeout(m_vio, 1, deadline_seconds);

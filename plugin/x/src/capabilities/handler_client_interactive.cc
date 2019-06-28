@@ -38,7 +38,7 @@ Capability_client_interactive::Capability_client_interactive(
   m_value = m_client.is_interactive();
 }
 
-void Capability_client_interactive::get_impl(::Mysqlx::Datatypes::Any &any) {
+void Capability_client_interactive::get_impl(::Mysqlx::Datatypes::Any *any) {
   ngs::Setter_any::set_scalar(any, m_value);
 }
 

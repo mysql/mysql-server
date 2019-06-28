@@ -44,6 +44,21 @@ Options:
 --use-socket          Connection through UNIX socket, using default file name 'SOCK'
                       --use-socket* options take precedence before options like: uri, user,
                       host, password, port
+--compression-mode=<mode>  Enable/disable compression negotiation algorithm (default: "DISABLED")
+                      "DISABLED" - do not negotiate compression
+                      "PREFERRED" - if server doesn't support selected compression, continue without compression.
+                      "REQUIRED" - if server doesn't support selected compression, fail the connection.
+--compression-algorithm=<algo[,algo...]>  Try to negotiate specified compression algorithm with the server (default:"DEFLATE,LZ4")
+                      "" - compression not enabled
+                      "DEFLATE" - zlib compression enabled
+                      "LZ4" - lz4f compression enabled
+--compression-server-style   Set compression server style (default: "GROUP,MULTIPLE,SINGLE")
+                      "" - compression style not enabled
+                      "SINGLE" - one compressed frame contain only one X Protocol message
+                      "MULTIPLE" - one compressed frame may contain multiple X Protocol messages of the same type.
+                      "GROUP" - one compressed frame may contain multiple X Protocol messages of different type.
+--compression-client-style   Set compression client style (default: "SINGLE,MULTIPLE,GROUP");
+                      Accept the same values as --compression-server-style
 --ssl-mode            SSL configuration (default: "")
                       "" - require encryption when at last one ssl option is set, otherwise is should be disabled.
                       "PREFERRED" - encryption is optional, client tries to set it up
@@ -102,6 +117,8 @@ The following commands may appear in the input script:
   Execute SSL handshake, enables SSL on current connection
 <protomsg>
   Encodes the text format protobuf message and sends it to the server (allows variables).
+-->enable_compression [deflate|lz4]
+  Enable compression
 -->recv [quiet|<FIELD PATH>]
   quiet        - received message isn't printed
   <FIELD PATH> - print only selected part of the message using
@@ -116,8 +133,13 @@ The following commands may appear in the input script:
   and set the variable <varname>
 -->recverror <errno>
   Read a message and ensure that it's an error of the expected type
--->recvtype <msgtype> (<msg_fied>|be-quiet|<msg_fied> be-quiet|<msg_fied> <expected_field_value>|)
-  Read one message and print it, checking that its type is the specified one
+-->recvtype (<msgtype> [<msg_fied>] [<expected_field_value>] [be-quiet])|<msgid>
+  - In case when user specified <msgtype> - read one message and print it,
+    checks if its type is <msgtype>, additionally its fields may be matched.
+    Compressed messages are decompressed, thus user will receive inner X Protocol messages.
+  - In case when user specified <msgid> - read one message and print the ID,
+    checks the RAW message ID if its match <msgid>.
+    Compressed messages are not decompressed, thus their IDs may be matched against <msgid>.
 -->recvok
   Expect to receive 'Mysqlx.Ok' message. Works with 'expecterror' command.
 -->recvuntil <msgtype> [do_not_show_intermediate]
@@ -183,6 +205,18 @@ The following commands may appear in the input script:
   Close the active session (unless its the default session)
 -->wait_for <VALUE_EXPECTED>	<SQL QUERY>
   Wait until SQL query returns value matches expected value (time limit 30 second)
+-->assert <VALUE_EXPECTED>	<OP>	<VALUE_TESTED>
+  Ensure that expression described by argument parameters is true
+  <OP> can take following values:
+  "==" ensures that expected value and tested value are equal
+  "!=" ensures that expected value and tested value are not equal
+  ">=" ensures that expected value is greater or equal to tested value
+  "<=" ensures that expected value is less or equal to tested value
+  "<" ensures that expected value is less than tested value
+  ">" ensures that expected value is grater than tested value
+
+  For example: -->assert 1 < %SOME_VARIABLE%
+               -->assert %V1% == %V2%
 -->assert_eq <VALUE_EXPECTED>	<VALUE_TESTED>
   Ensure that 'TESTED' value equals 'EXPECTED' by comparing strings lexicographically
 -->assert_ne <VALUE_EXPECTED>	<VALUE_TESTED>

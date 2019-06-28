@@ -23,6 +23,7 @@
 FILE(GLOB protoc_plugin_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/xprotocol_plugin.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/message_field_chain.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/messages_used_by_server.cc"
 )
 
 INCLUDE_DIRECTORIES(
@@ -30,7 +31,7 @@ INCLUDE_DIRECTORIES(
 )
 
 ADD_COMPILE_FLAGS(${protoc_plugin_SRC}
-  COMPILE_FLAGS "${PUBLIC_XPROTOCOL_FLAGS}"
+  COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
 MYSQL_ADD_EXECUTABLE(
@@ -41,7 +42,7 @@ MYSQL_ADD_EXECUTABLE(
 
 TARGET_LINK_LIBRARIES(
   xprotocol_plugin
-  ${PROTOCOL_FULL_LIB_NAME}
+  ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_PROTOC_LIBRARY}
   ${PROTOBUF_LIBRARY}
 )
@@ -56,8 +57,8 @@ ADD_CUSTOM_COMMAND(
   ARGS --plugin=protoc-gen-yplg=$<TARGET_FILE:xprotocol_plugin>
        --yplg_out "${MYSQLX_GENERATE_DIR}"
        -I "${PROTOBUF_INCLUDE_DIR}"
-       -I "${MYSQLX_PROTOBUF_INCLUDE_DIR}"
-       ${MYSQLX_PROTOBUF_FILES}
+       -I "${MYSQLX_PROTOBUF_PROTO_DIR}"
+       ${MYSQLX_PROTOBUF_PROTO_FILES}
   DEPENDS
   xprotocol_plugin
   COMMENT "Running protocol buffer plugin on all 'proto' files"

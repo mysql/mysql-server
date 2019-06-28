@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,9 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
-#include "plugin/x/client/xcontext.h"
 #include "plugin/x/client/xquery_instances.h"
 #include "plugin/x/client/xrow_impl.h"
 

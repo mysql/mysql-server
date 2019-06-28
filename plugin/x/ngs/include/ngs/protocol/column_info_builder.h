@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,9 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_COLUMN_INFO_BUILDER_H_
 
 #include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+
+#include "plugin/x/ngs/include/ngs/protocol/encode_column_info.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
 
 namespace ngs {
 
@@ -40,32 +42,44 @@ class Column_info_builder {
     set_non_compact_data("", col_name, "", "", "", "");
   }
 
+  void reset() {
+    m_column_info.m_collation_ptr = nullptr;
+    m_column_info.m_decimals_ptr = nullptr;
+    m_column_info.m_flags_ptr = nullptr;
+    m_column_info.m_length_ptr = nullptr;
+    m_column_info.m_content_type_ptr = nullptr;
+    m_column_info.m_compact = true;
+  }
+
   void set_type(const ::Mysqlx::Resultset::ColumnMetaData_FieldType type) {
     m_column_info.m_type = type;
   }
 
   void set_collation(const uint64_t collation) {
-    m_column_info.m_has_collation = true;
-    m_column_info.m_collation = collation;
+    m_collation = collation;
+    m_column_info.m_collation_ptr = &m_collation;
   }
 
   void set_decimals(const uint32_t decimals) {
-    m_column_info.m_has_decimals = true;
-    m_column_info.m_decimals = decimals;
+    m_decimals = decimals;
+    m_column_info.m_decimals_ptr = &m_decimals;
   }
 
   void set_flags(const int32_t flags) {
-    m_column_info.m_has_flags = true;
-    m_column_info.m_flags = flags;
+    m_flags = flags;
+    m_column_info.m_flags_ptr = &m_flags;
   }
 
   void set_length(const uint64_t length) {
-    m_column_info.m_has_length = true;
-    m_column_info.m_length = length;
+    m_length = length;
+    m_column_info.m_length_ptr = &m_length;
   }
 
   void set_content_type(const uint32_t content_type) {
-    m_column_info.m_content_type = content_type;
+    if (content_type > 0) {
+      m_content_type = content_type;
+      m_column_info.m_content_type_ptr = &m_content_type;
+    }
   }
 
   void set_non_compact_data(const char *catalog, const char *col_name,
@@ -82,10 +96,16 @@ class Column_info_builder {
     m_column_info.m_org_table_name = org_table_name;
   }
 
-  const Encode_column_info &get() const { return m_column_info; }
+  const Encode_column_info *get() const { return &m_column_info; }
 
  private:
   Encode_column_info m_column_info;
+
+  uint64_t m_collation{0};
+  uint32_t m_decimals{0};
+  uint32_t m_flags{0};
+  uint32_t m_length{0};
+  uint32_t m_content_type{0};
 };
 
 }  // namespace ngs

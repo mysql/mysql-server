@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,18 +26,16 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_ERROR_CODE_H_
 
 #include <stdio.h>
+#include <cstdarg>
 #include <string>
 
-#ifndef NGS_STANDALONE
-#include "mysqld_error.h"
-#endif
-
-#include <cstdarg>
-
 #include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_sys.h"
+#include "mysqld_error.h"
 
 namespace ngs {
+
 struct Error_code {
   static const int MAX_MESSAGE_LENGTH = 1024;
 
@@ -53,7 +51,11 @@ struct Error_code {
   Error_code() : error(0), severity(OK) {}
   Error_code(int e, const std::string &m, const std::string &state = "HY000",
              Severity sev = ERROR)
-      : error(e), message(m), sql_state(state), severity(sev) {}
+      : error(e), message(m), sql_state(state), severity(sev) {
+    if (e) {
+      DBUG_PRINT("info", ("Error_code: %s", m.c_str()));
+    }
+  }
 
   Error_code(int e, const std::string &state, Severity sev, const char *fmt,
              va_list args) MY_ATTRIBUTE((format(printf, 5, 0)));
@@ -79,6 +81,9 @@ inline Error_code::Error_code(int e, const std::string &state, Severity sev,
   char buffer[MAX_MESSAGE_LENGTH];
   vsnprintf(buffer, sizeof(buffer), fmt, args);
   message = buffer;
+  if (e) {
+    DBUG_PRINT("info", ("Error_code: %s", message.c_str()));
+  }
 }
 
 inline Error_code Success(const char *msg, ...)

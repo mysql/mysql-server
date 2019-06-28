@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,10 +54,18 @@ ngs::Error_code Account_verification_handler::authenticate(
 
   if (account.empty()) return ngs::SQLError_access_denied();
 
-  return m_session->data_context().authenticate(
+  auto &sql_context = m_session->data_context();
+  const auto allow_expired = m_session->client().supports_expired_passwords();
+
+  const auto result = sql_context.authenticate(
       account.c_str(), m_session->client().client_hostname(),
       m_session->client().client_address(), schema.c_str(), passwd,
-      account_verificator, m_session->client().supports_expired_passwords());
+      account_verificator, allow_expired);
+
+  if (0 == result.error && sql_context.password_expired())
+    m_session->proto().send_notice_account_expired();
+
+  return result;
 }
 
 bool Account_verification_handler::extract_last_sub_message(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,40 @@ class Variable_dynamic_string : public Variable_interface {
 
  private:
   String_ref m_value;
+};
+
+class Variable_dynamic_array_of_strings : public Variable_interface {
+ public:
+  using Array_of_string_ref = std::reference_wrapper<std::vector<std::string>>;
+
+  explicit Variable_dynamic_array_of_strings(
+      const Array_of_string_ref &value_ref)
+      : m_value(value_ref) {}
+
+  bool set_value(const std::string &value) override { return false; }
+
+  std::string get_value() const override {
+    switch (m_value.get().size()) {
+      case 0:
+        return "";
+
+      case 1:
+        return m_value.get()[0];
+
+      default: {
+        std::string result = m_value.get()[0];
+
+        for (size_t i = 1; i < m_value.get().size(); ++i) {
+          result += "," + m_value.get()[i];
+        }
+
+        return result;
+      }
+    }
+  }
+
+ private:
+  Array_of_string_ref m_value;
 };
 
 class Variable_dynamic_int : public Variable_interface {

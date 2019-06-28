@@ -46,7 +46,7 @@ class Cap_handles_expired_passwords : public Capability_handler {
   bool is_settable() const override { return true; }
   bool is_gettable() const override { return true; }
 
-  void get_impl(::Mysqlx::Datatypes::Any &any) override {
+  void get_impl(::Mysqlx::Datatypes::Any *any) override {
     ngs::Setter_any::set_scalar(any, m_value);
   }
 

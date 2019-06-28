@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,8 @@
 
 int main(int argc, char *argv[]) {
   Chain_file_output xprotocol_tags("xprotocol_tags.h");
-  XProtocol_plugin xprotocol_plugin(&xprotocol_tags);
+  Encoder_file_output encoder_descriptor("encoding_descriptors.h");
+  XProtocol_plugin xprotocol_plugin(&xprotocol_tags, &encoder_descriptor);
 
   return google::protobuf::compiler::PluginMain(argc, argv, &xprotocol_plugin);
 }

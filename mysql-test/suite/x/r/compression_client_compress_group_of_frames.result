@@ -1,0 +1,36 @@
+
+## A. Execute the test using valid compression: deflate/group
+#
+RUN recvok
+1
+1
+0 rows affected
+
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## B. Execute the test using valid compression: lz4/group
+#
+RUN recvok
+1
+1
+0 rows affected
+
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## C. Execute the test using invalid compression: deflate/multiple
+#
+Got expected error: Client didn't enable "group" compression. (code 5170)
+ok
+
+## D. Execute the test using invalid compression: lz4/multiple
+#
+Got expected error: Client didn't enable "group" compression. (code 5170)
+ok

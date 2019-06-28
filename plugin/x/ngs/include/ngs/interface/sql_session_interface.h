@@ -30,14 +30,11 @@
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/src/io/connection_type.h"
 
 struct PS_PARAM;
 
 namespace ngs {
-
-using Arg_list = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>;
 
 class Sql_session_interface {
  public:

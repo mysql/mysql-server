@@ -50,6 +50,8 @@ SET(XTEST_SRC
   processor/sql_block_processor.cc
   processor/sql_stmt_processor.cc
   processor/stream_processor.cc
+  processor/compress_single_message_block_processor.cc
+  processor/multiple_compress_block_processor.cc
 
   processor/commands/command.cc
   processor/commands/expected_error.cc
@@ -101,6 +103,7 @@ TARGET_LINK_LIBRARIES(mysqlxtest
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_LIBRARY}
+  ${LZ4_LIBRARY}
 )
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)

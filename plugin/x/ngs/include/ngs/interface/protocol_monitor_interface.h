@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,14 @@ class Protocol_monitor_interface {
   virtual void on_fatal_error_send() = 0;
   virtual void on_init_error_send() = 0;
   virtual void on_row_send() = 0;
-  virtual void on_send(long bytes_transferred) = 0;
-  virtual void on_receive(long bytes_transferred) = 0;
+  virtual void on_send(const uint32_t bytes_transferred) = 0;
+  virtual void on_send_compressed(const uint32_t bytes_transferred) = 0;
+  virtual void on_send_before_compression(const uint32_t bytes_transferred) = 0;
+  virtual void on_receive(const uint32_t bytes_transferred) = 0;
+  virtual void on_receive_compressed(const uint32_t bytes_transferred) = 0;
+  virtual void on_receive_after_decompression(
+      const uint32_t bytes_transferred) = 0;
+  virtual void on_messages_sent(const uint32_t messages) = 0;
 
   virtual void on_error_send() = 0;
   virtual void on_error_unknown_msg_type() = 0;

@@ -56,6 +56,7 @@ ngs::Error_code Stmt_command_handler::execute(
 
 ngs::Error_code Stmt_command_handler::sql_stmt_execute(
     const Mysqlx::Sql::StmtExecute &msg) {
+  log_debug("sql_stmt_execute");
   m_session->update_status(&ngs::Common_status_variables::m_stmt_execute_sql);
 
   m_qb.clear();
@@ -74,6 +75,7 @@ ngs::Error_code Stmt_command_handler::sql_stmt_execute(
                                                        msg.compact_metadata());
   ngs::Error_code error =
       da.execute(m_qb.get().data(), m_qb.get().length(), &resultset);
+
   if (error) {
     if (show_warnings) notices::send_warnings(da, proto, true);
     return error;
@@ -90,8 +92,7 @@ ngs::Error_code Stmt_command_handler::deprecated_admin_stmt_execute(
 
   if (notice_config.is_notice_enabled(
           ngs::Notice_type::k_xplugin_deprecation)) {
-    notices::send_message(
-        m_session->proto(),
+    m_session->proto().send_notice_txt_message(
         "Namespace 'xplugin' is deprecated, please use 'mysqlx' instead");
 
     notice_config.set_notice(ngs::Notice_type::k_xplugin_deprecation, false);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_client.h"
@@ -64,16 +65,13 @@ class Timers_test_suite : public ::testing::Test {
                            Global_timeouts::Default::k_read_timeout,
                            Global_timeouts::Default::k_write_timeout};
 
-  std::shared_ptr<Protocol_config> config{new Protocol_config()};
+  std::shared_ptr<Protocol_global_config> config{new Protocol_global_config()};
+  Memory_block_pool m_pool{{0, k_minimum_page_size}};
   const std::vector<unsigned char> k_msg{
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
   std::shared_ptr<xpl::test::Mock_ngs_client> sut;
-  Page_pool m_pool{{1000, 1000, 1000}};
-  Page_output_stream m_page_stream{m_pool};
   MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
-  Protocol_flusher flusher{&m_page_stream, &mock_protocol_monitor, mock_vio,
-                           [](int) {}};
 };
 
 ACTION_P2(SetSocketErrnoAndReturn, err, result) {
@@ -86,8 +84,6 @@ ACTION_P2(SetSocketErrnoAndReturn, err, result) {
 
 TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_default_wait_timeout) {
-  Message_request mr;
-
   // Client holds only the timeout value which must be used.
   // It doesn't hold interactive or non-interactive timeout values.
   // The timeout value is set from outsie thus the test uses
@@ -105,12 +101,11 @@ TEST_F(Timers_test_suite,
   EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
 
-  sut->read_one_message(&mr);
+  sut->read_one_message_and_dispatch();
 }
 
 TEST_F(Timers_test_suite,
        read_one_message_interactive_client_default_interactive_timeout) {
-  Message_request mr;
   Expectation set_timeout_exp = EXPECT_CALL(
       *mock_vio, set_timeout_in_ms(
                      Vio_interface::Direction::k_read,
@@ -123,15 +118,15 @@ TEST_F(Timers_test_suite,
 
   EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
-  sut->read_one_message(&mr);
+  sut->read_one_message_and_dispatch();
 }
 
 TEST_F(Timers_test_suite,
        read_one_message_interactive_client_custom_interactive_timer) {
   timeouts.interactive_timeout = 11;
-  Message_request mr;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
 
+  StrictMock<Mock_ssl_context> mock_ssl_context;
   xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                                     &mock_protocol_monitor, timeouts);
 
@@ -144,15 +139,17 @@ TEST_F(Timers_test_suite,
       .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
                       Return(k_msg.size())));
   EXPECT_CALL(*temp_vio, set_state(_)).Times(2);
+  EXPECT_CALL(client, handle_message(_));
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
-  client.read_one_message(&mr);
+
+  client.read_one_message_and_dispatch();
+
   EXPECT_CALL(*temp_vio, shutdown());
 }
 
 TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_custom_wait_timer) {
   timeouts.wait_timeout = 22;
-  Message_request mr;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
   xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                                     &mock_protocol_monitor, timeouts);
@@ -164,9 +161,10 @@ TEST_F(Timers_test_suite,
       .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
                       Return(k_msg.size())));
   EXPECT_CALL(*temp_vio, set_state(_)).Times(2);
+  EXPECT_CALL(client, handle_message(_));
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
 
-  client.read_one_message(&mr);
+  client.read_one_message_and_dispatch();
 
   EXPECT_CALL(*temp_vio, shutdown());
 }
@@ -187,15 +185,14 @@ TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
   EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size())).Times(1);
 
-  std::shared_ptr<Protocol_config> conf = std::make_shared<Protocol_config>();
+  auto conf = std::make_shared<Protocol_global_config>();
   EXPECT_CALL(mock_server, get_config()).WillRepeatedly(ReturnPointee(&conf));
 
   EXPECT_CALL(*mock_vio, set_timeout_in_ms(
                              Vio_interface::Direction::k_read,
                              Global_timeouts::Default::k_read_timeout * 1000));
 
-  Message_request mr;
-  sut->read_one_message(&mr);
+  sut->read_one_message_and_dispatch();
 }
 
 TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
@@ -222,11 +219,10 @@ TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
   EXPECT_CALL(*temp_vio, set_state(_)).Times(2);
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size())).Times(1);
 
-  std::shared_ptr<Protocol_config> conf = std::make_shared<Protocol_config>();
+  auto conf = std::make_shared<Protocol_global_config>();
   EXPECT_CALL(mock_server, get_config()).WillRepeatedly(ReturnPointee(&conf));
 
-  Message_request mr;
-  client.read_one_message(&mr);
+  client.read_one_message_and_dispatch();
   EXPECT_CALL(*temp_vio, shutdown());
 }
 
@@ -243,15 +239,19 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
   EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(0);
 
   auto encoder = allocate_object<Mock_protocol_encoder>();
-
+  ngs::Memory_block_pool memory_block_pool{{0, k_minimum_page_size}};
+  protocol::Encoding_pool pool(0, &memory_block_pool);
+  protocol::Encoding_buffer buffer(&pool);
+  protocol::XMessage_encoder low_level_encoder(&buffer);
+  Protocol_flusher flusher(&buffer, &low_level_encoder, &mock_protocol_monitor,
+                           mock_vio, [](int) {});
   EXPECT_CALL(*encoder, get_flusher()).WillRepeatedly(Return(&flusher));
   sut->set_encoder(encoder);
 
   EXPECT_CALL(*encoder,
               send_notice(Frame_type::k_warning, Frame_scope::k_global, _, _));
 
-  Message_request mr;
-  sut->read_one_message(&mr);
+  sut->read_one_message_and_dispatch();
 }
 
 TEST_F(Timers_test_suite, send_message_default_write_timeout) {
@@ -264,10 +264,11 @@ TEST_F(Timers_test_suite, send_message_default_write_timeout) {
   EXPECT_CALL(*mock_vio, write(_, _)).After(set_timeout_exp);
 
   auto stub_error_handler = [](int) {};
-  auto encoder = allocate_object<Protocol_encoder>(mock_vio, stub_error_handler,
-                                                   &mock_protocol_monitor);
+  auto encoder = allocate_object<Protocol_encoder>(
+      mock_vio, stub_error_handler, &mock_protocol_monitor, &m_pool);
   sut->set_encoder(encoder);
-  encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
+  encoder->send_protobuf_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(),
+                                 false);
 }
 
 TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
@@ -284,10 +285,11 @@ TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
   EXPECT_CALL(*temp_vio, write(_, _)).After(set_timeout_exp);
 
   auto stub_error_handler = [](int) {};
-  auto encoder = allocate_object<Protocol_encoder>(temp_vio, stub_error_handler,
-                                                   &mock_protocol_monitor);
+  auto encoder = allocate_object<Protocol_encoder>(
+      temp_vio, stub_error_handler, &mock_protocol_monitor, &m_pool);
   client.set_encoder(encoder);
-  encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
+  encoder->send_protobuf_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(),
+                                 false);
 
   EXPECT_CALL(*temp_vio, shutdown());
 }
@@ -303,14 +305,14 @@ TEST_F(Timers_test_suite, send_message_failed_write) {
 
   struct CustomExpection {};
   auto stub_error_handler = [](int) { throw CustomExpection(); };
-  auto encoder = allocate_object<Protocol_encoder>(mock_vio, stub_error_handler,
-                                                   &mock_protocol_monitor);
+  auto encoder = allocate_object<Protocol_encoder>(
+      mock_vio, stub_error_handler, &mock_protocol_monitor, &m_pool);
   sut->set_encoder(encoder);
 
   // write failed so error_handler should be used
-  EXPECT_THROW(
-      encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false),
-      CustomExpection);
+  EXPECT_THROW(encoder->send_protobuf_message(Mysqlx::ServerMessages::OK,
+                                              Mysqlx::Ok(), false),
+               CustomExpection);
 }
 
 }  // namespace test

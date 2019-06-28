@@ -261,6 +261,15 @@ struct Open_close_methods {
   "fld { key:\"" k "\""                  \
   "      value { type: SCALAR scalar { " \
   "        type: V_STRING v_string { value: \"" v "\" } } } }"
+#ifdef _WIN32
+#define FLD_WIN32_STRING(k, v)                 \
+  "fld { key:\"" k "\""                  \
+  "      value { type: SCALAR scalar { " \
+  "        type: V_STRING v_string { value: \"" v "\" } } } }"
+#else
+#define FLD_WIN32_STRING(k, v)
+#endif  // _WIN32
+
 // clang-format on
 
 class Xcl_session_impl_tests_connect_param
@@ -293,7 +302,6 @@ class Xcl_session_impl_tests_connect_param
 
   // clang-format off
   const Message_from_str<CapabilitiesSet> m_cap_connect_attrs{
-#ifdef _WIN32
     CAPABILITIES(CAP_OBJECT("session_connect_attrs",
       FLD_STRING("_client_name", HAVE_MYSQLX_FULL_PROTO("libmysqlxclient",
                                                         "libmysqlxclient_lite"))
@@ -302,22 +310,10 @@ class Xcl_session_impl_tests_connect_param
       FLD_STRING("_platform", MACHINE_TYPE)
       FLD_STRING("_client_license", STRINGIFY_ARG(LICENSE))
       FLD_STRING("_pid",
-                 +std::to_string(static_cast<uint64_t>(GetCurrentProcessId()))+)
-      FLD_STRING("_thread",
-                 +std::to_string(static_cast<uint64_t>(GetCurrentThreadId()))+)
-    ))
-#else
-    CAPABILITIES(CAP_OBJECT("session_connect_attrs",
-      FLD_STRING("_client_name", HAVE_MYSQLX_FULL_PROTO("libmysqlxclient",
-                                                        "libmysqlxclient_lite"))
-      FLD_STRING("_client_version", PACKAGE_VERSION)
-      FLD_STRING("_os", SYSTEM_TYPE)
-      FLD_STRING("_platform", MACHINE_TYPE)
-      FLD_STRING("_client_license", STRINGIFY_ARG(LICENSE))
-      FLD_STRING("_pid",
-                 +std::to_string(static_cast<uint64_t>(getpid()))+)
-    ))
-#endif
+               +std::to_string(static_cast<uint64_t>(
+                   IF_WIN(GetCurrentProcessId(), getpid())))+)
+      FLD_WIN32_STRING("_thread",
+               +std::to_string(static_cast<uint64_t>(GetCurrentThreadId()))+)))
   };
   // clang-format on
 };

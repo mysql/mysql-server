@@ -25,9 +25,16 @@
 #ifndef PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 #define PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 
+#include <stdint.h>
+
 #include <algorithm>
 #include <functional>
+
+#include <memory>
 #include <vector>
+
+#include "my_inttypes.h"
+#include "plugin/x/src/set_variable.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
@@ -71,6 +78,10 @@ class Plugin_system_variables {
   static uint32_t m_interactive_timeout;
   static uint32_t m_document_id_unique_prefix;
   static bool m_enable_hello_notice;
+
+  static Set_variable m_compression_algorithms;
+  static Set_variable m_compression_server_style;
+  static Set_variable m_compression_client_style;
 
   static Ssl_config ssl_config;
 

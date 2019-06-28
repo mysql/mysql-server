@@ -27,6 +27,14 @@
 #include "include/pfs_rwlock_provider.h"
 #include "include/pfs_socket_provider.h"
 #include "include/pfs_thread_provider.h"
+#include "my_inttypes.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
+#include "mysql/components/services/psi_socket_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
 
 #ifndef WITH_LOCK_ORDER
 
@@ -42,7 +50,7 @@ PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *, PSI_cond *,
                                         const char *, uint) {
   return nullptr;
 }
-#endif
+#endif  // HAVE_PSI_COND_INTERFACE
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 void pfs_destroy_mutex_v1(PSI_mutex *) {}
@@ -55,7 +63,7 @@ PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state_v1 *,
   return nullptr;
 }
 void pfs_unlock_mutex_v1(PSI_mutex *) {}
-#endif
+#endif  // HAVE_PSI_MUTEX_INTERFACE
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
 void pfs_destroy_rwlock_v2(PSI_rwlock *) {}
@@ -76,7 +84,7 @@ PSI_rwlock_locker *pfs_start_rwlock_wrwait_v2(PSI_rwlock_locker_state_v1 *,
   return nullptr;
 }
 void pfs_unlock_rwlock_v2(PSI_rwlock *, PSI_rwlock_operation) {}
-#endif
+#endif  // HAVE_PSI_RWLOCK_INTERFACE
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 void pfs_destroy_socket_v1(PSI_socket *) {}
@@ -95,7 +103,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state_v1 *,
                                             size_t, char const *, uint) {
   return nullptr;
 }
-#endif
+#endif  // HAVE_PSI_SOCKET_INTERFACE
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 void pfs_delete_current_thread_vc() {}
@@ -113,6 +121,6 @@ int pfs_spawn_thread_vc(PSI_thread_key, my_thread_handle *,
 int pfs_set_thread_connect_attrs_vc(char const *, unsigned int, void const *) {
   return 0;
 }
-#endif
+#endif  // HAVE_PSI_THREAD_INTERFACE
 
 #endif /* WITH_LOCK_ORDER */

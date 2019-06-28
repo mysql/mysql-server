@@ -1,0 +1,238 @@
+# Test a values of compression capabilities
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+
+--write_file $MYSQL_TMP_DIR/capabilities_compression.xpl
+-->import connection.macro
+-->quiet
+-->callmacro Verify_its_xprotocol_connection
+
+-->macro Set_commpresion_capabilities_1	%KEY1%	%VALUE1%	%RESULT%
+-->echo ##########################################################
+-->echo ## Scenario: %KEY1%=%VALUE1%
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "%KEY1%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE1%"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvtype %RESULT%
+-->endmacro
+
+
+-->macro Set_commpresion_capabilities_2	%KEY1%	%VALUE1%	%KEY2%	%VALUE2%	%RESULT%
+-->echo ##########################################################
+-->echo ## Scenario: %KEY1%=%VALUE1%, %KEY2%=%VALUE2%
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "%KEY1%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE1%"
+                }
+              }
+            }
+          }
+          fld {
+            key: "%KEY2%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE2%"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvtype %RESULT%
+-->endmacro
+
+
+-->macro Set_commpresion_capabilities_3	%KEY1%	%VALUE1%	%KEY2%	%VALUE2%	%KEY3%	%VALUE3%	%RESULT%
+-->echo ##########################################################
+-->echo ## Scenario: %KEY1%=%VALUE1%, %KEY2%=%VALUE2%, %KEY3%=%VALUE3%
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "%KEY1%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE1%"
+                }
+              }
+            }
+          }
+          fld {
+            key: "%KEY2%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE2%"
+                }
+              }
+            }
+          }
+          fld {
+            key: "%KEY3%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE3%"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvtype %RESULT%
+-->endmacro
+
+-->title =One key/value
+-->echo
+
+-->callmacro Set_commpresion_capabilities_1	algorithm	deflate	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_1	algorithm	lz4	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_1	server_style	single	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_1	server_style	multiple	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_1	server_style	group	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_1	client_style	single	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_1	client_style	multiple	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_1	client_style	group	Mysqlx.Error
+
+-->title =Two key/value's
+-->echo
+
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	server_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	server_style	multiple	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	server_style	group	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	server_style	WRONG	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	client_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	client_style	multiple	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	client_style	group	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	deflate	client_style	WRONG	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	server_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	server_style	multiple	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	server_style	group	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	server_style	WRONG	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	client_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	client_style	multiple	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	client_style	group	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_2	algorithm	lz4	client_style	WRONG	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_2	server_style	single	client_style	single	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	multiple	client_style	single	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	group	client_style	single	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	WRONG	client_style	single	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_2	server_style	single	client_style	multiple	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	multiple	client_style	multiple	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	group	client_style	multiple	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	WRONG	client_style	multiple	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_2	server_style	single	client_style	group	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	multiple	client_style	group	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	group	client_style	group	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	WRONG	client_style	group	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_2	server_style	single	client_style	WRONG	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	multiple	client_style	WRONG	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	group	client_style	WRONG	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_2	server_style	WRONG	client_style	WRONG	Mysqlx.Error
+
+-->title =Three key/value's
+-->echo
+
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	single	client_style	single	Mysqlx.Ok
+
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	single	client_style	multiple	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	single	client_style	group	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	single	client_style	WRONG	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	multiple	client_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	group	client_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	WRONG	client_style	single	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_3	algorithm	lz4	server_style	single	client_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	lz4	server_style	single	client_style	multiple	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	lz4	server_style	single	client_style	group	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	lz4	server_style	single	client_style	WRONG	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_3	algorithm	lz4	server_style	multiple	client_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	lz4	server_style	group	client_style	single	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_3	algorithm	lz4	server_style	WRONG	client_style	single	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_3	algorithm	WRONG	server_style	single	client_style	single	Mysqlx.Error
+
+-->callmacro Set_commpresion_capabilities_3	WRONG	deflate	server_style	single	client_style	single	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	WRONG	single	client_style	single	Mysqlx.Error
+-->callmacro Set_commpresion_capabilities_3	algorithm	deflate	server_style	single	WRONG	single	Mysqlx.Error
+EOF
+
+
+SET GLOBAL Mysqlx_compression_server_style = 'single,multiple,group';
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression.xpl 2>&1;
+
+
+## Cleanup
+SET GLOBAL Mysqlx_compression_server_style = DEFAULT;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

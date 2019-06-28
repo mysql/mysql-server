@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ class Capability_handler : public iface::Capability_handler {
     return (is_gettable() || is_settable()) && is_supported_impl();
   }
 
-  void get(::Mysqlx::Datatypes::Any &any) {
+  void get(::Mysqlx::Datatypes::Any *any) {
     if (is_gettable()) get_impl(any);
   }
 

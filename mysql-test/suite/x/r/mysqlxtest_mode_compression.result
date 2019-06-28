@@ -1,0 +1,251 @@
+
+############################################################
+## Test verifies "--compression-mode" command line option:
+#
+# 1. Try to use any algorithm with client-single style
+#    a. use "DISABLED" compression mode and verify that neither
+#       client nor server uses it
+#    b. use "REQUIRED" compression mode and verify that client may
+#       use the style
+#    c. use "PREFERRED" compression mode and verify that client may
+#       use the style
+# 2. Try to use any algorithm with client-single style, still server
+#    disabled all client styles
+#    a. use "REQUIRED" compression mode and verify that client can't
+#       connect to the server
+#    b. use "PREFERRED" compression mode and verify that client may
+#       connect to the server, still can't use selected style
+# 3. Try to use any algorithm with server-group style
+#    a. use "DISABLED" compression mode and verify that neither
+#       client nor server uses it
+#    b. use "REQUIRED" compression mode and verify that client may
+#       use the style
+# 4. Try to use any algorithm with server-group style, still server
+#    disabled all server styles
+#    a. use "REQUIRED" compression mode and verify that client can't
+#       connect to the server
+#    b. use "PREFERRED" compression mode and verify that client may
+#       connect to the server, still can't use selected style
+# 5. Try to use any algorithm with server-group and client-single styles
+#    a. use "DISABLED" compression mode and verify that neither
+#       client nor server uses it
+#    b. use "REQUIRED" compression mode and verify that client may
+#       use the styles
+# 6. Try to use any algorithm with with server-group and client-single styles,
+#    still server disabled all client styles
+#    a. use "REQUIRED" compression mode and verify that client can't
+#       connect to the server
+#    b. use "PREFERRED" compression mode and verify that client may
+#       connect to the server, still can't use selected style
+# 7. Try to use any algorithm with with server-group styles,
+#    still server disabled all compression algorithms
+#    a. use "REQUIRED" compression mode and verify that client can't
+#       connect to the server
+#    b. use "PREFERRED" compression mode and verify that client may
+#       connect to the server, still can't use compression
+
+# 1.a
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 1.b
+#
+column1
+some string value
+0 rows affected
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 1.c
+#
+column1
+some string value
+0 rows affected
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 2.a
+#
+SET GLOBAL mysqlx_compression_client_style="";
+Application terminated with expected error: Client's requirement for compression configuration is not supported by server or it was disabled (code 2513)
+ok
+
+# 2.b
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL mysqlx_compression_client_style=DEFAULT;
+
+# 3.a
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 3.b
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is ">" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 4.a
+#
+SET GLOBAL mysqlx_compression_server_style="";
+Application terminated with expected error: Client's requirement for compression configuration is not supported by server or it was disabled (code 2513)
+ok
+
+# 4.b
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL mysqlx_compression_server_style=DEFAULT;
+
+# 5.a
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 5.b
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+column1
+some string value
+0 rows affected
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is ">" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 6.a
+#
+SET GLOBAL mysqlx_compression_client_style="";
+Application terminated with expected error: Client's requirement for compression configuration is not supported by server or it was disabled (code 2513)
+ok
+
+# 6.b
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL mysqlx_compression_client_style=DEFAULT;
+
+# 7.a
+#
+SET GLOBAL mysqlx_compression_algorithms="";
+Application terminated with expected error: Client's requirement for compression configuration is not supported by server or it was disabled (code 2513)
+ok
+
+# 7.b
+#
+RUN SELECT "Send some data which might trigger server side compression" as Column1
+Column1
+Send some data which might trigger server side compression
+0 rows affected
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Got expected error: Compression is disabled or required compression style was not selected (code 2512)
+Verify [Client handled COMPRESSION_SINGLE message count is "==" 0]
+Verify [Client handled COMPRESSION_MULTIPLE message count is "==" 0]
+Verify [Client handled COMPRESSION_GROUP message count is "==" 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL mysqlx_compression_client_style=DEFAULT;
+SET GLOBAL mysqlx_compression_server_style=DEFAULT;
+SET GLOBAL mysqlx_compression_algorithms=DEFAULT;

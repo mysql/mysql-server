@@ -1,0 +1,82 @@
+ ## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/validate_not_init_message.tmp
+-->import wait_until_disconnect.macro
+
+-->echo ## 1. Trigger disconnection in middle of X Message
+-->echo #
+# This test ensures that in case of IO error currently parsed protobuf
+# message is discarded by the server. To do so we need to preapre
+# a StmtExecute mesage with two fields "stmt" and "namespace".
+#
+# It will create a xprotocol frame with both fields, and its going
+# to send it still, we will transfer successfully only "stmt",
+# at "namespace" server is going to receive an IO error.
+#
+# Without the "namespace" the message could be interpreted 
+# as SQL "ping" (not the admin-command "ping").
+#
+
+#
+# Binary form of message StmtExecute(SELECT 1) message:
+-->varlet %MSG_LENGTH% \x0f\x00\x00\x00
+-->varlet %MSG_TYPE% \x0c
+-->varlet %MSG_BODY_FIELD1% \x0a\x04ping
+-->varlet %MSG_BODY_FIELD2% \x1a\x06mysqlx
+ 
+
+## Optionaly following silent verification of the payload
+## can be uncommented:
+#
+#->binparse %MSG% Mysqlx.Sql.StmtExecute 
+#  stmt: "ping"
+#  namespace: "mysqlx"
+#}
+#
+## Silent varification of %MSG_LENGTH% %MSG_TYPE% %MSG_BODY%
+## Verification of correctness binary form of message
+#-->assert_eq %MSG%	%MSG_LENGTH%%MSG_TYPE%%MSG_BODY_FIELD1%%MSG_BODY_FIELD2%
+#
+
+echo ## Send the message, without MSG_BODY_FIELD2;
+echo #;
+-->binsend %MSG_LENGTH%%MSG_TYPE%%MSG_BODY_FIELD1%
+
+echo ## Drop the connection in middle of the message;
+echo #;
+-->closesession abort
+EOF
+
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
+--source include/wait_condition_or_abort.inc
+
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_not_init_message.tmp 2>&1
+
+echo ## 2. Verify that no StmtExecute was handled;
+echo #;
+echo #;
+
+echo # Wait until the session is dropped;
+echo #;
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions'
+--source include/wait_condition_or_abort.inc
+
+echo # After that verify that non of StmtExecutes was processed;
+echo #;
+--let $wait_for_status_value=0,0,0
+--let $wait_for_status_variable='Mysqlx_stmt_execute_sql','Mysqlx_stmt_execute_mysqlx','Mysqlx_stmt_execute_xplugin'
+--source ../include/wait_for_status_variables.inc
+
+## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+--remove_file $MYSQL_TMP_DIR/validate_not_init_message.tmp
+--source include/xplugin_drop_user.inc

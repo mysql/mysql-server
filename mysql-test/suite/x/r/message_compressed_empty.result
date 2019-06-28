@@ -1,0 +1,244 @@
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+SET GLOBAL mysqlx_max_allowed_packet = 1000;
+
+## A. Execute the test using "deflate" algorithm
+#
+
+## 1. Send empty compressed header in
+#  a. SINGLE message
+#  b. MULTIPE message
+#  c. GROUP message
+#
+## 2. Send empty compressed payload in
+#  a. MULTIPE message
+#  b. GROUP message
+#
+## 3. Send empty single-compressed frame and check its processed
+#
+;
+# 1.a
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 1.b
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 1.c
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 2.a
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 10 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 2.b
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 9 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 3.
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 10 bytes raw data...
+RUN recvok
+Login OK
+closing session SOME_SESSION
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## B. Execute the test using "lz4" algorithm
+#
+
+## 1. Send empty compressed header in
+#  a. SINGLE message
+#  b. MULTIPE message
+#  c. GROUP message
+#
+## 2. Send empty compressed payload in
+#  a. MULTIPE message
+#  b. GROUP message
+#
+## 3. Send empty single-compressed frame and check its processed
+#
+;
+# 1.a
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 1.b
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 1.c
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 2.a
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 10 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 2.b
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 9 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5174
+  msg: "Invalid compressed frame."
+  sql_state: "HY000"
+}
+
+## Waiting for disconnection
+closing session SOME_SESSION
+switched to session default
+;
+# 3.
+connecting...
+active session is now 'SOME_SESSION'
+RUN recvok
+Login OK
+Sending 10 bytes raw data...
+RUN recvok
+Login OK
+closing session SOME_SESSION
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;

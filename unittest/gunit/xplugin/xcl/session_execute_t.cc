@@ -224,11 +224,11 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
        Argument_value(argument_value_double),
        Argument_value(argument_value_float),
        Argument_value(argument_value_string,
-                      Argument_value::String_type::TString),
+                      Argument_value::String_type::k_string),
        Argument_value(argument_value_octet,
-                      Argument_value::String_type::TOctets),
+                      Argument_value::String_type::k_octets),
        Argument_value(argument_value_decimal,
-                      Argument_value::String_type::TDecimal),
+                      Argument_value::String_type::k_decimal),
        Argument_value()},
       &out_error);
 
@@ -338,8 +338,8 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
 
   auto query_result = m_sut->execute_stmt(
       "s", expected_sql,
-      {Argument_value{Arguments{argument_value_int, argument_value_double,
-                                argument_value_string}}},
+      {Argument_value{Argument_array{argument_value_int, argument_value_double,
+                                     argument_value_string}}},
       &out_error);
 
   ASSERT_EQ(dummy_result_ptr, query_result.get());

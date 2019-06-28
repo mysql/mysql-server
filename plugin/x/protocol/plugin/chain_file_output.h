@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,117 +25,65 @@
 #ifndef PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_
 #define PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_
 
-#include <google/protobuf/compiler/code_generator.h>
-#include <google/protobuf/descriptor.h>
-#include <algorithm>
-#include <memory>
-#include <set>
 #include <string>
-#include <utility>
-#include <vector>
 
-class Chain_file_output {
+#include "plugin/x/protocol/plugin/file_output.h"
+
+class Chain_file_output : public File_output {
  public:
-  using ZeroCopyOutputStream = google::protobuf::io::ZeroCopyOutputStream;
-  using Context = google::protobuf::compiler::GeneratorContext;
+  explicit Chain_file_output(const std::string &name) : File_output(name) {}
 
- public:
-  explicit Chain_file_output(const std::string &name) : m_name(name) {}
+  void write_header(Context *context) override {
+    write_to_context(context, "#ifndef PLUGIN_X_GENERATED_XPROTOCOL_TAGS_H");
+    write_to_context(context, "#define PLUGIN_X_GENERATED_XPROTOCOL_TAGS_H");
+    write_to_context(context, "");
+    write_to_context(context, "#include <set>");
+    write_to_context(context, "#include <string>");
+    write_to_context(context, "#include <cstring>");
+    write_to_context(context, "");
+    write_to_context(context, "");
+    write_to_context(context, "class XProtocol_tags {");
+    write_to_context(context, " public:");
+    write_to_context(context,
+                     "  bool is_chain_acceptable(const std::string &chain) {");
+    write_to_context(
+        context,
+        "    auto iterator = m_allowed_tag_chains.lower_bound(chain);");
+    write_to_context(context,
+                     "    if (m_allowed_tag_chains.end() == iterator)");
+    write_to_context(context, "      return false;");
+    write_to_context(context, "    const auto to_match = (*iterator).c_str();");
+    write_to_context(context,
+                     "    return strstr(to_match, chain.c_str()) == to_match;");
+    write_to_context(context, "  }");
+    write_to_context(context, "");
+    write_to_context(context, " private:");
+    write_to_context(context, "  std::set<std::string> m_allowed_tag_chains;");
+    write_to_context(context, " public:");
+    write_to_context(context, "  XProtocol_tags() {");
+    write_to_context(context, "    // Workaround for crash at FreeBSD 11");
+    write_to_context(context,
+                     "    // It crashes when using std::set<std::string> and "
+                     "initialization list");
+    write_to_context(context, "    const char *v[] = {");
+  }
 
-  ~Chain_file_output() { close(); }
-
-  void close() {
-    if (nullptr != m_chain_file) {
-      writeln("    };");
-      writeln("");
-      writeln("    for(unsigned int i = 0; i < sizeof(v)/sizeof(v[0]); ++i)");
-      writeln("      m_allowed_tag_chains.insert(v[i]);");
-      writeln("  };");
-      writeln("};");
-      writeln("");
-      writeln("#endif  // X_PROTOCOL_XPROTOCOL_TAGS_H");
-      m_chain_file.reset();
-    }
+  void write_footer(Context *context) override {
+    write_to_context(context, "    };");
+    write_to_context(context, "");
+    write_to_context(
+        context,
+        "    for(unsigned int i = 0; i < sizeof(v)/sizeof(v[0]); ++i)");
+    write_to_context(context, "      m_allowed_tag_chains.insert(v[i]);");
+    write_to_context(context, "  };");
+    write_to_context(context, "};");
+    write_to_context(context, "");
+    write_to_context(context, "#endif  // PLUGIN_X_GENERATED_XPROTOCOL_TAGS_H");
   }
 
   void append_chain(Context *context, const std::string &chain) {
-    start_output_if_not_started(context);
-    writeln("    \"", chain, "\",");
+    write_to_context(context, "      \"", chain, "\",");
   }
-
- private:
-  void start_output_if_not_started(Context *context) {
-    if (nullptr == m_chain_file) {
-      m_chain_file.reset(context->Open(m_name));
-
-      writeln("#ifndef X_PROTOCOL_XPROTOCOL_TAGS_H");
-      writeln("#define X_PROTOCOL_XPROTOCOL_TAGS_H");
-      writeln("");
-      writeln("#include <set>");
-      writeln("#include <string>");
-      writeln("#include <cstring>");
-      writeln("");
-      writeln("");
-      writeln("class XProtocol_tags {");
-      writeln(" public:");
-      writeln("  bool is_chain_acceptable(const std::string &chain) {");
-      writeln("    auto iterator = m_allowed_tag_chains.lower_bound(chain);");
-      writeln("    if (m_allowed_tag_chains.end() == iterator)");
-      writeln("      return false;");
-      writeln("    const auto to_match = (*iterator).c_str();");
-      writeln("    return strstr(to_match, chain.c_str()) == to_match;");
-      writeln("  }");
-      writeln("");
-      writeln(" private:");
-      writeln("  std::set<std::string> m_allowed_tag_chains;");
-      writeln(" public:");
-      writeln("  XProtocol_tags() {");
-      writeln("    // Workaround for crash at FreeBSD 11");
-      writeln(
-          "    // It crashes when using std::set<std::string> and "
-          "initialization list");
-      writeln("    const char *v[] = {");
-    }
-  }
-
-  bool write_bin(const char *buffer, size_t size) {
-    void *data;
-    int data_size;
-
-    while (0 < size && m_chain_file->Next(&data, &data_size)) {
-      const int pushed = std::min(data_size, static_cast<int>(size));
-
-      memcpy(data, buffer, pushed);
-
-      buffer += pushed;
-      size -= pushed;
-
-      if (pushed < data_size) m_chain_file->BackUp(data_size - pushed);
-    }
-
-    return 0 == size;
-  }
-
-  bool write(const std::string &value) {
-    return write_bin(value.c_str(), value.length());
-  }
-
-  template <typename... Types>
-  bool write(const std::string &value, Types &&... values) {
-    if (!write(value)) return false;
-
-    return write(std::forward<Types>(values)...);
-  }
-
-  template <typename... Types>
-  bool writeln(const std::string &value, Types &&... values) {
-    if (!write(value)) return false;
-
-    return write(std::forward<Types>(values)..., "\n");
-  }
-
-  std::unique_ptr<ZeroCopyOutputStream> m_chain_file;
-  std::string m_name;
 };
 
 #endif  // PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_

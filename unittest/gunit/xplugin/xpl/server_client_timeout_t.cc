@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class ServerClientTimeoutTestSuite : public Test {
 
   std::shared_ptr<Client_interface> expectClientValid(
       const xpl::chrono::Time_point &tp,
-      const Client_interface::Client_state state) {
+      const ngs::Client_interface::State state) {
     std::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
 
     result.reset(new StrictMock<::xpl::test::Mock_client>());
@@ -83,7 +83,7 @@ class ServerClientTimeoutTestSuite : public Test {
 
   std::shared_ptr<Client_interface> expectClientNotValid(
       const xpl::chrono::Time_point &tp,
-      const Client_interface::Client_state state) {
+      const ngs::Client_interface::State state) {
     std::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
 
     result.reset(new StrictMock<::xpl::test::Mock_client>());
@@ -108,14 +108,14 @@ TEST_F(ServerClientTimeoutTestSuite,
 
 struct ClientParams {
   ClientParams(const xpl::chrono::Duration &Duration,
-               const Client_interface::Client_state state)
+               const ngs::Client_interface::State state)
       : m_Duration(Duration),
         m_tp(TIMEPOINT_RELEASE_ALL_BEFORE + Duration),
         m_state(state) {}
 
   xpl::chrono::Duration m_Duration;
   xpl::chrono::Time_point m_tp;
-  Client_interface::Client_state m_state;
+  ngs::Client_interface::State m_state;
 };
 
 void PrintTo(const ClientParams &x, ::std::ostream *os) {
@@ -159,51 +159,64 @@ TEST_P(NoExpiredClient_stateOk,
 
 INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState, ExpiredClient,
-    Values(ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_accepted),
-           ClientParams(DELTA_TO_RELEASE_2, Client_interface::Client_accepted),
-           ClientParams(DELTA_TO_RELEASE_3, Client_interface::Client_accepted),
-           ClientParams(DELTA_TO_RELEASE_1,
-                        Client_interface::Client_authenticating_first),
+    Values(ClientParams(DELTA_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_accepted),
            ClientParams(DELTA_TO_RELEASE_2,
-                        Client_interface::Client_authenticating_first),
+                        ngs::Client_interface::State::k_accepted),
            ClientParams(DELTA_TO_RELEASE_3,
-                        Client_interface::Client_authenticating_first)));
+                        ngs::Client_interface::State::k_accepted),
+           ClientParams(DELTA_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_authenticating_first),
+           ClientParams(DELTA_TO_RELEASE_2,
+                        ngs::Client_interface::State::k_authenticating_first),
+           ClientParams(DELTA_TO_RELEASE_3,
+                        ngs::Client_interface::State::k_authenticating_first)));
 
 INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState,
     NoExpiredClient_stateNotOk,
-    Values(
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_accepted),
-        ClientParams(DELTA_NOT_TO_RELEASE_2, Client_interface::Client_accepted),
-        ClientParams(DELTA_NOT_TO_RELEASE_3, Client_interface::Client_accepted),
-        ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     Client_interface::Client_authenticating_first),
-        ClientParams(DELTA_NOT_TO_RELEASE_2,
-                     Client_interface::Client_authenticating_first),
-        ClientParams(DELTA_NOT_TO_RELEASE_3,
-                     Client_interface::Client_authenticating_first)));
+    Values(ClientParams(DELTA_NOT_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_accepted),
+           ClientParams(DELTA_NOT_TO_RELEASE_2,
+                        ngs::Client_interface::State::k_accepted),
+           ClientParams(DELTA_NOT_TO_RELEASE_3,
+                        ngs::Client_interface::State::k_accepted),
+           ClientParams(DELTA_NOT_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_authenticating_first),
+           ClientParams(DELTA_NOT_TO_RELEASE_2,
+                        ngs::Client_interface::State::k_authenticating_first),
+           ClientParams(DELTA_NOT_TO_RELEASE_3,
+                        ngs::Client_interface::State::k_authenticating_first)));
 
 INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatNoExpiredAndAreInValidState,
     NoExpiredClient_stateOk,
-    Values(
-        ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     Client_interface::Client_accepted_with_session),
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_running),
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_closing),
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_closed),
-        ClientParams(DELTA_TO_RELEASE_1,
-                     Client_interface::Client_accepted_with_session),
-        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_running),
-        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_closing),
-        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_closed)));
+    Values(ClientParams(DELTA_NOT_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_accepted_with_session),
+           ClientParams(DELTA_NOT_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_running),
+           ClientParams(DELTA_NOT_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_closing),
+           ClientParams(DELTA_NOT_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_closed),
+           ClientParams(DELTA_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_accepted_with_session),
+           ClientParams(DELTA_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_running),
+           ClientParams(DELTA_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_closing),
+           ClientParams(DELTA_TO_RELEASE_1,
+                        ngs::Client_interface::State::k_closed)));
 
 TEST_F(
     ServerClientTimeoutTestSuite,
     returnDateOfOldestProcessedClient_whenMultipleValidNonAuthClientWereProcessed) {
-  expectClientValid(TP_NOT_TO_RELEASE_1, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_2, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_3, Client_interface::Client_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_1,
+                    ngs::Client_interface::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_2,
+                    ngs::Client_interface::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_3,
+                    ngs::Client_interface::State::k_accepted);
 
   ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
@@ -211,10 +224,14 @@ TEST_F(
 
 TEST_F(ServerClientTimeoutTestSuite,
        returnDateOfOldestNotExpiredNotAuthClient_whenWithMixedClientSet) {
-  expectClientValid(TP_NOT_TO_RELEASE_1, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_2, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_3, Client_interface::Client_accepted);
-  expectClientNotValid(TP_TO_RELEASE_1, Client_interface::Client_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_1,
+                    ngs::Client_interface::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_2,
+                    ngs::Client_interface::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_3,
+                    ngs::Client_interface::State::k_accepted);
+  expectClientNotValid(TP_TO_RELEASE_1,
+                       ngs::Client_interface::State::k_accepted);
 
   ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
@@ -222,9 +239,9 @@ TEST_F(ServerClientTimeoutTestSuite,
 
 TEST_F(ServerClientTimeoutTestSuite,
        returnInvalidDate_whenAllClientAreAuthenticated) {
-  expectClientValid(TP_TO_RELEASE_1, Client_interface::Client_running);
-  expectClientValid(TP_TO_RELEASE_2, Client_interface::Client_closing);
-  expectClientValid(TP_TO_RELEASE_3, Client_interface::Client_closing);
+  expectClientValid(TP_TO_RELEASE_1, ngs::Client_interface::State::k_running);
+  expectClientValid(TP_TO_RELEASE_2, ngs::Client_interface::State::k_closing);
+  expectClientValid(TP_TO_RELEASE_3, ngs::Client_interface::State::k_closing);
 
   ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
@@ -232,7 +249,8 @@ TEST_F(ServerClientTimeoutTestSuite,
 TEST_F(ServerClientTimeoutTestSuite, returnInvalidDate_whenNoInitializedDate) {
   xpl::chrono::Time_point not_set_Time_point;
 
-  expectClientValid(not_set_Time_point, Client_interface::Client_invalid);
+  expectClientValid(not_set_Time_point,
+                    ngs::Client_interface::State::k_invalid);
 
   ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }

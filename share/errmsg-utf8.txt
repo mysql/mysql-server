@@ -19670,6 +19670,9 @@ ER_WARN_WRONG_COMPRESSION_LEVEL_LOG
 ER_PROTOCOL_COMPRESSION_RESET_LOG
   eng "Option --protocol-compression-algorithms is reset to default value."
 
+ER_XPLUGIN_COMPRESSION_ERROR
+  eng "Fatal error while compressing outgoing data - %s"
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.

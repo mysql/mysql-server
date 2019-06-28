@@ -401,13 +401,13 @@ xcl::XError GRNotificationListener::Impl::enable_notices(
 
   arg_obj["notice"] = xcl::Argument_value::Arguments{
       xcl::Argument_value("group_replication/membership/quorum_loss",
-                          xcl::Argument_value::String_type::TString),
+                          xcl::Argument_value::String_type::k_string),
       xcl::Argument_value("group_replication/membership/view",
-                          xcl::Argument_value::String_type::TString),
+                          xcl::Argument_value::String_type::k_string),
       xcl::Argument_value("group_replication/status/role_change",
-                          xcl::Argument_value::String_type::TString),
+                          xcl::Argument_value::String_type::k_string),
       xcl::Argument_value("group_replication/status/state_change",
-                          xcl::Argument_value::String_type::TString)};
+                          xcl::Argument_value::String_type::k_string)};
 
   auto stmt_result = session.execute_stmt(
       "mysqlx", "enable_notices", {xcl::Argument_value(arg_obj)}, &out_error);

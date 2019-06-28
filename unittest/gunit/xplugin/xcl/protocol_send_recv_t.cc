@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -159,16 +159,29 @@ TEST_F(Xcl_protocol_impl_tests, recv_fails_at_payload) {
 
 TEST_F(Xcl_protocol_impl_tests, recv_large_message) {
   std::string message_payload(1024 * 64, 'x');
+  int offset = 0;
   expect_read_header(::Mysqlx::ServerMessages::OK,
                      static_cast<int32>(message_payload.size()));
 
-  EXPECT_CALL(*m_mock_connection, read(_, message_payload.size()))
-      .WillOnce(Invoke([message_payload](uchar *data,
-                                         const std::size_t data_length
-                                             MY_ATTRIBUTE((unused))) -> XError {
-        std::copy(message_payload.begin(), message_payload.end(), data);
-        return {};
-      }));
+  {
+    InSequence s;
+    const int k_internal_buffer = 4 * 1024;
+    size_t count_data_in_reads = 0;
+
+    while (count_data_in_reads < message_payload.size()) {
+      EXPECT_CALL(*m_mock_connection, read(_, k_internal_buffer))
+          .WillOnce(Invoke(
+              [&offset, message_payload](
+                  uchar *data, const std::size_t data_length MY_ATTRIBUTE(
+                                   (unused))) -> XError {
+                auto i_start = message_payload.begin() + offset;
+                std::copy(i_start, i_start + data_length, data);
+                offset += data_length;
+                return {};
+              }));
+      count_data_in_reads += k_internal_buffer;
+    }
+  }
   XProtocol::Server_message_type_id out_id;
   XError out_error;
   auto result = m_sut->recv_single_message(&out_id, &out_error);

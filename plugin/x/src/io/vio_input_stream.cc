@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,10 @@ void Vio_input_stream::mark_vio_as_active() {
   MYSQL_END_SOCKET_WAIT(locker, m_idle_data);
 }
 
+bool Vio_input_stream::was_io_error() const {
+  return m_last_io_return_value <= 0;
+}
+
 bool Vio_input_stream::was_io_error(int *error_code) const {
   if (0 == m_last_io_return_value) {
     *error_code = 0;
@@ -83,17 +87,15 @@ void Vio_input_stream::lock_data(const int count) {
   m_locked_data_count = count;
 }
 
-void Vio_input_stream::unlock_data() { m_locked_data_count = 0; }
+void Vio_input_stream::unlock_data() { m_locked_data_count = -1; }
 
 bool Vio_input_stream::Next(const void **data, int *size) {
-  if (m_locked_data_count > 0) {
-    if (m_locked_data_count == m_locked_data_pos) {
-      return false;
-    }
+  if (m_locked_data_count == m_locked_data_pos) {
+    return false;
   }
 
   if (peek_data(data, size)) {
-    if (m_locked_data_count > 0) {
+    if (m_locked_data_count >= 0) {
       const int delta = m_locked_data_count - m_locked_data_pos - *size;
 
       if (delta < 0) {

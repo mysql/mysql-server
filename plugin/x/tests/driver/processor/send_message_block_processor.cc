@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,12 @@
 
 #include "plugin/x/tests/driver/processor/send_message_block_processor.h"
 
-#include "my_config.h"
-
 #include <iostream>
 #include <sstream>
 #include <utility>
+
+#include "my_config.h"
+#include "my_dbug.h"
 
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
@@ -114,6 +115,7 @@ bool Send_message_block_processor::is_eating() const {
 int Send_message_block_processor::process(
     const xcl::XProtocol::Client_message_type_id msg_id,
     const xcl::XProtocol::Message &message) {
+  DBUG_TRACE;
   return process_client_message(m_context->session(), msg_id, message);
 }
 

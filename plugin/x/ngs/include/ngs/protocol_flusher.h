@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,25 +26,36 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_FLUSHER_H_
 
 #include <functional>
+#include <memory>
 
 #include "my_inttypes.h"
 
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
-#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/src/global_timeouts.h"
+#include "plugin/x/src/interface/protocol_flusher.h"
+
+namespace protocol {
+
+class Encoding_buffer;
+class XProtocol_encoder;
+class XMessage_encoder;
+
+}  // namespace protocol
 
 namespace ngs {
 
 using Error_handler = std::function<void(int error)>;
 
-class Protocol_flusher {
+class Protocol_flusher : public xpl::iface::Protocol_flusher {
  public:
-  Protocol_flusher(Page_output_stream *page_output_stream,
+  Protocol_flusher(protocol::Encoding_buffer *buffer,
+                   protocol::XMessage_encoder *encoder,
                    Protocol_monitor_interface *protocol_monitor,
                    const std::shared_ptr<Vio_interface> &socket,
                    const Error_handler &error_handler)
-      : m_page_output_stream(page_output_stream),
+      : m_buffer(buffer),
+        m_encoder(encoder),
         m_protocol_monitor(protocol_monitor),
         m_socket(socket),
         m_on_error(error_handler) {}
@@ -52,8 +63,8 @@ class Protocol_flusher {
   /**
     Force that next `try_flush` is going to dispatch data.
    */
-  void mark_flush();
-  void on_message(const uint8 type);
+  void trigger_flush_required() override;
+  void trigger_on_message(const uint8 type) override;
 
   /**
     Check if flush is required and try to execute it
@@ -62,23 +73,31 @@ class Protocol_flusher {
     when no other conditions to flush were fulfilled.
 
     @return result of flush operation
-      @retval == true   No flush was needed, or flush IO was successful
-      @retval == false  flush IO was failed
+      @retval == k_flushed     flush was successful
+      @retval == k_not_flushed nothing important to flush
+      @retval == k_error       flush IO was failed
    */
-  bool try_flush();
+  Result try_flush() override;
 
-  void set_write_timeout(const uint32_t timeout) { m_write_timeout = timeout; }
+  bool is_going_to_flush() override { return m_flush; }
+
+  void set_write_timeout(const uint32_t timeout) override {
+    m_write_timeout = timeout;
+  }
 
  private:
   bool flush();
 
-  Page_output_stream *m_page_output_stream;
+  protocol::Encoding_buffer *m_buffer;
+  protocol::XMessage_encoder *m_encoder;
+  //  Page_output_stream *m_page_output_stream;
   Protocol_monitor_interface *m_protocol_monitor;
   std::shared_ptr<Vio_interface> m_socket;
   uint32_t m_write_timeout =
       static_cast<uint32_t>(Global_timeouts::Default::k_write_timeout);
 
   bool m_flush = false;
+  bool m_io_error = false;
   Error_handler m_on_error;
 };
 

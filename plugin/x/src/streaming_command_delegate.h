@@ -34,7 +34,6 @@
 #include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/session_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
 #include "plugin/x/src/notices.h"
 
 namespace ngs {
@@ -104,6 +103,7 @@ class Streaming_command_delegate : public ngs::Command_delegate {
                         const char *const message);
 
   ngs::Protocol_encoder_interface *m_proto;
+  ngs::Metadata_vector &m_metadata;
   const CHARSET_INFO *m_resultcs = nullptr;
   ngs::Notice_output_queue_interface *m_notice_queue = nullptr;
   bool m_sent_result = false;
@@ -111,6 +111,7 @@ class Streaming_command_delegate : public ngs::Command_delegate {
   bool m_compact_metadata = false;
   bool m_handle_ok_received = false;
   bool m_send_notice_deferred = false;
+  int m_filled_column_counter = 0;
   ngs::Session_interface *m_session;
 };
 
