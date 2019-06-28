@@ -134,14 +134,7 @@ with recursive qn as (
 select a+1 from qn where a<3)
 select * from qn;
 
---echo # no LIMIT as it's not pushed down to UNION members
---error ER_NOT_SUPPORTED_YET
-with recursive qn as (
-select 1 as a from dual union all
-select 1 from qn
-limit 10)
-select * from qn;
-
+--echo # No LIMIT inside recursive query block
 --error ER_NOT_SUPPORTED_YET
 with recursive qn as (
 select 1 as a from dual union all

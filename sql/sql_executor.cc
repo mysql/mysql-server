@@ -1863,6 +1863,9 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
           !join->streaming_aggregation ||
           join->tmp_table_param.precomputed_group_by;
     }
+
+    MaterializeIterator *materialize = nullptr;
+
     if (unit->unfinished_materialization()) {
       // The unit is a UNION capable of materializing directly into our result
       // table. This saves us from doing double materialization (first into
@@ -1874,8 +1877,17 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
           thd, unit->release_query_blocks_to_materialize(), qep_tab->table(),
           move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
           unit, /*subjoin=*/nullptr,
-          /*ref_slice=*/-1, qep_tab->rematerialize,
-          tmp_table_param->end_write_records);
+          /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt);
+      materialize =
+          down_cast<MaterializeIterator *>(table_iterator->real_iterator());
+      if (unit->offset_limit_cnt != 0) {
+        // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
+        // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
+        table_iterator = NewIterator<LimitOffsetIterator>(
+            thd, move(table_iterator), unit->select_limit_cnt,
+            unit->offset_limit_cnt, /*count_all_rows=*/false,
+            /*skipped_rows=*/nullptr);
+      }
     } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
                qep_tab->rematerialize && qep_tab->using_table_scan()) {
       // We don't actually need the materialization for anything (we would
@@ -1899,11 +1911,11 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
           select_number, unit, /*subjoin=*/nullptr,
           /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
           qep_tab->rematerialize, tmp_table_param->end_write_records);
+      materialize =
+          down_cast<MaterializeIterator *>(table_iterator->real_iterator());
     }
 
     if (!qep_tab->rematerialize) {
-      MaterializeIterator *materialize =
-          down_cast<MaterializeIterator *>(table_iterator->real_iterator());
       if (qep_tab->invalidators != nullptr) {
         for (const CacheInvalidatorIterator *iterator :
              *qep_tab->invalidators) {

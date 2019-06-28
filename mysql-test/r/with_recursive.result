@@ -126,7 +126,7 @@ select 1 as a from dual union all
 select 1 from qn
 order by a)
 select * from qn;
-ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY over UNION in recursive Common Table Expression'
 # No matter if global, or attached to one recursive member.
 with recursive qn as (
 select 1 as a from dual union all
@@ -142,13 +142,7 @@ a
 1
 2
 3
-# no LIMIT as it's not pushed down to UNION members
-with recursive qn as (
-select 1 as a from dual union all
-select 1 from qn
-limit 10)
-select * from qn;
-ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+# No LIMIT inside recursive query block
 with recursive qn as (
 select 1 as a from dual union all
 (select 1 from qn limit 10))
@@ -1482,7 +1476,7 @@ select 1 as a from dual union all
 select 1 from qn
 order by a)
 select * from qn;
-ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY over UNION in recursive Common Table Expression'
 # No matter if global, or attached to one recursive member.
 with recursive qn as (
 select 1 as a from dual union all
@@ -1498,13 +1492,7 @@ a
 1
 2
 3
-# no LIMIT as it's not pushed down to UNION members
-with recursive qn as (
-select 1 as a from dual union all
-select 1 from qn
-limit 10)
-select * from qn;
-ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+# No LIMIT inside recursive query block
 with recursive qn as (
 select 1 as a from dual union all
 (select 1 from qn limit 10))

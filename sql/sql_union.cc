@@ -447,16 +447,9 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   return false;
 }
 
-bool SELECT_LEX_UNIT::can_materialize_directly_into_result(THD *thd) const {
+bool SELECT_LEX_UNIT::can_materialize_directly_into_result() const {
   // There's no point in doing this if we're not already trying to materialize.
   if (!is_union()) {
-    return false;
-  }
-
-  // For now, we don't accept LIMIT or OFFSET; this restriction could probably
-  // be lifted fairly easily in the future.
-  if (global_parameters()->get_offset(thd) != 0 ||
-      global_parameters()->get_limit(thd) != HA_POS_ERROR) {
     return false;
   }
 
@@ -809,6 +802,13 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
                 fake_select_lex->having_cond() == NULL);
 
     if (fake_select_lex->optimize(thd)) return true;
+  } else if (saved_fake_select_lex != nullptr) {
+    // When GetTableIterator() sets up direct materialization, it looks for
+    // the value of global_parameters()'s LIMIT in unit->select_limit_cnt;
+    // so set unit->select_limit_cnt accordingly here. This is also done in
+    // the other branch above when there is a fake_select_lex.
+    if (set_limit(thd, saved_fake_select_lex))
+      return true; /* purecov: inspected */
   }
 
   query_result()->estimated_rowcount = estimated_rowcount;
@@ -832,7 +832,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
     // has not been created, and treat the the lookup as non-const.
     create_iterators(thd);
   } else if (materialize_destination != nullptr &&
-             can_materialize_directly_into_result(thd)) {
+             can_materialize_directly_into_result()) {
     m_query_blocks_to_materialize = setup_materialization(
         thd, materialize_destination, /*union_distinct_only=*/false);
   } else {

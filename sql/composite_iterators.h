@@ -631,13 +631,14 @@ class MaterializeIterator final : public TableRowIterator {
       (e.g., because we have a dependency on a value from outside the query
       block).
     @param limit_rows
-      Does the same job as a LimitOffsetIterator right before the
-      MaterializeIterator would have done, except that it works _after_
-      deduplication (if that is active). It is used for when pushing LIMIT down
-      to MaterializeIterator, so that we can stop materializing when there are
-      enough rows. The deduplication is the reason why this specific limit has
-      to be handled in MaterializeIterator and not using a regular
-      LimitOffsetIterator. Set to HA_POS_ERROR for no limit.
+      Used for when pushing LIMIT down to MaterializeIterator; this is
+      more efficient than having a LimitOffsetIterator above the
+      MaterializeIterator, since we can stop materializing when there are
+      enough rows. (This is especially important for recursive CTEs.)
+      Note that we cannot have a LimitOffsetIterator _below_ the
+      MaterializeIterator, as that would count wrong if we have deduplication,
+      and would not work at all for recursive CTEs.
+      Set to HA_POS_ERROR for no limit.
    */
   MaterializeIterator(THD *thd,
                       Mem_root_array<QueryBlock> query_blocks_to_materialize,

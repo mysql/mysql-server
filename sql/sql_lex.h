@@ -802,7 +802,7 @@ class SELECT_LEX_UNIT {
     on information (in particular, whether the query blocks can run under
     the iterator executor or not) that is not available before optimize time.
    */
-  bool can_materialize_directly_into_result(THD *thd) const;
+  bool can_materialize_directly_into_result() const;
 
   bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);

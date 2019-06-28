@@ -314,8 +314,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       my_error(ER_CTE_RECURSIVE_REQUIRES_UNION, MYF(0), alias);
       return true;
     }
-    if (derived->global_parameters()->is_ordered() ||
-        derived->global_parameters()->has_limit()) {
+    if (derived->global_parameters()->is_ordered()) {
       /*
         ORDER BY applied to the UNION causes the use of the union tmp
         table. The fake_select_lex would want to sort that table, which isn't
@@ -324,16 +323,16 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
         Another reason: allowing
         ORDER BY <condition using fulltext> would make the UNION tmp table be
         of MyISAM engine which recursive CTEs don't support.
-        LIMIT will mislead people; they'll possibly add it to an infinite
-        recursive query and think it will stop it, but it won't, as LIMIT
-        isn't quite pushed down to UNION parts (see Bug #79340). Moreover,
-        without ORDER BY the LIMIT theoretically returns unpredictable rows.
-        Instead of LIMIT, the user can have a counter column and use a WHERE
+        LIMIT is allowed and will stop the row generation after N rows.
+        However, without ORDER BY the CTE's content is ordered in an
+        unpredictable way, so LIMIT theoretically returns an unpredictable
+        subset of rows. Users are on their own.
+        Instead of LIMIT, users can have a counter column and use a WHERE
         on it, to control depth level, which sounds more intelligent than a
         limit.
       */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "ORDER BY / LIMIT over UNION "
+               "ORDER BY over UNION "
                "in recursive Common Table Expression");
       return true;
     }
@@ -543,7 +542,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
     // will happen on that table, and is not set here.) create_result_table()
     // will figure out whether it wants to create it as the primary key or just
     // a regular index.
-    bool is_distinct = derived->can_materialize_directly_into_result(thd) &&
+    bool is_distinct = derived->can_materialize_directly_into_result() &&
                        derived->union_distinct != nullptr;
 
     bool rc = derived_result->create_result_table(

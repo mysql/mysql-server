@@ -936,8 +936,6 @@ bool MaterializeIterator::MaterializeRecursive() {
         }
       });
 
-  DBUG_ASSERT(m_limit_rows == HA_POS_ERROR);
-
   ha_rows stored_rows = 0;
 
   // Give each recursive iterator access to the stored number of rows
