@@ -24,7 +24,6 @@
 
 #include "plugin/x/client/xprotocol_impl.h"
 
-#include <google/protobuf/empty.pb.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <algorithm>
 #include <cstdint>

@@ -72,7 +72,7 @@ class Compression_client_styles_validator
                                    {"MULTIPLE", Compression_style::k_multiple},
                                    {"GROUP", Compression_style::k_group}}) {}
 
-  virtual bool ignore_empty_array() const {
+  bool ignore_empty_array() const override {
     DBUG_TRACE;
     return true;
   }

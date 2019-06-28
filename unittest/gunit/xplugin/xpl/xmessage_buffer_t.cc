@@ -204,112 +204,74 @@ TEST_F(Encoder_validator_testsuite, encode_compact_metadata) {
 }
 
 TEST_F(Encoder_validator_testsuite, encode_compact_metadata_multiple_params) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_compact_metadata(0, nullptr, nullptr, nullptr, nullptr,
                                     nullptr);
 }
 
 TEST_F(Encoder_validator_testsuite, encode_full_metadata_multiple_params) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_full_metadata("", "", "", "", "", "", 0, nullptr, nullptr,
                                  nullptr, nullptr, nullptr);
 }
 
 TEST_F(Encoder_validator_testsuite, encode_notice_row_affected) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_notice_rows_affected(0);
 }
 
 TEST_F(Encoder_validator_testsuite, encode_notice_client_id) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_notice_client_id(0);
 }
 
 TEST_F(Encoder_validator_testsuite, encode_notice_expired) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_notice_expired();
 }
 
 TEST_F(Encoder_validator_testsuite, encode_notice_generated_insert_id) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_notice_generated_insert_id(0);
 }
 
 TEST_F(Encoder_validator_testsuite, encode_notice_text_message) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_notice_text_message("");
 }
 
 TEST_F(Encoder_validator_testsuite, encode_notice) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_notice(0, 0, "");
 }
 
 TEST_F(Encoder_validator_testsuite, encode_global_notice) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_global_notice(0, "");
 }
 
 TEST_F(Encoder_validator_testsuite, encode_fetch_more_resultsets) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_fetch_more_resultsets();
 }
 
 TEST_F(Encoder_validator_testsuite, encode_fetch_out_params) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_fetch_out_params();
 }
 
 TEST_F(Encoder_validator_testsuite, encode_fetch_suspended) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_fetch_suspended();
 }
 
 TEST_F(Encoder_validator_testsuite, encode_fetch_done) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_fetch_done();
 }
 
 TEST_F(Encoder_validator_testsuite, encode_stmt_execute_ok) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_stmt_execute_ok();
 }
 
-TEST_F(Encoder_validator_testsuite, encode_ok) {
-  ::ngs::Encode_column_info column_info;
-
-  m_encoder.encode_ok();
-}
+TEST_F(Encoder_validator_testsuite, encode_ok) { m_encoder.encode_ok(); }
 
 TEST_F(Encoder_validator_testsuite, encode_ok_with_param) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_ok("");
 }
 
 TEST_F(Encoder_validator_testsuite, encode_error) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_error(0, 0, "", "");
 }
 
 TEST_F(Encoder_validator_testsuite, encode_xmessage) {
-  ::ngs::Encode_column_info column_info;
-
   m_encoder.encode_xmessage<1>("");
 }
 
