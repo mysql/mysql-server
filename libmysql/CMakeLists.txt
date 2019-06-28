@@ -279,58 +279,60 @@ IF(UNIX)
   ENDMACRO()
 ENDIF()
 
-IF(NOT DISABLE_SHARED)
-  # Merge several convenience libraries into one big mysqlclient
-  # and link them together into shared library.
-  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
-    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED} ${CLIENT_API_NONBLOCKING_FUNCTIONS}
-    COMPONENT SharedLibraries)
-  TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
+# Merge several convenience libraries into one big mysqlclient
+# and link them together into shared library.
+MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
+  EXPORTS
+  ${CLIENT_API_FUNCTIONS}
+  ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
+  ${CLIENT_API_NONBLOCKING_FUNCTIONS}
+  COMPONENT SharedLibraries)
+TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
 
-  IF(WIN32)
-    # So that libmysql_api_test below can find the .dll
-    ADD_CUSTOM_COMMAND(TARGET libmysql POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
+IF(WIN32)
+  # So that libmysql_api_test below can find the .dll
+  ADD_CUSTOM_COMMAND(TARGET libmysql POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
+    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
+    )
+ENDIF()
+
+IF(UNIX)
+  # libtool compatability
+  IF(FREEBSD OR APPLE)
+    SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
+  ELSE()
+    SET(OS_SHARED_LIB_VERSION
+      "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
+  ENDIF()
+  # Name of shared library is mysqlclient on Unix
+  SET_TARGET_PROPERTIES(libmysql PROPERTIES 
+    OUTPUT_NAME mysqlclient 
+    VERSION "${OS_SHARED_LIB_VERSION}" 
+    SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
+  CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+
+  IF(APPLE)
+    SET_TARGET_PROPERTIES(libmysql PROPERTIES
+      MACOSX_RPATH ON 
       )
   ENDIF()
-  IF(UNIX)
-    # libtool compatability
-    IF(FREEBSD OR APPLE)
-      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-    ELSE()
-      SET(OS_SHARED_LIB_VERSION
-        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
-    ENDIF()
-    # Name of shared library is mysqlclient on Unix
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-      OUTPUT_NAME mysqlclient 
-      VERSION "${OS_SHARED_LIB_VERSION}" 
-      SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
 
-    IF(APPLE)
-      SET_TARGET_PROPERTIES(libmysql PROPERTIES
-        MACOSX_RPATH ON 
-      )
-    ENDIF()
+  GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
+  IF(LINK_FLAG_NO_UNDEFINED)
+    STRING_APPEND(libmysql_link_flags
+      " ${LINK_FLAG_NO_UNDEFINED}")
+    STRING_APPEND(libmysql_link_flags
+      " -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
+    SET_TARGET_PROPERTIES(libmysql
+      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+  ENDIF() 
+  # clean direct output needs to be set several targets have the same name
+  #(mysqlclient in this case)
+  SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-    IF(LINK_FLAG_NO_UNDEFINED)
-      SET(libmysql_link_flags
-        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
-      SET(libmysql_link_flags
-        "${libmysql_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-      SET_TARGET_PROPERTIES(libmysql
-        PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
-    ENDIF() 
-    # clean direct output needs to be set several targets have the same name
-    #(mysqlclient in this case)
-    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-
-  ENDIF()
 ENDIF()
 
 #
@@ -376,11 +378,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
     )
 ENDIF()
 
-IF(DISABLE_SHARED)
-  TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS_TO_MERGE})
-ELSE()
-  TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
-ENDIF()
+TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
 
 # Verify that libmysql_api_test runs OK
 ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD

@@ -883,56 +883,55 @@ IF(APPLE)
   ENDIF()
 ENDIF() 
 
-IF(NOT DISABLE_SHARED)
-  SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
-  GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)
-  IF(NOT mysqld_link_flags)
-    SET(mysqld_link_flags)
-  ENDIF()
+SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
+GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)
+IF(NOT mysqld_link_flags)
+  SET(mysqld_link_flags)
+ENDIF()
 
-  IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
-    # Because of INSTALL_DEBUG_TARGET which does INSTALL(FILES ...)
-    IF(UNIX AND NOT APPLE AND CMAKE_BUILD_TYPE_UPPER MATCHES "DEBUG")
-      STRING_APPEND(mysqld_link_flags
-        " -Wl,-rpath,'\$ORIGIN/../${INSTALL_PRIV_LIBDIR}'")
-      SET_TARGET_PROPERTIES(mysqld
-        PROPERTIES LINK_FLAGS "${mysqld_link_flags}")
-      MESSAGE(STATUS "LINK_FLAGS for mysqld ${mysqld_link_flags}")
-    ENDIF()
-
-    # Insert absolute INSTALL_RPATH before $ORIGIN values.
-    # This is done in order to support setuid executables, needed by:
-    # https://dev.mysql.com/doc/refman/8.0/en/resource-groups.html
-    IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
-      GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
-      LIST(INSERT CURRENT_RPATH_mysqld 0
-        "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
-      SET_TARGET_PROPERTIES(mysqld
-        PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
-    ENDIF()
-  ENDIF()
-
-  IF(MSVC)
-    # Set module definition file.
+IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+  # Because of INSTALL_DEBUG_TARGET which does INSTALL(FILES ...)
+  IF(UNIX AND NOT APPLE AND CMAKE_BUILD_TYPE_UPPER MATCHES "DEBUG")
+    STRING_APPEND(mysqld_link_flags
+      " -Wl,-rpath,'\$ORIGIN/../${INSTALL_PRIV_LIBDIR}'")
     SET_TARGET_PROPERTIES(mysqld
-      PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/mysqld.def")
-
-    SET(_PLATFORM  x64)
-    ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
-      COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-      ${_PLATFORM}
-      "$<TARGET_FILE:binlog>"
-      "$<TARGET_FILE:binlogevents_static>"
-      "$<TARGET_FILE:mysys>"
-      "$<TARGET_FILE:mytime>"
-      "$<TARGET_FILE:slave>"
-      "$<TARGET_FILE:sql_main>"
-      "$<TARGET_FILE:strings>"
-      "$<TARGET_FILE:vio>"
-      > mysqld.def
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-    ADD_DEPENDENCIES(sql_main GenError)
+      PROPERTIES LINK_FLAGS "${mysqld_link_flags}")
+    MESSAGE(STATUS "LINK_FLAGS for mysqld ${mysqld_link_flags}")
   ENDIF()
+
+  # Insert absolute INSTALL_RPATH before $ORIGIN values.
+  # This is done in order to support setuid executables, needed by:
+  # https://dev.mysql.com/doc/refman/8.0/en/resource-groups.html
+  IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
+    GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
+    LIST(INSERT CURRENT_RPATH_mysqld 0
+      "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+  ENDIF()
+ENDIF()
+
+IF(MSVC)
+  # Set module definition file.
+  SET_TARGET_PROPERTIES(mysqld
+    PROPERTIES LINK_FLAGS
+    "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/mysqld.def")
+
+  SET(_PLATFORM  x64)
+  ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
+    COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
+    ${_PLATFORM}
+    "$<TARGET_FILE:binlog>"
+    "$<TARGET_FILE:binlogevents_static>"
+    "$<TARGET_FILE:mysys>"
+    "$<TARGET_FILE:mytime>"
+    "$<TARGET_FILE:slave>"
+    "$<TARGET_FILE:sql_main>"
+    "$<TARGET_FILE:strings>"
+    "$<TARGET_FILE:vio>"
+    > mysqld.def
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  ADD_DEPENDENCIES(sql_main GenError)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
@@ -1032,7 +1031,8 @@ ADD_CUSTOM_COMMAND(
 )
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
-SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
+SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql
+  PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
 TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 ADD_DEPENDENCIES(mysql_tzinfo_to_sql GenError)
 
@@ -1052,23 +1052,19 @@ ADD_CUSTOM_TARGET(
 )
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-                 MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
-IF(NOT DISABLE_SHARED)
-  IF(WIN32)
-    SET_TARGET_PROPERTIES(udf_example
-      PROPERTIES LINK_FLAGS
-      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
-  ENDIF()
+  MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
+IF(WIN32)
+  SET_TARGET_PROPERTIES(udf_example
+    PROPERTIES LINK_FLAGS
+    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
 ENDIF()
 
 MYSQL_ADD_PLUGIN(locking_service locking_service_udf.cc
-                 MODULE_ONLY MODULE_OUTPUT_NAME "locking_service")
-IF(NOT DISABLE_SHARED)
-  IF(WIN32)
-    SET_TARGET_PROPERTIES(locking_service
-      PROPERTIES LINK_FLAGS
-      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
-  ENDIF()
+  MODULE_ONLY MODULE_OUTPUT_NAME "locking_service")
+IF(WIN32)
+  SET_TARGET_PROPERTIES(locking_service
+    PROPERTIES LINK_FLAGS
+    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
 ENDIF()
 
 FOREACH(tool gtar tar git)
