@@ -1224,4 +1224,60 @@ ndbd_support_column_cmp(Uint32 x)
   return x >= NDBD_SUPPORT_CMP_COLUMNS;
 }
 
+/**
+ * Send the node bitmask in a long signal section:
+ */
+#define NDBD_NODE_BITMASK_IN_SECTION_80 NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_send_node_bitmask_in_section(Uint32 x)
+{
+  return x >= NDBD_NODE_BITMASK_IN_SECTION_80;
+}
+
+#define NDBD_UPGRADE_OK_74 NDB_MAKE_VERSION(7,4,6)
+#define NDBD_UPGRADE_OK_75 NDB_MAKE_VERSION(7,5,4)
+#define NDBD_UPGRADE_OK_76 NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_upgrade_ok(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 4)
+    {
+      return 0;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_UPGRADE_OK_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_UPGRADE_OK_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_UPGRADE_OK_76;
+    }
+    else
+    {
+      return 0;
+    }
+  }
+  else
+  {
+    return 1;
+  }
+}
 #endif

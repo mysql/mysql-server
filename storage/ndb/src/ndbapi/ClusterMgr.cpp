@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -392,8 +392,9 @@ ClusterMgr::threadMain()
 
     NodeFailRep * nodeFailRep = CAST_PTR(NodeFailRep,
                                          nodeFail_signal.getDataPtrSend());
+    Uint32 theAllNodes[NodeBitmask::Size];
     nodeFailRep->noOfNodes = 0;
-    NodeBitmask::clear(nodeFailRep->theAllNodes);
+    NodeBitmask::clear(theAllNodes);
 
     for (int i = 1; i < MAX_NODES; i++)
     {
@@ -463,7 +464,7 @@ ClusterMgr::threadMain()
       if (cm_node.hbMissed == 4 && cm_node.hbFrequency > 0)
       {
         nodeFailRep->noOfNodes++;
-        NodeBitmask::set(nodeFailRep->theAllNodes, nodeId);
+        NodeBitmask::set(theAllNodes, nodeId);
       }
     }
     flush_send_buffers();
@@ -472,7 +473,11 @@ ClusterMgr::threadMain()
     if (nodeFailRep->noOfNodes)
     {
       lock();
-      raw_sendSignal(&nodeFail_signal, getOwnNodeId());
+      LinearSectionPtr lsptr[3];
+      lsptr[0].p = theAllNodes;
+      lsptr[0].sz = NodeBitmask::getPackedLengthInWords(theAllNodes);
+
+      raw_sendSignal(&nodeFail_signal, getOwnNodeId(), lsptr, 1);
       flush_send_buffers();
       unlock();
     }
@@ -1291,14 +1296,19 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
     signal.theReceiversBlockNumber = API_CLUSTERMGR;
     signal.theTrace  = 0;
     signal.theLength = NodeFailRep::SignalLengthLong;
+    signal.m_noOfSections = 1;
 
     NodeFailRep * rep = CAST_PTR(NodeFailRep, signal.getDataPtrSend());
+    Uint32 theAllNodes[NodeBitmask::Size];
     rep->failNo = 0;
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
-    NodeBitmask::clear(rep->theAllNodes);
-    NodeBitmask::set(rep->theAllNodes, nodeId);
-    execNODE_FAILREP(&signal, 0);
+    NodeBitmask::clear(theAllNodes);
+    NodeBitmask::set(theAllNodes, nodeId);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = theAllNodes;
+    lsptr[0].sz = NodeBitmask::getPackedLengthInWords(theAllNodes);
+    execNODE_FAILREP(&signal, lsptr);
   }
 }
 
@@ -1308,13 +1318,18 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
 {
   const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
   NodeBitmask mask;
-  if (sig->getLength() == NodeFailRep::SignalLengthLong)
+  if (sig->getLength() == NodeFailRep::SignalLengthLong_v1)
   {
     mask.assign(NodeBitmask::Size, rep->theAllNodes);
   }
-  else
+  else if (sig->getLength() == NodeFailRep::SignalLength_v1)
   {
     mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+  }
+  else
+  {
+    assert(sig->m_noOfSections == 1);
+    mask.assign(ptr[0].sz, ptr[0].p);
   }
 
   NdbApiSignal signal(sig->theSendersBlockRef);
@@ -1322,12 +1337,14 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
   signal.theReceiversBlockNumber = API_CLUSTERMGR;
   signal.theTrace  = 0;
   signal.theLength = NodeFailRep::SignalLengthLong;
+  signal.m_noOfSections = 1;
 
   NodeFailRep * copy = CAST_PTR(NodeFailRep, signal.getDataPtrSend());
   copy->failNo = 0;
   copy->masterNodeId = 0;
   copy->noOfNodes = 0;
-  NodeBitmask::clear(copy->theAllNodes);
+  Uint32 theAllNodes[NodeBitmask::Size];
+  NodeBitmask::clear(theAllNodes);
 
   for (Uint32 i = mask.find_first(); i != NodeBitmask::NotFound;
        i = mask.find_next(i + 1))
@@ -1342,7 +1359,7 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
     if (node_failrep == false)
     {
       theNode.m_node_fail_rep = true;
-      NodeBitmask::set(copy->theAllNodes, i);
+      NodeBitmask::set(theAllNodes, i);
       copy->noOfNodes++;
     }
 
@@ -1355,7 +1372,10 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
   recalcMinDbVersion();
   if (copy->noOfNodes)
   {
-    theFacade.for_each(this, &signal, 0); // report GSN_NODE_FAILREP
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = theAllNodes;
+    lsptr[0].sz = NodeBitmask::getPackedLengthInWords(theAllNodes);
+    theFacade.for_each(this, &signal, lsptr); // report GSN_NODE_FAILREP
   }
 
   if (noOfAliveNodes == 0)

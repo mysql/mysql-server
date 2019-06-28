@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 #include <signaldata/StartRec.hpp>
 #include <signaldata/LqhTransReq.hpp>
 #include <signaldata/LqhTransConf.hpp>
-#include <signaldata/EmptyLcp.hpp>
 
 #define JAM_FILE_ID 445
 
@@ -451,7 +450,6 @@ protected:
   void sendDROP_FRAG_CONF(Signal*, Uint32 ssId);
 
   // LCP handling
-  void execEMPTY_LCP_REQ(Signal*);
   void execLCP_FRAG_ORD(Signal*);
   void execLCP_FRAG_REP(Signal*);
   void execEND_LCPCONF(Signal*);
@@ -480,7 +478,6 @@ protected:
     Uint32 m_lcp_frag_ord_cnt;     // No of LCP_FRAG_ORD received
     Uint32 m_lcp_frag_rep_cnt;     // No of LCP_FRAG_REP sent
     Uint32 m_complete_outstanding; // Outstanding signals waiting for
-    NdbNodeBitmask m_empty_lcp_req;// Nodes waiting for EMPTY_LCP_CONF
     LcpFragOrd m_last_lcp_frag_ord;// Last received LCP_FRAG_ORD
     bool m_lastFragmentFlag;
 
@@ -496,14 +493,6 @@ protected:
   Uint32 getNoOfOutstanding(const LcpRecord&) const;
   void completeLCP(Signal* signal);
   void sendLCP_COMPLETE_REP(Signal*);
-
-  void checkSendEMPTY_LCP_CONF_impl(Signal* signal);
-  void checkSendEMPTY_LCP_CONF(Signal* signal)
-  {
-    if (c_lcpRecord.m_empty_lcp_req.isclear())
-      return;
-    checkSendEMPTY_LCP_CONF_impl(signal);
-  }
 };
 
 

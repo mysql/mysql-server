@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +32,6 @@ printDEFINE_BACKUP_REQ(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno){
 	  sig->backupPtr, sig->backupId, sig->clientRef, sig->clientData);
   fprintf(out, " backupKey: [ %08x%08x ] DataLength: %d\n",
 	  sig->backupKey[0], sig->backupKey[1], sig->backupDataLen);
-  char buf[_NDB_NODE_BITMASK_SIZE * 8 + 1];
-  fprintf(out, " Nodes: %s\n", sig->nodes.getText(buf));
   return true;
 }
 

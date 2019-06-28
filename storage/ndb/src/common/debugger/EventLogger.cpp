@@ -408,7 +408,7 @@ void getTextArbitResult(QQQQ) {
 			   "Network partitioning - no arbitrator configured");
       break;
     case ArbitCode::WinWaitExternal:{
-      char buf[8*4*2+1];
+      char buf[NodeBitmask::TextLength + 1];
       sd->mask.getText(buf);
       BaseString::snprintf(m_text, m_text_len,
 			   "Continuing after wait for external arbitration, "
@@ -1321,8 +1321,8 @@ void getTextConnectCheckStarted(QQQQ)
   Uint32 reason = theData[2];
   Uint32 causing_node = theData[3];
   Uint32 bitmaskSz = theData[4];
-  char otherNodeMask[100];
-  char suspectNodeMask[100];
+  char otherNodeMask[NodeBitmask::TextLength + 1];
+  char suspectNodeMask[NodeBitmask::TextLength + 1];
   BitmaskImpl::getText(bitmaskSz, theData + 5 + (0 * bitmaskSz), otherNodeMask);
   BitmaskImpl::getText(bitmaskSz, theData + 5 + (1 * bitmaskSz), suspectNodeMask);
   Uint32 suspectCount = BitmaskImpl::count(bitmaskSz, theData + 5 + (1 * bitmaskSz));

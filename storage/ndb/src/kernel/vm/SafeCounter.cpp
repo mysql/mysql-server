@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ SafeCounterManager::execNODE_FAILREP(Signal* signal){
   Uint32 * theData = signal->getDataPtrSend();
   ActiveCounterPtr ptr;
   NdbNodeBitmask nodes;
-  nodes.assign(NdbNodeBitmask::Size, 
+  nodes.assign(NdbNodeBitmask::Size,
 	       ((const NodeFailRep*)signal->getDataPtr())->theNodes);
 
   for(m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)){

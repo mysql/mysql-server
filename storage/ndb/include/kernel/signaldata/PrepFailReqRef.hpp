@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,14 +47,15 @@ class PrepFailReqRef {
   friend bool printPREPFAILREQREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
   
 public:
-  STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3);
+  STATIC_CONST( SignalLength_v1 = 3 + NdbNodeBitmask48::Size );
 private:
   
   Uint32 xxxBlockRef;
   Uint32 failNo;
   
   Uint32 noOfNodes;
-  Uint32 theNodes[NdbNodeBitmask::Size];
+  Uint32 theNodes[NdbNodeBitmask48::Size];
 };
 
 

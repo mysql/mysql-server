@@ -36,7 +36,6 @@
 #include <signaldata/CopyFrag.hpp>
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrigImpl.hpp>
-#include <signaldata/EmptyLcp.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ExecFragReq.hpp>
 #include <signaldata/GCP.hpp>
@@ -971,13 +970,22 @@ Dblqh::define_backup(Signal* signal)
   req->backupPtr = 0;
   req->backupKey[0] = 0;
   req->backupKey[1] = 0;
-  req->nodes.clear();
-  req->nodes.set(getOwnNodeId());
   req->backupDataLen = ~0;
 
+  NdbNodeBitmask nodes;
+  nodes.set(getOwnNodeId());
+
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
-  sendSignal(backupRef, GSN_DEFINE_BACKUP_REQ, signal, 
-	     DefineBackupReq::SignalLength, JBB);
+  Uint32 packed_length = nodes.getPackedLengthInWords();
+
+  // Backup is not allowed for mixed versions of data nodes
+  ndbrequire(ndbd_send_node_bitmask_in_section(getNodeInfo(refToNode(backupRef)).m_version));
+
+  LinearSectionPtr lsptr[3];
+  lsptr[0].p = nodes.rep.data;
+  lsptr[0].sz = packed_length;
+  sendSignal(backupRef, GSN_DEFINE_BACKUP_REQ, signal,
+       DefineBackupReq::SignalLength, JBB, lsptr, 1);
 }
 
 void
@@ -1378,14 +1386,25 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
   ReadNodesConf * const readNodes = (ReadNodesConf *)&signal->theData[0];
   cnoOfNodes = readNodes->noOfNodes;
 
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   unsigned ind = 0;
   unsigned i = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
+    if (readNodes->definedNodes.get(i))
+    {
       jam();
       cnodeData[ind]    = i;
-      cnodeStatus[ind]  = NdbNodeBitmask::get(readNodes->inactiveNodes, i);
+      cnodeStatus[ind]  = readNodes->inactiveNodes.get(i);
 
       {
         HostRecordPtr Thostptr;
@@ -1395,7 +1414,7 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
       }
 
       //readNodes->getVersionId(i, readNodes->theVersionIds) not used
-      if (!NodeBitmask::get(readNodes->inactiveNodes, i))
+      if (!readNodes->inactiveNodes.get(i))
       {
 	jam();
 	m_sr_nodes.set(i);
@@ -3963,8 +3982,6 @@ void Dblqh::timer_handling(Signal *signal)
 	 << "   firstLcpLocTup=" << TlcpPtr.p->firstLcpLocTup << endl
 	 << "   lcpAccptr=" << TlcpPtr.p->lcpAccptr << endl
 	 << "   lastFragmentFlag=" << TlcpPtr.p->lastFragmentFlag << endl
-	 << "   reportEmptyref=" << TlcpPtr.p->reportEmptyRef << endl
-	 << "   reportEmpty=" << TlcpPtr.p->reportEmpty << endl;
 #endif
 }//Dblqh::execTIME_SIGNAL()
 
@@ -11425,6 +11442,23 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
 
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
 
+  if(signal->getLength() == NodeFailRep::SignalLength)
+  {
+    jam();
+    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
+    copy(nodeFail->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(nodeFail->theNodes + NdbNodeBitmask48::Size, 0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   TnoOfNodes = nodeFail->noOfNodes;
   UintR index = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
@@ -11455,8 +11489,6 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
       Thostptr.p->nodestatus = ZNODE_DOWN;
     }
 
-    lcpPtr.p->m_EMPTY_LCP_REQ.clear(nodeId);
-    
     for (Uint32 j = 0; j < cnoOfNodes; j++) {
       jam();
       if (cnodeData[j] == nodeId){
@@ -19485,11 +19517,6 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
   completed_fragment_checkpoint(signal, lcpPtr.p->currentRunFragment);
   handleLCPSurfacing(signal);
 
-  if (lcpPtr.p->reportEmpty)
-  {
-    jam();
-    sendEMPTY_LCP_CONF(signal, false);
-  }
   if (lcpPtr.p->lcpPrepareState == LcpRecord::LCP_PREPARED)
   {
     /**
@@ -19971,11 +19998,6 @@ void Dblqh::execLCP_ALL_COMPLETE_CONF(Signal *signal)
   sendSignal(ref, GSN_LCP_COMPLETE_REP, signal,
              LcpCompleteRep::SignalLength, JBA);
   
-  if(lcpPtr.p->reportEmpty){
-    jam();
-    sendEMPTY_LCP_CONF(signal, true);
-  }
-  
   if (cstartRecReq < SRR_FIRST_LCP_DONE)
   {
     jam();
@@ -20248,90 +20270,6 @@ next:
     (void)1;
   }//for
 }//Dblqh::setLogTail()
-
-/**
- * The EMPTY_LCP protocol was made obsolete in MySQL Cluster 7.4. It is kept here
- * to handle upgrade from 7.3 and earlier to 7.4 and newer versions.
- */
-void Dblqh::execEMPTY_LCP_REQ(Signal* signal)
-{
-  /**
-   * This code executes only in ndbd nodes. In ndbmtd the Dblqh Proxy will
-   * take over of this processing. But since ndbd have no proxy block we have
-   * to handle it for ndbd here in the local Dblqh block.
-   */
-  jamEntry();
-  CRASH_INSERTION(5008);
-  EmptyLcpReq * const emptyLcpOrd = (EmptyLcpReq*)&signal->theData[0];
-
-  ndbrequire(!isNdbMtLqh()); // Handled by DblqhProxy
-
-  lcpPtr.i = 0;
-  ptrAss(lcpPtr, lcpRecord);
-  
-  Uint32 nodeId = refToNode(emptyLcpOrd->senderRef);
-
-  lcpPtr.p->m_EMPTY_LCP_REQ.set(nodeId);
-  lcpPtr.p->reportEmpty = true;
-
-  if (is_lcp_idle(lcpPtr.p))
-  { 
-    jam();
-    bool ok = false;
-    switch(clcpCompletedState){
-    case LCP_IDLE:
-      ok = true;
-      sendEMPTY_LCP_CONF(signal, true);
-      break;
-    case LCP_RUNNING:
-      jam();
-      sendEMPTY_LCP_CONF(signal, false);
-      break;
-    case LCP_CLOSE_STARTED:
-      jam();
-      ok = true;
-      break;
-    }
-    ndbrequire(ok);
-    
-  }//if
-  return;
-}//Dblqh::execEMPTY_LCPREQ()
-
-void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)
-{
-  EmptyLcpRep * sig = (EmptyLcpRep*)signal->getDataPtrSend();
-  EmptyLcpConf * rep = (EmptyLcpConf*)sig->conf;
-
-  /* ----------------------------------------------------------------------
-   *       We have been requested to report when there are no more local
-   *       waiting to be started or ongoing. In this signal we also report
-   *       the last completed fragments state.
-   * ---------------------------------------------------------------------- */
-  rep->senderNodeId = getOwnNodeId();
-  if(!idle){
-    jam();
-    rep->idle = 0 ;
-    rep->tableId = lcpPtr.p->currentRunFragment.lcpFragOrd.tableId;
-    rep->fragmentId = lcpPtr.p->currentRunFragment.lcpFragOrd.fragmentId;
-    rep->lcpNo = lcpPtr.p->currentRunFragment.lcpFragOrd.lcpNo;
-    rep->lcpId = lcpPtr.p->currentRunFragment.lcpFragOrd.lcpId;
-  } else {
-    jam();
-    rep->idle = 1;
-    rep->tableId = ~0;
-    rep->fragmentId = ~0;
-    rep->lcpNo = ~0;
-    rep->lcpId = c_lcpId;
-  }
-
-  lcpPtr.p->m_EMPTY_LCP_REQ.copyto(NdbNodeBitmask::Size, sig->receiverGroup);
-  sendSignal(DBDIH_REF, GSN_EMPTY_LCP_REP, signal,
-             EmptyLcpRep::SignalLength + EmptyLcpConf::SignalLength, JBB);
-
-  lcpPtr.p->reportEmpty = false;
-  lcpPtr.p->m_EMPTY_LCP_REQ.clear();
-}//Dblqh::sendEMPTY_LCPCONF()
 
 /* ######################################################################### */
 /* #######                       GLOBAL CHECKPOINT MODULE            ####### */
@@ -23655,6 +23593,27 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
 
   jamEntry();
   StartRecReq * const req = (StartRecReq*)&signal->theData[0];
+
+  if (signal->getNoOfSections() >= 1)
+  {
+    jam();
+    Uint32 senderVersion = getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version;
+    ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this,signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    memset(req->sr_nodes, 0 , sizeof(req->sr_nodes));
+    copy(req->sr_nodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(req->sr_nodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
+
   cmasterDihBlockref = req->senderRef;
 
   ndbrequire(crestartNewestGci == 0 ||
@@ -23684,7 +23643,8 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     tmp.assign(NdbNodeBitmask::Size, req->sr_nodes);
     if (!tmp.equal(m_sr_nodes))
     {
-      char buf0[100], buf1[100];
+      char buf0[NdbNodeBitmask::TextLength + 1];
+      char buf1[NdbNodeBitmask::TextLength + 1];
       ndbout_c("execSTART_RECREQ changing srnodes from %s to %s",
                m_sr_nodes.getText(buf0),
                tmp.getText(buf1));
@@ -27475,7 +27435,6 @@ void Dblqh::initialiseLcpRec(Signal* signal)
   if (clcpFileSize != 0) {
     for (lcpPtr.i = 0; lcpPtr.i < clcpFileSize; lcpPtr.i++) {
       ptrAss(lcpPtr, lcpRecord);
-      lcpPtr.p->m_EMPTY_LCP_REQ.clear();
       lcpPtr.p->currentPrepareFragment.fragPtrI = RNIL;
       lcpPtr.p->currentPrepareFragment.lcpFragOrd.fragmentId = Uint32(~0);
       lcpPtr.p->currentPrepareFragment.lcpFragOrd.tableId = Uint32(~0);
@@ -27487,7 +27446,6 @@ void Dblqh::initialiseLcpRec(Signal* signal)
       lcpPtr.p->m_no_of_bytes = 0;
       lcpPtr.p->lcpPrepareState = LcpRecord::LCP_IDLE;
       lcpPtr.p->lcpRunState = LcpRecord::LCP_IDLE;
-      lcpPtr.p->reportEmpty = false;
       lcpPtr.p->firstFragmentFlag = false;
       lcpPtr.p->lastFragmentFlag = false;
       lcpPtr.p->m_early_lcps_need_synch = false;
@@ -29894,12 +29852,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("currentRunFragment.lcpFragOrd.fragmentId=%d",
 	      TlcpPtr.p->currentRunFragment.lcpFragOrd.fragmentId);
 
-    infoEvent(" reportEmpty=%d",
-	      TlcpPtr.p->reportEmpty);
-    char buf[8*_NDB_NODE_BITMASK_SIZE+1];
-    infoEvent(" m_EMPTY_LCP_REQ=%s",
-	      TlcpPtr.p->m_EMPTY_LCP_REQ.getText(buf));
-    
     if ((signal->length() == 2) &&
         (dumpState->args[1] == 0))
     {

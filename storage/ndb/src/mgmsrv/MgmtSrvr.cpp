@@ -1189,8 +1189,16 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      assert(len == NodeBitmask::Size ||
+             len == 0); // only full length in ndbapi
+      if (signal->header.m_noOfSections >= 1)
+      {
+        if (BitmaskImpl::safe_get(len, signal->ptr[0].p, nodeId))
+        {
+          do_send = true;
+        }
+      }
+      else if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
       {
 	do_send = true; // retry with other node
       }
@@ -1412,9 +1420,17 @@ MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
       const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep,
                                               signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      assert(len == NodeBitmask::Size || // only full length in ndbapi
+             len == 0);
       NodeBitmask mask;
-      mask.assign(len, rep->theAllNodes);
+      if (signal->header.m_noOfSections >= 1)
+      {
+        mask.assign(signal->ptr[0].sz, signal->ptr[0].p);
+      }
+      else
+      {
+        mask.assign(len, rep->theAllNodes);
+      }
       nodes.bitANDC(mask);
       stoppedNodes.bitOR(mask);
       break;
@@ -1588,7 +1604,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
    */
   SimpleSignal ssig;
   StopReq* const stopReq = CAST_PTR(StopReq, ssig.getDataPtrSend());
-  ssig.set(ss, TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
+  ssig.set(ss, TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength_v1);
 
   stopReq->requestInfo = 0;
   stopReq->apiTimeout = 5000;
@@ -1617,11 +1633,13 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 
   int use_master_node = 0;
   int do_send = 0;
+  Uint32 packed_length = 0;
   if (ndb_nodes_to_stop.count() > 1)
   {
     do_send = 1;
     use_master_node = 1;
     ndb_nodes_to_stop.copyto(NdbNodeBitmask::Size, stopReq->nodes);
+    packed_length = ndb_nodes_to_stop.getPackedLengthInWords();
     StopReq::setStopNodes(stopReq->requestInfo, 1);
   }
   else if (ndb_nodes_to_stop.count() == 1)
@@ -1629,6 +1647,18 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     Uint32 nodeId = ndb_nodes_to_stop.find(0);
     if (okToSendTo(nodeId, true) == 0)
     {
+      if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_info.m_version))
+      {
+        ssig.ptr[0].p = stopReq->nodes;
+        ssig.ptr[0].sz = packed_length;
+        ssig.header.m_noOfSections = 1;
+        ssig.header.theLength = StopReq::SignalLength;
+      }
+      else
+      {
+        assert(packed_length <= NdbNodeBitmask48::Size);
+      }
+
       SendStatus result = ss.sendSignal(nodeId, &ssig);
       if (result != SEND_OK)
       {
@@ -1653,6 +1683,18 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       if (okToSendTo(sendNodeId, true) != 0)
       {
         DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
+      }
+
+      if (ndbd_send_node_bitmask_in_section(getNodeInfo(sendNodeId).m_info.m_version))
+      {
+        ssig.ptr[0].p = stopReq->nodes;
+        ssig.ptr[0].sz = packed_length;
+        ssig.header.m_noOfSections = 1;
+        ssig.header.theLength = StopReq::SignalLength;
+      }
+      else
+      {
+        assert(packed_length <= NdbNodeBitmask48::Size);
       }
 
       if (ss.sendSignal(sendNodeId, &ssig) != SEND_OK)
@@ -1699,9 +1741,17 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      require(len == NodeBitmask::Size); // only full length in ndbapi
+      require(len == NodeBitmask::Size || // only full length in ndbapi
+              len == 0); // bitmask sent in signal section
       NodeBitmask mask;
-      mask.assign(len, rep->theAllNodes);
+      if (len == 0)
+      {
+        mask.assign(signal->ptr[0].sz, signal->ptr[0].p);
+      }
+      else
+      {
+        mask.assign(len, rep->theAllNodes);
+      }
       stoppedNodes.bitOR(mask);
       break;
     }
@@ -1896,9 +1946,18 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 apiNodeId)
       const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep,
                                               signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      assert(len == NodeBitmask::Size || // only full length in ndbapi
+             len == 0);
       NodeBitmask mask;
-      mask.assign(len, rep->theAllNodes);
+
+      if (signal->header.m_noOfSections >= 1)
+      {
+        mask.assign(signal->ptr[0].sz, signal->ptr[0].p);
+      }
+      else
+      {
+        mask.assign(len, rep->theAllNodes);
+      }
       nodes.bitANDC(mask);
       break;
     }
@@ -2709,10 +2768,18 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      require(len == NodeBitmask::Size); // only full length in ndbapi
+      require(len == NodeBitmask::Size || // only full length in ndbapi
+              len == 0);
       NdbNodeBitmask mask;
       // only care about data nodes
-      mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+      if (signal->header.m_noOfSections >= 1)
+      {
+        mask.assign(signal->ptr[0].sz, signal->ptr[0].p);
+      }
+      else
+      {
+        mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+      }
       nodes.bitANDC(mask);
       break;
     }
@@ -2873,8 +2940,18 @@ retry:
       const NodeFailRep * const rep =
         CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      assert(len == NodeBitmask::Size || // only full length in ndbapi
+             len == 0);
+      if (signal->header.m_noOfSections >= 1)
+      {
+        if (BitmaskImpl::safe_get(NodeBitmask::getPackedLengthInWords(signal->ptr[0].p),
+                                  signal->ptr[0].p, nodeId))
+        {
+          nodeId++;
+          goto retry;
+        }
+      }
+      else if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
       {
         nodeId++;
         goto retry;
@@ -2936,8 +3013,18 @@ MgmtSrvr::endSchemaTrans(SignalSender& ss, NodeId nodeId,
       const NodeFailRep * const rep =
         CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      assert(len == NodeBitmask::Size || // only full length in ndbapi
+             len == 0);
+
+      if (signal->header.m_noOfSections >= 1)
+      {
+        if (BitmaskImpl::safe_get(NodeBitmask::getPackedLengthInWords(signal->ptr[0].p),
+                                  signal->ptr[0].p, nodeId))
+        {
+          return -1;
+        }
+      }
+      else if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
       {
         return -1;
       }
@@ -3034,8 +3121,18 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
       const NodeFailRep * const rep =
         CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      assert(len == NodeBitmask::Size || // only full length in ndbapi
+             len == 0);
+
+      if (signal->header.m_noOfSections >= 1)
+      {
+        if (BitmaskImpl::safe_get(NodeBitmask::getPackedLengthInWords(signal->ptr[0].p),
+                                  signal->ptr[0].p, nodeId))
+        {
+          return SchemaTransBeginRef::Nodefailure;
+        }
+      }
+      else if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
       {
         return SchemaTransBeginRef::Nodefailure;
       }
@@ -3112,8 +3209,18 @@ MgmtSrvr::dropNodegroup(int ng)
       const NodeFailRep * const rep =
         CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      assert(len == NodeBitmask::Size || // only full length in ndbapi
+             len == 0);
+
+      if (signal->header.m_noOfSections >= 1)
+      {
+        if (BitmaskImpl::safe_get(NodeBitmask::getPackedLengthInWords(signal->ptr[0].p),
+                                  signal->ptr[0].p, nodeId))
+        {
+          return SchemaTransBeginRef::Nodefailure;
+        }
+      }
+      else if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
       {
         return SchemaTransBeginRef::Nodefailure;
       }
@@ -3408,7 +3515,21 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
   switch (gsn) {
   case GSN_EVENT_REP:
   {
-    eventReport(signal->getDataPtr(), signal->getLength());
+    /**
+     * This EVENT_REP receives all infoEvent and eventLog messages that
+     * are NOT generated through a DUMP command.
+     */
+    const Uint32 *data = signal->getDataPtr();
+    Uint32 sz = signal->getLength();
+    if (signal->getNoOfSections() > 0)
+    {
+      /**
+       * Data comes in segmented part.
+       */
+      data = ptr[0].p;
+      sz = ptr[0].sz;
+    }
+    eventReport(signal->getDataPtr(), sz, data);
     break;
   }
 
@@ -3450,7 +3571,7 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
     }
     rep->setEventType(NDB_LE_Connected);
     rep->setNodeId(_ownNodeId);
-    eventReport(theData, 1);
+    eventReport(theData, 1, theData);
     return;
   }
   case GSN_NODE_FAILREP:
@@ -3467,13 +3588,26 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            signal->getDataPtr());
     Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-    assert(len == NodeBitmask::Size); // only full length in ndbapi
-    for (Uint32 i = BitmaskImpl::find_first(len, rep->theAllNodes);
+
+    const Uint32* nbm;
+    if (signal->m_noOfSections >= 1)
+    {
+      assert (len == 0);
+      nbm = ptr[0].p;
+      len = ptr[0].sz;
+    }
+    else
+    {
+      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      nbm = rep->theAllNodes;
+    }
+
+    for (Uint32 i = BitmaskImpl::find_first(len, nbm);
          i != BitmaskImpl::NotFound;
-         i = BitmaskImpl::find_next(len, rep->theAllNodes, i + 1))
+         i = BitmaskImpl::find_next(len, nbm, i + 1))
     {
       theData[1] = i;
-      eventReport(theData, 1);
+      eventReport(theData, 1, theData);
 
       /* Clear local nodeid reservation(if any) */
       release_local_nodeid_reservation(i);
@@ -3772,8 +3906,20 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      const Uint32* nbm;
+      if (signal->header.m_noOfSections >= 1)
+      {
+        assert (len == 0);
+        nbm = signal->ptr[0].p;
+        len = signal->ptr[0].sz;
+      }
+      else
+      {
+        assert(len == NodeBitmask::Size); // only full length in ndbapi
+        nbm = rep->theAllNodes;
+      }
+
+      if (BitmaskImpl::safe_get(len, nbm, nodeId))
       {
         do_send = 1;
         nodeId = 0;
@@ -4320,14 +4466,16 @@ MgmtSrvr::getNextNodeId(NodeId * nodeId, enum ndb_mgm_node_type type) const
 #include "Services.hpp"
 
 void
-MgmtSrvr::eventReport(const Uint32 * theData, Uint32 len)
+MgmtSrvr::eventReport(const Uint32 *theSignalData,
+                      Uint32 len,
+                      const Uint32 *theData)
 {
-  const EventReport * const eventReport = (EventReport *)&theData[0];
+  const EventReport * const eventReport = (EventReport *)&theSignalData[0];
   
   NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   // Log event
-  g_eventLogger->log(type, theData, len, nodeId, 
+  g_eventLogger->log(type, theData, len, nodeId,
                      &m_event_listner[0].m_logLevel);
   m_event_listner.log(type, theData, len, nodeId);
 }
@@ -4454,8 +4602,20 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes,nodeId) ||
+      const Uint32* nbm;
+       if (signal->header.m_noOfSections >= 1)
+       {
+         assert (len == 0);
+         nbm = signal->ptr[0].p;
+         len = signal->ptr[0].sz;
+       }
+       else
+       {
+         assert(len == NodeBitmask::Size); // only full length in ndbapi
+         nbm = rep->theAllNodes;
+       }
+
+      if (BitmaskImpl::safe_get(len, nbm, nodeId) ||
 	  waitCompleted == 1)
 	return 1326;
       // wait for next signal
@@ -5002,8 +5162,20 @@ MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
-      if (BitmaskImpl::safe_get(len, rep->theAllNodes,nodeId))
+      const Uint32* nbm;
+       if (signal->header.m_noOfSections >= 1)
+       {
+         assert (len == 0);
+         nbm = signal->ptr[0].p;
+         len = signal->ptr[0].sz;
+       }
+       else
+       {
+         assert(len == NodeBitmask::Size); // only full length in ndbapi
+         nbm = rep->theAllNodes;
+       }
+
+      if (BitmaskImpl::safe_get(len, nbm, nodeId))
 	return;
       break;
     }
@@ -5070,6 +5242,10 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
     SimpleSignal *signal = ss.waitFor();
     switch (signal->readSignalNumber()) {
     case GSN_EVENT_REP:{
+      /**
+       * This EVENT_REP receives all infoEvent and eventLog messages that
+       * ARE generated through a DUMP command.
+       */
       const NodeId nodeid = refToNode(signal->header.theSendersBlockRef);
       const EventReport * const event =
         (const EventReport*)signal->getDataPtr();
@@ -5107,10 +5283,19 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
         (const NodeFailRep*)signal->getDataPtr();
+      const Uint32* theNodes = NULL;
+      if (signal->header.m_noOfSections >= 1)
+      {
+        theNodes = signal->ptr[0].p;
+      }
+      else
+      {
+        theNodes = rep->theNodes;
+      }
       // only care about data-nodes
       for (NodeId i = 1; i < MAX_NDB_NODES; i++)
       {
-        if (NdbNodeBitmask::get(rep->theNodes, i))
+        if (NdbNodeBitmask::get(theNodes, i))
         {
           nodes.clear(i);
 

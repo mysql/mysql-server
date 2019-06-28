@@ -46,10 +46,8 @@
 #include <signaldata/DihContinueB.hpp>
 #include <signaldata/DihSwitchReplica.hpp>
 #include <signaldata/DumpStateOrd.hpp>
-#include <signaldata/EmptyLcp.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/GCP.hpp>
-#include <signaldata/HotSpareRep.hpp>
 #include <signaldata/MasterGCP.hpp>
 #include <signaldata/MasterLCP.hpp>
 #include <signaldata/NFCompleteRep.hpp>
@@ -216,12 +214,6 @@ void Dbdih::sendDIH_SWITCH_REPLICA_REQ(Signal* signal, Uint32 nodeId,
              DihSwitchReplicaReq::SignalLength, JBB);
 }//Dbdih::sendDIH_SWITCH_REPLICA_REQ()
 
-void Dbdih::sendEMPTY_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
-{
-  BlockReference ref = calcLqhBlockRef(nodeId);
-  sendSignal(ref, GSN_EMPTY_LCP_REQ, signal, EmptyLcpReq::SignalLength, JBB);
-}//Dbdih::sendEMPTY_LCPREQ()
-
 void Dbdih::sendGCP_COMMIT(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
@@ -344,7 +336,25 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   req->newestGci = SYSFILE->newestRestorableGCI;
   req->senderData = extra;
   m_sr_nodes.copyto(NdbNodeBitmask::Size, req->sr_nodes);
-  sendSignal(ref, GSN_START_RECREQ, signal, StartRecReq::SignalLength, JBB);
+  Uint32 packed_length = m_sr_nodes.getPackedLengthInWords();
+
+  if (ndbd_send_node_bitmask_in_section(getNodeInfo(refToNode(ref)).m_version))
+  {
+    jam();
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = req->sr_nodes;
+    lsptr[0].sz = NdbNodeBitmask::getPackedLengthInWords(req->sr_nodes);
+    sendSignal(ref, GSN_START_RECREQ, signal, StartRecReq::SignalLength, JBB,
+               lsptr, 1);
+  }
+  else if (packed_length <= NdbNodeBitmask48::Size)
+  {
+    sendSignal(ref, GSN_START_RECREQ, signal, StartRecReq::SignalLength_v1, JBB);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 
   signal->theData[0] = NDB_LE_StartREDOLog;
   signal->theData[1] = nodeId;
@@ -1512,6 +1522,8 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
     /**
      * Precondition, (not checked)
      *   atleast 1 node in each node group
+     * Sent as direct signals, so no need to handle bitmasks
+     * and arrays of GCIs.
      */
     Uint32 i;
     NdbNodeBitmask mask;
@@ -2051,22 +2063,33 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
   jamEntry();
   Uint32 nodeArray[MAX_NDB_NODES+1];
 
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   csystemnodes  = readNodes->noOfNodes;
   cmasterNodeId = readNodes->masterNodeId;
   unsigned index = 0;
-  NdbNodeBitmask tmp; tmp.assign(2, readNodes->allNodes);
+  NdbNodeBitmask tmp = readNodes->definedNodes;
   for (i = 1; i < MAX_NDB_NODES; i++){
     jam();
     if(tmp.get(i)){
       jam();
       nodeArray[index] = i;
-      if(NdbNodeBitmask::get(readNodes->inactiveNodes, i) == false){
+      if (readNodes->inactiveNodes.get(i) == false)
+      {
         jam();
         con_lineNodes++;        
       }//if      
       index++;
     }//if
-  }//for  
+  }//for
   nodeArray[index] = RNIL; // terminate
 
   if (c_2pass_inr)
@@ -2078,7 +2101,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 #endif
     for (i = 0; i<index; i++)
     {
-      if (NdbNodeBitmask::get(readNodes->inactiveNodes, nodeArray[i]))
+      if (readNodes->inactiveNodes.get(nodeArray[i]))
         continue;
 
       if (!ndbd_non_trans_copy_frag_req(getNodeInfo(nodeArray[i]).m_version))
@@ -2451,8 +2474,26 @@ void Dbdih::execSTART_COPYCONF(Signal* signal)
 
     signal->theData[0] = reference();
     m_sr_nodes.copyto(NdbNodeBitmask::Size, signal->theData+1);
-    sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal, 
-               1 + NdbNodeBitmask::Size, JBB);
+
+    Uint32 packed_length = m_sr_nodes.getPackedLengthInWords();
+    if (ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(cntrlblockref)).m_version))
+    {
+      LinearSectionPtr lsptr[3];
+      lsptr[0].p = signal->theData + 1;
+      lsptr[0].sz = m_sr_nodes.getPackedLengthInWords();
+      sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal,
+                     1, JBB, lsptr, 1);
+    }
+    else if (packed_length <= NdbNodeBitmask48::Size)
+    {
+      sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal,
+                 1 + NdbNodeBitmask48::Size, JBB);
+    }
+    else
+    {
+      ndbrequire(false);
+    }
     return;
   }
   return;
@@ -3363,29 +3404,64 @@ void Dbdih::check_for_pause_action(Signal *signal,
     req->senderRef = reference();
     req->lcpId = SYSFILE->latestLCP_ID;
     req->pauseStart = pauseStart;
+    Uint32 rec_node_version =
+        getNodeInfo(c_nodeStartMaster.startNode).m_version;
+
     if (pauseStart == StartLcpReq::PauseLcpStartFirst)
     {
       jam();
       ndbrequire(c_pause_lcp_master_state == PAUSE_LCP_REQUESTED);
       c_pause_lcp_master_state = PAUSE_START_LCP_INCLUSION;
-      req->participatingLQH = c_lcpState.m_participatingLQH;
-      req->participatingDIH = c_lcpState.m_participatingDIH;
-      sendSignal(ref, GSN_START_LCP_REQ, signal,
-                 StartLcpReq::SignalLength, JBB);
+      Uint32 packed_length1 = c_lcpState.m_participatingLQH.getPackedLengthInWords();
+      Uint32 packed_length2 = c_lcpState.m_participatingDIH.getPackedLengthInWords();
+
+      if (ndbd_send_node_bitmask_in_section(rec_node_version))
+      {
+        jam();
+        Uint32 participatingLQH[NdbNodeBitmask::Size];
+        Uint32 participatingDIH[NdbNodeBitmask::Size];
+        c_lcpState.m_participatingLQH.copyto(NdbNodeBitmask::Size, participatingLQH);
+        c_lcpState.m_participatingDIH.copyto(NdbNodeBitmask::Size, participatingDIH);
+        LinearSectionPtr lsptr[3];
+        lsptr[0].p = participatingLQH;
+        lsptr[0].sz = packed_length1;
+        lsptr[1].p = participatingDIH;
+        lsptr[1].sz = packed_length2;
+        req->participatingLQH_v1.clear();
+        req->participatingDIH_v1.clear();
+
+        sendSignal(ref, GSN_START_LCP_REQ, signal,
+                           StartLcpReq::SignalLength, JBB, lsptr, 2);
+      }
+      else if ((packed_length1 <= NdbNodeBitmask48::Size) &&
+               (packed_length2 <= NdbNodeBitmask48::Size))
+      {
+        jam();
+        req->participatingLQH_v1 = c_lcpState.m_participatingLQH;
+        req->participatingDIH_v1 = c_lcpState.m_participatingDIH;
+        sendSignal(ref, GSN_START_LCP_REQ, signal,
+                   StartLcpReq::SignalLength, JBB);
+      }
+      else
+      {
+        ndbrequire(false);
+      }
     }
     else
     {
       bool found = false;
+      NdbNodeBitmask participatingLQH;
       ndbrequire(pauseStart == StartLcpReq::PauseLcpStartSecond);
       ndbrequire(c_pause_lcp_master_state == PAUSE_IN_LCP_COPY_META_DATA);
       c_pause_lcp_master_state = PAUSE_COMPLETE_LCP_INCLUSION;
-      req->participatingLQH.clear();
+      req->participatingLQH_v1.clear();
       for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
       {
         if (c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
         {
           jamLine(nodeId);
-          req->participatingLQH.set(nodeId);
+          participatingLQH.set(nodeId);
+          req->participatingLQH_v1.set(nodeId);
           found = true;
         }
       }
@@ -3394,8 +3470,29 @@ void Dbdih::check_for_pause_action(Signal *signal,
        * LCP_FRAG_REP yet received.
        */
       ndbrequire(found);
-      sendSignal(ref, GSN_START_LCP_REQ, signal,
-                 StartLcpReq::SignalLength, JBB);
+
+      if (ndbd_send_node_bitmask_in_section(rec_node_version))
+      {
+        jam();
+        LinearSectionPtr lsptr[3];
+        lsptr[0].p = participatingLQH.rep.data;
+        lsptr[0].sz = participatingLQH.getPackedLengthInWords();
+        req->participatingLQH_v1.clear();
+        sendSignal(ref, GSN_START_LCP_REQ, signal,
+                   StartLcpReq::SignalLength, JBB, lsptr, 1);
+      }
+      else if (participatingLQH.getPackedLengthInWords() <= NdbNodeBitmask48::Size)
+      {
+        jam();
+        req->participatingLQH_v1 = participatingLQH;
+        req->participatingDIH_v1.clear();
+        sendSignal(ref, GSN_START_LCP_REQ, signal,
+                   StartLcpReq::SignalLength, JBB);
+      }
+      else
+      {
+        ndbrequire(false);
+      }
       return;
     }
   }
@@ -9254,10 +9351,18 @@ Dbdih::sendDihRestartRef(Signal* signal)
       }
     }
   }
-  DihRestartRef * ref = CAST_PTR(DihRestartRef, signal->getDataPtrSend());
-  no_nodegroup_mask.copyto(NdbNodeBitmask::Size, ref->no_nodegroup_mask);
-  sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal,
-             DihRestartRef::SignalLength, JBB);
+  {
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = no_nodegroup_mask.rep.data;
+    lsptr[0].sz = no_nodegroup_mask.getPackedLengthInWords();
+    sendSignal(cntrlblockref,
+               GSN_DIH_RESTARTREF,
+               signal,
+               DihRestartRef::SignalLength,
+               JBB,
+               lsptr,
+               1);
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -9297,10 +9402,20 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
   conf->unused = getOwnNodeId();
   conf->latest_gci = SYSFILE->lastCompletedGCI[getOwnNodeId()];
   conf->latest_lcp_id = SYSFILE->latestLCP_ID;
-  no_nodegroup_mask.copyto(NdbNodeBitmask::Size, conf->no_nodegroup_mask);
-  sendSignal(cntrlblockref, GSN_DIH_RESTARTCONF, signal,
-             DihRestartConf::SignalLength, JBB);
-
+  {
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = no_nodegroup_mask.rep.data;
+    lsptr[0].sz = no_nodegroup_mask.getPackedLengthInWords();
+    no_nodegroup_mask.copyto(NdbNodeBitmask::Size, conf->no_nodegroup_mask);
+    ndbrequire(getOwnNodeId() == refToNode(cntrlblockref));
+    sendSignal(cntrlblockref,
+               GSN_DIH_RESTARTCONF,
+               signal,
+               DihRestartConf::SignalLength,
+               JBB,
+               lsptr,
+               1);
+  }
   for (nodePtr.i = 0; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
     Uint32 count = node_groups[nodePtr.i];
@@ -9465,6 +9580,24 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   Uint32 failedNodes[MAX_NDB_NODES];
   jamEntry();
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
+
+  if (signal->getNoOfSections() >= 1)
+  {
+    jam();
+    ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
+    copy(nodeFail->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(nodeFail->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
 
   cfailurenr = nodeFail->failNo;
   Uint32 newMasterId = nodeFail->masterNodeId;
@@ -10059,27 +10192,6 @@ void Dbdih::failedNodeLcpHandling(Signal* signal,
 	       StartLcpConf::SignalLength, JBB);
   }//if
   
-dosend:
-  if (c_EMPTY_LCP_REQ_Counter.isWaitingFor(failedNodePtr.i))
-  {
-    jam();
-    EmptyLcpConf * const rep = (EmptyLcpConf *)&signal->theData[0];
-    rep->senderNodeId = failedNodePtr.i;
-    rep->tableId = ~0;
-    rep->fragmentId = ~0;
-    rep->lcpNo = 0;
-    rep->lcpId = SYSFILE->latestLCP_ID;
-    rep->idle = true;
-    sendSignal(reference(), GSN_EMPTY_LCP_CONF, signal, 
-	       EmptyLcpConf::SignalLength, JBB);
-  }
-  else if (!c_EMPTY_LCP_REQ_Counter.done() && lcp_complete_rep)
-  {
-    jam();
-    c_EMPTY_LCP_REQ_Counter.setWaitingFor(failedNodePtr.i);
-    goto dosend;
-  }
-  
   if (c_MASTER_LCPREQ_Counter.isWaitingFor(failedNodePtr.i)) {
     jam();
     MasterLCPRef * const ref = (MasterLCPRef *)&signal->theData[0];
@@ -10182,58 +10294,6 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
   }
 }
 
-/**
- * This function checks if any node is started that doesn't support the
- * functionality to remove the need of the EMPTY_LCP_REQ protocol.
- */
-bool Dbdih::check_if_empty_lcp_needed(void)
-{
-  NodeRecordPtr specNodePtr;
-  specNodePtr.i = cfirstAliveNode;
-  do
-  {
-    jam();
-    if (getNodeInfo(specNodePtr.i).m_version < NDBD_EMPTY_LCP_NOT_NEEDED)
-    {
-      jam();
-      return true;
-    }
-    ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
-    specNodePtr.i = specNodePtr.p->nextNode;
-  } while (specNodePtr.i != RNIL);
-
-  /* Check amongst the dying, should be at least one */
-  specNodePtr.i = cfirstDeadNode;
-  do
-  {
-    jam();
-    ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
-    switch (specNodePtr.p->nodeStatus)
-    {
-    case NodeRecord::DIED_NOW:
-      jam();
-      // Fall through
-    case NodeRecord::DYING:
-      jam();
-      if (getNodeInfo(specNodePtr.i).m_version < NDBD_EMPTY_LCP_NOT_NEEDED)
-      {
-        jam();
-        return true;
-      }
-      break;
-    case NodeRecord::DEAD:
-      jam();
-      break;
-    default:
-      jamLine(specNodePtr.p->nodeStatus);
-      ndbabort();
-    }
-    specNodePtr.i = specNodePtr.p->nextNode;
-  } while (specNodePtr.i != RNIL);
-
-  return false;
-}
-
 void
 Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId)
 {
@@ -10259,13 +10319,13 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId)
     }
   }
 
-  c_lcpMasterTakeOverState.use_empty_lcp = check_if_empty_lcp_needed();
-  if (!c_lcpMasterTakeOverState.use_empty_lcp)
   {
     jam();
     /**
      * As of NDBD_EMPTY_LCP_PROTOCOL_NOT_NEEDED version this is the
-     * normal path through the code.
+     * normal path through the code. In 8.0 we removed upgrade from
+     * these older versions, so the support for the old protocol could
+     * be removed.
      *
      * We now ensures that LQH keeps track of which LCP_FRAG_ORD it has
      * received. So this means that we can be a bit more sloppy in master
@@ -10283,15 +10343,6 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId)
      * since we can send it for all fragment replicas given that we use the
      * fragment record as the queueing record. So in practice the queue is
      * always large enough.
-     *
-     * For old nodes we still have to run the EMPTY_LCP_REQ protocol to
-     * ensure that all outstanding LCP_FRAG_ORD have come back to all
-     * DBDIHs as LCP_FRAG_REPs to ensure that every DBDIH has a complete
-     * understanding of the LCP state and can take it over. What we do here
-     * is that if one node is old, then we run the old take over protocol
-     * for all nodes to not mess the code up too much. Theoretically it
-     * would suffice to send EMPTY_LCP_REQ to only old nodes, but we won't
-     * handle this, we will simply run the old code as it was.
      */
     c_lcpMasterTakeOverState.minTableId = 0;
     c_lcpMasterTakeOverState.minFragId = 0;
@@ -10301,35 +10352,6 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId)
     checkEmptyLcpComplete(signal);
     return;
   }
-  
-  c_lcpMasterTakeOverState.minTableId = ~0;
-  c_lcpMasterTakeOverState.minFragId = ~0;
-  c_lcpMasterTakeOverState.failedNodeId = nodeId;
-  c_lcpMasterTakeOverState.set(LMTOS_WAIT_EMPTY_LCP, __LINE__);
-  
-  EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  {
-    NodeRecordPtr specNodePtr;
-    specNodePtr.i = cfirstAliveNode;
-    do {
-      jam();
-      ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
-      if (!c_EMPTY_LCP_REQ_Counter.isWaitingFor(specNodePtr.i))
-      {
-        jam();
-        c_EMPTY_LCP_REQ_Counter.setWaitingFor(specNodePtr.i);
-        sendEMPTY_LCP_REQ(signal, specNodePtr.i, 0);
-        if (c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(specNodePtr.i))
-        {
-          jam();
-          c_lcpState.m_LAST_LCP_FRAG_ORD.clearWaitingFor();
-        }
-      }
-      specNodePtr.i = specNodePtr.p->nextNode;
-    } while (specNodePtr.i != RNIL);
-  }
-  setLocalNodefailHandling(signal, nodeId, NF_LCP_TAKE_OVER);
 }
 
 void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
@@ -10590,20 +10612,47 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   masterGCPConf->newGCP_lo = Uint32(m_micro_gcp.m_new_gci);
   masterGCPConf->saveState = saveState;
   masterGCPConf->saveGCI = m_gcp_save.m_gci;
-  for(Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
-    masterGCPConf->lcpActive[i] = SYSFILE->lcpActive[i];
+  Uint32 packed_length =
+  NdbNodeBitmask::getPackedLengthInWords(SYSFILE->lcpActive);
 
   if (ERROR_INSERTED(7225))
   {
     CLEAR_ERROR_INSERT_VALUE;
     ndbrequire(refToNode(newMasterBlockref) == getOwnNodeId());
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = masterGCPConf->lcpActive_v1;
+    lsptr[0].sz = packed_length;
+    SectionHandle handle(this);
+    import(handle.m_ptr[0], lsptr[0].p, lsptr[0].sz);
+
     sendSignalWithDelay(newMasterBlockref, GSN_MASTER_GCPCONF, signal,
-                        500, MasterGCPConf::SignalLength);
+                        500, MasterGCPConf::SignalLength, &handle);
   }
   else
   {
-    sendSignal(newMasterBlockref, GSN_MASTER_GCPCONF, signal,
-               MasterGCPConf::SignalLength, JBB);
+    Uint32 node_version = getNodeInfo(refToNode(newMasterBlockref)).m_version;
+    if (ndbd_send_node_bitmask_in_section(node_version))
+    {
+      Uint32 lcpActiveCopy[NdbNodeBitmask::Size];
+      NdbNodeBitmask::assign(lcpActiveCopy, SYSFILE->lcpActive);
+      LinearSectionPtr lsptr[3];
+      lsptr[0].p = lcpActiveCopy;
+      lsptr[0].sz = packed_length;
+      sendSignal(newMasterBlockref, GSN_MASTER_GCPCONF, signal,
+                 MasterGCPConf::SignalLength, JBB, lsptr, 1);
+    }
+    else if (packed_length <= NdbNodeBitmask48::Size)
+    {
+      for(Uint32 i = 0; i < NdbNodeBitmask48::Size; i++)
+        masterGCPConf->lcpActive_v1[i] = SYSFILE->lcpActive[i];
+
+      sendSignal(newMasterBlockref, GSN_MASTER_GCPCONF, signal,
+                 MasterGCPConf::SignalLength, JBB);
+    }
+    else
+    {
+      ndbrequire(false);
+    }
   }
 
   if (ERROR_INSERTED(7182))
@@ -10623,6 +10672,32 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
   NodeRecordPtr senderNodePtr;
   MasterGCPConf * const masterGCPConf = (MasterGCPConf *)&signal->theData[0];
   jamEntry();
+
+  Uint32 senderRef = signal->getSendersBlockRef();
+  Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
+  Uint32* temp_lcpActive = &signal->theData[MasterGCPConf::SignalLength];
+
+  if (signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    memset(temp_lcpActive,
+           0,
+           NdbNodeBitmask::Size * sizeof(Uint32));
+    copy(temp_lcpActive, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(temp_lcpActive + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
+
   senderNodePtr.i = masterGCPConf->senderNodeId;
   ptrCheckGuard(senderNodePtr, MAX_NDB_NODES, nodeRecord);
  
@@ -10654,8 +10729,17 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     DEB_LCP(("Master takeover: Set SYSFILE->keepGCI = %u", SYSFILE->keepGCI));
 
     SYSFILE->oldestRestorableGCI = oldestRestorableGci;
-    for(Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
-      SYSFILE->lcpActive[i] = masterGCPConf->lcpActive[i];
+    if (signal->getNoOfSections() >= 1)
+    {
+      for (Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
+        SYSFILE->lcpActive[i] = temp_lcpActive[i];
+    }
+    else
+    {
+      memset(SYSFILE->lcpActive, 0, sizeof(SYSFILE->lcpActive));
+      for (Uint32 i = 0; i < NdbNodeBitmask48::Size; i++)
+        SYSFILE->lcpActive[i] = masterGCPConf->lcpActive_v1[i];
+    }
   }//if
 
   bool ok = false;
@@ -11380,84 +11464,10 @@ void Dbdih::startLcpTakeOverLab(Signal* signal, Uint32 failedNodeId)
 }//Dbdih::startLcpTakeOver()
 
 void
-Dbdih::execEMPTY_LCP_REP(Signal* signal)
-{
-  jamEntry();
-  EmptyLcpRep* rep = (EmptyLcpRep*)signal->getDataPtr();
-  
-  Uint32 len = signal->getLength();
-  ndbrequire(len > EmptyLcpRep::SignalLength);
-  len -= EmptyLcpRep::SignalLength;
-
-  NdbNodeBitmask nodes;
-  nodes.assign(NdbNodeBitmask::Size, rep->receiverGroup);
-  NodeReceiverGroup rg (DBDIH, nodes);
-  memmove(signal->getDataPtrSend(), 
-          signal->getDataPtr()+EmptyLcpRep::SignalLength, 4*len);
-  
-  sendSignal(rg, GSN_EMPTY_LCP_CONF, signal, len, JBB);
-}
-
-void Dbdih::execEMPTY_LCP_CONF(Signal* signal)
-{
-  jamEntry();
- 
-  ndbrequire(c_lcpMasterTakeOverState.state == LMTOS_WAIT_EMPTY_LCP);
-  
-  const EmptyLcpConf * const conf = (EmptyLcpConf *)&signal->theData[0];
-  Uint32 nodeId = conf->senderNodeId;
-
-  CRASH_INSERTION(7206);
-
-
-  if(!conf->idle){
-    jam();
-    if (conf->tableId < c_lcpMasterTakeOverState.minTableId) {
-      jam();
-      c_lcpMasterTakeOverState.minTableId = conf->tableId;
-      c_lcpMasterTakeOverState.minFragId = conf->fragmentId;
-    } else if (conf->tableId == c_lcpMasterTakeOverState.minTableId &&
-	       conf->fragmentId < c_lcpMasterTakeOverState.minFragId) {
-      jam();
-      c_lcpMasterTakeOverState.minFragId = conf->fragmentId;
-    }//if
-    if(isMaster()){
-      jam();
-      c_lcpState.m_LAST_LCP_FRAG_ORD.setWaitingFor(nodeId);
-      DEB_LCP(("EMPTY_LCP_CONF: set LAST_LCP_FRAG_ORD(%u)", nodeId));
-    }
-  }
-  
-  receiveLoopMacro(EMPTY_LCP_REQ, nodeId);
-  /*--------------------------------------------------------------------*/
-  // Received all EMPTY_LCPCONF. We can continue with next phase of the
-  // take over LCP master process.
-  /*--------------------------------------------------------------------*/
-  c_lcpMasterTakeOverState.set(LMTOS_WAIT_LCP_FRAG_REP, __LINE__);
-  checkEmptyLcpComplete(signal);
-  return;
-}//Dbdih::execEMPTY_LCPCONF()
-
-void
 Dbdih::checkEmptyLcpComplete(Signal *signal)
 {
   
   ndbrequire(c_lcpMasterTakeOverState.state == LMTOS_WAIT_LCP_FRAG_REP);
-  
-  if(c_lcpState.noOfLcpFragRepOutstanding > 0 &&
-     c_lcpMasterTakeOverState.use_empty_lcp)
-  {
-    jam();
-    /**
-     * In the EMPTY_LCP_REQ we need to ensure that we have received
-     * LCP_FRAG_REP for all outstanding LCP_FRAG_ORDs. So we need to wait
-     * here for all to complete before we are ready to move on.
-     * 
-     * This is not needed when LQH can remove duplicate LCP_FRAG_ORDs, so
-     * we can proceed with the master takeover immediately.
-     */
-    return;
-  }
   
   if(isMaster()){
     jam();
@@ -11621,18 +11631,6 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal, Uint32 from)
     goto err7230;
   }
 
-  if (!c_EMPTY_LCP_REQ_Counter.done())
-  {
-    /**
-     * Have not received all EMPTY_LCP_REP
-     * dare not answer MASTER_LCP_CONF yet
-     */
-    jam();
-    if (info)
-      infoEvent("from: %u : c_EMPTY_LCP_REQ_Counter.done() == false", from);
-    return;
-  }
-
   if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
   {
     jam();
@@ -11775,11 +11773,8 @@ operator<<(NdbOut& out, const Dbdih::LcpMasterTakeOverState state){
   case Dbdih::LMTOS_IDLE:
     out << "LMTOS_IDLE";
     break;
-  case Dbdih::LMTOS_WAIT_EMPTY_LCP:
-    out << "LMTOS_WAIT_EMPTY_LCP";
-    break;
   case Dbdih::LMTOS_WAIT_LCP_FRAG_REP:
-    out << "LMTOS_WAIT_EMPTY_LCP";
+    out << "LMTOS_WAIT_LCP_FRAG_REP";
     break;
   case Dbdih::LMTOS_INITIAL:
     out << "LMTOS_INITIAL";
@@ -13156,7 +13151,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             ndbabort();
           }
         }
-        Uint32 node;
+        Uint32 node = 0;
         NGPtr.i = RNIL;
         for (Uint32 i = primTabPtr.p->totalfragments; i<noOfFragments; i++)
         {
@@ -13185,6 +13180,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             }
             logPart = next_log_part % globalData.ndbLogParts;
           }
+          ndbrequire(node != 0);
           logPart = find_min_index(&tmp_fragments_per_ldm[node][0],
                                    globalData.ndbLogParts,
                                    logPart);
@@ -18062,13 +18058,49 @@ void Dbdih::execSTART_NODE_LCP_CONF(Signal *signal)
 void Dbdih::execSTART_LCP_REQ(Signal* signal)
 {
   jamEntry();
+  Uint32 senderRef = signal->getSendersBlockRef();
+  Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
   StartLcpReq * req = (StartLcpReq*)signal->getDataPtr();
+  bool ownNodeIdSet;
+  Uint32 noOfSections = signal->getNoOfSections();
   ndbrequire(!c_start_node_lcp_req_outstanding);
+  req->participatingLQH.clear();
+  req->participatingDIH.clear();
+
+  if (noOfSections >= 1)
+  {
+    jam();
+    ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
+    ndbrequire(signal->getNoOfSections() <= 2);
+    SegmentedSectionPtr ptr1;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr1, 0);
+    ndbrequire(ptr1.sz <= NdbNodeBitmask::Size);
+    copy(req->participatingLQH.rep.data, ptr1);
+    if (noOfSections == 2)
+    {
+      jam();
+      SegmentedSectionPtr ptr2;
+      handle.getSection(ptr2, 1);
+      ndbrequire(ptr2.sz <= NdbNodeBitmask::Size);
+      copy(req->participatingDIH.rep.data, ptr2);
+    }
+
+    ownNodeIdSet = req->participatingLQH.get(cownNodeId);
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+    ownNodeIdSet = req->participatingLQH_v1.get(cownNodeId);
+    req->participatingLQH = req->participatingLQH_v1;
+    req->participatingDIH = req->participatingDIH_v1;
+  }
 
   if (((getNodeInfo(refToNode(req->senderRef)).m_version <
         NDBD_SUPPORT_PAUSE_LCP) ||
         req->pauseStart == StartLcpReq::NormalLcpStart) &&
-        req->participatingLQH.get(cownNodeId))
+        ownNodeIdSet)
   {
     jam();
     c_save_startLcpReq = *req;
@@ -18109,7 +18141,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
       SYSFILE->latestLCP_ID = req->lcpId;
 
       {
-        char buf[100];
+        char buf[NdbNodeBitmask::TextLength + 1];
         g_eventLogger->info("c_lcpState.m_participatingLQH bitmap= %s",
             c_lcpState.m_participatingLQH.getText(buf));
         g_eventLogger->info("c_lcpState.m_participatingDIH bitmap= %s",
@@ -19758,7 +19790,7 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
                  StartCopyReq::SignalLength, JBB);
     }
 
-    char buf[100];
+    char buf[NdbNodeBitmask::TextLength + 1];
     infoEvent("Starting take-over of %s", m_to_nodes.getText(buf));    
     return;
   }
@@ -19767,8 +19799,26 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
 
   signal->theData[0] = reference();
   m_sr_nodes.copyto(NdbNodeBitmask::Size, signal->theData+1);
-  sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal, 
-             1 + NdbNodeBitmask::Size, JBB);
+
+  Uint32 packed_length = m_sr_nodes.getPackedLengthInWords();;
+  if (ndbd_send_node_bitmask_in_section(
+      getNodeInfo(refToNode(cntrlblockref)).m_version))
+  {
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = signal->theData + 1;
+    lsptr[0].sz = packed_length;
+    sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal,
+               1, JBB);
+  }
+  else if (packed_length <= NdbNodeBitmask48::Size)
+  {
+    sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal,
+               1 + NdbNodeBitmask48::Size, JBB);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 }//Dbdih::execSTART_RECCONF()
 
 void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId) 
@@ -20571,9 +20621,10 @@ Dbdih::startLcpMutex_locked(Signal* signal, Uint32 senderData, Uint32 retVal){
   StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->lcpId = SYSFILE->latestLCP_ID;
-  req->participatingLQH = c_lcpState.m_participatingLQH;
-  req->participatingDIH = c_lcpState.m_participatingDIH;
   req->pauseStart = StartLcpReq::NormalLcpStart; /* Normal LCP start */
+  /**
+   * Handle bitmasks in send-method below based on who the receiver is.
+   */
   sendLoopMacro(START_LCP_REQ, sendSTART_LCP_REQ, RNIL);
 }
 
@@ -20581,10 +20632,44 @@ void
 Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
+  Uint32 packed_length1 = c_lcpState.m_participatingLQH.getPackedLengthInWords();
+  Uint32 packed_length2 = c_lcpState.m_participatingDIH.getPackedLengthInWords();
+  Uint32 participatingLQH[NdbNodeBitmask::Size];
+  Uint32 participatingDIH[NdbNodeBitmask::Size];
+
   if (ERROR_INSERTED(7021) && nodeId == getOwnNodeId())
   {
-    sendSignalWithDelay(ref, GSN_START_LCP_REQ, signal, 500, 
+    if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
+    {
+      SectionHandle handle(this);
+      LinearSectionPtr lsptr[3];
+      c_lcpState.m_participatingLQH.copyto(NdbNodeBitmask::Size, participatingLQH);
+      c_lcpState.m_participatingDIH.copyto(NdbNodeBitmask::Size, participatingDIH);
+
+      lsptr[0].p = participatingLQH;
+      lsptr[0].sz = packed_length1;
+      lsptr[1].p = participatingDIH;
+      lsptr[1].sz = packed_length2;
+
+      import(handle.m_ptr[0]  , lsptr[0].p, lsptr[0].sz);
+      handle.m_cnt = 1;
+
+      sendSignalWithDelay(ref, GSN_START_LCP_REQ, signal, 500,
+                        StartLcpReq::SignalLength, &handle);
+    }
+    else if ((packed_length1 <= NdbNodeBitmask48::Size) &&
+             (packed_length2 <= NdbNodeBitmask48::Size))
+    {
+      StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
+      req->participatingLQH_v1 = c_lcpState.m_participatingLQH;
+      req->participatingDIH_v1 = c_lcpState.m_participatingDIH;
+      sendSignalWithDelay(ref, GSN_START_LCP_REQ, signal, 500,
                         StartLcpReq::SignalLength);
+    }
+    else
+    {
+      ndbrequire(false);
+    }
     return;
   }
   else if (ERROR_INSERTED(7021) && ((rand() % 10) > 4))
@@ -20592,7 +20677,33 @@ Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
     infoEvent("Don't send START_LCP_REQ to %u", nodeId);
     return;
   }
-  sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
+
+  StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
+  if (ndbd_send_node_bitmask_in_section(getNodeInfo((nodeId)).m_version))
+  {
+    jam();
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = c_lcpState.m_participatingLQH.rep.data;
+    lsptr[0].sz = packed_length1;
+    lsptr[1].p = c_lcpState.m_participatingDIH.rep.data;
+    lsptr[1].sz = packed_length2;
+    req->participatingLQH_v1.clear();
+    req->participatingDIH_v1.clear();
+    sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB,
+               lsptr, 2);
+  }
+  else if ((packed_length1 <= NdbNodeBitmask48::Size) &&
+           (packed_length2 <= NdbNodeBitmask48::Size))
+  {
+    jam();
+    req->participatingLQH_v1 = c_lcpState.m_participatingLQH;
+    req->participatingDIH_v1 = c_lcpState.m_participatingDIH;
+    sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 }
 
 void
@@ -21264,9 +21375,6 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
     ok = true;
     jam();
     break;
-  case LMTOS_WAIT_EMPTY_LCP: // LCP Take over waiting for EMPTY_LCPCONF
-    jam();
-    return;
   case LMTOS_WAIT_LCP_FRAG_REP:
     jam();
     checkEmptyLcpComplete(signal);
@@ -21283,13 +21391,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
      * LCP_COMPLETE_REP such that we don't complete an LCP while
      * processing a master take over. But we can still receive
      * LCP_FRAG_REP while processing a master takeover.
-     *
-     * In old code we were blocked from coming here for LCP_FRAG_REPs since
-     * we ensured that we don't proceed here until all nodes have sent
-     * their EMPTY_LCP_CONF to us. So we keep ndbrequire to ensure that
-     * we come here only when running the new master take over code.
      */
-    ndbrequire(!c_lcpMasterTakeOverState.use_empty_lcp);
     return;
   }
   ndbrequire(ok);
@@ -22619,7 +22721,6 @@ Dbdih::dumpGcpStop()
             c_UPDATE_FRAG_STATEREQ_Counter.getText());
   ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
 	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
-  ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
   ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
   ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
   ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
@@ -24540,8 +24641,32 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
 {
   jamNoBlock();
   CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
-
   bool direct = (sd->requestType & CheckNodeGroups::Direct);
+
+  if (!direct)
+  {
+    /**
+     * Handle NDB node bitmask now arriving in section to handle
+     * very many data nodes. Only necessary to handle this when
+     * signal isn't direct. For direct signals the signal object
+     * is large enough to contain the entire bitmask.
+     */
+    jamNoBlock();
+    Uint32 *node_bitmask =
+      (Uint32*)&signal->theData[CheckNodeGroups::SignalLength];
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    memset(node_bitmask,
+           0,
+           NdbNodeBitmask::Size * sizeof(Uint32));
+    copy(node_bitmask, ptr);
+    sd->mask.assign(NdbNodeBitmask::Size, node_bitmask);
+    releaseSections(handle);
+  }
+
   bool ok = false;
   switch(sd->requestType & ~CheckNodeGroups::Direct){
   case CheckNodeGroups::ArbitCheck:{
@@ -24634,8 +24759,19 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   ndbrequire(ok);
   
   if (!direct)
-    sendSignal(sd->blockRef, GSN_CHECKNODEGROUPSCONF, signal,
-	       CheckNodeGroups::SignalLength, JBB);
+  {
+    /* Send node bitmask in section for non-direct signals */
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = sd->mask.rep.data;
+    lsptr[0].sz = sd->mask.getPackedLengthInWords();
+    sendSignal(sd->blockRef,
+               GSN_CHECKNODEGROUPSCONF,
+               signal,
+	       CheckNodeGroups::SignalLengthNoBitmask,
+               JBB,
+               lsptr,
+               1);
+  }
 }//Dbdih::execCHECKNODEGROUPSREQ()
 
 Uint32
@@ -24680,7 +24816,8 @@ Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])
     nodePtr.i = nodeArray[i];
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     initNodeRecord(nodePtr);
-    if (NdbNodeBitmask::get(readNodes->inactiveNodes, nodePtr.i) == false){
+    if (readNodes->inactiveNodes.get(nodePtr.i) == false)
+    {
       jam();
       nodePtr.p->nodeStatus = NodeRecord::ALIVE;
       nodePtr.p->useInTransactions = true;
@@ -26304,7 +26441,6 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	      c_UPDATE_FRAG_STATEREQ_Counter.getText());
     infoEvent("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
 	      c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
-    infoEvent("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
     infoEvent("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
     infoEvent("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
     infoEvent("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
@@ -28636,11 +28772,16 @@ Dbdih::isolateNodes(Signal* signal,
   ord->delayMillis        = delayMillis;
 
   victims.copyto(NdbNodeBitmask::Size, ord->nodesToIsolate);
-  
+  LinearSectionPtr lsptr[3];
+  lsptr[0].p = ord->nodesToIsolate;
+  lsptr[0].sz = NdbNodeBitmask::Size;
+ 
   /* QMGR handles this */
   sendSignal(QMGR_REF,
              GSN_ISOLATE_ORD,
              signal,
              IsolateOrd::SignalLength,
-             JBA);
+             JBA,
+             lsptr,
+             1);
 }

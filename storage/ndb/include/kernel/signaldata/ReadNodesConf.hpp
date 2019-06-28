@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,18 @@
 
 #define JAM_FILE_ID 199
 
+
+class ReadNodesReq
+{
+  friend class Qmgr;
+  friend class Ndbcntr;
+public:
+  STATIC_CONST( OldSignalLength = 1);
+  STATIC_CONST( SignalLength = 2);
+private:
+  Uint32 myRef;
+  Uint32 myVersion;
+};
 
 /**
  * This signals is sent by Qmgr to NdbCntr
@@ -63,7 +75,7 @@ class ReadNodesConf {
 
   friend bool printREAD_NODES_CONF(FILE*, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 + 5*NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3);
 private:
   
   Uint32 noOfNodes;
@@ -75,24 +87,83 @@ private:
    */
   Uint32 masterNodeId;
 
+  // Below bitmasks are not part of signal.
+  // All five are sent in first section.
+
   /**
    * This array defines all the ndb nodes in the system
    */
-  union {
-    Uint32 allNodes[NdbNodeBitmask::Size];
-    Uint32 definedNodes[NdbNodeBitmask::Size];
-  };  
+  NdbNodeBitmask definedNodes;
 
   /**
    * This array describes wheather the nodes are currently active
    *
    * NOTE Not valid when send from Qmgr
    */
-  Uint32 inactiveNodes[NdbNodeBitmask::Size];
+  NdbNodeBitmask inactiveNodes;
 
-  Uint32 clusterNodes[NdbNodeBitmask::Size];  // From Qmgr
-  Uint32 startingNodes[NdbNodeBitmask::Size]; // From Cntr
-  Uint32 startedNodes[NdbNodeBitmask::Size];  // From Cntr
+  NdbNodeBitmask clusterNodes;  // From Qmgr
+  NdbNodeBitmask startingNodes; // From Cntr
+  NdbNodeBitmask startedNodes;  // From Cntr
+};
+
+class ReadNodesConf_v1 {
+  /**
+   * Sender(s)
+   */
+  friend class Qmgr;
+
+  /**
+   * Sender(s) / Reciver(s)
+   */
+  friend class Ndbcntr;
+
+  /**
+   * Reciver(s)
+   */
+  friend class Dbdih;
+  friend class Dbdict;
+  friend class Dblqh;
+  friend class Dbtc;
+  friend class Trix;
+  friend class Backup;
+  friend class Suma;
+  friend class LocalProxy;
+  friend class Dbinfo;
+  friend class Dbspj;
+
+  friend bool printREAD_NODES_CONF(FILE*, const Uint32 *, Uint32, Uint16);
+public:
+  STATIC_CONST( SignalLength = 3 + 5 * NdbNodeBitmask48::Size);
+private:
+
+  Uint32 noOfNodes;
+  Uint32 ndynamicId;
+
+  /**
+   *
+   * NOTE Not valid when send from Qmgr
+   */
+  Uint32 masterNodeId;
+
+  /**
+   * This array defines all the ndb nodes in the system
+   */
+  union {
+    Uint32 allNodes[NdbNodeBitmask48::Size];
+    Uint32 definedNodes[NdbNodeBitmask48::Size];
+  };
+
+  /**
+   * This array describes wheather the nodes are currently active
+   *
+   * NOTE Not valid when send from Qmgr
+   */
+  Uint32 inactiveNodes[NdbNodeBitmask48::Size];
+
+  Uint32 clusterNodes[NdbNodeBitmask48::Size];  // From Qmgr
+  Uint32 startingNodes[NdbNodeBitmask48::Size]; // From Cntr
+  Uint32 startedNodes[NdbNodeBitmask48::Size];  // From Cntr
 };
 
 

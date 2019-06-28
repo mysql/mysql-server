@@ -98,6 +98,7 @@ PgmanProxy::execEND_LCPREQ(Signal* signal)
 void
 PgmanProxy::execRELEASE_PAGES_CONF(Signal* signal)
 {
+  jam();
   const ReleasePagesConf* conf = (const ReleasePagesConf*)signal->getDataPtr();
   Uint32 ssId = getSsId(conf);
   Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
@@ -107,6 +108,7 @@ PgmanProxy::execRELEASE_PAGES_CONF(Signal* signal)
 void
 PgmanProxy::sendEND_LCPREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
+  jam();
   Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
 
   EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
@@ -120,6 +122,7 @@ PgmanProxy::sendEND_LCPREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 void
 PgmanProxy::execEND_LCPCONF(Signal* signal)
 {
+  jam();
   const EndLcpConf* conf = (EndLcpConf*)signal->getDataPtr();
   Uint32 ssId = conf->senderData;
   Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
@@ -129,10 +132,12 @@ PgmanProxy::execEND_LCPCONF(Signal* signal)
 void
 PgmanProxy::sendEND_LCPCONF(Signal* signal, Uint32 ssId)
 {
+  jam();
   Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
   BlockReference senderRef = ss.m_req.senderRef;
 
-  if (!lastReply(ss)) {
+  if (!lastReply(ss))
+  {
     jam();
     return;
   }
@@ -148,14 +153,17 @@ PgmanProxy::sendEND_LCPCONF(Signal* signal, Uint32 ssId)
     return;
   }
 
-  if (ss.m_error == 0) {
+  if (ss.m_error == 0)
+  {
     jam();
     EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
     conf->senderData = ss.m_req.senderData;
     conf->senderRef = reference();
     sendSignal(senderRef, GSN_END_LCPCONF,
                signal, EndLcpConf::SignalLength, JBB);
-  } else {
+  }
+  else
+  {
     ndbabort();
   }
 

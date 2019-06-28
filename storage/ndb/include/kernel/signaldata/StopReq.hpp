@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,8 @@ class StopReq
   friend class MgmtSrvr;
 
 public:
-  STATIC_CONST( SignalLength = 9 + NdbNodeBitmask::Size);
+  STATIC_CONST (SignalLength = 9);
+  STATIC_CONST( SignalLength_v1 = 9 + NdbNodeBitmask48::Size);
   
 public:
   Uint32 senderRef;
@@ -60,6 +61,7 @@ public:
   Int32 readOperationTimeout; // Timeout before read operations are aborted
   Int32 operationTimeout;     // Timeout before all operations are aborted
 
+  // First two words is part of v1 signal, else sent as first section.
   Uint32 nodes[NdbNodeBitmask::Size];
 
   static void setSystemStop(Uint32 & requestInfo, bool value);

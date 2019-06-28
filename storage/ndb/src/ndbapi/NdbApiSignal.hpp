@@ -72,6 +72,7 @@ public:
   int                   setSignal(int NdbSignalType, Uint32 receiverBlockNo);
   int 			readSignalNumber() const;	// Read signal number
   Uint32             	getLength() const;
+  Uint32             	getNoOfSections() const;
   void	             	setLength(Uint32 aLength);
   void 			next(NdbApiSignal* anApiSignal);  
   NdbApiSignal* 	next();
@@ -142,6 +143,14 @@ inline
 Uint32
 NdbApiSignal::getLength() const{
   return theLength;
+}
+
+/* Get number of sections in signal */
+inline
+Uint32
+NdbApiSignal::getNoOfSections() const
+{
+  return m_noOfSections;
 }
 
 /**********************************************************************

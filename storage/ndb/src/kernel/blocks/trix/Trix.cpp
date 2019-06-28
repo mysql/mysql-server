@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,13 +242,24 @@ void Trix::execREAD_NODESCONF(Signal* signal)
   //Uint32 noOfNodes   = readNodes->noOfNodes;
   NodeRecPtr nodeRecPtr;
 
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy(readNodes->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   c_masterNodeId = readNodes->masterNodeId;
   c_masterTrixRef = RNIL;
   c_noNodesFailed = 0;
 
   for(unsigned i = 0; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NdbNodeBitmask::get(readNodes->allNodes, i)) {
+    if (readNodes->definedNodes.get(i))
+    {
       // Node is defined
       jam();
       ndbrequire(c_theNodes.getPool().seizeId(nodeRecPtr, i));
@@ -257,7 +268,8 @@ void Trix::execREAD_NODESCONF(Signal* signal)
       if (i == c_masterNodeId) {
         c_masterTrixRef = nodeRecPtr.p->trixRef;
       }
-      if(NdbNodeBitmask::get(readNodes->inactiveNodes, i)){
+      if (readNodes->inactiveNodes.get(i))
+      {
         // Node is not active
 	jam();
 	/**-----------------------------------------------------------------
@@ -299,6 +311,24 @@ void Trix::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
   NodeFailRep * const  nodeFail = (NodeFailRep *) signal->getDataPtr();
+
+  if(signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
+    copy(nodeFail->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(nodeFail->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
 
   //Uint32 failureNr    = nodeFail->failNo;
   //Uint32 numberNodes  = nodeFail->noOfNodes;

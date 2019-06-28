@@ -487,7 +487,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
                &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
   addRecSignal(GSN_LCP_ALL_COMPLETE_CONF, &Dblqh::execLCP_ALL_COMPLETE_CONF);
 
-  addRecSignal(GSN_EMPTY_LCP_REQ, &Dblqh::execEMPTY_LCP_REQ);
   addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);
   
   addRecSignal(GSN_START_FRAGREQ, &Dblqh::execSTART_FRAGREQ);

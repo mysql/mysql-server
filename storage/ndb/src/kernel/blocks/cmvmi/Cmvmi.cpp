@@ -391,7 +391,7 @@ struct SavedEvent
   Uint32 m_len;
   Uint32 m_seq;
   Uint32 m_time;
-  Uint32 m_data[25];
+  Uint32 m_data[MAX_EVENT_REP_SIZE_WORDS];
 
   STATIC_CONST( HeaderLength = 3 );
 };
@@ -533,7 +533,7 @@ SavedEventBuffer::scan(SavedEvent* _dst, Uint32 filter[])
   constexpr Uint32 len_off = 0;
   static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32), "");
   const Uint32 data_len = ptr[len_off];
-  assert(data_len <= 25);
+  require(data_len <= MAX_EVENT_REP_SIZE_WORDS);
   Uint32 total = data_len + SavedEvent::HeaderLength;
   if (m_scan_pos + total <= m_buffer_len)
   {
@@ -602,7 +602,15 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   }
 
   jamEntry();
-  
+
+  Uint32 num_sections = signal->getNoOfSections();
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr segptr;
+  if (num_sections > 0)
+  {
+    ndbrequire(num_sections == 1);
+    handle.getSection(segptr, 0);
+  }
   /**
    * If entry is not found
    */
@@ -611,30 +619,106 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   Logger::LoggerLevel severity;  
   EventLoggerBase::EventTextFunction textF;
   if (EventLoggerBase::event_lookup(eventType,eventCategory,threshold,severity,textF))
+  {
+    if (num_sections > 0)
+    {
+      releaseSections(handle);
+    }
     return;
+  }
   
-  SubscriberPtr ptr;
-  for(subscribers.first(ptr); ptr.i != RNIL; subscribers.next(ptr)){
-    if(ptr.p->logLevel.getLogLevel(eventCategory) < threshold){
+  Uint32 sig_length = signal->length();
+  SubscriberPtr subptr;
+  for(subscribers.first(subptr); subptr.i != RNIL; subscribers.next(subptr))
+  {
+    jam();
+    if(subptr.p->logLevel.getLogLevel(eventCategory) < threshold)
+    {
+      jam();
       continue;
     }
-    
-    sendSignal(ptr.p->blockRef, GSN_EVENT_REP, signal, signal->length(), JBB);
+    if (num_sections > 0)
+    {
+      /**
+       * Send only to nodes that are upgraded to a version that can handle
+       * signal sections in EVENT_REP.
+       * Not possible to send the signal to older versions that don't support
+       * sections in EVENT_REP since signal is too small for that.
+       */
+      Uint32 version = getNodeInfo(refToNode(subptr.p->blockRef)).m_version;
+      if (ndbd_send_node_bitmask_in_section(version))
+      {
+        sendSignalNoRelease(subptr.p->blockRef,
+                            GSN_EVENT_REP,
+                            signal,
+                            sig_length,
+                            JBB,
+                            &handle);
+      }
+      else
+      {
+        /**
+         * MGM server isn't ready to receive a long signal, we need to handle
+         * it for at least infoEvent's and WarningEvent's, other reports we
+         * will simply throw away. The upgrade order is supposed to start
+         * with upgrades of MGM server, so should normally not happen. But
+         * still good to not mismanage it completely.
+         */
+         if (eventType == NDB_LE_WarningEvent ||
+             eventType == NDB_LE_InfoEvent)
+         {
+           copy(&signal->theData[1], segptr);
+           Uint32 sz = segptr.sz > 24 ? 24 : segptr.sz;
+           sendSignal(subptr.p->blockRef,
+                      GSN_EVENT_REP,
+                      signal,
+                      sz,
+                      JBB);
+         }
+       }
+    }
+    else
+    {
+      sendSignal(subptr.p->blockRef,
+                 GSN_EVENT_REP,
+                 signal,
+                 sig_length,
+                 JBB);
+    }
   }
+
+  Uint32 buf[MAX_EVENT_REP_SIZE_WORDS];
+  Uint32 *data = signal->theData;
+  if (num_sections > 0)
+  {
+    copy(&buf[0], segptr);
+    data = &buf[0];
+  }
+  Uint32 sz = (num_sections > 0) ? segptr.sz : signal->getLength();
+  ndbrequire(sz <= MAX_EVENT_REP_SIZE_WORDS);
 
   Uint32 saveBuf = Uint32(eventCategory);
   if (saveBuf >= NDB_ARRAY_SIZE(m_saved_event_buffer) - 1)
     saveBuf = NDB_ARRAY_SIZE(m_saved_event_buffer) - 1;
-  m_saved_event_buffer[saveBuf].save(signal->theData, signal->getLength());
+  m_saved_event_buffer[saveBuf].save(data, sz);
 
-  if(clogLevel.getLogLevel(eventCategory) < threshold){
+  if(clogLevel.getLogLevel(eventCategory) < threshold)
+  {
+    if (num_sections > 0)
+    {
+      releaseSections(handle);
+    }
     return;
   }
 
   // Print the event info
   g_eventLogger->log(eventReport->getEventType(), 
-                     signal->theData, signal->getLength(), 0, 0);
+                     data, sz, 0, 0);
   
+  if (num_sections > 0)
+  {
+    releaseSections(handle);
+  }
   return;
 }//execEVENT_REP()
 
@@ -742,6 +826,7 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
 
+  Uint32 min_eventlog = (2 * MAX_EVENT_REP_SIZE_WORDS * 4) + 8;
   Uint32 eventlog = 8192;
   ndb_mgm_get_int_parameter(p, CFG_DB_EVENTLOG_BUFFER_SIZE, &eventlog);
   {
@@ -749,6 +834,8 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     Uint32 split = (eventlog + (cnt / 2)) / cnt;
     for (Uint32 i = 0; i < cnt; i++)
     {
+      if (split < min_eventlog)
+        split = min_eventlog;
       m_saved_event_buffer[i].init(split);
     }
   }

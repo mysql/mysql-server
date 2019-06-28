@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -831,6 +831,36 @@ public:
   STATIC_CONST( Size = size );
   STATIC_CONST( NotFound = BitmaskImpl::NotFound );
   STATIC_CONST( TextLength = size * 8 );
+
+  /**
+   * Return the length- number of words required to store the bitmask.
+   * i.e the index of last non-zero word plus one.
+   */
+  Uint32 getPackedLengthInWords() const
+  {
+    Uint32 packed_length = 0;
+    for (Uint32 i = 0; i < size; i++)
+    {
+      if (rep.data[i] != 0)
+      {
+        packed_length = i + 1;
+      }
+    }
+    return packed_length;
+  }
+
+  static Uint32 getPackedLengthInWords(const Uint32 bitmaskarray[])
+  {
+    Uint32 packed_length = 0;
+    for (Uint32 i = 0; i < size; i++)
+    {
+      if (bitmaskarray[i] != 0)
+      {
+        packed_length = i + 1;
+      }
+    }
+    return packed_length;
+  }
 
   Uint32 getSizeInWords() const { return Size;}
 

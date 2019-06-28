@@ -54,7 +54,6 @@
 #include <signaldata/FsRef.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/GetTableId.hpp>
-#include <signaldata/HotSpareRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
@@ -270,7 +269,7 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     m_dict_lock.dump_queue(m_dict_lock_pool, this);
     
     /* Space for hex form of enough words for node bitmask + \0 */
-    char buf[(((MAX_NDB_NODES + 31)/32) * 8) + 1 ];
+    char buf[NdbNodeBitmask::TextLength + 1];
     infoEvent("DICT : c_sub_startstop _outstanding %u _lock %s",
               c_outstanding_sub_startstop,
               c_sub_startstop_lock.getText(buf));
@@ -3331,6 +3330,16 @@ void Dbdict::execREAD_NODESCONF(Signal* signal)
   c_numberNode   = readNodes->noOfNodes;
   c_masterNodeId = readNodes->masterNodeId;
 
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   c_noNodesFailed = 0;
   c_aliveNodes.clear();
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
@@ -3338,10 +3347,12 @@ void Dbdict::execREAD_NODESCONF(Signal* signal)
     NodeRecordPtr nodePtr;
     c_nodes.getPtr(nodePtr, i);
 
-    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
+    if (readNodes->definedNodes.get(i))
+    {
       jam();
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
-      if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
+      if (readNodes->inactiveNodes.get(i))
+      {
 	jam();
 	/**-------------------------------------------------------------------
 	 *
@@ -5447,6 +5458,23 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   NodeFailRep nodeFailRep = *(NodeFailRep *)&signal->theData[0];
   NodeFailRep * nodeFail = &nodeFailRep;
   NodeRecordPtr ownNodePtr;
+
+  if(signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
+    copy(nodeFail->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(nodeFail->theNodes,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
 
   c_nodes.getPtr(ownNodePtr, getOwnNodeId());
   c_failureNr  = nodeFail->failNo;

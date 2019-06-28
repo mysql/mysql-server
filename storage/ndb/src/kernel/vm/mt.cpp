@@ -7109,6 +7109,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   Uint32 siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
   selfptr->m_stat.m_priob_size += siglen;
 
+  assert(s->theLength + s->m_noOfSections <= 25);
   thr_job_queue *q = dstptr->m_in_queue + self;
   thr_job_queue_head *h = dstptr->m_in_queue_head + self;
   thr_jb_write_state *w = selfptr->m_write_states + dst;

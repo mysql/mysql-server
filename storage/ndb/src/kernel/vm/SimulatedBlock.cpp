@@ -355,14 +355,9 @@ const
 void
 SimulatedBlock::handle_invalid_fragmentInfo(Signal* signal) const
 {
-#if defined VM_TRACE || defined ERROR_INSERT
   ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
                              "Incorrect header->m_fragmentInfo in sendSignal()",
                              "");
-#else
-  signal->header.m_fragmentInfo = 0;
-  infoEvent("Incorrect header->m_fragmentInfo in sendSignal");
-#endif
 }
 
 void
@@ -1715,6 +1710,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
   signal->header.theReceiversBlockNumber = bnr;
   signal->header.theSendersBlockRef = reference();
 
+  assert(length <= 25);
 #ifdef VM_TRACE
   {
     if(globalData.testOn){
@@ -1764,6 +1760,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
   signal->header.theReceiversBlockNumber = bnr;
   signal->header.m_noOfSections = noOfSections;
 
+  assert(length + noOfSections <= 25);
   Uint32 * dst = signal->theData + length;
   * dst ++ = sections->m_ptr[0].i;
   * dst ++ = sections->m_ptr[1].i;
@@ -1824,7 +1821,7 @@ SimulatedBlock::import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 l
 }
 
 bool
-SimulatedBlock::import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len)
+SimulatedBlock::import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len) const
 {
   Ptr<SectionSegment> tmp;
   if (::import(SB_SP_ARG tmp, src, len))
@@ -2106,26 +2103,41 @@ SimulatedBlock::progError(int line, int err_code, const char* extra,
 
 }
 
+#define MAX_EVENT_REP_SIZE_BYTES (MAX_EVENT_REP_SIZE_WORDS * 4)
 void 
-SimulatedBlock::infoEvent(const char * msg, ...) const {
+SimulatedBlock::infoEvent(const char * msg, ...) const
+{
   if(msg == 0)
     return;
   
   SignalT<25> signalT;
   signalT.theData[0] = NDB_LE_InfoEvent;
-  char * buf = (char *)(signalT.theData+1);
+  Uint32 buf_str[MAX_EVENT_REP_SIZE_WORDS];
+  char * buf = (char *)&buf_str[1];
   
+  buf_str[0] = signalT.theData[0];
   va_list ap;
   va_start(ap, msg);
-  BaseString::vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
+  BaseString::vsnprintf(buf, MAX_EVENT_REP_SIZE_BYTES - 5, msg, ap);
   va_end(ap);
   
   size_t len = strlen(buf) + 1;
-  if(len > 96){
-    len = 96;
-    buf[95] = 0;
+  if(len >= (MAX_EVENT_REP_SIZE_BYTES - 5))
+  {
+    len = MAX_EVENT_REP_SIZE_BYTES - 4;
+    buf[MAX_EVENT_REP_SIZE_BYTES - 5] = 0;
   }
 
+  SegmentedSectionPtr segptr;
+  Uint32 len_words = 1 + ((len + 3) / 4);
+  bool ok = import(segptr,
+                   &buf_str[0],
+                   len_words);
+  signalT.theData[1] = segptr.i;
+  if (!ok)
+  {
+    return;
+  }
   /**
    * Init and put it into the job buffer
    */
@@ -2140,35 +2152,49 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
   signalT.header.theSendersBlockRef      = reference();
   signalT.header.theTrace                = tTrace;
   signalT.header.theSignalId             = tSignalId;
-  signalT.header.theLength               = (Uint32)((len+3)/4)+1;
-  
+  signalT.header.theLength               = 1;
+  signalT.header.m_noOfSections          = 1;
 #ifdef NDBD_MULTITHREADED
   sendlocal(m_threadId,
-            &signalT.header, signalT.theData, signalT.m_sectionPtrI);
+            &signalT.header, signalT.theData, signalT.theData + 1);
 #else
   globalScheduler.execute(&signalT.header, JBB, signalT.theData,
-                          signalT.m_sectionPtrI);
+                          signalT.theData + 1);
 #endif
 }
 
 void 
-SimulatedBlock::warningEvent(const char * msg, ...) const {
+SimulatedBlock::warningEvent(const char * msg, ...)
+{
   if(msg == 0)
     return;
 
   SignalT<25> signalT;
   signalT.theData[0] = NDB_LE_WarningEvent;
-  char * buf = (char *)(signalT.theData+1);
+  Uint32 buf_str[MAX_EVENT_REP_SIZE_WORDS];
+  char * buf = (char *)&buf_str[1];
+  memset(&buf_str[0], 0, 4);
   
   va_list ap;
   va_start(ap, msg);
-  BaseString::vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
+  BaseString::vsnprintf(buf, MAX_EVENT_REP_SIZE_BYTES - 5, msg, ap);
   va_end(ap);
   
   size_t len = strlen(buf) + 1;
-  if(len > 96){
-    len = 96;
-    buf[95] = 0;
+  if(len >= (MAX_EVENT_REP_SIZE_BYTES - 5))
+  {
+    len = MAX_EVENT_REP_SIZE_BYTES - 4;
+    buf[MAX_EVENT_REP_SIZE_BYTES - 5] = 0;
+  }
+  SegmentedSectionPtr segptr;
+  Uint32 len_words = 1 + ((len + 3) / 4);
+  bool ok = import(segptr,
+                   &buf_str[0],
+                   len_words);
+  signalT.theData[1] = segptr.i;
+  if (!ok)
+  {
+    return;
   }
 
   /**
@@ -2185,14 +2211,15 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
   signalT.header.theSendersBlockRef      = reference();
   signalT.header.theTrace                = tTrace;
   signalT.header.theSignalId             = tSignalId;
-  signalT.header.theLength               = (Uint32)((len+3)/4)+1;
+  signalT.header.theLength               = 1;
+  signalT.header.m_noOfSections          = 1;
 
 #ifdef NDBD_MULTITHREADED
   sendlocal(m_threadId,
-            &signalT.header, signalT.theData, signalT.m_sectionPtrI);
+            &signalT.header, signalT.theData, signalT.theData + 1);
 #else
   globalScheduler.execute(&signalT.header, JBB, signalT.theData,
-                          signalT.m_sectionPtrI);
+                          signalT.theData + 1);
 #endif
 }
 

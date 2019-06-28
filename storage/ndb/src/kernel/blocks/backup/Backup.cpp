@@ -272,13 +272,24 @@ Backup::execREAD_NODESCONF(Signal* signal)
 {
   jamEntry();
   ReadNodesConf * conf = (ReadNodesConf *)signal->getDataPtr();
- 
+
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&conf->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   c_aliveNodes.clear();
 
   Uint32 count = 0;
   for (Uint32 i = 0; i<MAX_NDB_NODES; i++) {
     jam();
-    if(NdbNodeBitmask::get(conf->allNodes, i)){
+    if (conf->definedNodes.get(i))
+    {
       jam();
       count++;
 
@@ -286,7 +297,8 @@ Backup::execREAD_NODESCONF(Signal* signal)
       ndbrequire(c_nodes.seizeFirst(node));
       
       node.p->nodeId = i;
-      if(NdbNodeBitmask::get(conf->inactiveNodes, i)) {
+      if (conf->inactiveNodes.get(i))
+      {
         jam();
 	node.p->alive = 0;
       } else {
@@ -3813,7 +3825,25 @@ Backup::execNODE_FAILREP(Signal* signal)
   jamEntry();
 
   NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
-  
+
+  if(signal->getLength() == NodeFailRep::SignalLength)
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   bool doStuff = false;
   /*
   Start by saving important signal data which will be destroyed before the
@@ -4549,10 +4579,9 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   req->backupPtr = ptr.i;
   req->backupKey[0] = ptr.p->backupKey[0];
   req->backupKey[1] = ptr.p->backupKey[1];
-  req->nodes = ptr.p->nodes;
   req->backupDataLen = ptr.p->backupDataLen;
   req->flags = ptr.p->flags;
-  
+
   /**
    * If backup is multithreaded, DEFINE_BACKUP_REQ sent to BackupProxy on
    * all nodes. BackupProxy fwds REQ to all LDMs, collects CONF/REFs
@@ -4573,11 +4602,24 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
    */
   ptr.p->masterData.gsn = GSN_DEFINE_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
-  NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
-  sendSignal(rg, GSN_DEFINE_BACKUP_REQ, signal, 
-	     DefineBackupReq::SignalLength, JBB);
-  
+  Uint32 recNode = 0;
+  const Uint32 packed_length = ptr.p->nodes.getPackedLengthInWords();
+
+  NdbNodeBitmask nodes = ptr.p->nodes;
+  while ((recNode = nodes.find(recNode + 1)) != NdbNodeBitmask::NotFound)
+  {
+    const Uint32 ref = numberToRef(BACKUP, instanceKey(ptr), recNode);
+
+    // Backup is not allowed for mixed versions data nodes
+    ndbrequire(ndbd_send_node_bitmask_in_section(getNodeInfo(recNode).m_version));
+
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = nodes.rep.data;
+    lsptr[0].sz = packed_length;
+    sendSignal(ref, GSN_DEFINE_BACKUP_REQ, signal,
+        DefineBackupReq::SignalLength, JBB, lsptr, 1);
+  }
+
   /**
    * Now send backup data
    */
@@ -5033,7 +5075,6 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
     BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
     conf->backupId = ptr.p->backupId;
     conf->senderData = ptr.p->clientData;
-    conf->nodes = ptr.p->nodes;
     sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal,
              BackupConf::SignalLength, JBB);
   }
@@ -5041,8 +5082,9 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   signal->theData[0] = NDB_LE_BackupStarted;
   signal->theData[1] = ptr.p->clientRef;
   signal->theData[2] = ptr.p->backupId;
-  ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+3);
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3+NdbNodeBitmask::Size, JBB);
+  // Node bitmask is not used at the receiver, so zeroing it out.
+  NdbNodeBitmask::clear(signal->theData + 3, NdbNodeBitmask48::Size);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3 + NdbNodeBitmask48::Size, JBB);
 
   /**
    * Wait for startGCP to a establish a consistent point at backup start.
@@ -5688,7 +5730,6 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
       rep->noOfRecordsHigh = (Uint32)(ptr.p->noOfRecords >> 32);
       rep->noOfLogBytes = Uint32(ptr.p->noOfLogBytes); // TODO 64-bit log-bytes
       rep->noOfLogRecords = Uint32(ptr.p->noOfLogRecords); // TODO ^^
-      rep->nodes = ptr.p->nodes;
       sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
 		 BackupCompleteRep::SignalLength, JBB);
     }
@@ -5702,12 +5743,13 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
     signal->theData[6] = (Uint32)(ptr.p->noOfRecords & 0xFFFFFFFF);
     signal->theData[7] = (Uint32)(ptr.p->noOfLogBytes & 0xFFFFFFFF);
     signal->theData[8] = (Uint32)(ptr.p->noOfLogRecords & 0xFFFFFFFF);
-    ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+9);
-    signal->theData[9+NdbNodeBitmask::Size] = (Uint32)(ptr.p->noOfBytes >> 32);
-    signal->theData[10+NdbNodeBitmask::Size] = (Uint32)(ptr.p->noOfRecords >> 32);
-    signal->theData[11+NdbNodeBitmask::Size] = (Uint32)(ptr.p->noOfLogBytes >> 32);
-    signal->theData[12+NdbNodeBitmask::Size] = (Uint32)(ptr.p->noOfLogRecords >> 32);
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 13+NdbNodeBitmask::Size, JBB);
+    signal->theData[9] = 0; //unused
+    signal->theData[10] = 0; //unused
+    signal->theData[11] = (Uint32)(ptr.p->noOfBytes >> 32);
+    signal->theData[12] = (Uint32)(ptr.p->noOfRecords >> 32);
+    signal->theData[13] = (Uint32)(ptr.p->noOfLogBytes >> 32);
+    signal->theData[14] = (Uint32)(ptr.p->noOfLogRecords >> 32);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 15, JBB);
   }
   else
   {
@@ -6012,7 +6054,23 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   jamEntry();
 
   DefineBackupReq* req = (DefineBackupReq*)signal->getDataPtr();
-  
+  NdbNodeBitmask nodes;
+
+  const Uint32 senderVersion =
+      getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version;
+
+  // Backup is not allowed for mixed versions data nodes
+  ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
+  ndbrequire(signal->getNoOfSections() >= 1);
+  {
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this,signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(nodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   BackupRecordPtr ptr;
   const Uint32 ptrI = req->backupPtr;
   const Uint32 backupId = req->backupId;
@@ -6087,7 +6145,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
 						 * as non master should never
 						 * reply
 						 */
-  ptr.p->nodes = req->nodes;
+  ptr.p->nodes = nodes;
   ptr.p->backupId = backupId;
   ptr.p->backupKey[0] = req->backupKey[0];
   ptr.p->backupKey[1] = req->backupKey[1];

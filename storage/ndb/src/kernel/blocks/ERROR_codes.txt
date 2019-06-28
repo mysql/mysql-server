@@ -579,9 +579,6 @@ Test failures in various states in take over functionality
 7164: Block take over at sending of END_TOREQ
 7169: Block take over at sending of UPDATE_TOREQ at end of copy
 
-5008: Crash at reception of EMPTY_LCPREQ (at master take over after NF)
-5009: Crash at sending of EMPTY_LCPCONF (at master take over after NF)
-
 Test Crashes in Handling Graceful Shutdown
 ------------------------------------------
 7065: Crash when receiving STOP_PERMREQ in master

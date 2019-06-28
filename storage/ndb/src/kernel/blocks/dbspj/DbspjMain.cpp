@@ -630,19 +630,27 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
   jamEntry();
 
   ReadNodesConf * const conf = (ReadNodesConf *)signal->getDataPtr();
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&conf->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
 
   if (getNodeState().getNodeRestartInProgress())
   {
     jam();
-    c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    c_alive_nodes = conf->startedNodes;
     c_alive_nodes.set(getOwnNodeId());
   }
   else
   {
     jam();
-    c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startingNodes);
-    NdbNodeBitmask tmp;
-    tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    c_alive_nodes = conf->startingNodes;
+    NdbNodeBitmask tmp = conf->startedNodes;
     c_alive_nodes.bitOR(tmp);
   }
 
@@ -706,7 +714,24 @@ Dbspj::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
 
-  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  if(signal->getLength() == NodeFailRep::SignalLength)
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   NdbNodeBitmask failed;
   failed.assign(NdbNodeBitmask::Size, rep->theNodes);
 
@@ -725,8 +750,11 @@ Dbspj::execNODE_FAILREP(Signal* signal)
   signal->theData[0] = 1;
   signal->theData[1] = 0;
   failed.copyto(NdbNodeBitmask::Size, signal->theData + 2);
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2 + NdbNodeBitmask::Size,
-             JBB);
+  LinearSectionPtr lsptr[3];
+  lsptr[0].p = signal->theData + 2;
+  lsptr[0].sz = failed.getPackedLengthInWords();
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2,
+             JBB, lsptr, 1);
 }
 
 void
@@ -790,7 +818,14 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
   const Uint32 bucket = signal->theData[1];
 
   NdbNodeBitmask failed;
-  failed.assign(NdbNodeBitmask::Size, signal->theData+2);
+  ndbrequire(signal->getNoOfSections() == 1);
+
+  SegmentedSectionPtr ptr;
+  SectionHandle handle(this,signal);
+  handle.getSection(ptr, 0);
+  ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+  copy(failed.rep.data, ptr);
+  releaseSections(handle);
 
   Request_iterator iter;
   Request_hash * hash = NULL;
@@ -823,9 +858,12 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
     jam();
     signal->theData[0] = type;
     signal->theData[1] = bucket;
-    failed.copyto(NdbNodeBitmask::Size, signal->theData+2);
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2 + NdbNodeBitmask::Size,
-               JBB);
+    failed.copyto(NdbNodeBitmask::Size, signal->theData + 2);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = signal->theData + 2;
+    lsptr[0].sz = failed.getPackedLengthInWords();
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2,
+               JBB, lsptr, 1);
   }
   else if (type == 1)
   {
@@ -833,8 +871,11 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
     signal->theData[0] = 2;
     signal->theData[1] = 0;
     failed.copyto(NdbNodeBitmask::Size, signal->theData+2);
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2 + NdbNodeBitmask::Size,
-               JBB);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = signal->theData + 2;
+    lsptr[0].sz = failed.getPackedLengthInWords();
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2,
+               JBB, lsptr, 1);
   }
   else if (type == 2)
   {

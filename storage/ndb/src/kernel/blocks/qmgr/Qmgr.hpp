@@ -420,7 +420,7 @@ private:
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
-		       CmRegRef::ErrorCode);
+		       CmRegRef::ErrorCode, Uint32 remote_node_version);
   void systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line, NodeId);
   [[noreturn]] void systemErrorLab(Signal* signal,
                                    Uint32 line,

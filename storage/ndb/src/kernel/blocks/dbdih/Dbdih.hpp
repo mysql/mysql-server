@@ -996,8 +996,6 @@ private:
   void execDUMP_STATE_ORD(Signal *);
   void execNDB_TAMPER(Signal *);
   void execDEBUG_SIG(Signal *);
-  void execEMPTY_LCP_CONF(Signal *);
-  void execEMPTY_LCP_REP(Signal*);
   void execMASTER_GCPREF(Signal *);
   void execMASTER_GCPREQ(Signal *);
   void execMASTER_GCPCONF(Signal *);
@@ -1335,7 +1333,6 @@ private:
   void nullRoutine(Signal *, Uint32 nodeId, Uint32);
   void sendCOPY_GCIREQ(Signal *, Uint32 nodeId, Uint32);
   void sendDIH_SWITCH_REPLICA_REQ(Signal *, Uint32 nodeId, Uint32);
-  void sendEMPTY_LCP_REQ(Signal *, Uint32 nodeId, Uint32);
   void sendEND_TOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_COMMIT(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_PREPARE(Signal *, Uint32 nodeId, Uint32);
@@ -2410,7 +2407,6 @@ private:
 public:
   enum LcpMasterTakeOverState {
     LMTOS_IDLE = 0,
-    LMTOS_WAIT_EMPTY_LCP = 1,   // Currently doing empty LCP
     LMTOS_WAIT_LCP_FRAG_REP = 2,// Currently waiting for outst. LCP_FRAG_REP
     LMTOS_INITIAL = 3,
     LMTOS_ALL_IDLE = 4,
@@ -2432,9 +2428,7 @@ private:
     Uint32 minTableId;
     Uint32 minFragId;
     Uint32 failedNodeId;
-    bool use_empty_lcp;
   } c_lcpMasterTakeOverState;
-  bool check_if_empty_lcp_needed(void);
   
   Uint16 cmasterNodeId;
 
@@ -2487,7 +2481,6 @@ private:
   SignalCounter c_COPY_TABREQ_Counter;
   SignalCounter c_UPDATE_FRAG_STATEREQ_Counter;
   SignalCounter c_DIH_SWITCH_REPLICA_REQ_Counter;
-  SignalCounter c_EMPTY_LCP_REQ_Counter;
   SignalCounter c_GCP_COMMIT_Counter;
   SignalCounter c_GCP_PREPARE_Counter;
   SignalCounter c_GCP_SAVEREQ_Counter;

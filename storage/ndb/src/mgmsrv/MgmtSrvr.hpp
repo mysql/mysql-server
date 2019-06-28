@@ -465,7 +465,9 @@ private:
   /**
    * An event from <i>nodeId</i> has arrived
    */
-  void eventReport(const Uint32 * theData, Uint32 len);
+  void eventReport(const Uint32 * theSignalData,
+                   Uint32 len,
+                   const Uint32 * theData);
  
   class TransporterFacade * theFacade;
 

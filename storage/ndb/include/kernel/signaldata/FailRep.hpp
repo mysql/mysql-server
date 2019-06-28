@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,14 @@ class FailRep {
 
 public:
   STATIC_CONST( OrigSignalLength = 2 );
-  STATIC_CONST( PartitionedExtraLength = 1 + NdbNodeBitmask::Size );
+  /**
+   * PartitionedExtraLength_v1 can be reduced to 1 by removing
+   * the partition_v1 array in later versions when 7.6.9 and 8.0.15 are
+   * the lowest supported versions for upgrade compatibility.
+   * The two words are used for sending node bitmask which is sent in
+   * a signal section for later versions.
+   */
+  STATIC_CONST( PartitionedExtraLength_v1 = 1 + 2 );
   STATIC_CONST( SourceExtraLength = 1 );
   STATIC_CONST( SignalLength = OrigSignalLength + SourceExtraLength );
   
@@ -77,7 +84,7 @@ public:
      */
     if (failCause == ZPARTITIONED_CLUSTER)
     {
-      return (sigLen == (SignalLength + PartitionedExtraLength)) ?
+      return (sigLen == (SignalLength + PartitionedExtraLength_v1)) ?
         partitioned.partitionFailSourceNodeId : 
         0;
     }
@@ -97,7 +104,7 @@ private:
     struct
     {
       Uint32 president;
-      Uint32 partition[NdbNodeBitmask::Size];
+      Uint32 partition_v1[2];
       Uint32 partitionFailSourceNodeId;
     } partitioned;
     Uint32 failSourceNodeId;

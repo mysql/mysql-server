@@ -349,6 +349,12 @@
  */
 #define MAX_NORMAL_ROW_SIZE 2048
 
+/**
+ * Maximum size that an EVENT_REP signal can carry in its
+ * long signal section.
+ */
+#define MAX_EVENT_REP_SIZE_WORDS 1024
+
 #define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
 // Max. number of pending undo records allowed per LDM
 #define MAX_PENDING_UNDO_RECORDS 100

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,8 @@ public:
 protected:
 private:
   bool handles_this_node(Uint32 nodeId);
+  void close_com_failed_node(Signal*, Uint32);
+  void enable_com_node(Signal*, Uint32);
 };
 
 class TrpmanProxy : public LocalProxy

@@ -1150,9 +1150,8 @@ public:
    *       checkpoint that is ongoing. This record is also used as a
    *       system restart record.
    */
-  struct LcpRecord {
-    LcpRecord() { m_EMPTY_LCP_REQ.clear(); }
-    
+  struct LcpRecord
+  {
     enum LcpState {
       LCP_IDLE = 0,
       LCP_COMPLETED = 1,
@@ -1190,9 +1189,6 @@ public:
     FragOrd currentPrepareFragment;
     FragOrd currentRunFragment;
     
-    bool   reportEmpty;
-    NdbNodeBitmask m_EMPTY_LCP_REQ;
-
     Uint32 m_outstanding;
 
     Uint64 m_no_of_records;
@@ -2660,7 +2656,6 @@ private:
 
   void force_lcp(Signal* signal);
   void execLCP_FRAG_ORD(Signal* signal);
-  void execEMPTY_LCP_REQ(Signal* signal);
   
   void execSTART_FRAGREQ(Signal* signal);
   void execSTART_RECREF(Signal* signal);
@@ -2740,7 +2735,6 @@ private:
   
   void removeTable(Uint32 tableId);
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
-  void sendEMPTY_LCP_CONF(Signal* signal, bool idle);
   void sendLCP_FRAGIDREQ(Signal* signal);
   void sendLCP_FRAG_REP(Signal * signal, const LcpRecord::FragOrd &,
                         const Fragrecord*) const;

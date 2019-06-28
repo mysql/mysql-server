@@ -618,22 +618,32 @@ Suma::createSequenceReply(Signal* signal,
 }
 
 void
-Suma::execREAD_NODESCONF(Signal* signal){
+Suma::execREAD_NODESCONF(Signal* signal)
+{
   jamEntry();
   ReadNodesConf * const conf = (ReadNodesConf *)signal->getDataPtr();
- 
+
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&conf->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   if(getNodeState().getNodeRestartInProgress())
   {
     NdbNodeBitmask started_nodes;
-    started_nodes.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    started_nodes.assign(conf->startedNodes);
     c_alive_nodes.bitOR(started_nodes);
     c_alive_nodes.set(getOwnNodeId()); 
   }
   else
   {
-    c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startingNodes);
-    NdbNodeBitmask tmp;
-    tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    c_alive_nodes = conf->startingNodes;
+    NdbNodeBitmask tmp = conf->startedNodes;
     ndbrequire(tmp.isclear()); // No nodes can be started during SR
   }
 
@@ -664,8 +674,20 @@ Suma::getNodeGroupMembers(Signal* signal)
   sd->requestType = CheckNodeGroups::GetNodeGroupMembers;
   sd->nodeId = getOwnNodeId();
   sd->senderData = RNIL;
-  sendSignal(DBDIH_REF, GSN_CHECKNODEGROUPSREQ, signal,
-             CheckNodeGroups::SignalLength, JBB);
+  {
+    /* Prepare a node bitmask sent in section, ignored in this case. */
+    sd->mask.clear();
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = sd->mask.rep.data;
+    lsptr[0].sz = sd->mask.getPackedLengthInWords();
+    sendSignal(DBDIH_REF,
+               GSN_CHECKNODEGROUPSREQ,
+               signal,
+               CheckNodeGroups::SignalLengthNoBitmask,
+               JBB,
+               lsptr,
+               1);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -785,9 +807,30 @@ Suma::fix_nodegroup()
 void
 Suma::execCHECKNODEGROUPSCONF(Signal *signal)
 {
-  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
   DBUG_ENTER("Suma::execCHECKNODEGROUPSCONF");
   jamEntry();
+
+  {
+    CheckNodeGroups *sd = (CheckNodeGroups *)signal->getDataPtrSend();
+    /**
+     * Handle NDB node bitmask now arriving in section to handle
+     * very many data nodes.
+     */
+    Uint32 *node_bitmask =
+      (Uint32*)&signal->theData[CheckNodeGroups::SignalLength];
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    memset(node_bitmask,
+           0,
+           NdbNodeBitmask::Size * sizeof(Uint32));
+    copy(node_bitmask, ptr);
+    sd->mask.assign(NdbNodeBitmask::Size, node_bitmask);
+    releaseSections(handle);
+  }
+  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
 
   c_nodeGroup = sd->output;
   c_nodes_in_nodegroup_mask.assign(sd->mask);
@@ -1025,7 +1068,7 @@ Suma::send_handover_req(Signal* signal, Uint32 type)
   Uint32 gci= Uint32(m_last_complete_gci >> 32) + 3;
   
   SumaHandoverReq* req= (SumaHandoverReq*)signal->getDataPtrSend();
-  char buf[255];
+  char buf[NdbNodeBitmask::TextLength + 1];
   c_startup.m_handover_nodes.getText(buf);
   infoEvent("Suma: initiate handover for %s with nodes %s GCI: %u",
             (type == SumaHandoverReq::RT_START_NODE ? "startup" : "shutdown"),
@@ -1494,9 +1537,26 @@ void
 Suma::execNODE_FAILREP(Signal* signal){
   jamEntry();
   DBUG_ENTER("Suma::execNODE_FAILREP");
-  ndbassert(signal->getNoOfSections() == 0);
 
-  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+
+  if(signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   NdbNodeBitmask failed; failed.assign(NdbNodeBitmask::Size, rep->theNodes);
   
   if(c_restart.m_ref && failed.get(refToNode(c_restart.m_ref)))
@@ -1807,7 +1867,8 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
   if (tCase == 8010)
   {
-    char buf1[255], buf2[255];
+    char buf1[NodeBitmask::TextLength + 1];
+    char buf2[NodeBitmask::TextLength + 1];
     c_subscriber_nodes.getText(buf1);
     c_connected_nodes.getText(buf2);
     infoEvent("c_subscriber_nodes: %s", buf1);
@@ -5205,7 +5266,7 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
   jam();
   if (!subs.isclear())
   {
-   char buf[100];
+   char buf[NodeBitmask::TextLength + 1];
    subs.getText(buf);
    infoEvent("Disconnecting lagging nodes '%s', epoch %llu", buf, gcp.p->m_gci);
   }
@@ -5641,7 +5702,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
     }
     else
     {
-      char buf[100];
+      char buf[NodeBitmask::TextLength + 1];
       c_subscriber_nodes.getText(buf);
       g_eventLogger->error("c_gcp_list.seize() failed: gci: %llu nodes: %s",
                            gci, buf);
@@ -6993,7 +7054,7 @@ Suma::out_of_buffer(Signal* signal)
     NodeBitmask subs = gcp.p->m_subscribers;
     if (!subs.isclear())
     {
-      char buf[100];
+      char buf[NodeBitmask::TextLength + 1];
       subs.getText(buf);
       infoEvent("Pending nodes '%s', epoch %llu", buf, gcp.p->m_gci);
     }
@@ -7402,7 +7463,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
         rep->flags |= SubGcpCompleteRep::MISSING_DATA;
       }
   
-      char buf[255];
+      char buf[NodeBitmask::TextLength + 1];
       c_subscriber_nodes.getText(buf);
       if (g_cnt)
       {      

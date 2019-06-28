@@ -1851,7 +1851,7 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
     sscanf(item[i].c_str(), "%u", data+i);
   }
 
-  m_mgmsrv.eventReport(data, length);
+  m_mgmsrv.eventReport(data, length, data);
   m_output->println("report event reply");
   m_output->println("result: ok");
   m_output->println("%s", "");

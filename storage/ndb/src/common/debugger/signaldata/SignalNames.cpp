@@ -173,8 +173,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_DIVERIFYCONF,           "DIVERIFYCONF" }
   ,{ GSN_DIVERIFYREF,            "DIVERIFYREF" }
   ,{ GSN_DIVERIFYREQ,            "DIVERIFYREQ" }
-  ,{ GSN_EMPTY_LCP_REQ,          "EMPTY_LCP_REQ" }
-  ,{ GSN_EMPTY_LCP_CONF,         "EMPTY_LCP_CONF" }
   ,{ GSN_ENABLE_COMREQ,          "ENABLE_COMREQ" }
   ,{ GSN_ENABLE_COMCONF,         "ENABLE_COMCONF" }
   ,{ GSN_END_LCPCONF,            "END_LCPCONF" }

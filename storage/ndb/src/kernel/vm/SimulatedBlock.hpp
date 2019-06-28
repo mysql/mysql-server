@@ -830,7 +830,7 @@ protected:
   void releaseSections(struct SectionHandle&);
 
   bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
-  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
+  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len) const;
   bool import(SectionHandle * dst, LinearSectionPtr src[3],Uint32 cnt);
 
   bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
@@ -1288,7 +1288,7 @@ protected:
    */
   void infoEvent(const char * msg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  void warningEvent(const char * msg, ...) const
+  void warningEvent(const char * msg, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
   
   /**
