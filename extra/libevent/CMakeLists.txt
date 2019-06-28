@@ -695,11 +695,6 @@ if (NOT EVENT__DISABLE_OPENSSL)
 
     set(EVENT__HAVE_OPENSSL 1)
 
-    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
-
-    include_directories(${OPENSSL_INCLUDE_DIR})
-
     list(APPEND SRC_CORE bufferevent_openssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
     list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})

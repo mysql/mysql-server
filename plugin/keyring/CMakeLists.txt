@@ -39,37 +39,9 @@ SET (KEYRING_FILE_SOURCES
      checker/checker_ver_2_0.cc
      file_io.cc)
 
-# On Windows we always link the ssl library into each plugin
-# because the MySQL server binary's symbols on windows are hidden
-# so we need a separate copy of the SSL library in each plugin on that OS
-#
-# On unix by default all mysqld symbols
-# (including the SSL library symbols of the library copy linked to it)
-# are visible.
-# So technicaly all plugins can use the mysqld's ssl library symbols on that OS.
-# But since the plugins are already initializing the SSL library
-# because of windows we still are linking a copy of the SSL library
-# relying on the fact that the dynamic linker will prefer the symbols
-# in the shared library to the ones exported by the hosting executable (mysqld).
-IF (WIN32 OR (
-       OPENSSL_INCLUDE_DIR   AND
-       OPENSSL_LIBRARY       AND
-       CRYPTO_LIBRARY        AND
-       OPENSSL_MAJOR_VERSION STREQUAL "1"
-             )
-   )
-    MYSQL_ADD_PLUGIN(keyring_file
-                     ${KEYRING_FILE_SOURCES}
-                     LINK_LIBRARIES ${SSL_LIBRARIES}
-                     MODULE_ONLY
-                     MODULE_OUTPUT_NAME "keyring_file")
-ELSE()
-    MYSQL_ADD_PLUGIN(keyring_file
-                     ${KEYRING_FILE_SOURCES}
-                     MODULE_ONLY
-                     MODULE_OUTPUT_NAME "keyring_file")
-ENDIF()
-
-IF(HAVE_DLOPEN)
-    SET(DYNLIB_EXTENSION "so")
-ENDIF()
+MYSQL_ADD_PLUGIN(keyring_file
+  ${KEYRING_FILE_SOURCES}
+  LINK_LIBRARIES ${SSL_LIBRARIES}
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "keyring_file"
+  )
