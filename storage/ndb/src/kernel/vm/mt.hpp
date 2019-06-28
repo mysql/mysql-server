@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,7 @@ void mt_execSTOP_FOR_CRASH();
 void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
 Uint32 mt_getSignalsInJBB(Uint32 self);
 NDB_TICKS mt_getHighResTimer(Uint32 self);
+void mt_setNoSend(Uint32 self);
 void mt_setNeighbourNode(NodeId node);
 void mt_setWakeupThread(Uint32 self, Uint32 wakeup_instance);
 void mt_setOverloadStatus(Uint32 self,

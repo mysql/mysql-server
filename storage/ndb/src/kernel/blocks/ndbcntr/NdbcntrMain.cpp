@@ -80,6 +80,7 @@
 #include "../backup/BackupFormat.hpp"
 
 #include <EventLogger.hpp>
+#include <NdbGetRUsage.h>
 
 #define JAM_FILE_ID 458
 
@@ -5412,6 +5413,19 @@ void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
     
     const BlockReference ref = readConfigOrder[currentBlockIndex];
 
+#ifdef DEBUG_RSS
+    {
+      ndb_rusage ru;
+      if (Ndb_GetRUsage(&ru, true) != 0)
+      {
+        g_eventLogger->error("Failed to get rusage");
+      }
+      else
+      {
+        g_eventLogger->info("NDBCNTR : RSS : %llu kB", ru.ru_rss);
+      }
+    }
+#endif
     g_eventLogger->info("Sending READ_CONFIG_REQ to index = %d, name = %s",
                         currentBlockIndex,
                         getBlockName(refToBlock(ref)));
@@ -5678,6 +5692,19 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
       }
     }
   }
+#ifdef DEBUG_RSS
+  {
+    ndb_rusage ru;
+    if (Ndb_GetRUsage(&ru, true) != 0)
+    {
+      g_eventLogger->error("Failed to get rusage");
+    }
+    else
+    {
+      g_eventLogger->info("NDBCNTR : RSS : %llu kB", ru.ru_rss);
+    }
+  }
+#endif
 
   g_eventLogger->info("Node started");
 

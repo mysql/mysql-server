@@ -669,6 +669,7 @@ protected:
   void setNodeOverloadStatus(OverloadStatus new_status);
   void setSendNodeOverloadStatus(OverloadStatus new_status);
   void setNeighbourNode(NodeId node);
+  void setNoSend();
   void getPerformanceTimers(Uint64 &micros_sleep,
                             Uint64 &spin_time,
                             Uint64 &buffer_full_micros_sleep,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -629,9 +629,11 @@ SHM_Transporter::wakeup()
     int nBytesSent = (int)ndb_socket_writev(theSocket, iov, iovcnt);
     if (nBytesSent != 1)
     {
-      if (DISCONNECT_ERRNO(ndb_socket_errno(), nBytesSent))
+      require(nBytesSent < 0); //Should not be possible with any other value
+      int err = ndb_socket_errno();
+      if (DISCONNECT_ERRNO(err, nBytesSent))
       {
-        do_disconnect(ndb_socket_errno());
+        do_disconnect(err, true);
       }
     }
     else
@@ -652,9 +654,18 @@ SHM_Transporter::doReceive()
     const int nBytesRead = (int)ndb_recv(theSocket, buf, sizeof(buf), 0);
     if (unlikely(nBytesRead <= 0))
     {
-      if (DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead))
+      int err;
+      if (nBytesRead == 0)
       {
-        do_disconnect(ndb_socket_errno());
+        err = 0;
+      }
+      else
+      {
+        err = ndb_socket_errno();
+      }
+      if (DISCONNECT_ERRNO(err, nBytesRead))
+      {
+        do_disconnect(err, false);
       }
       else
       {

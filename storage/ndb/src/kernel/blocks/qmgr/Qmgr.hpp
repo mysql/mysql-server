@@ -28,6 +28,7 @@
 
 #include <pc.hpp>
 #include <NdbTick.h>
+#include <NdbGetRUsage.h>
 #include <SimulatedBlock.hpp>
 #include <NodeBitmask.hpp>
 #include <SignalCounter.hpp>
@@ -602,6 +603,8 @@ private:
 #ifdef ERROR_INSERT
   Uint32 nodeFailCount;
 #endif
+
+  struct ndb_rusage m_timer_handling_rusage;
 
   Uint32 get_hb_count(Uint32 nodeId) const {
     return globalData.get_hb_count(nodeId);

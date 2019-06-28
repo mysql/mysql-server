@@ -753,6 +753,7 @@ public:
     Uint32 tabRemoveNode;
     Uint32 noOfFragChunks;
     Uint32 tabErrorCode;
+    Uint32 tabActiveLcpFragments;
 
     struct {
       Uint32 tabUserRef;
@@ -1411,7 +1412,7 @@ private:
 //------------------------------------
   void checkKeepGci(TabRecordPtr, Uint32, Fragmentstore*, Uint32);
   void checkLcpStart(Signal *, Uint32 lineNo, Uint32 delay);
-  void checkStartMoreLcp(Signal *, Uint32 nodeId);
+  bool checkStartMoreLcp(Signal *, Uint32 nodeId, bool startNext);
   bool reportLcpCompletion(const struct LcpFragRep *);
   void sendLCP_COMPLETE_REP(Signal *);
 
@@ -2755,6 +2756,7 @@ private:
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
   Uint32 dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
 
+  void log_setNoSend();
   /**
    * Get minimum version of nodes in alive-list
    */

@@ -3232,6 +3232,7 @@ void Qmgr::timerHandlingLab(Signal* signal)
   const Uint32 sentHi = signal->theData[1];
   const Uint32 sentLo = signal->theData[2];
   const NDB_TICKS sent((Uint64(sentHi) << 32) | sentLo);
+  bool send_hb_always = false;
   
   if (NdbTick_Compare(sent,TcurrentTime) > 0)
   {
@@ -3241,21 +3242,71 @@ void Qmgr::timerHandlingLab(Signal* signal)
     {
       g_eventLogger->warning("timerHandlingLab, clock ticked backwards: %llu (ms)",
                               backwards);
+      send_hb_always = true;
     }
   }
   else
   {
     const Uint64 elapsed = NdbTick_Elapsed(sent,TcurrentTime).milliSec();
-    if (elapsed >= 1000)
+    if (elapsed >= 150)
     {
+      struct ndb_rusage curr_rusage;
       jam();
-      g_eventLogger->warning("timerHandlingLab, expected 10ms sleep"
-                             ", not scheduled for: %d (ms)", int(elapsed));
-    }
-    else if (elapsed >= 150)
-    {
-      g_eventLogger->info("timerHandlingLab, expected 10ms sleep"
-                          ", not scheduled for: %d (ms)", int(elapsed));
+      send_hb_always = true;
+      bool rusage_worked = true;
+      Uint64 exec_time = 0;
+      Uint64 sys_time = 0;
+      Ndb_GetRUsage(&curr_rusage, false);
+      if ((curr_rusage.ru_utime == 0 &&
+           curr_rusage.ru_stime == 0) ||
+          (m_timer_handling_rusage.ru_utime == 0 &&
+           m_timer_handling_rusage.ru_stime == 0))
+      {
+        jam();
+        rusage_worked = false;
+      }
+      if (rusage_worked)
+      {
+        exec_time = curr_rusage.ru_utime -
+                    m_timer_handling_rusage.ru_utime;
+        sys_time = curr_rusage.ru_stime -
+                    m_timer_handling_rusage.ru_stime;
+      }
+
+      if (elapsed >= 1000)
+      {
+        if (rusage_worked)
+        {
+          g_eventLogger->warning("timerHandlingLab, expected 10ms sleep"
+                                 ", not scheduled for: %d (ms), "
+                                 "exec_time %llu us, sys_time %llu us",
+                                 int(elapsed),
+                                 exec_time,
+                                 sys_time);
+        }
+        else
+        {
+          g_eventLogger->warning("timerHandlingLab, expected 10ms sleep"
+                              ", not scheduled for: %d (ms)", int(elapsed));
+        }
+      }
+      else
+      {
+        if (rusage_worked)
+        {
+          g_eventLogger->info("timerHandlingLab, expected 10ms sleep"
+                              ", not scheduled for: %d (ms), "
+                              "exec_time %llu us, sys_time %llu us",
+                              int(elapsed),
+                              exec_time,
+                              sys_time);
+        }
+        else
+        {
+          g_eventLogger->info("timerHandlingLab, expected 10ms sleep"
+                              ", not scheduled for: %d (ms)", int(elapsed));
+        }
+      }
     }
   }
 
@@ -3264,7 +3315,17 @@ void Qmgr::timerHandlingLab(Signal* signal)
     /**---------------------------------------------------------------------
      * WE ARE ONLY PART OF HEARTBEAT CLUSTER IF WE ARE UP AND RUNNING. 
      *---------------------------------------------------------------------*/
-    if (hb_send_timer.check(TcurrentTime)) {
+    if (hb_send_timer.check(TcurrentTime) || send_hb_always)
+    {
+      /**
+       * We send heartbeats once per heartbeat interval and 4 missed heartbeat
+       * intervals will cause a failure. If QMGR is not so responsive we're
+       * having some sort of overload issue. In this case we will always take
+       * the chance to send heartbeats immediately to avoid risking heartbeat
+       * failures (send_hb_always == true).
+       *
+       * Delaying checks of heartbeat timers is much less of a problem.
+       */
       jam();
       sendHeartbeat(signal);
       hb_send_timer.reset(TcurrentTime);
@@ -3300,6 +3361,8 @@ void Qmgr::timerHandlingLab(Signal* signal)
     hb_api_timer.reset(TcurrentTime);
     apiHbHandlingLab(signal, TcurrentTime);
   }
+
+  Ndb_GetRUsage(&m_timer_handling_rusage, false);
 
   //--------------------------------------------------
   // Resend this signal with 10 milliseconds delay.
@@ -3945,7 +4008,9 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     CRASH_INSERTION(938);
     CRASH_INSERTION(944);
     CRASH_INSERTION(946);
-    BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
+    BaseString::snprintf(buf, 100, "Node %u disconnected in phase: %u",
+                         nodeId,
+                         nodePtr.p->phase);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbabort();
   }

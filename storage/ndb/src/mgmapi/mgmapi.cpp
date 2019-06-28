@@ -196,6 +196,7 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
 }
 
 #define SET_ERROR(h, e, s) setError((h), (e), __LINE__, "%s", (s))
+#define SET_ERROR_CMD(h, e, s, cmd, t) setError((h), (e), __LINE__, "cmd: %s, error: %s, timeout: %d", (cmd), (s), (t))
 
 #define CHECK_HANDLE(handle, ret) \
   if(handle == 0) {   \
@@ -220,10 +221,10 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
     SET_ERROR(handle, ETIMEDOUT, \
               "Time out talking to management server");
 
-#define CHECK_TIMEDOUT_RET(h, in, out, ret) \
+#define CHECK_TIMEDOUT_RET(h, in, out, ret, cmd) \
   if(in.timedout() || out.timedout()) { \
-    SET_ERROR(h, ETIMEDOUT, \
-              "Time out talking to management server"); \
+    SET_ERROR_CMD(h, ETIMEDOUT, \
+              "Time out talking to management server", cmd, h->timeout); \
     ndb_mgm_disconnect_quiet(h); \
     DBUG_RETURN(ret);            \
   }
@@ -525,7 +526,7 @@ ndb_mgm_call(NdbMgmHandle handle,
     out.write("\n", 1);
   }
 
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
 
   Parser_t::Context ctx;
   ParserDummy session(handle->socket);
@@ -534,17 +535,17 @@ ndb_mgm_call(NdbMgmHandle handle,
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
     if(!ndb_mgm_is_connected(handle)) {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
       DBUG_RETURN(NULL);
     }
     else
     {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
       if(ctx.m_status==Parser_t::Eof
 	 || ctx.m_status==Parser_t::NoLine)
       {
 	ndb_mgm_disconnect(handle);
-        CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+        CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
 	DBUG_RETURN(NULL);
       }
       /**
@@ -569,7 +570,7 @@ ndb_mgm_call(NdbMgmHandle handle,
 
   if(p && (in.timedout() || out.timedout()))
     delete p;
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
   DBUG_RETURN(p);
 }
 
@@ -1110,31 +1111,32 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   SocketOutputStream out(handle->socket, handle->timeout);
   SocketInputStream in(handle->socket, handle->timeout);
 
-  out.println("get status");
+  const char *get_status_str = "get status";
+  out.println("%s", get_status_str);
   if (types)
   {
     out.println("types: %s", typestring);
   }
   out.println("%s", "");
 
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
 
   char buf[1024];
   if(!in.gets(buf, sizeof(buf)))
   {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
   if(strcmp("node status\n", buf) != 0) {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     ndbout << in.timedout() << " " << out.timedout() << buf << endl;
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     DBUG_RETURN(NULL);
   }
   if(!in.gets(buf, sizeof(buf)))
   {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
@@ -1143,7 +1145,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   Vector<BaseString> split;
   tmp.split(split, ":");
   if(split.size() != 2){
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     DBUG_RETURN(NULL);
   }
@@ -1214,7 +1216,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
 
   if(i+1 != noOfNodes){
     free(state);
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
     DBUG_RETURN(NULL);
   }
@@ -3205,13 +3207,14 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   CHECK_CONNECTED(handle, -1);
 
   SocketOutputStream s_output(handle->socket, handle->timeout);
-  s_output.println("end session");
+  const char *end_session_str = "end session";
+  s_output.println("%s", end_session_str);
   s_output.println("%s", "");
 
   SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   in.gets(buf, sizeof(buf));
-  CHECK_TIMEDOUT_RET(handle, in, s_output, -1);
+  CHECK_TIMEDOUT_RET(handle, in, s_output, -1, end_session_str);
 
   DBUG_RETURN(0);
 }

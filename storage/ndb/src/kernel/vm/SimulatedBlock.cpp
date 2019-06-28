@@ -578,6 +578,14 @@ SimulatedBlock::setNeighbourNode(NodeId node)
 }
 
 void
+SimulatedBlock::setNoSend()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setNoSend(m_threadId);
+#endif
+}
+
+void
 SimulatedBlock::setWakeupThread(Uint32 wakeup_instance)
 {
 #ifdef NDBD_MULTITHREADED

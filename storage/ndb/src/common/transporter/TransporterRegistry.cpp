@@ -284,6 +284,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   peerUpIndicators    = new bool              [maxTransporters];
   connectingTime      = new Uint32            [maxTransporters];
   m_disconnect_errnum = new int               [maxTransporters];
+  m_disconnect_enomem_error = new Uint32      [maxTransporters];
   m_error_states      = new ErrorState        [maxTransporters];
 
   m_has_extra_wakeup_socket = false;
@@ -309,6 +310,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
                                   // cleared at first connect attempt
     connectingTime[i]     = 0;
     m_disconnect_errnum[i]= 0;
+    m_disconnect_enomem_error[i] = 0;
     m_error_states[i]     = default_error_state;
   }
   DBUG_VOID_RETURN;
@@ -353,6 +355,7 @@ TransporterRegistry::~TransporterRegistry()
   delete[] peerUpIndicators;
   delete[] connectingTime;
   delete[] m_disconnect_errnum;
+  delete[] m_disconnect_enomem_error;
   delete[] m_error_states;
 
   if (m_mgm_handle)
@@ -1948,17 +1951,23 @@ TransporterRegistry::do_connect(NodeId node_id)
  *
  * This works asynchronously, similar to do_connect().
  */
-void
-TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
+bool
+TransporterRegistry::do_disconnect(NodeId node_id,
+                                   int errnum,
+                                   bool send_source)
 {
   DEBUG_FPRINTF((stderr, "(%u)REG:do_disconnect(%u, %d)\n",
                          localNodeId, node_id, errnum));
   PerformState &curr_state = performStates[node_id];
   switch(curr_state){
   case DISCONNECTED:
-    return;
+  {
+    return true;
+  }
   case CONNECTED:
+  {
     break;
+  }
   case CONNECTING:
     /**
      * This is a correct transition. But it should only occur for nodes
@@ -1969,13 +1978,40 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
     //DBUG_ASSERT(false);
     break;
   case DISCONNECTING:
-    return;
+  {
+    return true;
+  }
+  }
+  if (errnum == ENOENT)
+  {
+    m_disconnect_enomem_error[node_id]++;
+    if (m_disconnect_enomem_error[node_id] < 10)
+    {
+      NdbSleep_MilliSleep(40);
+      g_eventLogger->info("Socket error %d on nodeId: %u in state: %u",
+                          errnum, node_id, (Uint32)curr_state);
+      return false;
+    }
+  }
+  if (errnum == 0)
+  {
+    g_eventLogger->info("Node %u disconnected in state: %d",
+                        node_id, (int)curr_state);
+  }
+  else
+  {
+    g_eventLogger->info("Node %u disconnected in %s with errnum: %d"
+                        " in state: %d",
+                        node_id,
+                        send_source ? "send" : "recv",
+                        errnum,
+                        (int)curr_state);
   }
   DBUG_ENTER("TransporterRegistry::do_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTING",node_id));
   curr_state= DISCONNECTING;
   m_disconnect_errnum[node_id] = errnum;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 /**

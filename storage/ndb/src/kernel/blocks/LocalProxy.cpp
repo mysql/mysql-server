@@ -30,9 +30,12 @@
 #ifdef DBINFO_SCAN_TRACE
 #include <debugger/DebuggerNames.hpp>
 #endif
+#include <NdbGetRUsage.h>
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 437
 
+extern EventLogger *g_eventLogger;
 
 LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   SimulatedBlock(blockNumber, ctx)
@@ -431,6 +434,23 @@ LocalProxy::execREAD_CONFIG_CONF(Signal* signal)
   const ReadConfigConf* conf = (const ReadConfigConf*)signal->getDataPtr();
   Uint32 ssId = conf->senderData;
   Ss_READ_CONFIG_REQ& ss = ssFind<Ss_READ_CONFIG_REQ>(ssId);
+
+#ifdef DEBUG_RSS
+  {
+    ndb_rusage ru;
+    if (Ndb_GetRUsage(&ru, true) != 0)
+    {
+      g_eventLogger->error("LocalProxy : Failed to get rusage");
+    }
+    else
+    {
+      g_eventLogger->info("LocalProxy (conf from worker %u/%u) : RSS : %llu kB",
+                          ss.m_worker,
+                          c_workers,
+                          ru.ru_rss);
+    }
+  }
+#endif
   recvCONF(signal, ss);
 }
 

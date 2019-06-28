@@ -2983,7 +2983,7 @@ NdbImportUtil::Timer::stop()
     m_start = m_stop;
   }
   struct ndb_rusage ru;
-  if (Ndb_GetRUsage(&ru) == 0)
+  if (Ndb_GetRUsage(&ru, false) == 0)
   {
     m_utime_msec = ru.ru_utime / 1000;
     m_stime_msec = ru.ru_stime / 1000;
@@ -3944,7 +3944,7 @@ testmain()
   if (mycase("teststat") && teststat() != 0)
     return -1;
   struct ndb_rusage ru;
-  require(Ndb_GetRUsage(&ru) == 0);
+  require(Ndb_GetRUsage(&ru, false) == 0);
   ndbout << "utime=" << ru.ru_utime/1000
          << " stime=" << ru.ru_stime/1000 << " (ms)" << endl;
   return 0;

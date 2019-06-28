@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -660,7 +660,7 @@ runWakeupThread_C(void *me)
 void TransporterFacade::init_cpu_usage(NDB_TICKS currTime)
 {
   struct ndb_rusage curr_rusage;
-  Ndb_GetRUsage(&curr_rusage);
+  Ndb_GetRUsage(&curr_rusage, false);
   Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
   m_last_recv_thread_cpu_usage_in_micros = cpu_time;
   m_recv_thread_cpu_usage_in_percent = 0;
@@ -677,7 +677,7 @@ void TransporterFacade::check_cpu_usage(NDB_TICKS currTime)
     return;
 
   m_last_cpu_usage_check = currTime;
-  int res = Ndb_GetRUsage(&curr_rusage);
+  int res = Ndb_GetRUsage(&curr_rusage, false);
   Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
   /**
    * Initialise when Ndb_GetRUsage isn't working,

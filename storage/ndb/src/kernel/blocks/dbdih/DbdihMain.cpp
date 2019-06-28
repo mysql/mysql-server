@@ -209,11 +209,13 @@ void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal, BlockReference ref)
   LinearSectionPtr lsptr[3];
   lsptr[0].p = &cdata[0];
   lsptr[0].sz = cdata_size_in_words;
+#if 0
   for (Uint32 i = 0; i < cdata_size_in_words; i++)
   {
     ndbout_c("cdata[%u] = %x", i, cdata[i]);
   }
   ndbout_c("ref = %x", ref);
+#endif
   sendSignal(ref,
              GSN_COPY_GCIREQ,
              signal,
@@ -2778,6 +2780,16 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
   }//for
   nodeArray[index] = RNIL; // terminate
 
+  if (cmasterNodeId == getOwnNodeId() &&
+      con_lineNodes >= 16)
+  {
+    /**
+     * In large clusters the main thread can be quite busy, ensure it
+     * doesn't assist the send thread in this scenario.
+     */
+    log_setNoSend();
+    setNoSend();
+  }
   if (c_2pass_inr)
   {
     jam();
@@ -4395,9 +4407,14 @@ void Dbdih::dequeue_lcp_rep(Signal *signal)
       sendSignal(rg, GSN_LCP_FRAG_REP, signal,
                  LcpFragRep::SignalLength, JBB);
 
+      /**
+       * Send signal as delayed signals to avoid overloading ourself
+       * and other nodes with too many dequeued LCP requests in a too
+       * short time. The dequeue should not be time critical.
+       */
       signal->theData[0] = DihContinueB::ZDEQUEUE_LCP_REP;
-      sendSignal(reference(), GSN_CONTINUEB, signal,
-               1, JBB);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          1, 1);
       return;
     }
     else
@@ -5248,6 +5265,12 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   removeDeadNode(nodePtr);
   insertAlive(nodePtr);
   con_lineNodes++;
+  if (cmasterNodeId == getOwnNodeId() &&
+      con_lineNodes >= 16)
+  {
+    log_setNoSend();
+    setNoSend();
+  }
 
   /*-------------------------------------------------------------------------*/
   //      WE WILL ALSO SEND THE INCLUDE NODE REQUEST TO THE LOCAL LQH BLOCK.
@@ -10311,6 +10334,12 @@ void Dbdih::writeInitGcpLab(Signal* signal, FileRecordPtr filePtr)
   }//if
 }//Dbdih::writeInitGcpLab()
 
+void Dbdih::log_setNoSend()
+{
+  g_eventLogger->info("Disable send assistance for main thread in large"
+                      " clusters");
+}
+
 /*****************************************************************************/
 /* **********     NODES DELETION MODULE                          *************/
 /*****************************************************************************/
@@ -10444,6 +10473,12 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   cmasterdihref = calcDihBlockRef(newMasterId);
   cmasterNodeId = newMasterId;
 
+  if (cmasterNodeId == getOwnNodeId() &&
+      con_lineNodes >= 16)
+  {
+    log_setNoSend();
+    setNoSend();
+  }
   const bool masterTakeOver = (oldMasterId != newMasterId);
   bool check_more_start_lcp = false;
   for(i = 0; i < noOfFailedNodes; i++) {
@@ -12004,16 +12039,22 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 	found = true;
 	noOfRemovedReplicas++;
 	removeNodeFromStored(nodeId, fragPtr, replicaPtr, unlogged);
-	if(replicaPtr.p->lcpOngoingFlag){
+	if(replicaPtr.p->lcpOngoingFlag)
+        {
 	  jam();
 	  /**
 	   * This replica is currently LCP:ed
 	   */
 	  ndbrequire(fragPtr.p->noLcpReplicas > 0);
-	  fragPtr.p->noLcpReplicas --;
+	  fragPtr.p->noLcpReplicas--;
 	  
 	  noOfRemovedLcpReplicas ++;
 	  replicaPtr.p->lcpOngoingFlag = false;
+          if (fragPtr.p->noLcpReplicas == 0)
+          {
+            ndbrequire(tabPtr.p->tabActiveLcpFragments > 0);
+            tabPtr.p->tabActiveLcpFragments--;
+          }
 	}
 
         if (lcpId != RNIL)
@@ -12128,6 +12169,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
      * Check if the removal on the failed node made the LCP complete
      */
     tabPtr.p->tabLcpStatus = TabRecord::TLS_WRITING_TO_FILE;
+    ndbrequire(tabPtr.p->tabActiveLcpFragments == 0);
     checkLcpAllTablesDoneInLqh(__LINE__);
   }
 }
@@ -14827,7 +14869,8 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
   case DropTabReq::RestartDropTab:
     break;
   }
-  
+
+  bool startNext = false;
   if (isMaster())
   {
     /**
@@ -14840,30 +14883,37 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
       ptrAss(nodePtr, nodeRecord);
       if (c_lcpState.m_participatingLQH.get(nodePtr.i))
       {
-        Uint32 index = 0;
-	Uint32 count = nodePtr.p->noOfQueuedChkpt;
-	while (index < count)
+        /**
+         * Remove any queued checkpoints for this table. Done in two phase
+         * approach, first mark the entries with RNIL and next compress the
+         * table, converts from O(n * m) algorithm to O(n) algorithm.
+         */
+        for (Uint32 i = 0; i < nodePtr.p->noOfQueuedChkpt; i++)
         {
-	  if (nodePtr.p->queuedChkpt[index].tableId == tabPtr.i)
+	  if (nodePtr.p->queuedChkpt[i].tableId == tabPtr.i)
           {
-	    jam();
-	    count--;
-	    for (Uint32 i = index; i<count; i++)
-            {
-	      jam();
-	      nodePtr.p->queuedChkpt[i] = nodePtr.p->queuedChkpt[i + 1];
-	    }
-	  }
-          else
+            nodePtr.p->queuedChkpt[i].tableId = RNIL;
+          }
+        }
+        Uint32 index = 0;
+        for (Uint32 i = 0; i < nodePtr.p->noOfQueuedChkpt; i++)
+        {
+          if (nodePtr.p->queuedChkpt[i].tableId != RNIL)
           {
-	    index++;
-	  }
-	}
-	nodePtr.p->noOfQueuedChkpt = count;
+            nodePtr.p->queuedChkpt[index] = nodePtr.p->queuedChkpt[i];
+            index++;
+          }
+        }
+        nodePtr.p->noOfQueuedChkpt = index;
         if (nodePtr.p->noOfStartedChkpt == 0)
         {
           jam();
-          checkStartMoreLcp(signal, nodePtr.i);
+          /**
+           * Check whether more LCPs can be started for this node, but
+           * don't check for starting to other nodes at this point in
+           * time.
+           */
+          startNext |= checkStartMoreLcp(signal, nodePtr.i, false);
         }
         DEB_LCP(("DROP_TAB_REQ: nodePtr(%u)->noOfQueuedChkpt = %u"
                  ", nodePtr->noOfStartedChkpt = %u"
@@ -14874,6 +14924,16 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
                  tabPtr.i));
       }
     }
+  }
+  if (startNext)
+  {
+    /**
+     * startNextChkpt is a heavy method, so not good to call it for
+     * every node, it goes through all nodes, so better to do it once
+     * if any node needed it.
+     */
+    jam();
+    startNextChkpt(signal);
   }
 
   {
@@ -18979,8 +19039,9 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
      * to worry about this. If any node fails in the state of me being
      * started, I will fail as well.
      */
-    if (!isMaster())
+    if (!isMaster() && c_lcpState.m_participatingLQH.get(nodeId))
     {
+      jamLine(Uint16(nodeId));
       ndbrequire(c_lcpState.m_participatingLQH.get(nodeId) == 0);
     }
     NodeRecordPtr nodePtr;
@@ -19142,6 +19203,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
     /**
      * For each fragment
      */
+    ndbrequire(tabPtr.p->tabActiveLcpFragments == 0);
     for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
       jam();
       FragmentstorePtr fragPtr;
@@ -19171,6 +19233,10 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
       }
       
       fragPtr.p->noLcpReplicas = replicaCount;
+      if (replicaCount > 0)
+      {
+        tabPtr.p->tabActiveLcpFragments++;
+      }
     }//for
     
     signal->theData[0] = DihContinueB::ZINIT_LCP;
@@ -21397,6 +21463,7 @@ Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   {
     if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
     {
+      jam();
       SectionHandle handle(this);
       LinearSectionPtr lsptr[3];
       c_lcpState.m_participatingLQH.copyto(NdbNodeBitmask::Size, participatingLQH);
@@ -21416,6 +21483,7 @@ Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
     else if ((packed_length1 <= NdbNodeBitmask48::Size) &&
              (packed_length2 <= NdbNodeBitmask48::Size))
     {
+      jam();
       StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
       req->participatingLQH_v1 = c_lcpState.m_participatingLQH;
       req->participatingDIH_v1 = c_lcpState.m_participatingDIH;
@@ -21638,11 +21706,9 @@ void Dbdih::startNextChkpt(Signal* signal)
   bool save = true;
   LcpState::CurrentFragment curr = c_lcpState.currentFragment;
 
-#ifdef DIH_DEBUG_REPLICA_SEARCH
   Uint32 examined = 0;
   Uint32 started = 0;
   Uint32 queued = 0;
-#endif
   
   while (curr.tableId < ctabFileSize) {
     TabRecordPtr tabPtr;
@@ -21666,9 +21732,7 @@ void Dbdih::startNextChkpt(Signal* signal)
       jam();
       c_replicaRecordPool.getPtr(replicaPtr);
 
-#ifdef DIH_DEBUG_REPLICA_SEARCH
       examined++;
-#endif
       
       NodeRecordPtr nodePtr;
       nodePtr.i = replicaPtr.p->procNode;
@@ -21706,9 +21770,7 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    
 	    sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[i]);
 
-#ifdef DIH_DEBUG_REPLICA_SEARCH
             started++;
-#endif
 	  } 
           else if (nodePtr.p->noOfQueuedChkpt <
                    MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE)
@@ -21728,9 +21790,7 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    nodePtr.p->queuedChkpt[i].fragId = curr.fragmentId;
 	    nodePtr.p->queuedChkpt[i].replicaPtr = replicaPtr.i;
 	    nodePtr.p->noOfQueuedChkpt = i + 1;
-#ifdef DIH_DEBUG_REPLICA_SEARCH
             queued++;
-#endif
 	  }
 	  else 
 	  {
@@ -21776,6 +21836,36 @@ void Dbdih::startNextChkpt(Signal* signal)
       curr.fragmentId = 0;
       curr.tableId++;
     }//if
+    if (started + queued > 256 ||
+        (!save && examined > 128))
+    {
+      /**
+       * This method can take a very long time (around 30ms in a 72-node
+       * cluster with 4 LDMs and around a few hundred tables. In this
+       * case filling the start and queue can be around 8000 things to
+       * start and queue up which is a significant effort. This can lead
+       * to problems with heartbeats and other real-time mechanisms, so
+       * we stop here after reaching more than 256 items. This should
+       * set the limit around 1ms of execution time and give a more
+       * stable real-time environment.
+       *
+       * We also avoid doing any long searches forward when we already
+       * found one node queue being full.
+       */
+      jam();
+      if (save)
+      {
+        jam();
+        c_lcpState.currentFragment = curr;
+      }
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+      ndbout_c("Search : 256 handled.  Examined %u Started %u Queued %u",
+               examined, started, queued);
+      totalExamined+= examined;
+      totalScheduled += (started + queued);
+#endif
+      return;
+    }
   }//while
 
 #ifdef DIH_DEBUG_REPLICA_SEARCH
@@ -22175,12 +22265,6 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       bool found = false;
       for (Uint32 i = 0; i < outstanding; i++)
       {
-        if (found)
-        {
-          jam();
-          nodePtr.p->startedChkpt[i - 1] = nodePtr.p->startedChkpt[i];
-          continue;
-        }
         if(nodePtr.p->startedChkpt[i].tableId != tableId ||
            nodePtr.p->startedChkpt[i].fragId != fragId)
         {
@@ -22188,13 +22272,16 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
           continue;
         }
         jam();
+        memmove(&nodePtr.p->startedChkpt[i],
+                &nodePtr.p->startedChkpt[i+1],
+                (outstanding - (i + 1)) * sizeof(nodePtr.p->startedChkpt[0]));
         found = true;
       }
       if (found)
       {
         jam();
         nodePtr.p->noOfStartedChkpt--;
-        checkStartMoreLcp(signal, nodeId);
+        checkStartMoreLcp(signal, nodeId, true);
         return;
       }
     }
@@ -22205,12 +22292,6 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       bool found = false;
       for (Uint32 i = 0; i < outstanding_queued; i++)
       {
-        if (found)
-        {
-          jam();
-          nodePtr.p->queuedChkpt[i - 1] = nodePtr.p->queuedChkpt[i];
-          continue;
-        }
         if(nodePtr.p->queuedChkpt[i].tableId != tableId ||
            nodePtr.p->queuedChkpt[i].fragId != fragId)
         {
@@ -22218,6 +22299,10 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
           continue;
         }
         jam();
+        memmove(&nodePtr.p->queuedChkpt[i],
+                &nodePtr.p->queuedChkpt[i+1],
+                (outstanding_queued - (i + 1)) *
+                  sizeof(nodePtr.p->queuedChkpt[0]));
         found = true;
       }
       if (found)
@@ -22227,7 +22312,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
         if (nodePtr.p->noOfStartedChkpt == 0)
         {
           jam();
-          checkStartMoreLcp(signal, nodePtr.i);
+          checkStartMoreLcp(signal, nodePtr.i, true);
         }
         DEB_LCP(("LCP_FRAG_REP: nodePtr(%u)->noOfQueuedChkpt = %u"
                  ", nodePtr->noOfStartedChkpt = %u"
@@ -22437,30 +22522,24 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
   replicaPtr.p->maxGciCompleted[lcpNo] = maxGciCompleted;
   replicaPtr.p->nextLcp = nextLcpNo(replicaPtr.p->nextLcp);
   ndbrequire(fragPtr.p->noLcpReplicas > 0);
-  fragPtr.p->noLcpReplicas --;
+  fragPtr.p->noLcpReplicas--;
   
-  if(fragPtr.p->noLcpReplicas > 0){
+  if(fragPtr.p->noLcpReplicas > 0)
+  {
     jam();
     return false;
   }
-  
-  for (Uint32 fid = 0; fid < tabPtr.p->totalfragments; fid++) {
+  ndbrequire(tabPtr.p->tabActiveLcpFragments > 0);
+  tabPtr.p->tabActiveLcpFragments--;
+  if (tabPtr.p->tabActiveLcpFragments > 0)
+  {
     jam();
-    getFragstore(tabPtr.p, fid, fragPtr);
-    if (fragPtr.p->noLcpReplicas > 0){
-      jam();
-      /* ----------------------------------------------------------------- */
-      // Not all fragments in table have been checkpointed.
-      /* ----------------------------------------------------------------- */
-      if(0)
-        g_eventLogger->info("reportLcpCompletion: fragment %d not ready", fid);
-      return false;
-    }//if
-  }//for
+    return false;
+  }
   return true;
 }//Dbdih::reportLcpCompletion()
 
-void Dbdih::checkStartMoreLcp(Signal* signal, Uint32 nodeId)
+bool Dbdih::checkStartMoreLcp(Signal* signal, Uint32 nodeId, bool startNext)
 {
   ndbrequire(isMaster());
 
@@ -22475,28 +22554,38 @@ void Dbdih::checkStartMoreLcp(Signal* signal, Uint32 nodeId)
     jam();
     Uint32 startIndex = nodePtr.p->noOfStartedChkpt;
     nodePtr.p->startedChkpt[startIndex] = nodePtr.p->queuedChkpt[0];
-    for (Uint32 i = 1; i < nodePtr.p->noOfQueuedChkpt; i++)
-    {
-      nodePtr.p->queuedChkpt[i - 1] = nodePtr.p->queuedChkpt[i];
-    }
     nodePtr.p->noOfQueuedChkpt--;
     nodePtr.p->noOfStartedChkpt++;
+    memmove(&nodePtr.p->queuedChkpt[0],
+            &nodePtr.p->queuedChkpt[1],
+            nodePtr.p->noOfQueuedChkpt *
+              sizeof(nodePtr.p->queuedChkpt[0]));
     //-------------------------------------------------------------------
     // We can send a LCP_FRAG_ORD to the node ordering it to perform a
     // local checkpoint on this fragment replica.
     //-------------------------------------------------------------------
     
     sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[startIndex]);
-    return;
+    return false;
   }
 
-  /* ----------------------------------------------------------------------- */
-  // If this node has no checkpoints queued up, then attempt to re-fill the
-  // queues across all nodes.
-  // The search for next replicas can be expensive, so we only do it when
-  // the queues are empty.
-  /* ----------------------------------------------------------------------- */
-  startNextChkpt(signal);
+  /**
+   * If this node has no checkpoints queued up, then attempt to re-fill the
+   * queues across all nodes.
+   * The search for next replicas can be expensive, so we only do it when
+   * the queues are empty and also avoid it if we are in the middle of going
+   * through the queues to remove deleted tables.
+   */
+  if (startNext)
+  {
+    startNextChkpt(signal);
+    return false;
+  }
+  /**
+   * When we didn't want to call startNextChkpt from this method we need to
+   * report that we skipped this call to ensure that this call is later made.
+   */
+  return true;
 }//Dbdih::checkStartMoreLcp()
 
 void
@@ -24876,6 +24965,7 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
   }//for
   tabPtr.p->tableType = DictTabInfo::UndefTableType;
   tabPtr.p->schemaTransId = 0;
+  tabPtr.p->tabActiveLcpFragments = 0;
 }//Dbdih::initTable()
 
 /*************************************************************************/
@@ -25917,6 +26007,11 @@ void Dbdih::updateLcpInfo(TabRecord *regTabPtr,
        */
       jam();
       regReplicaPtr->lcpOngoingFlag = true;
+      if (regFragPtr->noLcpReplicas == 0)
+      {
+        jam();
+        regTabPtr->tabActiveLcpFragments++;
+      }
       regFragPtr->noLcpReplicas++;
 #if 0
       g_eventLogger->info("LCP Ongoing: TableId: %u, fragId: %u, node: %u"
@@ -26460,6 +26555,7 @@ void Dbdih::setLcpActiveStatusStart(Signal* signal)
 {
   NodeRecordPtr nodePtr;
 
+  jam();
   c_lcpState.m_participatingLQH.clear();
   c_lcpState.m_participatingDIH.clear();
   

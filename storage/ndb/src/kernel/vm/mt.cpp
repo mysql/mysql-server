@@ -988,6 +988,12 @@ struct alignas(NDB_CL) thr_data
   unsigned m_thr_no;
 
   /**
+   * Thread 0 doesn't necessarily handle all threads in a loop.
+   * This variable keeps track of which to handle next.
+   */
+  unsigned m_next_jbb_no;
+
+  /**
    * Spin time of thread after completing all its work (in microseconds).
    * We won't go to sleep until we have spun for sufficient time, the aim
    * is to increase readiness in systems with much CPU resources
@@ -1082,6 +1088,18 @@ struct alignas(NDB_CL) thr_data
 
   NDB_TICKS m_ticks;
   struct thr_tq m_tq;
+
+  /**
+   * If thread overslept it is interesting to see how much time was actually
+   * spent on executing and how much time was idle time. This will help to
+   * see if overslept is due to long-running signals or OS not scheduling the
+   * thread.
+   *
+   * We keep the real time last we made scan of time queues to ensure we can
+   * report proper things in warning messages.
+   */
+  NDB_TICKS m_scan_real_ticks;
+  struct ndb_rusage m_scan_time_queue_rusage;
 
   /*
    * In m_next_buffer we keep a free buffer at all times, so that when
@@ -2672,7 +2690,7 @@ thr_send_threads::update_rusage(
 {
   struct ndb_rusage rusage;
 
-  int res = Ndb_GetRUsage(&rusage);
+  int res = Ndb_GetRUsage(&rusage, false);
   if (res != 0)
   {
     this_send_thread->m_user_time_os = 0;
@@ -3273,7 +3291,9 @@ handle_time_wrap(struct thr_data* selfptr)
  */
 static
 Uint32
-scan_time_queues_impl(struct thr_data* selfptr, Uint32 diff)
+scan_time_queues_impl(struct thr_data* selfptr,
+                      Uint32 diff,
+                      NDB_TICKS now)
 {
   NDB_TICKS last = selfptr->m_ticks;
   Uint32 step = diff;
@@ -3289,9 +3309,35 @@ scan_time_queues_impl(struct thr_data* selfptr, Uint32 diff)
        * CPU cycles, so we forget about them and start fresh from 
        * a point in time 1000ms behind our current time.
        */
-      g_eventLogger->warning("thr: %u: Overslept %u ms, expected ~10ms",
-                             selfptr->m_thr_no, diff);
-    
+      struct ndb_rusage curr_rusage;
+      Ndb_GetRUsage(&curr_rusage, false);
+      if ((curr_rusage.ru_utime == 0 &&
+           curr_rusage.ru_stime == 0) ||
+          (selfptr->m_scan_time_queue_rusage.ru_utime == 0 &&
+           selfptr->m_scan_time_queue_rusage.ru_stime == 0))
+      {
+        /**
+         * get_rusage failed for some reason, print old variant of warning
+         * message.
+         */
+        g_eventLogger->warning("thr: %u: Overslept %u ms, expected ~10ms",
+                               selfptr->m_thr_no, diff);
+      }
+      else
+      {
+        Uint32 diff_real =
+          NdbTick_Elapsed(selfptr->m_scan_real_ticks, now).milliSec();
+        Uint64 exec_time = curr_rusage.ru_utime -
+                           selfptr->m_scan_time_queue_rusage.ru_utime;
+        Uint64 sys_time = curr_rusage.ru_stime -
+                          selfptr->m_scan_time_queue_rusage.ru_stime;
+        g_eventLogger->warning("thr: %u Overslept %u ms, expected ~10ms"
+                               ", user time: %llu us, sys_time: %llu us",
+                               selfptr->m_thr_no,
+                               diff_real,
+                               exec_time,
+                               sys_time);
+      }
       last = NdbTick_AddMilliseconds(last, diff-1000);
     }
     step = 20;  // Max expire intervall handled is 20ms 
@@ -3317,6 +3363,8 @@ scan_time_queues_impl(struct thr_data* selfptr, Uint32 diff)
   tq->m_cnt[0] = cnt0 - tmp0;
   tq->m_cnt[1] = cnt1 - tmp1;
   selfptr->m_ticks = NdbTick_AddMilliseconds(last, step);
+  selfptr->m_scan_real_ticks = now;
+  Ndb_GetRUsage(&selfptr->m_scan_time_queue_rusage, false);
   return (diff - step);
 }
 
@@ -3390,7 +3438,7 @@ scan_time_queues(struct thr_data* selfptr, NDB_TICKS now)
   const Uint32 diff = (Uint32)NdbTick_Elapsed(last, now).milliSec();
   if (unlikely(diff > 0))
   {
-    return scan_time_queues_impl(selfptr, diff);
+    return scan_time_queues_impl(selfptr, diff, now);
   }
   return 0;
 }
@@ -5665,12 +5713,20 @@ run_job_buffers(thr_data *selfptr,
    */
   rmb();
 
-  thr_job_queue *queue = selfptr->m_in_queue;
-  thr_job_queue_head *head = selfptr->m_in_queue_head;
-  thr_jb_read_state *read_state = selfptr->m_read_states;
+  /**
+   * For the main thread we can stop at any job buffer, so we proceed from
+   * where we stopped to make different job buffers be equal in importance.
+   *
+   * For all other threads m_next_jbb_no should always be 0 when we reach here.
+   */
+  Uint32 first_jbb_no = selfptr->m_next_jbb_no;
+  thr_job_queue *queue = selfptr->m_in_queue + first_jbb_no;
+  thr_job_queue_head *head = selfptr->m_in_queue_head + first_jbb_no;
+  thr_jb_read_state *read_state = selfptr->m_read_states + first_jbb_no;
   selfptr->m_watchdog_counter = 13;
-  for (Uint32 send_thr_no = 0; send_thr_no < thr_count;
-       send_thr_no++,queue++,read_state++,head++)
+  for (Uint32 jbb_no = first_jbb_no;
+       jbb_no < thr_count;
+       jbb_no++,queue++,read_state++,head++)
   {
     /* Read the prio A state often, to avoid starvation of prio A. */
     while (!read_jba_state(selfptr))
@@ -5790,8 +5846,25 @@ run_job_buffers(thr_data *selfptr,
         scan_zero_queue(selfptr);
         selfptr->m_watchdog_counter = 13;
       }
+      if (selfptr->m_thr_no == 0)
+      {
+        /**
+         * Execution in main thread can sometimes be a bit more lengthy,
+         * so we ensure that we don't miss out on heartbeats and other
+         * important things by returning to checking scan_time_queues
+         * more often.
+         */
+        jbb_no++;
+        if (jbb_no >= thr_count)
+        {
+          jbb_no = 0;
+        }
+        selfptr->m_next_jbb_no = jbb_no;
+        return signal_count;
+      }
     }
   }
+  selfptr->m_next_jbb_no = 0;
   return signal_count;
 }
 
@@ -6289,7 +6362,8 @@ mt_receiver_thread_main(void *thr_arg)
   NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_curr_ticks = now;
   selfptr->m_signal = signal;
-  selfptr->m_ticks = yield_ticks = now;
+  selfptr->m_ticks = selfptr->m_scan_real_ticks = yield_ticks = now;
+  Ndb_GetRUsage(&selfptr->m_scan_time_queue_rusage, false);
 
   while (globalData.theRestartFlag != perform_stop)
   {
@@ -6521,6 +6595,22 @@ loop:
   Uint32 perjb = (avail + g_thr_repository->m_thread_count - 1) /
                   g_thr_repository->m_thread_count;
 
+  if (selfptr->m_thr_no == 0)
+  {
+    /**
+     * The main thread has some signals that execute for a bit longer than
+     * other threads. We only allow the main thread thus to execute at most
+     * 5 signals per round of signal execution. We handle this here and
+     * also only handle signals from one queue at a time with the main
+     * thread.
+     *
+     * LCP_FRAG_REP is one such signal that can execute now for about
+     * 1 millisecond, so 5 signals can become 5 milliseconds which should
+     * fairly safe to ensure we always come back for the 10ms TIME_SIGNAL
+     * that is handled by the main thread.
+     */
+    perjb = MAX(perjb, 5);
+  }
   if (perjb > MAX_SIGNALS_PER_JB)
     perjb = MAX_SIGNALS_PER_JB;
 
@@ -6625,11 +6715,13 @@ mt_job_thread_main(void *thr_arg)
   NdbTick_Invalidate(&start_spin_ticks);
   NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_ticks = start_spin_ticks = yield_ticks = now;
+  selfptr->m_scan_real_ticks = now;
   selfptr->m_signal = signal;
   selfptr->m_curr_ticks = now;
+  Ndb_GetRUsage(&selfptr->m_scan_time_queue_rusage, false);
 
   while (globalData.theRestartFlag != perform_stop)
-  { 
+  {
     loops++;
 
     /**
@@ -6815,13 +6907,13 @@ mt_job_thread_main(void *thr_arg)
     }
 
     /**
-     * Adaptive reading freq. of systeme time every time 1ms
+     * Adaptive reading freq. of system time every time 1ms
      * is likely to have passed
      */
+    now = NdbTick_getCurrentTicks();
+    selfptr->m_curr_ticks = now;
     if (loops > maxloops)
     {
-      now = NdbTick_getCurrentTicks();
-      selfptr->m_curr_ticks = now;
       if (real_time)
       {
         check_real_time_break(now,
@@ -6916,6 +7008,14 @@ mt_getHighResTimer(Uint32 self)
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
   return selfptr->m_curr_ticks;
+}
+
+void
+mt_setNoSend(Uint32 self)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  selfptr->m_nosend = 1;
 }
 
 void
@@ -7374,6 +7474,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   Uint32 i;
 
   selfptr->m_thr_no = thr_no;
+  selfptr->m_next_jbb_no = 0;
   selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
   selfptr->m_max_exec_signals = 0;
   selfptr->m_max_extra_signals = 0;
@@ -7843,7 +7944,9 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
    */
   for (thr_no = 0; thr_no < glob_num_threads; thr_no++)
   {
-    rep->m_thread[thr_no].m_ticks = NdbTick_getCurrentTicks();
+    NDB_TICKS now = NdbTick_getCurrentTicks();
+    rep->m_thread[thr_no].m_ticks = now;
+    rep->m_thread[thr_no].m_scan_real_ticks = now;
 
     if (thr_no == first_receiver_thread_no)
       continue;                 // Will run in the main thread.

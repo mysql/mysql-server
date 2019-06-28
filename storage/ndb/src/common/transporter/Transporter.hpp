@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,12 @@
 
 #include "ndb_socket.h"
 
-#define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
+#define DISCONNECT_ERRNO(e, sz) ( \
+                (sz == 0) || \
+                 (!((sz == -1) && \
+                  ((e == SOCKET_EAGAIN) || \
+                   (e == SOCKET_EWOULDBLOCK) || \
+                   (e == SOCKET_EINTR)))))
 
 class Transporter {
   friend class TransporterRegistry;
@@ -227,7 +231,10 @@ protected:
 
   TransporterRegistry &m_transporter_registry;
   TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; }
-  void do_disconnect(int err){m_transporter_registry.do_disconnect(remoteNodeId,err);}
+  bool do_disconnect(int err, bool send_source)
+  {
+    return m_transporter_registry.do_disconnect(remoteNodeId,err,send_source);
+  }
   void report_error(enum TransporterError err, const char *info = 0)
     { m_transporter_registry.report_error(remoteNodeId, err, info); }
 
