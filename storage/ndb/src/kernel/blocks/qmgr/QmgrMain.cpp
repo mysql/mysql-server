@@ -5086,7 +5086,17 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   BlockReference Tblockref  = closeCom->xxxBlockRef;
   Uint16 TfailureNr = closeCom->failNo;
 
-  ndbassert(closeCom->noOfNodes == cprepFailedNodes.count());
+  if (TfailureNr != cprepareFailureNr)
+  {
+    /**
+     * A new PREP_FAILREQ was already started, so ignore this
+     * one, we will soon enough be here again for the new
+     * failure and respond to this one instead. If we were to
+     * send something, it would be ignored by President anyways.
+     */
+    jam();
+    return;
+  }
 
   UintR tprepFailConf = ZTRUE;
 
@@ -5119,7 +5129,7 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
 		       Tblockref,
 		       GSN_PREP_FAILREF,
 		       reference(),
-		       cfailureNr,
+		       TfailureNr,
 		       cprepFailedNodes);
   } else {
     /* We have prepared the failure of the requested nodes
