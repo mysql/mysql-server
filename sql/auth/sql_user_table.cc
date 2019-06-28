@@ -558,10 +558,11 @@ Acl_change_notification::Acl_change_notification(
   }
 }
 
-void acl_notify_htons(
-    THD *thd, enum_sql_command operation MY_ATTRIBUTE((unused)),
-    const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
-    const List<LEX_CSTRING> *dynamic_privs MY_ATTRIBUTE((unused))) {
+void acl_notify_htons(THD *thd MY_ATTRIBUTE((unused)),
+                      enum_sql_command operation MY_ATTRIBUTE((unused)),
+                      const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
+                      const List<LEX_CSTRING> *dynamic_privs
+                          MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: %s query: '%s'", thd->db().str, thd->query().str));
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
