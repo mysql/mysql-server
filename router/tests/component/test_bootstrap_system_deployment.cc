@@ -22,8 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <array>
+
+#include <gmock/gmock.h>
+
 #include "common.h"
-#include "gmock/gmock.h"
 #include "router_component_system_layout.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
@@ -192,7 +195,8 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
  */
 TEST_F(RouterBootstrapSystemDeploymentTest,
        IsKeyringRevertedWhenBootstrapFail) {
-  static const char kMasterKeyFileSignature[] = "MRKF";
+  const std::array<char, 5> kMasterKeyFileSignature = {'M', 'R', 'K', 'F',
+                                                       '\0'};
 
   {
     std::ofstream keyring_file(
@@ -200,8 +204,8 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
         std::ios_base::binary | std::ios_base::trunc | std::ios_base::out);
 
     mysql_harness::make_file_private(tmp_dir_ + "/stage/mysqlrouter.key");
-    keyring_file.write(kMasterKeyFileSignature,
-                       strlen(kMasterKeyFileSignature));
+    keyring_file.write(kMasterKeyFileSignature.data(),
+                       kMasterKeyFileSignature.size());
   }
 
   /*
@@ -239,10 +243,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   std::ifstream keyring_file(tmp_dir_ + "/stage/mysqlrouter.key",
                              std::ios_base::binary | std::ios_base::in);
 
-  char buf[10] = {0};
-  keyring_file.read(buf, sizeof(buf));
-  EXPECT_THAT(keyring_file.gcount(), 4);
-  EXPECT_THAT(std::strncmp(buf, kMasterKeyFileSignature, 4), testing::Eq(0));
+  std::array<char, 5> buf;
+  keyring_file.read(buf.data(), buf.size());
+  EXPECT_THAT(keyring_file.gcount(), 5);
+  EXPECT_EQ(buf, kMasterKeyFileSignature);
 }
 
 /*

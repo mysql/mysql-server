@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,16 +71,24 @@ class HARNESS_EXPORT Keyring {
    * Removes an entry.
    *
    * @param[in] uid Entry id.
+   *
+   * @returns success
+   * @retval true uid removed
+   * @retval false uid not removed
    */
-  virtual void remove(const std::string &uid) = 0;
+  virtual bool remove(const std::string &uid) = 0;
 
   /**
    * Removes an attribute from an entry.
    *
    * @param[in] uid Entry id.
    * @param[in] attribute Attribute id.
+   *
+   * @returns success
+   * @retval true uid removed
+   * @retval false uid not removed
    */
-  virtual void remove_attribute(const std::string &uid,
+  virtual bool remove_attribute(const std::string &uid,
                                 const std::string &attribute) = 0;
 };
 

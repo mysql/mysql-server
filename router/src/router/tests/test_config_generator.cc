@@ -1956,6 +1956,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
   {
     delete_file("delme/emptyfile");
     std::ofstream f("delme/emptyfile");
+    mysql_harness::make_file_private("delme/emptyfile");
     ::testing::InSequence s;
 
     ConfigGenerator config_gen;
@@ -1970,11 +1971,9 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
       config_gen.bootstrap_directory_deployment("./delme", options, {},
                                                 default_paths);
       FAIL() << "Was expecting exception but got none\n";
-    } catch (std::runtime_error &e) {
-      if (strstr(e.what(), ".tmp"))
-        FAIL() << "Exception text is: " << e.what() << "\n";
-      std::string expected = std::string("Invalid master key file ");
-      ASSERT_EQ(expected, std::string(e.what()).substr(0, expected.size()));
+    } catch (const std::runtime_error &e) {
+      ASSERT_THAT(e.what(), ::testing::Not(::testing::HasSubstr(".tmp")));
+      ASSERT_THAT(e.what(), ::testing::StartsWith("Invalid master key file "));
     }
   }
   delete_dir_recursive("./delme");

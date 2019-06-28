@@ -23,11 +23,13 @@
 */
 
 #include "keyring/keyring_file.h"
-#include <string.h>
+
+#include <array>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <system_error>
+
 #include "common.h"
 #include "mysql/harness/filesystem.h"
 
@@ -37,157 +39,7 @@
 #include <sys/stat.h>
 #endif
 
-constexpr const char kKeyringFileSignature[] = {'M', 'R', 'K', 'R'};
-
-#ifdef _WIN32
-
-using mysql_harness::SecurityDescriptorPtr;
-using mysql_harness::SidPtr;
-
-/**
- * Verifies permissions of an access ACE entry.
- *
- * @param[in] access_ace Access ACE entry.
- *
- * @throw std::exception Everyone has access to the ACE access entry or
- *                        an error occurred.
- */
-static void check_ace_access_rights(ACCESS_ALLOWED_ACE *access_ace) {
-  SID *sid = reinterpret_cast<SID *>(&access_ace->SidStart);
-  DWORD sid_size = SECURITY_MAX_SID_SIZE;
-  SidPtr everyone_sid(static_cast<SID *>(std::malloc(sid_size)));
-
-  if (CreateWellKnownSid(WinWorldSid, nullptr, everyone_sid.get(), &sid_size) ==
-      FALSE) {
-    throw std::runtime_error("CreateWellKnownSid() failed: " +
-                             std::to_string(GetLastError()));
-  }
-
-  if (EqualSid(sid, everyone_sid.get())) {
-    if (access_ace->Mask & (FILE_EXECUTE)) {
-      throw std::runtime_error(
-          "Invalid keyring file access rights "
-          "(Execute privilege granted to Everyone).");
-    }
-    if (access_ace->Mask &
-        (FILE_WRITE_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES)) {
-      throw std::runtime_error(
-          "Invalid keyring file access rights "
-          "(Write privilege granted to Everyone).");
-    }
-    if (access_ace->Mask &
-        (FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES)) {
-      throw std::runtime_error(
-          "Invalid keyring file access rights "
-          "(Read privilege granted to Everyone).");
-    }
-  }
-}
-
-/**
- * Verifies access permissions in a DACL.
- *
- * @param[in] dacl DACL to be verified.
- *
- * @throw std::exception DACL contains an ACL entry that grants full access to
- *                        Everyone or an error occurred.
- */
-static void check_acl_access_rights(ACL *dacl) {
-  ACL_SIZE_INFORMATION dacl_size_info;
-
-  if (GetAclInformation(dacl, &dacl_size_info, sizeof(dacl_size_info),
-                        AclSizeInformation) == FALSE) {
-    throw std::runtime_error("GetAclInformation() failed: " +
-                             std::to_string(GetLastError()));
-  }
-
-  for (DWORD ace_idx = 0; ace_idx < dacl_size_info.AceCount; ++ace_idx) {
-    LPVOID ace = nullptr;
-
-    if (GetAce(dacl, ace_idx, &ace) == FALSE) {
-      throw std::runtime_error("GetAce() failed: " +
-                               std::to_string(GetLastError()));
-      continue;
-    }
-
-    if (static_cast<ACE_HEADER *>(ace)->AceType == ACCESS_ALLOWED_ACE_TYPE)
-      check_ace_access_rights(static_cast<ACCESS_ALLOWED_ACE *>(ace));
-  }
-}
-
-/**
- * Verifies access permissions in a security descriptor.
- *
- * @param[in] sec_desc Security descriptor to be verified.
- *
- * @throw std::exception Security descriptor grants full access to
- *                        Everyone or an error occurred.
- */
-static void check_security_descriptor_access_rights(
-    SecurityDescriptorPtr sec_desc) {
-  BOOL dacl_present;
-  ACL *dacl;
-  BOOL dacl_defaulted;
-
-  if (GetSecurityDescriptorDacl(sec_desc.get(), &dacl_present, &dacl,
-                                &dacl_defaulted) == FALSE) {
-    throw std::runtime_error("GetSecurityDescriptorDacl() failed: " +
-                             std::to_string(GetLastError()));
-  }
-
-  if (!dacl_present) {
-    // No DACL means: no access allowed. Which is fine.
-    return;
-  }
-
-  if (!dacl) {
-    // Empty DACL means: all access allowed.
-    throw std::runtime_error(
-        "Invalid keyring file access rights "
-        "(Everyone has full access rights).");
-  }
-
-  check_acl_access_rights(dacl);
-}
-
-#endif  // _WIN32
-
-/**
- * Verifies access permissions of a file.
- *
- * On Unix systems it throws if file's permissions differ from 600.
- * On Windows it throws if file can be accessed by Everyone group.
- *
- * @param[in] file_name File to be verified.
- *
- * @throw std::exception File access rights are too permissive or
- *                        an error occurred.
- * @throw std::system_error OS and/or filesystem doesn't support file
- *                           permissions.
- */
-static void check_file_access_rights(const std::string &file_name) {
-#ifdef _WIN32
-  check_security_descriptor_access_rights(
-      mysql_harness::get_security_descriptor(file_name));
-#else
-  struct stat status;
-
-  if (stat(file_name.c_str(), &status) != 0) {
-    if (errno == ENOENT) return;
-    throw std::runtime_error("stat() failed (" + file_name +
-                             "): " + mysql_harness::get_strerror(errno));
-  }
-
-  static constexpr mode_t kFullAccessMask = (S_IRWXU | S_IRWXG | S_IRWXO);
-  static constexpr mode_t kRequiredAccessMask = (S_IRUSR | S_IWUSR);
-
-  if ((status.st_mode & kFullAccessMask) != kRequiredAccessMask)
-    throw std::runtime_error("Keyring file (" + file_name +
-                             ") has file permissions that are not strict enough"
-                             " (only RW for file's owner is allowed).");
-
-#endif  // _WIN32
-}
+const std::array<char, 4> kKeyringFileSignature = {'M', 'R', 'K', 'R'};
 
 namespace mysql_harness {
 
@@ -210,10 +62,10 @@ void KeyringFile::save(const std::string &file_name,
   try {
     file.open(file_name, std::ofstream::out | std::ofstream::binary |
                              std::ofstream::trunc);
-  } catch (std::exception &e) {
-    throw std::runtime_error(
-        std::string("Failed to open keyring file for writing: ") + file_name +
-        ": " + get_strerror(errno));
+  } catch (const std::exception &e) {
+    throw std::system_error(
+        errno, std::generic_category(),
+        "Failed to open keyring file for writing: " + file_name);
   }
 #else
   // For Microsoft Windows, on repeated saving of files (like our unit tests)
@@ -232,9 +84,9 @@ void KeyringFile::save(const std::string &file_name,
         Sleep(100);
         continue;
       }
-      throw std::runtime_error(
-          std::string("Failed to open keyring file for writing: ") + file_name +
-          ": " + get_strerror(errno));
+      throw std::system_error(
+          errno, std::generic_category(),
+          "Failed to open keyring file for writing: " + file_name);
     }
   } while (true);
 #endif
@@ -252,7 +104,7 @@ void KeyringFile::save(const std::string &file_name,
 
   try {
     // write signature
-    file.write(kKeyringFileSignature, sizeof(kKeyringFileSignature));
+    file.write(kKeyringFileSignature.data(), kKeyringFileSignature.size());
     // write header
     uint32_t header_size = static_cast<uint32_t>(header_.size());
     file.write(reinterpret_cast<char *>(&header_size), sizeof(header_size));
@@ -261,7 +113,7 @@ void KeyringFile::save(const std::string &file_name,
     // write data
     file.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     file.close();
-  } catch (std::exception &e) {
+  } catch (const std::exception &e) {
     throw std::runtime_error(std::string("Failed to save keyring file: ") +
                              e.what());
   }
@@ -298,8 +150,9 @@ void KeyringFile::load(const std::string &file_name, const std::string &key) {
     file.open(file_name,
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
   } catch (const std::exception &) {
-    throw std::runtime_error(std::string("Failed to load keyring file: ") +
-                             file_name + ": " + get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        std::string("Failed to open keyring file: ") + file_name);
   }
 
   file.seekg(0, file.end);
@@ -308,16 +161,17 @@ void KeyringFile::load(const std::string &file_name, const std::string &key) {
   // read and check signature
   file.seekg(0, file.beg);
   {
-    char sig[sizeof(kKeyringFileSignature)];
+    std::array<char, kKeyringFileSignature.size()> sig;
     try {
-      file.read(sig, sizeof(sig));
+      file.read(sig.data(), sig.size());
     } catch (const std::ios_base::failure &e) {
       throw std::runtime_error("Failure reading contents of keyring file " +
                                file_name);
     }
-    if (strncmp(sig, kKeyringFileSignature, sizeof(kKeyringFileSignature)) != 0)
+    if (kKeyringFileSignature != sig) {
       throw std::runtime_error("Invalid data found in keyring file " +
                                file_name);
+    }
   }
   // read header, if there's one
   {
@@ -356,20 +210,33 @@ std::string KeyringFile::read_header(const std::string &file_name) {
     file.open(file_name,
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
   } catch (const std::exception &) {
-    throw std::runtime_error(std::string("Failed to open keyring file: ") +
-                             file_name + ": " + get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        std::string("Failed to open keyring file: ") + file_name);
   }
 
+  // assumes the file doesn't change while we read it
+
   std::size_t file_size = static_cast<std::size_t>(file.tellg());
+  if (file_size < kKeyringFileSignature.size() + 4) {
+    throw std::runtime_error("reading file-header of '" + file_name +
+                             "' failed: File is too small");
+  }
 
   file.seekg(0);
   // read and check signature
   {
-    char sig[sizeof(kKeyringFileSignature)];
-    file.read(sig, sizeof(sig));
-    if (strncmp(sig, kKeyringFileSignature, sizeof(kKeyringFileSignature)) != 0)
+    std::array<char, kKeyringFileSignature.size()> sig;
+    try {
+      file.read(sig.data(), sig.size());
+    } catch (const std::exception &e) {
+      throw std::runtime_error("reading file-header of '" + file_name +
+                               "' failed: " + e.what());
+    }
+    if (sig != kKeyringFileSignature) {
       throw std::runtime_error("Invalid data found in keyring file " +
                                file_name);
+    }
   }
   // read header, if there's one
   std::string header;
@@ -378,7 +245,7 @@ std::string KeyringFile::read_header(const std::string &file_name) {
     file.read(reinterpret_cast<char *>(&header_size), sizeof(header_size));
     if (header_size > 0) {
       if (header_size >
-          file_size - sizeof(kKeyringFileSignature) - sizeof(header_size)) {
+          file_size - kKeyringFileSignature.size() - sizeof(header_size)) {
         throw std::runtime_error("Invalid data found in keyring file " +
                                  file_name);
       }

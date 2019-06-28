@@ -30,6 +30,7 @@
 #include <string>
 #include <thread>
 
+#include "common.h"
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "metadata_cache.h"

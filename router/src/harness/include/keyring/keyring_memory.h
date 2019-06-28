@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -80,10 +80,15 @@ class HARNESS_EXPORT KeyringMemory : public Keyring {
   virtual std::string fetch(const std::string &uid,
                             const std::string &attribute) const override;
 
-  virtual void remove(const std::string &uid) override;
+  virtual bool remove(const std::string &uid) override;
 
-  virtual void remove_attribute(const std::string &uid,
+  virtual bool remove_attribute(const std::string &uid,
                                 const std::string &attribute) override;
+
+  const std::map<std::string, std::map<std::string, std::string>> &entries()
+      const {
+    return entries_;
+  }
 
  private:
   std::map<std::string, std::map<std::string, std::string>> entries_;

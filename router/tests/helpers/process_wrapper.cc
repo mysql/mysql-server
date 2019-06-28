@@ -25,6 +25,7 @@
 #include "process_wrapper.h"
 
 #include <algorithm>
+#include <sstream>
 #include <thread>
 #include <vector>
 

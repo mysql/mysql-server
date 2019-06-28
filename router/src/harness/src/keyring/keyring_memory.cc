@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -208,14 +208,17 @@ std::string KeyringMemory::fetch(const std::string &uid,
   return entries_.at(uid).at(attribute);
 }
 
-void KeyringMemory::remove(const std::string &uid) { entries_.erase(uid); }
+bool KeyringMemory::remove(const std::string &uid) {
+  return entries_.erase(uid) > 0;
+}
 
-void KeyringMemory::remove_attribute(const std::string &uid,
+bool KeyringMemory::remove_attribute(const std::string &uid,
                                      const std::string &attribute) {
   try {
-    entries_.at(uid).erase(attribute);
+    return entries_.at(uid).erase(attribute) > 0;
   } catch (std::out_of_range &) {
     // Ignore.
+    return false;
   }
 }
 
