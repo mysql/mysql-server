@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,12 +80,13 @@ public:
   /*
    Pack the config into a UtilBuffer and return it's size in bytes
   */
-  Uint32 pack(UtilBuffer&) const;
+  Uint32 pack(UtilBuffer&, bool v2) const;
 
   /*
-    Pack the config as base64
+    Pack the config as base64, v1 and v2
   */
-  bool pack64(BaseString&) const;
+  bool pack64_v1(BaseString&) const;
+  bool pack64_v2(BaseString&, Uint32 node_id = 0) const;
 
   /*
     Compare against another config and return a list of
@@ -128,9 +129,10 @@ public:
     Return the checksum of the config. The checksum can be used to compare
     two configs without having the whole config available(for example on
     a remote host). It can also be printed to log files for manual verification
-    that same config is used
+    that same config is used.
+    Currently only used for testing.
   */
-  Uint32 checksum(void) const;
+  Uint32 checksum(bool v2 = true) const;
 
   /*
     Return bitmask of all defined nodes of a certain type

@@ -33,6 +33,7 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
+#include <ConfigObject.hpp>
 
 
 #include <portlib/ndb_localtime.h>
@@ -5815,7 +5816,9 @@ fixDeprecated(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 static bool
-saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
+saveInConfigValues(InitConfigFileParser::Context & ctx,
+                   const char * data)
+{
   const Properties * sec;
   if(!ctx.m_currentInfo->get(ctx.fname, &sec)){
     require(false);
@@ -5838,10 +5841,8 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     Uint32 no = 0;
     ctx.m_userProperties.get("$Section", id, &no);
     ctx.m_userProperties.put("$Section", id, no+1, true);
-    
-    ctx.m_configValues.openSection(id, no);
-    ctx.m_configValues.put(CFG_TYPE_OF_SECTION, typeVal);
-    
+
+    ctx.m_configValues.createSection(id, typeVal);
     Properties::Iterator it(ctx.m_currentSection);
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       const Properties * info;
@@ -6593,9 +6594,9 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
     }
 
     assert(data_sz >> 32 == 0);
-    ctx.m_configValues.expand(keys, Uint32(data_sz));
   }
 
+  require(ctx.m_configValues.begin());
   for (const char * name = it.first(); name != 0; name = it.next())
   {
     PropertiesType pt;
@@ -6613,7 +6614,7 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
       saveInConfigValues(ctx, 0);
     }
   }
-
+  require(ctx.m_configValues.commit(false));
   return true;
 }
 

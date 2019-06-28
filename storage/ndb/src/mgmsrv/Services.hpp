@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,12 @@ public:
 
   static const unsigned SOCKET_TIMEOUT = 30000;
 
-  void getConfig(Parser_t::Context &ctx, const class Properties &args);
-  void setConfig(Parser_t::Context &ctx, const class Properties &args);
+  void getConfig(Parser_t::Context &ctx, const class Properties &args, bool v2);
+  void getConfig_v1(Parser_t::Context &ctx, const class Properties &args);
+  void getConfig_v2(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig_v1(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig_v2(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig(Parser_t::Context &ctx, const class Properties &args, bool v2);
   void showConfig(Parser_t::Context &ctx, const class Properties &args);
   void reloadConfig(Parser_t::Context &ctx, const class Properties &args);
 

@@ -1280,4 +1280,15 @@ ndbd_upgrade_ok(Uint32 x)
     return 1;
   }
 }
+
+#define NDB_USE_CONFIG_VERSION_V2_80 NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndb_config_version_v2(Uint32 x)
+{
+  return x >= NDB_USE_CONFIG_VERSION_V2_80;
+}
+
 #endif

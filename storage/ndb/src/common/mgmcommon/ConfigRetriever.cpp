@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,13 +156,21 @@ ConfigRetriever::is_connected(void)
 //****************************************************************************
 //****************************************************************************
 struct ndb_mgm_configuration*
-ConfigRetriever::getConfig(Uint32 nodeid) {
-
+ConfigRetriever::getConfig(Uint32 nodeid)
+{
   struct ndb_mgm_configuration * p = 0;
 
+  /**
+   * Communicate node id through ConfigRetriever, but restore it to old value
+   * before returning.
+   */
+  
+  Uint32 old_nodeid = (Uint32)getNodeId();
+  setNodeId(nodeid);
   if(m_handle != 0)
     p = getConfig(m_handle);
 
+  setNodeId(old_nodeid);
   if(p == 0)
     return 0;
   
@@ -227,7 +235,7 @@ ConfigRetriever::getConfig(const char * filename)
   fclose(f);
 
   ConfigValuesFactory cvf;
-  if(!cvf.unpack(config_buf))
+  if(!cvf.unpack_buf(config_buf))
   {
     setError(CR_ERROR,  "Error while unpacking");
     return 0;
@@ -370,6 +378,12 @@ int
 ConfigRetriever::setNodeId(Uint32 nodeid)
 {
   return ndb_mgm_set_configuration_nodeid(m_handle, nodeid);
+}
+
+Uint32
+ConfigRetriever::getNodeId()
+{
+  return ndb_mgm_get_configuration_nodeid(m_handle);
 }
 
 Uint32

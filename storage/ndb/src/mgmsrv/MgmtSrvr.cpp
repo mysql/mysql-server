@@ -815,14 +815,23 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
 bool
 MgmtSrvr::get_packed_config(ndb_mgm_node_type node_type,
-                            BaseString& buf64, BaseString& error)
+                            BaseString& buf64,
+                            BaseString& error,
+                            bool v2,
+                            Uint32 node_id)
 {
-  return m_config_manager->get_packed_config(node_type, &buf64, error);
+  return m_config_manager->get_packed_config(node_type,
+                                             &buf64,
+                                             error,
+                                             v2,
+                                             node_id);
 }
 
 bool
 MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
-                            BaseString& buf64, BaseString& error)
+                            BaseString& buf64,
+                            BaseString& error,
+                            bool v2_requester)
 {
   DBUG_ENTER("get_packed_config_from_node");
 
@@ -863,6 +872,7 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
     DBUG_RETURN(false);
   }
 
+  bool v2_data_node = ndb_config_version_v2(version);
   INIT_SIGNAL_SENDER(ss,nodeId);
 
   SimpleSignal ssig;
@@ -910,10 +920,18 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
       if (defragger.defragment(signal))
       {
         ConfigValuesFactory cf;
-        require(cf.unpack(signal->ptr[0].p, conf->configLength));
+        if (v2_data_node)
+          require(cf.unpack_v2(signal->ptr[0].p, conf->configLength));
+        else
+          require(cf.unpack_v1(signal->ptr[0].p, conf->configLength));
 
         Config received_config(cf.getConfigValues());
-        if (!received_config.pack64(buf64))
+        bool ret;
+        if (v2_requester)
+          ret = received_config.pack64_v2(buf64);
+        else
+          ret = received_config.pack64_v1(buf64);
+        if (!ret)
         {
           error.assign("Failed to pack64");
           DBUG_RETURN(false);
@@ -4303,7 +4321,11 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   {
     const NDB_TICKS start = NdbTick_getCurrentTicks();
     BaseString getconfig_message;
-    while (!m_config_manager->get_packed_config(type, 0, getconfig_message))
+    while (!m_config_manager->get_packed_config(type,
+                                                0,
+                                                getconfig_message,
+                                                true,
+                                                nodeid))
     {
       const NDB_TICKS now = NdbTick_getCurrentTicks();
       if (NdbTick_Elapsed(start,now).milliSec() > timeout_ms)
@@ -4767,7 +4789,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
     default:
       require(false);
     }
-    assert(res);
+    require(res);
   } while(node == 0 && iter.next() == 0);
 
   msg.assign("Success");
@@ -4887,16 +4909,6 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
   SignalSender ss(theFacade);
   ss.lock();
 
-  SimpleSignal ssig;
-  UtilBuffer buf;
-  new_config.pack(buf);
-  ssig.ptr[0].p = (Uint32*)buf.get_data();
-  ssig.ptr[0].sz = (buf.length() + 3) / 4;
-  ssig.header.m_noOfSections = 1;
-
-  ConfigChangeReq *req= CAST_PTR(ConfigChangeReq, ssig.getDataPtrSend());
-  req->length = buf.length();
-
   NodeBitmask mgm_nodes;
   {
     Guard g(m_local_config_mutex);
@@ -4909,6 +4921,22 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     msg = "INTERNAL ERROR Could not find any mgmd!";
     return false;
   }
+
+  bool v2;
+  {
+    const trp_node node = ss.getNodeInfo(nodeId);
+    v2 = ndb_config_version_v2(node.m_info.m_version);
+  }
+  SimpleSignal ssig;
+  UtilBuffer buf;
+  UtilBuffer *buf_ptr = &buf;
+  new_config.pack(buf, v2);
+  ssig.ptr[0].p = (Uint32*)buf.get_data();
+  ssig.ptr[0].sz = (buf.length() + 3) / 4;
+  ssig.header.m_noOfSections = 1;
+
+  ConfigChangeReq *req= CAST_PTR(ConfigChangeReq, ssig.getDataPtrSend());
+  req->length = buf.length();
 
   if (ss.sendFragmentedSignal(nodeId, ssig,
                               MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
@@ -4936,7 +4964,8 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
       g_eventLogger->debug("Got CONFIG_CHANGE_REF, error: %d", ref->errorCode);
       switch(ref->errorCode)
       {
-      case ConfigChangeRef::NotMaster:{
+      case ConfigChangeRef::NotMaster:
+      {
         // Retry with next node if any
         NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
         if (nodeId == 0)
@@ -4944,7 +4973,24 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
           msg = "INTERNAL ERROR Could not find any mgmd!";
           return false;
         }
-
+        {
+          const trp_node node = ss.getNodeInfo(nodeId);
+          bool v2_new = ndb_config_version_v2(node.m_info.m_version);
+          if (v2 != v2_new)
+          {
+            /**
+             * Free old buffer and create a new one.
+             */
+            delete buf_ptr;
+            buf_ptr = new (buf_ptr) UtilBuffer;
+            require(new_config.pack(buf, v2_new));
+            v2 = v2_new;
+          }
+        }
+        req->length = buf.length();
+        ssig.ptr[0].p = (Uint32*)buf.get_data();
+        ssig.ptr[0].sz = (buf.length() + 3) / 4;
+        ssig.header.m_noOfSections = 1;
         if (ss.sendFragmentedSignal(nodeId, ssig,
                                     MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
                                     ConfigChangeReq::SignalLength) != 0)

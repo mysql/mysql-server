@@ -498,11 +498,16 @@ private:
 public:
   /* Get copy of configuration packed with base64 */
   bool get_packed_config(ndb_mgm_node_type nodetype,
-                         BaseString& buf64, BaseString& error);
+                         BaseString& buf64,
+                         BaseString& error,
+                         bool v2,
+                         Uint32 node_id);
 
   /* Get copy of configuration packed with base64 from node nodeid */
   bool get_packed_config_from_node(NodeId nodeid,
-                         BaseString& buf64, BaseString& error);
+                         BaseString& buf64,
+                         BaseString& error,
+                         bool v2);
 
   void print_config(const char* section_filter = NULL,
                     NodeId nodeid_filter = 0,

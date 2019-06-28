@@ -44,6 +44,7 @@ class NdbMgmd {
   Uint32 m_nodeid;
   bool m_verbose;
   unsigned int m_timeout;
+  unsigned int m_version;
   NDB_SOCKET_TYPE m_event_socket;
   
   void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
@@ -67,7 +68,8 @@ class NdbMgmd {
   }
 public:
   NdbMgmd() :
-    m_handle(NULL), m_nodeid(0), m_verbose(true), m_timeout(0)
+    m_handle(NULL), m_nodeid(0), m_verbose(true), m_timeout(0),
+    m_version(NDB_VERSION)
     {
       const char* connect_string= getenv("NDB_CONNECTSTRING");
       if (connect_string)
@@ -79,6 +81,10 @@ public:
     close();
   }
 
+  unsigned int get_version()
+  {
+    return m_version;
+  }
   void close(void)
   {
     if (m_handle)
@@ -168,6 +174,7 @@ public:
         error("connect: ndb_get_version failed");
         return false;
     }
+    m_version = (major << 16) + (minor << 8) + build;
     //printf("connected to ndb_mgmd version %d.%d.%d\n",
     //        major, minor, build);
 

@@ -2589,14 +2589,14 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
 
     char buf[512];
     const ConfigValues* const values = m_ctx.m_config.get_own_config_values();
-    ConfigValues::Entry entry;
+    ConfigSection::Entry entry;
     while (true)
     {
       /*
         Iterate own configuration by index and
         return the configured values
       */
-      index = values->getNextEntryByIndex(index, &entry);
+      index = values->getNextEntry(index, &entry);
       if (index == 0)
       {
          // No more config values
@@ -2617,15 +2617,15 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
 
       switch(entry.m_type)
       {
-      case ConfigValues::IntType:
+      case ConfigSection::IntTypeId:
         BaseString::snprintf(buf, sizeof(buf), "%u", entry.m_int);
         break;
 
-      case ConfigValues::Int64Type:
+      case ConfigSection::Int64TypeId:
         BaseString::snprintf(buf, sizeof(buf), "%llu", entry.m_int64);
         break;
 
-      case ConfigValues::StringType:
+      case ConfigSection::StringTypeId:
         BaseString::snprintf(buf, sizeof(buf), "%s", entry.m_string);
         break;
 
@@ -3677,8 +3677,15 @@ void Cmvmi::execGET_CONFIG_REQ(Signal *signal)
   {
     error = GetConfigRef::WrongNodeId;
   }
+  Uint32 mgm_nodeid = refToNode(retRef);
 
-  const Uint32 config_length = m_ctx.m_config.m_clusterConfigPacked.length();
+  const Uint32 version = getNodeInfo(mgm_nodeid).m_version;
+
+  bool v2 = ndb_config_version_v2(version);
+
+  const Uint32 config_length = v2 ?
+    m_ctx.m_config.m_clusterConfigPacked_v2.length() :
+    m_ctx.m_config.m_clusterConfigPacked_v1.length();
   if (config_length == 0)
   {
     error = GetConfigRef::NoConfig;
@@ -3696,7 +3703,9 @@ void Cmvmi::execGET_CONFIG_REQ(Signal *signal)
 
   const Uint32 nSections= 1;
   LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)(m_ctx.m_config.m_clusterConfigPacked.get_data());
+  ptr[0].p = v2 ?
+    (Uint32*)(m_ctx.m_config.m_clusterConfigPacked_v2.get_data()) :
+    (Uint32*)(m_ctx.m_config.m_clusterConfigPacked_v1.get_data());
   ptr[0].sz = (config_length + 3) / 4;
 
   GetConfigConf *conf = (GetConfigConf *)signal->getDataPtrSend();

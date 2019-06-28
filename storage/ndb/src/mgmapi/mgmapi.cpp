@@ -41,7 +41,7 @@
 #include <Parser.hpp>
 #include <OutputStream.hpp>
 #include <InputStream.hpp>
-
+#include <ConfigObject.hpp>
 #include <ndb_base64.h>
 
 //#define MGMAPI_LOG
@@ -716,7 +716,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   LocalConfig &cfg= handle->cfg;
   NDB_SOCKET_TYPE sockfd;
   ndb_socket_invalidate(&sockfd);
-  Uint32 i;
+  Uint32 i = Uint32(~0);
   while (!ndb_socket_valid(sockfd))
   {
     // do all the mgmt servers
@@ -2549,6 +2549,7 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     args.put("nodetype", nodetype);
   }
 
+  bool v2 = ndb_config_version_v2(handle->mgmd_version());
   if (from_node != 0)
   {
     if (check_version_new(handle->mgmd_version(),
@@ -2565,6 +2566,11 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
       DBUG_RETURN(0);
     }
   }
+  else if (v2)
+  {
+    Uint32 node_id = ndb_mgm_get_configuration_nodeid(handle);
+    args.put("node", node_id);
+  }
 
   const ParserRow<ParserDummy> reply[] = {
     MGM_CMD("get config reply", NULL, ""),
@@ -2574,9 +2580,11 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     MGM_ARG("Content-Transfer-Encoding", String, Optional, "Encoding(base64)"),
     MGM_END()
   };
-  
+
   const Properties *prop;
-  prop = ndb_mgm_call(handle, reply, "get config", &args);
+  prop = v2 ?
+    ndb_mgm_call(handle, reply, "get config_v2", &args) :
+    ndb_mgm_call(handle, reply, "get config", &args);
   CHECK_REPLY(handle, prop, 0);
   
   do {
@@ -2643,7 +2651,9 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     }
 
     ConfigValuesFactory cvf;
-    const int res2 = cvf.unpack(tmp);
+    const int res2 = v2 ?
+      cvf.unpack_v2_buf(tmp) :
+      cvf.unpack_v1_buf(tmp);
     if(!res2){
       fprintf(handle->errstream, "Failed to unpack buffer\n");
       break;
@@ -2669,10 +2679,7 @@ extern "C"
 void
 ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
 {
-  if (cfg) {
-    ((ConfigValues *)cfg)->~ConfigValues();
-    free((void *)cfg);
-  }
+    delete cfg;
 }
 
 extern "C"
@@ -3381,7 +3388,10 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   const ConfigValues * cfg = (ConfigValues*)c;
 
   UtilBuffer buf;
-  if (!cfg->pack(buf))
+  bool v2 = ndb_config_version_v2(h->mgmd_version());
+  bool ret = v2 ? cfg->pack_v2(buf) :
+                  cfg->pack_v1(buf);
+  if (!ret)
   {
     SET_ERROR(h, NDB_MGM_OUT_OF_MEMORY, "Packing config");
     DBUG_RETURN(-1);
@@ -3407,7 +3417,8 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   };
 
   const Properties *reply;
-  reply= ndb_mgm_call(h, set_config_reply, "set config", &args,
+  const char *cmd_str = v2 ? "set config_v2" : "set config";
+  reply= ndb_mgm_call(h, set_config_reply, cmd_str, &args,
                       encoded.c_str());
   CHECK_REPLY(h, reply, -1);
 
