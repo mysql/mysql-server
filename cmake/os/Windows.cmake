@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -118,6 +118,8 @@ IF(MSVC)
   #     information for use with the debugger. The symbolic debugging
   #     information includes the names and types of variables, as well as
   #     functions and line numbers. No .pdb file is produced by the compiler.
+  #     We can't use /ZI too since it's causing __LINE__ macros to be non-
+  #     constant on visual studio and hence XCom stops building correctly.
   # - Enable explicit inline:
   #     /Ob1
   #     Expands explicitly inlined functions. By default /Ob0 is used,
@@ -140,6 +142,7 @@ IF(MSVC)
       STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
     ENDIF()
     STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
+    STRING(REPLACE "/ZI"  "/Z7" "${flag}" "${${flag}}")
     IF (NOT WIN_DEBUG_NO_INLINE)
       STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
     ENDIF()
