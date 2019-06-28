@@ -2198,6 +2198,14 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   LEX *lex = explain_thd->lex;
   if (lex->explain_format->is_tree()) {
     if (lex->is_explain_analyze) {
+      if (explain_thd->lex->m_sql_cmd != nullptr &&
+          explain_thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "EXPLAIN ANALYZE with secondary engine");
+        unit->set_executed();
+        return true;
+      }
+
       // Run the query, but with the result suppressed.
       Query_result_null null_result;
       unit->set_query_result(&null_result);
