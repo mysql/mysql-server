@@ -742,7 +742,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin) {
   }
 
   my_free(hton);
-
+  plugin->data = nullptr;
 end:
   return 0;
 }
