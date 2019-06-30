@@ -65,6 +65,7 @@ usr/lib/mysql/private/libprotobuf.so.3.6.1
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
 usr/lib/mysql/plugin/component_log_sink_syseventlog.so
+usr/lib/mysql/plugin/component_mysqlbackup.so
 usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/ddl_rewriter.so

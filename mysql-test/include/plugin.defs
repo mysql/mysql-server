@@ -136,3 +136,6 @@ component_test_mysql_current_thread_reader  plugin_output_directory  TEST_MYSQL_
 
 # test mysql_runtime_error service
 component_test_mysql_runtime_error  plugin_output_directory  TEST_MYSQL_RUNTIME_ERROR_COMPONENT
+
+# mysqlbackup component
+component_mysqlbackup           plugin_output_directory  MYSQLBACKUP_COMPONENT

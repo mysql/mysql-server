@@ -19673,6 +19673,9 @@ ER_PROTOCOL_COMPRESSION_RESET_LOG
 ER_XPLUGIN_COMPRESSION_ERROR
   eng "Fatal error while compressing outgoing data - %s"
 
+ER_MYSQLBACKUP_MSG
+  eng "%s"
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.
