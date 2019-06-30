@@ -1,5 +1,4 @@
 # Test remote clone with concurrent DML with SSL certificate check
---source include/have_openssl.inc
 
 --let $HOST = 127.0.0.1
 --let $PORT =`select @@port`

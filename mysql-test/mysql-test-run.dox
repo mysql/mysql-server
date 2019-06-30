@@ -2217,13 +2217,7 @@
   @page PAGE_INCLUDE_FILES Using Include Files to Simplify Test Cases
 
   The <b>include</b> directory contains many files intended for
-  inclusion into test case files. For example, if a test case needs to
-  verify that the server supports <b>SSL</b> connections, use this
-  line in the test case file:
-
-  @verbatim
-  --source include/have_ssl.inc
-  @endverbatim
+  inclusion into test case files.
 
   These include files serve many purposes, but in general, they
   encapsulate operations of varying complexity into single files so

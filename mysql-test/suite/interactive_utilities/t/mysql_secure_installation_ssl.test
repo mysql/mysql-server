@@ -1,4 +1,3 @@
---source include/have_ssl.inc
 --source include/have_expect.inc
 --source include/not_windows.inc
 --source include/have_validate_password_component.inc

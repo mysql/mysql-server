@@ -1,5 +1,4 @@
 --source include/no_valgrind_without_big.inc
---source include/have_openssl.inc
 
 --echo #
 --echo # Bug#20963082 : AUTO_GENERATE_CERTS PREREQUISITE TESTING NOT CORRECT

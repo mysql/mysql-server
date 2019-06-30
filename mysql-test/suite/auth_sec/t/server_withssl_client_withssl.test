@@ -14,8 +14,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_openssl.inc
---source include/have_ssl.inc
 
 let $crllen=`select length(trim(coalesce(@@ssl_crl, ''))) + length(trim(coalesce(@@ssl_crlpath, '')))`;
 if (!$crllen)

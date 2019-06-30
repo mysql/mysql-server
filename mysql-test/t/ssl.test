@@ -1,9 +1,10 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+--source include/allowed_ciphers.inc
+
 # Turn on ssl between the client and server
 # and run a number of tests
 
--- source include/have_ssl.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

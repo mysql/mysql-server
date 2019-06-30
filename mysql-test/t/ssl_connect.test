@@ -1,4 +1,3 @@
--- source include/have_ssl.inc
 -- source include/big_test.inc
 # Repeat connect/disconnect
 

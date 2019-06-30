@@ -4,7 +4,6 @@
 # Data Type: filename                                                         #
 #                                                                             #
 
--- source include/have_ssl.inc
 
 ####################################################################
 #   Displaying default value                                       #
