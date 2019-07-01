@@ -1084,7 +1084,7 @@ int init_recovery(Master_info *mi) {
       We need to improve this. /Alfranio.
     */
     error = mts_recovery_groups(rli);
-    if (rli->mts_recovery_group_cnt) DBUG_RETURN(error);
+    if (rli->mts_recovery_group_cnt) return error;
   }
 
   group_master_log_name = const_cast<char *>(rli->get_group_master_log_name());
