@@ -45,7 +45,7 @@ class Compression_negotiation_validator
   void visit_translate(const Compression_negotiation mode) override {
     DBUG_TRACE;
     get_ctxt()->m_compression_config.m_negotiator.m_compression_mode = mode;
-  };
+  }
 };
 
 class Compression_algorithms_validator

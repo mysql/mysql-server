@@ -46,7 +46,7 @@ class Ssl_mode_validator
 
   void visit_translate(const Ssl_config::Mode mode) override {
     get_ctxt()->m_ssl_config.m_mode = mode;
-  };
+  }
 };
 
 class Ssl_fips_validator
@@ -60,7 +60,7 @@ class Ssl_fips_validator
 
   void visit_translate(const Ssl_config::Mode_ssl_fips fips) override {
     get_ctxt()->m_ssl_config.m_ssl_fips_mode = fips;
-  };
+  }
 };
 
 template <typename std::string(Ssl_config::*member)>

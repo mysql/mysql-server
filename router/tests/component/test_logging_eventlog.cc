@@ -418,7 +418,7 @@ class EventlogMatcher {
       found_log_beginning_ = true;
     } else if (found_log_beginning_ && xml.find(message_) != xml.npos)
       found_message_ = true;
-  };
+  }
 
   /** @brief Returns search results */
   const bool &found() noexcept { return found_message_; }
@@ -436,7 +436,7 @@ class EventlogMatcher {
            std::to_string(
                std::chrono::steady_clock::now().time_since_epoch().count()) +
            " ##";
-  };
+  }
 
  private:
   /** @brief Return log start marker

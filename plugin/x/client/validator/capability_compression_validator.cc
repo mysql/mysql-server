@@ -48,7 +48,7 @@ class Capability_algorithm_validator
   void visit_translate(const Compression_algorithm algorithm) override {
     DBUG_TRACE;
     *get_ctxt() = algorithm;
-  };
+  }
 };
 
 class Capability_style_validator
@@ -62,7 +62,7 @@ class Capability_style_validator
   void visit_translate(const Compression_style style) override {
     DBUG_TRACE;
     *get_ctxt() = style;
-  };
+  }
 };
 
 const char *const k_algorithm_key = "algorithm";
