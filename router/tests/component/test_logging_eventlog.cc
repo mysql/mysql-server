@@ -355,7 +355,7 @@ class EventlogSubscription {
   }
 
   /** @brief Default log handler - no-op */
-  static void default_user_handler(const std::string &xml) noexcept {}
+  static void default_user_handler(const std::string & /* xml */) noexcept {}
 
   EVT_HANDLE subscription_;
   UserHandler user_handler_;
@@ -402,10 +402,10 @@ class EventlogMatcher {
    */
   EventlogMatcher(const std::string &message, bool debug_mode = false)
       : message_(message),
+        timestamp_marker_(make_start_marker()),
         found_log_beginning_(false),
         found_message_(false),
-        debug_mode_(debug_mode),
-        timestamp_marker_(make_start_marker()) {
+        debug_mode_(debug_mode) {
     // mark logs start, throws std::runtime_error
     mysqlrouter::write_windows_event_log(timestamp_marker_);
   }
