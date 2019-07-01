@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,7 @@ NDB_ADD_EXECUTABLE(testUpgrade testUpgrade.cpp NDBTEST MYSQLCLIENT)
 NDB_ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testDebugger testDebugger.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testFK testFK.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(testLoad testLoad.cpp NDBTEST)
 
 TARGET_LINK_LIBRARIES(testBackup ndbbank ndbNDBT ndbclient_so)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
