@@ -52,6 +52,7 @@
 #include <signaldata/ProcessInfoRep.hpp>
 #include <signaldata/LocalSysfile.hpp>
 #include <signaldata/SyncThreadViaReqConf.hpp>
+#include <signaldata/TakeOverTcConf.hpp>
 #include <ndb_version.h>
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
@@ -3955,6 +3956,9 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
    * earlier information that transactions can be aborted
    */
   signal->theData[0] = rep.failedNodeId;
+  // The below entries are not used by NdbAPI.
+  signal->theData[1] = reference();
+  signal->theData[2] = 0; // Unknown failure number
   NodeRecPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
   {
@@ -3964,7 +3968,7 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
     {
       jamLine(nodePtr.i);
       sendSignal(nodePtr.p->blockRef, GSN_TAKE_OVERTCCONF, signal, 
-                 NFCompleteRep::SignalLength, JBB);
+                 TakeOverTcConf::SignalLength, JBB);
     }//if
   }//for
   return;
