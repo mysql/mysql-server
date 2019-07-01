@@ -77,6 +77,7 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 
 # Show that several columns are always NULL.
 --replace_column 17 #
+--sorted_result
 SELECT * FROM information_schema.triggers
 WHERE trigger_catalog IS NOT NULL OR event_object_catalog IS NOT NULL
    OR action_condition IS NOT NULL OR action_reference_old_table IS NOT NULL

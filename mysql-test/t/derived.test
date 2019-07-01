@@ -155,6 +155,7 @@ drop table t1;
 
 create table t1 (a int);
 insert into t1 values (1),(2);
+--sorted_result
 select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 drop table t1;

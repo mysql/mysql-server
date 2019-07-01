@@ -4540,7 +4540,9 @@ SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a LIMIT 1) t1a;
 
 # Test of rule
 # table_factor:  '(' get_select_lex query_expression_body ')' opt_table_alias
+--sorted_result
 SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  alias ON 1;
+--sorted_result
 SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) alias ON 1;
 --error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  ON 1;

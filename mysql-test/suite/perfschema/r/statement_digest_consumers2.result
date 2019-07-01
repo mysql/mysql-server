@@ -174,16 +174,16 @@ WITH RECURSIVE cte (x,y,z) AS
 SELECT 1, cte.*, cte2.* FROM cte, cte AS cte2;
 1	x	y	z	x	y	z
 1	1	1	1	1	1	1
-1	2	1	1	1	1	1
 1	1	1	1	2	1	1
+1	2	1	1	1	1	1
 1	2	1	1	2	1	1
 WITH RECURSIVE cte (x,y,z) AS
 (SELECT a,2,2 FROM t1 UNION ALL SELECT a+2,a*2,22 FROM t1 WHERE 0)
 SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;
 2	x	y	z	x	y	z
 2	1	2	2	1	2	2
-2	2	2	2	1	2	2
 2	1	2	2	2	2	2
+2	2	2	2	1	2	2
 2	2	2	2	2	2	2
 ####################################
 # QUERYING PS STATEMENT DIGEST
