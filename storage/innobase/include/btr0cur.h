@@ -758,6 +758,9 @@ struct btr_cur_t {
                          the tree */
   rtr_info_t *rtr_info{nullptr}; /*!< rtree search info */
 
+  /** Ownership of the above rtr_info member. */
+  bool m_own_rtr_info = true;
+
   /** If cursor is used in a scan or simple page fetch. */
   Page_fetch m_fetch_mode{Page_fetch::NORMAL};
 };

@@ -762,6 +762,7 @@ void rtr_get_father_node(
       page_cur_position(rec, btr_pcur_get_block(r_cursor),
                         btr_cur_get_page_cur(btr_cur));
       btr_cur->rtr_info = sea_cur->rtr_info;
+      btr_cur->m_own_rtr_info = false;
       btr_cur->tree_height = sea_cur->tree_height;
       ut_ad(rtr_compare_cursor_rec(index, btr_cur, page_no, &heap));
       goto func_exit;
