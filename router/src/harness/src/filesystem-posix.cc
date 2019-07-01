@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,25 +30,21 @@
 #define _DARWIN_C_SOURCE
 #endif
 
-#include "common.h"
 #include "mysql/harness/filesystem.h"
 
 #include <cassert>
+#include <cerrno>
+#include <climits>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
 
 #include <dirent.h>
-#include <errno.h>
 #include <fnmatch.h>
-#include <limits.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-using std::ostringstream;
-using std::string;
 
 namespace {
 const std::string dirsep("/");
@@ -110,7 +106,8 @@ Path::FileType Path::type(bool refresh) const {
 class Directory::DirectoryIterator::State {
  public:
   State();
-  State(const Path &path, const string &pattern);  // throws std::system_error
+  State(const Path &path,
+        const std::string &pattern);  // throws std::system_error
   ~State();
 
   bool eof() const { return result_ == nullptr; }
@@ -141,7 +138,7 @@ class Directory::DirectoryIterator::State {
   };
 
   std::unique_ptr<dirent, free_dealloc> entry_;
-  const string pattern_;
+  const std::string pattern_;
   struct dirent *result_;
 };
 
@@ -150,7 +147,7 @@ Directory::DirectoryIterator::State::State()
 
 // throws std::system_error
 Directory::DirectoryIterator::State::State(const Path &path,
-                                           const string &pattern)
+                                           const std::string &pattern)
     : dirp_(opendir(path.c_str())), pattern_(pattern) {
   // dirent can be NOT large enough to hold a directory name, so we need to
   // ensure there's extra space for it. From the "man readdir_r":
@@ -174,7 +171,7 @@ Directory::DirectoryIterator::State::State(const Path &path,
   result_ = entry_.get();
 
   if (dirp_ == nullptr) {
-    ostringstream msg;
+    std::ostringstream msg;
     msg << "Failed to open directory '" << path << "'";
     throw std::system_error(errno, std::system_category(), msg.str());
   }
@@ -197,11 +194,13 @@ void Directory::DirectoryIterator::State::fill_result() {
   if (result_ == nullptr) return;
 
   while (true) {
-    // new GCC doesn't like readdir_r(), and deprecates it in favor of
-    // readdir(). However, readdir() is not thread-safe on all platforms yet.
-    MYSQL_HARNESS_DISABLE_WARNINGS()
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    // new glibc 2.24-and-later don't like readdir_r(), and deprecate it in
+    // favor of readdir(). However, readdir() is not thread-safe according to
+    // POSIX.1:2008 yet.
     int error = readdir_r(dirp_, entry_.get(), &result_);
-    MYSQL_HARNESS_ENABLE_WARNINGS()
+#pragma GCC diagnostic pop
 
     if (error) {
       throw std::system_error(errno, std::system_category(),
@@ -225,7 +224,7 @@ void Directory::DirectoryIterator::State::fill_result() {
     } else if (error == 0) {
       break;
     } else {
-      ostringstream msg;
+      std::ostringstream msg;
       msg << "Matching name pattern '" << pattern_.c_str()
           << "' against directory entry '" << result_->d_name << "' failed";
       throw std::system_error(errno, std::system_category(), msg.str());
