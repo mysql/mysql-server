@@ -1020,12 +1020,6 @@ sub optimize_cases {
     foreach my $opt (@{ $tinfo->{master_opt} }) {
       (my $dash_opt = $opt) =~ s/_/-/g;
 
-      # Check whether server supports SSL connection.
-      if ($dash_opt eq "--skip-ssl" and $::opt_ssl) {
-        skip_test($tinfo, "Server doesn't support SSL connection");
-        next;
-      }
-
       my $default_engine =
         mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine =
@@ -1380,13 +1374,6 @@ sub collect_one_test_case {
       skip_test($tinfo, "No replication tests, --skip-rpl is enabled.");
       return $tinfo;
     }
-  }
-
-  # Check for a test that need SSL
-  if ($tinfo->{'need_ssl'} and !$::ssl_supported) {
-    # SSL is not supported, skip it
-    skip_test($tinfo, "No SSL support");
-    return $tinfo;
   }
 
   # Check for group replication tests
