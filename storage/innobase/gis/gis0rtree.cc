@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1179,10 +1179,12 @@ after_insert:
       ibuf_reset_free_bits(block);
     }
 
-    /* We need to clean the parent path here and search father
-    node later, otherwise, it's possible that find a wrong
-    parent. */
-    rtr_clean_rtr_info(cursor->rtr_info, true);
+    if (cursor->m_own_rtr_info) {
+      /* We need to clean the parent path here and search father node later,
+      otherwise, it's possible that find a wrong parent. */
+      rtr_clean_rtr_info(cursor->rtr_info, true);
+    }
+
     cursor->rtr_info = NULL;
     n_iterations++;
 
