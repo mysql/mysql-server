@@ -1062,6 +1062,15 @@ int init_recovery(Master_info *mi) {
   int error = 0;
   Relay_log_info *rli = mi->rli;
   char *group_master_log_name = nullptr;
+
+  /* Set the recovery_parallel_workers to 0 if Auto Position is enabled. */
+  bool is_gtid_with_autopos_on =
+      (((mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) &&
+        mi->is_auto_position())
+           ? true
+           : false);
+  if (is_gtid_with_autopos_on) rli->recovery_parallel_workers = 0;
+
   if (rli->recovery_parallel_workers) {
     /*
       This is not idempotent and a crash after this function and before
@@ -1075,13 +1084,7 @@ int init_recovery(Master_info *mi) {
       We need to improve this. /Alfranio.
     */
     error = mts_recovery_groups(rli);
-    if (rli->mts_recovery_group_cnt) {
-      if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) {
-        rli->recovery_parallel_workers = 0;
-        rli->clear_mts_recovery_groups();
-      } else
-        return error;
-    }
+    if (rli->mts_recovery_group_cnt) DBUG_RETURN(error);
   }
 
   group_master_log_name = const_cast<char *>(rli->get_group_master_log_name());
