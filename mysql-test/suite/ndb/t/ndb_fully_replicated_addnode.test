@@ -12,8 +12,8 @@ CREATE TABLE t1 (
 
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 select read_backup, fully_replicated from table_info as ti join dict_obj_info as doi where ti.table_id = doi.id and doi.fq_name = 'test/def/t1';
 use test;
 
@@ -108,8 +108,8 @@ alter table t1 algorithm=inplace, reorganize partition;
 
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select partition_id, fragment_id, log_part_id, partition_order, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, log_part_id, partition_order, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 use test;
 
 set global ndb_data_node_neighbour = 1;
@@ -248,8 +248,8 @@ alter table t1 algorithm=inplace, reorganize partition;
 
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 use test;
 
 # Verify that all fragments for a partition have same element count.
