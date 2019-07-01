@@ -4867,9 +4867,16 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
   mutex_exit(&buf_pool->LRU_list_mutex);
 
-  /* Delete possible entries for the page from the insert buffer:
-  such can exist if the page belonged to an index which was dropped */
-  ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, TRUE);
+  /* Change buffer will not contain entries for undo tablespaces or temporary
+   * tablespaces. */
+  bool skip_ibuf = fsp_is_system_temporary(page_id.space()) ||
+                   fsp_is_undo_tablespace(page_id.space());
+
+  if (!skip_ibuf) {
+    /* Delete possible entries for the page from the insert buffer:
+    such can exist if the page belonged to an index which was dropped */
+    ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, TRUE);
+  }
 
   frame = block->frame;
 
