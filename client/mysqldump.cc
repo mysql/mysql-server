@@ -3475,7 +3475,7 @@ static char *alloc_query_str(size_t size) {
 
 static void dump_table(char *table, char *db) {
   char ignore_flag;
-  char buf[200], table_buff[NAME_LEN + 3];
+  char buf[240], table_buff[NAME_LEN + 3];
   DYNAMIC_STRING query_string;
   DYNAMIC_STRING extended_row;
   char table_type[NAME_LEN];
