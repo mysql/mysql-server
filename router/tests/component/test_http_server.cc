@@ -22,11 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-// ensure windows.h doesn't expose min() nor max()
-#define NOMINMAX
-#endif
-
 #include <gmock/gmock.h>
 
 #include <event2/event.h>  // EVENT__HAVE_OPENSSL

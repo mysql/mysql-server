@@ -20,12 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-IF(SIZEOF_VOIDP EQUAL 8)
-  SET(ARCH_64BIT 1)
-ELSE()
-  SET(ARCH_64BIT 0)
-ENDIF()
-
 INCLUDE(cmake/version.cmake)
 SET(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}

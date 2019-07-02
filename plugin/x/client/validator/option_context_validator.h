@@ -45,7 +45,7 @@ class Contex_ip_validator
 
   void visit_translate(const Internet_protocol mode) override {
     get_ctxt()->m_internet_protocol = mode;
-  };
+  }
 };
 
 class Contex_auth_validator
@@ -75,7 +75,7 @@ class Contex_auth_validator
 
   void visit_translate(const std::vector<Auth> &auth) override {
     get_ctxt()->m_use_auth_methods = auth;
-  };
+  }
 };
 
 template <uint32_t(Context::*member)>

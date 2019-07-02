@@ -22,11 +22,16 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifndef MYSQLROUTER_HTTP_CONTENT_TYPE_INCLUDED
+#define MYSQLROUTER_HTTP_CONTENT_TYPE_INCLUDED
+
+#include "mysqlrouter/http_server_export.h"
+
 #include <algorithm>
 #include <array>
 #include <string>
 
-class MimeType {
+class HTTP_SERVER_EXPORT MimeType {
  public:
   // RFC4329 deprecated text/javascript for application/javascript
   static constexpr const char ApplicationJavascript[] =
@@ -41,7 +46,7 @@ class MimeType {
   static constexpr const char ImageSvgXML[] = "image/svg+xml";
 };
 
-class ContentType {
+class HTTP_SERVER_EXPORT ContentType {
  public:
   /**
    * get a mimetype for a file-extension.
@@ -87,3 +92,5 @@ class ContentType {
                : MimeType::ApplicationOctetStream;
   }
 };
+
+#endif

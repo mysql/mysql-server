@@ -88,7 +88,8 @@ typedef struct mysql_compress_context {
   default compression level for zstd.
 */
 
-unsigned int mysql_default_compression_level(enum enum_compression_algorithm);
+unsigned int mysql_default_compression_level(
+    enum enum_compression_algorithm algorithm);
 
 /**
   Initialize a compress context object to be associated with a NET object.
@@ -108,7 +109,6 @@ void mysql_compress_context_init(mysql_compress_context *cmp_ctx,
   @param mysql_compress_ctx Pointer to Compression context.
 */
 
-void mysql_compress_context_deinit(
-    mysql_compress_context *mysql_compress_context);
+void mysql_compress_context_deinit(mysql_compress_context *mysql_compress_ctx);
 
 #endif  // MY_COMPRESS_INCLUDED

@@ -24,9 +24,21 @@
 
 #define MYSQL_ROUTER_LOG_DOMAIN "my_domain"
 
+////////////////////////////////////////
+// Standard include files
+#include <ctime>
+#include <stdexcept>
+
 #ifdef _WIN32
 #include <process.h>  // getpid()
+#else
+#include <unistd.h>  // unlink
 #endif
+
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 ////////////////////////////////////////
 // Internal interfaces
@@ -40,22 +52,6 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-MYSQL_HARNESS_DISABLE_WARNINGS()
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-MYSQL_HARNESS_ENABLE_WARNINGS()
-
-////////////////////////////////////////
-// Standard include files
-#include <ctime>
-#include <stdexcept>
-
-#ifndef _WIN32
-#include <unistd.h>  // unlink
-#endif
 
 using mysql_harness::Path;
 using mysql_harness::logging::FileHandler;
