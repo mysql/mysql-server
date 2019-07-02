@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -6789,7 +6789,8 @@ btr_store_big_rec_extern_fields(
 	ut_ad(mtr_memo_contains_flagged(btr_mtr, dict_index_get_lock(index),
 					MTR_MEMO_X_LOCK
 					| MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(index->table));
+	      || dict_table_is_intrinsic(index->table)
+	      || !index->is_committed());
 	ut_ad(mtr_is_block_fix(
 		btr_mtr, rec_block, MTR_MEMO_PAGE_X_FIX, index->table));
 	ut_ad(buf_block_get_frame(rec_block) == page_align(rec));

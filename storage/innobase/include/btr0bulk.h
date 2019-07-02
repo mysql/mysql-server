@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -200,6 +200,11 @@ public:
 		return(m_page_zip);
 	}
 
+#ifdef UNIV_DEBUG
+	/** Check if index is X locked */
+	bool isIndexXLocked();
+#endif // UNIV_DEBUG
+
 	/* Memory heap for internal allocation */
 	mem_heap_t*	m_heap;
 
@@ -285,6 +290,7 @@ public:
 		ut_ad(m_flush_observer != NULL);
 #ifdef UNIV_DEBUG
 		fil_space_inc_redo_skipped_count(m_index->space);
+		m_index_online = m_index->online_status;
 #endif /* UNIV_DEBUG */
 	}
 
@@ -386,6 +392,13 @@ private:
 
 	/** Page cursor vector for all level */
 	page_bulk_vector*	m_page_bulks;
+
+#ifdef UNIV_DEBUG
+	/** State of the index. Used for asserting at the end of a
+	bulk load operation to ensure that the online status of the
+	index does not change */
+	unsigned		m_index_online;
+#endif // UNIV_DEBUG
 };
 
 #endif
