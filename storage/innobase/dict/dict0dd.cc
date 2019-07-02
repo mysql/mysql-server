@@ -1618,19 +1618,56 @@ bool dd_instant_columns_exist(const dd::Table &dd_table) {
 void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
                             dd::Table *new_dd_table,
                             const dict_table_t *new_table) {
-  ut_ad(altered_table->s->fields > old_table->s->fields);
-
-#ifdef UNIV_DEBUG
-  for (uint32_t i = 0; i < old_table->s->fields; ++i) {
-    ut_ad(strcmp(old_table->field[i]->field_name,
-                 altered_table->field[i]->field_name) == 0);
-  }
-#endif /* UNIV_DEBUG */
-
   DD_instant_col_val_coder coder;
+  uint32_t old_n_stored_cols = 0;
+  uint32_t old_cols = 0;
+  uint32_t new_cols = 0;
+  ut_d(uint32_t n_stored_checked = 0);
   ut_d(uint16_t num_instant_cols = 0);
 
-  for (uint32_t i = old_table->s->fields; i < altered_table->s->fields; ++i) {
+  for (uint32_t i = 0; i < old_table->s->fields; ++i) {
+    if (!innobase_is_v_fld(old_table->field[i])) {
+      ++old_n_stored_cols;
+    }
+  }
+
+  ut_ad(old_n_stored_cols <= old_table->s->fields);
+  ut_ad(altered_table->s->fields > old_table->s->fields);
+
+  /* Note that only the order of stored columns are cared, which means
+  1. Adding stored columns(along with virtual columns) at the end of the
+  table is absolutely fine.
+  2. Adding virtual columns before or after any existing stored columns
+  is fine.
+  3. Adding stored columns(along with virtual columns) before existing
+  trailing virtual columns
+  (especially for adding stored columns at the end of a table with functional
+  indexes) is also fine.
+  So need to find out which is the first stored column to be added. */
+  while (old_cols < old_table->s->fields &&
+         new_cols < altered_table->s->fields) {
+    if (innobase_is_v_fld(old_table->field[old_cols])) {
+      ++old_cols;
+      continue;
+    }
+
+    if (innobase_is_v_fld(altered_table->field[new_cols])) {
+      ++new_cols;
+      continue;
+    }
+
+    ut_ad(strcmp(old_table->field[old_cols]->field_name,
+                 altered_table->field[new_cols]->field_name) == 0);
+    ++old_cols;
+    ++new_cols;
+    ut_d(++n_stored_checked);
+  }
+
+  ut_ad(old_cols == old_table->s->fields);
+  ut_ad(new_cols < altered_table->s->fields);
+  ut_ad(n_stored_checked == old_n_stored_cols);
+
+  for (uint32_t i = new_cols; i < altered_table->s->fields; ++i) {
     Field *field = altered_table->field[i];
 
     if (innobase_is_v_fld(field)) {
