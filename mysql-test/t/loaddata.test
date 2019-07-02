@@ -772,3 +772,26 @@ LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NU
 DROP TABLE t3;
 --remove_file $MYSQLTEST_VARDIR/mysql
 --remove_file $file
+
+--echo #
+--echo # Bug#28460369 LOAD DATA INFILE THROWS ERROR WITH NOT NULL COLUMN DEFINED
+--echo #              VIA SET
+--echo #
+--echo # Verify that LOAD DATA rejects rows with no data for GEOMETRY NOT NULL
+--echo # columns. However, if the column is set using the SET clause,
+--echo # LOAD DATA should succeed.
+CREATE TABLE t1 (x DOUBLE, y DOUBLE, g GEOMETRY NOT NULL SRID 4326);
+
+--error ER_NO_DEFAULT_FOR_FIELD
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+  FIELDS TERMINATED BY ','
+  (x, y);
+
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+  FIELDS TERMINATED BY ','
+  (x, y) SET g = ST_SRID(POINT(x, y), 4326);
+SELECT x, y, ST_AsText(g), ST_SRID(g) FROM t1;
+
+DROP TABLE t1;

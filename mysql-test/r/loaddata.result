@@ -632,3 +632,25 @@ CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
 LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
 ERROR 23000: Column 'i' cannot be null
 DROP TABLE t3;
+#
+# Bug#28460369 LOAD DATA INFILE THROWS ERROR WITH NOT NULL COLUMN DEFINED
+#              VIA SET
+#
+# Verify that LOAD DATA rejects rows with no data for GEOMETRY NOT NULL
+# columns. However, if the column is set using the SET clause,
+# LOAD DATA should succeed.
+CREATE TABLE t1 (x DOUBLE, y DOUBLE, g GEOMETRY NOT NULL SRID 4326);
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y);
+ERROR HY000: Field 'g' doesn't have a default value
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y) SET g = ST_SRID(POINT(x, y), 4326);
+SELECT x, y, ST_AsText(g), ST_SRID(g) FROM t1;
+x	y	ST_AsText(g)	ST_SRID(g)
+10	20	POINT(20 10)	4326
+30	40	POINT(40 30)	4326
+DROP TABLE t1;
