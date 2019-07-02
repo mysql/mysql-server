@@ -4177,7 +4177,7 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
   {
     /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
     if (ref->impossible_null_ref() ||
-        cp_buffer_from_ref(table->in_use, table, ref))
+        construct_lookup_ref(table->in_use, table, ref))
       error = HA_ERR_KEY_NOT_FOUND;
     else {
       error = table->file->ha_index_read_idx_map(
@@ -4285,7 +4285,7 @@ int EQRefIterator::Read() {
     memcpy(m_ref->key_buff2, m_ref->key_buff, m_ref->key_length);
 
   // Create new key for lookup
-  m_ref->key_err = cp_buffer_from_ref(table()->in_use, table(), m_ref);
+  m_ref->key_err = construct_lookup_ref(table()->in_use, table(), m_ref);
   if (m_ref->key_err) {
     table()->set_no_row();
     return -1;
@@ -4399,7 +4399,7 @@ int PushedJoinRefIterator::Read() {
       return -1;
     }
 
-    if (cp_buffer_from_ref(thd(), table(), m_ref)) {
+    if (construct_lookup_ref(thd(), table(), m_ref)) {
       table()->set_no_row();
       return -1;
     }
@@ -4489,7 +4489,7 @@ int RefIterator<false>::Read() {  // Forward read.
       table()->set_no_row();
       return -1;
     }
-    if (cp_buffer_from_ref(thd(), table(), m_ref)) {
+    if (construct_lookup_ref(thd(), table(), m_ref)) {
       table()->set_no_row();
       return -1;
     }
@@ -4534,7 +4534,7 @@ int RefIterator<true>::Read() {  // Reverse read.
       table()->set_no_row();
       return -1;
     }
-    if (cp_buffer_from_ref(thd(), table(), m_ref)) {
+    if (construct_lookup_ref(thd(), table(), m_ref)) {
       table()->set_no_row();
       return -1;
     }
@@ -4893,7 +4893,7 @@ int RefOrNullIterator::Read() {
     /* Perform "Late NULLs Filtering" (see internals manual for explanations)
      */
     if (m_ref->impossible_null_ref() ||
-        cp_buffer_from_ref(thd(), table(), m_ref)) {
+        construct_lookup_ref(thd(), table(), m_ref)) {
       // Skip searching for non-NULL rows; go straight to NULL rows.
       *m_ref->null_ref_key = true;
     }
@@ -7892,7 +7892,7 @@ err:
   return true;
 }
 
-bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref) {
+bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref) {
   enum enum_check_fields save_check_for_truncated_fields =
       thd->check_for_truncated_fields;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;

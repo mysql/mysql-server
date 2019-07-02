@@ -1900,15 +1900,15 @@ bool Query_result_update::optimize() {
             before-update value;
             consider this flow of a nested loop join:
             read a row from main_table and:
-            - init ref access (cp_buffer_from_ref() in RefIterator):
+            - init ref access (construct_lookup_ref() in RefIterator):
               copy referenced value from main_table into 2nd table's ref buffer
             - look up a first row in 2nd table (RefIterator::Read())
               - if it joins, update row of main_table on the fly
             - look up a second row in 2nd table (again RefIterator::Read()).
-            Because cp_buffer_from_ref() is not called again, the before-update
-            value of the row of main_table is still in the 2nd table's ref
-            buffer. So the lookup is not influenced by the just-done update of
-            main_table.
+            Because construct_lookup_ref() is not called again, the
+            before-update value of the row of main_table is still in the 2nd
+            table's ref buffer. So the lookup is not influenced by the just-done
+            update of main_table.
           */
           if (tab > join->join_tab + 1) {
             for (uint i = 0; i < tab->ref().key_parts; i++) {

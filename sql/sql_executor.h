@@ -364,7 +364,7 @@ bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
   @retval false ref key copied successfully
   @retval true  error dectected during copying of key
 */
-bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
+bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
 /** Help function when we get some an error from the table handler. */
 int report_handler_error(TABLE *table, int error);

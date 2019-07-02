@@ -618,7 +618,7 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
     if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
       DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
       // Update ref value
-      if (cp_buffer_from_ref(thd(), table, &qep_tab->ref()) &&
+      if (construct_lookup_ref(thd(), table, &qep_tab->ref()) &&
           thd()->is_fatal_error())
         return -1;  // out of memory
     }

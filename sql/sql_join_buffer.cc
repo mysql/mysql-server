@@ -2622,7 +2622,7 @@ bool JOIN_CACHE_BKA::get_next_key(key_range *key) {
         len = 0;
       } else {
         /* Build the key over the fields read into the record buffers */
-        cp_buffer_from_ref(join->thd, qep_tab->table(), ref);
+        construct_lookup_ref(join->thd, qep_tab->table(), ref);
         key->key = ref->key_buff;
         len = ref->key_length;
         DBUG_ASSERT(len != 0);
@@ -2769,7 +2769,7 @@ bool JOIN_CACHE_BKA_UNIQUE::put_record_in_cache() {
     // Embedded is not used if one of the key columns is nullable
   } else {
     /* Build the key over the fields read into the record buffers */
-    cp_buffer_from_ref(join->thd, qep_tab->table(), ref);
+    construct_lookup_ref(join->thd, qep_tab->table(), ref);
     key = ref->key_buff;
     if (ref->impossible_null_ref()) {
       /*
