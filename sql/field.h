@@ -1972,6 +1972,11 @@ class Create_field_wrapper final : public Field {
 class Field_num : public Field {
  public:
   const uint8 dec;
+  /**
+    True if the column was declared with the ZEROFILL attribute. If it has the
+    attribute, values should be zero-padded up to the declared display width
+    when they are converted to strings.
+  */
   bool zerofill;  // Purify cannot handle bit fields
   Field_num(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar auto_flags_arg,
@@ -1986,7 +1991,6 @@ class Field_num : public Field {
     return &my_charset_numeric;
   }
   void prepend_zeros(String *value) const;
-  void add_zerofill_and_unsigned(String &res) const;
   uint decimals() const final override { return (uint)dec; }
   bool eq_def(const Field *field) const final override;
   type_conversion_status store_decimal(const my_decimal *) override;

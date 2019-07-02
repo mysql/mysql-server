@@ -1914,9 +1914,16 @@ const uchar *Field::unpack(uchar *to, const uchar *from, uint param_data,
   return from + len;
 }
 
-void Field_num::add_zerofill_and_unsigned(String &res) const {
-  if (unsigned_flag) res.append(STRING_WITH_LEN(" unsigned"));
-  if (zerofill) res.append(STRING_WITH_LEN(" zerofill"));
+/**
+  Appends the UNSIGNED and ZEROFILL attributes to a String if a Field_num has
+  these attributes.
+
+  @param field the field with the attributes to append
+  @param[in,out] res the String to append to
+*/
+static void append_zerofill_and_unsigned(const Field_num *field, String *res) {
+  if (field->unsigned_flag) res->append(STRING_WITH_LEN(" unsigned"));
+  if (field->zerofill) res->append(STRING_WITH_LEN(" zerofill"));
 }
 
 size_t Field::last_null_byte() const {
@@ -2739,7 +2746,7 @@ void Field_decimal::sql_type(String &res) const {
   if (dec) tmp--;
   res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "decimal(%d,%d)", tmp, dec));
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /****************************************************************************
@@ -3055,7 +3062,7 @@ void Field_new_decimal::sql_type(String &str) const {
   const CHARSET_INFO *cs = str.charset();
   str.length(cs->cset->snprintf(cs, str.ptr(), str.alloced_length(),
                                 "decimal(%d,%d)", precision, (int)dec));
-  add_zerofill_and_unsigned(str);
+  append_zerofill_and_unsigned(this, &str);
 }
 
 /**
@@ -3321,7 +3328,7 @@ void Field_tiny::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
   res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "tinyint(%d)", (int)field_length));
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /****************************************************************************
@@ -3525,7 +3532,7 @@ void Field_short::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
   res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "smallint(%d)", (int)field_length));
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /****************************************************************************
@@ -3678,7 +3685,7 @@ void Field_medium::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
   res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "mediumint(%d)", (int)field_length));
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /****************************************************************************
@@ -3895,7 +3902,7 @@ void Field_long::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
   res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "int(%d)",
                                 (int)field_length));
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /****************************************************************************
@@ -4085,7 +4092,7 @@ void Field_longlong::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
   res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "bigint(%d)", (int)field_length));
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /*
@@ -4303,7 +4310,7 @@ void Field_float::sql_type(String &res) const {
     res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                   "float(%d,%d)", (int)field_length, dec));
   }
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /****************************************************************************
@@ -4561,7 +4568,7 @@ void Field_double::sql_type(String &res) const {
     res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                   "double(%d,%d)", (int)field_length, dec));
   }
-  add_zerofill_and_unsigned(res);
+  append_zerofill_and_unsigned(this, &res);
 }
 
 /****************************************************************************

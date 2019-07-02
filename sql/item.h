@@ -1899,7 +1899,7 @@ class Item : public Parse_tree_node {
     @retval  true  on error
   */
   virtual bool get_timeval(struct timeval *tm, int *warnings);
-  /*
+  /**
     The method allows to determine nullness of a complex expression
     without fully evaluating it, instead of calling val*() then
     checking null_value. Used in Item_func_isnull/Item_func_isnotnull
