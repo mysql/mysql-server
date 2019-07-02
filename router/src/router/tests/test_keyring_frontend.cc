@@ -934,8 +934,15 @@ TEST_P(KeyringFrontendTest, ensure) {
       is_absolute = tmpdir.name().at(0) == '/';
 #endif
       if (!is_absolute) {
-        std::array<char, 128> cwd;
-        getcwd(cwd.data(), cwd.size());
+#ifdef _WIN32
+        std::array<char, MAX_PATH> cwd;
+#else
+        std::array<char, PATH_MAX> cwd;
+#endif
+        if (nullptr == getcwd(cwd.data(), cwd.size())) {
+          throw std::system_error(errno, std::generic_category(),
+                                  "getcwd() failed");
+        }
         keyring_filename = mysql_harness::Path(cwd.data())
                                .join(tmpdir.name())
                                .join("Key ring")
