@@ -19676,6 +19676,9 @@ ER_XPLUGIN_COMPRESSION_ERROR
 ER_MYSQLBACKUP_MSG
   eng "%s"
 
+ER_WARN_UNKNOWN_KEYRING_AWS_REGION
+  eng "Unknown keyring_aws_region '%.192s'. Connection to AWS KMS may fail."
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.
