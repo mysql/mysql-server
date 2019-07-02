@@ -450,7 +450,7 @@ insert into t4 select a from t3;
 explain select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 
-# In subquery_sj_loosescan_bka_nixbnl (ie., with loose scan), demonstrates
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), demonstrates
 # how NestedLoopSemiJoinWithDuplicateRemovalIterator is used.
 explain format=tree select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -6994,7 +6994,7 @@ ORDER BY col_int_key
 
 eval explain $query;
 
-# In subquery_sj_loosescan_bka_nixbnl (ie., with loose scan), shows a case
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), shows a case
 # where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
 # have a table that is both firstmatch (semijoin) _and_ outer join.
 eval explain format=tree $query;
