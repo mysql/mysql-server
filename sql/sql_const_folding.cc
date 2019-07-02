@@ -1114,11 +1114,9 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
 */
 static bool fold_arguments(THD *thd, Item_func *func) {
   for (uint i = 0; i < func->argument_count(); i++) {
-    Item *rc = nullptr;
     Item::cond_result cv;
-    const auto arg = func->arguments()[i];
-    if (fold_condition(thd, arg, &rc, &cv, true)) return true;
-    if (rc != arg) thd->change_item_tree(func->arguments() + i, rc);
+    Item **args = func->arguments();
+    if (fold_condition(thd, args[i], args + i, &cv, true)) return true;
   }
   func->update_used_tables();
   return false;
@@ -1136,10 +1134,8 @@ static bool fold_arguments(THD *thd, Item_cond *cond) {
   Item *item;
 
   while ((item = li++)) {
-    Item *rc = nullptr;
     Item::cond_result cv;
-    if (fold_condition(thd, item, &rc, &cv, true)) return true;
-    if (rc != item) thd->change_item_tree(li.ref(), rc);
+    if (fold_condition(thd, item, li.ref(), &cv, true)) return true;
   }
   cond->update_used_tables();
   return false;
