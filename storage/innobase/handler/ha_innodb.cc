@@ -19453,6 +19453,12 @@ static MYSQL_SYSVAR_UINT(merge_threshold_set_all_debug,
   " cache by the specified value dynamically, at the time.",
   NULL, innodb_merge_threshold_set_all_debug_update,
   DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
+
+static MYSQL_SYSVAR_ULONG(semaphore_wait_timeout_debug,
+  srv_fatal_semaphore_wait_threshold,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of seconds that a semaphore can be held. If semaphore wait crosses"
+  "this value, server will crash", NULL, NULL, 600, 100, 600, 0);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -20437,6 +20443,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_checkpoint_now),
   MYSQL_SYSVAR(buf_flush_list_now),
   MYSQL_SYSVAR(merge_threshold_set_all_debug),
+  MYSQL_SYSVAR(semaphore_wait_timeout_debug),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),

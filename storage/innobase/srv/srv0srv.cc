@@ -86,7 +86,7 @@ Created 10/8/1995 Heikki Tuuri
 #endif /* UNIV_PFS_THREAD */
 
 /* The following is the maximum allowed duration of a lock wait. */
-ulint	srv_fatal_semaphore_wait_threshold = 600;
+ulong	srv_fatal_semaphore_wait_threshold = 600;
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
