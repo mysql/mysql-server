@@ -71,8 +71,13 @@ ConfigSection::~ConfigSection()
 {
   if (!is_real_section())
   {
+    /* Neither invalid config section or pointer sections should have any
+     * entries.
+     */
+    require(m_entry_array.size() == 0);
     return;
   }
+  require(m_entry_array.size() == m_num_entries);
   for (Uint32 i = 0; i < m_num_entries; i++)
   {
     Entry *entry = m_entry_array[i];
@@ -894,6 +899,7 @@ ConfigSection::copy_entry(ConfigSection::Entry *dup_entry)
 void
 ConfigSection::copy_default(ConfigSection *def_cs)
 {
+  require(def_cs->is_real_section());
   Uint32 def_num_entries = def_cs->m_num_entries;
   for (Uint32 i = 0; i < def_num_entries; i++)
   {
@@ -919,6 +925,7 @@ ConfigSection::verify_section()
     case ConfigSection::ApiNodeTypeId:
     case ConfigSection::MgmNodeTypeId:
     {
+      require(m_config_section_type == NodeSection);
       Entry *entry = find_key(CONFIG_NODE_ID);
       require(entry != nullptr &&
               m_node > 0 &&
@@ -929,6 +936,7 @@ ConfigSection::verify_section()
     case ConfigSection::TcpTypeId:
     case ConfigSection::ShmTypeId:
     {
+      require(m_config_section_type == CommSection);
       Entry *entry1 = find_key(CONFIG_FIRST_NODE_ID);
       Entry *entry2 = find_key(CONFIG_SECOND_NODE_ID);
       require(entry1 != nullptr &&
@@ -941,7 +949,12 @@ ConfigSection::verify_section()
               m_node2 == entry2->m_int);
       break;
     }
+    case ConfigSection::SystemSectionId:
+      require(m_config_section_type == SystemSection);
+      break;
     default:
+      require(!is_real_section());
+      require(m_entry_array.size() == 0);
       break;
   }
 }
@@ -987,6 +1000,7 @@ ConfigSection::copy(bool ignore_node_ids)
 {
   ConfigSection *new_config_section = new ConfigSection(m_cfg_object);
   DEB_MALLOC(("new(%u) => %p", __LINE__, new_config_section));
+  require(is_real_section());
   new_config_section->m_magic = this->m_magic;
   new_config_section->m_config_section_type =
     this->m_config_section_type;
@@ -1141,6 +1155,7 @@ bool ConfigSection::unpack_system_section(const Uint32 **data)
     require(false);
     return false;
   }
+  require(set_system_section());
   return unpack_section_entries(data, header_len, num_entries);
 }
 
@@ -1164,6 +1179,7 @@ bool ConfigSection::unpack_node_section(const Uint32 **data)
       return false;
     }
   }
+  require(set_node_section());
   return unpack_section_entries(data, header_len, num_entries);
 }
 
@@ -1178,6 +1194,7 @@ bool ConfigSection::unpack_data_node_section(const Uint32 **data)
     require(false);
     return false;
   }
+  require(set_node_section());
   return unpack_section_entries(data, header_len, num_entries);
 }
 
@@ -1192,6 +1209,7 @@ bool ConfigSection::unpack_api_node_section(const Uint32 **data)
     m_cfg_object->m_error_code = WRONG_SECTION_TYPE;
     return false;
   }
+  require(set_node_section());
   return unpack_section_entries(data, header_len, num_entries);
 }
 
@@ -1206,6 +1224,7 @@ bool ConfigSection::unpack_mgm_node_section(const Uint32 **data)
     m_cfg_object->m_error_code = WRONG_SECTION_TYPE;
     return false;
   }
+  require(set_node_section());
   return unpack_section_entries(data, header_len, num_entries);
 }
 
@@ -1220,6 +1239,7 @@ bool ConfigSection::unpack_tcp_section(const Uint32 **data)
     require(false);
     return false;
   }
+  require(set_comm_section());
   return unpack_section_entries(data, header_len, num_entries);
 }
 
@@ -1234,6 +1254,7 @@ bool ConfigSection::unpack_shm_section(const Uint32 **data)
     require(false);
     return false;
   }
+  require(set_comm_section());
   return unpack_section_entries(data, header_len, num_entries);
 }
 
@@ -1256,5 +1277,6 @@ bool ConfigSection::unpack_comm_section(const Uint32 **data)
       return false;
     }
   }
+  require(set_comm_section());
   return unpack_section_entries(data, header_len, num_entries);
 }

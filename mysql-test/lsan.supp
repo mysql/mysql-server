@@ -28,3 +28,4 @@ leak:Perl_savesharedpv
 leak:Perl_Slab_Alloc
 leak:Perl_newUNOP_AUX
 leak:/usr/bin/perl
+leak:/bin/bash
