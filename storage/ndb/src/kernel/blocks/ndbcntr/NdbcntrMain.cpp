@@ -3512,12 +3512,12 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
 
   CRASH_INSERTION(1006);
 
-  /**
-   * It isn't valid to delay execution of NODE_FAILREP, quite a few
-   * measures have been made to ensure that NODE_FAILREP with perfect
-   * timing, this delay signal causes other errors, so is not a good
-   * method for testing.
-  */
+  if (ERROR_INSERTED(1001))
+  {
+    sendSignalWithDelay(reference(), GSN_NODE_FAILREP, signal, 100,
+                        signal->getLength());
+    return;
+  }
 
   Uint32 senderRef = signal->getSendersBlockRef();
   Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
