@@ -3019,7 +3019,7 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
   return (err);
 }
 
-/** Retrieve SDI from tablespace
+/** Retrieve SDI from tablespace.
 @param[in]	tablespace_id	tablespace id
 @param[in]	ib_sdi_key	SDI key
 @param[in,out]	comp_sdi	in: buffer to hold the SDI BLOB
@@ -3028,10 +3028,9 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
                                 out: compressed length of SDI
 @param[out]	uncomp_sdi_len	out: uncompressed length of SDI
 @param[in,out]	trx		innodb transaction
-@return DB_SUCCESS if SDI retrieval is successful, else error
-in case the passed buffer length is smaller than the actual SDI
-DB_OUT_OF_MEMORY is thrown and uncompressed length is set in
-uncomp_sdi_len */
+@return DB_SUCCESS if SDI retrieval is successful, else error.
+@return DB_OUT_OF_MEMORY if the passed buffer is not sufficient to
+hold the compressed SDI retrieved from tablespace. */
 dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                    void *comp_sdi, uint32_t *comp_sdi_len,
                    uint32_t *uncomp_sdi_len, trx_t *trx) {
@@ -3074,9 +3073,9 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
       ib_tuple_read_u32(tuple, 2, uncomp_sdi_len);
       ib_tuple_read_u32(tuple, 3, comp_sdi_len);
 
-      /* If the passed memory is not sufficient, we
+      /* If the passed memory is not sufficient to hold the compressed SDI, we
       return failure and the actual length of SDI. */
-      if (buf_len < *uncomp_sdi_len) {
+      if (buf_len < *comp_sdi_len) {
         ib_tuple_delete(tuple);
         ib_tuple_delete(key_tpl);
         ib_cursor_close(ib_crsr);
