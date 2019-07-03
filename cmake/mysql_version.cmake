@@ -159,15 +159,3 @@ ENDIF()
 IF(NOT COMPILATION_COMMENT_SERVER)
   SET(COMPILATION_COMMENT_SERVER ${COMPILATION_COMMENT})
 ENDIF()
-
-# Get the sys schema version from the mysql_sys_schema.sql file
-# however if compiling without performance schema, always use version 1.0.0
-MACRO(GET_SYS_SCHEMA_VERSION)
-  FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS sys_version")
-  IF(str)
-    STRING(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" SYS_SCHEMA_VERSION "${str}")
-  ENDIF()
-ENDMACRO()
-
-GET_SYS_SCHEMA_VERSION()
-

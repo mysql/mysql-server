@@ -1710,7 +1710,7 @@ static void delete_pid_file(myf flags);
 static void clean_up(bool print_message);
 static int handle_early_options();
 static void adjust_related_options(ulong *requested_open_files);
-static bool read_init_file(char *file_name);
+static void process_bootstrap();
 #ifdef HAVE_PSI_INTERFACE
 static void init_server_psi_keys();
 #endif
@@ -5606,7 +5606,7 @@ static int init_server_components() {
       LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_SKIP);
     else {
       init_optimizer_cost_module(true);
-      if (bootstrap::run_bootstrap_thread(NULL,
+      if (bootstrap::run_bootstrap_thread(nullptr, nullptr,
                                           &dd::upgrade::upgrade_system_schemas,
                                           SYSTEM_THREAD_SERVER_UPGRADE)) {
         LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_FAILED);
@@ -6874,21 +6874,10 @@ int mysqld_main(int argc, char **argv)
   */
   flush_error_log_messages();
 
-  if (opt_initialize) {
-    // Make sure we can process SIGHUP during bootstrap.
-    server_components_initialized();
-
-    int error = bootstrap::run_bootstrap_thread(
-        mysql_stdin, NULL, SYSTEM_THREAD_SERVER_INITIALIZE);
-    if (error == 0) {
-      LogErr(SYSTEM_LEVEL, ER_ENDING_INIT, my_progname, server_version);
-    }
-    unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
-  }
-
-  if (opt_init_file && *opt_init_file) {
-    if (read_init_file(opt_init_file)) unireg_abort(MYSQLD_ABORT_EXIT);
-  }
+  /*
+    Invoke the bootstrap thread, if required.
+  */
+  process_bootstrap();
 
   /*
     Event must be invoked after error_handler_hook is assigned to
@@ -7294,22 +7283,82 @@ int mysqld_main(int argc, char **argv) {
 }
 #endif  // _WIN32
 
-static bool read_init_file(char *file_name) {
-  MYSQL_FILE *file;
-  DBUG_TRACE;
-  DBUG_PRINT("enter", ("name: %s", file_name));
+/**
+  Execute the bootstrap thread, if required.
 
-  LogErr(INFORMATION_LEVEL, ER_BEG_INITFILE, file_name);
+  When mysqld is started with --initialize only,
+  the bootstrap thread executes compiled in statements,
+  and the server exits.
 
-  if (!(file =
-            mysql_file_fopen(key_file_init, file_name, O_RDONLY, MYF(MY_WME))))
-    return true;
-  (void)bootstrap::run_bootstrap_thread(file, NULL, SYSTEM_THREAD_INIT_FILE);
-  mysql_file_fclose(file, MYF(MY_WME));
+  When mysqld is started with --init-file only,
+  the bootstrap thread executes SQL statements provided
+  in the input text file,
+  and the server continues and serves requests.
 
-  LogErr(INFORMATION_LEVEL, ER_END_INITFILE, file_name);
+  When mysqld is started with both --initialize and --init-file,
+  the bootstrap thread:
+  - executes compiled in statements,
+  - then executes SQL statements in the --init-file.
+  The server then exits.
 
-  return false;
+  Compiled in statements are executed in a privileged mode,
+  with SYSTEM_THREAD_SERVER_INITIALIZE.
+
+  @see handle_bootstrap_impl
+*/
+static void process_bootstrap() {
+  MYSQL_FILE *init_file = nullptr;
+  const char *init_file_name = nullptr;
+  enum_thread_type system_thread;
+  bool need_bootstrap = false;
+
+  if (opt_initialize) {
+    // Make sure we can process SIGHUP during bootstrap.
+    server_components_initialized();
+    need_bootstrap = true;
+    system_thread = SYSTEM_THREAD_SERVER_INITIALIZE;
+  } else {
+    system_thread = SYSTEM_THREAD_INIT_FILE;
+  }
+
+  if (opt_init_file != nullptr) {
+    if (*opt_init_file != '\0') {
+      init_file_name = opt_init_file;
+      LogErr(INFORMATION_LEVEL, ER_BEG_INITFILE, init_file_name);
+
+      init_file = mysql_file_fopen(key_file_init, init_file_name, O_RDONLY,
+                                   MYF(MY_WME));
+      need_bootstrap = true;
+    }
+
+    if (init_file == nullptr) {
+      LogErr(ERROR_LEVEL, ER_INIT_CANT_OPEN_BOOTSTRAP_FILE, init_file_name);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+  }
+
+  if (need_bootstrap) {
+    bool error = bootstrap::run_bootstrap_thread(init_file_name, init_file,
+                                                 NULL, system_thread);
+
+    if (init_file != nullptr) {
+      mysql_file_fclose(init_file, MYF(MY_WME));
+      LogErr(INFORMATION_LEVEL, ER_END_INITFILE, init_file_name);
+    }
+
+    if (error) {
+      /* Abort during system initialization, but not init-file execution */
+      if (system_thread == SYSTEM_THREAD_SERVER_INITIALIZE) {
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
+    }
+
+    if (opt_initialize) {
+      unireg_abort(MYSQLD_SUCCESS_EXIT);
+    }
+  }
+
+  return;
 }
 
 /****************************************************************************

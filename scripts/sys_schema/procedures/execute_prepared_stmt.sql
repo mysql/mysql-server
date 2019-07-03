@@ -18,7 +18,7 @@ DROP PROCEDURE IF EXISTS execute_prepared_stmt;
 DELIMITER $$
 
 CREATE DEFINER='mysql.sys'@'localhost' PROCEDURE execute_prepared_stmt (
-        IN in_query longtext CHARACTER SET UTF8
+        IN in_query longtext CHARACTER SET UTF8MB4
     )
     COMMENT '
 Description
@@ -33,7 +33,7 @@ The sys_execute_prepared_stmt prepared statement name is used for the query and 
 Parameters
 -----------
 
-in_query (longtext CHARACTER SET UTF8):
+in_query (longtext CHARACTER SET UTF8MB4):
   The query to execute.
 
 

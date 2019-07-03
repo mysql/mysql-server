@@ -29,14 +29,16 @@
 
 class Compiled_in_command_iterator : public bootstrap::Command_iterator {
  public:
-  Compiled_in_command_iterator() : is_active(false) {}
-  virtual ~Compiled_in_command_iterator() { end(); }
-  void begin(void);
-  int next(std::string &query, int *read_error, int *iterator_type);
-  void end(void);
+  Compiled_in_command_iterator() {}
+  virtual ~Compiled_in_command_iterator() {}
+  virtual void begin(void) override;
+  int next(std::string &query) override;
+  void report_error_details(log_function_t log) override;
+  virtual void end(void) override;
 
  private:
-  bool is_active;
+  int m_cmds_ofs{0};
+  int m_cmd_ofs{0};
 };
 
 extern bool opt_initialize_insecure;

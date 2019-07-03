@@ -181,12 +181,6 @@ Upgrade_error_counter Upgrade_error_counter::operator++(int) {
 
 namespace {
 
-const int SYS_TABLE_COUNT = 1;
-const int SYS_VIEW_COUNT = 100;
-const int SYS_TRIGGER_COUNT = 2;
-const int SYS_FUNCTION_COUNT = 22;
-const int SYS_PROCEDURE_COUNT = 26;
-
 static std::vector<uint> ignored_errors{
     ER_DUP_FIELDNAME, ER_DUP_KEYNAME, ER_BAD_FIELD_ERROR,
     ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2, ER_DUP_ENTRY};
@@ -388,133 +382,36 @@ bool ignore_error_and_execute(THD *thd, const char *query_ptr) {
   return false;
 }
 
-ulong calc_server_version(const char *some_version) {
-  uint major, minor, version;
-  const char *point = some_version, *end_point;
-  major =
-      static_cast<uint>(strtoul(point, const_cast<char **>(&end_point), 10));
-  point = end_point + 1;
-  minor =
-      static_cast<uint>(strtoul(point, const_cast<char **>(&end_point), 10));
-  point = end_point + 1;
-  version =
-      static_cast<uint>(strtoul(point, const_cast<char **>(&end_point), 10));
-  return static_cast<ulong>(major) * 10000L +
-         static_cast<ulong>((minor * 100 + version));
-}
-
 bool fix_sys_schema(THD *thd) {
-  const char **query_ptr;
+  /*
+    Re-create SYS schema if:
 
+    - There is a server upgrade going on.
+    - Or the SYS schema does not exist.
+
+    With the SYS schema versioning removed, we make sure there is indeed
+    a server upgrade going on before we re-create the SYS schema. This has
+    the consequence that upgrade=FORCE will not re-create the SYS schema,
+    unless it does not exist. This is in line with the old behavior of the
+    SYS schema versioning and upgrade.
+  */
+  Schema_MDL_locker mdl_handler(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch = nullptr;
+  if (mdl_handler.ensure_locked("sys") ||
+      thd->dd_client()->acquire("sys", &sch))
+    return true;
+
+  if (sch != nullptr &&
+      !dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade())
+    return false;
+
+  const char **query_ptr;
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA);
   thd->user_var_events_alloc = thd->mem_root;
   for (query_ptr = &mysql_sys_schema[0]; *query_ptr != NULL; query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
   thd->mem_root->Clear();
-  return false;
-}
-
-bool check_and_fix_sys_schema(THD *thd) {
-  Schema_MDL_locker mdl_handler(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch = nullptr;
-  std::vector<const dd::Abstract_table *> tables;
-  std::vector<const dd::Routine *> routines;
-  std::vector<dd::String_type> triggers;
-
-  Ed_connection con(thd);
-  LEX_STRING str;
-  dd::String_type query = "SELECT * from sys.version";
-
-  uint table_count = 0, view_count = 0, function_count = 0, procedure_count = 0;
-  ulong disk_ver = 0;
-
-  if (mdl_handler.ensure_locked("sys") ||
-      thd->dd_client()->acquire("sys", &sch))
-    return true;
-  if (sch == nullptr) {
-    return fix_sys_schema(thd);
-  }
-
-  if (thd->dd_client()->fetch_schema_components(sch, &tables)) return true;
-  if (tables.size() == 0) {
-    // No objects
-    LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_EMPTY_SYS);
-    return fix_sys_schema(thd);
-  }
-
-  lex_string_strmake(thd->mem_root, &str, query.c_str(), query.size());
-  if (con.execute_direct(str)) {
-    // no sys.version view
-    LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_NO_SYS_VERSION);
-    return true;
-  }
-
-  List<Ed_row> &rows = *con.get_result_sets();
-  if (rows.begin() == rows.end()) {
-    // sys.version view exists but is empty
-    LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_SYS_VERSION_EMPTY);
-    return true;
-  }
-
-  disk_ver = calc_server_version((*rows.begin())[0].str);
-  if (calc_server_version(SYS_SCHEMA_VERSION) > disk_ver) {
-    // Outdated sys ver
-    LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA_OUTDATED,
-           (*rows.begin())[0].str);
-    return fix_sys_schema(thd);
-  } else {
-    // SYS ver upto date
-    LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA_UP_TO_DATE,
-           (*rows.begin())[0].str);
-  }
-
-  if (thd->dd_client()->fetch_schema_components(sch, &routines) ||
-      thd->dd_client()->fetch_schema_component_names<dd::Trigger>(sch,
-                                                                  &triggers))
-    return true;
-
-  std::for_each(tables.begin(), tables.end(), [&](const dd::Abstract_table *t) {
-    if (t->hidden() != dd::Abstract_table::HT_VISIBLE) return;
-    if (t->type() == dd::enum_table_type::BASE_TABLE)
-      table_count++;
-    else if (t->type() == dd::enum_table_type::USER_VIEW)
-      view_count++;
-  });
-
-  std::for_each(routines.begin(), routines.end(), [&](const dd::Routine *rt) {
-    if (rt->type() == dd::Routine::enum_routine_type::RT_FUNCTION)
-      function_count++;
-    else
-      procedure_count++;
-  });
-
-  if (SYS_TABLE_COUNT > table_count) {
-    LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT,
-           table_count, "tables", SYS_TABLE_COUNT);
-    return fix_sys_schema(thd);
-  }
-  if (SYS_VIEW_COUNT > view_count) {
-    LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT, view_count,
-           "views", SYS_VIEW_COUNT);
-    return fix_sys_schema(thd);
-  }
-  if (SYS_TRIGGER_COUNT > triggers.size()) {
-    LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT,
-           triggers.size(), "triggers", SYS_TRIGGER_COUNT);
-    return fix_sys_schema(thd);
-  }
-  if (SYS_FUNCTION_COUNT > function_count) {
-    LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT,
-           function_count, "functions", SYS_FUNCTION_COUNT);
-    return fix_sys_schema(thd);
-  }
-  if (SYS_PROCEDURE_COUNT > procedure_count) {
-    LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT,
-           procedure_count, "procedures", SYS_PROCEDURE_COUNT);
-    return fix_sys_schema(thd);
-  }
-
   return false;
 }
 
@@ -941,7 +838,7 @@ bool upgrade_system_schemas(THD *thd) {
 
   bootstrap_error_handler.set_log_error(false);
   bool err =
-      fix_mysql_tables(thd) || check_and_fix_sys_schema(thd) ||
+      fix_mysql_tables(thd) || fix_sys_schema(thd) ||
       upgrade_help_tables(thd) ||
       (DBUG_EVALUATE_IF(
            "force_fix_user_schemas", true,

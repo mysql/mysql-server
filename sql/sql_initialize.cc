@@ -39,10 +39,10 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scripts/sql_commands_help_data.h"
-#include "scripts/sql_commands_sys_schema.h"
 #include "scripts/sql_commands_system_data.h"
 #include "scripts/sql_commands_system_tables.h"
 #include "scripts/sql_commands_system_users.h"
+#include "scripts/sys_schema/sql_commands.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
@@ -137,16 +137,11 @@ static void generate_password(char *password, int size) {
   }
 }
 
-/* these globals don't need protection since it's single-threaded execution */
-static int cmds_ofs = 0, cmd_ofs = 0;
-static bootstrap::File_command_iterator *init_file_iter = NULL;
-
 void Compiled_in_command_iterator::begin(void) {
-  cmds_ofs = cmd_ofs = 0;
+  m_cmds_ofs = m_cmd_ofs = 0;
 
-  is_active = true;
   LogErr(INFORMATION_LEVEL, ER_SERVER_INIT_COMPILED_IN_COMMANDS,
-         cmd_descs[cmds_ofs]);
+         cmd_descs[m_cmds_ofs]);
   if (opt_initialize_insecure) {
     strcpy(insert_user_buffer, INSERT_USER_CMD_INSECURE);
     LogErr(WARNING_LEVEL, ER_INIT_ROOT_WITHOUT_PASSWORD);
@@ -176,54 +171,37 @@ void Compiled_in_command_iterator::begin(void) {
   }
 }
 
-int Compiled_in_command_iterator::next(std::string &query, int *read_error,
-                                       int *query_source) {
-  if (init_file_iter)
-    return init_file_iter->next(query, read_error, query_source);
-
-  *query_source = QUERY_SOURCE_COMPILED;
-  while (cmds[cmds_ofs] != NULL && cmds[cmds_ofs][cmd_ofs] == NULL) {
-    cmds_ofs++;
-    if (cmds[cmds_ofs] != NULL)
+int Compiled_in_command_iterator::next(std::string &query) {
+  while (cmds[m_cmds_ofs] != NULL && cmds[m_cmds_ofs][m_cmd_ofs] == NULL) {
+    m_cmds_ofs++;
+    if (cmds[m_cmds_ofs] != NULL)
       LogErr(INFORMATION_LEVEL, ER_SERVER_INIT_COMPILED_IN_COMMANDS,
-             cmd_descs[cmds_ofs]);
-    cmd_ofs = 0;
+             cmd_descs[m_cmds_ofs]);
+    m_cmd_ofs = 0;
   }
 
-  if (cmds[cmds_ofs] == NULL) {
-    if (opt_init_file) {
-      /* need to allow error reporting */
-      THD *thd = current_thd;
-      thd->get_stmt_da()->set_overwrite_status(true);
-      init_file_iter = new bootstrap::File_command_iterator(opt_init_file);
-      if (!init_file_iter->has_file()) {
-        LogErr(ERROR_LEVEL, ER_INIT_CANT_OPEN_BOOTSTRAP_FILE, opt_init_file);
-        /* in case of error in open */
-        delete init_file_iter;
-        init_file_iter = NULL;
-        return READ_BOOTSTRAP_ERROR;
-      }
-      init_file_iter->begin();
-      return init_file_iter->next(query, read_error, query_source);
-    }
-
+  if (cmds[m_cmds_ofs] == NULL) {
     return READ_BOOTSTRAP_EOF;
   }
 
-  query.assign(cmds[cmds_ofs][cmd_ofs++]);
+  query.assign(cmds[m_cmds_ofs][m_cmd_ofs++]);
   return READ_BOOTSTRAP_SUCCESS;
 }
 
+void Compiled_in_command_iterator::report_error_details(
+    log_function_t /* log */) {
+  /*
+    Compiled in commands are represented in strings in a C array.
+    There is no parsing involved to isolate each query,
+    so ::next() never returns errors.
+    Hence, there should never be an error to print.
+  */
+  DBUG_ASSERT(false);
+  return;
+}
+
 void Compiled_in_command_iterator::end(void) {
-  if (init_file_iter) {
-    init_file_iter->end();
-    delete init_file_iter;
-    init_file_iter = NULL;
-  }
-  if (is_active) {
-    LogErr(INFORMATION_LEVEL, ER_INIT_BOOTSTRAP_COMPLETE);
-    is_active = false;
-  }
+  LogErr(INFORMATION_LEVEL, ER_INIT_BOOTSTRAP_COMPLETE);
 }
 
 /**

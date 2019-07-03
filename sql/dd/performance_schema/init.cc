@@ -318,10 +318,10 @@ namespace performance_schema {
 
 bool init_pfs_tables(enum_dd_init_type init_type) {
   if (init_type == dd::enum_dd_init_type::DD_INITIALIZE)
-    return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
+    return ::bootstrap::run_bootstrap_thread(nullptr, nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_INITIALIZE);
   else if (init_type == dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)
-    return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
+    return ::bootstrap::run_bootstrap_thread(nullptr, nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_RESTART);
   else {
     DBUG_ASSERT(false);
