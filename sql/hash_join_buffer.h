@@ -107,6 +107,9 @@ struct Table {
   // innermost hash join that should call position(). The other hash join
   // iterators should rely on the innermost iterator to set the row ID.
   bool can_call_position{false};
+
+  // Whether to copy the NULL flags or not.
+  bool copy_null_flags{false};
 };
 
 /// A structure that contains a list of tables for the hash join operation,
