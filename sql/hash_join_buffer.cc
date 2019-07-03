@@ -100,7 +100,6 @@ TableCollection::TableCollection(const std::vector<QEP_TAB *> &tables)
       m_has_blob_column(false) {
   for (QEP_TAB *qep_tab : tables) {
     m_tables_bitmap |= qep_tab->table_ref->map();
-    m_ref_and_null_bytes_size += qep_tab->table()->s->null_bytes;
 
     // When constructing the iterator tree, we might end up adding a
     // WeedoutIterator _after_ a HashJoinIterator has been constructed.
@@ -128,6 +127,12 @@ TableCollection::TableCollection(const std::vector<QEP_TAB *> &tables)
         }
       }
     }
+
+    if (qep_tab->used_null_fields || qep_tab->used_uneven_bit_fields) {
+      m_ref_and_null_bytes_size += qep_tab->table()->s->null_bytes;
+      table.copy_null_flags = true;
+    }
+
     m_tables.push_back(table);
   }
 }
@@ -216,7 +221,7 @@ size_t ComputeRowSizeUpperBound(const TableCollection &tables) {
   return total_size;
 }
 
-static bool keep_current_rowid(QEP_TAB *qep_tab) {
+static bool KeepCurrentRowId(QEP_TAB *qep_tab) {
   return qep_tab->keep_current_rowid &&
          (qep_tab->copy_current_rowid == nullptr ||
           qep_tab->copy_current_rowid->buffer_is_bound());
@@ -242,8 +247,10 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
     const TABLE *table = tbl.qep_tab->table();
 
     // Store the NULL flags.
-    memcpy(dptr, table->null_flags, table->s->null_bytes);
-    dptr += table->s->null_bytes;
+    if (tbl.copy_null_flags) {
+      memcpy(dptr, table->null_flags, table->s->null_bytes);
+      dptr += table->s->null_bytes;
+    }
 
     if (tbl.qep_tab->table()->is_nullable()) {
       const size_t null_row_size = sizeof(tbl.qep_tab->table()->null_row);
@@ -252,7 +259,7 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
       dptr += null_row_size;
     }
 
-    if (keep_current_rowid(tbl.qep_tab)) {
+    if (KeepCurrentRowId(tbl.qep_tab)) {
       // Store the row ID, since it is needed by weedout.
       memcpy(dptr, table->file->ref, table->file->ref_length);
       dptr += table->file->ref_length;
@@ -284,7 +291,7 @@ void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row) {
   for (const Table &tbl : tables.tables()) {
     TABLE *table = tbl.qep_tab->table();
 
-    if (table->s->null_bytes > 0) {
+    if (tbl.copy_null_flags) {
       memcpy(table->null_flags, ptr, table->s->null_bytes);
       ptr += table->s->null_bytes;
     }
@@ -296,7 +303,7 @@ void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row) {
       ptr += null_row_size;
     }
 
-    if (keep_current_rowid(tbl.qep_tab)) {
+    if (KeepCurrentRowId(tbl.qep_tab)) {
       memcpy(table->file->ref, ptr, table->file->ref_length);
       ptr += table->file->ref_length;
       table->ref_is_set_without_position_call = true;
