@@ -23,7 +23,7 @@ DELIMITER $$
 --
 -- Based on Paul Dubois' suggestion in Bug #78823/Bug #22011361.
 CREATE DEFINER='mysql.sys'@'localhost' FUNCTION quote_identifier(in_identifier TEXT)
-    RETURNS TEXT CHARSET UTF8
+    RETURNS TEXT CHARSET UTF8MB4
     COMMENT '
 Description
 -----------
@@ -40,7 +40,7 @@ in_identifier (TEXT):
 Returns
 -----------
 
-TEXT
+TEXT CHARSET UTF8MB4
 
 Example
 -----------

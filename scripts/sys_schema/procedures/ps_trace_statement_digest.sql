@@ -18,7 +18,7 @@ DROP PROCEDURE IF EXISTS ps_trace_statement_digest;
 DELIMITER $$
 
 CREATE DEFINER='mysql.sys'@'localhost' PROCEDURE ps_trace_statement_digest (
-        IN in_digest VARCHAR(32),
+        IN in_digest VARCHAR(64),
         IN in_runtime INT,
         IN in_interval DECIMAL(2,2),
         IN in_start_fresh BOOLEAN,
@@ -33,7 +33,7 @@ Statement Digest.
 
 When finding a statement of interest within the
 performance_schema.events_statements_summary_by_digest table, feed
-the DIGEST MD5 value in to this procedure, set how long to poll for,
+the DIGEST value in to this procedure, set how long to poll for,
 and at what interval to poll, and it will generate a report of all
 statistics tracked within Performance Schema for that digest for the
 interval.
@@ -55,7 +55,7 @@ Requires the SUPER privilege for "SET sql_log_bin = 0;".
 Parameters
 -----------
 
-in_digest (VARCHAR(32)):
+in_digest (VARCHAR(64)):
   The statement digest identifier you would like to analyze
 in_runtime (INT):
   The number of seconds to run analysis for

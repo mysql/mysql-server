@@ -18,7 +18,7 @@ DROP FUNCTION IF EXISTS ps_is_account_enabled;
 DELIMITER $$
 
 CREATE DEFINER='mysql.sys'@'localhost' FUNCTION ps_is_account_enabled (
-        in_host VARCHAR(60), 
+        in_host VARCHAR(255), 
         in_user VARCHAR(32)
     ) 
     RETURNS ENUM('YES', 'NO')
@@ -32,7 +32,7 @@ within Performance Schema.
 Parameters
 -----------
 
-in_host VARCHAR(60): 
+in_host VARCHAR(255): 
   The hostname of the account to check.
 in_user VARCHAR(32):
   The username of the account to check.

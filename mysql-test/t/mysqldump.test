@@ -2574,7 +2574,7 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21549860.sql
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 # restore and sys schema
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/sys.sql
+--exec $MYSQL --comments < $MYSQLTEST_VARDIR/tmp/sys.sql
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21549860.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/sys.sql

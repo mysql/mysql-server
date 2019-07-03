@@ -243,6 +243,7 @@ BEGIN
     DECLARE v_sql longtext;
     -- Maximum supported length for MESSAGE_TEXT with the SIGNAL command is 128 chars.
     DECLARE v_error_msg VARCHAR(128);
+    DECLARE v_old_group_concat_max_len INT UNSIGNED DEFAULT 0;
 
 
     -- Don't instrument this thread
@@ -301,6 +302,8 @@ BEGIN
         END IF;
 
         IF (v_table_exists = 'BASE TABLE') THEN
+            SET v_old_group_concat_max_len = @@session.group_concat_max_len;
+            SET @@session.group_concat_max_len = 2048;
             -- Verify that the table has the correct table definition
             -- This can only be done for base tables as temporary aren't in information_schema.COLUMNS.
             -- This also minimises the risk of using a production table.
@@ -314,7 +317,7 @@ BEGIN
                    FROM information_schema.COLUMNS
                   WHERE TABLE_SCHEMA = v_table_db AND TABLE_NAME = v_table_name
                 );
-
+            SET @@session.group_concat_max_len = v_old_group_concat_max_len;
             IF (v_checksum_ref <> v_checksum_table) THEN
                 -- The table does not have the correct definition, so abandon
                 SET v_error_msg = CONCAT('The table ',
@@ -399,7 +402,7 @@ BEGIN
 
     SET v_digest_table_template = 'CREATE %{TEMPORARY}TABLE %{TABLE_NAME} (
   `SCHEMA_NAME` varchar(64) DEFAULT NULL,
-  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST` varchar(64) DEFAULT NULL,
   `DIGEST_TEXT` longtext,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -425,10 +428,16 @@ BEGIN
   `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
   `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
-  `FIRST_SEEN` timestamp NULL DEFAULT NULL,
-  `LAST_SEEN` timestamp NULL DEFAULT NULL,
+  `FIRST_SEEN` timestamp(6) NULL DEFAULT NULL,
+  `LAST_SEEN` timestamp(6) NULL DEFAULT NULL,
+  `QUANTILE_95` bigint(20) unsigned NOT NULL,
+  `QUANTILE_99` bigint(20) unsigned NOT NULL,
+  `QUANTILE_999` bigint(20) unsigned NOT NULL,
+  `QUERY_SAMPLE_TEXT` longtext,
+  `QUERY_SAMPLE_SEEN` timestamp(6) NULL DEFAULT NULL,
+  `QUERY_SAMPLE_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   INDEX (SCHEMA_NAME, DIGEST)
-) DEFAULT CHARSET=utf8';
+) DEFAULT CHARSET=utf8mb4';
 
     -- Do the action
     -- The actions snapshot, ... requires a fresh snapshot - create it now
@@ -505,7 +514,13 @@ SELECT `d_end`.`SCHEMA_NAME`,
        `d_end`.`SUM_NO_INDEX_USED`-IFNULL(`d_start`.`SUM_NO_INDEX_USED`, 0) AS ''SUM_NO_INDEX_USED'',
        `d_end`.`SUM_NO_GOOD_INDEX_USED`-IFNULL(`d_start`.`SUM_NO_GOOD_INDEX_USED`, 0) AS ''SUM_NO_GOOD_INDEX_USED'',
        `d_end`.`FIRST_SEEN`,
-       `d_end`.`LAST_SEEN`
+       `d_end`.`LAST_SEEN`,
+       `d_end`.`QUANTILE_95`,
+       `d_end`.`QUANTILE_99`,
+       `d_end`.`QUANTILE_999`,
+       `d_end`.`QUERY_SAMPLE_TEXT`,
+       `d_end`.`QUERY_SAMPLE_SEEN`,
+       `d_end`.`QUERY_SAMPLE_TIMER_WAIT`
   FROM tmp_digests d_end
        LEFT OUTER JOIN ', v_quoted_table, ' d_start ON `d_start`.`DIGEST` = `d_end`.`DIGEST`
                                                     AND (`d_start`.`SCHEMA_NAME` = `d_end`.`SCHEMA_NAME`

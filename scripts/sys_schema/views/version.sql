@@ -16,11 +16,15 @@
 --
 -- View: version
 --
+-- Shows the sys schema and mysql versions
+--
+-- NOTE: This view is deprecated and will be removed in a future release.
+--
 -- mysql> select * from sys.version;
 -- +-------------+---------------+
 -- | sys_version | mysql_version |
 -- +-------------+---------------+
--- | 1.5.2       | 5.7.28        |
+-- | 2.1.1       | 8.0.18        |
 -- +-------------+---------------+
 -- 
 
@@ -31,5 +35,5 @@ VIEW version (
   sys_version,
   mysql_version
 ) AS 
-SELECT '1.5.2' AS sys_version,
+SELECT '2.1.1' AS sys_version,
         version() AS mysql_version;

@@ -130,13 +130,14 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
 
   // Creation of Data Dictionary through current server
   if (dd_init == enum_dd_init_type::DD_INITIALIZE)
-    result = ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::initialize,
-                                               SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(
+        nullptr, nullptr, &bootstrap::initialize, SYSTEM_THREAD_DD_INITIALIZE);
 
   // Creation of INFORMATION_SCHEMA system views.
   else if (dd_init == enum_dd_init_type::DD_INITIALIZE_SYSTEM_VIEWS)
-    result = ::bootstrap::run_bootstrap_thread(
-        NULL, &dd::info_schema::initialize, SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(nullptr, nullptr,
+                                               &dd::info_schema::initialize,
+                                               SYSTEM_THREAD_DD_INITIALIZE);
 
   /*
     Creation of Dictionary Tables in old Data Directory
@@ -144,23 +145,24 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
   */
   else if (dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
     result = ::bootstrap::run_bootstrap_thread(
-        NULL, &upgrade_57::do_pre_checks_and_initialize_dd,
+        nullptr, nullptr, &upgrade_57::do_pre_checks_and_initialize_dd,
         SYSTEM_THREAD_DD_INITIALIZE);
 
   // Populate metadata in DD tables from old data directory and do cleanup.
   else if (dd_init == enum_dd_init_type::DD_POPULATE_UPGRADE)
     result = ::bootstrap::run_bootstrap_thread(
-        NULL, &upgrade_57::fill_dd_and_finalize, SYSTEM_THREAD_DD_INITIALIZE);
+        nullptr, nullptr, &upgrade_57::fill_dd_and_finalize,
+        SYSTEM_THREAD_DD_INITIALIZE);
 
   // Delete DD tables and do cleanup in case of error in upgrade
   else if (dd_init == enum_dd_init_type::DD_DELETE)
-    result = ::bootstrap::run_bootstrap_thread(NULL, &upgrade_57::terminate,
-                                               SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(
+        nullptr, nullptr, &upgrade_57::terminate, SYSTEM_THREAD_DD_INITIALIZE);
 
   // Update server and plugin I_S table metadata into DD tables.
   else if (dd_init == enum_dd_init_type::DD_UPDATE_I_S_METADATA)
     result = ::bootstrap::run_bootstrap_thread(
-        NULL, &dd::info_schema::update_I_S_metadata,
+        nullptr, nullptr, &dd::info_schema::update_I_S_metadata,
         SYSTEM_THREAD_DD_INITIALIZE);
 
   // Restore the table_encryption_privilege_check.

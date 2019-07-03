@@ -20,7 +20,7 @@ DELIMITER $$
 CREATE DEFINER='mysql.sys'@'localhost' FUNCTION format_path (
         in_path VARCHAR(512)
     )
-    RETURNS VARCHAR(512) CHARSET UTF8
+    RETURNS VARCHAR(512) CHARSET UTF8MB4
     COMMENT '
 Description
 -----------
@@ -40,7 +40,7 @@ path (VARCHAR(512)):
 Returns
 -----------
 
-VARCHAR(512) CHARSET UTF8
+VARCHAR(512) CHARSET UTF8MB4
 
 Example
 -----------

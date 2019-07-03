@@ -22,7 +22,7 @@ CREATE DEFINER='mysql.sys'@'localhost' FUNCTION format_time (
         -- picoseconds can return numbers larger than BIGINT UNSIGNED
         picoseconds TEXT
     )
-    RETURNS TEXT CHARSET UTF8
+    RETURNS TEXT CHARSET UTF8MB4
     COMMENT '
 Description
 -----------
@@ -42,7 +42,7 @@ picoseconds (TEXT):
 Returns
 -----------
 
-TEXT
+TEXT CHARSET UTF8MB4
 
 Example
 -----------

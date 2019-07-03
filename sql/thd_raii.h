@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,6 +125,22 @@ class Disable_binlog_guard {
  private:
   THD *const m_thd;
   const bool m_binlog_disabled;
+};
+
+class Disable_sql_log_bin_guard {
+ public:
+  Disable_sql_log_bin_guard(THD *thd)
+      : m_thd(thd), m_saved_sql_log_bin(thd->variables.sql_log_bin) {
+    thd->variables.sql_log_bin = false;
+  }
+
+  ~Disable_sql_log_bin_guard() {
+    m_thd->variables.sql_log_bin = m_saved_sql_log_bin;
+  }
+
+ private:
+  THD *const m_thd;
+  const bool m_saved_sql_log_bin;
 };
 
 /**

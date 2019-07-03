@@ -3974,13 +3974,13 @@ sub mysql_install_db {
     "INSERT INTO mysql.proxies_priv VALUES ('localhost', 'root',
               '', '', TRUE, '', now());\n");
 
-  # Add help tables and data for warning detection and supression
+  # Add help tables and data for warning detection and suppression
   mtr_tofile($bootstrap_sql_file,
-             sql_to_bootstrap(mtr_grab_file("include/mtr_warnings.sql")));
+             mtr_grab_file("include/mtr_warnings.sql"));
 
   # Add procedures for checking server is restored after testcase
   mtr_tofile($bootstrap_sql_file,
-             sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
+             mtr_grab_file("include/mtr_check.sql"));
 
   if (defined $init_file) {
     # Append the contents of the init-file to the end of bootstrap.sql

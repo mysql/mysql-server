@@ -20,9 +20,11 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-delimiter ||;
+delimiter ;
 
-use mtr||
+use mtr;
+
+DELIMITER $$
 
 CREATE DEFINER=root@localhost PROCEDURE check_testcase_perfschema()
 BEGIN
@@ -61,12 +63,11 @@ BEGIN
       ORDER BY UDF_NAME;
   END;
   END IF;
-END||
+END$$
 
---
 -- Procedure used to check if server has been properly
 -- restored after testcase has been run
---
+
 CREATE DEFINER=root@localhost PROCEDURE check_testcase()
 BEGIN
 
@@ -182,14 +183,15 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
-END||
+END$$
 
---
 -- Procedure used by test case used to force all
 -- servers to restart after testcase and thus skipping
 -- check test case after test
---
 CREATE DEFINER=root@localhost PROCEDURE force_restart()
 BEGIN
   SELECT 1 INTO OUTFILE 'force_restart';
-END||
+END$$
+
+DELIMITER ;
+

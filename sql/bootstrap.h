@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,19 +34,8 @@ namespace bootstrap {
 /* Bootstrap handler functor */
 typedef bool (*bootstrap_functor)(THD *thd);
 
-/**
-  Create a thread to execute all commands from the submitted file.
-  By providing an explicit bootstrap handler functor, the default
-  behavior of reading and executing SQL commands from the submitted
-  file may be customized.
-
-  @param file         File providing SQL statements, if non-NULL
-  @param boot_handler Optional functor for customized handling
-  @param thread_type  Bootstrap thread type.
-
-  @return             Operation outcome, 0 if no errors
-*/
-bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
+bool run_bootstrap_thread(const char *filename, MYSQL_FILE *file,
+                          bootstrap_functor boot_handler,
                           enum_thread_type thread_type);
 }  // namespace bootstrap
 
