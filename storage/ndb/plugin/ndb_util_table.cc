@@ -25,6 +25,7 @@
 // Implements the interface defined in
 #include "storage/ndb/plugin/ndb_util_table.h"
 
+#include <cstring>
 #include <utility>
 
 #include "my_base.h"
@@ -392,6 +393,32 @@ std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
                      ndbRecAttr->aRef());
 
   return std::string(value_start, value_length);
+}
+
+bool Ndb_util_table::pack_varbinary(const char *column_name, const char *src,
+                                    char *dst) {
+  // The table has to be loaded before this function is called
+  DBUG_ASSERT(get_table() != nullptr);
+  if (!check_column_varbinary(column_name)) {
+    return false;
+  }
+  ndb_pack_varchar(get_column(column_name), 0, src, std::strlen(src) + 1, dst);
+  return true;
+}
+
+std::string Ndb_util_table::unpack_varbinary(const char *column_name,
+                                             const char *packed_str) {
+  // The table has to be loaded before this function is called
+  DBUG_ASSERT(get_table() != nullptr);
+  if (!check_column_varbinary(column_name)) {
+    return "";
+  }
+  const char *unpacked_str;
+  size_t unpacked_str_length;
+  ndb_unpack_varchar(get_column(column_name), 0, &unpacked_str,
+                     &unpacked_str_length, packed_str);
+
+  return std::string(unpacked_str, unpacked_str_length);
 }
 
 //

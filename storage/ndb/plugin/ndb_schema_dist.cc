@@ -280,6 +280,27 @@ uint32 Ndb_schema_dist_client::unique_version() const {
   return ver;
 }
 
+void Ndb_schema_dist_client::push_and_clear_schema_op_results() {
+  if (m_schema_op_results.empty()) {
+    return;
+  }
+
+  // Push results received from participant(s) as warnings. These are meant to
+  // indicate that schema distribution has failed on one of the nodes. For more
+  // information on how and why the failure occured, the relevant error log
+  // remains the place to look
+  for (const Schema_op_result &op_result : m_schema_op_results) {
+    // Warning consists of the node id and message but not result code since
+    // that's an internal detail
+    m_thd_ndb->push_warning("Node %d: '%s'", op_result.nodeid,
+                            op_result.message.c_str());
+  }
+  // Clear the results. This is needed when the Ndb_schema_dist_client object
+  // is reused as is the case during an inplace alter where the same object is
+  // used during both prepare and commit
+  m_schema_op_results.clear();
+}
+
 bool Ndb_schema_dist_client::log_schema_op(const char *query,
                                            size_t query_length, const char *db,
                                            const char *table_name, uint32 id,
@@ -326,14 +347,19 @@ bool Ndb_schema_dist_client::log_schema_op(const char *query,
   // Calculate anyvalue
   const Uint32 anyvalue = calculate_anyvalue(log_query_on_participant);
 
-  const int result =
+  const bool result =
       log_schema_op_impl(m_thd_ndb->ndb, query, static_cast<int>(query_length),
                          db, table_name, id, version, type, anyvalue);
-  if (result != 0) {
+  if (!result) {
     // Schema distribution failed
-    m_thd_ndb->push_warning("Schema distribution failed!");
+    push_and_clear_schema_op_results();
+    m_thd_ndb->push_warning("Schema distribution failed");
     return false;
   }
+
+  // Schema distribution passed but the schema op may have failed on
+  // participants. Push and clear results (if any)
+  push_and_clear_schema_op_results();
   return true;
 }
 

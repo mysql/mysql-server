@@ -44,6 +44,9 @@ ndbcluster
 ALTER TABLE mysql.mtr__acl_test_table ENGINE=InnoDB;
 At MySQL Server 2, DROP the NDB table:
 DROP TABLE mysql.mtr__acl_test_table;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 'mtr__acl_test_table' failed'
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 'mtr__acl_test_table' failed'
 At MySQL Server 4, Confirm that the NDB table has been dropped
 SELECT engine FROM INFORMATION_SCHEMA.TABLES
 WHERE table_name='mtr__acl_test_table';

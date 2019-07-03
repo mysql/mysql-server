@@ -10,12 +10,12 @@ CREATE TABLE t1(
 a int primary key
 ) engine = NDB;
 Warnings:
-Warning	1296	Node <nodeid> '9004 Coordinator aborted'
-Warning	1296	Node <nodeid> '9004 Coordinator aborted'
-Warning	1296	Node <nodeid> '9004 Coordinator aborted'
-Warning	1296	Node <nodeid> '9004 Coordinator aborted'
-Warning	1296	Node <nodeid> '9004 Coordinator aborted'
-Warning	1296	Node <nodeid> '9004 Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
 set GLOBAL debug="-d,ndb_schema_dist_coord_abort_active";
 DROP TABLE t1;
 # Setup coordinator to restart when schema operation is received, this
@@ -27,6 +27,6 @@ CREATE TABLE t1(
 a int primary key
 ) engine = NDB;
 Warnings:
-Warning	1296	Node <nodeid> '9004 Aborted during shutdown'
+Warning	1296	Node <nodeid> 'Aborted during shutdown'
 set GLOBAL debug="-d,ndb_schema_dist_coord_fail_all";
 DROP TABLE t1;

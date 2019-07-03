@@ -77,7 +77,9 @@ enum Schema_op_result_code {
   NODE_TIMEOUT = 9003,      // Node timeout during
   COORD_ABORT = 9004,       // Coordinator aborted
   CLIENT_ABORT = 9005,      // Client aborted
-  CLIENT_KILLED = 9007      // Client killed
+  CLIENT_KILLED = 9007,     // Client killed
+  SCHEMA_OP_FAILURE = 9008  // Failure not related to protocol but the actual
+                            // schema operation to be distributed
 };
 
 /**
@@ -145,10 +147,12 @@ class Ndb_schema_dist_client {
   };
   std::vector<Schema_op_result> m_schema_op_results;
 
-  int log_schema_op_impl(Ndb *ndb, const char *query, int query_length,
-                         const char *db, const char *table_name,
-                         uint32 ndb_table_id, uint32 ndb_table_version,
-                         SCHEMA_OP_TYPE type, uint32 anyvalue);
+  void push_and_clear_schema_op_results();
+
+  bool log_schema_op_impl(Ndb *ndb, const char *query, int query_length,
+                          const char *db, const char *table_name,
+                          uint32 ndb_table_id, uint32 ndb_table_version,
+                          SCHEMA_OP_TYPE type, uint32 anyvalue);
 
   /**
      @brief Write row to ndb_schema to initiate the schema operation
