@@ -403,7 +403,8 @@ bool fix_sys_schema(THD *thd) {
     return true;
 
   if (sch != nullptr &&
-      !dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade())
+      !dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() &&
+      (opt_upgrade_mode != UPGRADE_FORCE))
     return false;
 
   const char **query_ptr;
