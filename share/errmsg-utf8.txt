@@ -11840,7 +11840,7 @@ ER_INNODB_CLUSTERED_INDEX_PRIVATE
   eng "Table %s key_used_on_scan is %lu even though there is no primary key inside InnoDB."
 
 ER_INNODB_PARTITION_TABLE_LOWERCASED
-  eng "Partition table %s opened after converting to lower case. The table may have been moved from a case in-sensitive file system. Please recreate table in the current file system"
+  eng "Partition table %s opened after converting to lower case. The table may have been moved from a case-insensitive file system. Please recreate the table in the current file system."
 
 ER_ERRMSG_REPLACEMENT_DODGY
   eng "Cannot replace error message (%s,%s,%s) \"%s\" with \"%s\"; wrong number or type of %% subsitutions."
