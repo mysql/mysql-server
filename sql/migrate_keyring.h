@@ -97,7 +97,7 @@ class Migrate_keyring {
   std::string m_destination_plugin_option;
   std::string m_source_plugin_name;
   std::string m_destination_plugin_name;
-  std::string m_internal_option;
+  std::string m_internal_option[2];
   st_mysql_keyring *m_source_plugin_handle;
   st_mysql_keyring *m_destination_plugin_handle;
   std::vector<Key_info> m_source_keys;

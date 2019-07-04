@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -88,6 +88,8 @@ MACRO(MYSQL_CHECK_CURL)
     IF(CURL_INCLUDE_DIR MATCHES "CURL_INCLUDE_DIR-NOTFOUND")
       MESSAGE(FATAL_ERROR "CURL include files not found under '${WITH_CURL}'")
     ENDIF()
+    SET(WITH_CURL_PATH ${WITH_CURL} CACHE PATH "path to CURL installation")
+    SET(WITH_CURL_PATH ${WITH_CURL})
     GET_CURL_VERSION()
     MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
     MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
@@ -98,5 +100,46 @@ MACRO(MYSQL_CHECK_CURL)
     SET(CURL_INCLUDE_DIR "")
     MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
     MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
+  ENDIF()
+ENDMACRO()
+
+
+MACRO(MYSQL_CHECK_CURL_DLLS)
+
+  IF (WITH_CURL_PATH AND WIN32)
+
+    MESSAGE(STATUS "WITH_CURL_PATH ${WITH_CURL_PATH}")
+    GET_FILENAME_COMPONENT(CURL_NAME "${CURL_LIBRARY}" NAME_WE)
+    FIND_FILE(HAVE_CURL_DLL
+      NAMES "${CURL_NAME}.dll"
+      PATHS "${WITH_CURL_PATH}/lib"
+      NO_DEFAULT_PATH
+    )
+    MESSAGE(STATUS "HAVE_CURL_DLL ${HAVE_CURL_DLL}")
+    IF(HAVE_CURL_DLL)
+      SET(CURL_LIBRARY "CURL_LIBRARY-NOTFOUND")
+      FIND_LIBRARY(CURL_LIBRARY
+        NAMES libcurl_imp.lib
+        PATHS ${WITH_CURL} ${WITH_CURL}/lib
+        NO_DEFAULT_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+      )
+      IF(CURL_LIBRARY MATCHES "CURL_LIBRARY-NOTFOUND")
+        MESSAGE(FATAL_ERROR "CURL dll import library not found under '${WITH_CURL}'")
+      ENDIF()
+      GET_FILENAME_COMPONENT(CURL_DLL_NAME "${HAVE_CURL_DLL}" NAME)
+      ADD_CUSTOM_TARGET(copy_curl_dlls ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${HAVE_CURL_DLL}"
+        "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${CURL_DLL_NAME}"
+      )
+      MESSAGE(STATUS "INSTALL ${HAVE_CURL_DLL} to ${INSTALL_BINDIR}")
+      INSTALL(FILES "${HAVE_CURL_DLL}"
+      DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+    ELSE()
+      MESSAGE(STATUS "Cannot find CURL dynamic libraries")
+    ENDIF()
+
   ENDIF()
 ENDMACRO()
