@@ -135,15 +135,33 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   }
 
   m_argc = argc;
-  m_argv = new char *[m_argc + 2];  // 1st for extra option and 2nd for nullptr
+  m_argv = new char *[m_argc + 2 + 1];  // 2 extra options + nullptr
   for (int cnt = 0; cnt < m_argc; ++cnt) {
     m_argv[cnt] = argv[cnt];
   }
-  /* add --loose_<plugin_name>_open_mode=1 option */
-  m_internal_option = "--loose_" + m_source_plugin_name + "_open_mode=1";
-  m_argv[m_argc] = const_cast<char *>(m_internal_option.c_str());
-  /* update m_argc, m_argv */
-  m_argv[++m_argc] = nullptr;
+
+  // add internal loose options
+  // --loose_<source_plugin_name>_open_mode=1,
+  // --loose_<source_plugin_name>_load_early=1,
+  // --loose_<destination_plugin_name>_load_early=1,
+  // open mode should disable writing on source keyring plugin
+  // load early should inform plugin that it's working in migration mode
+  size_t loose_option_count = 1;
+  m_internal_option[0] = "--loose_" + m_source_plugin_name + "_open_mode=1";
+  if (m_source_plugin_name == "keyring_hashicorp" ||
+      m_destination_plugin_name == "keyring_hashicorp") {
+    loose_option_count++;
+    m_internal_option[1] = "--loose_keyring_hashicorp_load_early=1";
+  }
+
+  // add internal options to the argument vector
+  for (size_t i = 0; i < loose_option_count; i++) {
+    m_argv[m_argc] = const_cast<char *>(m_internal_option[i].c_str());
+    m_argc++;
+  }
+
+  // null terminate and leave
+  m_argv[m_argc] = nullptr;
   return false;
 }
 

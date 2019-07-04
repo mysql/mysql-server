@@ -1119,6 +1119,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -1193,6 +1194,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -1640,6 +1642,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Fri Jun 28 2019 Ivan Svaljek <ivan.svaljek@oracle.com> - 8.0.18-1
+- Add keyring_hashicorp.so plugin
+
 * Thu Jun 26 2019 Mahi <maheedhar.panchalamarri.venka@oracle.com> - 8.0.18-1
 - Add component_mysqlbackup component
 
