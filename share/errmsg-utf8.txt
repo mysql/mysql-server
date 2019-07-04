@@ -15538,7 +15538,7 @@ ER_IB_MSG_288
 ER_IB_MSG_289
   eng "%s"
 
-ER_IB_MSG_290
+ER_IB_MSG_290_OBSOLETE
   eng "Cannot delete tablespace %lu because it is not found in the tablespace memory cache."
 
 ER_IB_MSG_291
