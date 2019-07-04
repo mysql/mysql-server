@@ -432,3 +432,9 @@ ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
   int error;
   return allocNodeId(no_retries, retry_delay_in_seconds, 0, error);
 }
+
+void
+ConfigRetriever::ConfigDeleter::operator()(ndb_mgm_configuration* p)
+{
+  ndb_mgm_destroy_configuration(p);
+}
