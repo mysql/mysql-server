@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,11 @@ class LogTimestampTest : public ::testing::Test {
 */
 TEST_F(LogTimestampTest, iso8601) {
   char time_buff[iso8601_size];
+#ifdef WIN32
+  char tz[] = "TZ=CET-1CES";
+#else
   char tz[] = "TZ=CET";
+#endif
   int time_buff_len;
 
   EXPECT_EQ(((iso8601_size)-1), LEN_MS_CET);
@@ -65,7 +69,7 @@ TEST_F(LogTimestampTest, iso8601) {
 
   // set up timezone (central european time)
   putenv(tz);
-  EXPECT_STREQ("CET", getenv("TZ"));
+  EXPECT_STREQ(&(tz[3]), getenv("TZ"));
   tzset();
 
   /// 1970/01/01 .000001  (1)
