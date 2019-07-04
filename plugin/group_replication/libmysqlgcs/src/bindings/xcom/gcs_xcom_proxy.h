@@ -725,13 +725,10 @@ class Gcs_xcom_proxy {
   /**
    * Opens the input channel to XCom.
    *
-   * @param address address to connect to
-   * @param port port to connect to
    * @retval true if successful
    * @retval false otherwise
    */
-  virtual bool xcom_input_connect(std::string const &address,
-                                  xcom_port port) = 0;
+  virtual bool xcom_input_connect() = 0;
 
   /**
    * Attempts to send the command @c data to XCom. (Called by GCS.)
@@ -898,7 +895,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   bool get_should_exit();
   void set_should_exit(bool should_exit);
 
-  bool xcom_input_connect(std::string const &address, xcom_port port);
+  bool xcom_input_connect();
   bool xcom_input_try_push(app_data_ptr data);
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
       app_data_ptr data);

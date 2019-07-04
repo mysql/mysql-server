@@ -1529,6 +1529,139 @@ err:
   return fd;
 }
 
+/* init_local_server_addr binds the sock_addr to the loopback address on any
+ * available socket.
+ *
+ * announce_tcp_local_server does exactly the same thing as announce_tcp, but it
+ * initializes its socket with init_local_server_addr.
+ *
+ * These are used by the local_server and the XCom queue. They will use a local
+ * TCP connection to signal that the queue has work to be consumed.
+ */
+static void init_local_server_addr_v6(struct sockaddr_in6 *sock_addr) {
+  memset(sock_addr, 0, sizeof(*sock_addr));
+  sock_addr->sin6_family = AF_INET6;
+  sock_addr->sin6_addr = in6addr_loopback;
+  sock_addr->sin6_port = 0;
+}
+
+static void init_local_server_addr_v4(struct sockaddr_in *sock_addr) {
+  memset(sock_addr, 0, sizeof(*sock_addr));
+  sock_addr->sin_family = AF_INET;
+  sock_addr->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  sock_addr->sin_port = 0;
+}
+
+result announce_tcp_local_server() {
+  result fd;
+  struct sockaddr_in6 sock_addr;
+  struct sockaddr_in6 bound_addr;
+  struct sockaddr_in sock_addr_v4;
+  struct sockaddr_in bound_addr_v4;
+  int bind_v6 = 0;
+
+  int error_code = 0;
+  xcom_port port = 0;
+  socklen_t bound_addr_len = 0;
+
+  // Try to create an IPv6 server socket. It should succeed if the
+  // OS supports IPv6, and fail otherwise.
+  fd = create_server_socket();
+  if (fd.val < 0) {
+    // If the OS does *not* support IPv6, we fall back to IPv4.
+    fd = create_server_socket_v4();
+    if (fd.val < 0) {
+      return fd;
+    }
+  } else {
+    bind_v6 = 1;
+  }
+
+  int bind_result = 0;
+  if (bind_v6) {
+    init_local_server_addr_v6(&sock_addr);
+    bind_result =
+        bind(fd.val, (struct sockaddr *)&sock_addr, sizeof(sock_addr));
+  }
+
+  if (bind_result < 0 || !bind_v6) {
+    if (bind_result < 0) {
+      fd = create_server_socket_v4();
+    }
+    // If we fail to bind to the desired address,
+    // we fall back to an IPv4 socket.
+    init_local_server_addr_v4(&sock_addr_v4);
+    bind_result =
+        bind(fd.val, (struct sockaddr *)&sock_addr_v4, sizeof(sock_addr_v4));
+
+    if (bind_result < 0) {
+      /* purecov: begin inspected */
+      int err = to_errno(GET_OS_ERR);
+      G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "0.0.0.0",
+                port, fd.val, err);
+      goto err;
+      /* purecov: end */
+    } else {
+      bind_v6 = 0;
+    }
+  }
+
+  if (bind_v6) {
+    bound_addr_len = sizeof(bound_addr);
+    error_code =
+        getsockname(fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
+  } else {
+    bound_addr_len = sizeof(bound_addr_v4);
+    error_code =
+        getsockname(fd.val, (struct sockaddr *)&bound_addr_v4, &bound_addr_len);
+  }
+  if (error_code != 0) {
+    /* purecov: begin inspected */
+    G_MESSAGE(
+        "Unable to retrieve the tcp port announce_tcp_local_server bound to "
+        "(socket=%d, error_code=%d)!",
+        fd.val, error_code);
+    goto err;
+    /* purecov: end */
+  }
+
+  if (bind_v6) {
+    port = ntohs(bound_addr.sin6_port);
+  } else {
+    port = ntohs(bound_addr_v4.sin_port);
+  }
+
+  G_DEBUG("Successfully bound to %s:%d (socket=%d).", "0.0.0.0", port, fd.val);
+  if (listen(fd.val, 32) < 0) {
+    /* purecov: begin inspected */
+    int err = to_errno(GET_OS_ERR);
+    G_MESSAGE(
+        "Unable to listen backlog to 32. "
+        "(socket=%d, errno=%d)!",
+        fd.val, err);
+    goto err;
+    /* purecov: end */
+  }
+  G_DEBUG(
+      "Successfully set listen backlog to 32 "
+      "(socket=%d)!",
+      fd.val);
+  /* Make socket non-blocking */
+  unblock_fd(fd.val);
+  if (fd.val < 0) {
+    int err = to_errno(GET_OS_ERR);
+    G_MESSAGE("Unable to unblock socket (socket=%d, errno=%d)!", fd.val, err);
+  } else {
+    G_DEBUG("Successfully unblocked socket (socket=%d)!", fd.val);
+  }
+  return fd;
+
+err:
+  fd.funerr = to_errno(GET_OS_ERR);
+  task_dump_err(fd.funerr);
+  close_socket(&fd.val);
+  return fd;
+}
 int accept_tcp(int fd, int *ret) {
   struct sockaddr_storage sock_addr;
   DECL_ENV

@@ -1091,34 +1091,39 @@ void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop) {
   xcom_try_pop_from_input_cb = pop;
 }
 
+static xcom_port local_server_port = 0;
+
 static connection_descriptor *input_signal_connection = NULL;
 
-bool xcom_input_new_signal_connection(char const *address, xcom_port port) {
+#ifdef XCOM_HAVE_OPENSSL
+static connection_descriptor *connect_xcom(const char *server, xcom_port port,
+                                           bool use_ssl);
+bool xcom_input_new_signal_connection() {
+  assert(local_server_port != 0);
   assert(input_signal_connection == NULL);
-  bool const SUCCESSFUL = true;
-  bool const UNSUCCESSFUL = false;
+  input_signal_connection =
+      connect_xcom((char *)"::1", local_server_port, false);
 
-  /* Try to connect. */
-  input_signal_connection = xcom_open_client_connection(address, port);
-  if (input_signal_connection == NULL) return UNSUCCESSFUL;
-
-  /* Have the server handle the rest of this connection using a local_server
-     task. */
-  bool const converted =
-      (xcom_client_convert_into_local_server(input_signal_connection) == 1);
-  if (converted) {
-    G_TRACE(
-        "Converted the signalling connection handler into a local_server "
-        "task on the client side.");
-    return SUCCESSFUL;
-  } else {
-    G_DEBUG(
-        "Error converting the signalling connection handler into a "
-        "local_server task on the client side.");
-    xcom_input_free_signal_connection();
-    return UNSUCCESSFUL;
+  if (input_signal_connection == NULL) {
+    input_signal_connection =
+        connect_xcom((char *)"127.0.0.1", local_server_port, false);
   }
+
+  return (input_signal_connection != NULL);
 }
+#else
+static connection_descriptor *connect_xcom(const char *server, xcom_port port);
+void xcom_input_new_signal_connection(void) {
+  assert(local_server_port != 0);
+  assert(input_signal_connection == NULL);
+  input_signal_connection = connect_xcom((char *)"::1", local_server_port);
+  if (input_signal_connection == NULL) {
+    input_signal_connection =
+        connect_xcom((char *)"127.0.0.1", local_server_port, false);
+  }
+  assert(input_signal_connection != NULL);
+}
+#endif
 static int64_t socket_write(connection_descriptor *wfd, void *_buf, uint32_t n);
 bool xcom_input_signal() {
   bool successful = false;
@@ -1136,8 +1141,10 @@ void xcom_input_free_signal_connection() {
   }
 }
 
+/* Listen for connections on socket and create a handler task */
 int local_server(task_arg arg) {
   DECL_ENV
+  int fd;
   connection_descriptor rfd;
   unsigned char buf[1024];  // arbitrary size
   int64_t nr_read;
@@ -1150,11 +1157,24 @@ int local_server(task_arg arg) {
   END_ENV;
   TASK_BEGIN
   assert(xcom_try_pop_from_input_cb != NULL);
-  {
-    connection_descriptor *arg_rfd = (connection_descriptor *)get_void_arg(arg);
-    ep->rfd = *arg_rfd;
-    free(arg_rfd);
-  }
+  assert(ep->fd >= 0);
+  ep->fd = get_int_arg(arg);
+  unblock_fd(ep->fd);
+  DBGOUT(FN; NDBG(ep->fd, d););
+  /* Wait for input signalling connection. */
+  TASK_CALL(accept_tcp(ep->fd, &ep->rfd.fd));
+#ifdef XCOM_HAVE_OPENSSL
+  ep->rfd.ssl_fd = 0;
+#endif
+  assert(ep->rfd.fd != -1);
+  /* Close the server socket. */
+  shut_close_socket(&ep->fd);
+  /* Make socket non-blocking and add socket to the event loop. */
+  unblock_fd(ep->rfd.fd);
+  set_nodelay(ep->rfd.fd);
+  wait_io(stack, ep->rfd.fd, 'r');
+  TASK_YIELD;
+  set_connected(&ep->rfd, CON_FD);
   memset(ep->buf, 0, 1024);
   ep->nr_read = 0;
   ep->request = NULL;
@@ -1227,9 +1247,7 @@ int local_server(task_arg arg) {
   TASK_END;
 }
 
-static bool local_server_is_setup() {
-  return xcom_try_pop_from_input_cb != NULL;
-}
+static bool local_server_needed() { return xcom_try_pop_from_input_cb != NULL; }
 
 int xcom_taskmain2(xcom_port listen_port) {
   init_xcom_transport(listen_port);
@@ -1257,6 +1275,45 @@ int xcom_taskmain2(xcom_port listen_port) {
       /* purecov: end */
     }
 
+    /* Setup local_server socket */
+    result local_fd = {0, 0};
+    if (local_server_needed()) {
+      if ((local_fd = announce_tcp_local_server()).val < 0) {
+        /* purecov: begin inspected */
+        MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
+        task_dump_err(local_fd.funerr);
+        g_critical("Unable to announce local tcp port %d. Port already in use?",
+                   listen_port);
+        if (xcom_comms_cb) {
+          xcom_comms_cb(XCOM_COMMS_ERROR);
+        }
+        if (xcom_terminate_cb) {
+          xcom_terminate_cb(0);
+        }
+        return 1;
+        /* purecov: end */
+      }
+      /* Get the port local_server bound to. */
+      struct sockaddr_in6 bound_addr;
+      socklen_t bound_addr_len = sizeof(bound_addr);
+      int const error_code = getsockname(
+          local_fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
+      if (error_code != 0) {
+        /* purecov: begin inspected */
+        task_dump_err(error_code);
+        g_critical("Unable to retrieve the tcp port local_server bound to");
+        if (xcom_comms_cb) {
+          xcom_comms_cb(XCOM_COMMS_ERROR);
+        }
+        if (xcom_terminate_cb) {
+          xcom_terminate_cb(0);
+        }
+        return 1;
+        /* purecov: end */
+      }
+      local_server_port = ntohs(bound_addr.sin6_port);
+    }
+
     if (xcom_comms_cb) {
       xcom_comms_cb(XCOM_COMMS_OK);
     }
@@ -1264,6 +1321,10 @@ int xcom_taskmain2(xcom_port listen_port) {
     MAY_DBG(FN; STRLIT("Creating tasks"));
     /* task_new(generator_task, null_arg, "generator_task", XCOM_THREAD_DEBUG);
      */
+    if (local_server_needed()) {
+      task_new(local_server, int_arg(local_fd.val), "local_server",
+               XCOM_THREAD_DEBUG);
+    }
     task_new(tcp_server, int_arg(tcp_fd.val), "tcp_server", XCOM_THREAD_DEBUG);
     task_new(tcp_reaper_task, null_arg, "tcp_reaper_task", XCOM_THREAD_DEBUG);
     /* task_new(xcom_statistics, null_arg, "xcom_statistics",
@@ -4794,42 +4855,6 @@ again:
       break;
     }
     ep->site = find_site_def(ep->p->synode);
-
-    /* Handle this connection on a local_server task instead of this
-       acceptor_learner_task task. */
-    if (ep->p->op == client_msg && ep->p->a &&
-        ep->p->a->body.c_t == convert_into_local_server_type) {
-      if (local_server_is_setup()) {
-        /* Launch local_server task to handle this connection. */
-        {
-          connection_descriptor *con = malloc(sizeof(connection_descriptor));
-          *con = ep->rfd;
-          task_new(local_server, void_arg(con), "local_server",
-                   XCOM_THREAD_DEBUG);
-        }
-      }
-      /* Reply to client:
-         - OK if local_server task is setup, or
-         - FAIL otherwise. */
-      {
-        CREATE_REPLY(ep->p);
-        reply->op = xcom_client_reply;
-        reply->cli_err = local_server_is_setup() ? REQUEST_OK : REQUEST_FAIL;
-        SERIALIZE_REPLY(reply);
-        replace_pax_msg(&reply, NULL);
-      }
-      WRITE_REPLY;
-      delete_pax_msg(ep->p);
-      ep->p = NULL;
-      if (local_server_is_setup()) {
-        /* Relinquish ownership of the connection. It is now onwed by the
-           launched local_server task. */
-        reset_connection(&ep->rfd);
-      }
-      /* Terminate this task. */
-      TERMINATE;
-    }
-
     /*
       Getting a pointer to the server needs to be done after we have
       received a message, since without having received a message, we
@@ -5186,12 +5211,6 @@ app_data_ptr init_set_cache_size_msg(app_data *a, uint64_t cache_limit) {
   init_app_data(a);
   a->body.c_t = set_cache_limit;
   a->body.app_u_u.cache_limit = cache_limit;
-  return a;
-}
-
-app_data_ptr init_convert_into_local_server_msg(app_data *a) {
-  init_app_data(a);
-  a->body.c_t = convert_into_local_server_type;
   return a;
 }
 
@@ -6731,14 +6750,6 @@ int xcom_client_set_cache_limit(connection_descriptor *fd,
   a.body.c_t = set_cache_limit;
   a.body.app_u_u.cache_limit = cache_limit;
   retval = xcom_send_app_wait(fd, &a, 0);
-  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
-  return retval;
-}
-
-int xcom_client_convert_into_local_server(connection_descriptor *fd) {
-  app_data a;
-  int retval = 0;
-  retval = xcom_send_app_wait(fd, init_convert_into_local_server_msg(&a), 0);
   my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }

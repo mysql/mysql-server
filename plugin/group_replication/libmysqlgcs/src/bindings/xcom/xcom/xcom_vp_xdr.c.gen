@@ -356,8 +356,6 @@ xdr_app_u (XDR *xdrs, app_u *objp)
 		 if (!xdr_synode_no_array (xdrs, &objp->app_u_u.synodes))
 			 return FALSE;
 		break;
-	case convert_into_local_server_type:
-		break;
 	default:
 		break;
 	}

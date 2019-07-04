@@ -132,8 +132,7 @@ enum cargo_type {
   set_cache_limit,
   get_event_horizon_type,
   set_event_horizon_type,
-  get_synode_app_data_type,
-  convert_into_local_server_type
+  get_synode_app_data_type
 };
 
 typedef node_no node_no_array<NSERVERS>;
@@ -201,8 +200,6 @@ union app_u switch(cargo_type c_t){
    xcom_event_horizon event_horizon;
  case get_synode_app_data_type:
    synode_no_array synodes;
- case convert_into_local_server_type:
-   void;
  default:
    void;
 };

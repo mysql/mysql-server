@@ -98,8 +98,6 @@ const char *cargo_type_to_str(cargo_type x) {
       return "set_event_horizon_type";
     case get_synode_app_data_type:
       return "get_synode_app_data_type";
-    case convert_into_local_server_type:
-      return "convert_into_local_server_type";
     default:
       return "???";
   }
