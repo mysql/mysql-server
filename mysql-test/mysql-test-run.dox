@@ -702,46 +702,6 @@
 ###############################################################################
 
 
-
-## The Test Framework and SSL
-
-/**
-  @page PAGE_TEST_FRAMEWORK_SSL The Test Framework and SSL
-
-  When @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" starts, it
-  checks whether <b>mysqld</b> supports SSL connections:
-
-  <ul>
-    <li>
-      If <b>mysqld</b> supports SSL, @ref PAGE_MYSQL_TEST_RUN_PL
-      "mysql-test-run.pl" starts it with the proper
-      <b>`--ssl`-<em>xxx</em></b> options that enable it to
-      accept SSL connections for those test cases that require secure
-      connections (those with “ssl” in their name). As @ref
-      PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" runs test cases, a
-      secure connection to <b>mysqld</b> is initiated for those cases
-      that require one. For those test cases that do not require SSL,
-      an unencrypted connection is initiated.
-    </li>
-
-    <li>
-      If <b>mysqld</b> does not support SSL, @ref PAGE_MYSQL_TEST_RUN_PL
-      "mysql-test-run.pl" skips those test cases that require secure
-      connections.
-    </li>
-  </ul>
-
-  If @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" is started with
-  the <b>`--ssl`</b> option, it sets up a secure connection for all
-  test cases. In this case, if <b>mysqld</b> does not support SSL,
-  @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" exits with an error
-  message: <b>Couldn't find support for SSL</b>.
-*/
-
-###############################################################################
-
-
-
 ## How to Report Bugs from Tests in the MySQL Test Suite
 
 /**
@@ -2257,13 +2217,7 @@
   @page PAGE_INCLUDE_FILES Using Include Files to Simplify Test Cases
 
   The <b>include</b> directory contains many files intended for
-  inclusion into test case files. For example, if a test case needs to
-  verify that the server supports <b>SSL</b> connections, use this
-  line in the test case file:
-
-  @verbatim
-  --source include/have_ssl.inc
-  @endverbatim
+  inclusion into test case files.
 
   These include files serve many purposes, but in general, they
   encapsulate operations of varying complexity into single files so
@@ -3410,7 +3364,6 @@
       public key, see [The SHA-256 Authentication Plugin]
       (https://dev.mysql.com/doc/refman/8.0/en/sha256-authentication-plugin.html).
 
-      This option is available only if MySQL was built using OpenSSL.
     </li>
 
     <li>
@@ -4961,12 +4914,6 @@
     </li>
 
     <li>
-      <tt>`--skip-ssl`</tt>
-
-      Do not start <b>mysqld</b> with support for SSL connections.
-    </li>
-
-    <li>
       <tt>`--skip-test`=<b>regex</b></tt>
 
       Specify a regular expression to be applied to test case names.
@@ -5011,17 +4958,6 @@
 
       Pass the <b>`--sp-protocol`</b> option to @ref PAGE_MYSQLTEST
       "mysqltest".
-    </li>
-
-    <li>
-      <tt>`--ssl`</tt>
-
-      If @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" is started
-      with the <b>`--ssl`</b> option, it sets up a secure connection
-      for all test cases. In this case, if <b>mysqld</b> does not
-      support SSL, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl"
-      exits with an error message: <b>Couldn't find support for
-      SSL</b>
     </li>
 
     <li>
@@ -6034,9 +5970,6 @@
               <tt>TCP</tt>: Use the TCP/IP connection protocol.
             </li>
 
-            <li>
-              <tt>SSL</tt>: Use a secure connection.
-            </li>
           </ul>
 
           Passing <b>PIPE</b> or <b>SHM</b> on non-Windows systems

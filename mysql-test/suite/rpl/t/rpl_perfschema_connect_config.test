@@ -34,7 +34,6 @@
 #           for multi-source monitoring
 
 source include/master-slave.inc;
-source include/have_ssl.inc;
 source include/have_binlog_format_mixed.inc;
 
 call mtr.add_suppression("Master command COM_REGISTER_SLAVE failed.");

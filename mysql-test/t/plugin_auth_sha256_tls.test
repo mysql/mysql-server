@@ -1,4 +1,4 @@
---source include/have_ssl.inc
+--source include/allowed_ciphers.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
 --replace_regex $ALLOWED_CIPHERS_REGEX

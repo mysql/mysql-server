@@ -18,7 +18,6 @@
 #
 
 --source include/have_mysqld_monitoring_process.inc
---source include/have_openssl.inc
 --source include/have_clone_plugin.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3

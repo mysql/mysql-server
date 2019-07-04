@@ -1020,12 +1020,6 @@ sub optimize_cases {
     foreach my $opt (@{ $tinfo->{master_opt} }) {
       (my $dash_opt = $opt) =~ s/_/-/g;
 
-      # Check whether server supports SSL connection.
-      if ($dash_opt eq "--skip-ssl" and $::opt_ssl) {
-        skip_test($tinfo, "Server doesn't support SSL connection");
-        next;
-      }
-
       my $default_engine =
         mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine =
@@ -1382,13 +1376,6 @@ sub collect_one_test_case {
     }
   }
 
-  # Check for a test that need SSL
-  if ($tinfo->{'need_ssl'} and !$::ssl_supported) {
-    # SSL is not supported, skip it
-    skip_test($tinfo, "No SSL support");
-    return $tinfo;
-  }
-
   # Check for group replication tests
   $group_replication = 1 if ($tinfo->{'grp_rpl_test'});
 
@@ -1508,7 +1495,6 @@ my @tags = (
 
   [ "include/ndb_master-slave.inc", "ndb_test",       1 ],
   [ "federated.inc",                "federated_test", 1 ],
-  [ "include/have_ssl.inc",         "need_ssl",       1 ],
   [ "include/not_windows.inc",      "not_windows",    1 ],
   [ "include/not_parallel.inc",     "not_parallel",   1 ],
 

@@ -101,8 +101,6 @@ SELECT COUNT(@@GLOBAL.innodb_temp_data_file_path);
 SELECT innodb_temp_data_file_path = @@SESSION.innodb_temp_data_file_path;
 --echo Expected error 'Readonly variable'
 
---source include/have_ssl.inc
---source include/have_openssl.inc
 
 --echo #
 --echo # Bug #28590014 INNODB_DATA_FILE_PATH HAS A BAD DEFAULT VALUE

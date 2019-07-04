@@ -3,7 +3,6 @@
 # while having as much plugin code loaded as possible.
 #
 
---source include/have_ssl.inc
 --source include/have_semisync_plugin.inc
 
 ## FIXME : does not start

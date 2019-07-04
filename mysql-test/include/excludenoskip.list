@@ -100,11 +100,7 @@ have_mecab.inc
 fix_priv_tables.test
 
 # 4.4
-have_openssl.inc
 have_openssl_binary.inc
-have_ssl.inc
-have_ssl_crypto_functs.inc
-not_openssl.inc
 check_openssl_version.inc
 have_tlsv13.inc
 not_have_tlsv13.inc

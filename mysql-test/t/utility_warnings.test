@@ -1,6 +1,5 @@
 -- source include/have_log_bin.inc
 -- source include/not_windows.inc
--- source include/have_ssl.inc
 
 CREATE DATABASE db_25380000;
 USE db_25380000;

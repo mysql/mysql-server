@@ -1,11 +1,4 @@
--- source include/have_ssl.inc
--- source include/have_openssl.inc
-
-let $crllen=`select length(trim(coalesce(@@ssl_crl, ''))) + length(trim(coalesce(@@ssl_crlpath, '')))`;
-if (!$crllen)
-{
-  skip Needs OpenSSL;
-}
+--source include/allowed_ciphers.inc
 
 --echo # test --crl for the client : should connect
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR

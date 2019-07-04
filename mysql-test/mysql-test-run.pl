@@ -206,7 +206,6 @@ our $opt_non_parallel_test;
 our $opt_record;
 our $opt_report_unstable_tests;
 our $opt_skip_combinations;
-our $opt_ssl;
 our $opt_suites;
 our $opt_suite_opt;
 our $opt_summary_report;
@@ -286,7 +285,6 @@ our $start_only;
 our $glob_debugger      = 0;
 our $group_replication  = 0;
 our $ndbcluster_enabled = 0;
-our $ssl_supported      = 1;
 
 our @share_locations;
 
@@ -1368,7 +1366,6 @@ sub print_global_resfile {
   resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
   resfile_global("sleep",            $opt_sleep);
   resfile_global("sp-protocol",      $opt_sp_protocol      ? 1 : 0);
-  resfile_global("ssl",              $opt_ssl              ? 1 : 0);
   resfile_global("start_time",       isotime $^T);
   resfile_global("suite-opt",        $opt_suite_opt);
   resfile_global("suite-timeout",    $opt_suite_timeout);
@@ -1414,9 +1411,7 @@ sub command_line_setup {
     'json-explain-protocol' => \$opt_json_explain_protocol,
     'opt-trace-protocol'    => \$opt_trace_protocol,
     'ps-protocol'           => \$opt_ps_protocol,
-    'skip-ssl'              => sub { $opt_ssl = 0; $ssl_supported = 0; },
     'sp-protocol'           => \$opt_sp_protocol,
-    'ssl|with-openssl'      => \$opt_ssl,
     'view-protocol'         => \$opt_view_protocol,
     'vs-config=s'           => \$opt_vs_config,
 
@@ -2095,7 +2090,6 @@ sub command_line_setup {
 
   check_debug_support(\%mysqld_variables);
   check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support();
 
   executable_setup();
 }
@@ -3158,15 +3152,6 @@ sub check_debug_support ($) {
   }
   mtr_report(" - Binaries are debug compiled");
   $debug_compiled_binaries = 1;
-}
-
-# Check if SSL support is enabled.
-sub check_ssl_support {
-  if (!$opt_ssl and !$ssl_supported) {
-    mtr_report(" - Skipping SSL");
-  } elsif ($opt_ssl and !$ssl_supported) {
-    $ssl_supported = 1;
-  }
 }
 
 # Helper function to handle configuration-based subdirectories which
@@ -6712,11 +6697,6 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--sleep=%d", $opt_sleep);
   }
 
-  if ($opt_ssl) {
-    # Turn on SSL for _all_ test cases if option --ssl was used
-    mtr_add_arg($args, "--ssl-mode=REQUIRED");
-  }
-
   if ($opt_max_connections) {
     mtr_add_arg($args, "--max-connections=%d", $opt_max_connections);
   }
@@ -7274,9 +7254,7 @@ Options to control what engine/variation to run
   opt-trace-protocol    Print optimizer trace.
   ps-protocol           Use the binary protocol between client and server.
   skip-combinations     Ignore combination file (or options).
-  skip-ssl              Dont start server with support for ssl connections.
   sp-protocol           Create a stored procedure to execute all queries.
-  ssl                   Use ssl protocol between client and server.
   view-protocol         Create a view to execute all non updating queries.
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable).

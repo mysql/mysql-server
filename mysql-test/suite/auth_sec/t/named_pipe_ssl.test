@@ -1,4 +1,3 @@
---source include/have_ssl.inc
 --source include/windows.inc
 
 --echo # pipe protocol with ssl default (enabled).
