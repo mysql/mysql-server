@@ -857,7 +857,7 @@ ERROR HY000: DEFAULT function cannot be used with default value expressions
 create table t1 ( i int, j int default ( i * i ), primary key(j));
 insert into t1 (i) values (4), (5);
 insert into t1 values (4, DEFAULT), (5, DEFAULT);
-ERROR 23000: Duplicate entry '16' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '16' for key 't1.PRIMARY'
 insert into t1 values (6, DEFAULT), (7, DEFAULT);
 select * from t1;
 i	j

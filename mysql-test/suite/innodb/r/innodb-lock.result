@@ -100,11 +100,11 @@ INSERT INTO t1 VALUES(3,1);
 BEGIN;
 INSERT IGNORE INTO t1 VALUES(3,14);
 Warnings:
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't1.PRIMARY'
 BEGIN;
 INSERT IGNORE INTO t1 VALUES(3,23);
 Warnings:
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't1.PRIMARY'
 SELECT * FROM t1 FOR UPDATE;
 COMMIT;
 a	b

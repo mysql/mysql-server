@@ -666,7 +666,7 @@ insert into t2 values (1),(2);
 insert into t3 values (1),(2);
 reset master;
 delete t3.* from t2,t3 where t2.a=t3.a;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select count(*) from t1 /* must be 0 */;
 count(*)
 0
@@ -751,7 +751,7 @@ UPDATE IGNORE t1, (SELECT 1 AS duplicate_id) AS t2 SET t1.id=t2.duplicate_id;
 affected rows: 0
 info: Rows matched: 2  Changed: 0  Warnings: 1
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 # Check that no rows changed.
 SELECT * FROM t1;
 id

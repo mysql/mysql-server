@@ -43,7 +43,7 @@ INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,2,2), (3,3,3), (4,4,4);
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 BEGIN;
 UPDATE t1 SET b=2 WHERE a=1;
-ERROR 23000: Duplicate entry '2' for key 'b'
+ERROR 23000: Duplicate entry '2' for key 't1.b'
 SELECT a FROM t1 WHERE 2<=b AND b<=3 AND c=1 FOR SHARE;
 a
 BEGIN;

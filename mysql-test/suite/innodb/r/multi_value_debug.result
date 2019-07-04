@@ -415,13 +415,13 @@ INSERT INTO t1 VALUES(3, CAST('["100"]' AS JSON));;
 SET DEBUG_SYNC='now WAIT_FOR converting';
 COMMIT;
 SET DEBUG_SYNC='now SIGNAL go';
-ERROR 23000: Duplicate entry '[100]' for key 'mv_idx_binary'
+ERROR 23000: Duplicate entry '[100]' for key 't1.mv_idx_binary'
 START TRANSACTION;
 SET DEBUG_SYNC='row_update_for_mysql_error SIGNAL del_fail WAIT_FOR delete_go';
 DELETE FROM t1;;
 SET DEBUG_SYNC='now WAIT_FOR del_fail';
 INSERT INTO t1 VALUES(4, CAST('["100"]' AS JSON));
-ERROR 23000: Duplicate entry '[100]' for key 'mv_idx_binary'
+ERROR 23000: Duplicate entry '[100]' for key 't1.mv_idx_binary'
 SET DEBUG_SYNC='now SIGNAL delete_go';
 COMMIT;
 COMMIT;

@@ -254,7 +254,7 @@ UNIQUE KEY(f2),UNIQUE KEY(f3))ENGINE=INNODB;
 INSERT INTO t1(f2,f3) VALUES(10, 100);
 INSERT INTO t1(f2,f3) VALUES(20, 200);
 UPDATE t1 SET f2=30,f3=100 WHERE f2 = 20;
-ERROR 23000: Duplicate entry '100' for key 'f3'
+ERROR 23000: Duplicate entry '100' for key 't1.f3'
 SELECT * FROM t1;
 f1	f2	f3
 1	10	100

@@ -272,7 +272,7 @@ Grants for u1@localhost
 GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT RUBBISH ON *.* TO `u1`@`localhost`
 INSERT INTO mysql.global_grants VALUES ('u1','localhost','RUBBISH','Y');
-ERROR 23000: Duplicate entry 'u1-localhost-RUBBISH' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'u1-localhost-RUBBISH' for key 'global_grants.PRIMARY'
 INSERT INTO mysql.global_grants VALUES ('u1','localhoster','RUBBISH','N');
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR u1@localhost;

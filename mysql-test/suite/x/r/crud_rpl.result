@@ -322,7 +322,7 @@ RUN INSERT INTO xplugintest.table1 VALUES (1,'{"a":["x", "y"]}'), (2,'{"b":["x",
 Records: 2  Duplicates: 0  Warnings: 0
 RUN INSERT INTO xplugintest.table1 VALUES (3,'{"c":["x", "y"]}'), (2,'{"d":["x", "y"]}')
 While executing INSERT INTO xplugintest.table1 VALUES (3,'{"c":["x", "y"]}'), (2,'{"d":["x", "y"]}'):
-Got expected error: Duplicate entry '2' for key 'PRIMARY' (code 1062)
+Got expected error: Duplicate entry '2' for key 'table1.PRIMARY' (code 1062)
 RUN SELECT * FROM xplugintest.table1 
 _id	doc
 1	{"a": ["x", "y"]}

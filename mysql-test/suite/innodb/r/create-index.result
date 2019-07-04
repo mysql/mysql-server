@@ -5,5 +5,5 @@
 create table t1 (f1 binary(5)) engine=innodb;
 insert into t1 values ('w'), ('w');
 create unique index index_t1 on t1(f1(4));
-ERROR 23000: Duplicate entry 'w' for key 'index_t1'
+ERROR 23000: Duplicate entry 'w' for key 't1.index_t1'
 drop table t1;

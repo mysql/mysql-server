@@ -361,7 +361,7 @@ UNIQUE INDEX t2_unique_index(j)
 )ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 INSERT INTO t2 VALUES();
 INSERT INTO t2 VALUES();
-ERROR 23000: Duplicate entry '6' for key 't2_unique_index'
+ERROR 23000: Duplicate entry '6' for key 't2.t2_unique_index'
 INSERT INTO t2 VALUES(10, 10, 10.0, 10.0);
 SELECT * FROM t2 ORDER BY i;
 i	j	f	d

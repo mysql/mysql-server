@@ -2833,7 +2833,7 @@ SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
 ALGORITHM=COPY;
-ERROR 23000: Duplicate entry '1' for key 'u'
+ERROR 23000: Duplicate entry '1' for key 't3.u'
 SET FOREIGN_KEY_CHECKS=1;
 # Updating of generated names still happens at the end of ALTER,
 # so there should not be conflicting foreign keys for generated

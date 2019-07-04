@@ -57,7 +57,7 @@ id	LEFT(bfield,20)
 13	cccccccccccccccccccc
 INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
 (3,repeat('c',2000));
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
 (23,repeat('c',2000));
 SELECT id,LEFT(bfield,20) FROM t1;
@@ -132,7 +132,7 @@ id	LEFT(bfield,20)
 13	cccccccccccccccccccc
 INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
 (3,repeat('c',2000));
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
 (23,repeat('c',2000));
 SELECT id,LEFT(bfield,20) FROM t1;
@@ -172,6 +172,6 @@ id	LEFT(bfield,20)
 23	cccccccccccccccccccc
 INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
 (3,repeat('c',2000));
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 DROP TABLE t1;
 DROP DATABASE db_wl6494;

@@ -414,11 +414,11 @@ C1	C2
 CREATE TABLE t8 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = 'INNODB'  ;
 INSERT INTO t8 VALUES (99,99,99);
 INSERT INTO t8 VALUES (99,22,33);
-ERROR 23000: Duplicate entry '99' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '99' for key 't8.PRIMARY'
 INSERT INTO t8 VALUES (11,99,33);
-ERROR 23000: Duplicate entry '99' for key 'b'
+ERROR 23000: Duplicate entry '99' for key 't8.b'
 INSERT INTO t8 VALUES (11,22,99);
-ERROR 23000: Duplicate entry '99' for key 'c'
+ERROR 23000: Duplicate entry '99' for key 't8.c'
 SELECT * FROM t8 ORDER BY a;
 a	b	c
 99	99	99
@@ -584,7 +584,7 @@ include/sync_slave_sql_with_master.inc
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE='INNODB' ;
 INSERT INTO t1 VALUES (1), (2), (3);
 UPDATE t1 SET a = 10;
-ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '10' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES (4);
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]

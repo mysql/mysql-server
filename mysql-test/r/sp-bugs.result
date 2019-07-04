@@ -100,7 +100,7 @@ SELECT DATABASE();
 DATABASE()
 db2
 SELECT db1.f1(1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 SELECT DATABASE();
 DATABASE()
 db2

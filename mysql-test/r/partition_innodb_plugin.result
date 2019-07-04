@@ -18,7 +18,7 @@ INSERT INTO t1 (time,id2) VALUES ('2011-07-24',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
 CREATE UNIQUE INDEX uk_time_id2 on t1(time,id2);
-ERROR 23000: Duplicate entry '2011-07-25-1' for key 'uk_time_id2'
+ERROR 23000: Duplicate entry '2011-07-25-1' for key 't1.uk_time_id2'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3

@@ -770,17 +770,17 @@ UPDATE IGNORE t1 SET c1=NULL WHERE c2 < 1975;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 SELECT c1 from t1 WHERE c2 < 1975;
 c1
 0000
@@ -819,9 +819,9 @@ c1
 2155
 NULL
 UPDATE t1 SET c1=1971 WHERE c2=1995;
-ERROR 23000: Duplicate entry '1971' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1971' for key 't1.PRIMARY'
 UPDATE t1,t2,t3,t4 SET t3.c1=t4.c1+t4.c2 WHERE t3.c1=61 AND t4.c2=4;
-ERROR 23000: Duplicate entry '0000' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0000' for key 't3.PRIMARY'
 UPDATE t1 SET t1.c1=2073 WHERE c1=2074 AND c2=2064;
 SELECT * FROM t1;
 c1	c2

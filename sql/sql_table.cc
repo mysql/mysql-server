@@ -17512,7 +17512,7 @@ static int copy_data_between_tables(
             err_msg = ER_THD(thd, ER_DUP_ENTRY_AUTOINCREMENT_CASE);
           print_keydup_error(to,
                              key_nr == MAX_KEY ? NULL : &to->key_info[key_nr],
-                             err_msg, MYF(0));
+                             err_msg, MYF(0), from->s->table_name.str);
         } else
           to->file->print_error(error, MYF(0));
         break;

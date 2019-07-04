@@ -269,7 +269,7 @@ INSERT INTO t1 ( j4 ) VALUES( JSON_OBJECT( 'key1' , CAST( '2019-11-27 03:43:53' 
 INSERT INTO t1 VALUES();
 DELETE FROM t1 WHERE ( JSON_OVERLAPS( JSON_OBJECT( 'key1' , CAST(null AS JSON)) , j1 -> '$[*]' ) ) XOR ( JSON_CONTAINS( j5 -> '$[*]' , JSON_OBJECT('key1' , CAST(CONCAT( '[ 1, 2, 3, ' , null, ', 5 ]' ) AS JSON)) ) );
 UPDATE t1 SET j4 = '["foobar", "HelloWorld", "MySQL", "1234" ]' WHERE NOT ('');
-ERROR 23000: Duplicate entry '1-["base64:t-2' for key 'mv_idx_binary'
+ERROR 23000: Duplicate entry '1-["base64:t-2' for key 't1.mv_idx_binary'
 UPDATE t1 SET j7 = JSON_OBJECT( 'key1' , JSON_OBJECT()) WHERE JSON_OBJECT('key1' , CAST( '[]' AS JSON)) MEMBER OF ( j1 -> '$[*]' );
 DELETE FROM t1;
 CHECK TABLE t1;

@@ -1320,7 +1320,7 @@ ERROR 42S01: Table 't1' already exists
 SET GTID_NEXT = 'AUTOMATIC';
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 INSERT INTO t VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't.PRIMARY'
 SET GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 #### Clean up ####

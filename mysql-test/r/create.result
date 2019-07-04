@@ -172,7 +172,7 @@ Note	1051	Unknown table 'test.t2'
 CREATE TABLE t1 (a int not null);
 INSERT INTO t1 values (1),(2),(1);
 CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 DROP TABLE t1;
@@ -859,7 +859,7 @@ Warnings:
 Note	1050	Table 't1' already exists
 drop table t1;
 create table t1 (primary key (a)) (select 1 as a) union all (select 1 as a);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 create table t1 (i int);
 create table t1 select 1 as i;
 ERROR 42S01: Table 't1' already exists
@@ -983,9 +983,9 @@ INSERT IGNORE INTO t1 (b) VALUES (5);
 CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
 SELECT a FROM t1;
 INSERT INTO t2 SELECT a FROM t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 INSERT INTO t2 SELECT a FROM t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 DROP TABLE t1, t2;
 #
 # BUG#46384 - mysqld segfault when trying to create table with same 
@@ -1004,29 +1004,29 @@ End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (a int, b int, primary key (a));
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t2;
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
@@ -1806,7 +1806,7 @@ drop table t1;
 create table if not exists t1 (a int unique, b int)
 ignore select 1 as a, 1 as b union select 1 as a, 2 as b;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'a'
+Warning	1062	Duplicate entry '1' for key 't1.a'
 select * from t1;
 a	b
 1	1

@@ -15,7 +15,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 reset master;
 insert into t2 values (bug23333(),1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN

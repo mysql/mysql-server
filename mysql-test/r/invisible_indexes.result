@@ -228,21 +228,21 @@ b INT PRIMARY KEY AUTO_INCREMENT );
 CREATE TABLE t5 ( a INT, b INT, c INT, UNIQUE KEY (a, b, c) INVISIBLE );
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't1.a'
 ALTER TABLE t2 ALTER INDEX a INVISIBLE;
 INSERT INTO t2 VALUES (1);
 INSERT INTO t2 VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't2.a'
 INSERT INTO t3(a) VALUES (NULL);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t4(a) VALUES (NULL);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t4(a) VALUES (1);
 INSERT INTO t4(a) VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't4.a'
 INSERT INTO t5 VALUES (1, 2, 3);
 INSERT INTO t5 VALUES (1, 2, 3);
-ERROR 23000: Duplicate entry '1-2-3' for key 'a'
+ERROR 23000: Duplicate entry '1-2-3' for key 't5.a'
 DROP TABLE t1, t2, t3, t4, t5;
 #
 # Bug#23256900: WL#8697: ASSERTION

@@ -131,7 +131,7 @@ a	b
 2	3
 3	4
 UPDATE t SET b = 5 WHERE b - a = 1;
-ERROR 23000: Duplicate entry '7' for key 'c'
+ERROR 23000: Duplicate entry '7' for key 't.c'
 SELECT a, b FROM t;
 a	b
 1	2

@@ -343,7 +343,7 @@ row_count()
 3
 insert ignore into t1 values (1, 1);
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 select row_count();
 row_count()
 -1
@@ -642,8 +642,8 @@ INSERT IGNORE INTO t VALUES (1),(1);
 affected rows: 0
 info: Records: 2  Duplicates: 2  Warnings: 2
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't.PRIMARY'
 DROP TABLE t;
 affected rows: 0
 #

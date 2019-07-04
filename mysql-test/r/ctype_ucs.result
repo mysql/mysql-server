@@ -4312,7 +4312,7 @@ hex(char(0x01020304 using ucs2))
 CREATE TABLE t1 (f1 CHAR(255) unicode);
 INSERT INTO t1 values ('abc'),('bcd'),('abc');
 ALTER TABLE t1 ADD UNIQUE Index_1 (f1);
-ERROR 23000: Duplicate entry 'abc' for key 'Index_1'
+ERROR 23000: Duplicate entry 'abc' for key 't1.Index_1'
 DROP TABLE t1;
 #
 # Test how character set works with date/time

@@ -48,7 +48,7 @@ c4 VARCHAR(21) AS (CONCAT(c2,c3)) STORED UNIQUE
 INSERT INTO st3(c2,c3) VALUES('first','insert');
 INSERT INTO st3(c2,c3) VALUES('second','insert');
 INSERT INTO st3(c2,c3) VALUES('first','insert');
-ERROR 23000: Duplicate entry 'firstinsert' for key 'c4'
+ERROR 23000: Duplicate entry 'firstinsert' for key 'st3.c4'
 XA START 'xstatement';
 UPDATE st3 SET c3='update' WHERE c2='first';
 UPDATE st3 SET c3='update' WHERE c2='second';

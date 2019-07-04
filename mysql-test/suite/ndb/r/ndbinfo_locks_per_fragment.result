@@ -587,7 +587,7 @@ ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_w
 ****************************************************
 Insert of existing row
 insert into test.t1 values (1,1,1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 Expect : Nothing
 ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
 0	0	0	0	0	0	0	0	User table	1

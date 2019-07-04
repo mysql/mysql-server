@@ -731,12 +731,12 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
@@ -755,7 +755,7 @@ a	b
 100	100
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t2;
@@ -784,7 +784,7 @@ a	b
 100	100
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
@@ -1642,14 +1642,14 @@ k	a	c
 2	7	NULL
 insert ignore into t2 values (null,6,1),(10,8,1);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'idx_1'
+Warning	1062	Duplicate entry '6' for key 't2.idx_1'
 select last_insert_id();
 last_insert_id()
 0
 insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'idx_1'
-Warning	1062	Duplicate entry '8' for key 'idx_1'
+Warning	1062	Duplicate entry '6' for key 't2.idx_1'
+Warning	1062	Duplicate entry '8' for key 't2.idx_1'
 select last_insert_id();
 last_insert_id()
 11

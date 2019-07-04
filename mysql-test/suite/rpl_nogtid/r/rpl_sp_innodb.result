@@ -105,10 +105,10 @@ begin
 insert into t2 values(20),(20);
 end|
 call foo4();
-ERROR 23000: Duplicate entry '20' for key 'a'
+ERROR 23000: Duplicate entry '20' for key 't2.a'
 show warnings;
 Level	Code	Message
-Error	1062	Duplicate entry '20' for key 'a'
+Error	1062	Duplicate entry '20' for key 't2.a'
 select * from t2;
 a
 select * from t2;
@@ -246,9 +246,9 @@ insert into t2 values(x),(x);
 return 10;
 end|
 do fn1(100);
-ERROR 23000: Duplicate entry '100' for key 'a'
+ERROR 23000: Duplicate entry '100' for key 't2.a'
 select fn1(20);
-ERROR 23000: Duplicate entry '20' for key 'a'
+ERROR 23000: Duplicate entry '20' for key 't2.a'
 select * from t2;
 a
 select * from t2;

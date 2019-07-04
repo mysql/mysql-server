@@ -833,6 +833,6 @@ INSERT INTO t1 (col1, col2) VALUES (2 , 'A');
 ALTER TABLE t1 ADD KEY idx (col2(10));
 INSERT INTO t1 (col1, col2) VALUES (2 , 'A');
 ALTER TABLE t1 DROP KEY idx, ADD UNIQUE KEY uidx (col1);
-ERROR 23000: Duplicate entry '2' for key 'uidx'
+ERROR 23000: Duplicate entry '2' for key 't1.uidx'
 DELETE FROM t1 WHERE col1 = 2;
 DROP TABLE t1;

@@ -106,7 +106,7 @@ CREATE TABLE t1 (a BINARY(16) PRIMARY KEY);
 INSERT INTO t1 VALUES (AES_ENCRYPT('a','a'));
 # must fail
 INSERT INTO t1 VALUES (AES_ENCRYPT('a','a'));
-ERROR 23000: Duplicate entry '{ W]\xA1\x06u\x9D\xBD\xB1\xA3.\xE2\xD9\xA7t' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '{ W]\xA1\x06u\x9D\xBD\xB1\xA3.\xE2\xD9\xA7t' for key 't1.PRIMARY'
 # must pass
 INSERT INTO t1 VALUES (AES_ENCRYPT('b','a'));
 # must return 1

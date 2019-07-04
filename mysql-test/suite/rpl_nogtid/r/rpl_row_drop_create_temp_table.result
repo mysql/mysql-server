@@ -545,7 +545,7 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (1), (1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 'nt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -570,7 +570,7 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO tt_error_1() VALUES (1), (1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 'tt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -591,7 +591,7 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (2), (2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 'nt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -963,7 +963,7 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (3), (3);
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '3' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -987,7 +987,7 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO tt_error_1() VALUES (2), (2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 'tt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -1007,7 +1007,7 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (4), (4);
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -1398,7 +1398,7 @@ CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
 DROP TEMPORARY TABLE tt_tmp_1;
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO nt_error_1() VALUES (5), (5);
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 'nt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -1416,7 +1416,7 @@ CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
 DROP TEMPORARY TABLE tt_tmp_1;
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO tt_error_1() VALUES (3), (3);
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '3' for key 'tt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -1429,7 +1429,7 @@ CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
 DROP TEMPORARY TABLE tt_tmp_1;
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO nt_error_1() VALUES (6), (6);
-ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '6' for key 'nt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -1480,7 +1480,7 @@ CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
 DROP TEMPORARY TABLE tt_tmp_1;
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO nt_error_1() VALUES (7), (7);
-ERROR 23000: Duplicate entry '7' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '7' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -1502,7 +1502,7 @@ CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
 DROP TEMPORARY TABLE tt_tmp_1;
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO tt_error_1() VALUES (4), (4);
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 'tt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	The creation of some temporary tables could not be rolled back.
@@ -1518,7 +1518,7 @@ CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
 DROP TEMPORARY TABLE tt_tmp_1;
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO nt_error_1() VALUES (8), (8);
-ERROR 23000: Duplicate entry '8' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '8' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -1619,7 +1619,7 @@ INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (9), (9);
-ERROR 23000: Duplicate entry '9' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '9' for key 'nt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp Ne C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -1641,7 +1641,7 @@ INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_error_1() VALUES (5), (5);
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 'tt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp Te C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -1659,7 +1659,7 @@ INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (10), (10);
-ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '10' for key 'nt_error_1.PRIMARY'
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
@@ -1762,7 +1762,7 @@ INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (11), (11);
-ERROR 23000: Duplicate entry '11' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '11' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -1786,7 +1786,7 @@ INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_error_1() VALUES (6), (6);
-ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '6' for key 'tt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -1806,7 +1806,7 @@ INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (12), (12);
-ERROR 23000: Duplicate entry '12' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '12' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back

@@ -123,7 +123,7 @@ a
 17
 insert ignore into t1 values (15), (NULL);
 Warnings:
-Warning	1062	Duplicate entry '15' for key 'PRIMARY'
+Warning	1062	Duplicate entry '15' for key 't1.PRIMARY'
 select * from t1 order by a;
 a
 4
@@ -421,7 +421,7 @@ a
 insert into t1 values (35);
 insert into t1 values (NULL);
 insert into t1 values (NULL);
-ERROR 23000: Duplicate entry '35' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '35' for key 't1.PRIMARY'
 select * from t1 order by a;
 a
 1
@@ -539,24 +539,24 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
 SELECT id FROM t1;
 id
 1
 DELETE from t1;
 INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
 SELECT id from t1;
 id
 3
@@ -582,5 +582,5 @@ a
 19
 set @@insert_id=1;
 insert into t1 values(null);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't1.a'
 drop table t1;

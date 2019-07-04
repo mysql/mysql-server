@@ -8254,7 +8254,7 @@ f1	f2
 2	two
 4	four
 INSERT INTO v1 VALUES(2,'two');
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 INSERT INTO v1 VALUES(3,'three');
 affected rows: 1
 INSERT INTO v1 VALUES(6,'six');
@@ -8273,7 +8273,7 @@ f1	f2
 3	three
 4	four
 UPDATE v1 SET f1 = 2 WHERE f1 = 3;
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 UPDATE v1 SET f2 = 'number' WHERE f1 = 3;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
@@ -22472,7 +22472,7 @@ INSERT INTO v1 SET f2 = 'ABC';
 Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 't1.PRIMARY'
 SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL
@@ -22543,7 +22543,7 @@ INSERT INTO v1 SET f2 = 'ABC';
 Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 't1.PRIMARY'
 SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL

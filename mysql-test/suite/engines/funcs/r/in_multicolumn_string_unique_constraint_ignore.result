@@ -9,13 +9,13 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-abc' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-def-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 abc	abc	abc
@@ -36,13 +36,13 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-abc' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-def-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 abc	abc	abc
@@ -63,13 +63,13 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-abc' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-def-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 abc#######	abc#######	abc#######
@@ -90,13 +90,13 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-abc' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-abc-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT IGNORE INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 Warnings:
-Warning	1062	Duplicate entry 'abc-def-def' for key 'c1'
+Warning	1062	Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 abc	abc	abc

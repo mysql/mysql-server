@@ -915,10 +915,10 @@ drop table t1,t2;
 create table t1 (a int not null primary key, b int not null) engine=ndb;
 insert into t1 values (1,10), (2,20), (3,30);
 insert into t1 set a=1, b=100;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 insert ignore into t1 set a=1, b=100;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 select * from t1 order by a;
 a	b
 1	10
@@ -936,7 +936,7 @@ create table t2 (c int not null primary key, d int not null) engine=ndb;
 insert into t1 values (1,10), (2,10), (3,30), (4, 30);
 insert into t2 values (1,10), (2,10), (3,30), (4, 30);
 update t1 set a = 1 where a = 3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select * from t1 order by a;
 a	b
 1	10
@@ -951,7 +951,7 @@ a	b
 3	30
 4	1
 update t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select * from t1 order by a;
 a	b
 1	10
@@ -960,8 +960,8 @@ a	b
 4	1
 update ignore t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 select * from t1 order by a;
 a	b
 1	10

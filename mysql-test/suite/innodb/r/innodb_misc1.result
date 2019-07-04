@@ -38,7 +38,7 @@ key (rowid), unique(val)) engine=innodb;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
-ERROR 23000: Duplicate entry '1' for key 'val'
+ERROR 23000: Duplicate entry '1' for key 't1.val'
 select * from t1;
 rowid	val
 3	1
@@ -48,7 +48,7 @@ create table t1 (a int not null auto_increment primary key, val int) engine=Inno
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
 insert into t1 values (2, 2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 insert into t1 (val) value (3);
 select * from t1;
 a	val
@@ -298,13 +298,13 @@ Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 't2.PRIMARY'
 insert into t2 values (0x41),(0x4120);
 insert into t3 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A ' for key 't3.PRIMARY'
 insert into t3 values (0x41),(0x4100);
 insert into t4 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 't4.PRIMARY'
 insert into t4 values (0x41),(0x4100);
 select hex(s1) from t1;
 hex(s1)

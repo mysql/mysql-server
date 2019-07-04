@@ -411,7 +411,7 @@ set y = x;
 end|
 set @x = 0|
 call bug3279(@x)|
-ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '6' for key 't3.PRIMARY'
 select @x|
 @x
 0
@@ -1877,10 +1877,10 @@ SHOW WARNINGS;
 Level	Code	Message
 CALL p2();
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;

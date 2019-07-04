@@ -35,14 +35,14 @@ EXECUTE stmt4 USING @val;
 SET @val=6;
 EXECUTE stmt4 USING @val;
 EXECUTE stmt4 USING @val;
-ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '6' for key 't1.PRIMARY'
 PREPARE stmt5 FROM "UPDATE t1 SET a=a+?";
 SET @val=10;
 EXECUTE stmt5 USING@val;
 PREPARE stmt FROM "UPDATE t1 SET a=11 WHERE a=?";
 SET @val=12;
 EXECUTE stmt USING@val;
-ERROR 23000: Duplicate entry '11' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '11' for key 't1.PRIMARY'
 PREPARE stmt6 FROM "DELETE from t1 WHERE a=?";
 SET @val=11;
 EXECUTE stmt6 USING @val;

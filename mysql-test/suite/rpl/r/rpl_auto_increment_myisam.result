@@ -94,13 +94,13 @@ a
 504
 set @@insert_id=600;
 insert into t1 values(600),(NULL),(NULL);
-ERROR 23000: Duplicate entry '600' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '600' for key 't1.PRIMARY'
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
 Warnings:
-Warning	1062	Duplicate entry '600' for key 'PRIMARY'
-Warning	1062	Duplicate entry '600' for key 'PRIMARY'
-Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+Warning	1062	Duplicate entry '600' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '600' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '600' for key 't1.PRIMARY'
 select * from t1;
 a
 1
@@ -166,7 +166,7 @@ set auto_increment_offset=4;
 insert into t1 values(null);
 insert into t1 values(null);
 insert into t1 values(null);
-ERROR 23000: Duplicate entry '125' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '125' for key 't1.PRIMARY'
 select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t1 order by a;
 a	mod(a-@@auto_increment_offset,@@auto_increment_increment)
 103	0

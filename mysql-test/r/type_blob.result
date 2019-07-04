@@ -555,9 +555,9 @@ l	longblob	NULL	YES		NULL		select,insert,update,references
 drop table t1;
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20))) charset latin1;
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
-ERROR 23000: Duplicate entry 'Chevy ' for key 'txt_index'
+ERROR 23000: Duplicate entry 'Chevy ' for key 't1.txt_index'
 insert into t1 (txt) values ('Chevy'), ('CHEVY');
-ERROR 23000: Duplicate entry 'CHEVY' for key 'txt_index'
+ERROR 23000: Duplicate entry 'CHEVY' for key 't1.txt_index'
 alter table t1 drop index txt_index, add index txt_index (txt(20));
 insert into t1 (txt) values ('Chevy ');
 select * from t1 where txt='Chevy';

@@ -3894,17 +3894,21 @@ const char *table_case_name(const HA_CREATE_INFO *info, const char *name) {
   @param msg      Error message template to which key value should be
                   added.
   @param errflag  Flags for my_error() call.
+  @param org_table_name  The original table name (if any)
 */
 
-void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag) {
+void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag,
+                        const char *org_table_name) {
   /* Write the duplicated key in the error message */
   char key_buff[MAX_KEY_LENGTH];
   String str(key_buff, sizeof(key_buff), system_charset_info);
+  std::string key_name;
 
   if (key == NULL) {
     /* Key is unknown */
+    key_name = "*UNKNOWN*";
     str.copy("", 0, system_charset_info);
-    my_printf_error(ER_DUP_ENTRY, msg, errflag, str.c_ptr(), "*UNKNOWN*");
+
   } else {
     /* Table is opened and defined at this point */
     key_unpack(&str, table, key);
@@ -3913,8 +3917,16 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag) {
       str.length(max_length - 4);
       str.append(STRING_WITH_LEN("..."));
     }
-    my_printf_error(ER_DUP_ENTRY, msg, errflag, str.c_ptr_safe(), key->name);
+    if (org_table_name != nullptr)
+      key_name = org_table_name;
+    else
+      key_name = table->s->table_name.str;
+    key_name += ".";
+
+    key_name += key->name;
   }
+
+  my_printf_error(ER_DUP_ENTRY, msg, errflag, str.c_ptr(), key_name.c_str());
 }
 
 /**
@@ -3924,9 +3936,11 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag) {
   @sa print_keydup_error(table, key, msg, errflag).
 */
 
-void print_keydup_error(TABLE *table, KEY *key, myf errflag) {
+void print_keydup_error(TABLE *table, KEY *key, myf errflag,
+                        const char *org_table_name) {
   print_keydup_error(table, key,
-                     ER_THD(current_thd, ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+                     ER_THD(current_thd, ER_DUP_ENTRY_WITH_KEY_NAME), errflag,
+                     org_table_name);
 }
 
 /**

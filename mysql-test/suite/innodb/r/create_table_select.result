@@ -32,7 +32,7 @@ a INT PRIMARY KEY,
 b INT
 ) IGNORE SELECT a,b FROM t0 ORDER BY a,b;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 SELECT * FROM t1;
 a	b
 1	1
@@ -49,7 +49,7 @@ CREATE TABLE t1(
 a INT PRIMARY KEY,
 b INT
 ) SELECT a,b FROM t0 ORDER BY a,b;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 DROP TABLE t0;
 DROP VIEW v0;
 CREATE TABLE t1(a INT NOT NULL PRIMARY KEY, b INT NOT NULL UNIQUE);

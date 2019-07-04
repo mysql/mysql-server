@@ -199,7 +199,7 @@ RUN INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val1","col2":101,"_id":
 1 rows affected
 RUN INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val1","col2":102,"_id":2}')
 While executing INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val1","col2":102,"_id":2}'):
-Got expected error: Duplicate entry 'val1' for key 'col1_index' (code 1062)
+Got expected error: Duplicate entry 'val1' for key 'table2.col1_index' (code 1062)
 RUN INSERT INTO xplugintest.table2(doc) VALUES('{"col2":103,"_id":3}')
 While executing INSERT INTO xplugintest.table2(doc) VALUES('{"col2":103,"_id":3}'):
 Got expected error: Column '$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9' cannot be null (code 1048)

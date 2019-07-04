@@ -24,7 +24,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 ############################################################
 # 3. Insert must fail with duplicate entry.
 INSERT INTO t1 VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES (2);
 
 ############################################################

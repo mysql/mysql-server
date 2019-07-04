@@ -167,11 +167,11 @@ INSERT INTO t2 VALUES (3,4433,10005,493,500);
 INSERT INTO t2 VALUES (3,4433,10005,492,500);
 UPDATE IGNORE t2,t1 set t2.colE = t2.colE + 1,colF=0 WHERE t1.colA = t2.colA AND (t1.colB & 4096) > 0 AND (colE + 1) < colF;
 Warnings:
-Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-496' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-497' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-493' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-494' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-495' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-496' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-497' for key 't2.PRIMARY'
 SELECT * FROM t2;
 colC	colA	colD	colE	colF
 3	4433	10005	492	500

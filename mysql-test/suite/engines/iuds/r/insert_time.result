@@ -26,9 +26,9 @@ INSERT INTO t2 VALUES('8:3:2','8:3:2','2009-01-18'),('1112','1112','2009-01-19')
 INSERT INTO t3 VALUES('8:3:2','8:3:2','2009-01-18'),('1112','1112','2009-01-19'),(11,11,'2009-01-20'),('00:12:30','00:12:30','2009-01-23'),('9:00:45','9:00:45','2009-01-24'),('9:36:00','9:36:00','2009-01-25');
 INSERT INTO t4 VALUES('8:3:2','8:3:2','2009-01-18'),('1112','1112','2009-01-19'),(11,11,'2009-01-20'),('00:12:30','00:12:30','2009-01-23'),('9:00:45','9:00:45','2009-01-24'),('9:36:00','9:36:00','2009-01-25');
 INSERT INTO t1 VALUES('-850:00:00','-850:00:00','2009-01-21');
-ERROR 23000: Duplicate entry '-838:59:59' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '-838:59:59' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES('850:00:00','850:00:00','2009-01-21');
-ERROR 23000: Duplicate entry '838:59:59' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '838:59:59' for key 't1.PRIMARY'
 DELETE FROM t1 WHERE c1='-838:59:59' AND c2='-838:59:59';
 DELETE FROM t1 WHERE c1='838:59:59' AND c2='838:59:59';
 INSERT INTO t1 VALUES('-850:00:00','-850:00:00','2009-01-21'),('850:00:00','850:00:00','2009-01-21');
@@ -5052,25 +5052,25 @@ cast('24:00:00' as time) = (select f1 from t5)
 1
 drop table t5;
 INSERT INTO t1(c1,c2) VALUES('10:22:33','10:22:34') /* throws error as row exists with c1='10:22:33' */;
-ERROR 23000: Duplicate entry '10:22:33' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '10:22:33' for key 't1.PRIMARY'
 INSERT INTO t2(c1,c2) VALUES('12:34:56.78','12:34:56.78') /* throws error as row exists with c1='12:34:56.78',c2='12:34:56.78' */;
-ERROR 23000: Duplicate entry '12:34:57-12:34:57' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '12:34:57-12:34:57' for key 't2.PRIMARY'
 INSERT INTO t1(c1,c2) VALUES('10:22:34','34 9:23') /* throws error as row exists with c2='34 9:23' */;
-ERROR 23000: Duplicate entry '825:23:00' for key 'c2'
+ERROR 23000: Duplicate entry '825:23:00' for key 't1.c2'
 INSERT INTO t3(c1,c2) VALUES('34 9:23','34 9:23') /* throws error as row exists with c1='34 9:23',c2='34 9:23' */;
-ERROR 23000: Duplicate entry '825:23:00-825:23:00' for key 'idx'
+ERROR 23000: Duplicate entry '825:23:00-825:23:00' for key 't3.idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('10:22:33','10:22:34') /* doesn't throw error */;
 Warnings:
-Warning	1062	Duplicate entry '10:22:33' for key 'PRIMARY'
+Warning	1062	Duplicate entry '10:22:33' for key 't1.PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES('12:34:56.78','12:34:56.78') /*doesn't throw error */;
 Warnings:
-Warning	1062	Duplicate entry '12:34:57-12:34:57' for key 'PRIMARY'
+Warning	1062	Duplicate entry '12:34:57-12:34:57' for key 't2.PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES('10:22:34','34 9:23') /*doesn't throw error */;
 Warnings:
-Warning	1062	Duplicate entry '825:23:00' for key 'c2'
+Warning	1062	Duplicate entry '825:23:00' for key 't1.c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES('34 9:23','34 9:23') /*doesn't throw error */;
 Warnings:
-Warning	1062	Duplicate entry '825:23:00-825:23:00' for key 'idx'
+Warning	1062	Duplicate entry '825:23:00-825:23:00' for key 't3.idx'
 SELECT * FROM t1 WHERE c1='10:23:33' /* no rows */;
 c1	c2	c3
 INSERT INTO t1(c1) VALUES('10:22:33') ON DUPLICATE KEY UPDATE c1='10:23:33';

@@ -174,13 +174,13 @@ FOR EACH ROW BEGIN
 INSERT INTO t3 VALUES(4);
 END|
 INSERT IGNORE INTO t1 VALUES(3);
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 't3.PRIMARY'
 SELECT * FROM t1;
 a
 1
 2
 UPDATE IGNORE t1 SET a=3 WHERE a=2;
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't3.PRIMARY'
 SELECT * FROM t1;
 a
 1
@@ -196,7 +196,7 @@ FOR EACH ROW BEGIN
 INSERT IGNORE INTO t3 VALUES(4);
 END|
 INSERT INTO t1 VALUES(2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 SELECT * FROM t3;
 c
 1
@@ -206,7 +206,7 @@ c
 5
 INSERT IGNORE INTO t1 VALUES(2),(3);
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2' for key 't1.PRIMARY'
 SELECT * FROM t1;
 a
 1
@@ -222,7 +222,7 @@ c
 6
 UPDATE IGNORE t1 SET a=3 WHERE a=2;
 Warnings:
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't1.PRIMARY'
 DROP TRIGGER post_insert_t1;
 DROP TRIGGER post_update_t1;
 DROP TABLE t2,t1,t3;
@@ -399,11 +399,11 @@ LOAD_FILE('MYSQLTEST_VARDIR/tmp/wl6614.txt')
 4
 
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' INTO TABLE t2;
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't2.PRIMARY'
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' IGNORE INTO TABLE t2;
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'PRIMARY'
-Warning	1062	Duplicate entry '4' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '4' for key 't2.PRIMARY'
 SELECT * FROM t2;
 a
 1
@@ -414,8 +414,8 @@ DELETE FROM t2;
 INSERT INTO t2 VALUES (2),(4);
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' IGNORE INTO TABLE t2;
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'PRIMARY'
-Warning	1062	Duplicate entry '4' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '4' for key 't2.PRIMARY'
 SELECT * from t2;
 a
 1
@@ -822,7 +822,7 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 CREATE TABLE t2 (a int default 0, b int primary key) engine=innodb;
 INSERT INTO t2 VALUES (0, 17);
 LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t2 (a, @b) SET b= @b + 2;
-ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '17' for key 't2.PRIMARY'
 DROP TABLE t2;
 SET sql_mode= @org_mode;
 #

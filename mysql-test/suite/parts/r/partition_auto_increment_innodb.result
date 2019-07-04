@@ -1434,7 +1434,7 @@ PARTITIONS 3 */
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 INSERT INTO t1 VALUES (5,'a5');
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 't1.PRIMARY'
 # Check auto increment INSERT
 INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
 SELECT * FROM t1 ORDER BY col_1_int;
@@ -1476,7 +1476,7 @@ col_1_int	col_2_varchar
 4	a4
 5	a5
 INSERT INTO t1 VALUES (5,'a5');
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 't1.PRIMARY'
 # Check auto increment INSERT
 INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
 SELECT * FROM t1 ORDER BY col_1_int;
@@ -1533,7 +1533,7 @@ PARTITIONS 3 */
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 INSERT INTO t1 VALUES (5,'a5');
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 't1.PRIMARY'
 # Check auto increment INSERT
 INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
 SELECT * FROM t1 ORDER BY col_1_int;
@@ -1579,7 +1579,7 @@ col_1_int	col_2_varchar
 4	a4
 5	a5
 INSERT INTO t1 VALUES (5,'a5');
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 't1.PRIMARY'
 # Check auto increment INSERT
 INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
 SELECT * FROM t1 ORDER BY col_1_int;

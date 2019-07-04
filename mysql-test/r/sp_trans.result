@@ -82,7 +82,7 @@ end if;
 return i;
 end|
 insert into t1 values (bug10015_5(4)), (bug10015_5(5))|
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 select * from t1|
 id
 1

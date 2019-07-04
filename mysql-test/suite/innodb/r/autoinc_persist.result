@@ -1011,7 +1011,7 @@ INSERT INTO t31 VALUES(1), (2);
 ALTER TABLE t31 ADD b INT AUTO_INCREMENT PRIMARY KEY;
 INSERT INTO t31 VALUES(3, 0), (4, NULL), (5, NULL);
 INSERT INTO t31 VALUES(6, 0);
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 't31.PRIMARY'
 SELECT * FROM t31;
 a	b
 3	0
@@ -1085,7 +1085,7 @@ KEY(b)) ENGINE = InnoDB;
 INSERT INTO t33 VALUES(1, NULL);
 INSERT INTO t33 VALUES(2, NULL);
 INSERT INTO t33 VALUES(2, NULL);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't33.PRIMARY'
 INSERT INTO t33 VALUES(3, NULL);
 SELECT MAX(b) AS `Expect 4` FROM t33;
 Expect 4
@@ -1101,7 +1101,7 @@ set global innodb_flush_log_at_trx_commit=1;
 START TRANSACTION;
 UPDATE t33 SET a = 10 WHERE a = 1;
 INSERT INTO t33 VALUES(2, NULL);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't33.PRIMARY'
 COMMIT;
 # Kill and restart
 INSERT INTO t33 VALUES(3, NULL);

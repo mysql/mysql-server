@@ -46,7 +46,7 @@ Handler_write	1
 # 1 commit
 FLUSH STATUS;
 INSERT INTO t1 VALUES (1, 'First row, duplicate');
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
 Handler_rollback	1
@@ -1927,7 +1927,7 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (78, "No duplicate")
 ON DUPLICATE KEY UPDATE a = a + 13,
 b = CONCAT(b, ", INSERT_DUP_KEY_UPDATE fail?");
-ERROR 23000: Duplicate entry '91' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '91' for key 't1.PRIMARY'
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
 Handler_read_key	1
@@ -1985,7 +1985,7 @@ Handler_write	1
 FLUSH STATUS;
 INSERT INTO t1 VALUES (104, "No duplicate 104 + 1")
 ON DUPLICATE KEY UPDATE a = a + 1;
-ERROR 23000: Duplicate entry '105' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '105' for key 't1.PRIMARY'
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
 Handler_read_key	1

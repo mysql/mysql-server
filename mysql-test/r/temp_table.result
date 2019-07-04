@@ -82,7 +82,7 @@ drop table t1,t2;
 create temporary table t1 (a int not null);
 insert into t1 values (1),(1);
 alter table t1 add primary key (a);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 drop table t1;
 create temporary table v1 as select 'This is temp. table' A;
 create view v1 as select 'This is view' A;

@@ -181,7 +181,7 @@ i	f
 2	2.3
 3	3.4
 insert into t1 values (4, 4.5), (1, 5.6);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select * from t1;
 i	f
 1	1.2
@@ -196,7 +196,7 @@ i	f
 4	4.5
 5	5.6
 update t1 set i = 1 where i = 4;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 truncate table t1;
 insert into t1 values (1, 1.2), (3, 2.3), (5, 3.4), (6, 7.4);
 select * from t1;
@@ -206,7 +206,7 @@ i	f
 5	3.4
 6	7.4
 update t1 set i = i + 1;
-ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '6' for key 't1.PRIMARY'
 select * from t1;
 i	f
 1	1.2

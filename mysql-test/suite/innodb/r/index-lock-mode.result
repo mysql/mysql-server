@@ -11,6 +11,6 @@ insert into t1(f1, f2) values (1, 10);
 insert into t1(f1, f2) values (2, 55);
 set debug = '+d,idx_mimic_not_committed';
 update t1 set f2 = 55 where f1 = 1;
-ERROR 23000: Duplicate entry '55' for key 'k1'
+ERROR 23000: Duplicate entry '55' for key 't1.k1'
 set debug = '-d,idx_mimic_not_committed';
 drop table t1;

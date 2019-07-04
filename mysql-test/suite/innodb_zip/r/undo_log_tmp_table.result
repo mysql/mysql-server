@@ -739,29 +739,29 @@ ALTER TABLE t2_temp ADD PRIMARY KEY (c1);
 ALTER TABLE t4_temp DROP PRIMARY KEY;
 ALTER TABLE t4_temp ADD PRIMARY KEY (c1);
 INSERT INTO t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '20' for key 't1_temp.PRIMARY'
 insert ignore into t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
+Warning	1062	Duplicate entry '20' for key 't1_temp.PRIMARY'
 INSERT INTO t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '20' for key 't2_temp.PRIMARY'
 insert ignore into t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
+Warning	1062	Duplicate entry '20' for key 't2_temp.PRIMARY'
 INSERT INTO t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '20' for key 't4_temp.PRIMARY'
 insert ignore into t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
+Warning	1062	Duplicate entry '20' for key 't4_temp.PRIMARY'
 INSERT INTO t1_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '20' for key 't1_temp.PRIMARY'
 INSERT INTO t2_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '20' for key 't2_temp.PRIMARY'
 INSERT INTO t4_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '20' for key 't4_temp.PRIMARY'
 set AUTOCOMMIT = 1;
 SELECT c1,c2 FROM t1_temp WHERE c1 in (20,1);
 c1	c2
@@ -786,13 +786,13 @@ c1	c2	c3	c4	c5	c6	c7	c9
 20	1	a	a	a	a	a	100.550
 update ignore t1_temp set c1 = 20 WHERE c1 = 140 ;
 Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
+Warning	1062	Duplicate entry '20' for key 't1_temp.PRIMARY'
 update ignore t2_temp set c1 = 20 WHERE c1 = 140 ;
 Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
+Warning	1062	Duplicate entry '20' for key 't2_temp.PRIMARY'
 update ignore t4_temp set c1 = 20 WHERE c1 = 140 ;
 Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
+Warning	1062	Duplicate entry '20' for key 't4_temp.PRIMARY'
 SELECT count(*) FROM t1_temp WHERE c1 = 140;
 count(*)
 1

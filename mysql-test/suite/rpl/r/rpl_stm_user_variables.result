@@ -219,7 +219,7 @@ CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW SET @aux = -1 ;
 SET @aux = 10294947273192243200;
 SET @aux1= @aux;
 INSERT INTO t1 VALUES (@aux) , (@aux1);
-ERROR 23000: Duplicate entry '2147483647' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2147483647' for key 't1.PRIMARY'
 include/sync_slave_sql_with_master.inc
 ## assertion: master and slave tables are in sync
 include/diff_tables.inc [master:t1,slave:t1]

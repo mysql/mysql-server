@@ -16,7 +16,7 @@ SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 SELECT * FROM t1 FOR UPDATE;
 SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select1';
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '3' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES(3,3) ON DUPLICATE KEY UPDATE b=b+10;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 COMMIT;
@@ -53,7 +53,7 @@ SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select4';
 b
 24
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '3' for key 't1.PRIMARY'
 SET DEBUG_SYNC='write_row_noreplace SIGNAL insert5 WAIT_FOR select5';
 LOAD DATA INFILE '../../std_data/loaddata5.dat' IGNORE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (a, b);
 SET DEBUG_SYNC='now WAIT_FOR insert5';
@@ -68,7 +68,7 @@ SELECT * FROM t1 WHERE a=3 FOR UPDATE;
 SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select5';
 Warnings:
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't1.PRIMARY'
 a	b
 3	24
 SET DEBUG_SYNC='write_row_replace SIGNAL insert6 WAIT_FOR select6';

@@ -1376,7 +1376,7 @@ select * from t1 where b=1 and a = -5;
 a	b	c	d	t
 
 insert into t1 values (1,1,1,1,'');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 
 replace t1 values (-1,-1,-1,-1,'');
 replace t1 values (1,1,5,500,'');

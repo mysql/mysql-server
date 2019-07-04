@@ -106,7 +106,7 @@ While executing INSERT into Categories values (3,'Home'):
 Got expected error: Column count doesn't match value count at row 1 (code 1136)
 RUN INSERT into Categories values (1,'Home','Home related category',1,235.15)
 While executing INSERT into Categories values (1,'Home','Home related category',1,235.15):
-Got expected error: Duplicate entry '1' for key 'PRIMARY' (code 1062)
+Got expected error: Duplicate entry '1' for key 'Categories.PRIMARY' (code 1062)
 RUN INSERT into Categories values ('5','Kitchen','Kitchen related category','TinyInt',999.00)
 While executing INSERT into Categories values ('5','Kitchen','Kitchen related category','TinyInt',999.00):
 Got expected error: Incorrect integer value: 'TinyInt' for column 'CategoryIMEI' at row 1 (code 1366)

@@ -702,9 +702,9 @@ ALTER TABLE t1 ADD UNIQUE INDEX vgc1 (vgc1);
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
 ALTER TABLE t1 ADD UNIQUE INDEX sgc1 (sgc1);
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 / col3) VIRTUAL;
-ERROR 23000: Duplicate entry '0' for key 'vgc1'
+ERROR 23000: Duplicate entry '0' for key 't1.vgc1'
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
-ERROR 23000: Duplicate entry '0' for key 'sgc1'
+ERROR 23000: Duplicate entry '0' for key 't1.sgc1'
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
 SELECT * FROM t1 order by col1;
 col1	col2	col3	col4	vgc1	sgc1

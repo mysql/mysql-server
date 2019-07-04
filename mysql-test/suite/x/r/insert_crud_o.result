@@ -757,7 +757,7 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Duplicate entry '1' for key 'PRIMARY' (code 1062)
+Got expected error: Duplicate entry '1' for key 'categories.PRIMARY' (code 1062)
 Data types corner value plus 1
 send Mysqlx.Crud.Insert {
   collection {

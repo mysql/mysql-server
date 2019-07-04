@@ -240,7 +240,7 @@ c
 3
 CREATE unique INDEX idx1 ON t(c);
 INSERT INTO t(h)VALUES ('mm');
-ERROR 23000: Duplicate entry '3' for key 'idx1'
+ERROR 23000: Duplicate entry '3' for key 't.idx1'
 DROP TABLE t;
 CREATE TABLE `t1` ( `a` INT(11) DEFAULT NULL,   `b` INT(11) DEFAULT NULL,   `c` INT(11) GENERATED ALWAYS AS (a+b) VIRTUAL,   `x` INT(11) NOT NULL,   `h` VARCHAR(10) DEFAULT NULL,   PRIMARY KEY (`x`),   KEY `idx` (`c`) ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
@@ -1355,7 +1355,7 @@ insert into t set a=1;
 alter table t add column c int generated always as (1) virtual;
 insert into t set a=2;
 alter table t add unique index(c);
-ERROR 23000: Duplicate entry '1' for key 'c'
+ERROR 23000: Duplicate entry '1' for key 't.c'
 insert into t set a=1;
 drop table t;
 create table t (
@@ -1503,7 +1503,7 @@ t'),(0,1,0,1,'yzgktb'),(0,0,0,0,'zgktb'),(0,0,0,0,'gktbkj'),(0,0,0,0,0),(0,0,1
 0,0,0,0,'mkn'),(0,0,0,0,'knbtoervql'),(0,0,1,0,1),(0,0,0,0,'nbtoerv'),(0,0,0,0
 ,'btoerv'),(0,0,1,0,'toer'),(1,0,0,0,0),(0,0,0,0,'ervq'),(0,0,0,0,'rvqlzsvasu'
 ),(0,0,0,0,'vqlzs'),(0,0,0,0,0),(0,1,0,0,'lzsvasu'),(0,0,0,0,'zsvasurq');
-ERROR 23000: Duplicate entry '00' for key 'c9k'
+ERROR 23000: Duplicate entry '00' for key 't.c9k'
 SELECT
 DISTINCT * FROM t
 FORCE KEY(PRIMARY,c3k,c3,c9k,c9)

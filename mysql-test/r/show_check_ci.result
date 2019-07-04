@@ -89,7 +89,7 @@ t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES	NULL
 t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES	NULL
 t1	1	b	2	c	A	4	NULL	NULL		BTREE			YES	NULL
 insert into t1 values (5,5,5);
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '5' for key 't1.PRIMARY'
 -- Here we enable metadata just to check that the collation of the
 -- resultset is non-binary for string type. This should be changed
 -- after Bug#29394 is implemented.

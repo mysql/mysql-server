@@ -10,12 +10,12 @@ t1	CREATE TABLE `t1` (
 SHOW TABLES;
 Tables_in_test
 t1
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 TRUNCATE TABLE t1;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '0' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '0' for key 't1.PRIMARY'
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
 0	def
