@@ -117,20 +117,28 @@ TableCollection::TableCollection(const std::vector<QEP_TAB *> &tables)
     }
 
     Table table(qep_tab);
-    if (!m_has_blob_column) {
-      for (const hash_join_buffer::Column &column : table.columns) {
-        // Field_typed_array will mask away the BLOB_FLAG for all types. Hence,
-        // we will treat all Field_typed_array as blob columns.
-        if ((column.field->flags & BLOB_FLAG) > 0 || column.field->is_array()) {
-          m_has_blob_column = true;
-          break;
-        }
+    for (const hash_join_buffer::Column &column : table.columns) {
+      // Field_typed_array will mask away the BLOB_FLAG for all types. Hence,
+      // we will treat all Field_typed_array as blob columns.
+      if ((column.field->flags & BLOB_FLAG) > 0 || column.field->is_array()) {
+        m_has_blob_column = true;
+      }
+
+      // If a column is marked as nullable, we need to copy the NULL flags.
+      if ((column.field->flags & NOT_NULL_FLAG) == 0) {
+        table.copy_null_flags = true;
+      }
+
+      // BIT fields stores some of its data in the NULL flags of the table. So
+      // if we have a BIT field, we must copy the NULL flags.
+      if (column.field->type() == MYSQL_TYPE_BIT &&
+          down_cast<const Field_bit *>(column.field)->bit_len > 0) {
+        table.copy_null_flags = true;
       }
     }
 
-    if (qep_tab->used_null_fields || qep_tab->used_uneven_bit_fields) {
+    if (table.copy_null_flags) {
       m_ref_and_null_bytes_size += qep_tab->table()->s->null_bytes;
-      table.copy_null_flags = true;
     }
 
     m_tables.push_back(table);
