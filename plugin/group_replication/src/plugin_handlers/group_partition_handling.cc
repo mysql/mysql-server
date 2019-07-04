@@ -233,11 +233,11 @@ int Group_partition_handling::partition_thread_handler() {
   mysql_mutex_lock(&run_lock);
   ph_thd->release_resources();
   global_thd_manager_remove_thd(ph_thd);
+  delete ph_thd;
   group_partition_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  delete ph_thd;
   my_thread_end();
   my_thread_exit(nullptr);
 
