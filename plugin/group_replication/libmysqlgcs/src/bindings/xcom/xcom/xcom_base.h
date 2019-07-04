@@ -222,7 +222,7 @@ app_data_ptr init_terminate_command(app_data *a);
 typedef xcom_input_request_ptr (*xcom_input_try_pop_cb)(void);
 void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop);
 /* Create a connection to the input channel's signalling socket. */
-bool xcom_input_new_signal_connection(char const *address, xcom_port port);
+bool xcom_input_new_signal_connection(void);
 /* Signal that the input channel has commands. */
 bool xcom_input_signal(void);
 /* Destroy the connection to the input channel's signalling socket. */
@@ -269,7 +269,6 @@ int xcom_client_get_synode_app_data(connection_descriptor *const fd,
                                     uint32_t group_id,
                                     synode_no_array *const synodes,
                                     synode_app_data_array *const reply);
-int xcom_client_convert_into_local_server(connection_descriptor *const fd);
 int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
                                   int force);
 

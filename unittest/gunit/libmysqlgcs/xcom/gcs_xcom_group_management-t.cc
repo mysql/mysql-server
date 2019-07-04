@@ -100,8 +100,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(get_should_exit, bool());
   MOCK_METHOD1(set_should_exit, void(bool should_exit));
 
-  MOCK_METHOD2(xcom_input_connect,
-               bool(std::string const &address, xcom_port port));
+  MOCK_METHOD0(xcom_input_connect, bool());
   MOCK_METHOD1(xcom_input_try_push, bool(app_data_ptr data));
   /* Mocking fails compilation on Windows. It attempts to copy the std::future
    * which is non-copyable. */
