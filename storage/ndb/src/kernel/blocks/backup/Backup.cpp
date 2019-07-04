@@ -4617,7 +4617,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
     lsptr[0].p = nodes.rep.data;
     lsptr[0].sz = packed_length;
     sendSignal(ref, GSN_DEFINE_BACKUP_REQ, signal,
-        DefineBackupReq::SignalLength, JBB, lsptr, 1);
+        DefineBackupReq::SignalLength_v1, JBB, lsptr, 1);
   }
 
   /**
@@ -6059,16 +6059,19 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   const Uint32 senderVersion =
       getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version;
 
-  // Backup is not allowed for mixed versions data nodes
-  ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
-  ndbrequire(signal->getNoOfSections() >= 1);
+  if (signal->getNoOfSections() >= 1)
   {
+    ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this,signal);
     handle.getSection(ptr, 0);
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(nodes.rep.data, ptr);
     releaseSections(handle);
+  }
+  else
+  {
+    nodes = req->nodes;
   }
 
   BackupRecordPtr ptr;

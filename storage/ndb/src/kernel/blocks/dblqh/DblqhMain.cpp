@@ -985,7 +985,7 @@ Dblqh::define_backup(Signal* signal)
   lsptr[0].p = nodes.rep.data;
   lsptr[0].sz = packed_length;
   sendSignal(backupRef, GSN_DEFINE_BACKUP_REQ, signal,
-       DefineBackupReq::SignalLength, JBB, lsptr, 1);
+       DefineBackupReq::SignalLength_v1, JBB, lsptr, 1);
 }
 
 void

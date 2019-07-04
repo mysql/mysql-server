@@ -53,7 +53,7 @@ class DefineBackupReq {
 
   friend bool printDEFINE_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 11);
+  STATIC_CONST( SignalLength_v1 = 11 + NdbNodeBitmask48::Size);
 
 private:
   /**
@@ -65,6 +65,12 @@ private:
   Uint32 clientRef;
   Uint32 clientData;
   Uint32 senderRef;
+
+  /**
+   * Which node(s) is participating in the backup
+   * Note: Only to support versions < 8.0.18
+   */
+  NdbNodeBitmask48 nodes;
   
   /**
    * Generated random number
