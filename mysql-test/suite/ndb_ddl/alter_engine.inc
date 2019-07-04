@@ -1,3 +1,4 @@
+--source include/have_debug.inc
 #
 # Run variations of ALTER TABLE .. ENGINE based on the
 # $engine passed by the calling test
