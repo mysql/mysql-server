@@ -3520,46 +3520,46 @@ insert into t1 values
 explain format=tree
 select * from t1 where b > 2;
 EXPLAIN
--> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=12004.40 rows=16)
+-> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=4001.60 rows=16)
 
 explain format=tree
 select * from t1 where a > 2;
 EXPLAIN
--> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)  (cost=1.31 rows=3)
+-> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)  (cost=1.61 rows=3)
 
 explain format=tree
 select * from t1 where a > 2 order by b;
 EXPLAIN
--> Sort: t1.b  (cost=1.31 rows=3)
+-> Sort: t1.b  (cost=1.61 rows=3)
     -> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0;
 EXPLAIN
--> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=3.00 rows=3)
+-> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=1.10 rows=3)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
--> Sort: t1.d  (cost=3.00 rows=3)
+-> Sort: t1.d  (cost=1.10 rows=3)
     -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)
 
 explain format=tree
 select * from t1 where b > 0 order by a;
 EXPLAIN
--> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=12004.40 rows=16)
+-> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=4001.60 rows=16)
 
 explain format=tree
 select * from t1 where b > 0 order by a desc;
 EXPLAIN
--> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=12004.40 rows=16)
+-> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=4001.60 rows=16)
 
 explain format=tree
 select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
 EXPLAIN
--> Nested loop inner join  (cost=4009.60 rows=5)
-    -> Table scan on t1, activating pushed join of 2 tables  (cost=4000.00 rows=16)
-    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=1.50 rows=1)
+-> Nested loop inner join  (cost=4014.40 rows=16)
+    -> Table scan on t1, activating pushed join of 2 tables  (cost=4001.60 rows=16)
+    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=0.50 rows=1)
 
 drop table t1;
 #
@@ -3585,7 +3585,7 @@ SELECT t1.col_varchar_256 AS field1
 FROM t1 WHERE t1.col_int_unique <> 8
 ORDER BY field1;
 EXPLAIN
--> Sort: t1.col_varchar_256  (cost=2.61 rows=6)
+-> Sort: t1.col_varchar_256  (cost=3.21 rows=6)
     -> Index range scan on t1 using ix1, with pushed condition: (t1.col_int_unique <> 8)
 
 DROP TABLE t1;
