@@ -826,10 +826,25 @@ ELSE()
 ENDIF()
 
 IF(ADD_GDB_INDEX AND
-   (CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" OR
-    CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold"))
-  STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--gdb-index")
-  STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--gdb-index")
+    (CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" OR
+      CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold"))
+  # -fuse-ld=lld is not enough to ensure that ld.lld will actually be used.
+  # On some platforms we need an extra check for -Wl,--gdb-index
+  CMAKE_PUSH_CHECK_STATE()
+  IF(CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
+    SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=lld -Wl,--gdb-index")
+  ELSE()
+    SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=gold -Wl,--gdb-index")
+  ENDIF()
+  CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_GDB_INDEX_RESULT)
+  CMAKE_POP_CHECK_STATE()
+
+  IF(CXX_LD_GDB_INDEX_RESULT)
+    STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--gdb-index")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--gdb-index")
+  ELSE()
+    MESSAGE(STATUS "Seems like linker does not support --gdb-index")
+  ENDIF()
 ENDIF()
 
 IF(LINUX)
